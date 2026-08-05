@@ -8,7 +8,6 @@ import { pitEvents, sessionResults, sessions } from "../db/schema";
 
 // Results are materialized when a session completes or through explicit
 // backfill. Read endpoints never derive incomplete live sessions.
-
 export interface ResultAggregateScope {
   gameId: GameId;
   carOrdinal?: number;
@@ -16,8 +15,6 @@ export interface ResultAggregateScope {
 }
 
 export async function getRaceResultAggregate(scope: ResultAggregateScope): Promise<RaceResultAggregate> {
-  // Query persisted evidence only; reconciliation decodes raw sessions and is
-  // intentionally excluded from this read path.
   const filters = [eq(sessions.gameId, scope.gameId)];
   if (scope.carOrdinal != null) filters.push(eq(sessions.carOrdinal, scope.carOrdinal));
   if (scope.trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, scope.trackOrdinal));
@@ -76,8 +73,6 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
 }
 
 export async function getRecentRaceResults(gameId: GameId, limit = 10): Promise<RaceResult[]> {
-  // Recent results are already reconciled durable facts; do not trigger raw
-  // telemetry decoding from a GET endpoint.
   const boundedLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
   return await getRecentSessionResults(gameId, boundedLimit) as RaceResult[];
 }

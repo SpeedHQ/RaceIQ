@@ -1,7 +1,7 @@
 "use client";
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ToolFallbackApproval } from "./tool-fallback-approval";
 import { ToolFallbackArgs, ToolFallbackContent, ToolFallbackError, ToolFallbackResult, ToolFallbackRoot, ToolFallbackTrigger } from "./tool-fallback-sections";
@@ -10,11 +10,9 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({ toolName, argsText, re
   const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
   const [open, setOpen] = useState(isRequiresAction);
-  const [prevRequiresAction, setPrevRequiresAction] = useState(isRequiresAction);
-  if (isRequiresAction !== prevRequiresAction) {
-    setPrevRequiresAction(isRequiresAction);
+  useEffect(() => {
     if (isRequiresAction) setOpen(true);
-  }
+  }, [isRequiresAction]);
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
       <ToolFallbackTrigger toolName={toolName} status={status} />

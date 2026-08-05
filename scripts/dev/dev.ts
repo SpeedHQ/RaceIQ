@@ -16,7 +16,7 @@ const onboarding = parseOnboardingOverride(process.argv.slice(2));
 
 await run(["bun", "run", "dev:proxy"]);
 
-const serverCommand = ["bun", "--watch", "run", "server/index.ts"];
+const serverCommand = ["bun", "--env-file=.env.development", "--watch", "run", "server/index.ts"];
 if (onboarding !== null) {
   serverCommand.push("--onboarding", String(onboarding));
 }

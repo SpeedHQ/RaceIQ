@@ -1,14 +1,26 @@
 ## Unreleased
 
 ### Features
-- Persisted cross-game race results, qualifying/podium/fastest-lap flags, pit ledgers, strategy availability, and idempotent historical backfill
+- Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
+- Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
+- Import MoTeC logs as normal sessions for analysis, comparison, and experiments
+- Export and import individual laps or complete sessions as portable compressed captures
+- View release history in Settings, show installed version in the sidebar, and see all release notes since the installed version
+- Move app navigation from the top bar into a left-hand sidebar, with a responsive mobile navigation drawer
+- Copy AI Compare conversations as JSON and resume or regenerate analysis chats with complete persisted history
+- Generate detailed, sector-aware lap-analysis results with consistent provider and settings handling
+- Persisted cross-game race results, qualifying/podium/fastest-lap flags, pit ledgers, strategy availability, position-timeline summaries, and idempotent historical backfill
 - Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
-- View all release notes since your installed version in the app
 
 ### Fixes
 
+- Keep unfinished game integrations and experiments out of production releases
+- Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
+- Show actionable, neutral guidance when AI provider, credentials, or model configuration is incomplete
+- Keep chat drafts, submitted prompts, loading states, and conversation history consistent across AI surfaces
+- Restore setup-seeded experiment branches and make branch deletion explicit
 - Keep iRacing lap replay within saved frame boundaries so telemetry from the following lap is not included
 - Report telemetry freshness from each source's own update time and mark incompatible clock domains as unknown instead of current
 - Highlight only one fastest lap per sector in session and live lap tables
@@ -32,7 +44,6 @@
 - Keep the Compare loading message hidden after comparison data is available
 - Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
-- Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured
 - Use semantic tabs for Analyse visualization modes and Data/Insights navigation
 - Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border
 - Keep setup track names neutral and expanded setup details free of accent backgrounds
@@ -65,6 +76,7 @@
 - Expanded visual regression coverage to 97 fixture-seeded responsive app states plus 17 Storybook states, covering every game, high-risk screens, track and experiment details, reusable primitives, navigation, dialogs, and viewport-positioned menus
 - Added a local main-versus-worktree UI comparison report using the same responsive and Storybook screenshot inventory as pull-request previews
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
+- Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
 - Made Storybook snapshots own an exact-port server and retry cold preview preparation
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews

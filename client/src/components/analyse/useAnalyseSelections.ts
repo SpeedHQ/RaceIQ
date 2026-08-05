@@ -10,6 +10,7 @@ import { useConvertedTelemetry } from "../../hooks/useConvertedTelemetry";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
+import { mergeNameCache } from "../../lib/name-cache";
 import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapLabel } from "./track-map/types";
 
 const emptyTelemetry: TelemetryPacket[] = [];
@@ -108,8 +109,8 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const { data: resolvedNames } = useResolveNames(missingTrackOrds, missingCarOrds);
   useEffect(() => {
     if (!resolvedNames) return;
-    if (resolvedNames.trackNames) setTrackNames((p) => ({ ...p, ...Object.fromEntries(Object.entries(resolvedNames.trackNames).map(([k, v]) => [Number(k), v])) }));
-    if (resolvedNames.carNames) setCarNames((p) => ({ ...p, ...Object.fromEntries(Object.entries(resolvedNames.carNames).map(([k, v]) => [Number(k), v])) }));
+    if (resolvedNames.trackNames) setTrackNames((p) => mergeNameCache(p, resolvedNames.trackNames));
+    if (resolvedNames.carNames) setCarNames((p) => mergeNameCache(p, resolvedNames.carNames));
   }, [resolvedNames]);
   useEffect(() => {
     void navigate({

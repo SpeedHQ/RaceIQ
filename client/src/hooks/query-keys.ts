@@ -14,4 +14,10 @@ export const queryKeys = {
   catalogTunes: ["catalog-tunes"] as const,
   driverProfile: (gameId: GameId | null) => ["driver-profile", gameId] as const,
   driverProfileRuns: (gameId: GameId | null) => ["driver-profile-runs", gameId] as const,
+  sessionResults: ["session-result"] as const,
+  sessionResult: (sessionId: number | null, gameId: GameId | null) => ["session-result", sessionId, gameId] as const,
+  raceResultSummaries: ["race-result-summary"] as const,
+  raceResultSummary: (gameId: GameId | null, trackOrdinal?: number) => ["race-result-summary", gameId, trackOrdinal] as const,
+  raceResultRecents: ["race-result-recent"] as const,
+  raceResultRecent: (gameId: GameId | null) => ["race-result-recent", gameId] as const,
 };

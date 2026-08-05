@@ -33,7 +33,7 @@ export function AnalyseVizPanel({ vizMode, onVizModeChange, currentPacket, curre
       }}
       className="flex h-[30rem] w-full shrink-0 flex-col items-center justify-start overflow-y-auto border-b border-app-border @5xl/workspace:h-full @5xl/workspace:w-(--analyse-right-width) @5xl/workspace:border-r @5xl/workspace:border-b-0"
     >
-      <TabsList className="w-full shrink-0">
+      <TabsList variant="underline" className="w-full shrink-0">
         <TabsTrigger value="2d" className="flex-1">
           2D
         </TabsTrigger>

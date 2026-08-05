@@ -1,4 +1,4 @@
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, not } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions, sessionResults, pitEvents } from "./schema";
 import type { GameId } from "../../shared/games/ids";
@@ -36,9 +36,10 @@ const LEGACY_RACE_RESULT_PROVENANCE: RaceResultProvenance = {
 
 export type SessionResultInput = {
   sessionId: number;
+  processorVersion?: string;
   sessionType: string;
   classification: RaceResultStatus;
-  outcomeStatus: RaceResultOutcomeStatus;
+  outcomeStatus?: RaceResultOutcomeStatus;
   finishingPosition: number | null;
   qualifyingPosition: number | null;
   isPodium: boolean | null;
@@ -46,14 +47,14 @@ export type SessionResultInput = {
   pitCount: number;
   tyreStrategy: unknown;
   fuelStrategy: unknown;
-  provenance: RaceResultProvenance;
-  evidence: RaceResultEvidence;
+  provenance?: RaceResultProvenance;
+  evidence?: RaceResultEvidence;
   reasons: string[];
 };
 
-
 export type PitEventInput = {
   sequence: number;
+  eventType?: string;
   lapNumber: number | null;
   elapsedSeconds: number | null;
   durationSeconds: number | null;
@@ -62,13 +63,14 @@ export type PitEventInput = {
   fuelAdded: number | null;
   fuelBefore: number | null;
   fuelAfter: number | null;
+  positionBefore?: number | null;
+  positionAfter?: number | null;
   linkage: string;
   source: unknown;
 };
 
 async function markPitCycleLaps(sessionId: number, events: readonly PitEventInput[]): Promise<void> {
-  const inlapNumbers = [...new Set(events.filter((event) => event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
-  if (inlapNumbers.length === 0) return;
+  const inlapNumbers = [...new Set(events.filter((event) => (event.eventType ?? "pit") === "pit" && event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
 
   await db
     .update(laps)
@@ -95,9 +97,10 @@ export async function upsertSessionResult(
       .get();
     const values = {
       sessionId: input.sessionId,
+      processorVersion: input.processorVersion ?? "race-result-v2",
       sessionType: input.sessionType,
       classification: input.classification,
-      outcomeStatus: input.outcomeStatus,
+      outcomeStatus: input.outcomeStatus ?? "unavailable",
       finishingPosition: input.finishingPosition,
       qualifyingPosition: input.qualifyingPosition,
       isPodium: input.isPodium,
@@ -105,8 +108,8 @@ export async function upsertSessionResult(
       pitCount: input.pitCount,
       tyreStrategy: input.tyreStrategy,
       fuelStrategy: input.fuelStrategy,
-      provenance: input.provenance,
-      evidence: input.evidence,
+      provenance: input.provenance ?? LEGACY_RACE_RESULT_PROVENANCE,
+      evidence: input.evidence ?? UNAVAILABLE_RACE_RESULT_EVIDENCE,
       reasons: input.reasons,
       updatedAt: new Date().toISOString(),
     };
@@ -197,6 +200,25 @@ export async function getRecentSessionResults(gameId: GameId, limit: number) {
     provenance: row.result.provenance ?? LEGACY_RACE_RESULT_PROVENANCE,
     evidence: row.result.evidence ?? UNAVAILABLE_RACE_RESULT_EVIDENCE,
     reasons: row.result.reasons ?? [],
+
     events: eventsByResult.get(row.result.id) ?? [],
   }));
+}
+export async function countStaleRaceResults(currentProcessorVersion: string): Promise<number> {
+  const rows = await db
+    .select({ sessionId: sessionResults.sessionId })
+    .from(sessionResults)
+    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
+    .all();
+  return rows.length;
+}
+
+export async function getStaleRaceResultSessionIds(currentProcessorVersion: string): Promise<number[]> {
+  const rows = await db
+    .select({ sessionId: sessionResults.sessionId })
+    .from(sessionResults)
+    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
+    .orderBy(sessionResults.sessionId)
+    .all();
+  return rows.map((row) => row.sessionId);
 }

@@ -2,6 +2,7 @@ import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/racing/ex
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import type { F1CarSetup } from "@shared/telemetry/f1-2025";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { F1SetupModal } from "@/components/analyse/F1SetupModal";
 import { SetupContentModal } from "@/components/tunes/SetupFilePicker";
@@ -249,8 +250,8 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
               </Button>
               <Button
-                variant="app-ghost"
-                size="app-sm"
+                variant="destructive-outline"
+                size="icon-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
                   const extra = hasChildren ? " and its whole branch" : "";
@@ -259,9 +260,9 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 }}
                 disabled={deleteVersion.isPending}
                 title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
-                className="normal-case tracking-normal font-sans text-status-danger hover:bg-status-danger/10 shrink-0"
+                aria-label={hasChildren ? "Delete branch" : "Delete version"}
               >
-                Delete branch
+                <Trash2 aria-hidden="true" />
               </Button>
               <span
                 className="ml-auto flex items-center gap-3 shrink-0 text-app-compact tabular-nums"

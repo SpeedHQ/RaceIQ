@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { GameId } from "../../../../shared/games/ids";
+import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
 
 const classificationLabels: Record<RaceResultStatus, string> = {
@@ -136,7 +137,7 @@ export interface RaceResultSummaryProps {
 
 export function RaceResultSummary({ className, gameId, title = "Race results", trackOrdinal }: RaceResultSummaryProps) {
   const query = useQuery({
-    queryKey: ["race-result-summary", gameId, trackOrdinal],
+    queryKey: queryKeys.raceResultSummary(gameId, trackOrdinal),
     enabled: gameId != null,
     queryFn: async () => {
       if (!gameId) return null;
@@ -148,7 +149,7 @@ export function RaceResultSummary({ className, gameId, title = "Race results", t
     },
   });
   const recentQuery = useQuery({
-    queryKey: ["race-result-recent", gameId],
+    queryKey: queryKeys.raceResultRecent(gameId),
     enabled: gameId != null && trackOrdinal == null,
     queryFn: async () => {
       if (!gameId) return [] as RaceResult[];

@@ -30,8 +30,13 @@ function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit, la
 Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language)}`;
 }
 
+export function formatLapChatIdentity(lap: { id?: number; lapNumber: number; lapTime: number }): string {
+  return `Lap ID: ${lap.id ?? "unknown"}\nLap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s`;
+}
+
 export function buildChatSystemPrompt(
   lap: {
+    id?: number;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -48,8 +53,13 @@ export function buildChatSystemPrompt(
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
-  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
-  const trackName = resolveTrackName(lap.trackOrdinal ?? 0);
+  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
+  const serverAdapter = tryGetServerGame(gameId);
+  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
+  const trackOrdinal = lap.trackOrdinal ?? packets[0]?.TrackOrdinal ?? 0;
+  const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
+  const carName = resolveCarName(carOrdinal, gameId);
+  const trackName = resolveTrackName(trackOrdinal, gameId);
 
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
@@ -101,11 +111,9 @@ export function buildChatSystemPrompt(
     }
   }
 
-  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
 
   // Game-specific extended context
   let extendedContext = "";
-  const serverAdapter = tryGetServerGame(gameId);
   if (serverAdapter?.buildAiContext && packets.length > 0) {
     extendedContext = serverAdapter.buildAiContext(packets);
   }
@@ -115,6 +123,14 @@ export function buildChatSystemPrompt(
 
   return `${chatSystemPrompt(unit, temperatureUnit, language)}
 ${gameSystemNote}
+--- SESSION IDENTITY ---
+Game: ${gameName}
+Game ID: ${gameId ?? "unknown"}
+Car: ${carName}
+Car ID: ${carOrdinal}
+Track: ${trackName}
+Track ID: ${trackOrdinal}
+${formatLapChatIdentity(lap)}
 --- LAP CONTEXT ---
 Car: ${carName}
 Track: ${trackName}

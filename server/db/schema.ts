@@ -114,6 +114,7 @@ export const sessionResults = sqliteTable(
 		sessionId: integer("session_id")
 			.notNull()
 			.references(() => sessions.id, { onDelete: "cascade" }),
+		processorVersion: text("processor_version").notNull().default("race-result-v2"),
 		sessionType: text("session_type").notNull().default("unknown"),
 		classification: text("classification").notNull().default("unknown"),
 		outcomeStatus: text("outcome_status").$type<RaceResultOutcomeStatus>().notNull().default("unavailable"),
@@ -144,6 +145,9 @@ export const pitEvents = sqliteTable(
 			.notNull()
 			.references(() => sessionResults.id, { onDelete: "cascade" }),
 		sequence: integer("sequence").notNull(),
+		eventType: text("event_type").notNull().default("pit"),
+		positionBefore: integer("position_before"),
+		positionAfter: integer("position_after"),
 		lapNumber: integer("lap_number"),
 		elapsedSeconds: real("elapsed_seconds"),
 		durationSeconds: real("duration_seconds"),

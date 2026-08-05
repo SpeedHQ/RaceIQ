@@ -22,7 +22,7 @@ Analyze the supplied lap telemetry and give specific, data-grounded advice.
 Your response MUST be valid JSON matching this exact schema. Output ONLY the
 JSON object, without markdown fences or extra text.
 
-${renderAnalystSchemaForPrompt({ tuningExampleComponent: "Brake bias" })}
+${renderAnalystSchemaForPrompt()}
 
 Use concrete corner speeds, braking points, throttle application, steering,
 tire temperatures, fuel, and lap-time values when the data contains them.

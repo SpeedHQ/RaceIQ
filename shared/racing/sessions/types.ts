@@ -67,6 +67,13 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   lapCount?: number;
   bestLapTime?: number;
   sessionType?: string;
+  resultClassification?: string | null;
+  finishingPosition?: number | null;
+  qualifyingPosition?: number | null;
+  isPodium?: boolean | null;
+  isFastestLap?: boolean | null;
+  pitCount?: number | null;
+  pitDurationSeconds?: number | null;
   notes?: string;
   /**
    * How the session's telemetry was obtained. `undefined` = recorded live from

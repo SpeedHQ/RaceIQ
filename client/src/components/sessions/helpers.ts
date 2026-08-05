@@ -56,6 +56,15 @@ export function sortSessions(sessions: SessionMeta[], sortKey: SortKey, sortDir:
         valueA = a.sessionType ?? "";
         valueB = b.sessionType ?? "";
         break;
+      case "result": {
+        const positionA = a.finishingPosition;
+        const positionB = b.finishingPosition;
+        if (positionA == null) return positionB == null ? 0 : 1;
+        if (positionB == null) return -1;
+        valueA = positionA;
+        valueB = positionB;
+        break;
+      }
       default:
         return 0;
     }

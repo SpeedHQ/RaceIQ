@@ -264,7 +264,7 @@ describe("migration regressions", () => {
 
     const versions = await getAppliedVersions(client);
     expect(versions).toEqual(migrations.map((migration) => migration.version));
-    expect(versions.at(-1)).toBe(53);
+    expect(versions.at(-1)).toBe(55);
     expect(versions.filter((version) => version === 53)).toHaveLength(1);
     const collidedLedger = await client.execute(
       "SELECT version, name FROM schema_migrations WHERE version IN (43, 44) ORDER BY version",

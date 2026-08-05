@@ -308,24 +308,50 @@
   --badge-color: var(--visualization-series-8);
 }
 
-[data-pi-class] { --badge-color: var(--app-text-dim); }
-[data-pi-class="C"] { --badge-color: var(--visualization-series-3); }
-[data-pi-class="B"] { --badge-color: var(--visualization-series-2); }
-[data-pi-class="A"] { --badge-color: var(--visualization-series-5); }
-[data-pi-class="S"] { --badge-color: var(--visualization-series-4); }
-[data-pi-class="R"] { --badge-color: var(--visualization-series-8); }
-[data-pi-class="P"] { --badge-color: var(--visualization-series-1); }
-[data-pi-class="X"] { --badge-color: var(--visualization-series-6); }
+[data-pi-class] {
+  --badge-color: var(--app-text-dim);
+}
+[data-pi-class="C"] {
+  --badge-color: var(--visualization-series-3);
+}
+[data-pi-class="B"] {
+  --badge-color: var(--visualization-series-2);
+}
+[data-pi-class="A"] {
+  --badge-color: var(--visualization-series-5);
+}
+[data-pi-class="S"] {
+  --badge-color: var(--visualization-series-4);
+}
+[data-pi-class="R"] {
+  --badge-color: var(--visualization-series-8);
+}
+[data-pi-class="P"] {
+  --badge-color: var(--visualization-series-1);
+}
+[data-pi-class="X"] {
+  --badge-color: var(--visualization-series-6);
+}
 
 .setup-variant-badge {
   border-color: color-mix(in srgb, var(--badge-color) 40%, transparent);
 }
 
-[data-setup-variant="race"] { --badge-color: var(--status-info); }
-[data-setup-variant="qualifying"] { --badge-color: var(--review-setup); }
-[data-setup-variant="safe"] { --badge-color: var(--status-warning); }
-[data-setup-variant="wet"] { --badge-color: var(--surface-wet); }
-[data-setup-variant="file"] { --badge-color: var(--status-success); }
+[data-setup-variant="race"] {
+  --badge-color: var(--status-info);
+}
+[data-setup-variant="qualifying"] {
+  --badge-color: var(--review-setup);
+}
+[data-setup-variant="safe"] {
+  --badge-color: var(--status-warning);
+}
+[data-setup-variant="wet"] {
+  --badge-color: var(--surface-wet);
+}
+[data-setup-variant="file"] {
+  --badge-color: var(--status-success);
+}
 
 /*
  * Tailwind-native typography contract. These are the runtime variables used by
@@ -423,6 +449,8 @@
   --color-status-danger-hover: var(--status-danger-hover);
   --color-status-info: var(--status-info);
   --color-status-unavailable: var(--status-unavailable);
+  --color-comparison-lap-a: var(--comparison-lap-a);
+  --color-comparison-lap-b: var(--comparison-lap-b);
 
   @keyframes collapsible-down {
     from {

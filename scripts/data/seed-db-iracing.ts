@@ -37,8 +37,7 @@ export async function seedIRacingSession(fixturePath: string): Promise<void> {
     await pipeline.processPacket(packet, sourceFrame);
     packetCount++;
   }
-  await pipeline.flushIncompleteLap();
-  await pipeline.flushSessionRecorder();
+  await pipeline.finalizeCurrentSession();
 
   const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, "iracing")).all())
     .map((row) => row.id)

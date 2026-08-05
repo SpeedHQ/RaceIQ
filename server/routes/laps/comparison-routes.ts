@@ -15,6 +15,7 @@ import { buildCompareChatSystemPrompt } from "../../ai/compare-chat-prompt";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../../ai/inputs-compare-prompt";
 import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
 import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "../../ai/google-provider-options";
+import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "../../ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
 import {
   CHAT_RESOURCE_ID,
@@ -26,6 +27,9 @@ import {
 } from "../../ai/chat-agent";
 import { getSecret } from "../../runtime/platform/keystore";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
+const inputsAnalysisRunKey = (idA: number, idB: number) =>
+  `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
+
 
 export const comparisonRoutes = new Hono()
   .get("/api/laps/:id1/compare/:id2", zValidator("param", CompareParamsSchema), async (c) => {
@@ -99,6 +103,10 @@ export const comparisonRoutes = new Hono()
     });
   })
 
+  .get("/api/laps/:id1/compare/:id2/inputs-analyse/status", zValidator("param", CompareParamsSchema), (c) => {
+    const { id1, id2 } = c.req.valid("param");
+    return c.json(getAnalysisRun(inputsAnalysisRunKey(id1, id2)) ?? { status: "none" });
+  })
   .post("/api/laps/:id1/compare/:id2/inputs-analyse", zValidator("param", CompareParamsSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
     const { id1, id2 } = c.req.valid("param");
     const { regenerate, cacheOnly } = c.req.valid("query");
@@ -197,6 +205,10 @@ export const comparisonRoutes = new Hono()
       if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
       process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
     }
+    const inputsRunKey = inputsAnalysisRunKey(id1, id2);
+    if (!beginAnalysisRun(inputsRunKey)) {
+      return c.json({ error: "Inputs comparison already in progress" }, 409);
+    }
 
     try {
       const start = performance.now();
@@ -261,6 +273,8 @@ export const comparisonRoutes = new Hono()
     } catch (err: any) {
       console.error("[InputsCompare] Failed:", err.message);
       return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
+    } finally {
+      finishAnalysisRun(inputsRunKey);
     }
   })
 

@@ -3,10 +3,16 @@ import { writeFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { setTrayCommandFile } from "../update/check";
-import { IS_WINDOWS } from "./shell";
+
+export function shouldStartTray(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return platform === "win32" && env.RACEIQ_DISABLE_TRAY !== "1";
+}
 
 export function startTray(port: number): void {
-  if (!IS_WINDOWS) return;
+  if (!shouldStartTray()) return;
 
   const commandFilePath = join(tmpdir(), `raceiq-tray-cmd-${process.pid}.txt`);
 
@@ -127,9 +133,10 @@ $tray.add_BalloonTipClicked({
     try { unlinkSync(commandFilePath); } catch {}
   };
 
-  proc.on("exit", (code) => {
+  proc.on("exit", () => {
+    // Tray lifetime is independent from server lifetime. Headless runners can
+    // terminate PowerShell immediately; that must not stop the HTTP server.
     cleanup();
-    if (code === 0) process.exit(0);
   });
 
   proc.on("error", cleanup);

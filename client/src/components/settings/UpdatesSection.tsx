@@ -5,7 +5,7 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import type { VersionInfo } from "@/stores/telemetry";
 import { useTelemetryStore } from "@/stores/telemetry";
-
+import { ProcessingMaintenance } from "../ProcessingMaintenance";
 export function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
@@ -146,6 +146,8 @@ export function UpdatesSection() {
           <ReleaseNotes notes={versionInfo.currentReleaseNotes} />
         </div>
       )}
+
+      <ProcessingMaintenance />
     </section>
   );
 }

@@ -72,6 +72,8 @@ class WebSocketManager {
   private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
   /** Stale lap detection notification — sent to each new client on connect */
   private _staleSessionsNotification: Record<string, unknown> | null = null;
+  /** Stale race-result notification — sent to each new client on connect */
+  private _staleRaceResultsNotification: Record<string, unknown> | null = null;
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
     this._getSessionLaps = fn;
@@ -79,6 +81,9 @@ class WebSocketManager {
 
   setStaleSessionsNotification(payload: Record<string, unknown> | null): void {
     this._staleSessionsNotification = payload;
+  }
+  setStaleRaceResultsNotification(payload: Record<string, unknown> | null): void {
+    this._staleRaceResultsNotification = payload;
   }
   private telemetryHistory: TelemetryHistoryData = {
     grip: { fl: [], fr: [], rl: [], rr: [] },
@@ -123,6 +128,9 @@ class WebSocketManager {
     // Send stale lap detection notification if any sessions need reprocessing
     if (this._staleSessionsNotification) {
       try { ws.send(JSON.stringify(this._staleSessionsNotification)); } catch {}
+    }
+    if (this._staleRaceResultsNotification) {
+      try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch {}
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing

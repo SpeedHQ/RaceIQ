@@ -170,10 +170,15 @@ The AI system uses Mastra agents backed by Codex API with streaming and prompt c
 - Database file: `data/forza-telemetry.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4
+- **Theme contract:** client UI must use semantic `text-app-*`, `tracking-app-*`, `bg-*`, `border-*`, and `shadow-*` tokens; do not add arbitrary typography utilities or raw/palette colors. Run `bun test test/theme-contract.test.ts --timeout 60000` after styling changes.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
+
+### Dependency inspection
+
+- Do not read, search, or inspect `node_modules/` source files. Treat installed dependencies as opaque; use repository code, package manifests, lockfiles, and official upstream documentation when dependency behavior matters.
 
 ### Custom Steering Wheels
 
@@ -240,6 +245,15 @@ Installed via `postinstall` script. Runs in parallel on staged client files:
 - **lint** — ESLint on staged `client/src/**/*.{ts,tsx}`
 - **typecheck** — full client build (`cd client && bun run build`)
 
+
+### Pull Request Creation
+
+When creating or updating a pull request:
+
+1. Review `git status` and the complete diff before opening or updating the PR.
+2. Commit every change relevant to the PR, including tests, documentation, configuration, and changelog updates. Do not stop after committing only the initially requested file.
+3. Check for related untracked and unstaged files, and include all relevant work in the PR commit.
+4. Verify the PR branch has no relevant uncommitted or untracked changes before creating or updating the PR. Leave unrelated local work untouched and call it out explicitly.
 
 ### Pull Request Changelog
 

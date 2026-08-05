@@ -6,34 +6,35 @@ const NUMERIC_UNIT_RE =
 const DELTA_RE = /-?\d+(\.\d+)?\s*(→|->|to)\s*-?\d+(\.\d+)?/;
 
 /**
- * Fraction of `setup[]` entries whose `current` or `target` cites a concrete
- * number-with-unit (e.g. "22.5 psi", "680 lb/in", "27"). Keeps the model
- * from shipping vague advice like "stiffen the front" with no target.
+ * Fraction of structured analysis entries that cite concrete numeric values.
  */
 export const numericGroundingScorer = createScorer({
 	id: "numeric-grounding",
 	description:
-		"Fraction of setup entries that cite concrete numeric current/target values",
+		"Fraction of analysis entries that cite concrete numeric values",
 })
 	.generateScore(({ run }) => {
 		const parsed = parseAnalystOutput(run.output);
-		if (!parsed.success || parsed.data.setup.length === 0) return 0;
-
-		const grounded = parsed.data.setup.filter((t) => {
-			const blob = `${t.current} ${t.target}`;
-			return (
-				NUMERIC_UNIT_RE.test(blob) ||
-				DELTA_RE.test(blob) ||
-				/^-?\d+(\.\d+)?$/.test(t.target.trim())
-			);
+		if (!parsed.success) return 0;
+		const entries = [
+			...parsed.data.pace,
+			...parsed.data.handling,
+			...parsed.data.corners,
+			...parsed.data.technique,
+		];
+		const grounded = entries.filter((entry) => {
+			const blob = JSON.stringify(entry);
+			return NUMERIC_UNIT_RE.test(blob) || DELTA_RE.test(blob);
 		}).length;
-
-		return grounded / parsed.data.setup.length;
+		return grounded / entries.length;
 	})
 	.generateReason(({ run, score }) => {
 		const parsed = parseAnalystOutput(run.output);
-		if (!parsed.success)
-			return "output failed to parse — cannot score grounding";
-		const total = parsed.data.setup.length;
-		return `${Math.round(score * total)} / ${total} setup entries grounded (score ${score.toFixed(2)})`;
+		if (!parsed.success) return "output failed to parse — cannot score grounding";
+		const entries = [
+			...parsed.data.pace,
+			...parsed.data.handling,
+			...parsed.data.technique,
+		];
+		return `${entries.length} analysis entries checked (score ${score.toFixed(2)})`;
 	});

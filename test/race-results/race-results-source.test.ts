@@ -85,6 +85,20 @@ describe("race result source extraction", () => {
     expect(derived.evidence.decisions?.classification.alternatives.map((alternative) => alternative.value)).toEqual(["finished", "dnf"]);
   });
 
+  test("consolidates position changes at lap boundaries", () => {
+    const result = extractRaceSource("f1-2025", [
+      packet({ gameId: "f1-2025", LapNumber: 1, RacePosition: 5 }),
+      packet({ gameId: "f1-2025", LapNumber: 1, RacePosition: 4 }),
+      packet({ gameId: "f1-2025", LapNumber: 2, RacePosition: 4 }),
+      packet({ gameId: "f1-2025", LapNumber: 2, RacePosition: 2 }),
+      packet({ gameId: "f1-2025", LapNumber: 3, RacePosition: 3 }),
+    ]);
+    expect(result.positionChanges).toMatchObject([
+      { lapNumber: 2, positionBefore: 4, positionAfter: 2 },
+      { lapNumber: 3, positionBefore: 2, positionAfter: 3 },
+    ]);
+  });
+
   test("does not invent pit ledger for Forza", () => {
     expect(extractRaceSource("fm-2023", [packet({ gameId: "fm-2023" })]).pitEvents).toBeUndefined();
   });

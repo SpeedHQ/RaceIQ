@@ -1,6 +1,8 @@
 import { startCommunityTunesSync } from "../tunes/community-sync";
 import { startLaptimesSync } from "../sync/laptimes";
 import { countStaleSessions } from "../db/session-queries";
+import { countStaleRaceResults } from "../db/session-result-queries";
+import { RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
@@ -31,6 +33,19 @@ export function startSyncAndStaleSessionJobs(): void {
     }
   }).catch((err) => {
     console.error("[Server] Failed to check stale sessions:", err);
+  });
+
+  countStaleRaceResults(RACE_RESULT_PROCESSOR_ID).then((count) => {
+    if (count > 0) {
+      console.log(`[Server] ${count} session result(s) use an older processor — will prompt user to recalculate`);
+      wsManager.setStaleRaceResultsNotification({
+        type: "stale-race-results",
+        sessionCount: count,
+        currentVersion: RACE_RESULT_PROCESSOR_ID,
+      });
+    }
+  }).catch((err) => {
+    console.error("[Server] Failed to check stale race results:", err);
   });
 }
 

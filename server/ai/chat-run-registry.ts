@@ -45,6 +45,12 @@ export function getRun(threadId: string): ChatRun | undefined {
   return runs.get(threadId);
 }
 
+/** Look up an active run for a thread, if any. */
+export function getActiveRun(threadId: string): ChatRun | undefined {
+  const run = runs.get(threadId);
+  return run?.status === "active" ? run : undefined;
+}
+
 
 /**
  * Reserve a run slot for a turn about to start. If a run is already active
@@ -100,6 +106,16 @@ export function finishRun(run: ChatRun): void {
   setTimeout(() => {
     if (runs.get(run.threadId) === run) runs.delete(run.threadId);
   }, EVICT_MS);
+}
+/** Abort an active run and wait until its finish hook has completed. */
+export async function cancelChatRun(threadId: string): Promise<void> {
+  const run = getActiveRun(threadId);
+  if (!run) return;
+  await new Promise<void>((resolve) => {
+    run.finishListeners.add(resolve);
+    if (run.status === "active") run.abortController.abort();
+    else resolve();
+  });
 }
 
 /**

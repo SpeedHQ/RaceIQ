@@ -9,8 +9,10 @@ import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
-// Pre-seed LapTimeChart query so it renders without a server
+// Seed every query rendered by dashboard so standalone Storybook stays offline.
 queryClient.setQueryData(["laps", "f1-2025"], fakeSessionLaps);
+queryClient.setQueryData(["track-name", 7, "f1-2025"], "Bahrain International Circuit");
+queryClient.setQueryData(["car-name", 42, "f1-2025"], "F1 2025");
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   // Inject fake state into stores before render

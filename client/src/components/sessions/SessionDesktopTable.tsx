@@ -1,12 +1,15 @@
+import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { Fragment } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
+import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { formatSessionType } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
+import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 
 export type SessionDesktopTableProps = {
@@ -16,6 +19,7 @@ export type SessionDesktopTableProps = {
   isLoading: boolean;
   sessionsError: boolean;
   isF1: boolean;
+  gameId: GameId | null;
   emptyMessage: string;
   colCount: number;
   pageItems: SessionMeta[];
@@ -46,6 +50,7 @@ export function SessionDesktopTable({
   isLoading,
   sessionsError,
   isF1,
+  gameId,
   emptyMessage,
   colCount,
   pageItems,
@@ -97,6 +102,7 @@ export function SessionDesktopTable({
               ["best", m.sessions_col_best_lap()],
               ["track", m.label_track()],
               ["car", m.label_car()],
+              ["result", "Result"],
               ...(isF1 ? [["type", m.label_type()] as const] : []),
             ] as const
           ).map(([field, label]) => (
@@ -168,11 +174,21 @@ export function SessionDesktopTable({
                     </TD>
                     <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
                     <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                    <TD tone="primary">
+                      <SessionResultMeta session={session} />
+                    </TD>
                     {isF1 && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
                     <TD>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                     </TD>
                   </TRow>
+                  {isExpanded && gameId && (
+                    <TRow variant="separator">
+                      <TD colSpan={colCount}>
+                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
+                      </TD>
+                    </TRow>
+                  )}
                   {isExpanded && sessionLaps.length > 0 && (
                     <TRow variant="separator">
                       <TD colSpan={colCount}>

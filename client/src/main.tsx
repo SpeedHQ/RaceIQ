@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { installCrashDiagnostics } from "./lib/crash-diagnostics";
+import { clientReleaseFeatures } from "./lib/release-features";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
@@ -10,7 +11,7 @@ import "./index.css";
 installCrashDiagnostics();
 
 // Register all game adapters
-initGameAdapters();
+initGameAdapters(clientReleaseFeatures);
 
 const router = createRouter({ routeTree });
 

@@ -38,6 +38,8 @@ logger.warn = (msg, options) => {
 };
 
 export default defineConfig({
+  envDir: path.resolve(import.meta.dirname, ".."),
+  envPrefix: ["VITE_", "RACEIQ_"],
   plugins: [
     react(),
     tailwindcss(),

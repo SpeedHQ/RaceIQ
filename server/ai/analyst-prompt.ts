@@ -42,6 +42,10 @@ export interface PromptSegment {
   group?: string;
   direction?: "left" | "right";
 }
+export interface PromptSectors {
+  times: number[];
+  sectorStarts: number[];
+}
 
 /**
  * Combine corner labels from the DB-stored `trackCorners` rows and the
@@ -151,12 +155,15 @@ export function buildAnalystPrompt(
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
   /** This lap's sector times, with the boundaries they were split on. */
-  sectors?: { times: number[]; sectorStarts: number[] },
+  sectors?: PromptSectors,
 ): string {
-  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
-  const trackName = resolveTrackName(lap.trackOrdinal ?? 0);
+  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
+  const trackName = resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId);
 
-  const exportText = generateExport(lap, packets, unit, temperatureUnit);
+  // F1 uses adapter-specific compact context; generic export is Forza-specific.
+  const exportText = lap.gameId === "f1-2025"
+    ? ""
+    : generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
@@ -233,7 +240,13 @@ export function buildAnalystPrompt(
       const covers = inSector(index);
       sectorsText += `S${n}: ${t.toFixed(3)}s${covers ? ` — covers ${covers}` : ""}\n`;
     }
-    sectorsText += `Sector starts: ${sectorStarts.map((start) => `${(start * 100).toFixed(1)}%`).join(", ")}.\n`;
+    const boundaries = sectorStarts
+      .slice(1)
+      .map(
+        (start, index) =>
+          `S${index + 1} ends at ${(start * 100).toFixed(1)}%`,
+      );
+    sectorsText += `Boundaries: ${boundaries.join(", ")} of the lap.\n`;
   }
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;

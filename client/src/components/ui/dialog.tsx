@@ -46,7 +46,7 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
   size?: "default" | "sm" | "md" | "lg" | "wide";
-  layout?: "default" | "scrollable";
+  layout?: "default" | "scrollable" | "fullscreen";
   overlayClassName?: string;
 }) {
   const sizeClasses = {
@@ -63,9 +63,10 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "@container/dialog fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-app-border bg-app-surface p-4 text-sm text-app-text shadow-2xl ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "@container/dialog fixed z-50 rounded-xl border border-app-border bg-app-surface text-sm text-app-text shadow-2xl ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          layout === "fullscreen" ? "inset-2 flex min-h-0 flex-col overflow-hidden p-0 sm:inset-4" : "top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 p-4",
           layout === "scrollable" ? "max-h-[90vh] overflow-y-auto" : "",
-          sizeClasses[size],
+          layout === "fullscreen" ? "" : sizeClasses[size],
           className,
         )}
         {...props}

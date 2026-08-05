@@ -96,6 +96,7 @@ export function HomePageView({
                       recap={latestRecap}
                       gameId={latestRecap.gameId}
                       linkToAnalyse
+                      finishPosition={latestSession.finishingPosition}
                       copied={recapCopied}
                       onCopy={onCopyRecap}
                       onAnalyse={onAnalyseRecap}
@@ -110,40 +111,51 @@ export function HomePageView({
             </aside>
           </div>
         ) : (
-          <>
-            {latestSession && (
-              <div className="rounded-lg border border-app-border bg-app-surface p-4">
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.recap_latest_session()}</h2>
-                {latestRecapLoading ? (
-                  <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
-                ) : latestRecapError || !latestRecap ? (
-                  <div className="p-6 text-center text-status-danger">{m.common_error()}</div>
-                ) : (
-                  <SessionRecapView
-                    recap={latestRecap}
-                    gameId={latestRecap.gameId}
-                    linkToAnalyse
-                    copied={recapCopied}
-                    onCopy={onCopyRecap}
-                    onAnalyse={onAnalyseRecap}
-                    outlineData={latestRecapOutline}
-                    bounds={latestRecapBounds}
-                  />
-                )}
+          <div className="grid grid-cols-1 items-start gap-6 @5xl/workspace:grid-cols-[minmax(0,1fr)_380px]">
+            <main className="min-w-0 space-y-6">
+              <ActivityHeatmap laps={allLaps} />
+
+              <div>
+                <PeriodStatsPanel periodTab={periodTab} periodStats={periodStats} onPeriodTabChange={onPeriodTabChange} />
               </div>
-            )}
 
-            <ActivityHeatmap laps={allLaps} />
+              <div>
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
+                <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} loading={lapsLoading} error={lapsError} />
+              </div>
+            </main>
 
-            <div>
-              <PeriodStatsPanel periodTab={periodTab} periodStats={periodStats} onPeriodTabChange={onPeriodTabChange} />
-            </div>
-
-            <div>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
-              <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} loading={lapsLoading} error={lapsError} />
-            </div>
-          </>
+            <aside className="@5xl/workspace:sticky @5xl/workspace:top-6">
+              {latestSession ? (
+                <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
+                  <div className="relative mb-3 flex items-center gap-2 text-app-caption font-semibold uppercase tracking-app-label text-app-accent">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[var(--app-glow-accent)]" />
+                    {m.recap_latest_session()}
+                  </div>
+                  {latestRecapLoading ? (
+                    <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
+                  ) : latestRecapError || !latestRecap ? (
+                    <div className="p-6 text-center text-status-danger">{m.common_error()}</div>
+                  ) : (
+                    <SessionRecapView
+                      recap={latestRecap}
+                      gameId={latestRecap.gameId}
+                      linkToAnalyse
+                      finishPosition={latestSession.finishingPosition}
+                      copied={recapCopied}
+                      onCopy={onCopyRecap}
+                      onAnalyse={onAnalyseRecap}
+                      outlineData={latestRecapOutline}
+                      bounds={latestRecapBounds}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
+              )}
+            </aside>
+          </div>
         )}
       </div>
     </div>

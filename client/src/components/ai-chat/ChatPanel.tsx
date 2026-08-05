@@ -10,25 +10,41 @@ import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
 import { ChatPanelThread } from "./chat-runtime";
+import { resolvedResumableThreadId } from "./resumable-chat";
 
 export interface ChatPanelProps {
   api: string;
+  clearChatApi?: string;
   fetchHistory: (gen?: number) => Promise<UIMessage[]>;
   historyQueryKey: unknown[];
   remountKey?: string;
   onFinish?: () => void;
   components?: ThreadProps["components"];
+  inputDisabled?: boolean;
   emptyState?: React.ReactNode;
   className?: string;
   extraBody?: Record<string, unknown>;
   compactThreadId?: string;
 }
 
-export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId }: ChatPanelProps) {
+export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
   const queryClient = useQueryClient();
+  const [clearVersion, setClearVersion] = useState(0);
+  const [regenerateVersion, setRegenerateVersion] = useState(0);
+  const [regeneratePrompt, setRegeneratePrompt] = useState<string>();
+
+  const clearChat = async () => {
+    try {
+      await fetch(clearChatApi ?? api, { method: "DELETE" });
+      await queryClient.invalidateQueries({ queryKey: historyQueryKey });
+    } finally {
+      setClearVersion((version) => version + 1);
+    }
+  };
+
   const { data: gensData } = useQuery({
     queryKey: ["chat-generations", compactThreadId],
     queryFn: () => fetchChatGenerations(compactThreadId!),
@@ -58,15 +74,35 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
     staleTime: 0,
     gcTime: 0,
   });
-  if (activeThreadId && runStatus?.status === "active" && runStatus.runId) {
-    createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }).setStreamId(runStatus.runId);
+  const resumableThreadId = resolvedResumableThreadId(activeThreadId, runStatus, runStatusFetched);
+  if (resumableThreadId && runStatus?.runId) {
+    createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }).setStreamId(runStatus.runId);
   }
+
+  const regenerateChat = async (messageId: string, prompt: string) => {
+    if (!activeThreadId || !prompt || !window.confirm("Regenerate this response? Later messages will be removed.")) return;
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      });
+      const data = (await res.json().catch(() => null)) as { prompt?: string; error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? "Could not regenerate chat");
+      await queryClient.invalidateQueries({ queryKey: historyQueryKey });
+      setRegeneratePrompt(data?.prompt ?? prompt);
+      setRegenerateVersion((version) => version + 1);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Could not regenerate chat");
+    }
+  };
+
   if (!aiConfigured) {
     return (
       emptyState ?? (
-        <div className="pt-2 space-y-1.5">
+        <div className="flex flex-col gap-1.5 pt-2">
           <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
-          <Button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
+          <Button type="button" variant="ai-action" size="app-md" onClick={() => openSettings("ai")} className="w-full">
             Set up AI
           </Button>
         </div>
@@ -75,19 +111,19 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   }
   if (isError) {
     return (
-      <div role="alert" className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-status-danger">
+      <div role="alert" className="flex h-full min-h-0 flex-col gap-1.5 pt-2 text-app-compact text-status-danger">
         {historyError instanceof Error ? historyError.message : m.common_error()}
       </div>
     );
   }
   if (!isSuccess || (!!compactThreadId && !runStatusFetched)) {
-    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-app-text-dim">{m.common_loading()}</div>;
+    return <div className="flex h-full min-h-0 flex-col gap-1.5 pt-2 text-app-compact text-app-text-dim">{m.common_loading()}</div>;
   }
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}`}
-      api={api}
+      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}:${regenerateVersion}`}
       initialMessages={history ?? []}
+      api={api}
       onFinish={onFinish}
       components={components}
       className={className}
@@ -97,13 +133,18 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
       generations={generations}
       viewingGen={effectiveGen}
       activeGen={activeGen}
-      activeThreadId={activeThreadId}
+      resumableThreadId={resumableThreadId}
       onViewGen={setViewingGen}
       onForked={(newGen) => {
         void queryClient.invalidateQueries({ queryKey: historyQueryKey });
         setViewingGen(newGen);
       }}
+      onRegenerate={readOnly || !activeThreadId || runStatus?.status === "active" ? undefined : regenerateChat}
+      regeneratePrompt={regeneratePrompt}
+      onSubmitted={() => setRegeneratePrompt(undefined)}
       readOnly={readOnly}
+      inputDisabled={inputDisabled}
+      onClearChat={() => void clearChat()}
     />
   );
 }

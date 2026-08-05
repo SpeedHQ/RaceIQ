@@ -23,8 +23,8 @@ export function getServerGame(gameId: string): ServerGameAdapter {
   return adapter;
 }
 
-export function tryGetServerGame(gameId: string): ServerGameAdapter | undefined {
-  return adapterMap.get(gameId);
+export function tryGetServerGame(gameId?: string): ServerGameAdapter | undefined {
+  return gameId ? adapterMap.get(gameId) : undefined;
 }
 
 /** Get all server adapters in registration order (used for packet detection priority). */

@@ -185,14 +185,15 @@ export interface SessionRecapViewProps {
   recap: SessionRecapDto;
   gameId: GameId;
   linkToAnalyse?: boolean;
+  finishPosition?: number | null;
+  showTrackMap?: boolean;
   copied?: boolean;
   onCopy: () => void;
   onAnalyse?: () => void;
   outlineData?: TrackOutlineData;
   bounds?: TrackSectorBounds;
 }
-
-export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
+export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
   const canAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
 
   return (
@@ -222,6 +223,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
         <div className="flex min-w-0 flex-col gap-4">
           <div className="grid min-w-0 grid-cols-2 gap-2 @lg:grid-cols-4">
             <Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />
+            {finishPosition != null && <Tile label="Finish" value={`P${finishPosition}`} />}
             {recap.bestLapSec != null && (
               <Tile
                 label={m.recap_best_lap()}
@@ -244,8 +246,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
               <Tile label={m.recap_theoretical_best()} value={formatLapTime(recap.theoretical.sumSec)} sub={`${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()}`} />
             )}
           </div>
-
-          {recap.sectors != null && <SectorTrackMap sectors={recap.sectors} sourceStarts={recap.sectorStarts} outlineData={outlineData} bounds={bounds} />}
+          {showTrackMap && recap.sectors != null && <SectorTrackMap sectors={recap.sectors} sourceStarts={recap.sectorStarts} outlineData={outlineData} bounds={bounds} />}
 
           {recap.sparkline.length >= 2 && (
             <div>

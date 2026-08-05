@@ -7,6 +7,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PanelSectionHeader } from "@/components/ui/panel-section-header";
 import { useAccCarName, useResolveNames } from "@/hooks/catalog-queries";
 import type { ExperimentGameId, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import { useExperiment, useExperimentLapMetrics, useExperimentVersions } from "@/hooks/experiments";
@@ -350,17 +351,14 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
             Hidden during a live test — the live dashboard gets the full width. */}
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-            <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
-              {/* The panel is the same agent either way, but naming it after
-                  the current focus is the difference between "why is the setup
-                  engineer talking about my braking" and an obvious mode. */}
-              <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}</span>
-              <div className="flex items-center gap-3">
+            <div className="shrink-0 border-b border-app-border px-3 py-2">
+              {/* Panel identity follows active experiment focus. */}
+              <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
                 <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
                   Dashboard
                 </Button>
                 <CopyChatJsonButton sessionId={session.id} />
-              </div>
+              </PanelSectionHeader>
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <TuneSetupChat sessionId={session.id} headVersionId={session?.headVersionId ?? null} />
@@ -411,10 +409,9 @@ function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
         }
       }}
       title="Copy chat JSON (debug)"
-      className="!px-0 flex items-center gap-1 text-app-text-muted hover:text-app-text"
     >
-      {copied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-      <span className="text-app-micro uppercase tracking-wider">{copied ? "Copied" : "JSON"}</span>
+      {copied ? <Check data-icon="inline-start" aria-hidden="true" /> : <Copy data-icon="inline-start" aria-hidden="true" />}
+      {copied ? "Copied" : "JSON"}
     </Button>
   );
 }

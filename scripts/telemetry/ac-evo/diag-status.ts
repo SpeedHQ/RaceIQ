@@ -13,15 +13,16 @@ import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
+import { developmentReleaseFeatures } from "../../release/development-release-features";
 import { getServerGame } from "../../../server/games/registry";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
 import { ACEVO_STATUS, GRAPHICS_EVO } from "../../../server/games/ac-evo/structs";
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
+import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
+import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 
-initGameAdapters();
-initServerGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
+initServerGameAdapters(developmentReleaseFeatures);
 
 const path = process.argv[2];
 if (!path) {

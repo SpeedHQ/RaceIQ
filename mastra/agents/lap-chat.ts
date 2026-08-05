@@ -5,12 +5,13 @@
  * driver can ask follow-up questions and the model remembers earlier turns.
  */
 import { Agent } from "@mastra/core/agent";
+import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/runtime/config/settings";
+import { getModel } from "../../server/ai/model-provider";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
+import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context, telemetry summary, and (if available) the previous structured analysis are supplied per request via the system prompt. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.
 
@@ -19,11 +20,18 @@ For F1 2025 setup questions: when the driver asks about their car setup or how t
 export const lapChatAgent = new Agent({
   id: "lap-chat",
   name: "Lap Chat",
-  instructions: LAP_CHAT_INSTRUCTIONS,
-  model: () => {
-    const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
+  instructions: ({ requestContext }) => {
+    const context = getChatTurnContext(requestContext);
+    return `${LAP_CHAT_INSTRUCTIONS}${context ? `\n\n${context}` : ""}`;
   },
-  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool },
+  model: ({ requestContext }) => getModel("chat", requestContext),
+  tools: {
+    get_track_guide: getTrackGuideTool,
+    list_track_guides: listTrackGuidesTool,
+    compare_f1_setup_to_catalog: compareF1SetupToCatalogTool,
+    get_corner_metrics: getCornerMetricsTool,
+    get_lap_analysis: getLapAnalysisTool,
+    generate_lap_analysis: generateLapAnalysisTool,
+  },
   memory: getChatMemory(),
 });

@@ -11,7 +11,8 @@
  * Usage: bun run scripts/data/backfill-unknown-cars.ts
  */
 import { initServerGameAdapters } from "../../server/games/init";
-initServerGameAdapters();
+import { developmentReleaseFeatures } from "../release/development-release-features";
+initServerGameAdapters(developmentReleaseFeatures);
 
 import { and, eq } from "drizzle-orm";
 import { db, initDb } from "../../server/db/index";

@@ -8,11 +8,12 @@ import { sessions } from "../../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
+import { developmentReleaseFeatures } from "../../release/development-release-features";
 import { getServerGame } from "../../../server/games/registry";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
 
-initGameAdapters();
-initServerGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
+initServerGameAdapters(developmentReleaseFeatures);
 // DB setup is no longer implicit in the import — it must be awaited explicitly.
 await initDb();
 

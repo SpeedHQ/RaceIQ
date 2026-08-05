@@ -6,14 +6,15 @@ import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
+import { developmentReleaseFeatures } from "../../release/development-release-features";
 import { getServerGame } from "../../../server/games/registry";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
-import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
+import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
+import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
+import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline";
 
-initGameAdapters();
-initServerGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
+initServerGameAdapters(developmentReleaseFeatures);
 const raw = readFileSync("test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz");
 const buf = Buffer.from(gunzipSync(raw));
 let offset = 0;

@@ -23,4 +23,5 @@ describe("contextWindowFor", () => {
   test("local ignores a non-positive reported context length", () => {
     expect(contextWindowFor("local", "local-model", 0)).toBeUndefined();
   });
+
 });

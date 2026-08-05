@@ -3,8 +3,11 @@ import { eq } from "drizzle-orm";
 import { insertSession } from "../../server/db/session-queries";
 import { db } from "../../server/db";
 import { laps } from "../../server/db/schema";
-import { getSessionResult, replacePitEvents, upsertSessionResult, type SessionResultInput } from "../../server/db/session-result-queries";
+import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, replacePitEvents, upsertSessionResult, type SessionResultInput } from "../../server/db/session-result-queries";
 import { getRecentRaceResults } from "../../server/race-results/aggregates";
+import { initServerGameAdapters } from "../../server/games/init";
+import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, reconcileSessionResult } from "../../server/race-results/reconcile";
+import { sessionRoutes } from "../../server/routes/session-routes";
 import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
 
 const evidence: RaceResultEvidence = {
@@ -77,6 +80,117 @@ describe("persisted race result metadata", () => {
       { lapNumber: 4, isValid: false, invalidReason: "outlap" },
     ]);
   });
+  test("counts and lists only results from older processor versions", async () => {
+    const staleSessionId = await insertSession(12, 13, "f1-2025", "race");
+    const currentSessionId = await insertSession(12, 13, "f1-2025", "race");
+    const input = (sessionId: number, processorVersion: string): SessionResultInput => ({
+      sessionId,
+      processorVersion,
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: null,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    });
+    const previousCount = await countStaleRaceResults(RACE_RESULT_PROCESSOR_ID);
+    const previousIds = new Set(
+      await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID),
+    );
+    await upsertSessionResult(input(staleSessionId, "race-result-v0"));
+    await upsertSessionResult(input(currentSessionId, RACE_RESULT_PROCESSOR_ID));
+
+    expect(await countStaleRaceResults(RACE_RESULT_PROCESSOR_ID)).toBe(
+      previousCount + 1,
+    );
+    const staleIds = await getStaleRaceResultSessionIds(
+      RACE_RESULT_PROCESSOR_ID,
+    );
+    expect(staleIds.filter((sessionId) => !previousIds.has(sessionId))).toEqual([
+      staleSessionId,
+    ]);
+    expect(staleIds).not.toContain(currentSessionId);
+  });
+
+  test("reconciles stale results through bulk endpoint", async () => {
+    const sessionId = await insertSession(14, 15, "f1-2025", "race");
+    await upsertSessionResult({
+      sessionId,
+      processorVersion: "race-result-v0",
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: null,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    });
+
+    const response = await sessionRoutes.request("/api/race-results/reconcile-stale", { method: "POST" });
+    expect(response.status).toBe(200);
+    expect((await getSessionResult(sessionId, "f1-2025"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
+  });
+
+  test("reconciles stored results from an older processor version", async () => {
+    const sessionId = await insertSession(77, 66, "f1-2025", "race");
+    await upsertSessionResult({
+      sessionId,
+      processorVersion: "race-result-v0",
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: null,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    });
+    await reconcileSessionResult(sessionId, "f1-2025");
+    expect((await getSessionResult(sessionId, "f1-2025"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
+  });
+
+  test("backfills historical sessions across registered game adapters", async () => {
+    initServerGameAdapters();
+    const f1SessionId = await insertSession(1, 1, "f1-2025", "race");
+    const accSessionId = await insertSession(1, 1, "acc", "race");
+
+    await backfillRaceResults({
+      gameId: "f1-2025",
+      limit: 1,
+      afterSessionId: f1SessionId - 1,
+    });
+    await backfillRaceResults({
+      gameId: "acc",
+      limit: 1,
+      afterSessionId: accSessionId - 1,
+    });
+
+    expect(
+      (await getSessionResult(f1SessionId, "f1-2025"))?.processorVersion,
+    ).toBe(RACE_RESULT_PROCESSOR_ID);
+    expect(
+      (await getSessionResult(accSessionId, "acc"))?.processorVersion,
+    ).toBe(RACE_RESULT_PROCESSOR_ID);
+  });
+
 
   test("does not expose a result across game scope", async () => {
     const sessionId = await insertSession(99, 88, "acc", "race");

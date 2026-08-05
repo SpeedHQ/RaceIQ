@@ -200,7 +200,7 @@ export function SessionsPage() {
     [queryClient],
   );
   const isF1 = gameId === "f1-2025";
-  const colCount = isF1 ? 8 : 7;
+  const colCount = isF1 ? 9 : 8;
   const emptyMessage = tab === "imported" ? m.sessions_none_imported() : m.sessions_none();
 
   return (
@@ -244,6 +244,7 @@ export function SessionsPage() {
         isLoading={isLoading}
         sessionsError={sessionsError}
         isF1={isF1}
+        gameId={gameId}
         emptyMessage={emptyMessage}
         expandedSessions={expandedSessions}
         toggleExpand={toggleExpand}
@@ -267,6 +268,7 @@ export function SessionsPage() {
         isLoading={isLoading}
         sessionsError={sessionsError}
         isF1={isF1}
+        gameId={gameId}
         emptyMessage={emptyMessage}
         colCount={colCount}
         pageItems={pageItems}

@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Button } from "../ui/button";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -71,7 +70,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       <DialogTrigger
         nativeButton={false}
         className="aui-attachment-preview-trigger hover:bg-accent/50 cursor-pointer transition-colors"
-        render={isValidElement(children) ? children : <Button type="button" />}
+        render={isValidElement(children) ? children : <button type="button" />}
       />
       <DialogContent className="aui-attachment-preview-dialog-content max-w-3xl p-2 [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0! [&>button]:hover:[&_svg]:text-destructive [&_svg]:text-background">
         <DialogTitle className="aui-sr-only sr-only">Image Attachment Preview</DialogTitle>
@@ -170,7 +169,7 @@ const AttachmentRemove: FC = () => {
       render={
         <TooltipIconButton
           tooltip="Remove file"
-          className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute end-1.5 top-1.5 size-3.5 rounded-full bg-app-text opacity-100 shadow-sm [&_svg]:text-app-on-filled"
+          className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute end-1.5 top-1.5 size-3.5 rounded-full bg-app-text opacity-100 shadow-sm hover:bg-app-text! [&_svg]:text-app-on-filled"
           side="top"
         />
       }

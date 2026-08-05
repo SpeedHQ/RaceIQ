@@ -376,9 +376,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             setFollowCar(next);
             drawBoth();
           }}
-          className={`absolute top-2 right-2 z-10 px-2 py-1 text-app-caption rounded border transition-colors ${
-            followCar ? "bg-status-info/20 border-status-info/50 text-status-info" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-          }`}
+          variant={followCar ? "selected-toggle" : "app-outline"}
+          size="app-sm"
+          className="absolute top-2 right-2 z-10"
         >
           {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
         </Button>

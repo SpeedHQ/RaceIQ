@@ -79,4 +79,17 @@ describe("formatTuneForPrompt", () => {
 		expect(result).toContain("Minimal");
 		expect(result).not.toContain("undefined");
 	});
+	test("formats track-specific settings in the canonical tuning shape", () => {
+		const result = formatTuneForPrompt({
+			name: "Track-specific setup",
+			author: "RaceIQ",
+			category: "track-specific",
+			settings: {
+				...SETTINGS,
+				antiRollBars: { front: 2, rear: 3 },
+			},
+		});
+		expect(result).toContain("Track-specific setup");
+		expect(result).toContain("Anti-Roll Bars: F 2, R 3");
+	});
 });

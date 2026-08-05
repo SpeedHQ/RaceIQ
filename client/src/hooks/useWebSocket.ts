@@ -4,11 +4,13 @@ import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
+import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
 const VERSION_REQUEST_TIMEOUT_MS = 10_000;
+const RACE_RESULT_REPROCESS_ERROR = "One or more race results could not be reconciled.";
 
 function fetchVersionInfo(signal: AbortSignal) {
   return client.api.version
@@ -99,6 +101,25 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
           } else if (data.type === "stale-lap-detection") {
             useTelemetryStore.getState().setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+          } else if (data.type === "stale-race-results") {
+            useTelemetryStore.getState().setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+          } else if (data.type === "race-result-reconciled") {
+            const store = useTelemetryStore.getState();
+            const done = data.done as number;
+            const total = data.total as number;
+            const failedNow = data.status === "error";
+            const failedEarlier = done > 1 && store.raceResultReprocessError != null;
+            if (done === 1) store.setRaceResultReprocessError(null);
+            store.setRaceResultReprocessProgress({ done, total });
+            if (failedNow) store.setRaceResultReprocessError(RACE_RESULT_REPROCESS_ERROR);
+            if (done === total) {
+              if (!failedEarlier && !failedNow) store.setStaleRaceResults(null);
+              store.setRaceResultReprocessProgress(null);
+            }
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessionResults });
+            queryClient.invalidateQueries({ queryKey: queryKeys.raceResultSummaries });
+            queryClient.invalidateQueries({ queryKey: queryKeys.raceResultRecents });
           } else if (data.type === "lap-reprocessed") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });

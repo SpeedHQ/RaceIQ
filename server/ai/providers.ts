@@ -3,7 +3,9 @@
  */
 
 import { extractJson } from "./extract-json";
-interface AiResult {
+import { AiProviderError } from "./provider-error";
+import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
+export interface AiResult {
   analysis: string;
   usage: {
     inputTokens: number;
@@ -14,6 +16,7 @@ interface AiResult {
   };
 }
 
+export type AiProvider = "gemini" | "openai" | "local";
 
 const AI_PROVIDERS = [
   { id: "gemini", name: "Google Gemini" },
@@ -25,10 +28,12 @@ export function getProviders() {
   return AI_PROVIDERS;
 }
 
-type ModelListResult = {
+export type ModelListResult = {
   models: { id: string; name: string; contextLength?: number }[];
   error: string | null;
 };
+
+
 
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
 export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelListResult> {
@@ -59,6 +64,10 @@ export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelList
   }
 }
 
+export async function getGeminiModels(apiKey: string): Promise<{ id: string; name: string }[]> {
+  const result = await getGeminiModelsDetailed(apiKey);
+  return result.models;
+}
 
 /** Run analysis via Claude CLI (pipe mode). */
 export async function runClaudeCli(prompt: string, model?: string): Promise<AiResult> {
@@ -110,7 +119,7 @@ export async function runClaudeCli(prompt: string, model?: string): Promise<AiRe
 }
 
 // JSON schema for structured output — used by Gemini and OpenAI
-const ANALYSIS_SCHEMA = {
+export const ANALYSIS_SCHEMA = {
   type: "object",
   properties: {
     verdict: { type: "string", description: "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are" },
@@ -190,121 +199,199 @@ const ANALYSIS_SCHEMA = {
         required: ["tip", "detail"],
       },
     },
-    setup: {
+  },
+  required: ["verdict", "pace", "handling", "corners", "braking", "throttle", "coaching"],
+};
+
+/**
+ * JSON schema for the per-segment inputs-comparison analysis.
+ * Matches the `InputsAnalysis` shape consumed by CompareAiPanel.
+ */
+export const INPUTS_COMPARE_SCHEMA = {
+  type: "object",
+  properties: {
+    verdict: { type: "string", description: "1-2 sentence top-line summary of input differences." },
+    segments: {
+      type: "array",
+      description: "ONE entry per track segment, in the order given by the prompt. MUST NOT be empty.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Segment name from the prompt's segment list." },
+          type: { type: "string", enum: ["corner", "straight"] },
+          deltaSeconds: { type: "number", description: "Lap A time minus Lap B time for this segment, in seconds. Positive = A slower." },
+          throttle: { type: "string", description: "1 sentence on throttle differences." },
+          brake: { type: "string", description: "1 sentence on brake differences." },
+          steering: { type: "string", description: "1 sentence on steering differences." },
+          severity: { type: "string", enum: ["minor", "moderate", "major"] },
+        },
+        required: ["name", "type", "deltaSeconds", "throttle", "brake", "steering", "severity"],
+      },
+    },
+    coaching: {
       type: "array",
       items: {
         type: "object",
         properties: {
-          component: { type: "string", description: "Setup component name (e.g. Front Springs, Rear ARB)" },
-          symptom: { type: "string", description: "What the telemetry shows (e.g. rear instability under braking)" },
-          fix: { type: "string", description: "What to change and why" },
-          current: { type: "string", description: "Current numeric value with unit (e.g. '750 lb/in', '2.5 deg', '52%'). MUST include a number." },
-          target: { type: "string", description: "Suggested numeric target with unit (e.g. '650 lb/in', '1.8 deg', '48%'). MUST include a number." },
-          direction: { type: "string", enum: ["increase", "decrease", "adjust"] },
+          tip: { type: "string", description: "Actionable change in 1 sentence." },
+          detail: { type: "string", description: "Why and how, 1-2 sentences." },
+          targetLap: { type: "string", enum: ["A", "B"] },
         },
-        required: ["component", "symptom", "fix", "current", "target", "direction"],
+        required: ["tip", "detail", "targetLap"],
       },
     },
   },
-  required: ["verdict", "pace", "handling", "corners", "braking", "throttle", "coaching", "setup"],
+  required: ["verdict", "segments", "coaching"],
 };
 
+export type GeminiRequestOptions = {
+  prompt: string;
+  apiKey: string;
+  model?: string;
+  schema?: object;
+  temperature?: number;
+  maxOutputTokens?: number;
+  thinkingBudget?: number | null;
+};
 
-/** Run analysis via Gemini API. */
-export async function runGemini(
-  prompt: string,
-  apiKey: string,
-  model?: string,
-  schema: object = ANALYSIS_SCHEMA,
-): Promise<AiResult> {
-  model = model || "gemini-flash-latest";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+export async function runGeminiRequest(options: GeminiRequestOptions): Promise<AiResult> {
+  const model = options.model || "gemini-flash-latest";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${options.apiKey}`;
+  const generationConfig: Record<string, unknown> = {
+    temperature: options.temperature ?? 0.3,
+  };
+  if (options.maxOutputTokens != null) generationConfig.maxOutputTokens = options.maxOutputTokens;
+  Object.assign(generationConfig, buildGoogleThinkingProviderOptions(model, options.thinkingBudget ?? null));
+  if (options.schema) {
+    generationConfig.responseMimeType = "application/json";
+    generationConfig.responseSchema = options.schema;
+  }
 
   const start = performance.now();
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: schema,
-        temperature: 0.3,
-      },
+      contents: [{ parts: [{ text: options.prompt }] }],
+      generationConfig,
     }),
   });
-
   const durationMs = Math.round(performance.now() - start);
 
   if (!res.ok) {
     const errBody = await res.text();
     console.error("[AI] Gemini API error:", res.status, errBody);
-    if (res.status === 401 || res.status === 403) {
-      throw new Error("Invalid Gemini API key. Check your key in Settings.");
-    }
-    throw new Error(`Gemini API error: ${res.status}`);
+    throw new AiProviderError(
+      res.status === 401 || res.status === 403
+        ? "Invalid Gemini API key. Check your key in Settings."
+        : `Gemini API error: ${res.status}`,
+      {
+        code: "upstream",
+        provider: "gemini",
+        modelId: model,
+        statusCode: res.status,
+        isRetryable: res.status >= 500,
+        responseBody: errBody,
+      },
+    );
   }
 
-  const data = await res.json() as any;
+  const data = await res.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   if (!text.trim()) throw new Error("Gemini returned empty response");
-
-  const jsonStr = extractJson(text);
-
+  const analysis = options.schema ? extractJson(text) : text.trim();
   const usage = data.usageMetadata ?? {};
   return {
-    analysis: jsonStr,
+    analysis,
     usage: {
       inputTokens: usage.promptTokenCount ?? 0,
       outputTokens: usage.candidatesTokenCount ?? 0,
-      costUsd: 0, // Gemini Flash pricing is negligible
+      costUsd: 0,
       durationMs,
       model,
     },
   };
 }
 
-
-/** Run analysis via OpenAI API. */
-export async function runOpenAi(
+/** Run structured analysis via Gemini API. */
+export async function runGemini(
   prompt: string,
   apiKey: string,
   model?: string,
   schema: object = ANALYSIS_SCHEMA,
-  schemaName: string = "lap_analysis",
 ): Promise<AiResult> {
-  model = model || "gpt-4o-mini";
+  return runGeminiRequest({ prompt, apiKey, model, schema });
+}
+
+export type OpenAiRequestOptions = {
+  prompt: string;
+  apiKey?: string;
+  endpoint?: string;
+  model?: string;
+  schema?: object;
+  schemaName?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+};
+
+/** Run a request against OpenAI or an OpenAI-compatible endpoint. */
+export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promise<AiResult> {
+  const model = options.model || "gpt-4o-mini";
+  const endpoint = (options.endpoint || "https://api.openai.com/v1").replace(/\/+$/, "");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: "user", content: options.prompt }],
+    temperature: options.temperature ?? 0.3,
+  };
+  if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
+  if (options.schema) {
+    body.response_format = {
+      type: "json_schema",
+      json_schema: { name: options.schemaName || "lap_analysis", strict: true, schema: options.schema },
+    };
+  }
+
   const start = performance.now();
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(`${endpoint}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: schemaName, strict: true, schema },
-      },
-      temperature: 0.3,
-    }),
+    headers,
+    body: JSON.stringify(body),
   });
   const durationMs = Math.round(performance.now() - start);
 
   if (!res.ok) {
     const errBody = await res.text();
-    console.error("[AI] OpenAI API error:", res.status, errBody);
-    if (res.status === 401) throw new Error("Invalid OpenAI API key. Check your key in Settings.");
-    throw new Error(`OpenAI API error: ${res.status}`);
+    console.error("[AI] OpenAI-compatible API error:", res.status, errBody);
+    throw new AiProviderError(
+      res.status === 401
+        ? "Invalid OpenAI API key. Check your key in Settings."
+        : `OpenAI API error: ${res.status}`,
+      {
+        code: "upstream",
+        provider: endpoint === "https://api.openai.com/v1" ? "openai" : "local",
+        modelId: model,
+        statusCode: res.status,
+        isRetryable: res.status >= 500,
+        responseBody: errBody,
+      },
+    );
   }
 
-  const data = await res.json() as any;
+  const data = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  };
   const text = data.choices?.[0]?.message?.content ?? "";
   if (!text.trim()) throw new Error("OpenAI returned empty response");
-
-  const jsonStr = extractJson(text);
+  const analysis = options.schema ? extractJson(text) : text.trim();
   const usage = data.usage ?? {};
   return {
-    analysis: jsonStr,
+    analysis,
     usage: {
       inputTokens: usage.prompt_tokens ?? 0,
       outputTokens: usage.completion_tokens ?? 0,
@@ -314,6 +401,18 @@ export async function runOpenAi(
     },
   };
 }
+
+/** Run structured analysis via OpenAI API. */
+export async function runOpenAi(
+  prompt: string,
+  apiKey: string,
+  model?: string,
+  schema: object = ANALYSIS_SCHEMA,
+  schemaName: string = "lap_analysis",
+): Promise<AiResult> {
+  return runOpenAiCompatible({ prompt, apiKey, model, schema, schemaName });
+}
+
 
 const OPENAI_MODELS = [
   { id: "gpt-4o-mini", name: "GPT-4o Mini" },
@@ -326,24 +425,42 @@ export function getOpenAiModels() {
   return OPENAI_MODELS;
 }
 
-/** Fetch per-model context lengths from LM Studio's native REST API (`/api/v0/models`).
- * Non-fatal: plain OpenAI-compatible servers (Ollama, llama.cpp) won't have this endpoint —
- * returns an empty map on any failure. */
-async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, number>> {
+/** Extract configured runtime context lengths from LM Studio model metadata. */
+export function extractLmStudioContextLengths(data: unknown): Map<string, number> {
   const map = new Map<string, number>();
-  try {
-    const base = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
-    const res = await fetch(`${base}/api/v0/models`, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return map;
-    const data = await res.json() as any;
-    for (const m of data.data ?? []) {
-      const ctx = m.loaded_context_length ?? m.max_context_length;
-      if (m.id && typeof ctx === "number" && ctx > 0) map.set(m.id, ctx);
-    }
-  } catch {
-    // LM Studio native API unavailable — context lengths simply omitted.
+  const models = (data as { models?: unknown[]; data?: unknown[] } | null)?.models
+    ?? (data as { data?: unknown[] } | null)?.data
+    ?? [];
+  for (const raw of models) {
+    if (!raw || typeof raw !== "object") continue;
+    const model = raw as {
+      id?: unknown;
+      key?: unknown;
+      loaded_context_length?: unknown;
+      loaded_instances?: Array<{ id?: unknown; config?: { context_length?: unknown } }>;
+    };
+    const id = typeof model.key === "string" ? model.key : model.id;
+    if (typeof id !== "string") continue;
+    const loaded = model.loaded_instances?.find((instance) => instance.id === id) ?? model.loaded_instances?.[0];
+    const ctx = loaded?.config?.context_length ?? model.loaded_context_length;
+    if (typeof ctx === "number" && ctx > 0) map.set(id, ctx);
   }
   return map;
+}
+
+/** Fetch configured runtime context lengths from LM Studio's native API. */
+async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, number>> {
+  const base = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
+  for (const path of ["/api/v1/models", "/api/v0/models"]) {
+    try {
+      const res = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) continue;
+      return extractLmStudioContextLengths(await res.json());
+    } catch {
+      // Try legacy endpoint, then omit context lengths if both are unavailable.
+    }
+  }
+  return new Map();
 }
 
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
@@ -374,4 +491,9 @@ export async function getLocalModelsDetailed(endpoint: string): Promise<ModelLis
     console.error("[AI] Local models list request errored:", message);
     return { models: [], error: message };
   }
+}
+
+export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
+  const result = await getLocalModelsDetailed(endpoint);
+  return result.models;
 }

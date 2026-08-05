@@ -11,9 +11,18 @@
  * judge an absolute lap. This module owns that persona so both compare-chat
  * and inputs-compare-analysis stay consistent.
  */
-import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
+import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+export function getPromptCarName(ordinal: number, gameId?: string): string {
+  return resolveCarName(ordinal, gameId);
+}
+
+export function getPromptTrackName(ordinal: number, gameId?: string): string {
+  return resolveTrackName(ordinal, gameId);
+}
 /**
  * The base persona used for every compare flow. Plain text — no JSON shape.
  *
@@ -55,14 +64,16 @@ export function compareLapHeader(
   trackName: string,
   carA: string,
   carB: string,
-  lapA: { lapNumber: number; lapTime: number; isValid: boolean },
-  lapB: { lapNumber: number; lapTime: number; isValid: boolean },
+  lapA: { id?: number; lapNumber: number; lapTime: number; isValid: boolean },
+  lapB: { id?: number; lapNumber: number; lapTime: number; isValid: boolean },
   finalDelta: number,
 ): string {
   const sign = finalDelta >= 0 ? "+" : "";
   return `--- LAPS UNDER COMPARISON ---
 Track: ${trackName}
+Lap A ID: ${lapA.id ?? "unknown"}
 Lap A: ${carA} — Lap #${lapA.lapNumber} — ${lapA.lapTime.toFixed(3)}s${lapA.isValid ? "" : " (INVALID)"}
+Lap B ID: ${lapB.id ?? "unknown"}
 Lap B: ${carB} — Lap #${lapB.lapNumber} — ${lapB.lapTime.toFixed(3)}s${lapB.isValid ? "" : " (INVALID)"}
 Final time delta (A − B): ${sign}${finalDelta.toFixed(3)}s  (positive = Lap A is slower)`;
 }

@@ -112,22 +112,12 @@ function median(values: number[]): number | null {
  * Candidacy: isValid && lapTime > 0. Among candidates, user-excluded laps are
  * dropped, then a blunder rule (median + 1.5*IQR, floored at best*1.02) drops
  * statistical outliers. Everything else survives as "clean".
- *
- * `applyUserExclusions: false` keeps `experimentExcluded` laps in the pool. That
- * exists for the driver profile (driver-profile-aggregate.ts): a lap the user
- * excluded from a *tuning* comparison is still a lap the driver drove, and
- * dropping it would bias the driving fingerprint towards the laps that happened
- * to flatter a setup. Defaults to true, so every tuning caller is unchanged.
  */
-export function selectCleanLaps(
-  laps: LapMeta[],
-  opts?: { applyUserExclusions?: boolean },
-): {
+export function selectCleanLaps(laps: LapMeta[]): {
   clean: LapMeta[];
   dropped: LapMeta[];
   breakdown: LapBreakdownRow[];
 } {
-  const applyUserExclusions = opts?.applyUserExclusions ?? true;
   const candidates: LapMeta[] = [];
   const breakdown: LapBreakdownRow[] = [];
 
@@ -143,7 +133,7 @@ export function selectCleanLaps(
   const notExcluded: LapMeta[] = [];
   for (const lap of candidates) {
     const imported = lap.experimentVersionId == null;
-    if (applyUserExclusions && lap.experimentExcluded === true) {
+    if (lap.experimentExcluded === true) {
       breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "user-excluded", imported });
       continue;
     }

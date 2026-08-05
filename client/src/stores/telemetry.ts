@@ -126,7 +126,12 @@ interface TelemetryState {
   versionInfo: VersionInfo | null;
   /** Server-pushed recorded laps for the current session's track+car */
   sessionLaps: LapMeta[];
-  /** Stale lap detection notification — null if dismissed or no stale sessions */
+  /** Stale race-result notification — null if current or dismissed */
+  staleRaceResults: { sessionCount: number; currentVersion: string } | null;
+  /** Active race-result reconciliation progress */
+  raceResultReprocessProgress: { done: number; total: number } | null;
+  /** Race-result reconciliation error, if the latest attempt failed */
+  raceResultReprocessError: string | null;
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
   /** Active reprocess progress — null when not reprocessing */
   reprocessProgress: { done: number; total: number } | null;
@@ -148,6 +153,9 @@ interface TelemetryState {
   setUpdateAvailable: (version: string | null) => void;
   setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
   setVersionInfo: (info: VersionInfo) => void;
+  setStaleRaceResults: (data: { sessionCount: number; currentVersion: string } | null) => void;
+  setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
+  setRaceResultReprocessError: (error: string | null) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
   setReprocessProgress: (progress: { done: number; total: number } | null) => void;
   incrementReprocessProgress: () => void;
@@ -180,6 +188,9 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   updateProgress: null,
   versionInfo: null,
   sessionLaps: [],
+  staleRaceResults: null,
+  raceResultReprocessProgress: null,
+  raceResultReprocessError: null,
   staleLapDetection: null,
   reprocessProgress: null,
   liveIssues: [],
@@ -232,6 +243,11 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           },
     ),
   setUpdateAvailable: (version) => set({ updateAvailable: version }),
+  setStaleRaceResults: (data) => set({ staleRaceResults: data }),
+  setRaceResultReprocessProgress: (progress) => set({ raceResultReprocessProgress: progress }),
+  incrementRaceResultReprocessProgress: () =>
+    set((prev) => (prev.raceResultReprocessProgress ? { raceResultReprocessProgress: { ...prev.raceResultReprocessProgress, done: prev.raceResultReprocessProgress.done + 1 } } : {})),
+  setRaceResultReprocessError: (error) => set({ raceResultReprocessError: error }),
   setStaleLapDetection: (data) => set({ staleLapDetection: data }),
   setReprocessProgress: (progress) => set({ reprocessProgress: progress }),
   incrementReprocessProgress: () =>

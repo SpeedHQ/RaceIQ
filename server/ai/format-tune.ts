@@ -7,13 +7,25 @@ interface TuneForPrompt {
 	settings: TuneSettings;
 }
 
+function isStructuredTuneSettings(value: unknown): value is TuneSettings {
+	return typeof value === "object" && value !== null && "tires" in value && "gearing" in value;
+}
+
 export function formatTuneForPrompt(tune: TuneForPrompt): string {
-	const s = tune.settings;
+	const s: unknown = tune.settings;
 	const lines: string[] = [];
 
 	lines.push(
 		`--- ACTIVE TUNE: "${tune.name}" by ${tune.author} (${tune.category}) ---`,
 	);
+
+	if (!isStructuredTuneSettings(s)) {
+		const summary = Object.entries(s ?? {})
+			.map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`)
+			.join(", ");
+		lines.push(`Game-specific setup: ${summary}`);
+		return lines.join("\n");
+	}
 
 	const compound = s.tires.compound ? ` (${s.tires.compound})` : "";
 	lines.push(

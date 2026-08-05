@@ -6,25 +6,16 @@ import type { RaceSourceObservation, ResultClassification } from "./types";
 import { createRaceResultProvenance } from "./provenance";
 import { resolveRaceResultAuthorityFromSourceStatus } from "./authority";
 
-const SOURCE_EXTRACTOR = {
-  id: "race-result-source",
-  version: "2",
-} as const;
+const SOURCE_EXTRACTOR = { id: "race-result-source", version: "3" } as const;
 
 function classifyF1Result(status: number | undefined): ResultClassification | null {
   switch (status) {
-    case 3:
-      return "finished";
-    case 4:
-      return "dnf";
-    case 5:
-      return "disqualified";
-    case 6:
-      return "not-classified";
-    case 7:
-      return "retired";
-    default:
-      return null;
+    case 3: return "finished";
+    case 4: return "dnf";
+    case 5: return "disqualified";
+    case 6: return "not-classified";
+    case 7: return "retired";
+    default: return null;
   }
 }
 
@@ -40,9 +31,7 @@ function extractPitSignals(gameId: GameId, packets: TelemetryPacket[]): PitServi
     for (const packet of packets) {
       const status = packet.acc?.pitStatus ?? "out";
       const nextInPit = status !== "out";
-      if (nextInPit && !inPit) {
-        signals.push({ lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime, linkage: "linked", source: { channel: "acc.pitStatus", value: status } });
-      }
+      if (nextInPit && !inPit) signals.push({ lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime, linkage: "linked", source: { channel: "acc.pitStatus", value: status } });
       inPit = nextInPit;
     }
     return signals;
@@ -52,9 +41,7 @@ function extractPitSignals(gameId: GameId, packets: TelemetryPacket[]): PitServi
     let inPit = false;
     for (const packet of packets) {
       const nextInPit = packet.f1?.pitLaneTimerActive === 1;
-      if (nextInPit && !inPit) {
-        signals.push({ lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime, linkage: "linked", source: { channel: "f1.pitLaneTimerActive", value: 1 } });
-      }
+      if (nextInPit && !inPit) signals.push({ lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime, linkage: "linked", source: { channel: "f1.pitLaneTimerActive", value: 1 } });
       inPit = nextInPit;
     }
     return signals;
@@ -64,9 +51,7 @@ function extractPitSignals(gameId: GameId, packets: TelemetryPacket[]): PitServi
     let inPit = false;
     for (const packet of packets) {
       const nextInPit = packet.iracing?.onPitRoad === true;
-      if (nextInPit && !inPit) {
-        signals.push({ lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime, linkage: "linked", source: { channel: "iracing.onPitRoad", value: true } });
-      }
+      if (nextInPit && !inPit) signals.push({ lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime, linkage: "linked", source: { channel: "iracing.onPitRoad", value: true } });
       inPit = nextInPit;
     }
     return signals;
@@ -87,12 +72,7 @@ function extractF1Result(packets: TelemetryPacket[]) {
   const finalClassifications = new Set<ResultClassification>();
   const liveClassifications = new Set<ResultClassification>();
   const sessionTypes = new Map<string, string>();
-  const classificationClaims: Array<{
-    classification: ResultClassification;
-    source: "final-classification" | "lap-data";
-    observedAt: number;
-    sequence: number;
-  }> = [];
+  const classificationClaims: Array<{ classification: ResultClassification; source: "final-classification" | "lap-data"; observedAt: number; sequence: number }> = [];
 
   for (let packetIndex = 0; packetIndex < packets.length; packetIndex++) {
     const packet = packets[packetIndex]!;
@@ -105,12 +85,7 @@ function extractF1Result(packets: TelemetryPacket[]) {
     if (observedClassification) {
       const observedAt = packet.TimestampMS ?? packet.CurrentRaceTime * 1000;
       const claimSource = f1?.resultSource === "final-classification" ? "final-classification" : "lap-data";
-      classificationClaims.push({
-        classification: observedClassification,
-        source: claimSource,
-        observedAt: Number.isFinite(observedAt) ? observedAt : packetIndex,
-        sequence: packetIndex,
-      });
+      classificationClaims.push({ classification: observedClassification, source: claimSource, observedAt: Number.isFinite(observedAt) ? observedAt : packetIndex, sequence: packetIndex });
       if (f1?.resultSource === "final-classification") {
         finalClassifications.add(observedClassification);
         finalClassification = observedClassification;
@@ -124,7 +99,6 @@ function extractF1Result(packets: TelemetryPacket[]) {
     }
     livePosition = positive(packet.RacePosition) ?? livePosition;
     liveGridPosition = positive(f1?.gridPosition) ?? liveGridPosition;
-
     const bestLap = positive(packet.BestLap);
     if (bestLap != null && f1?.grid) {
       let gridBest: number | null = null;
@@ -135,16 +109,10 @@ function extractF1Result(packets: TelemetryPacket[]) {
       if (gridBest != null) isFastestLap = bestLap <= gridBest;
     }
   }
-
   const conflicts: string[] = [];
-  const selectedClassifications =
-    finalClassifications.size > 0 ? finalClassifications : liveClassifications;
-  if (selectedClassifications.size > 1) {
-    conflicts.push(`classification:${[...selectedClassifications].join("|")}`);
-  }
-  if (sessionTypes.size > 1) {
-    conflicts.push(`session-type:${[...sessionTypes.values()].join("|")}`);
-  }
+  const selectedClassifications = finalClassifications.size > 0 ? finalClassifications : liveClassifications;
+  if (selectedClassifications.size > 1) conflicts.push(`classification:${[...selectedClassifications].join("|")}`);
+  if (sessionTypes.size > 1) conflicts.push(`session-type:${[...sessionTypes.values()].join("|")}`);
   return {
     sessionType,
     classification: finalClassification ?? liveClassification,
@@ -193,6 +161,38 @@ function initialFuelPerLap(packets: TelemetryPacket[]): number | null {
   return null;
 }
 
+function extractPositionChanges(packets: TelemetryPacket[]) {
+  const lapPositions = new Map<number, number>();
+  for (const packet of packets) {
+    if (packet.LapNumber == null || packet.LapNumber <= 0 || packet.RacePosition == null || packet.RacePosition <= 0) continue;
+    lapPositions.set(packet.LapNumber, packet.RacePosition);
+  }
+  const changes = [];
+  let previousPosition: number | null = null;
+  for (const [lapNumber, position] of [...lapPositions.entries()].sort(([a], [b]) => a - b)) {
+    if (previousPosition != null && position !== previousPosition) {
+      changes.push({
+        eventType: "position-change" as const,
+        sequence: 100000 + lapNumber,
+        lapNumber,
+        elapsedSeconds: null,
+        durationSeconds: null,
+        service: "unknown" as const,
+        tyreChange: null,
+        fuelAdded: null,
+        fuelBefore: null,
+        fuelAfter: null,
+        positionBefore: previousPosition,
+        positionAfter: position,
+        linkage: "linked" as const,
+        source: { telemetry: "RacePosition", boundary: "lap-end" },
+      });
+    }
+    previousPosition = position;
+  }
+  return changes.length > 0 ? changes : undefined;
+}
+
 function status(available: boolean, availableStatus: RaceResultSourceStatus): RaceResultSourceStatus {
   return available ? availableStatus : "unavailable";
 }
@@ -219,6 +219,7 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     tyreStrategy: status(tyreStrategy != null, "simplified"),
     fuelStrategy: status(fuelStrategy != null, "simplified"),
   };
+  const positionChanges = extractPositionChanges(packets);
   const provenance = createRaceResultProvenance(gameId, {
     extractor: SOURCE_EXTRACTOR,
     fields: {
@@ -228,6 +229,7 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
       qualifyingPosition: qualifyingPosition == null ? null : `f1.gridPosition:${f1?.qualifyingPositionSource ?? "unknown"}`,
       isFastestLap: isFastestLap == null ? null : "player-vs-f1.grid.bestLapTime",
       pitEvents: pitSignals ? `${gameId}-pit-transition` : null,
+      positionChanges: positionChanges ? "TelemetryPacket.RacePosition at lap boundaries" : null,
       tyreStrategy: tyreStrategy == null ? null : "initial-compound-only",
       fuelStrategy: fuelStrategy == null ? null : "initial-acc.fuelPerLap-only",
       resultReason: f1?.resultReason == null ? null : "f1.finalClassification.resultReason",
@@ -249,7 +251,6 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     validated: true,
     provenance,
   }));
-
   return {
     gameId,
     sessionType,
@@ -257,16 +258,15 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     finishingPosition,
     qualifyingPosition,
     isFastestLap,
+    fastestLapSource: f1 ? "f1-grid" : null,
     packets,
     claims: classificationClaims,
     pitEvents: pitSignals ? derivePitLedger(pitSignals) : undefined,
+    positionChanges,
     tyreStrategy,
     fuelStrategy,
     provenance,
-    evidence: {
-      fieldStatus,
-      conflicts: f1?.conflicts ?? [],
-    },
+    evidence: { fieldStatus, conflicts: f1?.conflicts ?? [] },
     reasons: [],
   };
 }

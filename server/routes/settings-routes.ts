@@ -17,11 +17,24 @@ import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import { withOnboardingOverride } from "../runtime/options";
 
+import { getGeminiModelsDetailed, getLocalModelsDetailed, getOpenAiModels, getProviders } from "../ai/providers";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
+export type AiProviderDiscovery = {
+  id: string;
+  name: string;
+  ready?: boolean;
+  error?: string | null;
+};
+
+
+export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
+  return getProviders();
+}
+
 export const settingsRoutes = new Hono()
   // GET /api/status
   .get("/api/status", (c) => {
@@ -64,14 +77,10 @@ export const settingsRoutes = new Hono()
   })
 
   // GET /api/ai-providers — available providers
-  .get("/api/ai-providers", async (c) => {
-    const { getProviders } = await import("../ai/providers");
-    return c.json(getProviders());
-  })
+  .get("/api/ai-providers", async (c) => c.json(await getAiProviderDiscovery()))
 
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
-    const { getGeminiModelsDetailed, getOpenAiModels, getLocalModelsDetailed } = await import("../ai/providers");
     const forceRefresh = c.req.query("refresh") === "1";
     console.info(`[AI] ai-models request refresh=${forceRefresh ? "1" : "0"} providers=${c.req.query("providers") ?? "<settings>"}`);
 

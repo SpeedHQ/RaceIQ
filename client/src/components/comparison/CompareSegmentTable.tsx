@@ -3,6 +3,9 @@ import { deltaColor } from "@/lib/colors";
 import { COLOR_A, COLOR_B, formatSectionTime } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
 import type { SegmentTiming } from "./CompareTrackMap";
+export function compareSegmentKey(name: string, startFrac: number, endFrac: number): string {
+  return `${name}:${startFrac}:${endFrac}`;
+}
 
 export function CompareSegmentTable({ segments, tableRef }: { segments: SegmentTiming[]; tableRef: React.RefObject<HTMLTableSectionElement | null> }) {
   if (segments.length === 0) return null;
@@ -26,7 +29,7 @@ export function CompareSegmentTable({ segments, tableRef }: { segments: SegmentT
             const delta = s.timeA - s.timeB;
             const segmentDeltaColor = Math.abs(delta) < 0.005 ? "var(--app-text-secondary)" : deltaColor(delta);
             return (
-              <TRow key={`${s.name}-${s.startFrac}-${s.endFrac}`}>
+              <TRow key={compareSegmentKey(s.name, s.startFrac, s.endFrac)}>
                 <TD nowrap numeric tone="primary">
                   {s.name}
                 </TD>

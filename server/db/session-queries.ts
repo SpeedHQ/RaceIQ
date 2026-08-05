@@ -2,7 +2,7 @@ import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps } from "./schema";
+import { sessions, laps, sessionResults, pitEvents } from "./schema";
 import type { SessionMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
@@ -226,11 +226,41 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
 
     const validLaps = lapRows.filter((l) => l.isValid && l.lapTime > 0);
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
-    result.push({
+    const normalizedSession = {
       ...session,
+      sessionType: session.sessionType ?? undefined,
+    };
+    const resultRow = await db
+      .select({
+        id: sessionResults.id,
+        classification: sessionResults.classification,
+        finishingPosition: sessionResults.finishingPosition,
+        qualifyingPosition: sessionResults.qualifyingPosition,
+        isPodium: sessionResults.isPodium,
+        isFastestLap: sessionResults.isFastestLap,
+        pitCount: sessionResults.pitCount,
+      })
+      .from(sessionResults)
+      .where(eq(sessionResults.sessionId, session.id))
+      .get();
+    const pitDurationRow = resultRow
+      ? await db
+        .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
+        .from(pitEvents)
+        .where(eq(pitEvents.resultId, resultRow.id))
+        .get()
+      : null;
+    result.push({
+      ...normalizedSession,
       lapCount: lapRows.length,
       bestLapTime,
-      sessionType: session.sessionType ?? undefined,
+      resultClassification: resultRow?.classification ?? null,
+      finishingPosition: resultRow?.finishingPosition ?? null,
+      qualifyingPosition: resultRow?.qualifyingPosition ?? null,
+      isPodium: resultRow?.isPodium ?? null,
+      isFastestLap: resultRow?.isFastestLap ?? null,
+      pitCount: resultRow?.pitCount ?? null,
+      pitDurationSeconds: pitDurationRow?.duration ?? null,
       notes: session.notes ?? undefined,
       source: session.source ?? undefined,
       gameId: session.gameId as GameId,

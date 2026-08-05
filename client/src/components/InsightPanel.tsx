@@ -72,7 +72,7 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
     { key: "mechanical", icon: "⚙️", label: m.insight_category_mechanical() },
   ];
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {categories.map(({ key, icon, label }) => {
         const items = insights.filter((i) => i.category === key);
         return (
@@ -85,7 +85,7 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
             {items.length === 0 ? (
               <div className="text-app-caption text-app-text-dim pl-5">✓ No issues detected</div>
             ) : (
-              <div className="space-y-0.5">
+              <div className="flex flex-col gap-0.5">
                 {items.map((insight) => (
                   <InsightRow key={insight.id} insight={insight} onJump={onJumpToFrame} />
                 ))}

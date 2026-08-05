@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { toClientAiError } from "../../../server/ai/provider-error";
+import { formatClientAiErrorMessage, toClientAiError } from "../../../server/ai/provider-error";
 
 describe("toClientAiError", () => {
   test("surfaces upstream response body details and retryability", () => {
@@ -25,6 +25,39 @@ describe("toClientAiError", () => {
         status: "UNAVAILABLE",
       },
     });
+  });
+
+  test("combines generic provider error with upstream response detail", () => {
+    const error = toClientAiError({
+      message: "Bad Request",
+      statusCode: 400,
+      responseBody: JSON.stringify({
+        error: {
+          code: 400,
+          message: "request exceeds available context size",
+          type: "exceed_context_size_error",
+        },
+      }),
+    });
+
+    expect(formatClientAiErrorMessage(error)).toBe(
+      "Bad Request: request exceeds available context size",
+    );
+  });
+
+  test("extracts nested engine error from SDK response body", () => {
+    const error = toClientAiError({
+      message: "OpenAI stream failed before any output was generated",
+      responseBody: JSON.stringify({
+        message:
+          'Engine protocol predict request returned 400: {"error":{"code":400,"message":"request exceeds context size","type":"exceed_context_size_error","n_prompt_tokens":9144,"n_ctx":8192}}',
+      }),
+    });
+
+    expect(formatClientAiErrorMessage(error)).toBe(
+      "OpenAI stream failed before any output was generated: request exceeds context size",
+    );
+    expect(error.upstream).toMatchObject({ promptTokens: 9144, contextLength: 8192 });
   });
 
   test("falls back when upstream body is missing", () => {

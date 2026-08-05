@@ -47,6 +47,7 @@ export class LiveTelemetryPipeline {
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
+  private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
@@ -94,6 +95,29 @@ export class LiveTelemetryPipeline {
     this._onSessionFinalized = options?.onSessionFinalized;
   }
 
+  private _scheduleLapReconciliation(sessionId: number, gameId: GameId): void {
+    const reconcile = this._onSessionFinalized;
+    if (!reconcile) return;
+    const previous = this._lapReconciliations.get(sessionId) ?? Promise.resolve();
+    let current: Promise<void>;
+    current = previous
+      .catch(() => {})
+      .then(() => reconcile(sessionId, gameId))
+      .catch((error) => {
+        console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
+      })
+      .finally(() => {
+        if (this._lapReconciliations.get(sessionId) === current) {
+          this._lapReconciliations.delete(sessionId);
+        }
+      });
+    this._lapReconciliations.set(sessionId, current);
+  }
+
+  private async _drainLapReconciliations(sessionId: number): Promise<void> {
+    await this._lapReconciliations.get(sessionId);
+  }
+
   private _reconcileRecordedSession(
     session: { sessionId: number; gameId: GameId },
   ): Promise<void> {
@@ -102,8 +126,8 @@ export class LiveTelemetryPipeline {
     }
     const pending = this._resultFinalizations.get(session.sessionId);
     if (pending) return pending;
-
     const finalization = (async () => {
+      await this._drainLapReconciliations(session.sessionId);
       await this._onSessionFinalized?.(session.sessionId, session.gameId);
       this._finalizedResultSessions.add(session.sessionId);
     })();
@@ -214,6 +238,7 @@ export class LiveTelemetryPipeline {
         // Append to in-memory list and broadcast
         const session = this._lapDetector?.session ?? null;
         if (session) {
+          this._scheduleLapReconciliation(session.sessionId, session.gameId);
           this._sessionLaps.push({
             id: event.lapId,
             sessionId: session.sessionId,

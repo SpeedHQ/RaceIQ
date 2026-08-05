@@ -100,12 +100,16 @@ async function seededIRacingIdentity(dataDir: string): Promise<Array<{ kind: str
 
 async function assertSeededRawFilesExist(dataDir: string): Promise<void> {
   const laps = await seededIRacingLaps(dataDir);
-  expect(laps).toHaveLength(4);
-  expect(laps.map(({ lapNumber, isValid, invalidReason }) => ({ lapNumber, isValid, invalidReason }))).toEqual([
-    { lapNumber: 414, isValid: 0, invalidReason: "inlap" },
-    { lapNumber: 415, isValid: 0, invalidReason: "outlap" },
-    { lapNumber: 416, isValid: 1, invalidReason: null },
-    { lapNumber: 417, isValid: 1, invalidReason: null },
+  expect(laps).toHaveLength(2);
+  expect(
+    laps.map(({ lapNumber, isValid, invalidReason }) => ({
+      lapNumber,
+      isValid,
+      invalidReason,
+    })),
+  ).toEqual([
+    { lapNumber: 1, isValid: 1, invalidReason: null },
+    { lapNumber: 2, isValid: 1, invalidReason: null },
   ]);
   expect(laps.every((lap) => lap.rawFile?.startsWith(join(dataDir, "sessions", "iracing")))).toBe(true);
   expect(laps.every((lap) => lap.rawFile && readFileSync(lap.rawFile).length > 0)).toBe(true);
@@ -162,8 +166,8 @@ describe("db:seed", () => {
     expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8")).onboardingComplete).toBe(true);
     expect(await seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing"]);
     expect(await seededIRacingIdentity(dataDir)).toEqual([
-      { kind: "car", ordinal: 206, name: "Aston Martin Vantage GT3 EVO" },
-      { kind: "track", ordinal: 192, name: "Daytona International Speedway" },
+      { kind: "car", ordinal: 42, name: "GT3 Test Car" },
+      { kind: "track", ordinal: 99, name: "Road America" },
     ]);
     expect(initial.experiments).toBe(1);
     expect(initial.experiment_versions).toBe(2);

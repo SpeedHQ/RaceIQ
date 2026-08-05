@@ -7,8 +7,7 @@
  * across two laps.
  */
 import { Agent } from "@mastra/core/agent";
-import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/runtime/config/settings";
+import { getModel } from "../../server/ai/model-provider";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
@@ -30,15 +29,17 @@ export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
   name: "Lap Analyst",
   instructions: LAP_ANALYST_INSTRUCTIONS,
-  model: () => {
-    const s = loadSettings();
-    return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
-  },
+  model: ({ requestContext }) => getModel("analysis", requestContext),
   // Tool stays registered for models that can tool-call reliably. On local
   // models (Gemma 4) that loop the tool, the analyse route inlines the
   // same data into the prompt — model can ignore the tool and still get
   // the context. See server/routes/laps/chat-routes.ts.
-  tools: { compareF1SetupToCatalogTool, getCornerMetricsTool, getTrackGuideTool, listTrackGuidesTool },
+  tools: {
+    compare_f1_setup_to_catalog: compareF1SetupToCatalogTool,
+    get_corner_metrics: getCornerMetricsTool,
+    get_track_guide: getTrackGuideTool,
+    list_track_guides: listTrackGuidesTool,
+  },
   // Live scoring in Studio: deterministic suite always, LLM-judge when
   // EVAL_LOCAL_JUDGE=1 (LM Studio running). See mastra/evals/index.ts.
   scorers: liveAnalystScorers,

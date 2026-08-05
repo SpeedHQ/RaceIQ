@@ -1,7 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
-// @ts-expect-error — three-stdlib types not always resolved
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { VIEW_PRESETS, type ViewPreset } from "../../lib/wireframe-data";

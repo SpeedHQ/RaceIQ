@@ -11,7 +11,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 
 import { cn } from "@/lib/utils";
 import { EditComposer } from "./thread-composer";
-import { ThreadComponentsContext } from "./thread-context";
+import { RegenerateContext, ThreadComponentsContext } from "./thread-context";
 import { ReasoningGroupFallback, ReasoningPart } from "./thread-reasoning";
 
 export const ThreadMessage: FC = () => {
@@ -32,7 +32,7 @@ const MessageError: FC = () => (
 );
 
 const AssistantMessage: FC = () => {
-  const { ToolFallback: ToolFallbackComponent = ToolFallback, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);
+  const { Text: TextComponent, ToolFallback: ToolFallbackComponent = ToolFallback, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);
   const ACTION_BAR_PT = "pt-1.5";
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
   return (
@@ -58,7 +58,7 @@ const AssistantMessage: FC = () => {
               case "group-reasoning":
                 return ReasoningGroup ? <ReasoningGroup group={part}>{children}</ReasoningGroup> : <ReasoningGroupFallback group={part}>{children}</ReasoningGroupFallback>;
               case "text":
-                return <MarkdownText />;
+                return TextComponent ? <TextComponent {...part} /> : <MarkdownText />;
               case "reasoning":
                 return (
                   <ReasoningPart>
@@ -151,13 +151,28 @@ const UserMessage: FC = () => (
   </MessagePrimitive.Root>
 );
 
-const UserActionBar: FC = () => (
-  <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="aui-user-action-bar-root flex flex-col items-end">
-    <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit" className="aui-user-action-edit" />}>
-      <PencilIcon />
-    </ActionBarPrimitive.Edit>
-  </ActionBarPrimitive.Root>
-);
+const UserActionBar: FC = () => {
+  const onRegenerate = useContext(RegenerateContext);
+  const messageId = useAuiState((s) => s.message.id);
+  const prompt = useAuiState((s) =>
+    s.message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join(""),
+  );
+  return (
+    <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="aui-user-action-bar-root flex flex-col items-end">
+      {onRegenerate && (
+        <TooltipIconButton tooltip="Regenerate" className="aui-user-action-regenerate" onClick={() => onRegenerate(messageId, prompt)} aria-label="Regenerate">
+          <RefreshCwIcon />
+        </TooltipIconButton>
+      )}
+      <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit" className="aui-user-action-edit" />}>
+        <PencilIcon />
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
+  );
+};
 
 const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => (
   <BranchPickerPrimitive.Root hideWhenSingleBranch className={cn("aui-branch-picker-root text-muted-foreground -ms-2 me-2 inline-flex items-center text-xs", className)} {...rest}>

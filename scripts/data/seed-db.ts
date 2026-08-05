@@ -4,6 +4,7 @@ import { db, client, initDb } from "../../server/db/index";
 import { importSessionBin } from "../../server/session-capture/import-capture";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
+import { developmentReleaseFeatures } from "../release/development-release-features";
 import { profiles, sessions } from "../../server/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
@@ -16,8 +17,8 @@ import { FIXTURES, PROFILE_NAME, parseOptions, SEED_MARKER } from "./seed-db-opt
 async function main(): Promise<void> {
   const options = parseOptions();
   await initDb();
-  initGameAdapters();
-  initServerGameAdapters();
+  initGameAdapters(developmentReleaseFeatures);
+  initServerGameAdapters(developmentReleaseFeatures);
   await assertSafeTarget(options.force);
   if (options.reset) await removeSeedData();
   if (await seedRowCount()) {

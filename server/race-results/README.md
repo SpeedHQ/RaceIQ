@@ -21,4 +21,4 @@ Telemetry packets enter through `source.ts`; database and raw-capture access is 
 
 ## Testing
 
-`test/race-results-authority.test.ts` covers arbitration, rejection, conflicts, and consensus. `test/race-results-derive.test.ts` covers normalization, classification fallback, podium derivation, and pit-ledger ordering. Reconciliation changes also require exercising a materialized session path because DB and capture loading are integration boundaries.
+`test/race-results/race-results-authority.test.ts` covers arbitration, rejection, conflicts, and consensus. `test/race-results/race-results-derive.test.ts` covers normalization, classification fallback, podium derivation, and pit-ledger ordering. Reconciliation changes also require exercising a materialized session path because DB and capture loading are integration boundaries.

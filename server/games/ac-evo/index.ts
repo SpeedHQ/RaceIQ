@@ -16,7 +16,7 @@ You are analyzing telemetry data from a lap in AC Evo. Your role is to provide s
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
 
-${renderAnalystSchemaForPrompt({ tuningExampleComponent: "Front Tyre Pressure" })}
+${renderAnalystSchemaForPrompt()}
 
 CATEGORY GUIDELINES:
 - "pace": 4-6 items covering speed, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.

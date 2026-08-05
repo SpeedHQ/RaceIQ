@@ -111,7 +111,11 @@ function derivePodium(position: number | null, classification: ResultClassificat
 
 function stableEvents(events: PitEvent[] | undefined): PitEvent[] {
   return [...(events ?? [])]
-    .sort((a, b) => a.sequence - b.sequence)
+    .sort((a, b) => {
+      const lapA = a.lapNumber ?? Number.MAX_SAFE_INTEGER;
+      const lapB = b.lapNumber ?? Number.MAX_SAFE_INTEGER;
+      return lapA - lapB || a.sequence - b.sequence;
+    })
     .map((event, index) => ({ ...event, sequence: index + 1 }));
 }
 
@@ -132,7 +136,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     classification,
     status: resolveRaceResultSourceStatusFromAuthority(winningEvidence?.authority),
   };
-  const events = stableEvents(source.pitEvents);
+  const events = stableEvents([...(source.pitEvents ?? []), ...(source.positionChanges ?? [])]);
   const reasons = [...new Set(source.reasons)];
   const conflicts = [...source.evidence.conflicts];
   const fieldStatus = { ...source.evidence.fieldStatus };
@@ -147,7 +151,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
   if (!source.sessionType) reasons.push("session-type-missing");
   if (source.finishingPosition == null && sessionType === "race") reasons.push("finishing-position-unknown");
   if (source.isFastestLap == null) reasons.push("fastest-lap-unknown");
-  if (events.length === 0 && source.pitEvents == null) reasons.push("pit-ledger-unsupported");
+  if (source.pitEvents == null) reasons.push("pit-ledger-unsupported");
   if (classificationResult.status === "derived") reasons.push("classification-derived-fallback");
   if (classificationResult.status === "simplified") reasons.push("classification-provisional-source");
   if (classificationResult.status === "unavailable") reasons.push("classification-unavailable");
@@ -166,7 +170,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     qualifyingPosition: source.qualifyingPosition ?? null,
     isPodium,
     isFastestLap: source.isFastestLap ?? null,
-    pitCount: events.length,
+    pitCount: events.filter((event) => (event.eventType ?? "pit") !== "position-change").length,
     events,
     tyreStrategy: source.tyreStrategy ?? null,
     fuelStrategy: source.fuelStrategy ?? null,

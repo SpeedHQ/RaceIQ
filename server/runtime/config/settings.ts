@@ -109,6 +109,18 @@ export function loadSettings(): AppSettings {
     delete parsed.tireTemperatureThresholds;
     delete parsed.tireHealthThresholds;
     delete parsed.suspensionThresholds;
+    // Migrate removed Codex provider selections to an unconfigured state.
+    for (const [providerKey, modelKey] of [
+      ["aiProvider", "aiModel"],
+      ["chatProvider", "chatModel"],
+      ["autoTuneProvider", "autoTuneModel"],
+      ["driverProfileProvider", "driverProfileModel"],
+    ] as const) {
+      if (parsed[providerKey] === "codex") {
+        parsed[providerKey] = "";
+        parsed[modelKey] = "";
+      }
+    }
 
     const result = AppSettingsSchema.parse(parsed);
     // Always sync launchOnLogin from the actual registry state

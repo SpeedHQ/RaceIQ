@@ -44,10 +44,8 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                 const i = idx + 1;
                 return (
                   <div key={s.id} className="flex items-center gap-2 shrink-0">
-                    <Button
-                      type="button"
-                      onClick={() => setStep(i)}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors whitespace-nowrap ${i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"}`}
+                    <div
+                      className={`flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"}`}
                     >
                       <span
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors ${i === step ? "border-app-accent bg-app-accent/15 text-app-accent" : i < step ? "border-status-success bg-status-success/15 text-status-success" : "border-app-border bg-app-surface-alt text-app-text-muted/50"}`}
@@ -61,7 +59,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                         )}
                       </span>
                       {s.label()}
-                    </Button>
+                    </div>
                     {idx < MODAL_STEPS.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-status-success/50" : "bg-app-border"}`} />}
                   </div>
                 );

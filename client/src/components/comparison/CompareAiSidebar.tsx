@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import type { RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
@@ -24,11 +24,11 @@ export function CompareAiSidebar({ lapA, lapB, panelRef, onClose, segments, onJu
           <span className="text-app-caption uppercase tracking-wider font-semibold text-app-text">{m.compare_ai_compare()}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => panelRef.current?.clearChat()} className="text-app-micro text-app-text-muted hover:text-app-text" title={m.compare_clear_chat()}>
+          <Button variant="app-outline" size="app-sm" onClick={() => panelRef.current?.clearChat()} title={m.compare_clear_chat()}>
             {m.compare_clear_chat()}
           </Button>
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
-            ✕
+          <Button variant="close-action" size="icon-xs" onClick={onClose} aria-label={m.common_close()}>
+            <X aria-hidden="true" />
           </Button>
         </div>
       </div>

@@ -36,7 +36,7 @@ export function AnalysisDisplay({
   const lookupSegs = cornerFracs && cornerFracs.length > 0 ? cornerFracs : (segments ?? null);
 
   return (
-    <div ref={ref} className="max-w-full rounded-lg px-2.5 py-2 bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary space-y-3">
+    <div ref={ref} className="flex max-w-full flex-col gap-3 rounded-lg border border-app-border-input/40 bg-app-surface-alt/60 px-2.5 py-2 text-app-text-secondary">
       <p className="text-app-compact text-app-text leading-relaxed">{analysis.verdict}</p>
       {analysis.pace?.length > 0 && (
         <div>
@@ -61,7 +61,7 @@ export function AnalysisDisplay({
       {analysis.corners?.length > 0 && (
         <div>
           <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             {analysis.corners.map((corner) => (
               <TrackCard
                 key={corner.name}
@@ -85,7 +85,7 @@ export function AnalysisDisplay({
       {analysis.braking?.length > 0 && (
         <div>
           <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             {analysis.braking.map((item) => (
               <TrackCard
                 key={item.corner}
@@ -108,7 +108,7 @@ export function AnalysisDisplay({
       {analysis.throttle?.length > 0 && (
         <div>
           <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             {analysis.throttle.map((item) => (
               <TrackCard
                 key={item.corner}
@@ -131,7 +131,7 @@ export function AnalysisDisplay({
       {analysis.coaching?.length > 0 && (
         <div>
           <SectionHeader icon={<Lightbulb className="size-3" />} title={m.label_coaching()} />
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             {analysis.coaching.map((item, i) => (
               <TrackCard key={item.tip} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="flex gap-2">
                 <span className="text-ai-accent/60 text-app-caption font-mono mt-0.5">{i + 1}.</span>
@@ -152,34 +152,18 @@ export function AnalysisDisplay({
             </span>
           )}
           {onExport && (
-            <Button
-              type="button"
-              onClick={onExport}
-              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
-              title={m.label_export_as_image()}
-            >
-              <Download className="size-3" /> {m.label_export()}
+            <Button type="button" variant="app-ghost" size="app-sm" onClick={onExport} title={m.label_export_as_image()}>
+              <Download data-icon="inline-start" /> {m.label_export()}
             </Button>
           )}
           {onRegenerate && (
-            <Button
-              type="button"
-              onClick={onRegenerate}
-              disabled={loading}
-              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors disabled:opacity-50"
-              title={m.aidisplay_regenerate()}
-            >
-              <RefreshCw className="size-3" /> {m.label_regenerate()}
+            <Button type="button" variant="app-ghost" size="app-sm" onClick={onRegenerate} disabled={loading} title={m.aidisplay_regenerate()}>
+              <RefreshCw data-icon="inline-start" /> {m.label_regenerate()}
             </Button>
           )}
           {onClear && (
-            <Button
-              type="button"
-              onClick={onClear}
-              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-status-danger px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
-              title={m.aipanel_clear_title()}
-            >
-              <Trash2 className="size-3" /> {m.label_clear()}
+            <Button type="button" variant="destructive-outline" size="app-sm" onClick={onClear} title={m.aipanel_clear_title()}>
+              <Trash2 data-icon="inline-start" /> {m.label_clear()}
             </Button>
           )}
         </div>

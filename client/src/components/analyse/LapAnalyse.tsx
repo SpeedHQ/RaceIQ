@@ -434,8 +434,6 @@ function LapAnalyseInner() {
                   trackName,
                   segments,
                   aiPanelRef,
-                  telemetryLength: telemetry.length,
-                  onClose: () => setAiPanelOpen(false),
                   onJumpToFrac: (frac) => {
                     handleChartClick(Math.round(frac * (telemetry.length - 1)));
                   },

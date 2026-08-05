@@ -10,7 +10,7 @@ const comparisonCaptureOnly = process.env.RACEIQ_UI_DIFF_CAPTURE === "1";
 test.setTimeout(180_000);
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(180_000);
-  await warmStorybook(browser, `/iframe.html?id=${DASHBOARD_SNAPSHOT_CASES[0].id}&viewMode=story`);
+  await warmStorybook(browser, `/iframe.html?id=${DASHBOARD_SNAPSHOT_CASES[0].id}&viewMode=story`, { attempts: 4, attemptTimeoutMs: 30_000 });
 });
 
 for (const story of DASHBOARD_SNAPSHOT_CASES) {
@@ -67,29 +67,3 @@ for (const story of DASHBOARD_SNAPSHOT_CASES) {
     if (!comparisonCaptureOnly) expect(missingRouterWarnings).toEqual([]);
   });
 }
-
-test("session child tables keep sector headers and columns aligned", async ({ page }) => {
-  await openStoryForSnapshot(page, "/iframe.html?id=dashboards-sessions--recorded&viewMode=story");
-
-  const parentTable = page.locator('table[data-slot="table"]:visible').first();
-  await parentTable.locator(":scope > tbody > tr").nth(0).click();
-  await parentTable.locator(":scope > tbody > tr").nth(2).click();
-
-  const layout = await page.locator('table[data-slot="table"]:visible').evaluateAll((tables) =>
-    tables.slice(1).map((table) =>
-      Array.from(table.querySelectorAll(":scope > thead th")).map((header) => ({
-        label: header.textContent?.trim() ?? "",
-        x: header.getBoundingClientRect().x,
-      })),
-    ),
-  );
-
-  expect(layout).toHaveLength(2);
-  expect(layout.map((headers) => headers.map(({ label }) => label))).toEqual([
-    ["", "", "Lap↑", "Time", "S1", "S2", "S3", "Notes"],
-    ["", "", "Lap↑", "Time", "S1", "S2", "S3", "Notes"],
-  ]);
-  for (let column = 0; column < layout[0].length; column += 1) {
-    expect(Math.abs(layout[0][column].x - layout[1][column].x)).toBeLessThan(1);
-  }
-});

@@ -69,7 +69,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ol: ({ className, ...props }) => <ol className={cn("aui-md-ol marker:text-muted-foreground my-3 ms-5 list-decimal [&>li]:mt-1", className)} {...props} />,
   hr: ({ className, ...props }) => <hr className={cn("aui-md-hr border-muted-foreground/20 my-3", className)} {...props} />,
   table: ({ children }) => (
-    <div className="my-3">
+    <div className="my-3 max-w-full">
       <Table>{children}</Table>
     </div>
   ),

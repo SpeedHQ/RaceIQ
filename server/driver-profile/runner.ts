@@ -48,8 +48,6 @@ export interface DriverProfileRunOptions {
 }
 
 const BACKGROUND_LAP_BATCH = 5;
-const pendingLaps = new Map<string, number>();
-const activeRuns = new Map<string, Promise<DriverProfileRunResult>>();
 
 export function driverProfilePoolKey(lapIds: readonly number[]): string {
   return createHash("sha1")
@@ -61,6 +59,8 @@ export function driverProfilePoolKey(lapIds: readonly number[]): string {
 function scopeKey(scope: DriverProfileScope): string {
   return `${scope.gameId}|*|*`;
 }
+const pendingLaps = new Map<string, { count: number; poolKey: string }>();
+const activeRuns = new Map<string, Promise<DriverProfileRunResult>>();
 export function resolveDriverProfileScopeNames(scope: DriverProfileScope): { gameName: string } {
   const game = tryGetGame(scope.gameId);
   return { gameName: game?.displayName ?? scope.gameId };
@@ -122,7 +122,6 @@ async function providerConfiguration(): Promise<
     thinkingBudget: settings.driverProfileThinkingBudget,
   };
 }
-
 export async function getDriverProfileConfiguration(): Promise<{
   enabled: boolean;
   configured: boolean;
@@ -295,13 +294,12 @@ export function runDriverProfile(
   return promise;
 }
 
-function scheduleScope(scope: DriverProfileScope): void {
+function scheduleScope(scope: DriverProfileScope, poolKey: string): void {
   const key = scopeKey(scope);
-  const count = (pendingLaps.get(key) ?? 0) + 1;
-  if (count < BACKGROUND_LAP_BATCH) {
-    pendingLaps.set(key, count);
-    return;
-  }
+  const pending = pendingLaps.get(key);
+  pendingLaps.set(key, { count: (pending?.count ?? 0) + 1, poolKey });
+  const next = pendingLaps.get(key);
+  if (!next || next.count < BACKGROUND_LAP_BATCH) return;
   pendingLaps.delete(key);
   void runDriverProfile(scope, { trigger: "background" }).catch((err) => {
     console.error("[AI] Background driver profile run failed:", err);
@@ -316,8 +314,8 @@ export function notifyDriverProfileLap(gameId: GameId): void {
   const settings = loadSettings();
   if (!settings.driverProfileBackgroundEnabled) return;
   void getLapMetaForProfileScope(gameId)
-    .then(() => {
-      scheduleScope({ gameId });
+    .then((globalLaps) => {
+      scheduleScope({ gameId }, driverProfilePoolKey(globalLaps.map((lap) => lap.id)));
     })
     .catch((err) => {
       console.error("[AI] Failed to schedule background driver profile:", err);

@@ -1306,4 +1306,22 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          )`,
     ],
   },
+  // v54: Version normalized race-result derivation for future reconciliation.
+  {
+    version: 54,
+    name: "version race result processor",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`,
+    ],
+  },
+  // v55: Persist race timeline event types and position transitions.
+  {
+    version: 55,
+    name: "persist race timeline positions",
+    sql: [
+      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
+      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
+      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
+    ],
+  },
 ];

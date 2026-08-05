@@ -11,9 +11,12 @@ import { resolveCssColor } from "@/lib/rendering/css-values";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
+import { LapAnalysisText } from "../ai-chat/LapAnalysisText";
+import { PanelSectionHeader } from "../ui/panel-section-header";
 import { AnalysisDisplay } from "./analysis-display";
+import { parseLapAnalysisForDisplay } from "./analysis-display-data";
 import { SetupList } from "./analysis-primitives";
-import { AnalysisModalShell, AnalysisSummaryRow } from "./analysis-summary";
+import { AnalysisModalShell, AnalysisResultCard, AnalysisSummaryRow } from "./analysis-summary";
 import type { AnalysisData, AnalysisHighlight, AnalysisUsage, Segment } from "./analysis-types";
 import { findSegment } from "./analysis-utils";
 
@@ -33,23 +36,16 @@ function formatStreamError(event: StreamErrorEvent): string {
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : m.aipanel_fetch_failed();
 }
-function safeParseAnalysis(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const posMatch = msg.match(/position (\d+)/);
-    const pos = posMatch ? Number(posMatch[1]) : -1;
-    const windowStart = pos >= 0 ? Math.max(0, pos - 120) : 0;
-    const windowEnd = pos >= 0 ? Math.min(raw.length, pos + 120) : Math.min(raw.length, 240);
-    console.error("[AiPanel] analysis JSON parse failed", {
-      length: raw.length,
-      position: pos,
-      around: raw.slice(windowStart, windowEnd),
-      tail: raw.slice(Math.max(0, raw.length - 200)),
-    });
-    throw err;
-  }
+function safeParseAnalysis(raw: string): AnalysisData | null {
+  const parsed = parseLapAnalysisForDisplay(raw);
+  if (parsed) return parsed;
+
+  console.error("[AiPanel] analysis JSON parse failed", {
+    length: raw.length,
+    around: raw.slice(0, 240),
+    tail: raw.slice(Math.max(0, raw.length - 200)),
+  });
+  return null;
 }
 
 interface AiPanelProps {
@@ -64,7 +60,7 @@ interface AiPanelProps {
 }
 
 async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapId}/chat?gen=${gen}` : `/api/laps/${lapId}/chat`;
+  const url = gen === undefined ? `/api/laps/${lapId}/chat` : `/api/laps/${lapId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
   const data = (await res.json()) as { messages?: UIMessage[] };
@@ -86,7 +82,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
 
   // Analysis state
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
-  const [usage, setUsage] = useState<{ inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string } | null>(null);
+  const [usage, setUsage] = useState<AnalysisUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cornerFracs, setCornerFracs] = useState<Segment[]>([]);
@@ -100,6 +96,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [modalTab, setModalTab] = useState("analysis");
+  const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
+  const [analysisDeleting, setAnalysisDeleting] = useState(false);
 
   useImperativeHandle(
     ref,
@@ -107,7 +105,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       clearChat: () => {
         // Clear persisted chat only (keeps analysis), then remount ChatPanel
         // so it re-seeds from the now-empty thread.
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+        fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
           .catch(() => {})
           .finally(() => setChatRemountKey((k) => k + 1));
       },
@@ -115,16 +113,22 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         setAnalysis(null);
         setUsage(null);
         setError(null);
+        setHasTune(false);
+        setAnalysisOpen(false);
         onHighlightsChange?.([]);
-        // DELETE clears both chat + analysis on server
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
-          .catch(() => {})
-          .finally(() => setChatRemountKey((k) => k + 1));
+        void fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" })
+          .then((res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          })
+          .catch((err: unknown) => {
+            setError(err instanceof Error ? err.message : "Failed to delete analysis");
+          });
       },
       clearAll: () => {
         setAnalysis(null);
         setUsage(null);
         setError(null);
+        setHasTune(false);
         onHighlightsChange?.([]);
         fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
           .catch(() => {})
@@ -152,8 +156,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           throw new Error(data.error || `HTTP ${res.status}`);
         }
 
-        // Apply one analysis payload (analysis JSON + usage + cornerFracs +
-        // hasTune) — shared by the cached-JSON and streamed-NDJSON code paths.
+        // Apply one analysis payload (analysis JSON + usage + cornerFracs) —
+        // shared by cached-JSON and streamed-NDJSON code paths.
         const apply = (data: { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean }) => {
           // Empty string = model produced no text (e.g. it burned through
           // maxSteps calling tools without finalising). Treat as error.
@@ -174,8 +178,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             );
           }
           setHasTune(!!data.hasTune);
-
           const segs: Segment[] = data.cornerFracs ? data.cornerFracs.map((c) => ({ type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac })) : (segments ?? []);
+
           const searchSegs = segs.length ? segs : null;
           const hl: AnalysisHighlight[] = [];
           for (const corner of parsed?.corners ?? []) {
@@ -218,7 +222,12 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 throw new Error(formatStreamError(e));
               }
               case "result": {
-                const r = event as unknown as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+                const r = event as unknown as {
+                  analysis: string | object | null;
+                  usage?: AnalysisUsage;
+                  cornerFracs?: { label: string; startFrac: number; endFrac: number }[];
+                  hasTune?: boolean;
+                };
                 apply(r);
                 resolved = true;
                 break;
@@ -227,7 +236,12 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           });
           if (!resolved) throw new Error(m.aipanel_stream_no_result());
         } else {
-          const data = (await res.json()) as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+          const data = (await res.json()) as {
+            analysis: string | object | null;
+            usage?: AnalysisUsage;
+            cornerFracs?: { label: string; startFrac: number; endFrac: number }[];
+            hasTune?: boolean;
+          };
           apply(data);
         }
       } catch (err: unknown) {
@@ -252,7 +266,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       const data = (await res.json()) as {
         analysis: string | object | null;
         cached: boolean;
-        usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string };
+        usage?: AnalysisUsage;
         cornerFracs?: { label: string; startFrac: number; endFrac: number }[];
         hasTune?: boolean;
       };
@@ -271,9 +285,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         );
       }
       setHasTune(!!data.hasTune);
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }, [lapId]);
 
   // Load cached analysis on open
@@ -281,10 +293,42 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     if (!panelOpen) return;
     loadCachedAnalysis();
   }, [lapId, panelOpen, loadCachedAnalysis]);
+  useEffect(() => {
+    if (!panelOpen) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/laps/${lapId}/analyse/status`);
+        const status = (await res.json()) as { status?: "none" | "active" | "finished" | "failed"; error?: string };
+        if (cancelled) return;
+        if (status.status === "active") {
+          setLoading(true);
+          timer = setTimeout(() => void poll(), 1500);
+        } else {
+          if (status.status === "failed") setError(status.error ?? m.aipanel_unknown_error());
+          if (status.status === "finished") await loadCachedAnalysis();
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+      }
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lapId, panelOpen, loadCachedAnalysis]);
 
-  // Reset on lap change
+  // Reset lap-scoped display state before loading the next cached result.
   useEffect(() => {
     setAnalysis(null);
+    setUsage(null);
+    setError(null);
+    setHasTune(false);
+    setAnalysisOpen(false);
+    setModalTab("analysis");
   }, [lapId]);
 
   // Export analysis as image
@@ -296,7 +340,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     el.style.maxHeight = "none";
     el.style.overflow = "visible";
     try {
-      const url = await toPng(el, { backgroundColor: resolveCssColor("var(--app-surface)"), pixelRatio: 2 });
+      const url = await toPng(el, { backgroundColor: resolveCssColor("var(--app-bg)"), pixelRatio: 2 });
       const link = document.createElement("a");
       link.download = `ai-analysis-${carName}-${trackName}.png`.replace(/\s+/g, "-");
       link.href = url;
@@ -310,7 +354,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   }, [carName, trackName]);
 
   const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+    fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
       .catch(() => {})
       .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapId]);
@@ -329,143 +373,180 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       ),
     [aiConfigured, clearChat, configureAi, fetchAnalysis],
   );
+  const deleteAnalysis = useCallback(async () => {
+    if (analysisDeleting || loading || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    setAnalysisDeleting(true);
+    try {
+      const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setAnalysis(null);
+      setUsage(null);
+      setError(null);
+      setHasTune(false);
+      setAnalysisOpen(false);
+      onHighlightsChange?.([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete analysis");
+    } finally {
+      setAnalysisDeleting(false);
+    }
+  }, [analysisDeleting, lapId, loading, onHighlightsChange]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Analysis area. Once the chat is mounted below it this shrinks to its
           content — otherwise two flex-1 siblings would split the panel 50/50
           and the collapsed row would sit on top of a tall empty box. */}
-      <div className={`overflow-y-auto px-3 py-3 space-y-2.5 ${analysis && !loading ? "shrink-0 max-h-[50%]" : "flex-1 min-h-0"}`}>
-        {/* No AI provider configured */}
-        {!aiConfigured && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-            <Sparkles className="size-5 text-app-text-dim" />
-            <div>
-              <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
-              <p className="text-app-caption text-app-text-muted mt-0.5">{m.ai_configure_feature_description()}</p>
-            </div>
-            <Button variant="app-primary" size="app-md" onClick={() => openSettings("ai")}>
-              {m.ai_configure_feature()}
-            </Button>
-          </div>
-        )}
-
-        {/* Loading state */}
-        {loading && (
-          <div className="flex flex-col items-center py-10 gap-4">
-            <div className="relative">
-              <div className="size-10 border-2 border-app-border-input rounded-full" />
-              <div className="absolute inset-0 size-10 border-2 border-transparent rounded-full animate-spin" style={{ borderTopColor: "var(--ai-accent)" }} />
-              <Sparkles className="absolute inset-0 m-auto size-4 text-(--ai-accent)/60" />
-            </div>
-            <div className="text-center">
-              <p className="text-app-compact text-app-text-secondary font-medium">
-                {analyseTool
-                  ? `${m.aipanel_using_tool()} ${analyseTool}`
-                  : analyseStatus === "generating"
-                    ? m.aipanel_generating_analysis()
-                    : analyseStatus === "thinking"
-                      ? m.aipanel_thinking()
-                      : m.aipanel_preparing_model()}
-              </p>
-              <p className="text-app-caption text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
-              {!analyseStatus && <p className="text-app-micro text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
-            </div>
-            <div className="flex gap-1">
-              <div className="size-1 rounded-full animate-pulse" style={{ backgroundColor: "var(--ai-accent)" }} />
-              <div className="size-1 rounded-full animate-pulse [animation-delay:200ms]" style={{ backgroundColor: "var(--ai-accent)" }} />
-              <div className="size-1 rounded-full animate-pulse [animation-delay:400ms]" style={{ backgroundColor: "var(--ai-accent)" }} />
-            </div>
-          </div>
-        )}
-
-        {/* Empty state — after clear */}
-        {aiConfigured && !analysis && !loading && !error && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <Sparkles className="size-5" style={{ color: "var(--ai-accent)" }} />
-            <p className="text-app-compact text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <Button variant="app-primary" size="app-md" onClick={() => runAnalysis(false)} className="text-app-compact">
-              <Sparkles className="size-3" />
-              {m.aipanel_analyse_lap()}
-            </Button>
-          </div>
-        )}
-
-        {/* Error state */}
-        {error && !loading && (
-          <div className="flex justify-start">
-            <div className="rounded-lg px-2.5 py-2 bg-status-danger/10 border border-status-danger/20">
-              <p className="text-app-compact text-status-danger">{error}</p>
-              <Button variant={aiConfigured ? "app-outline" : "app-primary"} size="app-sm" onClick={() => runAnalysis(false)} className="mt-1">
-                {aiConfigured ? m.label_retry() : m.ai_configure_feature()}
+      <div className={`flex flex-col gap-2.5 overflow-y-auto px-3 py-3 ${analysis && !loading && !analysisCollapsed ? "shrink-0 max-h-[50%]" : !loading ? "shrink-0" : "flex-1 min-h-0"}`}>
+        {analysis && !loading && <PanelSectionHeader title="Lap analysis" collapsed={analysisCollapsed} onToggle={() => setAnalysisCollapsed((collapsed) => !collapsed)} />}
+        <div className={analysisCollapsed ? "hidden" : "contents"}>
+          {/* No AI provider configured */}
+          {!aiConfigured && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <Sparkles className="size-5 text-app-text-dim" />
+              <div>
+                <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
+                <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
+              </div>
+              <Button type="button" variant="ai-action" size="app-md" onClick={configureAi}>
+                {m.aipanel_set_up_ai()}
               </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Analysis collapses to a summary row; the full breakdown opens in a
+          {/* Loading state */}
+          {loading && (
+            <div className="flex flex-col items-center py-10 gap-4">
+              <div className="relative">
+                <div className="size-10 border-2 border-app-border-input rounded-full" />
+                <div className="absolute inset-0 size-10 border-2 border-transparent border-t-ai-accent rounded-full animate-spin" />
+                <Sparkles className="absolute inset-0 m-auto size-4 text-ai-accent/60" />
+              </div>
+              <div className="text-center">
+                <p className="text-app-compact text-app-text-secondary font-medium">
+                  {analyseTool
+                    ? `${m.aipanel_using_tool()} ${analyseTool}`
+                    : analyseStatus === "generating"
+                      ? m.aipanel_generating_analysis()
+                      : analyseStatus === "thinking"
+                        ? m.aipanel_thinking()
+                        : m.aipanel_preparing_model()}
+                </p>
+                <p className="text-app-caption text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
+                {!analyseStatus && <p className="text-app-micro text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
+              </div>
+              <div className="flex gap-1">
+                <div className="size-1 rounded-full bg-ai-accent animate-pulse" />
+                <div className="size-1 rounded-full bg-ai-accent animate-pulse [animation-delay:200ms]" />
+                <div className="size-1 rounded-full bg-ai-accent animate-pulse [animation-delay:400ms]" />
+              </div>
+            </div>
+          )}
+
+          {/* Empty state — after clear */}
+          {aiConfigured && !analysis && !loading && !error && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Sparkles className="size-5 text-ai-accent" />
+              <p className="text-app-compact text-app-text-muted">{m.aipanel_no_analysis()}</p>
+              <Button type="button" variant="app-primary" size="app-md" onClick={() => runAnalysis(false)}>
+                <Sparkles data-icon="inline-start" />
+                {m.aipanel_analyse_lap()}
+              </Button>
+            </div>
+          )}
+
+          {/* Error state */}
+          {error && !loading && (
+            <div className="flex justify-start">
+              <div className="rounded-lg px-2.5 py-2 bg-status-danger/10 border border-status-danger/20">
+                <p className="text-app-compact text-status-danger">{error}</p>
+                <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
+                  {m.label_retry()}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Analysis collapses to a summary row; the full breakdown opens in a
             modal. Both pieces are the shared components the compare panel
             uses, so the two pages stay in lockstep. */}
-        {analysis && !loading && (
-          <AnalysisSummaryRow
-            detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
-            onView={() => setAnalysisOpen(true)}
-          />
-        )}
-
-        {analysis && !loading && analysisOpen && (
-          <AnalysisModalShell
-            subtitle={[carName, trackName].filter(Boolean).join(" · ") || undefined}
-            onClose={() => setAnalysisOpen(false)}
-            tabs={[
-              { key: "analysis", label: m.label_ai_analysis() },
-              ...(analysis.setup?.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: analysis.setup.length, flag: hasTune ? undefined : m.aidisplay_best_guess() }] : []),
-            ]}
-            activeTab={modalTab}
-            onTabChange={setModalTab}
-          >
-            {modalTab === "setup" ? (
-              <SetupList
-                setup={analysis.setup}
-                hasTune={hasTune}
-                lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
-                onJumpToFrac={onJumpToFrac}
-                onHighlightsChange={onHighlightsChange}
-              />
-            ) : (
-              <AnalysisDisplay
-                analysis={analysis}
-                cornerFracs={cornerFracs}
-                segments={segments}
-                usage={usage}
-                loading={loading}
-                containerRef={analysisRef}
-                onJumpToFrac={onJumpToFrac}
-                onHighlightsChange={onHighlightsChange}
-                onExport={handleExport}
-                onRegenerate={regenerateAnalysis}
-                onClear={() => {
-                  clearChat();
-                  setAnalysis(null);
-                  setUsage(null);
-                  setAnalysisOpen(false);
-                  onHighlightsChange?.([]);
+          {analysis && !loading && (
+            <AnalysisResultCard
+              title={trackName || "Lap analysis"}
+              dotClass="bg-app-accent"
+              hasResult
+              loading={false}
+              error={null}
+              runLabel={m.aipanel_analyse_lap()}
+              loadingLabel={m.common_loading()}
+              retryLabel={m.label_retry()}
+              onRun={() => runAnalysis(false)}
+              onRetry={() => runAnalysis(false)}
+              onRegenerate={regenerateAnalysis}
+              onDelete={() => void deleteAnalysis()}
+              deleteLabel={m.label_clear()}
+              actionsDisabled={analysisDeleting}
+            >
+              <AnalysisSummaryRow
+                detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
+                onView={() => {
+                  setModalTab("analysis");
+                  setAnalysisOpen(true);
                 }}
               />
-            )}
-          </AnalysisModalShell>
-        )}
+            </AnalysisResultCard>
+          )}
+
+          {analysis && !loading && analysisOpen && (
+            <AnalysisModalShell
+              subtitle={[carName, trackName].filter(Boolean).join(" · ") || undefined}
+              onClose={() => setAnalysisOpen(false)}
+              tabs={[
+                { key: "analysis", label: m.label_ai_analysis() },
+                ...(analysis.setup?.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: analysis.setup.length, flag: hasTune ? undefined : m.aidisplay_best_guess() }] : []),
+              ]}
+              activeTab={modalTab}
+              onTabChange={setModalTab}
+            >
+              {modalTab === "setup" ? (
+                <SetupList
+                  setup={analysis.setup ?? []}
+                  hasTune={hasTune}
+                  lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
+                  onJumpToFrac={onJumpToFrac}
+                  onHighlightsChange={onHighlightsChange}
+                />
+              ) : (
+                <AnalysisDisplay
+                  analysis={analysis}
+                  cornerFracs={cornerFracs}
+                  segments={segments}
+                  usage={usage}
+                  loading={loading || analysisDeleting}
+                  containerRef={analysisRef}
+                  onJumpToFrac={onJumpToFrac}
+                  onHighlightsChange={onHighlightsChange}
+                  onExport={handleExport}
+                  onRegenerate={regenerateAnalysis}
+                  onClear={deleteAnalysis}
+                />
+              )}
+            </AnalysisModalShell>
+          )}
+        </div>
       </div>
 
-      {!loading && analysis && (
+      {analysis && !loading && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapId}/chat`}
+            clearChatApi={`/api/laps/${lapId}/chat?keepAnalysis=true`}
             fetchHistory={(gen) => fetchLapChatHistory(lapId, gen)}
             historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
             remountKey={`${lapId}:${chatRemountKey}`}
             compactThreadId={`lap-${lapId}`}
+            components={{ Text: LapAnalysisText }}
           />
         </div>
       )}

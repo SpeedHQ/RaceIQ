@@ -1,10 +1,13 @@
+import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
+import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { formatSessionType } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
+import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
 
 export type SessionMobileListProps = {
@@ -15,6 +18,7 @@ export type SessionMobileListProps = {
   isLoading: boolean;
   sessionsError: boolean;
   isF1: boolean;
+  gameId: GameId | null;
   emptyMessage: string;
   expandedSessions: Set<number>;
   toggleExpand: (id: number) => void;
@@ -40,6 +44,7 @@ export function SessionMobileList({
   isLoading,
   sessionsError,
   isF1,
+  gameId,
   emptyMessage,
   expandedSessions,
   toggleExpand,
@@ -126,6 +131,9 @@ export function SessionMobileList({
                     {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
                     {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                   </div>
+                  <div className="mt-2">
+                    <SessionResultMeta session={session} />
+                  </div>
                   <div className="flex items-center gap-4 mt-2 text-xs">
                     <span className="text-app-text/90">
                       {m.label_laps()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
@@ -141,6 +149,7 @@ export function SessionMobileList({
                   </div>
                 </div>
               </div>
+              {isExpanded && gameId && <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />}
               {isExpanded && sessionLaps.length > 0 && (
                 <div className="border-t border-app-border overflow-x-auto">
                   <SessionLapTable

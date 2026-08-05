@@ -7,20 +7,22 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Composer } from "./thread-composer";
-import { EMPTY_COMPONENTS, InputDisabledContext, type ThreadComponents, ThreadComponentsContext, type ThreadGroupPart, type ThreadProps } from "./thread-context";
+import { EMPTY_COMPONENTS, InputDisabledContext, RegenerateContext, type ThreadComponents, ThreadComponentsContext, type ThreadGroupPart, type ThreadProps } from "./thread-context";
 import { ThreadMessage } from "./thread-message";
 
 export type { ThreadComponents, ThreadGroupPart, ThreadProps };
 
 const isNewChatView = (s: AssistantState) => s.thread.messages.length === 0 && (!s.thread.isLoading || s.threads.isLoading);
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false }) => {
+export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false, onRegenerate }) => {
   const isEmpty = useAuiState(isNewChatView);
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <InputDisabledContext.Provider value={inputDisabled}>
-        <ThreadRoot isEmpty={isEmpty} />
-      </InputDisabledContext.Provider>
+      <RegenerateContext.Provider value={onRegenerate}>
+        <InputDisabledContext.Provider value={inputDisabled}>
+          <ThreadRoot isEmpty={isEmpty} />
+        </InputDisabledContext.Provider>
+      </RegenerateContext.Provider>
     </ThreadComponentsContext.Provider>
   );
 };
