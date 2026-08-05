@@ -17,8 +17,8 @@ type RaceResultTimelineNode =
       kind: "position";
       sequence: number;
       lapNumber: number | null;
-      positionBefore: number | null;
-      positionAfter: number | null;
+      direction: "up" | "down";
+      position: number | null;
     }
   | {
       kind: "finish";
@@ -33,25 +33,26 @@ export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineN
     ...result.events
       .slice()
       .sort((a, b) => a.sequence - b.sequence)
-      .map((event) =>
-        event.eventType === "position-change"
-          ? {
-              kind: "position" as const,
-              sequence: event.sequence,
-              lapNumber: event.lapNumber,
-              positionBefore: event.positionBefore ?? null,
-              positionAfter: event.positionAfter ?? null,
-            }
-          : {
-              kind: "pit" as const,
-              sequence: event.sequence,
-              lapNumber: event.lapNumber,
-              durationSeconds: event.durationSeconds,
-              service: event.service,
-              tyreChange: event.tyreChange,
-              fuelAdded: event.fuelAdded,
-            },
-      ),
+      .map((event) => {
+        if (event.eventType === "position-change") {
+          return {
+            kind: "position" as const,
+            sequence: event.sequence,
+            lapNumber: event.lapNumber,
+            direction: (event.positionAfter != null && event.positionBefore != null && event.positionAfter < event.positionBefore ? "up" : "down") as "up" | "down",
+            position: event.positionAfter ?? null,
+          };
+        }
+        return {
+          kind: "pit" as const,
+          sequence: event.sequence,
+          lapNumber: event.lapNumber,
+          durationSeconds: event.durationSeconds,
+          service: event.service,
+          tyreChange: event.tyreChange,
+          fuelAdded: event.fuelAdded,
+        };
+      }),
     {
       kind: "finish",
       classification: result.classification,
@@ -73,25 +74,41 @@ function tyreChangeLabel(value: unknown): string | null {
   return null;
 }
 
+function FinishFlag() {
+  return (
+    <svg aria-label="Finish flag" className="h-5 w-5 text-status-success" viewBox="0 0 24 24" fill="none" role="img">
+      <path d="M6 21V4m0 1h11l-2 3 2 3H6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 5h2v2H8zm4 0h2v2h-2zM8 9h2v2H8zm4 0h2v2h-2z" fill="currentColor" />
+    </svg>
+  );
+}
+
 function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   if (node.kind === "start") {
     return (
-      <div className="min-w-28 rounded-md border border-app-border bg-app-surface px-3 py-2">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-text/60">Start</div>
-        <div className="mt-1 text-xs text-app-text/90">{node.position != null ? `Grid P${node.position}` : "Session begins"}</div>
+      <div className="min-w-32 rounded-xl border border-app-border/80 bg-app-surface px-4 py-3 shadow-sm shadow-black/20">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-app-text/55">Start</div>
+        <div className="mt-1 text-sm font-semibold text-app-text">{node.position != null ? `Grid P${node.position}` : "Session begins"}</div>
       </div>
     );
   }
+
   if (node.kind === "position") {
     return (
-      <div className="min-w-32 rounded-md border border-violet-400/40 bg-violet-400/10 px-3 py-2">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300">Position</div>
-        {node.lapNumber != null && <div className="mt-1 text-xs text-app-text/70">End lap {node.lapNumber}</div>}
-        {node.positionBefore != null && node.positionAfter != null && (
-          <div className="text-sm font-semibold text-app-text">
-            P{node.positionBefore} → P{node.positionAfter}
-          </div>
-        )}
+      <div
+        className={`min-w-28 rounded-xl border px-4 py-3 shadow-sm shadow-black/20 ${node.direction === "up" ? "border-status-success/50 bg-status-success/10" : "border-status-danger/50 bg-status-danger/10"}`}
+      >
+        <div className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${node.direction === "up" ? "text-status-success" : "text-status-danger"}`}>Position</div>
+        {node.lapNumber != null && <div className="mt-1 text-xs text-app-text/65">End lap {node.lapNumber}</div>}
+        <div className="mt-0.5 text-lg font-bold leading-none text-app-text">
+          <span className="sr-only">
+            {node.direction === "up" ? "Gained" : "Lost"} position{node.position != null ? ` to P${node.position}` : ""}
+          </span>
+          <span aria-hidden="true">
+            {node.direction === "up" ? "↑" : "↓"}
+            {node.position != null && <span className="ml-1 text-sm">P{node.position}</span>}
+          </span>
+        </div>
       </div>
     );
   }
@@ -99,9 +116,12 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   if (node.kind === "finish") {
     const position = node.finishingPosition ?? node.qualifyingPosition;
     return (
-      <div className="min-w-32 rounded-md border border-status-success/40 bg-status-success/10 px-3 py-2">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-status-success">Finish</div>
-        <div className="mt-1 text-xs font-medium text-app-text">{node.classification[0].toUpperCase() + node.classification.slice(1)}</div>
+      <div className="min-w-36 rounded-xl border border-status-success/50 bg-status-success/10 px-4 py-3 shadow-sm shadow-black/20">
+        <div className="flex items-center gap-2">
+          <FinishFlag />
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-status-success">Finish</div>
+        </div>
+        <div className="mt-1 text-sm font-semibold text-app-text">{node.classification[0].toUpperCase() + node.classification.slice(1)}</div>
         {position != null && <div className="text-xs text-app-text/70">P{position}</div>}
       </div>
     );
@@ -109,9 +129,9 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
 
   const tyre = tyreChangeLabel(node.tyreChange);
   return (
-    <div className="min-w-36 rounded-md border border-app-accent/40 bg-app-accent/10 px-3 py-2">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-accent">{formatService(node.service)}</div>
-      {node.lapNumber != null && <div className="mt-1 text-xs font-medium text-app-text">Lap {node.lapNumber}</div>}
+    <div className="min-w-40 rounded-xl border border-app-accent/50 bg-app-accent/10 px-4 py-3 shadow-sm shadow-black/20">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-app-accent">{formatService(node.service)}</div>
+      {node.lapNumber != null && <div className="mt-1 text-sm font-semibold text-app-text">Lap {node.lapNumber}</div>}
       {node.durationSeconds != null && <div className="text-xs text-app-text/70">{node.durationSeconds.toFixed(1)}s stop</div>}
       {tyre && <div className="text-xs text-app-text/70">{tyre}</div>}
       {node.fuelAdded != null && <div className="text-xs text-app-text/70">+{node.fuelAdded.toFixed(1)} fuel</div>}
@@ -128,14 +148,14 @@ export function RaceResultLedger({ sessionId, gameId, enabled }: { sessionId: nu
 
   const nodes = buildRaceResultTimeline(resultQuery.data);
   return (
-    <section aria-label="Race timeline" className="border-b border-app-border bg-app-surface-alt/20 px-4 py-3">
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-text/60">Race timeline</div>
+    <section aria-label="Race timeline" className="border-b border-app-border bg-app-surface-alt/20 px-4 py-4">
+      <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-app-text/55">Race timeline</div>
       <div className="overflow-x-auto pb-1">
         <div className="flex min-w-max items-center">
           {nodes.map((node, index) => (
-            <div key={node.kind === "pit" ? `pit-${node.sequence}` : node.kind} className="flex items-center">
+            <div key={node.kind === "pit" || node.kind === "position" ? `${node.kind}-${node.sequence}` : node.kind} className="flex items-center">
               <TimelineNode node={node} />
-              {index < nodes.length - 1 && <div aria-hidden="true" className="h-px w-8 bg-app-border" />}
+              {index < nodes.length - 1 && <div aria-hidden="true" className="mx-2 h-px w-10 bg-app-border/80" />}
             </div>
           ))}
         </div>

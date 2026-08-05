@@ -58,7 +58,7 @@ describe("race result timeline", () => {
         },
       ],
     });
-    expect(timeline[1]).toMatchObject({ kind: "position", lapNumber: 4, positionBefore: 5, positionAfter: 3 });
+    expect(timeline[1]).toMatchObject({ kind: "position", lapNumber: 4, direction: "up", position: 3 });
   });
   test("omits null optional event values", () => {
     const [pit] = buildRaceResultTimeline({ ...result, events: [{ ...result.events[0], lapNumber: null, durationSeconds: null, tyreChange: null }] }).filter((node) => node.kind === "pit");
