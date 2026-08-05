@@ -80,6 +80,60 @@ describe("changelog parser", () => {
 - Old detail
 `)).toBe("## Unreleased\n\n### Features\n- New feature\n\n## v0.13.0 - 2026-07-16\n\n### Fixes\n- Old fix");
   });
+  test("renders the requested release heading for full history", () => {
+    expect(renderAllReleaseNotes(`
+## Unreleased
+
+### Features
+- New feature
+
+### Internal
+- Refactor
+
+## v0.13.0 - 2026-07-16
+
+### Fixes
+- Old fix
+`, { version: "0.14.0", date: "2026-08-05" })).toBe(
+      "## v0.14.0 - 2026-08-05\n\n### Features\n- New feature\n\n## v0.13.0 - 2026-07-16\n\n### Fixes\n- Old fix",
+    );
+  });
+
+  test("rolls the released Unreleased block forward", () => {
+    expect(rolloverChangelog(`
+## Unreleased
+
+### Features
+- New feature
+
+### Internal
+- Refactor
+
+## v0.13.0 - 2026-07-16
+
+### Fixes
+- Old fix
+`, { version: "0.14.0", date: "2026-08-05" })).toBe(`## Unreleased
+
+### Features
+
+### Fixes
+
+### Internal
+
+## v0.14.0 - 2026-08-05
+
+### Features
+- New feature
+
+### Internal
+- Refactor
+
+## v0.13.0 - 2026-07-16
+
+### Fixes
+- Old fix`);
+  });
 });
 
   test("formats publication date and versions rendered unreleased notes", () => {
