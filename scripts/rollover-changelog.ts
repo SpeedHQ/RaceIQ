@@ -13,5 +13,5 @@ const changelog = readFileSync(changelogPath, "utf8");
 const date = formatReleaseDate(publishedAt);
 const rolledChangelog = rolloverChangelog(changelog, { version, date });
 
-writeFileSync(changelogPath, rolledChangelog);
+writeFileSync(changelogPath, `${rolledChangelog}\n`);
 console.log(`Rolled CHANGELOG.md for v${version}`);
