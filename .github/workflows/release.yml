@@ -222,6 +222,27 @@ jobs:
           PUBLISHED_AT="${{ github.event.release.published_at }}"
           bun scripts/release/rollover-changelog.ts "$VERSION" "$PUBLISHED_AT"
 
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Regenerate release note assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          PUBLISHED_AT="${{ github.event.release.published_at }}"
+          bun scripts/generate-release-note.ts "$VERSION" "$PUBLISHED_AT"
+          gh release upload "$TAG" releasenote.md releasenotes.md --clobber
+
+      - name: Roll over changelog
+        shell: bash
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          PUBLISHED_AT="${{ github.event.release.published_at }}"
+          bun scripts/rollover-changelog.ts "$VERSION" "$PUBLISHED_AT"
+
       - name: Update version in package.json
         shell: bash
         run: |
