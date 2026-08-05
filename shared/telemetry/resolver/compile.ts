@@ -4,7 +4,7 @@ import { TELEMETRY_CATALOG } from "../catalog/data";
 import { getBuiltinTelemetryDerivation, TELEMETRY_DERIVATION_VERSION } from "../derivations/builtins";
 import type { TelemetryDerivation } from "../derivations/contracts";
 import type { TelemetryPacket } from "../types";
-import type { CompiledTelemetryResolver, ResolverCompileOptions, SemanticSlot, TelemetryFrameView } from "./contracts";
+import type { CompiledTelemetryResolver, ResolverCompileOptions, SemanticSlot, SourceObservation, TelemetryFrameView } from "./contracts";
 import { FrameView } from "./frame-view";
 import type { Mapping, ResolutionPlan, RuntimeCatalogMetadata } from "./plan";
 import { readerFor, trustedNativeExecutor } from "./readers";
@@ -20,17 +20,29 @@ const DEFAULT_STALE_MS = {
 } as const;
 
 class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
-  readonly plans: readonly ResolutionPlan[]; readonly catalogVersion: string; readonly catalogHash: string; readonly schemaVersion: string; readonly simulator: GameId; readonly parserId: string; readonly parserVersion: string; readonly resolverVersion = TELEMETRY_RESOLVER_VERSION; readonly derivationVersion = TELEMETRY_DERIVATION_VERSION; private readonly slots = new Map<string, SemanticSlot>();
+  readonly plans: readonly ResolutionPlan[];
+  readonly catalogVersion: string;
+  readonly catalogHash: string;
+  readonly schemaVersion: string;
+  readonly simulator: GameId;
+  readonly parserId: string;
+  readonly parserVersion: string;
+  readonly resolverVersion = TELEMETRY_RESOLVER_VERSION;
+  readonly derivationVersion = TELEMETRY_DERIVATION_VERSION;
+  private readonly slots = new Map<string, SemanticSlot>();
   constructor(catalog: TelemetryCatalogData, options: ResolverCompileOptions) {
-    const metadata = (catalog as RuntimeCatalog).metadata; this.catalogVersion = metadata?.catalogVersion ?? catalog.format; this.catalogHash = metadata?.contentHash ?? "unversioned-catalog"; this.schemaVersion = metadata?.schemaVersion ?? catalog.format; this.simulator = options.simulator; this.parserId = options.parserId ?? options.simulator; this.parserVersion = options.parserVersion ?? TELEMETRY_PARSER_VERSIONS[options.simulator];
-    const variables = new Map(catalog.variables.map((variable) => [variable.id, variable])); const custom = new Map((options.derivations ?? []).map((definition) => [definition.output.semanticId, definition])); const visiting = new Set<string>(); const ordered = new Set<string>();
-    const derivationFor = (
-      id: string,
-      mapping: Mapping,
-    ): TelemetryDerivation | undefined =>
-      mapping.kind === "derived"
-        ? custom.get(id) ?? getBuiltinTelemetryDerivation(id)
-        : undefined;
+    const metadata = (catalog as RuntimeCatalog).metadata;
+    this.catalogVersion = metadata?.catalogVersion ?? catalog.format;
+    this.catalogHash = metadata?.contentHash ?? "unversioned-catalog";
+    this.schemaVersion = metadata?.schemaVersion ?? catalog.format;
+    this.simulator = options.simulator;
+    this.parserId = options.parserId ?? options.simulator;
+    this.parserVersion = options.parserVersion ?? TELEMETRY_PARSER_VERSIONS[options.simulator];
+    const variables = new Map(catalog.variables.map((variable) => [variable.id, variable]));
+    const custom = new Map((options.derivations ?? []).map((definition) => [definition.output.semanticId, definition]));
+    const visiting = new Set<string>();
+    const ordered = new Set<string>();
+    const derivationFor = (id: string, mapping: Mapping): TelemetryDerivation | undefined => (mapping.kind === "derived" ? (custom.get(id) ?? getBuiltinTelemetryDerivation(id)) : undefined);
     const visit = (id: string): void => {
       if (ordered.has(id)) return;
       if (visiting.has(id)) {
@@ -56,40 +68,14 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
         throw new Error(`Simplified telemetry mapping rejected for ${id}`);
       }
       const derivation = derivationFor(id, mapping);
-      const nativeExecutor =
-        mapping.kind === "unavailable"
-          ? undefined
-          : trustedNativeExecutor(variable, mapping);
-      const unsupportedExecution =
-        mapping.kind === "normalized" &&
-        mapping.execution?.kind !== "conversion";
+      const nativeExecutor = mapping.kind === "unavailable" ? undefined : trustedNativeExecutor(variable, mapping);
+      const unsupportedExecution = mapping.kind === "normalized" && mapping.execution?.kind !== "conversion";
       const unavailableExecutor =
-        (mapping.kind === "normalized" ||
-          mapping.kind === "derived" ||
-          mapping.kind === "simplified") &&
-        !variable.packetFields?.length &&
-        derivation === undefined &&
-        nativeExecutor === undefined;
-      const executorError =
-        unsupportedExecution || unavailableExecutor
-          ? `unsupported-${mapping.kind}-executor:${options.simulator}:${id}`
-          : undefined;
-      const reader =
-        mapping.kind === "unavailable" ||
-        executorError !== undefined ||
-        derivation !== undefined
-          ? undefined
-          : nativeExecutor ?? readerFor(variable, mapping);
-      if (
-        options.requested.some(
-          (request) => request.semanticId === id && request.required,
-        ) &&
-        mapping.kind === "unavailable" &&
-        !derivation
-      ) {
-        throw new Error(
-          `Required telemetry semantic unavailable: ${id} for ${options.simulator}`,
-        );
+        (mapping.kind === "normalized" || mapping.kind === "derived" || mapping.kind === "simplified") && !variable.packetFields?.length && derivation === undefined && nativeExecutor === undefined;
+      const executorError = unsupportedExecution || unavailableExecutor ? `unsupported-${mapping.kind}-executor:${options.simulator}:${id}` : undefined;
+      const reader = mapping.kind === "unavailable" || executorError !== undefined || derivation !== undefined ? undefined : (nativeExecutor ?? readerFor(variable, mapping));
+      if (options.requested.some((request) => request.semanticId === id && request.required) && mapping.kind === "unavailable" && !derivation) {
+        throw new Error(`Required telemetry semantic unavailable: ${id} for ${options.simulator}`);
       }
       this.slots.set(id, index as SemanticSlot);
       return {
@@ -99,25 +85,23 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
         reader,
         derivation,
         executorError,
-        staleAfterMs:
-          options.staleAfterMs?.[id] ??
-          (mapping.kind === "unavailable"
-            ? Number.POSITIVE_INFINITY
-            : DEFAULT_STALE_MS[mapping.freshness]),
+        staleAfterMs: options.staleAfterMs?.[id] ?? (mapping.kind === "unavailable" ? Number.POSITIVE_INFINITY : DEFAULT_STALE_MS[mapping.freshness]),
       };
     });
   }
-  slot(id: string): SemanticSlot { const slot = this.slots.get(id); if (slot === undefined) throw new Error(`Telemetry semantic not compiled: ${id}`); return slot; }
-  createFrameView(native: NativeFrame, timestamp: number, reuse?: TelemetryFrameView<NativeFrame>): TelemetryFrameView<NativeFrame> { const view = reuse instanceof FrameView && reuse.resolver === this ? reuse : new FrameView(this, this.plans.length); return view.reset(native, timestamp); }
+  slot(id: string): SemanticSlot {
+    const slot = this.slots.get(id);
+    if (slot === undefined) throw new Error(`Telemetry semantic not compiled: ${id}`);
+    return slot;
+  }
+  createFrameView(native: NativeFrame, observation: SourceObservation, reuse?: TelemetryFrameView<NativeFrame>): TelemetryFrameView<NativeFrame> {
+    const view = reuse instanceof FrameView && reuse.resolver === this ? reuse : new FrameView(this, this.plans.length);
+    return view.reset(native, observation);
+  }
 }
 
-export function compileTelemetryResolver<NativeFrame = TelemetryPacket>(
-  options: ResolverCompileOptions,
-): CompiledTelemetryResolver<NativeFrame>;
-export function compileTelemetryResolver<NativeFrame = TelemetryPacket>(
-  catalog: TelemetryCatalogData,
-  options: ResolverCompileOptions,
-): CompiledTelemetryResolver<NativeFrame>;
+export function compileTelemetryResolver<NativeFrame = TelemetryPacket>(options: ResolverCompileOptions): CompiledTelemetryResolver<NativeFrame>;
+export function compileTelemetryResolver<NativeFrame = TelemetryPacket>(catalog: TelemetryCatalogData, options: ResolverCompileOptions): CompiledTelemetryResolver<NativeFrame>;
 export function compileTelemetryResolver<NativeFrame = TelemetryPacket>(
   catalogOrOptions: TelemetryCatalogData | ResolverCompileOptions,
   maybeOptions?: ResolverCompileOptions,

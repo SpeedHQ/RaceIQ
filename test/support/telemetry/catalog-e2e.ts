@@ -23,9 +23,7 @@ export interface RecordedLapDynamicsExpectation {
   readonly minimumRange?: number;
 }
 
-export function changingPacketFields(
-  fields: readonly (keyof TelemetryPacket)[],
-): RecordedLapDynamicsExpectation[] {
+export function changingPacketFields(fields: readonly (keyof TelemetryPacket)[]): RecordedLapDynamicsExpectation[] {
   return fields.map((field) => ({
     name: String(field),
     read: (packet) => {
@@ -61,12 +59,7 @@ interface LapDynamicsMeasurement {
   readonly finiteCounts: ReadonlyMap<string, number>;
 }
 
-function measureLapDynamics(
-  packets: readonly TelemetryPacket[],
-  expectations: readonly RecordedLapDynamicsExpectation[],
-  start = 0,
-  end = packets.length,
-): LapDynamicsMeasurement {
+function measureLapDynamics(packets: readonly TelemetryPacket[], expectations: readonly RecordedLapDynamicsExpectation[], start = 0, end = packets.length): LapDynamicsMeasurement {
   const ranges = new Map<string, PacketRange>();
   const finiteCounts = new Map<string, number>();
   for (let index = start; index < end; index += 1) {
@@ -87,47 +80,24 @@ function measureLapDynamics(
   return { ranges, finiteCounts };
 }
 
-function failedLapDynamics(
-  measurement: LapDynamicsMeasurement,
-  expectations: readonly RecordedLapDynamicsExpectation[],
-): readonly RecordedLapDynamicsExpectation[] {
+function failedLapDynamics(measurement: LapDynamicsMeasurement, expectations: readonly RecordedLapDynamicsExpectation[]): readonly RecordedLapDynamicsExpectation[] {
   return expectations.filter((expectation) => {
     const range = measurement.ranges.get(expectation.name);
-    return (
-      (measurement.finiteCounts.get(expectation.name) ?? 0) < 2 ||
-      range === undefined ||
-      range.max - range.min <= (expectation.minimumRange ?? 0)
-    );
+    return (measurement.finiteCounts.get(expectation.name) ?? 0) < 2 || range === undefined || range.max - range.min <= (expectation.minimumRange ?? 0);
   });
 }
 
-function candidateLapSegments(
-  packets: readonly TelemetryPacket[],
-  expectations: readonly RecordedLapDynamicsExpectation[],
-): LapCandidate[] {
+function candidateLapSegments(packets: readonly TelemetryPacket[], expectations: readonly RecordedLapDynamicsExpectation[]): LapCandidate[] {
   return segmentTelemetryLaps(packets)
-    .filter(
-      (segment) =>
-        segment.end - segment.start >= 30 &&
-        segment.minLapTime < 1 &&
-        segment.maxLapTime - segment.minLapTime > 10,
-    )
+    .filter((segment) => segment.end - segment.start >= 30 && segment.minLapTime < 1 && segment.maxLapTime - segment.minLapTime > 10)
     .map((segment) => ({
       ...segment,
-      rawFailureCount: failedLapDynamics(
-        measureLapDynamics(packets, expectations, segment.start, segment.end),
-        expectations,
-      ).length,
+      rawFailureCount: failedLapDynamics(measureLapDynamics(packets, expectations, segment.start, segment.end), expectations).length,
     }))
     .sort((left, right) => left.start - right.start);
 }
 
-function assertLapDynamics(
-  gameId: GameId,
-  packets: readonly TelemetryPacket[],
-  segment: TelemetryLapSegment,
-  expectations: readonly RecordedLapDynamicsExpectation[],
-): void {
+function assertLapDynamics(gameId: GameId, packets: readonly TelemetryPacket[], segment: TelemetryLapSegment, expectations: readonly RecordedLapDynamicsExpectation[]): void {
   if (expectations.length === 0) return;
   const measurement = measureLapDynamics(packets, expectations, segment.start, segment.end);
   const failures = failedLapDynamics(measurement, expectations).map((expectation) => {
@@ -151,12 +121,8 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
 
   expect(parsed.rawPackets.every((packet) => packet.gameId === coverage.gameId)).toBe(true);
   const lapDynamics = coverage.lapDynamics ?? [];
-  const needsRepresentativeLap =
-    lapDynamics.length > 0 ||
-    coverage.expectations.some((expectation) => expectation.minimumRange !== undefined);
-  const lapCandidates = needsRepresentativeLap
-    ? candidateLapSegments(parsed.rawPackets, lapDynamics)
-    : [];
+  const needsRepresentativeLap = lapDynamics.length > 0 || coverage.expectations.some((expectation) => expectation.minimumRange !== undefined);
+  const lapCandidates = needsRepresentativeLap ? candidateLapSegments(parsed.rawPackets, lapDynamics) : [];
   if (needsRepresentativeLap && lapCandidates.length === 0) {
     throw new Error("Recording has no complete representative lap with progressing CurrentLap");
   }
@@ -177,35 +143,22 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
   const slots = new Map(coverage.expectations.map((expectation) => [expectation.semanticId, resolver.slot(expectation.semanticId)]));
   const resolvedById = new Map<string, ResolvedValue<unknown>>();
   const lastStateById = new Map<string, string>();
-  const rangesByLapStart = new Map<number, Map<string, SampledRange>>(
-    lapCandidates.map((candidate) => [candidate.start, new Map()]),
-  );
+  const rangesByLapStart = new Map<number, Map<string, SampledRange>>(lapCandidates.map((candidate) => [candidate.start, new Map()]));
   let frame: TelemetryFrameView | undefined;
   let candidateCursor = 0;
 
   for (let packetIndex = 0; packetIndex < parsed.rawPackets.length; packetIndex += 1) {
-    while (
-      candidateCursor < lapCandidates.length &&
-      lapCandidates[candidateCursor].end <= packetIndex
-    ) {
+    while (candidateCursor < lapCandidates.length && lapCandidates[candidateCursor].end <= packetIndex) {
       candidateCursor += 1;
     }
     const possibleCandidate = lapCandidates[candidateCursor];
-    const currentCandidate =
-      possibleCandidate &&
-      packetIndex >= possibleCandidate.start &&
-      packetIndex < possibleCandidate.end
-        ? possibleCandidate
-        : undefined;
+    const currentCandidate = possibleCandidate && packetIndex >= possibleCandidate.start && packetIndex < possibleCandidate.end ? possibleCandidate : undefined;
     const packet = parsed.rawPackets[packetIndex];
-    frame = resolver.createFrameView(packet, packet.TimestampMS, frame);
+    frame = resolver.createFrameView(packet, { timestamp: { domain: "session", milliseconds: packet.TimestampMS }, updateSequence: BigInt(packet.TimestampMS) }, frame);
 
     for (const expectation of coverage.expectations) {
       const requiredRange = expectation.minimumRange;
-      if (
-        resolvedById.has(expectation.semanticId) &&
-        (requiredRange === undefined || currentCandidate === undefined)
-      ) {
+      if (resolvedById.has(expectation.semanticId) && (requiredRange === undefined || currentCandidate === undefined)) {
         continue;
       }
       const resolved = frame.resolveValue<unknown>(slots.get(expectation.semanticId)!);
@@ -247,9 +200,7 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
     }
   }
 
-  const missing = coverage.expectations
-    .filter(({ semanticId }) => !resolvedById.has(semanticId))
-    .map(({ semanticId }) => `${semanticId} (${lastStateById.get(semanticId) ?? "not-evaluated"})`);
+  const missing = coverage.expectations.filter(({ semanticId }) => !resolvedById.has(semanticId)).map(({ semanticId }) => `${semanticId} (${lastStateById.get(semanticId) ?? "not-evaluated"})`);
   if (missing.length > 0) {
     throw new Error(`${coverage.gameId} recording did not resolve required semantics: ${missing.join(", ")}`);
   }
@@ -260,19 +211,13 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
       const semanticFailureCount = coverage.expectations.filter((expectation) => {
         if (expectation.minimumRange === undefined) return false;
         const range = ranges.get(expectation.semanticId);
-        return (
-          range === undefined ||
-          range.count < 2 ||
-          range.max - range.min <= expectation.minimumRange
-        );
+        return range === undefined || range.count < 2 || range.max - range.min <= expectation.minimumRange;
       }).length;
       return { ...candidate, semanticFailureCount };
     })
     .sort(
       (left, right) =>
-        left.rawFailureCount +
-          left.semanticFailureCount -
-          (right.rawFailureCount + right.semanticFailureCount) ||
+        left.rawFailureCount + left.semanticFailureCount - (right.rawFailureCount + right.semanticFailureCount) ||
         left.rawFailureCount - right.rawFailureCount ||
         right.end - right.start - (left.end - left.start),
     );
@@ -281,18 +226,12 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
     assertLapDynamics(coverage.gameId, parsed.rawPackets, representativeLap, lapDynamics);
   }
 
-  const representativeRanges = representativeLap
-    ? rangesByLapStart.get(representativeLap.start)!
-    : new Map<string, SampledRange>();
+  const representativeRanges = representativeLap ? rangesByLapStart.get(representativeLap.start)! : new Map<string, SampledRange>();
   const staticDynamics = coverage.expectations
     .filter((expectation) => {
       if (expectation.minimumRange === undefined) return false;
       const range = representativeRanges.get(expectation.semanticId);
-      return (
-        range === undefined ||
-        range.count < 2 ||
-        range.max - range.min <= expectation.minimumRange
-      );
+      return range === undefined || range.count < 2 || range.max - range.min <= expectation.minimumRange;
     })
     .map((expectation) => {
       const range = representativeRanges.get(expectation.semanticId);

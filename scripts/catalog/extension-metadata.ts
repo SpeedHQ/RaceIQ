@@ -1,16 +1,11 @@
 // Extension aliases, descriptive metadata, and unavailable-source records.
 import { SETUP_PARSER_SOURCE_MAPPINGS } from "../../shared/racing/setups/catalog/parser-source-mappings";
 import { unavailable } from "./ast-discovery";
-import { GAME_IDS } from "./model";
 import type { AvailableLink, ExtensionMetadata, GameId, GameLink, UnavailableExtensionSource } from "./model";
+import { GAME_IDS } from "./model";
 
 const EXTENSION_ALIASES: Record<string, string> = {
-  ...Object.fromEntries(
-    Object.entries(SETUP_PARSER_SOURCE_MAPPINGS).map(([path, mapping]) => [
-      path,
-      mapping.semanticId,
-    ]),
-  ),
+  ...Object.fromEntries(Object.entries(SETUP_PARSER_SOURCE_MAPPINGS).map(([path, mapping]) => [path, mapping.semanticId])),
   "f1.drsActivated": "aero.drs-active",
   "f1.ersStoreEnergy": "fuel.ers-store-energy",
   "f1.ersDeployMode": "fuel.ers-deploy-mode",
@@ -134,9 +129,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
       {
         unit: mapping.nativeUnit,
         ...(mapping.kind ? { kind: mapping.kind } : {}),
-        ...(mapping.normalization
-          ? { normalization: mapping.normalization }
-          : {}),
+        ...(mapping.normalization ? { normalization: mapping.normalization } : {}),
         freshness: "static" as const,
       },
     ]),
@@ -160,6 +153,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "f1.trackLength": {
     unit: "m",
     description: "F1 session packet track length.",
+    freshness: "session-update",
   },
   "f1.pitSpeedLimit": {
     unit: "km/h",
@@ -332,6 +326,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     description: "AC Evo current lap length.",
     kind: "normalized",
     normalization: "kilometres * 1000",
+    freshness: "session-update",
   },
   "acc.acEvo.sessionCurrentLap": {
     unit: "count",
@@ -349,6 +344,11 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     unit: "deg",
     description: "AC Evo wind direction in degrees.",
   },
+  "iracing.trackLengthM": {
+    unit: "m",
+    description: "iRacing track length retained from session metadata.",
+    freshness: "session-update",
+  },
   "iracing.lapDistancePct": {
     unit: "fraction",
     description: "iRacing lap distance normalized to 0-1.",
@@ -359,15 +359,12 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   },
   "iracing.sectorStarts": {
     unit: "fraction",
-    description:
-      "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
+    description: "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
     freshness: "session-update",
   },
 };
 
-const UNAVAILABLE_EXTENSION_SOURCES: Partial<
-  Record<GameId, Record<string, UnavailableExtensionSource>>
-> = {
+const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, UnavailableExtensionSource>>> = {
   acc: {
     "acc.brakePadCompound": {
       reason: "parser-placeholder",
@@ -393,23 +390,19 @@ const UNAVAILABLE_EXTENSION_SOURCES: Partial<
   "ac-evo": {
     "acc.tireInnerTemp": {
       reason: "source-not-populated",
-      description:
-        "AC Evo v0.6 reserves inner surface temperatures but current shared-memory pages report zero placeholders.",
+      description: "AC Evo v0.6 reserves inner surface temperatures but current shared-memory pages report zero placeholders.",
     },
     "acc.tireMiddleTemp": {
       reason: "source-not-populated",
-      description:
-        "AC Evo v0.6 reserves middle surface temperatures but current shared-memory pages report zero placeholders.",
+      description: "AC Evo v0.6 reserves middle surface temperatures but current shared-memory pages report zero placeholders.",
     },
     "acc.acEvo.tyreMiddleTempC": {
       reason: "source-not-populated",
-      description:
-        "AC Evo v0.6 native middle-temperature array currently mirrors zero placeholder offsets.",
+      description: "AC Evo v0.6 native middle-temperature array currently mirrors zero placeholder offsets.",
     },
     "acc.tireOuterTemp": {
       reason: "source-not-populated",
-      description:
-        "AC Evo v0.6 reserves outer surface temperatures but current shared-memory pages report zero placeholders.",
+      description: "AC Evo v0.6 reserves outer surface temperatures but current shared-memory pages report zero placeholders.",
     },
     "acc.rideHeight": {
       reason: "source-not-populated",
@@ -458,20 +451,14 @@ const UNAVAILABLE_EXTENSION_SOURCES: Partial<
   },
 };
 
-function unavailableExtensionSource(
-  gameId: GameId,
-  path: string,
-): UnavailableExtensionSource | undefined {
+function unavailableExtensionSource(gameId: GameId, path: string): UnavailableExtensionSource | undefined {
   return UNAVAILABLE_EXTENSION_SOURCES[gameId]?.[path];
 }
 
 function extensionMetadata(path: string): ExtensionMetadata | undefined {
   const semanticId = EXTENSION_ALIASES[path] ?? EXTENSION_ALIASES[path.replace(/(FL|FR|RL|RR)$/, "")];
   if (!semanticId) return undefined;
-  const metadata =
-    EXTENSION_METADATA[path] ??
-    EXTENSION_METADATA[path.replace(/(FL|FR|RL|RR)$/, "")] ??
-    {};
+  const metadata = EXTENSION_METADATA[path] ?? EXTENSION_METADATA[path.replace(/(FL|FR|RL|RR)$/, "")] ?? {};
   return { semanticId, ...metadata };
 }
 
@@ -480,12 +467,7 @@ function extensionAlias(path: string): string | undefined {
 }
 
 function unavailableGames(description: string): Record<GameId, GameLink> {
-  return Object.fromEntries(
-    GAME_IDS.map((gameId) => [
-      gameId,
-      unavailable("source-not-provided", description),
-    ]),
-  ) as Record<GameId, GameLink>;
+  return Object.fromEntries(GAME_IDS.map((gameId) => [gameId, unavailable("source-not-provided", description)])) as Record<GameId, GameLink>;
 }
 
 function appendNormalization(link: AvailableLink, normalization: string): void {
@@ -499,4 +481,4 @@ function appendNormalization(link: AvailableLink, normalization: string): void {
   link.normalization = [...parts].join("; ");
 }
 
-export { EXTENSION_ALIASES, EXTENSION_METADATA, UNAVAILABLE_EXTENSION_SOURCES, unavailableExtensionSource, extensionMetadata, extensionAlias, unavailableGames, appendNormalization };
+export { appendNormalization, EXTENSION_ALIASES, EXTENSION_METADATA, extensionAlias, extensionMetadata, UNAVAILABLE_EXTENSION_SOURCES, unavailableExtensionSource, unavailableGames };

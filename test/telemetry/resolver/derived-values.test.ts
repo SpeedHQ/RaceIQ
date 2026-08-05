@@ -2,14 +2,8 @@ import { describe, expect, test } from "bun:test";
 import type { TelemetryCatalogData } from "../../../shared/telemetry/catalog/contracts";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
-import { TELEMETRY_DERIVATION_VERSION } from "../../../shared/telemetry/derivations/builtins";
-import type { TelemetryDerivation } from "../../../shared/telemetry/derivations/contracts";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
 import type { ResolvedValue } from "../../../shared/telemetry/resolver/contracts";
-import {
-  TELEMETRY_PARSER_VERSIONS,
-  TELEMETRY_RESOLVER_VERSION,
-} from "../../../shared/telemetry/resolver/versions";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { packet } from "../../support/telemetry/resolver";
 
@@ -25,7 +19,7 @@ describe("compiled telemetry resolver derived values", () => {
         DistanceTraveled: 2_500,
         f1: { trackLength: 5_000 } as TelemetryPacket["f1"],
       }),
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.readNumber(slot)).toBe(0.5);
@@ -51,7 +45,7 @@ describe("compiled telemetry resolver derived values", () => {
         packet: packet("ac-evo", { DistanceTraveled: 7_500 }),
         nativeValues: { "acEvo.lapLengthKm": 5 },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.readNumber(slot)).toBe(0.5);
@@ -72,7 +66,7 @@ describe("compiled telemetry resolver derived values", () => {
           "SessionInfo.WeekendInfo.TrackLength": "5.1 km",
         },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.resolveNumber(slot)).toMatchObject({
@@ -93,7 +87,7 @@ describe("compiled telemetry resolver derived values", () => {
           lapDistancePct: 0.5,
         } as TelemetryPacket["iracing"],
       }),
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.resolveNumber(slot)).toMatchObject({
@@ -109,7 +103,7 @@ describe("compiled telemetry resolver derived values", () => {
       requested: [{ semanticId: "timing.sector.current-lap.times" }],
     });
     const slot = resolver.slot("timing.sector.current-lap.times");
-    const frame = resolver.createFrameView(packet("f1-2025"), 1_000);
+    const frame = resolver.createFrameView(packet("f1-2025"), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
 
     expect(frame.readValue<readonly number[]>(slot)).toBeUndefined();
     expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
@@ -150,17 +144,13 @@ describe("compiled telemetry resolver derived values", () => {
       simulator: "f1-2025",
       requested: [{ semanticId }],
     });
-    const resolved = resolver
-      .createFrameView(packet("f1-2025"), 1_000)
-      .resolveValue(resolver.slot(semanticId));
+    const resolved = resolver.createFrameView(packet("f1-2025"), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) }).resolveValue(resolver.slot(semanticId));
 
     expect(resolved).toMatchObject({
       value: null,
       mappingStatus: "normalized",
       state: "error",
-      limitations: [
-        "unsupported-normalized-executor:f1-2025:timing.sector.current-lap.times",
-      ],
+      limitations: ["unsupported-normalized-executor:f1-2025:timing.sector.current-lap.times"],
     });
   });
   test("validates structured native indices, cardinality, and field types", () => {
@@ -178,7 +168,7 @@ describe("compiled telemetry resolver derived values", () => {
         packet: packet("iracing"),
         nativeValues: { CarIdxPosition: positions },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(validFrame.readValue<typeof positions>(slot)).toBe(positions);
@@ -192,7 +182,7 @@ describe("compiled telemetry resolver derived values", () => {
         packet: packet("iracing"),
         nativeValues: { CarIdxPosition: [2, "first"] },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
       validFrame,
     );
     expect(wrongTypeFrame.resolveValue(slot).state).toBe("invalid");
@@ -202,7 +192,7 @@ describe("compiled telemetry resolver derived values", () => {
         packet: packet("iracing"),
         nativeValues: { CarIdxPosition: new Array(65).fill(1) },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
       validFrame,
     );
     expect(tooManyFrame.resolveValue(slot).state).toBe("invalid");
@@ -213,17 +203,10 @@ describe("compiled telemetry resolver derived values", () => {
       requested: [{ semanticId: "tires.tire-compound" }],
     });
     const slot = resolver.slot("tires.tire-compound");
-    const valid = resolver.createFrameView(
-      packet("f1-2025", { TyreCompound: 7 }),
-      1_000,
-    );
+    const valid = resolver.createFrameView(packet("f1-2025", { TyreCompound: 7 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
     expect(valid.readValue<string>(slot)).toBe("7");
 
-    const invalid = resolver.createFrameView(
-      packet("f1-2025", { TyreCompound: 999 }),
-      1_000,
-      valid,
-    );
+    const invalid = resolver.createFrameView(packet("f1-2025", { TyreCompound: 999 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) }, valid);
     expect(invalid.resolveValue(slot).state).toBe("invalid");
   });
   test("rejects invalid collection shape and scalar type", () => {
@@ -239,22 +222,17 @@ describe("compiled telemetry resolver derived values", () => {
         TireSlipRatioRL: 0.3,
         TireSlipRatioRR: undefined as unknown as number,
       }),
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
     expect(wheelFrame.readValue<readonly number[]>(wheelSlot)).toBeUndefined();
-    expect(wheelFrame.resolveValue<readonly number[]>(wheelSlot).state).toBe(
-      "invalid",
-    );
+    expect(wheelFrame.resolveValue<readonly number[]>(wheelSlot).state).toBe("invalid");
 
     const scalarResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "acc",
       requested: [{ semanticId: "motion.speed" }],
     });
     const scalarSlot = scalarResolver.slot("motion.speed");
-    const scalarFrame = scalarResolver.createFrameView(
-      packet("acc", { Speed: "fast" as unknown as number }),
-      1_000,
-    );
+    const scalarFrame = scalarResolver.createFrameView(packet("acc", { Speed: "fast" as unknown as number }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
     expect(scalarFrame.readValue<number>(scalarSlot)).toBeUndefined();
     expect(scalarFrame.resolveValue<number>(scalarSlot).state).toBe("invalid");
   });
@@ -265,7 +243,7 @@ describe("compiled telemetry resolver derived values", () => {
     });
     const slots = [resolver.slot("motion.speed"), resolver.slot("race.is-race-on")];
     const target: ResolvedValue<unknown>[] = [];
-    const result = resolver.createFrameView(packet("acc"), 1_000).resolveMany(slots, target);
+    const result = resolver.createFrameView(packet("acc"), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) }).resolveMany(slots, target);
 
     expect(result).toBe(target);
     expect(result.map((value) => value.semanticId)).toEqual(["motion.speed", "race.is-race-on"]);

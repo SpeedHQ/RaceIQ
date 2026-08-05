@@ -1,20 +1,9 @@
 import type { GameId } from "../../games/ids";
-import type { TelemetryVersionIdentity } from "../version";
 import type { MappingStatus } from "../derivations/contracts";
-import type {
-  ConfidenceComponents,
-  ResolutionProvenance,
-  ResolutionState,
-  SemanticSlot,
-} from "../resolver/contracts";
+import type { ConfidenceComponents, FreshnessState, ResolutionProvenance, ResolutionState, SemanticSlot, TelemetryTimestamp } from "../resolver/contracts";
+import type { TelemetryVersionIdentity } from "../version";
 
-export type CanonicalTelemetryScalar =
-  | number
-  | boolean
-  | string
-  | null
-  | readonly CanonicalTelemetryScalar[]
-  | { readonly [key: string]: CanonicalTelemetryScalar };
+export type CanonicalTelemetryScalar = number | boolean | string | null | readonly CanonicalTelemetryScalar[] | { readonly [key: string]: CanonicalTelemetryScalar };
 
 export interface CanonicalTelemetryValue {
   readonly semanticId: string;
@@ -23,8 +12,9 @@ export interface CanonicalTelemetryValue {
   readonly unit: string | null;
   readonly mappingStatus: MappingStatus;
   readonly state: ResolutionState;
+  readonly freshness: FreshnessState;
   readonly confidenceComponents: ConfidenceComponents;
-  readonly confidence: number;
+  readonly confidence: number | null;
   readonly provenance: ResolutionProvenance;
   readonly schemaVersion: string;
   readonly limitations: readonly string[];
@@ -46,9 +36,9 @@ export interface TelemetryRawReference {
 export interface CanonicalTelemetryEnvelope {
   readonly sessionId: string;
   readonly sequence: bigint;
-  readonly observedAt: number;
-  /** Lap-row persistence time when source did not retain receive timestamps. */
-  readonly receivedAt: number;
+  readonly observedAt: TelemetryTimestamp;
+  /** Lap-row persistence time in Unix wall-clock domain. */
+  readonly receivedAt: TelemetryTimestamp;
   readonly simulator: GameId;
   readonly catalogVersion: string;
   readonly catalogHash: string;
