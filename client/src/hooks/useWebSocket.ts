@@ -64,6 +64,16 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
           } else if (data.type === "stale-lap-detection") {
             useTelemetryStore.getState().setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+          } else if (data.type === "stale-race-results") {
+            useTelemetryStore.getState().setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+          } else if (data.type === "race-result-reconciled") {
+            const store = useTelemetryStore.getState();
+            store.setRaceResultReprocessProgress({ done: data.done as number, total: data.total as number });
+            if (data.done === data.total && data.status !== "error") {
+              store.setStaleRaceResults(null);
+            }
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: ["race-results"] });
           } else if (data.type === "lap-reprocessed") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });

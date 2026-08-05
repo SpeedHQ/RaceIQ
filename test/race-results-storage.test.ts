@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { insertSession, getSessionResult, replacePitEvents, upsertSessionResult } from "../server/db/queries";
+import { countStaleRaceResults, getStaleRaceResultSessionIds, insertSession, getSessionResult, replacePitEvents, upsertSessionResult } from "../server/db/queries";
+import { sessionRoutes } from "../server/routes/session-routes";
 import { getRecentRaceResults } from "../server/race-results/aggregates";
 import { initServerGameAdapters } from "../server/games/init";
 import { RACE_RESULT_PROCESSOR_ID, backfillAllRaceResults, reconcileSessionResult } from "../server/race-results/reconcile";
@@ -33,6 +34,52 @@ describe("persisted race result metadata", () => {
     expect(result?.id).toBe(first.id);
     expect(result?.events.map((event) => event.sequence)).toEqual([1, 2]);
     expect(result?.events[1]?.fuelAdded).toBe(5);
+  });
+  test("counts and lists only results from older processor versions", async () => {
+    const staleSessionId = await insertSession(12, 13, "f1-2025", "race");
+    const currentSessionId = await insertSession(12, 13, "f1-2025", "race");
+    const input = (sessionId: number, processorVersion: string) => ({
+      sessionId,
+      processorVersion,
+      sessionType: "race",
+      classification: "finished",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: null,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance: {},
+      reasons: [],
+    });
+    await upsertSessionResult(input(staleSessionId, "race-result-v0"));
+    await upsertSessionResult(input(currentSessionId, RACE_RESULT_PROCESSOR_ID));
+
+    expect(await countStaleRaceResults(RACE_RESULT_PROCESSOR_ID)).toBe(1);
+    expect(await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID)).toEqual([staleSessionId]);
+  });
+  test("reconciles stale results through bulk endpoint", async () => {
+    const sessionId = await insertSession(14, 15, "f1-2025", "race");
+    await upsertSessionResult({
+      sessionId,
+      processorVersion: "race-result-v0",
+      sessionType: "race",
+      classification: "finished",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: null,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance: {},
+      reasons: [],
+    });
+
+    const response = await sessionRoutes.request("/api/race-results/reconcile-stale", { method: "POST" });
+    expect(response.status).toBe(200);
+    expect((await getSessionResult(sessionId, "f1-2025"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
   });
 
   test("reconciles stored results from an older processor version", async () => {

@@ -5,9 +5,9 @@ Expose stale race-result processor status and let users rerun reconciliation fro
 
 ## Scope
 - Detect stored `session_results.processor_version` values different from `RACE_RESULT_PROCESSOR_ID`.
-- Include sessions with no stored result as not stale for this feature; existing read/startup backfill handles missing rows.
+- Include sessions with no stored result as not stale for this feature; existing read-time reconciliation handles missing rows.
 - Provide a reconciliation-only bulk action. It must not reparse telemetry or alter lap boundaries.
-- Keep startup backfill as a safety net, while surfacing version-stale rows to the user.
+- Do not silently reconcile historical rows at startup; preserve stale rows so users can see and control the rerun.
 
 ## Architecture
 Server adds stale race-result queries and a websocket notification payload containing count and current processor version. A bulk endpoint processes stale session IDs sequentially, broadcasts per-session progress, and clears the persisted notification when complete.

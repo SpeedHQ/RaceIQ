@@ -1,4 +1,4 @@
-import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, notInArray, isNull, not } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache, driverProfiles, driverProfileRuns, sessionResults, pitEvents } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
@@ -261,6 +261,30 @@ export async function getSessionResult(sessionId: number, gameId: GameId) {
     .orderBy(pitEvents.sequence)
     .all();
   return { ...row.result, gameId: row.gameId as GameId, events };
+}
+/**
+ * Count persisted race results produced by an older processor implementation.
+ */
+export async function countStaleRaceResults(currentProcessorVersion: string): Promise<number> {
+  const rows = await db
+    .select({ sessionId: sessionResults.sessionId })
+    .from(sessionResults)
+    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
+    .all();
+  return rows.length;
+}
+
+/**
+ * Get sessions whose persisted race result needs reconciliation.
+ */
+export async function getStaleRaceResultSessionIds(currentProcessorVersion: string): Promise<number[]> {
+  const rows = await db
+    .select({ sessionId: sessionResults.sessionId })
+    .from(sessionResults)
+    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
+    .orderBy(sessionResults.sessionId)
+    .all();
+  return rows.map((row) => row.sessionId);
 }
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {

@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { GameIdQuerySchema, IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData, getSessionResult } from "../db/queries";
+import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getStaleRaceResultSessionIds, getSessionRecapData, getSessionResult } from "../db/queries";
 import { reprocessSession } from "../reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detector";
 import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
@@ -14,7 +14,7 @@ import { wsManager } from "../ws";
 import { computeRecap } from "../recap";
 import { tryGetGame } from "../../shared/games/registry";
 import { getCarName, getTrackName } from "../../shared/car-data";
-import { backfillRaceResults, reconcileSessionResult } from "../race-results/reconcile";
+import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
 
 const ALL_DETECTOR_IDS = [
@@ -91,6 +91,37 @@ export const sessionRoutes = new Hono()
     ),
     async (c) => c.json(await backfillRaceResults(c.req.valid("json"))),
   )
+  // POST /api/race-results/reconcile-stale — reconcile results from older processors
+  .post("/api/race-results/reconcile-stale", async (c) => {
+    const staleIds = await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID);
+    const total = staleIds.length;
+    const results = [];
+    let failed = false;
+    for (let index = 0; index < staleIds.length; index += 1) {
+      const sessionId = staleIds[index]!;
+      try {
+        const session = (await getSessions()).find((candidate) => candidate.id === sessionId);
+        if (!session?.gameId) throw new Error(`Session ${sessionId} has no game`);
+        const result = await reconcileSessionResult(sessionId, session.gameId);
+        results.push(result);
+        if (result.status === "error") failed = true;
+        wsManager.broadcastNotification({
+          type: "race-result-reconciled",
+          sessionId,
+          done: index + 1,
+          total,
+          status: result.status,
+        });
+      } catch (error) {
+        failed = true;
+        const result = { sessionId, status: "error" as const, eventCount: 0, reasons: [error instanceof Error ? error.message : "unknown-error"] };
+        results.push(result);
+        wsManager.broadcastNotification({ type: "race-result-reconciled", sessionId, done: index + 1, total, status: "error" });
+      }
+    }
+    if (!failed) wsManager.setStaleRaceResultsNotification(null);
+    return c.json({ reprocessed: results.filter((result) => result.status !== "error").length, results });
+  })
   // GET /api/race-results/summary
   .get(
     "/api/race-results/summary",
