@@ -27,6 +27,58 @@ export interface SetupSourceMapping {
   normalization?: string;
 }
 
+export type SetupFileGameId = "acc" | "ac-evo";
+
+export type SetupFormTab =
+  | "Tyres"
+  | "Electronics"
+  | "Fuel & strategy"
+  | "Suspension"
+  | "Dampers"
+  | "Aero";
+
+export type SetupFieldCardinality =
+  | { kind: "scalar" }
+  | {
+      kind: "fixed";
+      count: 2 | 4;
+      ordering: readonly string[];
+    };
+
+export interface SetupFileSectionMetadata {
+  label: string;
+  description: string;
+  tab: SetupFormTab;
+  games: readonly SetupFileGameId[];
+}
+
+export interface SetupFileSectionDefinition extends SetupFileSectionMetadata {
+  id: string;
+}
+
+export interface SetupFileSourceMetadata extends SetupSourceMapping {
+  label: string;
+  description: string;
+  cardinality: SetupFieldCardinality;
+  hint?: string;
+  step?: number;
+  min?: number;
+}
+
+export interface SetupFileSourceDefinition extends SetupFileSourceMetadata {
+  path: string;
+}
+
+export type SetupFileSourceTree = Record<
+  string,
+  Record<
+    string,
+    SetupFileSectionMetadata & {
+      fields: Record<string, SetupFileSourceMetadata>;
+    }
+  >
+>;
+
 export const SETUP_GROUP_DEFINITIONS: readonly SetupGroupDefinition[] = [
   {
     id: "setup.metadata",

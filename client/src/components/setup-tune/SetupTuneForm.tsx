@@ -1,4 +1,4 @@
-import { getSchemaForGame } from "@shared/racing/setups/schema";
+import { getSchemaForGame, readSetupSection } from "@shared/racing/setups/schema";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
@@ -15,33 +15,12 @@ export interface SetupTuneData {
   settings: Record<string, unknown>;
 }
 
-export interface TuneSection {
-  /** JSON path of the section inside the setup object, e.g.
-   *  "basicSetup.tyres". Used to detect whether the pasted JSON covers this
-   *  tunable group. */
-  key: string;
-  label: string;
-  fields: string;
-}
 
 export interface CategoryOption {
   value: string;
   label: string;
 }
 
-// ── ACC — sections / categories ──────────────────────────────────────────────
-// Mirrors Kunos' ACC setup.json schema: basicSetup.{tyres,alignment,electronics,
-// strategy} and advancedSetup.{mechanicalBalance,dampers,aeroBalance,drivetrain}.
-export const ACC_SECTIONS: TuneSection[] = [
-  { key: "basicSetup.tyres", label: "Tyres", fields: "Pressures (FL/FR/RL/RR), compound" },
-  { key: "basicSetup.alignment", label: "Alignment", fields: "Camber, toe, caster, steer ratio" },
-  { key: "basicSetup.electronics", label: "Electronics", fields: "TC1/TC2, ABS, ECU map, telemetry" },
-  { key: "basicSetup.strategy", label: "Strategy", fields: "Fuel, tyre set, brake pads, pit strategy" },
-  { key: "advancedSetup.mechanicalBalance", label: "Mechanical Balance", fields: "ARB, brake bias & power, wheel/bumpstop rates, preload" },
-  { key: "advancedSetup.dampers", label: "Dampers", fields: "Bump / rebound (slow & fast) per corner" },
-  { key: "advancedSetup.aeroBalance", label: "Aero & Ride", fields: "Ride height, splitter, rear wing, brake ducts" },
-  { key: "advancedSetup.drivetrain", label: "Drivetrain", fields: "Differential preload" },
-];
 
 // The four in-game ACC setup types plus a wet flag. Matches the four session
 // categories Kunos exposes in the setup menu.
@@ -52,21 +31,6 @@ export const ACC_CATEGORIES: CategoryOption[] = [
   { value: "wet", label: "Wet" },
 ];
 
-// ── AC EVO — sections / categories ───────────────────────────────────────────
-// AC EVO broadens the setup scope beyond ACC's GT3-focused sheet: it adds
-// fuel-management, engine mapping, suspension presets, and LSD coast/power
-// splits (rally-style), so the categories reflect that multi-discipline scope.
-export const AC_EVO_SECTIONS: TuneSection[] = [
-  { key: "basicSetup.tyres", label: "Tyres", fields: "Pressures, compound, tyre set" },
-  { key: "basicSetup.alignment", label: "Alignment", fields: "Camber, toe, caster, ride height" },
-  { key: "basicSetup.electronics", label: "Electronics", fields: "TC, ABS, ECU map, engine braking" },
-  { key: "basicSetup.strategy", label: "Strategy", fields: "Fuel, brake pads, pit stop plan" },
-  { key: "advancedSetup.mechanicalBalance", label: "Mechanical Balance", fields: "ARB, brake bias, wheel rates, preload" },
-  { key: "advancedSetup.dampers", label: "Dampers", fields: "Bump / rebound per corner" },
-  { key: "advancedSetup.aeroBalance", label: "Aero & Ride", fields: "Ride height, wing, splitter, ducts" },
-  { key: "advancedSetup.drivetrain", label: "Drivetrain", fields: "LSD power / coast / preload" },
-  { key: "advancedSetup.suspension", label: "Suspension Presets", fields: "Bumpstops, packers, helper springs" },
-];
 
 // AC EVO covers road and track driving, so the categories include a broader
 // mix than ACC's four in-game types.
@@ -80,11 +44,6 @@ export const AC_EVO_CATEGORIES: CategoryOption[] = [
   { value: "road", label: "Road" },
 ];
 
-function getSectionsForGame(gameId: GameId): TuneSection[] {
-  if (gameId === "acc") return ACC_SECTIONS;
-  if (gameId === "ac-evo") return AC_EVO_SECTIONS;
-  return [];
-}
 
 export function getCategoriesForGame(gameId: GameId): CategoryOption[] {
   if (gameId === "acc") return ACC_CATEGORIES;
@@ -114,7 +73,6 @@ export function SetupTuneForm({
   title: string;
   isSubmitting: boolean;
 }) {
-  const sections = getSectionsForGame(gameId);
   const categories = getCategoriesForGame(gameId);
   const schema = useMemo(() => getSchemaForGame(gameId), [gameId]);
   const defaultCategory = categories[0]?.value ?? "race";
@@ -162,12 +120,11 @@ export function SetupTuneForm({
     }
     const covered = new Set<string>();
     if (!source) return covered;
-    for (const s of sections) {
-      const [root, leaf] = s.key.split(".");
-      if (source?.[root]?.[leaf]) covered.add(s.key);
+    for (const section of schema) {
+      if (readSetupSection(source, section)) covered.add(section.key);
     }
     return covered;
-  }, [mode, settings, jsonText, sections]);
+  }, [mode, settings, jsonText, schema]);
 
   // When user flips to JSON mode, seed the textarea from the live settings.
   // When user flips to form mode, parse the textarea into settings (if valid).
@@ -326,11 +283,11 @@ export function SetupTuneForm({
           />
         </label>
 
-        {sections.length > 0 && (
+        {schema.length > 0 && (
           <div className="col-span-2 flex items-center justify-between">
             <span className="text-xs font-medium text-app-text-muted">{m.setupform_tunable_sections()}</span>
             <span className="text-app-caption text-app-text-muted">
-              {coveredSections.size} / {sections.length} {m.setupform_covered()}
+              {coveredSections.size} / {schema.length} {m.setupform_covered()}
             </span>
           </div>
         )}

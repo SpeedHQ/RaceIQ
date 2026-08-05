@@ -6,10 +6,10 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+      "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
     },
     "generatedAt": "1970-01-01T00:00:00.000Z",
-    "contentHash": "bc29fa6fea09e5feaa5eef531042426e21350f7758b0ea3e1b8ed8720976548d"
+    "contentHash": "196163fb96939a6d2a1a27d25d1d653f801d3115166f7864fc4795dce3a7a748"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -710,14 +710,6 @@
       "label": "Car setup",
       "description": "Static or adjustable vehicle setup values.",
       "children": [
-        "setup.electronics.endurance-lights",
-        "setup.electronics.left-side-led-strips",
-        "setup.electronics.right-side-led-strips",
-        "setup.suspension.front-anti-roll-bar.connection",
-        "setup.suspension.front-anti-roll-bar.rate",
-        "setup.suspension.rear-anti-roll-bar.connection",
-        "setup.suspension.rear-anti-roll-bar.rate",
-        "setup.weight.front-distribution",
         "setup.metadata",
         "setup.tires",
         "setup.alignment",
@@ -820,8 +812,11 @@
       "children": [
         "setup.electronics.abs",
         "setup.electronics.display-page",
+        "setup.electronics.endurance-lights",
         "setup.electronics.engine-map",
         "setup.electronics.fuel-mix",
+        "setup.electronics.left-side-led-strips",
+        "setup.electronics.right-side-led-strips",
         "setup.electronics.telemetry-laps",
         "setup.electronics.throttle-shape",
         "setup.electronics.traction-control",
@@ -881,8 +876,10 @@
       "children": [
         "setup.suspension.front-anti-roll-bar.arms",
         "setup.suspension.front-anti-roll-bar.blades",
+        "setup.suspension.front-anti-roll-bar.connection",
         "setup.suspension.front-anti-roll-bar.diameter",
         "setup.suspension.front-anti-roll-bar.outer-diameter",
+        "setup.suspension.front-anti-roll-bar.rate",
         "setup.suspension.front-anti-roll-bar.setting"
       ]
     },
@@ -894,8 +891,10 @@
       "children": [
         "setup.suspension.rear-anti-roll-bar.arms",
         "setup.suspension.rear-anti-roll-bar.blades",
+        "setup.suspension.rear-anti-roll-bar.connection",
         "setup.suspension.rear-anti-roll-bar.diameter",
         "setup.suspension.rear-anti-roll-bar.outer-diameter",
+        "setup.suspension.rear-anti-roll-bar.rate",
         "setup.suspension.rear-anti-roll-bar.setting"
       ]
     },
@@ -920,7 +919,8 @@
       "parentId": "setup",
       "children": [
         "setup.weight.corner-weight",
-        "setup.weight.cross-weight"
+        "setup.weight.cross-weight",
+        "setup.weight.front-distribution"
       ]
     },
     {
@@ -3516,7 +3516,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -3595,7 +3595,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -3684,7 +3684,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -3762,7 +3762,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -3849,7 +3849,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -5621,7 +5621,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -5707,7 +5707,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -5794,7 +5794,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -5891,7 +5891,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -5977,7 +5977,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6055,7 +6055,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6142,7 +6142,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -6239,7 +6239,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6325,7 +6325,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6411,7 +6411,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6498,7 +6498,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -6595,7 +6595,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6681,7 +6681,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6760,7 +6760,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -6849,7 +6849,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -6928,7 +6928,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -7152,7 +7152,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -7241,7 +7241,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -7425,7 +7425,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -7478,7 +7478,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -7541,7 +7541,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -7771,7 +7771,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -7902,7 +7902,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": []
         },
@@ -7917,7 +7917,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": []
         },
@@ -8192,7 +8192,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -9408,7 +9408,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": []
         },
@@ -9435,7 +9435,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -9536,7 +9536,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -9736,7 +9736,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -10951,7 +10951,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -11005,7 +11005,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -11059,7 +11059,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -11113,7 +11113,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -11454,7 +11454,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -12239,7 +12239,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -12901,7 +12901,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -13133,7 +13133,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -13482,7 +13482,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -13817,7 +13817,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -13873,7 +13873,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -13939,7 +13939,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -13992,7 +13992,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14261,7 +14261,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14409,7 +14409,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -14475,7 +14475,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -14539,7 +14539,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14592,7 +14592,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14645,7 +14645,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14698,7 +14698,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14751,7 +14751,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14804,7 +14804,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14857,7 +14857,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14910,7 +14910,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -14963,7 +14963,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -15989,7 +15989,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -16042,7 +16042,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -16095,7 +16095,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -18273,7 +18273,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -18326,7 +18326,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -18379,7 +18379,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20386,7 +20386,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20467,7 +20467,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20547,7 +20547,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20627,7 +20627,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20707,7 +20707,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20787,7 +20787,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20867,7 +20867,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -20951,7 +20951,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -21046,7 +21046,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -21126,7 +21126,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -21206,7 +21206,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -21286,7 +21286,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -21366,7 +21366,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -21447,7 +21447,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -21539,7 +21539,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -21636,7 +21636,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -21717,7 +21717,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -21813,7 +21813,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -21909,7 +21909,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -22000,7 +22000,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22080,7 +22080,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22160,7 +22160,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22240,7 +22240,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22320,7 +22320,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22410,7 +22410,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22490,7 +22490,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22570,7 +22570,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22660,7 +22660,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22820,7 +22820,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22900,7 +22900,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -22980,7 +22980,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23060,7 +23060,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23140,7 +23140,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23220,7 +23220,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23301,7 +23301,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23381,7 +23381,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23461,7 +23461,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23541,7 +23541,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23621,7 +23621,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23701,7 +23701,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -23781,7 +23781,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -24399,7 +24399,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -24479,7 +24479,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -24719,7 +24719,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -24799,7 +24799,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -24879,7 +24879,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -24959,7 +24959,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -25131,7 +25131,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -25221,7 +25221,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -25301,7 +25301,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -25381,7 +25381,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -25705,7 +25705,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -26316,7 +26316,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -26913,7 +26913,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -26978,7 +26978,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -27801,7 +27801,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -27879,7 +27879,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -27957,7 +27957,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28035,7 +28035,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28113,7 +28113,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28244,7 +28244,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28297,7 +28297,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28350,7 +28350,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28403,7 +28403,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28456,7 +28456,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28509,7 +28509,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28562,7 +28562,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28615,7 +28615,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28693,7 +28693,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28746,7 +28746,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28799,7 +28799,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28852,7 +28852,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28905,7 +28905,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -28958,7 +28958,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29011,7 +29011,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29064,7 +29064,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29117,7 +29117,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29170,7 +29170,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29223,7 +29223,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29276,7 +29276,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29329,7 +29329,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29382,7 +29382,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29435,7 +29435,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29488,7 +29488,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29541,7 +29541,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29647,7 +29647,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29753,7 +29753,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29926,7 +29926,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -29979,7 +29979,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30032,7 +30032,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30085,7 +30085,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30191,7 +30191,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30244,7 +30244,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30509,7 +30509,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30587,7 +30587,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30665,7 +30665,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30743,7 +30743,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30821,7 +30821,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30899,7 +30899,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -30977,7 +30977,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -31055,7 +31055,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -31108,7 +31108,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -31215,7 +31215,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -31556,7 +31556,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -31636,7 +31636,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -31702,7 +31702,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -31755,7 +31755,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -31808,7 +31808,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -31847,11 +31847,11 @@
             "ACC.SetupFile.advancedSetup.aeroBalance.brakeDuct"
           ],
           "freshness": "static",
-          "description": "acc setup file exposes this axles value.",
+          "description": "acc setup file exposes this 2-value value.",
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -31862,11 +31862,11 @@
             "ACEvo.SetupFile.advancedSetup.aeroBalance.brakeDuct"
           ],
           "freshness": "static",
-          "description": "ac-evo setup file exposes this axles value.",
+          "description": "ac-evo setup file exposes this 2-value value.",
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -31882,7 +31882,8 @@
       ],
       "cardinality": {
         "kind": "variable",
-        "min": 0
+        "min": 0,
+        "max": 2
       },
       "ordering": [
         "source-path:source-order"
@@ -31893,7 +31894,8 @@
             "id": "source-path",
             "cardinality": {
               "kind": "variable",
-              "min": 0
+              "min": 0,
+              "max": 2
             },
             "ordering": "source-order"
           }
@@ -31950,7 +31952,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -32019,7 +32021,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -32137,7 +32139,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -32204,7 +32206,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -32256,7 +32258,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32285,7 +32287,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32314,7 +32316,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32345,7 +32347,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -32401,7 +32403,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -32416,7 +32418,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -32461,7 +32463,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32487,11 +32489,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32516,11 +32518,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32556,7 +32558,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -32626,7 +32628,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32657,7 +32659,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32694,7 +32696,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -32763,7 +32765,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32792,7 +32794,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32821,7 +32823,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -32865,7 +32867,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32891,11 +32893,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32920,11 +32922,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32965,7 +32967,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -33049,7 +33051,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33078,7 +33080,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33110,7 +33112,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -33184,7 +33186,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -33241,7 +33243,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -33257,7 +33259,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -33274,7 +33276,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -33413,7 +33415,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -33494,7 +33496,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -33541,11 +33543,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33570,11 +33572,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33609,7 +33611,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -33656,11 +33658,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33685,11 +33687,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33724,7 +33726,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -33799,7 +33801,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -33846,11 +33848,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33875,11 +33877,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33914,7 +33916,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -33961,11 +33963,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33990,11 +33992,11 @@
           ],
           "freshness": "static",
           "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34029,7 +34031,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -34093,7 +34095,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -34147,7 +34149,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -34212,7 +34214,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -34268,7 +34270,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34299,7 +34301,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34331,7 +34333,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -34456,7 +34458,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -34522,7 +34524,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -34687,7 +34689,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -34702,7 +34704,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -34718,7 +34720,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -34773,7 +34775,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -34803,7 +34805,7 @@
       "id": "setup.electronics.endurance-lights",
       "label": "Endurance lights",
       "description": "Configured endurance-light package.",
-      "parentId": "setup",
+      "parentId": "setup.electronics",
       "canonicalUnit": "configuration",
       "shape": "scalar",
       "games": {
@@ -34838,7 +34840,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -34881,7 +34883,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -34896,7 +34898,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -34912,7 +34914,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -34955,7 +34957,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -34970,7 +34972,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -34993,7 +34995,7 @@
       "id": "setup.electronics.left-side-led-strips",
       "label": "Left-side LED strips",
       "description": "Configured left-side LED strip state.",
-      "parentId": "setup",
+      "parentId": "setup.electronics",
       "canonicalUnit": "configuration",
       "shape": "scalar",
       "games": {
@@ -35028,7 +35030,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35046,7 +35048,7 @@
       "id": "setup.electronics.right-side-led-strips",
       "label": "Right-side LED strips",
       "description": "Configured right-side LED strip state.",
-      "parentId": "setup",
+      "parentId": "setup.electronics",
       "canonicalUnit": "configuration",
       "shape": "scalar",
       "games": {
@@ -35081,7 +35083,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35124,7 +35126,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35139,7 +35141,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35197,7 +35199,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35240,7 +35242,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35255,7 +35257,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35271,7 +35273,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35314,7 +35316,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35329,7 +35331,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35387,7 +35389,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35440,7 +35442,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35493,7 +35495,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35546,7 +35548,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35599,7 +35601,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35652,7 +35654,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35737,7 +35739,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -35833,7 +35835,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35848,7 +35850,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -35865,7 +35867,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -35917,11 +35919,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35946,11 +35948,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36015,11 +36017,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36044,11 +36046,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36117,11 +36119,11 @@
             "ACEvo.SetupFile.advancedSetup.suspension.bumpstops"
           ],
           "freshness": "static",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -36187,7 +36189,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36241,7 +36243,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36258,8 +36260,8 @@
     {
       "id": "setup.suspension.front-anti-roll-bar.connection",
       "label": "Front anti-roll-bar connection",
-      "description": "Configured front anti-roll-bar connection.",
-      "parentId": "setup",
+      "description": "Configured front anti-roll-bar connection state.",
+      "parentId": "setup.suspension.front-anti-roll-bar",
       "canonicalUnit": "configuration",
       "shape": "scalar",
       "games": {
@@ -36294,7 +36296,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36349,7 +36351,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -36416,7 +36418,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -36446,7 +36448,7 @@
       "id": "setup.suspension.front-anti-roll-bar.rate",
       "label": "Front anti-roll-bar rate",
       "description": "Configured front anti-roll-bar rate.",
-      "parentId": "setup",
+      "parentId": "setup.suspension.front-anti-roll-bar",
       "canonicalUnit": "configuration",
       "shape": "scalar",
       "games": {
@@ -36481,7 +36483,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36520,7 +36522,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36549,7 +36551,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36578,7 +36580,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36607,7 +36609,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36651,11 +36653,11 @@
             "ACEvo.SetupFile.advancedSetup.suspension.helperSprings"
           ],
           "freshness": "static",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -36712,11 +36714,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36795,7 +36797,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36849,7 +36851,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36866,8 +36868,8 @@
     {
       "id": "setup.suspension.rear-anti-roll-bar.connection",
       "label": "Rear anti-roll-bar connection",
-      "description": "Configured rear anti-roll-bar connection.",
-      "parentId": "setup",
+      "description": "Configured rear anti-roll-bar connection state.",
+      "parentId": "setup.suspension.rear-anti-roll-bar",
       "canonicalUnit": "configuration",
       "shape": "scalar",
       "games": {
@@ -36902,7 +36904,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -36957,7 +36959,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -37024,7 +37026,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -37054,7 +37056,7 @@
       "id": "setup.suspension.rear-anti-roll-bar.rate",
       "label": "Rear anti-roll-bar rate",
       "description": "Configured rear anti-roll-bar rate.",
-      "parentId": "setup",
+      "parentId": "setup.suspension.rear-anti-roll-bar",
       "canonicalUnit": "configuration",
       "shape": "scalar",
       "games": {
@@ -37089,7 +37091,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -37128,7 +37130,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37157,7 +37159,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37186,7 +37188,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37215,7 +37217,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -37255,7 +37257,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37281,11 +37283,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37310,11 +37312,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37350,7 +37352,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -37436,7 +37438,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -37522,7 +37524,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -37587,7 +37589,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37613,11 +37615,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37642,11 +37644,11 @@
           ],
           "freshness": "static",
           "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37682,7 +37684,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -37767,7 +37769,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -37817,7 +37819,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -37832,7 +37834,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -37906,7 +37908,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -38002,7 +38004,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -38095,7 +38097,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -38110,7 +38112,7 @@
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": []
         },
@@ -38183,11 +38185,11 @@
           ],
           "freshness": "static",
           "normalization": "kPa = (20.3 + click * 0.1) psi * 6.894757",
-          "description": "acc setup file exposes this corners value.",
+          "description": "acc setup file exposes this 4-value value.",
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": [],
           "execution": {
@@ -38210,11 +38212,11 @@
           ],
           "freshness": "static",
           "normalization": "kPa = (20.3 + click * 0.1) psi * 6.894757",
-          "description": "ac-evo setup file exposes this corners value.",
+          "description": "ac-evo setup file exposes this 4-value value.",
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts",
-            "commit": "974c725d878ede169d886e84be18ab8cc0a37220fb2e9a75bbf9a5c0cc78e35d"
+            "commit": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
           },
           "limitations": [],
           "execution": {
@@ -38252,7 +38254,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -38348,7 +38350,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -38463,7 +38465,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -38546,7 +38548,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -38580,9 +38582,9 @@
     {
       "id": "setup.weight.front-distribution",
       "label": "Front weight distribution",
-      "description": "Configured front weight distribution.",
-      "parentId": "setup",
-      "canonicalUnit": "value-with-unit",
+      "description": "Percentage of static weight carried by the front axle.",
+      "parentId": "setup.weight",
+      "canonicalUnit": "%",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -38606,19 +38608,31 @@
           "description": "No equivalent source value is currently identified for this parser."
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "value-with-unit",
           "sources": [
             "iRacing.SessionInfo.CarSetup.Chassis.Front.NoseWeight"
           ],
           "freshness": "session-update",
+          "normalization": "parse YAML value-with-unit as %",
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:setup.weight.front-distribution:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.SessionInfo.CarSetup.Chassis.Front.NoseWeight"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "ce805809d194ef6249fb32c9cf5d5961dbb4bb22e7362c206145be613831d0a5"
+          }
         }
       },
       "valueType": "number",
@@ -38627,6 +38641,10 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 100
       },
       "limitations": []
     },
@@ -39721,7 +39739,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -39813,7 +39831,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -39893,7 +39911,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -39974,7 +39992,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -40491,7 +40509,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -40571,7 +40589,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -41340,7 +41358,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -42971,7 +42989,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -43269,7 +43287,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -43356,7 +43374,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -43383,7 +43401,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -43410,7 +43428,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -43437,7 +43455,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -43464,7 +43482,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -43982,7 +44000,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44041,7 +44059,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44116,7 +44134,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44158,7 +44176,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44185,7 +44203,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44212,7 +44230,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44257,7 +44275,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44299,7 +44317,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44326,7 +44344,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44353,7 +44371,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44398,7 +44416,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44425,7 +44443,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44452,7 +44470,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44479,7 +44497,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44506,7 +44524,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44553,7 +44571,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44646,7 +44664,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44729,7 +44747,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -44821,7 +44839,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45211,7 +45229,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45298,7 +45316,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45325,7 +45343,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45370,7 +45388,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45412,7 +45430,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45439,7 +45457,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45466,7 +45484,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45511,7 +45529,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45553,7 +45571,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45580,7 +45598,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45607,7 +45625,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45652,7 +45670,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45694,7 +45712,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45721,7 +45739,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45748,7 +45766,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45794,7 +45812,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45885,7 +45903,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45968,7 +45986,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -45995,7 +46013,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -46022,7 +46040,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -46049,7 +46067,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -46075,7 +46093,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -46113,7 +46131,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -46140,7 +46158,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -46167,7 +46185,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -46194,7 +46212,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [],
           "execution": {
@@ -46221,7 +46239,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -46368,7 +46386,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -46446,7 +46464,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -46532,7 +46550,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -47171,7 +47189,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -47270,7 +47288,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -47463,7 +47481,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "execution": {
             "kind": "simplification",
@@ -47636,7 +47654,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "execution": {
             "kind": "simplification",
@@ -50136,7 +50154,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50165,7 +50183,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50194,7 +50212,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -52200,7 +52218,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "execution": {
             "kind": "simplification",
@@ -52391,7 +52409,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -52509,7 +52527,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -52575,7 +52593,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -52644,7 +52662,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -52712,7 +52730,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -52766,7 +52784,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -52830,7 +52848,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -52884,7 +52902,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -52949,7 +52967,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -53014,7 +53032,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -53069,7 +53087,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -53263,7 +53281,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -53334,7 +53352,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -53405,7 +53423,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -53533,7 +53551,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -53629,7 +53647,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": []
         }
@@ -53758,7 +53776,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -54016,7 +54034,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2"
+            "commit": "9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883"
           },
           "execution": {
             "kind": "simplification",
@@ -54047,7 +54065,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -54185,7 +54203,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -54260,7 +54278,7 @@
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts",
-            "commit": "c4d897353f05dfdd853f3749859dea02f6f617f2b55619d66fda712acfb86537"
+            "commit": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98"
           },
           "limitations": [],
           "execution": {
@@ -59260,7 +59278,7 @@
         "label": "Brake Duct",
         "unit": "level",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 2,
         "description": "Brake Duct from acc setup file.",
         "semanticId": "setup.aero.brake-duct",
         "sourceKind": "setup",
@@ -59284,7 +59302,7 @@
         "label": "Ride Height",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Ride Height from acc setup file.",
         "semanticId": "setup.suspension.ride-height",
         "sourceKind": "setup",
@@ -59308,7 +59326,7 @@
         "label": "Bump Fast",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bump Fast from acc setup file.",
         "semanticId": "setup.dampers.fast-compression",
         "sourceKind": "setup",
@@ -59320,7 +59338,7 @@
         "label": "Bump Slow",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bump Slow from acc setup file.",
         "semanticId": "setup.dampers.slow-compression",
         "sourceKind": "setup",
@@ -59332,7 +59350,7 @@
         "label": "Rebound Fast",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Rebound Fast from acc setup file.",
         "semanticId": "setup.dampers.fast-rebound",
         "sourceKind": "setup",
@@ -59344,7 +59362,7 @@
         "label": "Rebound Slow",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Rebound Slow from acc setup file.",
         "semanticId": "setup.dampers.slow-rebound",
         "sourceKind": "setup",
@@ -59377,11 +59395,11 @@
       },
       {
         "path": "ACC.SetupFile.advancedSetup.mechanicalBalance.aRBRear",
-        "label": "Anti Roll Bar",
+        "label": "Rear Anti Roll Bar",
         "unit": "level",
         "dataType": "setup-value",
         "count": 1,
-        "description": "Anti Roll Bar from acc setup file.",
+        "description": "Rear Anti Roll Bar from acc setup file.",
         "semanticId": "setup.suspension.rear-anti-roll-bar.setting",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
@@ -59404,7 +59422,7 @@
         "label": "Bumpstop Rate",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bumpstop Rate from acc setup file.",
         "semanticId": "setup.suspension.bump-stop-rate",
         "sourceKind": "setup",
@@ -59416,7 +59434,7 @@
         "label": "Bumpstop Range",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bumpstop Range from acc setup file.",
         "semanticId": "setup.suspension.bump-stop-range",
         "sourceKind": "setup",
@@ -59440,7 +59458,7 @@
         "label": "Wheel Rate",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Wheel Rate from acc setup file.",
         "semanticId": "setup.suspension.spring-rate",
         "sourceKind": "setup",
@@ -59452,7 +59470,7 @@
         "label": "Camber (clicks)",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Camber (clicks) from acc setup file.",
         "semanticId": "setup.alignment.camber",
         "sourceKind": "setup",
@@ -59500,7 +59518,7 @@
         "label": "Toe (clicks)",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Toe (clicks) from acc setup file.",
         "semanticId": "setup.alignment.toe",
         "sourceKind": "setup",
@@ -59644,7 +59662,7 @@
         "label": "Pressure (clicks)",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Pressure (clicks) from acc setup file; 20.3 psi + n × 0.1.",
         "semanticId": "setup.tires.starting-pressure",
         "sourceKind": "setup",
@@ -62490,7 +62508,7 @@
         "label": "Brake Duct",
         "unit": "level",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 2,
         "description": "Brake Duct from ac-evo setup file.",
         "semanticId": "setup.aero.brake-duct",
         "sourceKind": "setup",
@@ -62514,7 +62532,7 @@
         "label": "Ride Height",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Ride Height from ac-evo setup file.",
         "semanticId": "setup.suspension.ride-height",
         "sourceKind": "setup",
@@ -62538,7 +62556,7 @@
         "label": "Bump Fast",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bump Fast from ac-evo setup file.",
         "semanticId": "setup.dampers.fast-compression",
         "sourceKind": "setup",
@@ -62550,7 +62568,7 @@
         "label": "Bump Slow",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bump Slow from ac-evo setup file.",
         "semanticId": "setup.dampers.slow-compression",
         "sourceKind": "setup",
@@ -62562,7 +62580,7 @@
         "label": "Rebound Fast",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Rebound Fast from ac-evo setup file.",
         "semanticId": "setup.dampers.fast-rebound",
         "sourceKind": "setup",
@@ -62574,7 +62592,7 @@
         "label": "Rebound Slow",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Rebound Slow from ac-evo setup file.",
         "semanticId": "setup.dampers.slow-rebound",
         "sourceKind": "setup",
@@ -62607,11 +62625,11 @@
       },
       {
         "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.aRBRear",
-        "label": "Anti Roll Bar",
+        "label": "Rear Anti Roll Bar",
         "unit": "level",
         "dataType": "setup-value",
         "count": 1,
-        "description": "Anti Roll Bar from ac-evo setup file.",
+        "description": "Rear Anti Roll Bar from ac-evo setup file.",
         "semanticId": "setup.suspension.rear-anti-roll-bar.setting",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
@@ -62634,7 +62652,7 @@
         "label": "Bumpstop Rate",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bumpstop Rate from ac-evo setup file.",
         "semanticId": "setup.suspension.bump-stop-rate",
         "sourceKind": "setup",
@@ -62646,7 +62664,7 @@
         "label": "Bumpstop Range",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bumpstop Range from ac-evo setup file.",
         "semanticId": "setup.suspension.bump-stop-range",
         "sourceKind": "setup",
@@ -62670,7 +62688,7 @@
         "label": "Wheel Rate",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Wheel Rate from ac-evo setup file.",
         "semanticId": "setup.suspension.spring-rate",
         "sourceKind": "setup",
@@ -62682,7 +62700,7 @@
         "label": "Bumpstops",
         "unit": "level",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Bumpstops from ac-evo setup file.",
         "semanticId": "setup.suspension.bumpstops",
         "sourceKind": "setup",
@@ -62694,7 +62712,7 @@
         "label": "Helper Springs",
         "unit": "level",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Helper Springs from ac-evo setup file.",
         "semanticId": "setup.suspension.helper-springs",
         "sourceKind": "setup",
@@ -62706,7 +62724,7 @@
         "label": "Packers",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Packers from ac-evo setup file.",
         "semanticId": "setup.suspension.packers",
         "sourceKind": "setup",
@@ -62718,7 +62736,7 @@
         "label": "Camber (clicks)",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Camber (clicks) from ac-evo setup file.",
         "semanticId": "setup.alignment.camber",
         "sourceKind": "setup",
@@ -62766,7 +62784,7 @@
         "label": "Toe (clicks)",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Toe (clicks) from ac-evo setup file.",
         "semanticId": "setup.alignment.toe",
         "sourceKind": "setup",
@@ -62910,7 +62928,7 @@
         "label": "Pressure (clicks)",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 1,
+        "count": 4,
         "description": "Pressure (clicks) from ac-evo setup file; 20.3 psi + n × 0.1.",
         "semanticId": "setup.tires.starting-pressure",
         "sourceKind": "setup",

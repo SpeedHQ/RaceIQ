@@ -49,6 +49,7 @@
 - Use compact, borderless searchable filters for setup cars and tracks
 - Remove the setup source-row container styling and keep refresh aligned with its filters
 - Keep live telemetry stable during route and game transitions by resolving car names from each packet and skipping invalid track metadata requests
+- Group rear setup controls with their populated mechanical-balance section
 
 ### Internal
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
@@ -66,6 +67,7 @@
 - Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
 - Add fixture-seeded cross-game route and lap playback end-to-end coverage
 - Completed fixture-seeded browser workflow coverage across Sessions, Analyse, Compare, Driver, Experiments, Chats, Tracks, Cars, Setups, Dash, developer tools, compiled binaries, and emulated devices
+- Define setup form sources through typed catalog entries and expose iRacing setup metadata for future setup views
 
 ## v0.14.0 - 2026-08-05
 
