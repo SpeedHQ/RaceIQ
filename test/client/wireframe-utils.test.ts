@@ -1,22 +1,24 @@
 import { describe, test, expect } from "bun:test";
 import {
+  buildTrackIndex,
   filterByDistance,
   filterByDistanceIndexed,
-  buildTrackIndex,
+  type FilteredTrackSegment,
 } from "../../client/src/lib/wireframe-utils";
 
 // Deep-equal helper — bun:test's toEqual already does structural compare,
 // but segment arrays are nested so we just sanity-check lengths and
 // first/last points to keep failures readable when they happen.
 function segmentsMatch(
-  a: [number, number, number][][],
+  a: ReadonlyArray<FilteredTrackSegment>,
   b: [number, number, number][][],
 ): void {
   expect(a.length).toBe(b.length);
   for (let i = 0; i < a.length; i++) {
-    expect(a[i].length).toBe(b[i].length);
-    for (let j = 0; j < a[i].length; j++) {
-      const [ax, ay, az] = a[i][j];
+    const points = a[i].points;
+    expect(points.length).toBe(b[i].length);
+    for (let j = 0; j < points.length; j++) {
+      const [ax, ay, az] = points[j];
       const [bx, by, bz] = b[i][j];
       expect(ax).toBeCloseTo(bx, 10);
       expect(ay).toBeCloseTo(by, 10);
@@ -58,6 +60,16 @@ describe("filterByDistanceIndexed", () => {
       const indexed = filterByDistanceIndexed(index, cx, cz, yaw, -0.44);
       segmentsMatch(indexed, ref);
     }
+  });
+
+  test("keeps source identity stable across coordinate transforms", () => {
+    const index = buildTrackIndex(sCurveOutline(50));
+    const first = filterByDistanceIndexed(index, 0, 20, 0, -0.44, 1_000, 1_000, 1_000);
+    const second = filterByDistanceIndexed(index, 10, 40, Math.PI / 4, -0.44, 1_000, 1_000, 1_000);
+
+    expect(first.map((segment) => segment.sourceStartIndex)).toEqual([0]);
+    expect(second.map((segment) => segment.sourceStartIndex)).toEqual([0]);
+    expect(first[0].points).not.toEqual(second[0].points);
   });
 
   test("skips chunks whose AABB doesn't overlap the query window", () => {

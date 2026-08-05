@@ -15,8 +15,8 @@ export function TrackOutline({ outline, packet, distAhead }: { outline: { x: num
 
   return (
     <>
-      {segments.map((seg) => (
-        <Line key={`${seg[0].join(",")}-${seg[seg.length - 1].join(",")}`} points={seg} color={THREE_COLORS.appText} lineWidth={3} opacity={0.6} transparent />
+      {segments.map((segment) => (
+        <Line key={segment.sourceStartIndex} points={segment.points} color={THREE_COLORS.appText} lineWidth={3} opacity={0.6} transparent />
       ))}
     </>
   );
