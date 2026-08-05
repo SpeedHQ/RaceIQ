@@ -22,6 +22,33 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
   const rpmGrids = Array.from({ length: Math.floor(maxRpm / rpmStep) }, (_, index) => (index + 1) * rpmStep);
   const speedGrids = Array.from({ length: 5 }, (_, index) => Math.round((maxSpeed / 4) * index));
   const redlineY = pad.top + sy(maxRpm);
+  const ratioLines = [];
+  for (let gearIndex = 0; gearIndex < ratios.length; gearIndex++) {
+    const ratio = ratios[gearIndex];
+    const gearNumber = gearIndex + 1;
+    const startKph = gearIndex === 0 ? 0 : toKph(maxRpm, ratios[gearIndex - 1]);
+    const startRpm = gearIndex === 0 ? 0 : (((startKph / 3.6) * (ratio * finalDrive)) / tireCircumference) * 60;
+    const points = Array.from({ length: 60 }, (_, pointIndex) => {
+      const rpm = startRpm + (pointIndex / 59) * (maxRpm - startRpm);
+      return `${pad.left + sx(toKph(rpm, ratio))},${pad.top + sy(rpm)}`;
+    }).join(" ");
+    ratioLines.push(
+      <g key={gearNumber}>
+        <polyline points={points} fill="none" stroke="var(--app-text)" strokeWidth="1.5" strokeOpacity="0.7" clipPath={`url(#${clipId})`} />
+        <text
+          x={pad.left + sx(toKph(maxRpm, ratio)) + 2}
+          y={pad.top + sy(maxRpm) - 3}
+          textAnchor="middle"
+          fontSize="7"
+          fill="var(--app-text)"
+          fillOpacity="0.6"
+          fontWeight="var(--font-weight-semibold)"
+        >
+          {gearNumber}
+        </text>
+      </g>,
+    );
+  }
 
   return (
     <svg width="100%" viewBox={`0 0 ${width} ${height}`} className="block w-full text-app-text-muted" aria-label="Gear ratio speed chart">
@@ -58,31 +85,7 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
         RPM ×1000
       </text>
 
-      {ratios.map((ratio, index) => {
-        const startKph = index === 0 ? 0 : toKph(maxRpm, ratios[index - 1]);
-        const startRpm = index === 0 ? 0 : (((startKph / 3.6) * (ratio * finalDrive)) / tireCircumference) * 60;
-        const points = Array.from({ length: 60 }, (_, pointIndex) => {
-          const rpm = startRpm + (pointIndex / 59) * (maxRpm - startRpm);
-          return `${pad.left + sx(toKph(rpm, ratio))},${pad.top + sy(rpm)}`;
-        }).join(" ");
-        return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: gear position is stable identity; adjacent gears may share ratios
-          <g key={index}>
-            <polyline points={points} fill="none" stroke="var(--app-text)" strokeWidth="1.5" strokeOpacity="0.7" clipPath={`url(#${clipId})`} />
-            <text
-              x={pad.left + sx(toKph(maxRpm, ratio)) + 2}
-              y={pad.top + sy(maxRpm) - 3}
-              textAnchor="middle"
-              fontSize="7"
-              fill="var(--app-text)"
-              fillOpacity="0.6"
-              fontWeight="var(--font-weight-semibold)"
-            >
-              {index + 1}
-            </text>
-          </g>
-        );
-      })}
+      {ratioLines}
 
       <line x1={pad.left} y1={redlineY} x2={pad.left + chartWidth} y2={redlineY} stroke="var(--rev-limit)" strokeWidth="1" strokeOpacity="0.8" strokeDasharray="3 2" />
       <rect x={pad.left} y={pad.top} width={chartWidth} height={chartHeight} fill="none" stroke="currentColor" strokeOpacity="0.15" />
