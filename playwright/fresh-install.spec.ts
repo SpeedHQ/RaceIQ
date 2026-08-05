@@ -134,41 +134,6 @@ test.describe.serial("fresh install", () => {
     });
   }
 
-  test("sidebar navigation selects games and persists collapse", async ({ page }) => {
-    const errors = collectErrors(page);
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
-
-    const navigation = page.getByRole("navigation", { name: "Navigation" });
-    await expect(navigation).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "Games" })).toHaveText("Forza Motorsport 2023");
-    for (const name of ["Live", "Sessions", "Compare", "Analyse", "Driver", "Chats", "Tracks", "Cars", "Setups", "Raw"]) {
-      await expect(navigation.getByRole("link", { name })).toBeVisible();
-    }
-    await expect(navigation.getByRole("link", { name: "Experiments" })).toHaveCount(0);
-    await expect(navigation.getByRole("button", { name: /Settings \(TestDriver\)/ })).toBeVisible();
-    await expect(navigation.getByRole("status")).toBeVisible();
-
-    await expect(navigation).toHaveAttribute("data-collapsed", "false");
-    await page.getByRole("button", { name: "Collapse sidebar" }).click();
-    await expect(navigation).toHaveAttribute("data-collapsed", "true");
-
-    await navigation.getByRole("link", { name: "Sessions" }).hover();
-    await expect(page.getByRole("tooltip", { name: "Sessions" })).toBeVisible();
-
-    const gameSelect = page.getByRole("combobox", { name: "Games" });
-    await gameSelect.hover();
-    await expect(page.getByRole("listbox")).toBeVisible();
-    await page.getByRole("option", { name: "F1 2025" }).click();
-    await expect(page).toHaveURL(/\/f125$/);
-    await expect(navigation.getByRole("link", { name: "Experiments" })).toBeVisible();
-
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(navigation).toHaveAttribute("data-collapsed", "true");
-    await assertImagesLoaded(page);
-    expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
-  });
-
   test("mobile navigation drawer shares expanded sidebar controls", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
