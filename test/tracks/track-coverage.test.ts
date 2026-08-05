@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../../shared/racing/tracks/curation/coverage";
 import { fileHash, loadVerified, verifiedKey, verifyState } from "../../shared/racing/tracks/curation/verified";
 import type { GameId } from "../../shared/games/ids";

@@ -52,7 +52,7 @@ function relativeLuminance(hex: string): number {
     .slice(1)
     .match(/.{2}/g)
     ?.map((channel) => Number.parseInt(channel, 16) / 255);
-  if (!channels || channels.length !== 3) throw new Error(`Invalid color: ${hex}`);
+  if (channels?.length !== 3) throw new Error(`Invalid color: ${hex}`);
 
   const [red, green, blue] = channels.map((channel) =>
     channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
@@ -131,7 +131,7 @@ describe("frontend theme contract", () => {
 
   test("keeps design-tool mirrors aligned with the runtime contract", () => {
     const designMarkdown = readFileSync(resolve(CLIENT_DIR, "DESIGN.md"), "utf8");
-    const documentedColors = [...designMarkdown.matchAll(/^  ([\w-]+): "var\((--[\w-]+)\)"$/gim)];
+    const documentedColors = [...designMarkdown.matchAll(/^ {2}([\w-]+): "var\((--[\w-]+)\)"$/gim)];
 
     expect(documentedColors.length).toBeGreaterThan(0);
     for (const [, name, token] of documentedColors) {
@@ -266,7 +266,7 @@ describe("frontend theme contract", () => {
     expect(runtimeSource).not.toContain("tireTempColorHex");
     expect(runtimeSource).not.toMatch(/\btext-app-(?:bg|surface)\b/);
     expect(runtimeSource).not.toMatch(
-      /\bbg-(?:app-accent|status-(?:success|danger|warning|info))(?![\/\w-])[^"'`\r\n]*\btext-app-(?:text|bg|surface)\b/,
+      /\bbg-(?:app-accent|status-(?:success|danger|warning|info))(?![/\w-])[^"'`\r\n]*\btext-app-(?:text|bg|surface)\b/,
     );
     expect(runtimeSource).not.toMatch(
       /\b(?:hover|group-hover):(?:bg-app-(?:bg|surface-alt|surface|border|border-input|text)|border-app-(?:border|border-input|text-dim))(?:\/(?:\d+|\[[^\]]+\]))?(?=["'`\s}])/,

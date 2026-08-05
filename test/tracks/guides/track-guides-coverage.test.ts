@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildTrackGuideContext } from "../../../server/ai/track-guides";
 
 /** Minimal CSV row parser (no embedded commas/quotes in these files) */
@@ -10,7 +10,9 @@ function parseCsv(path: string): Record<string, string>[] {
   return lines.slice(1).map((line) => {
     const cells = line.split(",");
     const row: Record<string, string> = {};
-    headers.forEach((h, i) => (row[h] = cells[i] ?? ""));
+    headers.forEach((h, i) => {
+      row[h] = cells[i] ?? "";
+    });
     return row;
   });
 }
