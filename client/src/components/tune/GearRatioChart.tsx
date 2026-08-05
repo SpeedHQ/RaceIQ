@@ -66,7 +66,8 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
           return `${pad.left + sx(toKph(rpm, ratio))},${pad.top + sy(rpm)}`;
         }).join(" ");
         return (
-          <g key={ratio}>
+          // biome-ignore lint/suspicious/noArrayIndexKey: gear position is stable identity; adjacent gears may share ratios
+          <g key={index}>
             <polyline points={points} fill="none" stroke="var(--app-text)" strokeWidth="1.5" strokeOpacity="0.7" clipPath={`url(#${clipId})`} />
             <text
               x={pad.left + sx(toKph(maxRpm, ratio)) + 2}
