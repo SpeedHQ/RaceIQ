@@ -61,10 +61,10 @@ test("race-result raw provenance is stable when capture storage is gzipped", asy
     await reconcileSessionResult(sessionId, "f1-2025");
     const gzipResult = await getSessionResult(sessionId, "f1-2025");
 
-    expect(rawResult?.provenance.rawInput).toEqual({
-      objectId: `session:${sessionId}:raw-capture`,
-      contentHash: rawResult?.provenance.rawInput?.contentHash,
-    });
+    expect(rawResult?.provenance.rawInput?.objectId).toBe(
+      `session:${sessionId}:raw-capture`,
+    );
+    expect(rawResult?.provenance.rawInput?.contentHash).toMatch(/^sha256:/);
     expect(gzipResult?.provenance.rawInput).toEqual(rawResult?.provenance.rawInput);
   } finally {
     await deleteSession(sessionId);

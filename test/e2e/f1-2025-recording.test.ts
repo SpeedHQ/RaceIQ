@@ -9,7 +9,7 @@ describe("F1-2025 recording", () => {
   describe("f1-2025-2026-04-09T21-34-10-190Z", () => {
     const recordingFile = "f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
 
-    test("detects laps correctly", { timeout: 120000 }, async () => {
+    test("detects laps correctly", async () => {
       const recording = getRecordingFixture(recordingFile);
       if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
@@ -97,6 +97,6 @@ describe("F1-2025 recording", () => {
         await generateRecordingVisualizations(recordingFile, laps, rawPackets);
         console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
-    });
+    }, 120000);
   });
 });

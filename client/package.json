@@ -8,6 +8,7 @@
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure message-modules --strategy localStorage baseLocale",
     "build": "vite build && tsc -b",
     "lint": "biome check .",
+    "lint:root": "biome lint ..",
     "format": "biome format --write .",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
