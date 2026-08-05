@@ -9,10 +9,9 @@ const result = {
   sessionType: "race",
   classification: "finished",
   finishingPosition: 2,
-  qualifyingPosition: null,
   isPodium: true,
   isFastestLap: false,
-  pitCount: 1,
+  qualifyingPosition: 5,
   tyreStrategy: null,
   fuelStrategy: null,
   provenance: null,
@@ -38,12 +37,12 @@ describe("race result timeline", () => {
   test("builds start, pit, and finish nodes in order", () => {
     expect(buildRaceResultTimeline(result).map((node) => node.kind)).toEqual(["start", "pit", "finish"]);
     expect(buildRaceResultTimeline(result)[1]).toMatchObject({ lapNumber: 12, service: "tyres" });
+    expect(buildRaceResultTimeline(result)[0]).toMatchObject({ kind: "start", position: 5 });
   });
 
   test("keeps start and finish when no pit events exist", () => {
     expect(buildRaceResultTimeline({ ...result, events: [] }).map((node) => node.kind)).toEqual(["start", "finish"]);
   });
-
 
   test("renders position-change events as position nodes", () => {
     const timeline = buildRaceResultTimeline({

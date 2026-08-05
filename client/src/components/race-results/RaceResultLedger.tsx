@@ -3,7 +3,7 @@ import type { GameId } from "@shared/types";
 import { useSessionResult } from "../../hooks/queries";
 
 type RaceResultTimelineNode =
-  | { kind: "start" }
+  | { kind: "start"; position: number | null }
   | {
       kind: "pit";
       sequence: number;
@@ -29,7 +29,7 @@ type RaceResultTimelineNode =
 
 export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineNode[] {
   return [
-    { kind: "start" },
+    { kind: "start", position: result.qualifyingPosition },
     ...result.events
       .slice()
       .sort((a, b) => a.sequence - b.sequence)
@@ -78,11 +78,10 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
     return (
       <div className="min-w-28 rounded-md border border-app-border bg-app-surface px-3 py-2">
         <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-text/60">Start</div>
-        <div className="mt-1 text-xs text-app-text/90">Session begins</div>
+        <div className="mt-1 text-xs text-app-text/90">{node.position != null ? `Grid P${node.position}` : "Session begins"}</div>
       </div>
     );
   }
-
   if (node.kind === "position") {
     return (
       <div className="min-w-32 rounded-md border border-violet-400/40 bg-violet-400/10 px-3 py-2">
