@@ -22,6 +22,8 @@ import { generateRecordingVisualizations } from "../../support/laps/visualizatio
 import { assertValidLapHasSectors } from "../../support/laps/assertions";
 import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
 
+type CapturedLapWithPackets = CapturedLap & { packets: TelemetryPacket[] };
+
 const AC_EVO_RECORDING =
 	"test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
 const recording = existsSync(AC_EVO_RECORDING) ? AC_EVO_RECORDING : null;
@@ -29,7 +31,7 @@ const recording = existsSync(AC_EVO_RECORDING) ? AC_EVO_RECORDING : null;
 let packets: TelemetryPacket[] = [];
 let carModel: string | null = null;
 let trackName: string | null = null;
-let laps: CapturedLap[] = [];
+let laps: CapturedLapWithPackets[] = [];
 
 beforeAll(async () => {
 	if (!recording) return;
@@ -40,7 +42,10 @@ beforeAll(async () => {
 	trackName = result.trackName;
 	// Also run through the full pipeline so we get lap detection + outlap/inlap classification
 	const dump = await parseDump("ac-evo", recording);
-	laps = dump.laps;
+	if (dump.laps.some((lap) => lap.packets === undefined)) {
+		throw new Error("parseDump returned a lap without test packets");
+	}
+	laps = dump.laps as CapturedLapWithPackets[];
 });
 
 describe("AC Evo v0.6 recording", () => {

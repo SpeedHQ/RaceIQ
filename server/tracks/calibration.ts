@@ -11,7 +11,7 @@ interface Point {
   z: number;
 }
 
-interface Transform {
+export interface Transform {
   scale: number;
   rotation: number; // radians
   tx: number;

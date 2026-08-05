@@ -4,6 +4,7 @@
  */
 import { describe, test, expect } from "bun:test";
 import type { TrackFacts } from "../../../shared/racing/tracks/facts";
+import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
 import {
   joinSegments,
   splitSegments,

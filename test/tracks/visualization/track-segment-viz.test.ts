@@ -50,7 +50,7 @@ describe("track segment visualizations", () => {
         generateSegmentSvg(
           outline,
           a.segments,
-          a.sectors,
+          null,
           `${facts.name} — ${a.gameId}`,
           resolve(OUTPUT_DIR, `${slug}-${a.gameId}.svg`),
           a.gameId,

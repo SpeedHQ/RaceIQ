@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "../../shared/games/init";
 import { getAllGames } from "../../shared/games/registry";
-import { liveDashboardForGame, resolveLiveGameId } from "../../client/src/routes/$game/live";
+import { gameIdForRoutePrefix, liveDashboardForGame } from "../../client/src/lib/game-routes";
 
 initGameAdapters();
 
 describe("live route game resolution", () => {
   test("resolves every registered route prefix to its game id", () => {
     for (const game of getAllGames()) {
-      expect(resolveLiveGameId(game.routePrefix)).toBe(game.id);
+      expect(gameIdForRoutePrefix(game.routePrefix)).toBe(game.id);
     }
   });
 
   test("rejects unknown route prefixes without an FM fallback", () => {
-    expect(resolveLiveGameId("unknown-game")).toBeUndefined();
-    expect(resolveLiveGameId("")).toBeUndefined();
+    expect(gameIdForRoutePrefix("unknown-game")).toBeUndefined();
+    expect(gameIdForRoutePrefix("")).toBeUndefined();
   });
 });
 

@@ -38,6 +38,7 @@ export type TuneReviewSearch = {
 
 export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
+export type LiveDashboard = "forza" | "f1" | "acc";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
@@ -47,6 +48,21 @@ const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
 
 export function gameIdForRoutePrefix(prefix: string): GameId | undefined {
   return getAllGames().find((game) => game.routePrefix === prefix)?.id;
+}
+
+/** Select the existing dashboard implementation for a registered game. */
+export function liveDashboardForGame(gameId: GameId): LiveDashboard {
+  switch (gameId) {
+    case "fm-2023":
+      return "forza";
+    case "f1-2025":
+      return "f1";
+    case "acc":
+    case "ac-evo":
+      return "acc";
+    default:
+      throw new Error(`Unsupported live dashboard game: ${gameId}`);
+  }
 }
 
 export function routePrefixForGameId(gameId: string): string | undefined {

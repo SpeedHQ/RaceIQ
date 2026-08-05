@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
-import { driverCoachTools } from "../../../mastra/tools/driver-coach";
+import { noopObserve } from "@mastra/core/tools";
+import {
+  driverCoachTools,
+  recordDrillOutputSchema,
+  type RecordDrillInput,
+  type RecordDrillResult,
+} from "../../../mastra/tools/driver-coach";
 import { createExperiment, getExperiment, setSessionHead } from "../../../server/db/experiment-queries";
 import { createExperimentVersion, getExperimentVersion, listExperimentVersions } from "../../../server/db/experiment-version-queries";
 import type { DrillChange } from "../../../shared/racing/experiments/types";
@@ -17,14 +23,25 @@ import type { DrillChange } from "../../../shared/racing/experiments/types";
  */
 
 const tool = driverCoachTools.recordDrillTool;
+if (!tool.execute) throw new Error("record_drill tool has no execute handler");
+const executeDrill = tool.execute;
+
+async function runDrill(
+  input: RecordDrillInput,
+  sessionId: number,
+): Promise<RecordDrillResult> {
+  return recordDrillOutputSchema.parse(
+    await executeDrill(input, ctx(sessionId)),
+  );
+}
 
 /** The route sets these per turn; tools read them instead of taking a sessionId
  *  argument (weak models kept dropping the arg). */
 function ctx(sessionId: number) {
-  const rc = new RequestContext();
-  rc.set("gameId", "acc");
-  rc.set("sessionId", sessionId);
-  return { requestContext: rc } as any;
+  const requestContext = new RequestContext();
+  requestContext.set("gameId", "acc");
+  requestContext.set("sessionId", sessionId);
+  return { requestContext, observe: noopObserve };
 }
 
 const drill = {
@@ -38,7 +55,7 @@ const drill = {
 describe("record_drill", () => {
   test("records a drill arm with no setup file behind it", async () => {
     const id = await createExperiment({ gameId: "acc", name: "drill-basic", focus: "driver" });
-    const res: any = await tool.execute(drill, ctx(id));
+    const res = await runDrill(drill, id);
 
     expect(res.ok).toBe(true);
     const versions = await listExperimentVersions(id);
@@ -60,7 +77,7 @@ describe("record_drill", () => {
     const id = await createExperiment({ gameId: "acc", name: "drill-unconfirmed", focus: "driver" });
     const before = (await listExperimentVersions(id)).length;
 
-    const res: any = await tool.execute({ ...drill, driverConfirmed: false }, ctx(id));
+    const res = await runDrill({ ...drill, driverConfirmed: false }, id);
 
     expect(res.ok).toBe(false);
     expect(res.error).toContain("not confirmed");
@@ -71,7 +88,7 @@ describe("record_drill", () => {
 
   test("advances the head to the new drill", async () => {
     const id = await createExperiment({ gameId: "acc", name: "drill-head", focus: "driver" });
-    const res: any = await tool.execute(drill, ctx(id));
+    const res = await runDrill(drill, id);
     const created = (await listExperimentVersions(id)).find((v) => v.label === res.label)!;
     expect((await getExperiment(id))!.headVersionId).toBe(created.id);
   });
@@ -82,7 +99,7 @@ describe("record_drill", () => {
     const v2 = await createExperimentVersion({ experimentId: id, version: 2, label: "v2", parentVersionId: v1, kind: "setup" });
     await setSessionHead(id, v2);
 
-    const res: any = await tool.execute({ ...drill, target: "v1" }, ctx(id));
+    const res = await runDrill({ ...drill, target: "v1" }, id);
     expect(res.ok).toBe(true);
     const created = (await listExperimentVersions(id)).find((v) => v.label === res.label)!;
     expect(created.parentVersionId).toBe(v1);
@@ -95,7 +112,7 @@ describe("record_drill", () => {
     await createExperimentVersion({ experimentId: id, version: 1, label: "v1", kind: "setup" });
     const before = (await listExperimentVersions(id)).length;
 
-    const res: any = await tool.execute({ ...drill, target: "v99" }, ctx(id));
+    const res = await runDrill({ ...drill, target: "v99" }, id);
     expect(res.ok).toBe(false);
     expect(res.error).toContain("v99");
     expect((await listExperimentVersions(id)).length).toBe(before);
@@ -106,7 +123,7 @@ describe("record_drill", () => {
     // between the proposal and the confirmation. The tool records a drill by
     // definition, so it must not inherit the experiment's current focus.
     const id = await createExperiment({ gameId: "acc", name: "drill-focus-flip", focus: "car" });
-    const res: any = await tool.execute(drill, ctx(id));
+    const res = await runDrill(drill, id);
     const created = (await listExperimentVersions(id)).find((v) => v.label === res.label)!;
     expect(created.kind).toBe("drill");
   });

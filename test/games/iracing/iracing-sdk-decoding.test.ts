@@ -126,8 +126,10 @@ describe("native iRacing SDK decoding", () => {
   });
 
   test("keeps native source-pointer arithmetic in u64 space", () => {
-    let sourceAddress: bigint | null = null;
-    let byteLength: bigint | null = null;
+    const copied = {
+      sourceAddress: null as bigint | null,
+      byteLength: null as bigint | null,
+    };
     const reader = new IRacingSdkReader() as unknown as {
       _mappingView: bigint;
       _mappingSize: number;
@@ -149,15 +151,15 @@ describe("native iRacing SDK decoding", () => {
     reader._kernel32 = {
       symbols: {
         RtlCopyMemory: (_destination, source, length) => {
-          sourceAddress = source;
-          byteLength = length;
+          copied.sourceAddress = source;
+          copied.byteLength = length;
         },
       },
     };
 
     expect(reader._copy(96, 16)).toHaveLength(16);
-    expect(sourceAddress).toBe(0x1_0000_0060n);
-    expect(byteLength).toBe(16n);
+    expect(copied.sourceAddress).toBe(0x1_0000_0060n);
+    expect(copied.byteLength).toBe(16n);
   });
 
   test("reads official descriptor types from one telemetry row", () => {

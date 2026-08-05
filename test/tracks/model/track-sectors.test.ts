@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { loadTrackSectorsFor } from "../../../shared/racing/tracks/storage/meta";
 import { computeLapSectors } from "../../../server/lap-analysis/sectors"
 import { initGameAdapters } from "../../../shared/games/init";
+import type { GameId } from "../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 initGameAdapters();
@@ -13,7 +14,7 @@ initGameAdapters();
 function makeLapPackets(
   trackLength: number,
   lapTime: number,
-  gameId: string,
+  gameId: GameId,
   opts: { f1Sectors?: { s1: number; s2: number } } = {},
 ): TelemetryPacket[] {
   const count = 200;
@@ -42,7 +43,7 @@ function makeLapPackets(
         }
       : undefined;
     packets.push({
-      gameId: gameId as any,
+      gameId,
       IsRaceOn: 1,
       TimestampMS: Math.round(frac * lapTime * 1000),
       DistanceTraveled: frac * trackLength,
@@ -66,7 +67,7 @@ function makeLapPackets(
       Fuel: 50,
       CurrentRaceTime: frac * lapTime,
       ...(f1 ? { f1 } : {}),
-    } as TelemetryPacket);
+    } as unknown as TelemetryPacket);
   }
   return packets;
 }

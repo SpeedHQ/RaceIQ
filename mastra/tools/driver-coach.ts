@@ -36,6 +36,24 @@ import { setupEngineerTools } from "./setup-engineer";
  * The arm is a version row with `kind='drill'`, no `setupPath`, no
  * `setupSnapshot` — the schema has allowed that since v37.
  */
+const recordDrillInputSchema = z.object({
+  title: z.string().min(1).max(200).describe('Short imperative name, e.g. "Brake 10m later into T4".'),
+  instruction: z.string().min(1).max(2000).describe("What the driver actually does, in enough detail that they can repeat it identically every lap."),
+  corners: z.array(z.string()).default([]).describe('Corner labels the drill targets, e.g. ["T4", "Les Combes"]. Empty means lap-wide.'),
+  reason: z.string().min(1).describe("One short sentence: why this drill, grounded in the session's data."),
+  driverConfirmed: z.boolean().describe('true ONLY if the driver explicitly agreed to run this exact drill in a message AFTER you proposed it (e.g. "yes", "let\'s try it"). false otherwise.'),
+  target: z.string().optional().describe("Label or version number to branch from (becomes the new arm's parent). Omit to use the current head."),
+});
+export const recordDrillOutputSchema = z.object({
+  ok: z.boolean(),
+  error: z.string().optional(),
+  version: z.number().optional(),
+  label: z.string().optional(),
+});
+
+export type RecordDrillInput = z.infer<typeof recordDrillInputSchema>;
+export type RecordDrillResult = z.infer<typeof recordDrillOutputSchema>;
+
 const recordDrillTool = createTool({
   id: "record-drill",
   description:
@@ -43,34 +61,8 @@ const recordDrillTool = createTool({
     "measured against it. A drill has no setup file — it changes what the DRIVER does. Call this ONCE, " +
     "after the driver has explicitly agreed to run the drill you proposed. To branch off a specific " +
     "version instead of the current head, pass `target`.",
-  inputSchema: z.object({
-    title: z.string().min(1).max(200).describe('Short imperative name, e.g. "Brake 10m later into T4".'),
-    instruction: z
-      .string()
-      .min(1)
-      .max(2000)
-      .describe("What the driver actually does, in enough detail that they can repeat it identically every lap."),
-    corners: z
-      .array(z.string())
-      .default([])
-      .describe('Corner labels the drill targets, e.g. ["T4", "Les Combes"]. Empty means lap-wide.'),
-    reason: z.string().min(1).describe("One short sentence: why this drill, grounded in the session's data."),
-    driverConfirmed: z
-      .boolean()
-      .describe(
-        'true ONLY if the driver explicitly agreed to run this exact drill in a message AFTER you proposed it (e.g. "yes", "let\'s try it"). false otherwise.',
-      ),
-    target: z
-      .string()
-      .optional()
-      .describe("Label or version number to branch from (becomes the new arm's parent). Omit to use the current head."),
-  }),
-  outputSchema: z.object({
-    ok: z.boolean(),
-    error: z.string().optional(),
-    version: z.number().optional(),
-    label: z.string().optional(),
-  }),
+  inputSchema: recordDrillInputSchema,
+  outputSchema: recordDrillOutputSchema,
   execute: async (inputData, execCtx) => {
     const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
 
@@ -79,9 +71,7 @@ const recordDrillTool = createTool({
     if (!inputData.driverConfirmed) {
       return {
         ok: false,
-        error:
-          "Not recorded — the driver has not confirmed. Propose the drill, ask them, and only call " +
-          "record_drill (driverConfirmed: true) after they explicitly agree.",
+        error: "Not recorded — the driver has not confirmed. Propose the drill, ask them, and only call " + "record_drill (driverConfirmed: true) after they explicitly agree.",
       };
     }
 
