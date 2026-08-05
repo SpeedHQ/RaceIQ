@@ -1,13 +1,13 @@
 # Telemetry fidelity: what sample rate actually buys us
 
 **TL;DR** — We are **not** more accurate than a real MoTeC log, and we should
-stop implying it. Our recordings emit at **63.5 Hz**, not the 100 Hz we intend.
-Physics is genuinely fresh at that rate; the *graphics* page — lap time,
-position, flags — only advances at ~40 Hz in the sim, so **37.8% of our frames
-re-read an unchanged graphics page**. A real MoTeC `.ld` from AC logs suspension
-travel and wheel speed at **200 Hz** — 3× our physics rate — and inputs at
-60 Hz. We are ahead of it only on G-forces and status channels, which MoTeC logs
-at 20 Hz.
+stop implying it. The committed AC Evo artifact was captured at **63.5 Hz**
+before the Windows timer-resolution fix; it is not evidence of the current live
+rate. Physics is genuinely fresh in that pre-fix artifact; the *graphics* page
+only advances as often as the simulator and the old capture loop observe it.
+A real MoTeC `.ld` from AC logs suspension travel and wheel speed at **200 Hz** —
+3× the old capture rate — and inputs at 60 Hz. We are ahead of it only on
+G-forces and status channels, which MoTeC logs at 20 Hz.
 
 What the data *does* support: sample rate matters for **transient channels and
 event counting**, not for traces (section 3 vs 4), and our current format is
@@ -33,11 +33,20 @@ not:
 
 Two independent laps agreeing to three significant figures rules out a one-off
 stall. The cause is the **Windows default timer resolution of 15.625 ms**
-(64.0 Hz). Any `setInterval` shorter than a tick is rounded up to it, because
-libuv's loop hands its computed timeout to `GetQueuedCompletionStatus` and that
-blocking wait is quantised to the system tick. Node and Bun do not raise the
-resolution themselves, and since Windows 10 2004 a process no longer inherits a
-raised resolution from some other app on the machine — it must call
+(64.0 Hz). A request for 300 Hz or 100 Hz is rounded to roughly one system
+tick; a request near 60 Hz can be rounded to roughly two ticks. The exact
+result depends on the requested interval and event-loop scheduling. On this
+Windows host, direct measurements were:
+
+| Requested interval | Before fix | After `timeBeginPeriod(1)` |
+|--------------------|------------|-----------------------------|
+| 3.33 ms (300 Hz) | 64.08 Hz | 294.04 Hz |
+| 10 ms (100 Hz) | 64.03 Hz | 94.42 Hz |
+| 16.67 ms (60 Hz) | 37.61 Hz | 59.90 Hz |
+
+Node and Bun do not raise the resolution themselves, and since Windows 10 2004
+a process no longer inherits a raised resolution from some other app on the
+machine — it must call
 [`timeBeginPeriod`](https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod)
 for itself.
 
@@ -65,10 +74,11 @@ Two consequences the earlier draft missed:
   precedent and no new dependency.
 - **`triplet-assembler.ts` is not the only clamped timer.** The reader beneath
   it runs `setInterval(1000 / 300)` for physics and `setInterval(1000 / 60)` for
-  graphics (`buffered-memory-reader.ts:243,279`). On Windows *all three* collapse
-  to the same 64 Hz tick, so speeding up the assembler alone would just re-read
-  buffers the reader had not refreshed. Raising the resolution unblocks the whole
-  chain at once; fixing one timer in isolation achieves nothing.
+  graphics (`buffered-memory-reader.ts:243,279`). Before the fix, the 300 Hz
+  physics timer and 100 Hz assembler measured near 64 Hz, while the 60 Hz
+  graphics timer measured near 38 Hz on this host. Raising the resolution
+  unblocks the whole chain at once; fixing one timer in isolation achieves
+  nothing.
 
 ### Status: fixed
 
@@ -82,13 +92,12 @@ fight over it, and **scoped to an active capture** rather than the process
 lifetime, because a raised resolution costs power. Off Windows, and on Windows
 if `winmm.dll` will not load, it is inert and capture continues at the coarse
 tick.
-
-Two things this does *not* prove, and which need a real Windows box to confirm:
-the tables above still describe the pre-fix artifact (they are assertions about
-a committed `.bin.gz`, not about live behaviour), and on Windows 11 an occluded
-or minimised window-owning process may have its request ignored.
-`currentPeriodMs()` reports what we asked for, not what was granted — read the
-assembler's `pollIntervalMs` metrics (`ACC_METRICS=1`) for the truth.
+The committed tables above still describe the pre-fix artifact. This Windows
+host has now directly measured the post-fix timer behavior shown in the table
+above. On Windows 11, an occluded or minimised window-owning process may still
+have its request ignored; `currentPeriodMs()` reports what we asked for, not
+what was granted. Trust the assembler's `pollIntervalMs` metrics
+(`ACC_METRICS=1`) for live capture truth.
 
 It is *not* the pipeline's packet-rate filter — that is a floor guard that
 discards sessions below 30 Hz (`server/lap-detector.ts:183`), not a decimator.
