@@ -9,7 +9,7 @@
 - Move app navigation from the top bar into a left-hand sidebar, with a responsive mobile navigation drawer
 - Copy AI Compare conversations as JSON and resume or regenerate analysis chats with complete persisted history
 - Generate detailed, sector-aware lap-analysis results with consistent provider and settings handling
-- Persisted cross-game race results, qualifying/podium/fastest-lap flags, pit ledgers, strategy availability, and idempotent historical backfill
+- Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
