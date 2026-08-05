@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
 import { isAiConfigured } from "../lib/is-ai-configured";
+import { client } from "../lib/rpc";
 import { resolveCssColor } from "../lib/rendering/css-values";
 import { useUiStore } from "../stores/ui";
 import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment } from "./ai/analysis-display";
