@@ -7,11 +7,11 @@
  * Each `snapshot-<Name>.png` in src/stories/__snapshots__/ becomes
  * ../assets/screenshots/<Name>.png.
  */
-import { readdirSync, copyFileSync, mkdirSync, existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { readdirSync, copyFileSync, mkdirSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const clientDir = dirname(fileURLToPath(import.meta.url)) + "/..";
+const clientDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotDir = join(clientDir, "src/stories/__snapshots__");
 const destDir = join(clientDir, "../assets/screenshots");
 

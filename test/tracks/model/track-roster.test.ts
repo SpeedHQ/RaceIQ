@@ -1,7 +1,7 @@
 /** Committed track facts and geometry roster contracts. */
 import { describe, test, expect } from "bun:test";
-import { readdirSync, readFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { cornerNumbers, type TrackFacts } from "../../../shared/racing/tracks/facts";
 import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
 import { checkKeys } from "../../../shared/racing/tracks/curation/join";

@@ -5,8 +5,8 @@
  * detector, alignment, or name lists shows up as a reviewable diff.
  */
 import { describe, test, expect } from "bun:test";
-import { mkdirSync, rmSync } from "fs";
-import { resolve } from "path";
+import { mkdirSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   autoTrackSegments,

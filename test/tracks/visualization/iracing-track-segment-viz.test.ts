@@ -8,8 +8,8 @@ import { describe, expect, test } from "bun:test";
 import {
   mkdirSync,
   readFileSync,
-} from "fs";
-import { resolve } from "path";
+} from "node:fs";
+import { resolve } from "node:path";
 import {
   readIRacingFrames,
 } from "../../../server/games/iracing/recorder";

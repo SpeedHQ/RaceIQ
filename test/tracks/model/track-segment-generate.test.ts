@@ -141,7 +141,7 @@ describe("track segment generator", () => {
             const first = a.segments[0];
             const last = a.segments[a.segments.length - 1];
             const splitByLine =
-              first?.type === "straight" && last?.type === "straight" && !!first.name && first.name === last.name
+              first?.type === "straight" && last?.type === "straight" && first.name && first.name === last.name
                 ? first.name
                 : null;
             const curatedCounts = new Map<string, number>();

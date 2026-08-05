@@ -8,9 +8,6 @@ const SNAPSHOT_DIR = process.env.RACEIQ_SNAPSHOT_DIR ? resolve(process.env.RACEI
 const RESULTS_DIR = process.env.RACEIQ_SNAPSHOT_RESULTS_DIR ? resolve(process.env.RACEIQ_SNAPSHOT_RESULTS_DIR) : "./src/stories/__snapshots__/results";
 
 export default defineConfig({
-  // Snapshot files warm Storybook's shared preview compiler concurrently when
-  // workers run in parallel. Serialize them so cold compilation is predictable.
-  workers: 1,
   testDir: "./src/stories",
   testMatch: "**/*.snapshot.ts",
   // Snapshot specs share one cold-compiling Storybook server. Serial workers
