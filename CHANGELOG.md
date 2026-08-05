@@ -1,41 +1,25 @@
 ## Unreleased
 
 ### Features
-- Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
-- Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
-- Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
-- View all release notes since your installed version in the app
-- Copy AI Compare chat history as JSON from the panel header
-- Generate richer lap-analysis results and continue analysis conversations across AI surfaces
-- Persist complete AI chat history, including tool calls and reasoning, across sessions
+- Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
+- Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
+- Import MoTeC logs as normal sessions for analysis, comparison, and experiments
+- Export and import individual laps or complete sessions as portable compressed captures
+- View release history in Settings and see the installed version in the sidebar
+- Copy AI Compare conversations as JSON and resume or regenerate analysis chats with complete persisted history
+- Generate detailed, sector-aware lap-analysis results with consistent provider and settings handling
 
 ### Fixes
-- Hide unfinished F1 Experiments and iRacing integrations from production releases
-- Clean up settings and onboarding wizard controls so navigation, progress indicators, and wheel cards render correctly
-- Render experiment focus choices as wrapping cards, remove the experiment table shell, and underline Analyse tabs
-- Report missing AI model settings instead of silently selecting a provider default
-- Keep AI chat drafts editable and show submitted prompts with the loading state immediately across chat surfaces
-- Show setup-seeded `v1` branches immediately in Setup Engineer experiments
-
-- Keep internal AI system instructions separate from driver prompts in chat history
-- Keep the Compare loading message hidden after comparison data is available
-- Cover the full page when settings are open so background content is consistently dimmed and dismissible
-- Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured
-- Use semantic tabs for Analyse visualization modes and Data/Insights navigation
-- Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border
-- Keep setup track names neutral and expanded setup details free of accent backgrounds
-- Keep expanded session lap tables aligned and show sector columns when lap sector timing is unavailable
-- Show all registered games in storage settings, including games with no recording files
-- Match primary button backgrounds to the neutral gray button surface
-- Highlight the active sector-blip setting with a cyan border
-- Keep desktop-only analysis and comparison pages available on wide, low-height displays
-- Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
-- Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
-- Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
-- Open Forza setups directly in the tune browser without obsolete Car Tunes and Wheel / FFB tabs
-- Place setup car and track filters beside setup actions for faster access
-- Use compact, borderless searchable filters for setup cars and tracks
-- Remove the setup source-row container styling and keep refresh aligned with its filters
+- Keep unfinished game integrations and experiments out of production releases
+- Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
+- Show actionable guidance when AI provider, credentials, or model configuration is incomplete
+- Keep chat drafts, submitted prompts, loading states, and conversation history consistent across AI surfaces
+- Restore setup-seeded experiment branches and make branch deletion explicit
+- Improve setup browsing with faster filters, clearer track and car context, and direct Forza tune access
+- Keep analysis tables, tabs, maps, cards, and responsive layouts aligned across desktop and compact displays
+- Improve session and sector tables when timing data is sparse or unavailable
+- Show every registered game in storage settings, including games without recorded sessions
+- Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
@@ -44,7 +28,6 @@
 - Made Storybook snapshots own an exact-port server and retry cold preview preparation
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
-- Deterministic iRacing recording and replay coverage through the production parser pipeline
 - Consolidated per-game car, track, and compare routes into shared dynamic game routes
 - Added a disposable development database seed from committed telemetry fixtures
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
