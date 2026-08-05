@@ -60,24 +60,8 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
 }
 
 function SessionResultMeta({ session }: { session: SessionMeta }) {
-  const hasResult = session.resultClassification != null || session.finishingPosition != null || session.qualifyingPosition != null || session.isPodium || session.isFastestLap;
-  if (!hasResult) return <span className="text-app-text/60">—</span>;
-  const classification = session.resultClassification ? session.resultClassification[0].toUpperCase() + session.resultClassification.slice(1) : "Unknown";
-  const position = session.finishingPosition ?? session.qualifyingPosition;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-      <span className="rounded border border-app-border px-1.5 py-0.5">{classification}</span>
-      {position != null && <span>P{position}</span>}
-      {session.isPodium && <span className="text-status-success">Podium</span>}
-      {session.isFastestLap && <span className="text-app-accent">Fastest</span>}
-      {session.pitCount != null && (
-        <span>
-          {session.pitCount} pit{session.pitCount === 1 ? "" : "s"}
-        </span>
-      )}
-      {session.pitDurationSeconds != null && <span>{session.pitDurationSeconds.toFixed(1)}s pits</span>}
-    </div>
-  );
+  const position = session.finishingPosition;
+  return position != null ? <span className="text-xs font-medium">P{position}</span> : <span className="text-app-text/60">—</span>;
 }
 
 type LapSortKey = "lap" | "time";

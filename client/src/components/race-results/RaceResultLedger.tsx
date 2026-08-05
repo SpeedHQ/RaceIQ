@@ -28,31 +28,36 @@ type RaceResultTimelineNode =
     };
 
 export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineNode[] {
+  let currentPosition = result.qualifyingPosition;
+  const eventNodes: RaceResultTimelineNode[] = [];
+  for (const event of result.events.slice().sort((a, b) => a.sequence - b.sequence)) {
+    if (event.eventType === "position-change") {
+      const position = event.positionAfter ?? null;
+      if (position == null) continue;
+      if (currentPosition != null && position === currentPosition) continue;
+      eventNodes.push({
+        kind: "position",
+        sequence: event.sequence,
+        lapNumber: event.lapNumber,
+        direction: currentPosition == null || position > currentPosition ? "down" : "up",
+        position,
+      });
+      currentPosition = position;
+      continue;
+    }
+    eventNodes.push({
+      kind: "pit",
+      sequence: event.sequence,
+      lapNumber: event.lapNumber,
+      durationSeconds: event.durationSeconds,
+      service: event.service,
+      tyreChange: event.tyreChange,
+      fuelAdded: event.fuelAdded,
+    });
+  }
   return [
     { kind: "start", position: result.qualifyingPosition },
-    ...result.events
-      .slice()
-      .sort((a, b) => a.sequence - b.sequence)
-      .map((event) => {
-        if (event.eventType === "position-change") {
-          return {
-            kind: "position" as const,
-            sequence: event.sequence,
-            lapNumber: event.lapNumber,
-            direction: (event.positionAfter != null && event.positionBefore != null && event.positionAfter < event.positionBefore ? "up" : "down") as "up" | "down",
-            position: event.positionAfter ?? null,
-          };
-        }
-        return {
-          kind: "pit" as const,
-          sequence: event.sequence,
-          lapNumber: event.lapNumber,
-          durationSeconds: event.durationSeconds,
-          service: event.service,
-          tyreChange: event.tyreChange,
-          fuelAdded: event.fuelAdded,
-        };
-      }),
+    ...eventNodes,
     {
       kind: "finish",
       classification: result.classification,

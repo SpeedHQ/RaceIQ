@@ -60,6 +60,24 @@ describe("race result timeline", () => {
     });
     expect(timeline[1]).toMatchObject({ kind: "position", lapNumber: 4, direction: "up", position: 3 });
   });
+
+  test("does not show a false transition back to grid position", () => {
+    const timeline = buildRaceResultTimeline({
+      ...result,
+      qualifyingPosition: 3,
+      events: [
+        {
+          ...result.events[0],
+          eventType: "position-change",
+          service: "unknown",
+          lapNumber: 4,
+          positionBefore: 2,
+          positionAfter: 3,
+        },
+      ],
+    });
+    expect(timeline.map((node) => node.kind)).toEqual(["start", "finish"]);
+  });
   test("omits null optional event values", () => {
     const [pit] = buildRaceResultTimeline({ ...result, events: [{ ...result.events[0], lapNumber: null, durationSeconds: null, tyreChange: null }] }).filter((node) => node.kind === "pit");
     expect(pit).toMatchObject({ lapNumber: null, durationSeconds: null, tyreChange: null });
