@@ -47,6 +47,7 @@ export default defineConfig({
     paraglideVitePlugin({
       project: "./project.inlang",
       outdir: "./src/paraglide",
+      emitTsDeclarations: true,
       outputStructure: "message-modules",
       // Locale is driven by the server-persisted `language` setting; the client
       // bootstraps it via setLocale() on load (see __root.tsx). localStorage is

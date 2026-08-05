@@ -7,10 +7,6 @@
     "module": "ESNext",
     "types": ["vite/client"],
     "skipLibCheck": true,
-    // Paraglide compiles messages to JSDoc-typed .js under src/paraglide.
-    // allowJs lets tsc resolve those modules and infer their types.
-    "allowJs": true,
-    "checkJs": false,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
