@@ -5,39 +5,15 @@
 
 ### Fixes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
-
-### Internal
-- Make local and CI verification self-contained for repo-wide linting and generated localization types
-
-## v0.14.0 - 2026-08-05
-
-### Features
-- Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
-- Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
-- Import MoTeC logs as normal sessions for analysis, comparison, and experiments
-- Export and import individual laps or complete sessions as portable compressed captures
-- View release history in Settings, show installed version in the sidebar, and see all release notes since the installed version
-- Move app navigation from the top bar into a left-hand sidebar, with a responsive mobile navigation drawer
-- Copy AI Compare conversations as JSON and resume or regenerate analysis chats with complete persisted history
-- Generate detailed, sector-aware lap-analysis results with consistent provider and settings handling
-- Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
-- Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
-- Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
-
-### Fixes
-- Made stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
-- Keep unfinished game integrations and experiments out of production releases
-- Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
+- Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Show actionable, neutral guidance when AI provider, credentials, or model configuration is incomplete
-- Keep chat drafts, submitted prompts, loading states, and conversation history consistent across AI surfaces
-- Restore setup-seeded experiment branches and make branch deletion explicit
 - Keep iRacing lap replay within saved frame boundaries so telemetry from the following lap is not included
 - Report telemetry freshness from each source's own update time and mark incompatible clock domains as unknown instead of current
 - Highlight only one fastest lap per sector in session and live lap tables
 - Exclude pit-entry and pit-exit laps from pace, sector, consistency, improvement, and theoretical-best metrics
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
-- Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings.
+- Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
 - Restore experiment version loading, editing, deletion, and recovery after the version API rename
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
@@ -58,7 +34,6 @@
 - Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border
 - Keep setup track names neutral and expanded setup details free of accent backgrounds
 - Keep expanded session lap tables aligned and show sector columns when lap sector timing is unavailable
-- Show all registered games in storage settings, including games with no recording files
 - Keep older lap telemetry available when legacy storage is the only replay source or a raw capture fails
 - Make every app workspace reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
 - Match primary button backgrounds to the neutral gray button surface
@@ -76,6 +51,7 @@
 - Keep live telemetry stable during route and game transitions by resolving car names from each packet and skipping invalid track metadata requests
 
 ### Internal
+- Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Organized automated tests by domain, split oversized suites, and centralized shared test support
 - Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
@@ -85,17 +61,48 @@
 - Restored live-dashboard Storybook runtime context and added same-renderer local visual comparison before canonical Linux baseline generation
 - Expanded visual regression coverage to 97 fixture-seeded responsive app states plus 17 Storybook states, covering every game, high-risk screens, track and experiment details, reusable primitives, navigation, dialogs, and viewport-positioned menus
 - Added a local main-versus-worktree UI comparison report using the same responsive and Storybook screenshot inventory as pull-request previews
+- Deterministic iRacing recording and replay coverage through the production parser pipeline
+- Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
+- Add fixture-seeded cross-game route and lap playback end-to-end coverage
+- Completed fixture-seeded browser workflow coverage across Sessions, Analyse, Compare, Driver, Experiments, Chats, Tracks, Cars, Setups, Dash, developer tools, compiled binaries, and emulated devices
+
+## v0.14.0 - 2026-08-05
+
+### Features
+- Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
+- Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
+- Import MoTeC logs as normal sessions for analysis, comparison, and experiments
+- Export and import individual laps or complete sessions as portable compressed captures
+- View release history in Settings and see the installed version in the sidebar
+- Move app navigation from the top bar into a left-hand sidebar, with a responsive mobile navigation drawer
+- Copy AI Compare conversations as JSON and resume or regenerate analysis chats with complete persisted history
+- Generate detailed, sector-aware lap-analysis results with consistent provider and settings handling
+- Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
+- Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
+- Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
+- View all release notes since your installed version in the app
+
+### Fixes
+- Keep unfinished game integrations and experiments out of production releases
+- Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
+- Show actionable guidance when AI provider, credentials, or model configuration is incomplete
+- Keep chat drafts, submitted prompts, loading states, and conversation history consistent across AI surfaces
+- Restore setup-seeded experiment branches and make branch deletion explicit
+- Improve setup browsing with faster filters, clearer track and car context, and direct Forza tune access
+- Keep analysis tables, tabs, maps, cards, and responsive layouts aligned across desktop and compact displays
+- Improve session and sector tables when timing data is sparse or unavailable
+- Show every registered game in storage settings, including games without recorded sessions
+- Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
+
+### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
 - Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
 - Made Storybook snapshots own an exact-port server and retry cold preview preparation
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
-- Deterministic iRacing recording and replay coverage through the production parser pipeline
-- Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
 - Consolidated per-game car, track, and compare routes into shared dynamic game routes
 - Added a disposable development database seed from committed telemetry fixtures
-- Add fixture-seeded cross-game route and lap playback end-to-end coverage
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
 - Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
 - Centralized theme-overridable frontend colors, typography, tracking, surfaces, semantic states, telemetry, game branding, manufacturer, and team design tokens
@@ -104,7 +111,6 @@
 - Use `import.meta.dirname` in Vite config for native config-loader compatibility
 - Avoid initializing Mastra observability during standalone database seeding
 - Close disposable seed-test SQLite clients before removing temporary data directories
-- Completed fixture-seeded browser workflow coverage across Sessions, Analyse, Compare, Driver, Experiments, Chats, Tracks, Cars, Setups, Dash, developer tools, compiled binaries, and emulated devices
 
 ## v0.13.0 - 2026-07-16
 
