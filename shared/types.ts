@@ -130,6 +130,7 @@ export interface F1ExtendedData {
   totalWarnings?: number;
   cornerCuttingWarnings?: number;
   driverStatus?: number;
+  resultStatus?: number;
   pitLaneTimerActive?: number;
   pitLaneTimeInLaneInMS?: number;
   speedTrapFastestSpeed?: number;
@@ -706,12 +707,16 @@ export interface SessionMeta {
   lapCount?: number;
   bestLapTime?: number;
   sessionType?: string;
+  resultClassification?: string | null;
+  finishingPosition?: number | null;
+  qualifyingPosition?: number | null;
+  isPodium?: boolean | null;
+  isFastestLap?: boolean | null;
+  pitCount?: number | null;
+  pitDurationSeconds?: number | null;
   notes?: string;
   /**
-   * How the session's telemetry was obtained. `undefined` = recorded live from
-   * the game; `"motec"` = transcoded from a MoTeC export (dead-reckoned line).
-   * Callers must not treat the two as interchangeable when the racing line or
-   * absolute position matters.
+   * How session telemetry was obtained. `"motec"` identifies transcoded data.
    */
   source?: string;
   gameId?: GameId;

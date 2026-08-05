@@ -16,6 +16,9 @@ import { chatFreeformShapeScorer } from "./scorers/chat-freeform-shape";
 import { drillQualityScorer } from "./scorers/drill-quality";
 import { llmFaithfulnessScorer } from "./scorers/llm-faithfulness";
 
+const IS_TEST = process.env.NODE_ENV === "test";
+
+
 export const analystScorers = [
   outputShapeScorer,
   cornerCoverageScorer,
@@ -61,16 +64,18 @@ export const judgeScorers = [
  * finds here (or attached to an agent) — objects that merely exist in eval
  * files are invisible to it.
  */
-export const scorerRegistry = {
-  "output-shape": outputShapeScorer,
-  "corner-coverage": cornerCoverageScorer,
-  "numeric-grounding": numericGroundingScorer,
-  "unit-consistency": unitConsistencyScorer,
-  "compare-directionality": compareDirectionalityScorer,
-  "chat-freeform-shape": chatFreeformShapeScorer,
-  "drill-quality": drillQualityScorer,
-  "llm-faithfulness": llmFaithfulnessScorer,
-} satisfies Record<string, MastraScorer>;
+export const scorerRegistry: Record<string, MastraScorer> = IS_TEST
+  ? {}
+  : {
+      "output-shape": outputShapeScorer,
+      "corner-coverage": cornerCoverageScorer,
+      "numeric-grounding": numericGroundingScorer,
+      "unit-consistency": unitConsistencyScorer,
+      "compare-directionality": compareDirectionalityScorer,
+      "chat-freeform-shape": chatFreeformShapeScorer,
+      "drill-quality": drillQualityScorer,
+      "llm-faithfulness": llmFaithfulnessScorer,
+    };
 
 /**
  * Agent-attach helper: wraps scorers as `{ key: { scorer } }` so Studio runs
@@ -86,14 +91,18 @@ export function attachScorers(scorers: ReadonlyArray<MastraScorer>) {
 }
 
 /** Live scorers for the grounded-text agents: deterministic + optional judge. */
-export const liveAnalystScorers = attachScorers([
-  ...analystScorers,
-  ...(HAS_LOCAL_JUDGE ? judgeScorers : []),
-]);
+export const liveAnalystScorers: Record<string, { scorer: MastraScorer }> = IS_TEST
+  ? {}
+  : attachScorers([
+      ...analystScorers,
+      ...(HAS_LOCAL_JUDGE ? judgeScorers : []),
+    ]);
 
 /** Live scorers for the Driver Coach — deterministic only, so Studio scores
- *  its traces without LM Studio running. */
-export const liveCoachScorers = attachScorers(coachScorers);
+ * its traces without LM Studio running. */
+export const liveCoachScorers: Record<string, { scorer: MastraScorer }> = IS_TEST
+  ? {}
+  : attachScorers(coachScorers);
 
 /** Default pass thresholds per scorer id. Tests read these directly. */
 export const SCORER_THRESHOLDS: Record<string, number> = {

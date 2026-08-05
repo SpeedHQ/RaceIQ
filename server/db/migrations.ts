@@ -1090,4 +1090,65 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        ON driver_profile_runs (scope_key, created_at DESC, id DESC)`,
     ],
   },
+  // v48: Persist normalized race results and ordered pit events.
+  {
+    version: 48,
+    name: "race result metadata",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS session_results (
+         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+         session_id          INTEGER NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+         session_type        TEXT NOT NULL DEFAULT 'unknown',
+         classification      TEXT NOT NULL DEFAULT 'unknown',
+         finishing_position  INTEGER,
+         qualifying_position INTEGER,
+         is_podium           INTEGER,
+         is_fastest_lap      INTEGER,
+         pit_count           INTEGER NOT NULL DEFAULT 0,
+         tyre_strategy       TEXT,
+         fuel_strategy       TEXT,
+         provenance          TEXT,
+         reasons             TEXT,
+         created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+         updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `CREATE INDEX IF NOT EXISTS idx_session_results_session ON session_results(session_id)`,
+      `CREATE TABLE IF NOT EXISTS pit_events (
+         id                INTEGER PRIMARY KEY AUTOINCREMENT,
+         result_id         INTEGER NOT NULL REFERENCES session_results(id) ON DELETE CASCADE,
+         sequence          INTEGER NOT NULL,
+         lap_number        INTEGER,
+         elapsed_seconds   REAL,
+         duration_seconds  REAL,
+         service           TEXT NOT NULL DEFAULT 'unknown',
+         tyre_change       TEXT,
+         fuel_added        REAL,
+         fuel_before       REAL,
+         fuel_after        REAL,
+         linkage           TEXT NOT NULL DEFAULT 'linked',
+         source            TEXT,
+         created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(result_id, sequence)
+       )`,
+      `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
+    ],
+  },
+  // v49: Version normalized race-result derivation for future reconciliation.
+  {
+    version: 49,
+    name: "version race result processor",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`,
+    ],
+  },
+  // v50: Persist race timeline event types and position transitions.
+  {
+    version: 50,
+    name: "persist race timeline positions",
+    sql: [
+      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
+      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
+      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
+    ],
+  },
 ];

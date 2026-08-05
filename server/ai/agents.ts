@@ -53,7 +53,7 @@ let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 let setupEngineerAgent: SetupEngineerAgent = rawSetupEngineerAgent;
 let driverCoachAgent: DriverCoachAgent = rawDriverCoachAgent;
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test") {
   try {
     const { mastra } = await import("../../mastra");
     lapAnalystAgent = mastra.getAgent("lap-analyst") as unknown as LapAnalystAgent;

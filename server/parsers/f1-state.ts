@@ -82,7 +82,7 @@ export class F1StateAccumulator {
     sector1Time: number; // seconds (0 if not set)
     sector2Time: number; // seconds (0 if not set)
     currentLapInvalid: number; penalties: number; totalWarnings: number;
-    cornerCuttingWarnings: number; driverStatus: number;
+    cornerCuttingWarnings: number; driverStatus: number; resultStatus: number;
     pitLaneTimerActive: number; pitLaneTimeInLaneInMS: number;
     speedTrapFastestSpeed: number; gridPosition: number;
     // All cars lap data for grid
@@ -382,6 +382,7 @@ export class F1StateAccumulator {
       totalWarnings: data.readUInt8(playerOffset + 39),             // m_totalWarnings
       cornerCuttingWarnings: data.readUInt8(playerOffset + 40),     // m_cornerCuttingWarnings
       driverStatus: data.readUInt8(playerOffset + 44),              // m_driverStatus
+      resultStatus: data.readUInt8(playerOffset + 45),              // m_resultStatus
       pitLaneTimerActive: data.readUInt8(playerOffset + 46),        // m_pitLaneTimerActive
       pitLaneTimeInLaneInMS: data.readUInt16LE(playerOffset + 47),  // m_pitLaneTimeInLaneInMS
       speedTrapFastestSpeed: data.readFloatLE(playerOffset + 52),   // m_speedTrapFastestSpeed
@@ -932,6 +933,7 @@ export class F1StateAccumulator {
       penalties: ld.penalties,
       totalWarnings: ld.totalWarnings,
       cornerCuttingWarnings: ld.cornerCuttingWarnings,
+      resultStatus: ld.resultStatus,
       driverStatus: ld.driverStatus,
       pitLaneTimerActive: ld.pitLaneTimerActive,
       pitLaneTimeInLaneInMS: ld.pitLaneTimeInLaneInMS,

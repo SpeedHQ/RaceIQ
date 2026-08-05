@@ -39,5 +39,9 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
   if (isLoading) return <div className="p-4 text-app-text-dim">{m.trackviewer_loading()}</div>;
   if (!track) return <div className="p-4 text-app-text-dim">{m.trackdetailroute_not_found()}</div>;
 
-  return <TrackDetail track={track} onBack={onBack} tab={tab} onTabChange={onTabChange} />;
+  return (
+    <>
+      <TrackDetail track={track} onBack={onBack} tab={tab} onTabChange={onTabChange} />
+    </>
+  );
 }

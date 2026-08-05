@@ -8,6 +8,7 @@ import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
 import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
+import { RaceResultStatus } from "../components/RaceResultStatus";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { Button } from "../components/ui/button";
@@ -309,6 +310,7 @@ function AppShell() {
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <StaleLapButton />
+      <RaceResultStatus compact />
     </>
   );
 }

@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "../scripts/visual-diff-config";
 
 export default defineConfig({
+  // Snapshot files warm Storybook's shared preview compiler concurrently when
+  // workers run in parallel. Serialize them so cold compilation is predictable.
+  workers: 1,
   testDir: "./src/stories",
   testMatch: "**/*.snapshot.ts",
   outputDir: "./src/stories/__snapshots__/results",

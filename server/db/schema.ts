@@ -98,6 +98,63 @@ export const sessions = sqliteTable("sessions", {
 	source: text("source"),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
+export const sessionResults = sqliteTable(
+	"session_results",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		sessionId: integer("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		processorVersion: text("processor_version").notNull().default("race-result-v1"),
+		sessionType: text("session_type").notNull().default("unknown"),
+		classification: text("classification").notNull().default("unknown"),
+		finishingPosition: integer("finishing_position"),
+		qualifyingPosition: integer("qualifying_position"),
+		isPodium: integer("is_podium", { mode: "boolean" }),
+		isFastestLap: integer("is_fastest_lap", { mode: "boolean" }),
+		pitCount: integer("pit_count").notNull().default(0),
+		tyreStrategy: text("tyre_strategy", { mode: "json" }).$type<unknown>(),
+		fuelStrategy: text("fuel_strategy", { mode: "json" }).$type<unknown>(),
+		provenance: text("provenance", { mode: "json" }).$type<unknown>(),
+		reasons: text("reasons", { mode: "json" }).$type<string[]>(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		unique().on(table.sessionId),
+		index("idx_session_results_session").on(table.sessionId),
+	],
+);
+
+export const pitEvents = sqliteTable(
+	"pit_events",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		resultId: integer("result_id")
+			.notNull()
+			.references(() => sessionResults.id, { onDelete: "cascade" }),
+		sequence: integer("sequence").notNull(),
+		eventType: text("event_type").notNull().default("pit"),
+		positionBefore: integer("position_before"),
+		positionAfter: integer("position_after"),
+		lapNumber: integer("lap_number"),
+		elapsedSeconds: real("elapsed_seconds"),
+		durationSeconds: real("duration_seconds"),
+		service: text("service").notNull().default("unknown"),
+		tyreChange: text("tyre_change", { mode: "json" }).$type<unknown>(),
+		fuelAdded: real("fuel_added"),
+		fuelBefore: real("fuel_before"),
+		fuelAfter: real("fuel_after"),
+		linkage: text("linkage").notNull().default("linked"),
+		source: text("source", { mode: "json" }).$type<unknown>(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		unique().on(table.resultId, table.sequence),
+		index("idx_pit_events_result").on(table.resultId, table.sequence),
+	],
+);
+
 
 export const laps = sqliteTable(
 	"laps",

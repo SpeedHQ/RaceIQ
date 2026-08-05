@@ -12,6 +12,7 @@ import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
 import { MotecImportModal } from "./analyse/MotecImportModal";
 import { formatLapTime } from "./LiveTelemetry";
+import { RaceResultLedger } from "./race-results/RaceResultLedger";
 import { SessionRecapModal } from "./SessionRecapModal";
 import { AppInput } from "./ui/AppInput";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
@@ -56,6 +57,11 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
       </Button>
     </>
   );
+}
+
+function SessionResultMeta({ session }: { session: SessionMeta }) {
+  const position = session.finishingPosition;
+  return position != null ? <span className="text-xs font-medium">P{position}</span> : <span className="text-app-text/60">—</span>;
 }
 
 type LapSortKey = "lap" | "time";
@@ -251,7 +257,7 @@ function SessionLapTable({
   );
 }
 
-type SortKey = "date" | "track" | "car" | "laps" | "best" | "type";
+type SortKey = "date" | "track" | "car" | "laps" | "best" | "type" | "result";
 type SortDir = "asc" | "desc";
 
 function formatSessionType(type?: string): string {
@@ -404,6 +410,10 @@ export function SessionsPage() {
           valA = a.sessionType ?? "";
           valB = b.sessionType ?? "";
           break;
+        case "result":
+          valA = a.resultClassification ?? "";
+          valB = b.resultClassification ?? "";
+          break;
         default:
           return 0;
       }
@@ -497,7 +507,7 @@ export function SessionsPage() {
   /** Only games with a verified MoTeC channel mapping get the import UI. */
   const motecEnabled = motecImportSupported(gameId);
   const isF1 = gameId === "f1-2025";
-  const colCount = isF1 ? 8 : 7;
+  const colCount = isF1 ? 9 : 8;
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
@@ -670,6 +680,9 @@ export function SessionsPage() {
                       {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
                       {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                     </div>
+                    <div className="mt-2">
+                      <SessionResultMeta session={session} />
+                    </div>
                     <div className="flex items-center gap-4 mt-2 text-xs">
                       <span className="text-app-text/90">
                         {m.label_laps()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
@@ -693,6 +706,7 @@ export function SessionsPage() {
                     </div>
                   </div>
                 </div>
+                {isExpanded && gameId && <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />}
                 {isExpanded && sessionLaps.length > 0 && (
                   <div className="border-t border-app-border overflow-x-auto">
                     <SessionLapTable
@@ -741,7 +755,7 @@ export function SessionsPage() {
                 ["best", m.sessions_col_best_lap()],
                 ["track", m.label_track()],
                 ["car", m.label_car()],
-                ...(isF1 ? ([["type", m.label_type()]] as const) : []),
+                ["result", "Result"],
               ] as const
             ).map(([field, label]) => (
               <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
@@ -827,6 +841,9 @@ export function SessionsPage() {
                       </TD>
                       <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
                       <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                      <TD tone="primary">
+                        <SessionResultMeta session={session} />
+                      </TD>
                       {isF1 && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
                       <TD>
                         <NoteCell
@@ -838,6 +855,13 @@ export function SessionsPage() {
                         />
                       </TD>
                     </TRow>
+                    {isExpanded && gameId && (
+                      <TRow variant="separator">
+                        <TD colSpan={colCount}>
+                          <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
+                        </TD>
+                      </TRow>
+                    )}
                     {isExpanded && sessionLaps.length > 0 && (
                       <TRow variant="separator">
                         <TD colSpan={colCount}>

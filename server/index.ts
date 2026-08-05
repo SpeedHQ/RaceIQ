@@ -227,6 +227,7 @@ Bun.serve<WSData>({
 
 console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`);
 
+
 // UDP-based recording for `dev:dump:fm` / `dev:dump:f1`. Shared-memory games
 // (acc, ac-evo) record via their own readers further down. Set before start()
 // so the listener opens its .bin the moment it begins receiving packets —
@@ -280,11 +281,12 @@ startLaptimesSync();
 
 // Check for sessions recorded with an older lap detector version.
 // Stores the notification in wsManager so it's sent to each client on connect.
-import { countStaleSessions } from "./db/queries";
+import { countStaleSessions, countStaleRaceResults } from "./db/queries";
 import { LAP_DETECTOR_ID } from "./lap-detector";
 import { LAP_DETECTOR_V2_ID } from "./lap-detector-acc";
 import { LAP_DETECTOR_AC_EVO_ID } from "./lap-detector-ac-evo";
 import { LAP_DETECTOR_IRACING_ID } from "./lap-detector-iracing";
+import { RACE_RESULT_PROCESSOR_ID } from "./race-results/reconcile";
 const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
   LAP_DETECTOR_V2_ID,
@@ -302,6 +304,19 @@ countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
   }
 }).catch((err) => {
   console.error("[Server] Failed to check stale sessions:", err);
+});
+
+countStaleRaceResults(RACE_RESULT_PROCESSOR_ID).then((count) => {
+  if (count > 0) {
+    console.log(`[Server] ${count} session result(s) use an older processor — will prompt user to recalculate`);
+    wsManager.setStaleRaceResultsNotification({
+      type: "stale-race-results",
+      sessionCount: count,
+      currentVersion: RACE_RESULT_PROCESSOR_ID,
+    });
+  }
+}).catch((err) => {
+  console.error("[Server] Failed to check stale race results:", err);
 });
 
 import { AccSharedMemoryReader } from "./games/acc/shared-memory";

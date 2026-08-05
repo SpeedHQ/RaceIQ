@@ -69,7 +69,7 @@ export function DiagnosticsSection() {
           {status === "downloading" ? m.diag_collecting() : m.diag_download_button()}
         </Button>
 
-      {status === "error" && <p className="text-xs text-status-danger">{errorMsg}</p>}
+        {status === "error" && <p className="text-xs text-status-danger">{errorMsg}</p>}
       </div>
     </section>
   );

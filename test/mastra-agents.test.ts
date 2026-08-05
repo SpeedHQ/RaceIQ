@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import { liveAnalystScorers, liveCoachScorers, scorerRegistry } from "../mastra/evals";
 import { isMastraSignalMigrationRequiredError } from "../server/ai/agents";
 
 describe("isMastraSignalMigrationRequiredError", () => {
@@ -16,4 +17,10 @@ describe("isMastraSignalMigrationRequiredError", () => {
     expect(isMastraSignalMigrationRequiredError(new Error("boom"))).toBe(false);
     expect(isMastraSignalMigrationRequiredError("boom")).toBe(false);
   });
+});
+
+test("disables live eval wiring under test", () => {
+  expect(scorerRegistry).toEqual({});
+  expect(liveAnalystScorers).toEqual({});
+  expect(liveCoachScorers).toEqual({});
 });

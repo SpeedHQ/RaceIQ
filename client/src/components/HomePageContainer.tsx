@@ -39,7 +39,6 @@ export function HomePageContainer() {
     [allLaps],
   );
 
-
   const gameQueries = useQueries({
     queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const).map((g) => ({
       queryKey: ["stats", g],
