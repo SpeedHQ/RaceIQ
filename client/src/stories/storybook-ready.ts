@@ -28,7 +28,7 @@ interface WarmStorybookOptions {
  * chrome or a coincidental component class as story readiness.
  */
 export async function openStory(page: Page, storyUrl: string, timeoutMs = 60_000): Promise<void> {
-  await page.goto(storyUrl, { waitUntil: "domcontentloaded" });
+  await page.goto(storyUrl, { waitUntil: "commit", timeout: timeoutMs });
   await page.locator(STORY_ROOT_CHILD).first().waitFor({ state: "visible", timeout: timeoutMs });
 }
 
@@ -153,21 +153,19 @@ export async function openStoryForSnapshot(page: Page, storyUrl: string, timeout
  * the iframe retries story preparation against the now-built preview graph.
  */
 export async function warmStorybook(browser: Browser, storyUrl: string, { attempts = 12, attemptTimeoutMs = 10_000 }: WarmStorybookOptions = {}): Promise<void> {
-  const page = await browser.newPage();
   let lastError: unknown;
 
-  try {
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      try {
-        await openStory(page, storyUrl, attemptTimeoutMs);
-        return;
-      } catch (error) {
-        lastError = error;
-      }
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const page = await browser.newPage();
+    try {
+      await openStory(page, storyUrl, attemptTimeoutMs);
+      return;
+    } catch (error) {
+      lastError = error;
+    } finally {
+      await page.close().catch(() => undefined);
     }
-
-    throw new Error(`Storybook never rendered ${storyUrl} after ${attempts} attempts`, { cause: lastError });
-  } finally {
-    await page.close();
   }
+
+  throw new Error(`Storybook never rendered ${storyUrl} after ${attempts} attempts`, { cause: lastError });
 }

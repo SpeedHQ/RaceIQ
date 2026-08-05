@@ -50,7 +50,7 @@ const stories: StoryCase[] = [
 test.setTimeout(180_000);
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(180_000);
-  await warmStorybook(browser, `/iframe.html?id=${stories[0].id}&viewMode=story`);
+  await warmStorybook(browser, `/iframe.html?id=${stories[0].id}&viewMode=story`, { attempts: 4, attemptTimeoutMs: 30_000 });
 });
 
 for (const story of stories) {
