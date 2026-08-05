@@ -15,7 +15,7 @@
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 
 ### Fixes
-
+- Made stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Keep unfinished game integrations and experiments out of production releases
 - Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
 - Show actionable, neutral guidance when AI provider, credentials, or model configuration is incomplete
