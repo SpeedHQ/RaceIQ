@@ -91,8 +91,8 @@ function FinishFlag() {
 function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   if (node.kind === "start") {
     return (
-      <div className="min-w-32 rounded-xl border border-app-border/80 bg-app-surface px-4 py-3 shadow-sm shadow-black/20">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-app-text/55">Start</div>
+      <div className="min-w-32 rounded-xl border border-app-border/80 bg-app-surface px-4 py-3 shadow-sm shadow-app-bg/20">
+        <div className="text-app-caption font-semibold uppercase tracking-app-label text-app-text/55">Start</div>
         <div className="mt-1 text-sm font-semibold text-app-text">{node.position != null ? `Grid P${node.position}` : "Session begins"}</div>
       </div>
     );
@@ -101,9 +101,9 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   if (node.kind === "position") {
     return (
       <div
-        className={`min-w-28 rounded-xl border px-4 py-3 shadow-sm shadow-black/20 ${node.direction === "up" ? "border-status-success/50 bg-status-success/10" : "border-status-danger/50 bg-status-danger/10"}`}
+        className={`min-w-28 rounded-xl border px-4 py-3 shadow-sm shadow-app-bg/20 ${node.direction === "up" ? "border-status-success/50 bg-status-success/10" : "border-status-danger/50 bg-status-danger/10"}`}
       >
-        <div className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${node.direction === "up" ? "text-status-success" : "text-status-danger"}`}>Position</div>
+        <div className={`text-app-caption font-semibold uppercase tracking-app-label ${node.direction === "up" ? "text-status-success" : "text-status-danger"}`}>Position</div>
         {node.lapNumber != null && <div className="mt-1 text-xs text-app-text/65">End lap {node.lapNumber}</div>}
         <div className="mt-0.5 text-lg font-bold leading-none text-app-text">
           <span className="sr-only">
@@ -121,10 +121,10 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   if (node.kind === "finish") {
     const position = node.finishingPosition ?? node.qualifyingPosition;
     return (
-      <div className="min-w-36 rounded-xl border border-status-success/50 bg-status-success/10 px-4 py-3 shadow-sm shadow-black/20">
+      <div className="min-w-36 rounded-xl border border-status-success/50 bg-status-success/10 px-4 py-3 shadow-sm shadow-app-bg/20">
         <div className="flex items-center gap-2">
           <FinishFlag />
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-status-success">Finish</div>
+          <div className="text-app-caption font-semibold uppercase tracking-app-label text-status-success">Finish</div>
         </div>
         <div className="mt-1 text-sm font-semibold text-app-text">{node.classification[0].toUpperCase() + node.classification.slice(1)}</div>
         {position != null && <div className="text-xs text-app-text/70">P{position}</div>}
@@ -134,8 +134,8 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
 
   const tyre = tyreChangeLabel(node.tyreChange);
   return (
-    <div className="min-w-40 rounded-xl border border-app-accent/50 bg-app-accent/10 px-4 py-3 shadow-sm shadow-black/20">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-app-accent">{formatService(node.service)}</div>
+    <div className="min-w-40 rounded-xl border border-app-accent/50 bg-app-accent/10 px-4 py-3 shadow-sm shadow-app-bg/20">
+      <div className="text-app-caption font-semibold uppercase tracking-app-label text-app-accent">{formatService(node.service)}</div>
       {node.lapNumber != null && <div className="mt-1 text-sm font-semibold text-app-text">Lap {node.lapNumber}</div>}
       {node.durationSeconds != null && <div className="text-xs text-app-text/70">{node.durationSeconds.toFixed(1)}s stop</div>}
       {tyre && <div className="text-xs text-app-text/70">{tyre}</div>}
@@ -154,7 +154,7 @@ export function RaceResultLedger({ sessionId, gameId, enabled }: { sessionId: nu
   const nodes = buildRaceResultTimeline(resultQuery.data);
   return (
     <section aria-label="Race timeline" className="border-b border-app-border bg-app-surface-alt/20 px-4 py-4">
-      <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-app-text/55">Race timeline</div>
+      <div className="mb-3 text-app-caption font-semibold uppercase tracking-app-label text-app-text/55">Race timeline</div>
       <div className="overflow-x-auto pb-1">
         <div className="flex min-w-max items-center">
           {nodes.map((node, index) => (
