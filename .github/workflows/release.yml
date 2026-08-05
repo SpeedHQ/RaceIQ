@@ -96,6 +96,8 @@ jobs:
             --windows-description="RaceIQ" \
             --windows-version=${VERSION} \
             --define 'process.env.NODE_ENV="production"' \
+            --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' \
+            --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' \
             server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Patch PE version info (ProductName)
