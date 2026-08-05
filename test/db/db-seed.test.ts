@@ -142,13 +142,16 @@ async function seededRelationships(dataDir: string): Promise<{
 
 afterEach(async () => {
   for (const dir of tempDirs.splice(0)) {
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 60; attempt++) {
       try {
         rmSync(dir, { recursive: true, force: true });
         break;
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== "EBUSY" || attempt === 9) throw err;
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        if ((err as NodeJS.ErrnoException).code !== "EBUSY" || attempt === 59) throw err;
+        // Windows releases native SQLite handles on its own clock; fake timers cannot advance OS cleanup.
+        const { promise, resolve } = Promise.withResolvers<void>();
+        setTimeout(resolve, 250);
+        await promise;
       }
     }
   }
