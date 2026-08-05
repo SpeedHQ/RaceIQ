@@ -109,7 +109,7 @@ function variableInitializers(tree: AstNode): Map<string, AstNode> {
 }
 
 async function parserOutput(gameId: GameId): Promise<ParserOutput> {
-  const source = await readFile(resolve(ROOT, PARSER_FILES[gameId]), "utf8");
+  const source = (await readFile(resolve(ROOT, PARSER_FILES[gameId]), "utf8")).replace(/\r\n?/g, "\n");
   const tree = ast(source);
   const properties =
     gameId === "iracing"
