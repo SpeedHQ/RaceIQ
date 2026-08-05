@@ -55,6 +55,7 @@
 - Keep live telemetry stable during route and game transitions by resolving car names from each packet and skipping invalid track metadata requests
 
 ### Internal
+- Migrate root Biome configuration to the 2.5.6 schema and recommended preset syntax
 - Organized automated tests by domain, split oversized suites, and centralized shared test support
 - Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics
