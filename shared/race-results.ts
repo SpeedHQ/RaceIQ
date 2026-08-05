@@ -20,6 +20,7 @@ export interface RaceResult {
   provenance: unknown;
   reasons: string[];
   events: Array<{
+    eventType?: "pit" | "position-change";
     sequence: number;
     lapNumber: number | null;
     elapsedSeconds: number | null;
@@ -29,6 +30,8 @@ export interface RaceResult {
     fuelAdded: number | null;
     fuelBefore: number | null;
     fuelAfter: number | null;
+    positionBefore?: number | null;
+    positionAfter?: number | null;
     linkage: "linked" | "unlinked" | "unknown";
     source: unknown;
   }>;

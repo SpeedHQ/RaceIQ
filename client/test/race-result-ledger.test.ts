@@ -44,6 +44,23 @@ describe("race result timeline", () => {
     expect(buildRaceResultTimeline({ ...result, events: [] }).map((node) => node.kind)).toEqual(["start", "finish"]);
   });
 
+
+  test("renders position-change events as position nodes", () => {
+    const timeline = buildRaceResultTimeline({
+      ...result,
+      events: [
+        {
+          ...result.events[0],
+          eventType: "position-change",
+          service: "unknown",
+          lapNumber: 4,
+          positionBefore: 5,
+          positionAfter: 3,
+        },
+      ],
+    });
+    expect(timeline[1]).toMatchObject({ kind: "position", lapNumber: 4, positionBefore: 5, positionAfter: 3 });
+  });
   test("omits null optional event values", () => {
     const [pit] = buildRaceResultTimeline({ ...result, events: [{ ...result.events[0], lapNumber: null, durationSeconds: null, tyreChange: null }] }).filter((node) => node.kind === "pit");
     expect(pit).toMatchObject({ lapNumber: null, durationSeconds: null, tyreChange: null });

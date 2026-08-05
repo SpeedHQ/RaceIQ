@@ -34,6 +34,7 @@ export interface BackfillReport {
 function toStoredPitEvent(event: PitEvent) {
   return {
     sequence: event.sequence,
+    eventType: event.eventType ?? "pit",
     lapNumber: event.lapNumber,
     elapsedSeconds: event.elapsedSeconds,
     durationSeconds: event.durationSeconds,
@@ -42,6 +43,8 @@ function toStoredPitEvent(event: PitEvent) {
     fuelAdded: event.fuelAdded,
     fuelBefore: event.fuelBefore,
     fuelAfter: event.fuelAfter,
+    positionBefore: event.positionBefore ?? null,
+    positionAfter: event.positionAfter ?? null,
     linkage: event.linkage,
     source: event.source,
   };
@@ -82,6 +85,9 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
       const expected = derived.events[index];
       return expected != null &&
         event.sequence === expected.sequence &&
+        event.eventType === (expected.eventType ?? "pit") &&
+        event.positionBefore === expected.positionBefore &&
+        event.positionAfter === expected.positionAfter &&
         event.lapNumber === expected.lapNumber &&
         event.elapsedSeconds === expected.elapsedSeconds &&
         event.durationSeconds === expected.durationSeconds &&

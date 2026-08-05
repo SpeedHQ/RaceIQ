@@ -4,8 +4,10 @@ export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "
 export type ResultClassification = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
 export type PitService = "tyres" | "fuel" | "combined" | "unknown";
 export type PitLinkage = "linked" | "unlinked" | "unknown";
+export type RaceEventType = "pit" | "position-change";
 
 export interface PitEvent {
+  eventType?: RaceEventType;
   sequence: number;
   lapNumber: number | null;
   elapsedSeconds: number | null;
@@ -15,8 +17,17 @@ export interface PitEvent {
   fuelAdded: number | null;
   fuelBefore: number | null;
   fuelAfter: number | null;
+  positionBefore?: number | null;
+  positionAfter?: number | null;
   linkage: PitLinkage;
   source: Record<string, unknown>;
+}
+
+export interface PositionChangeEvent extends PitEvent {
+  eventType: "position-change";
+  lapNumber: number;
+  positionBefore: number;
+  positionAfter: number;
 }
 
 export interface RaceSourceObservation {
@@ -29,6 +40,7 @@ export interface RaceSourceObservation {
   fastestLapSource?: string | null;
   packets: TelemetryPacket[];
   pitEvents?: PitEvent[];
+  positionChanges?: PositionChangeEvent[];
   tyreStrategy?: unknown;
   fuelStrategy?: unknown;
   provenance: Record<string, string>;

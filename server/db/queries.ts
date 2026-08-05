@@ -192,6 +192,7 @@ export type SessionResultInput = {
 
 export type PitEventInput = {
   sequence: number;
+  eventType?: string;
   lapNumber: number | null;
   elapsedSeconds: number | null;
   durationSeconds: number | null;
@@ -200,6 +201,8 @@ export type PitEventInput = {
   fuelAdded: number | null;
   fuelBefore: number | null;
   fuelAfter: number | null;
+  positionBefore?: number | null;
+  positionAfter?: number | null;
   linkage: string;
   source: unknown;
 };

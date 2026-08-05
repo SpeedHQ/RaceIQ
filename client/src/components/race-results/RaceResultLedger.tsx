@@ -14,6 +14,13 @@ type RaceResultTimelineNode =
       fuelAdded: number | null;
     }
   | {
+      kind: "position";
+      sequence: number;
+      lapNumber: number | null;
+      positionBefore: number | null;
+      positionAfter: number | null;
+    }
+  | {
       kind: "finish";
       classification: RaceResult["classification"];
       finishingPosition: number | null;
@@ -26,15 +33,25 @@ export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineN
     ...result.events
       .slice()
       .sort((a, b) => a.sequence - b.sequence)
-      .map((event) => ({
-        kind: "pit" as const,
-        sequence: event.sequence,
-        lapNumber: event.lapNumber,
-        durationSeconds: event.durationSeconds,
-        service: event.service,
-        tyreChange: event.tyreChange,
-        fuelAdded: event.fuelAdded,
-      })),
+      .map((event) =>
+        event.eventType === "position-change"
+          ? {
+              kind: "position" as const,
+              sequence: event.sequence,
+              lapNumber: event.lapNumber,
+              positionBefore: event.positionBefore ?? null,
+              positionAfter: event.positionAfter ?? null,
+            }
+          : {
+              kind: "pit" as const,
+              sequence: event.sequence,
+              lapNumber: event.lapNumber,
+              durationSeconds: event.durationSeconds,
+              service: event.service,
+              tyreChange: event.tyreChange,
+              fuelAdded: event.fuelAdded,
+            },
+      ),
     {
       kind: "finish",
       classification: result.classification,
@@ -62,6 +79,20 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
       <div className="min-w-28 rounded-md border border-app-border bg-app-surface px-3 py-2">
         <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-text/60">Start</div>
         <div className="mt-1 text-xs text-app-text/90">Session begins</div>
+      </div>
+    );
+  }
+
+  if (node.kind === "position") {
+    return (
+      <div className="min-w-32 rounded-md border border-violet-400/40 bg-violet-400/10 px-3 py-2">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300">Position</div>
+        {node.lapNumber != null && <div className="mt-1 text-xs text-app-text/70">End lap {node.lapNumber}</div>}
+        {node.positionBefore != null && node.positionAfter != null && (
+          <div className="text-sm font-semibold text-app-text">
+            P{node.positionBefore} → P{node.positionAfter}
+          </div>
+        )}
       </div>
     );
   }

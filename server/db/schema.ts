@@ -134,6 +134,9 @@ export const pitEvents = sqliteTable(
 			.notNull()
 			.references(() => sessionResults.id, { onDelete: "cascade" }),
 		sequence: integer("sequence").notNull(),
+		eventType: text("event_type").notNull().default("pit"),
+		positionBefore: integer("position_before"),
+		positionAfter: integer("position_after"),
 		lapNumber: integer("lap_number"),
 		elapsedSeconds: real("elapsed_seconds"),
 		durationSeconds: real("duration_seconds"),

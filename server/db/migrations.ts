@@ -1141,4 +1141,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`,
     ],
   },
+  // v50: Persist race timeline event types and position transitions.
+  {
+    version: 50,
+    name: "persist race timeline positions",
+    sql: [
+      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
+      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
+      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
+    ],
+  },
 ];

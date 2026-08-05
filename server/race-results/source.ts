@@ -62,6 +62,38 @@ function extractPitSignals(packets: TelemetryPacket[]): PitServiceSignals[] | un
   return undefined;
 }
 
+function extractPositionChanges(packets: TelemetryPacket[]) {
+  const lapPositions = new Map<number, number>();
+  for (const packet of packets) {
+    if (packet.LapNumber == null || packet.LapNumber <= 0 || packet.RacePosition == null || packet.RacePosition <= 0) continue;
+    lapPositions.set(packet.LapNumber, packet.RacePosition);
+  }
+  const changes = [];
+  let previousPosition: number | null = null;
+  for (const [lapNumber, position] of [...lapPositions.entries()].sort(([a], [b]) => a - b)) {
+    if (previousPosition != null && position !== previousPosition) {
+      changes.push({
+        eventType: "position-change" as const,
+        sequence: 100000 + lapNumber,
+        lapNumber,
+        elapsedSeconds: null,
+        durationSeconds: null,
+        service: "unknown" as const,
+        tyreChange: null,
+        fuelAdded: null,
+        fuelBefore: null,
+        fuelAfter: null,
+        positionBefore: previousPosition,
+        positionAfter: position,
+        linkage: "linked" as const,
+        source: { telemetry: "RacePosition", boundary: "lap-end" },
+      });
+    }
+    previousPosition = position;
+  }
+  return changes.length > 0 ? changes : undefined;
+}
+
 function extractF1Result(packets: TelemetryPacket[]) {
   const packet = last<TelemetryPacket>(packets);
   const f1 = packet?.f1;
@@ -102,11 +134,13 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     fastestLapSource: f1 ? "f1-grid" : null,
     packets,
     pitEvents: pitSignals ? derivePitLedger(pitSignals) : undefined,
+    positionChanges: extractPositionChanges(packets),
     tyreStrategy: firstPacket?.f1?.tyreCompound ?? firstPacket?.acc?.tireCompound ?? null,
     fuelStrategy: firstPacket?.acc ? { fuelPerLap: firstPacket.acc.fuelPerLap } : null,
     provenance: {
       ...(f1?.provenance ?? {}),
       pitLedger: pitSignals ? `${gameId}-pit-transition` : "unsupported",
+      positionChanges: "TelemetryPacket.RacePosition at lap boundaries",
       tyreStrategy: firstPacket?.f1 ? "f1.tyreCompound" : firstPacket?.acc ? "acc.tireCompound" : "unknown",
       fuelStrategy: firstPacket?.acc ? "acc.fuelPerLap" : "unknown",
     },

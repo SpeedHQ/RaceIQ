@@ -42,21 +42,25 @@ function derivePodium(position: number | null, classification: ResultClassificat
 
 function stableEvents(events: PitEvent[] | undefined): PitEvent[] {
   return [...(events ?? [])]
-    .sort((a, b) => a.sequence - b.sequence)
+    .sort((a, b) => {
+      const lapA = a.lapNumber ?? Number.MAX_SAFE_INTEGER;
+      const lapB = b.lapNumber ?? Number.MAX_SAFE_INTEGER;
+      return lapA - lapB || a.sequence - b.sequence;
+    })
     .map((event, index) => ({ ...event, sequence: index + 1 }));
 }
 
 export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResult {
   const sessionType = normalizeSessionType(source.sessionType);
   const classification = normalizeClassification(source, sessionType);
-  const events = stableEvents(source.pitEvents);
+  const events = stableEvents([...(source.pitEvents ?? []), ...(source.positionChanges ?? [])]);
   const reasons = [...new Set(source.reasons)];
   const provenance = { ...source.provenance };
 
   if (!source.sessionType) reasons.push("session-type-missing");
   if (source.finishingPosition == null && sessionType === "race") reasons.push("finishing-position-unknown");
   if (source.isFastestLap == null) reasons.push("fastest-lap-unknown");
-  if (events.length === 0 && source.pitEvents == null) reasons.push("pit-ledger-unsupported");
+  if (events.length === 0 && source.pitEvents == null && source.positionChanges == null) reasons.push("pit-ledger-unsupported");
 
   return {
     sessionType,
@@ -65,7 +69,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     qualifyingPosition: source.qualifyingPosition ?? null,
     isPodium: derivePodium(source.finishingPosition ?? null, classification),
     isFastestLap: source.isFastestLap ?? null,
-    pitCount: events.length,
+    pitCount: events.filter((event) => event.eventType !== "position-change").length,
     events,
     tyreStrategy: source.tyreStrategy ?? null,
     fuelStrategy: source.fuelStrategy ?? null,
