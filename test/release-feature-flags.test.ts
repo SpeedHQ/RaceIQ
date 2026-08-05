@@ -61,13 +61,16 @@ describe("release feature flags", () => {
     });
   });
 
-  test("rejects missing flags with the variable name", () => {
-    expect(() =>
+  test("defaults missing flags to disabled", () => {
+    expect(
       releaseFeatureFlags({
         ...developmentEnv,
         RACEIQ_FEATURE_F1_EXPERIMENTS: undefined,
       }),
-    ).toThrow("RACEIQ_FEATURE_F1_EXPERIMENTS");
+    ).toEqual({
+      f1Experiments: false,
+      iracingAdapter: true,
+    });
   });
 
   test("rejects malformed flags with the variable name", () => {

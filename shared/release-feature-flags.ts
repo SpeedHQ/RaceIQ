@@ -9,6 +9,7 @@ export interface ReleaseFeatureFlagEnvironment {
 }
 
 function booleanFlag(name: keyof ReleaseFeatureFlagEnvironment, value: string | undefined): boolean {
+  if (value === undefined) return false;
   if (value === "true") return true;
   if (value === "false") return false;
   throw new Error(`Invalid ${name}: expected "true" or "false"`);
