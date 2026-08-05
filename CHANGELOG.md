@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Fixes
+- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
+
+## v0.14.0 - 2026-08-05
+
 ### Features
 - Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
 - Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
@@ -26,7 +31,6 @@
 - Improve session and sector tables when timing data is sparse or unavailable
 - Show every registered game in storage settings, including games without recorded sessions
 - Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
-- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
