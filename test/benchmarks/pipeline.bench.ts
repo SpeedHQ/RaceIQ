@@ -22,7 +22,8 @@ type BInternal = {
   const baseline = !!(this.flags & 0x1);
   const style = { highlight: this._highlight, compact: !!(this.flags & 0x2) };
   if (isStatic) {
-    let stats, error;
+    let stats: Awaited<ReturnType<typeof measure>> | undefined;
+    let error: unknown;
     try { stats = await measure(this.f as Parameters<typeof measure>[0], tune as unknown as Parameters<typeof measure>[1]); }
     catch (err) { error = err; if (thrw) throw err; }
     return { kind: "static", args: this._args, alias: this._name, group: this._group, baseline,

@@ -3,9 +3,9 @@
  * and reprocessSession strategy selection (in-place vs replace).
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { SessionRecorder } from "../../server/session-capture/recorder";
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { reprocessSession } from "../../server/session-capture/reprocess";

@@ -4,8 +4,8 @@
  *
  * Usage: bun run scripts/games/f1-2025/parse-ai-spline.ts [file.erp] [output-dir]
  */
-import { mkdirSync, readFileSync, writeFileSync } from "fs";
-import { resolve, join } from "path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve, join } from "node:path";
 import * as fzstd from "fzstd";
 import { extractMatchingErpFragments } from "./lib/erp";
 import { parseBxml } from "./lib/bxml";

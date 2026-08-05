@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, statSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
 import { parseAccBuffers } from "../../games/acc/parser";
 import { readWString } from "../../games/acc/utils";

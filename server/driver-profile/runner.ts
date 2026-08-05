@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 
 import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
@@ -27,7 +27,7 @@ import {
   type DriverProfileScopeKey,
 } from "../db/driver-profile-queries";
 import { getLapMetaForProfileScope } from "../db/lap-read-queries";
-import { type AnalysisUsage } from "../db/analysis-queries";
+import type { AnalysisUsage } from "../db/analysis-queries";
 
 export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId">;
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";

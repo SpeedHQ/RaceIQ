@@ -225,7 +225,7 @@ export function patchCarSetup(buf: Buffer, edits: CarSetupEdit[]): Buffer {
     const floats = field.floats.slice();
     for (const [idx, v] of byIndex) floats[idx] = v;
     const b = Buffer.alloc(floats.length * 4);
-    floats.forEach((v, i) => b.writeFloatLE(v, i * 4));
+    for (let i = 0; i < floats.length; i++) b.writeFloatLE(floats[i], i * 4);
     encoded.set(field, b);
   }
 

@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderAllReleaseNotes, renderUnreleasedBody } from "@shared/tooling/render";
 const version = process.argv[2];
 if (!version) throw new Error("Usage: bun scripts/release/generate-release-note.ts <version>");

@@ -73,8 +73,9 @@ describe("ACC StatusCheckProcessor", () => {
 
 class CountingProcessor implements TripletProcessor {
   count = 0;
-  async process(): Promise<void> {
+  async process(): Promise<undefined> {
     this.count++;
+    return undefined;
   }
 }
 

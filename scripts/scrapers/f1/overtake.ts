@@ -1,5 +1,5 @@
 import { fetchText } from "../../lib/http";
-import { GuideSection } from "./types";
+import type { GuideSection } from "./types";
 
 const BASE = "https://www.overtake.gg/news/f1-25-track-guides.3245";
 const HEADERS = { "User-Agent": "RaceIQ-SetupScraper/1.0 (racing telemetry app)" };
@@ -22,8 +22,9 @@ export function parseSections(html: string): GuideSection[] {
   const sections: GuideSection[] = [];
   let lastIdx = 0;
   let pendingHeading = "";
-  let match: RegExpExecArray | null;
-  while ((match = headingRe.exec(content)) !== null) {
+  while (true) {
+    const match = headingRe.exec(content);
+    if (match === null) break;
     if (pendingHeading) {
       const body = plain(content.slice(lastIdx, match.index));
       if (body.length > 20) sections.push({ heading: pendingHeading, body });

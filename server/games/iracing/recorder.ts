@@ -12,9 +12,9 @@
  *   Frames: [type(1 byte)] [size(4 bytes)] [data(N bytes)]
  *           type: 0=packed iRacing session/value-delta source frame
  */
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { resolve } from "path";
-import { gunzipSync } from "zlib";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 import { IRACING_MAX_SOURCE_FRAME_SIZE } from "./source-frame";
 export const IRACING_DUMP_MAGIC = Buffer.from("IRIQDMP\0", "ascii");

@@ -9,8 +9,8 @@
  * on disk for `-File`. This script is the one choke point every build path
  * (scripts/build/build.ts, scripts/build/build-installer.ts, release.yml) runs through.
  */
-import { cpSync, mkdirSync, readdirSync } from "fs";
-import path from "path";
+import { cpSync, mkdirSync, readdirSync } from "node:fs";
+import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..", "..");
 const DIST = path.resolve(ROOT, "dist", "data");

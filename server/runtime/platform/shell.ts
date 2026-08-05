@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 export const IS_WINDOWS = process.platform === "win32";
 export const IS_DARWIN = process.platform === "darwin";

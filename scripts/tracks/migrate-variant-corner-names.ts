@@ -111,7 +111,7 @@ const named = (f: TrackFacts) => (f.corners ?? []).filter((c) => (c.name ?? "").
 let totalApplied = 0;
 let totalRejected = 0;
 
-for (const [track, layouts] of [...groups].sort()) {
+for (const [_track, layouts] of [...groups].sort()) {
   if (layouts.length < 2) continue;
   const donor = [...layouts].sort((a, b) => named(b) - named(a))[0];
   if (named(donor) === 0) continue;

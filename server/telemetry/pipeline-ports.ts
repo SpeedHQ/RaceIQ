@@ -1,5 +1,5 @@
-import { resolve } from "path";
-import { mkdirSync } from "fs";
+import { resolve } from "node:path";
+import { mkdirSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";

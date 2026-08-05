@@ -82,7 +82,8 @@ export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[]):
     if (!Number.isFinite(a) || Math.abs(a) > 30) continue;
 
     const bin = Math.floor(p.Speed / REFERENCE_BIN_M_S);
-    (samples[bin] ??= []).push(a);
+    samples[bin] ??= [];
+    samples[bin].push(a);
   }
 
   const bins: (number | undefined)[] = [];

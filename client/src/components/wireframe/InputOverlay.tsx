@@ -1,6 +1,6 @@
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
-import * as THREE from "three";
+import type * as THREE from "three";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { threeColor } from "../../lib/wireframe-utils";
 

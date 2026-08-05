@@ -17,7 +17,7 @@ import { LibSQLStore } from "@mastra/libsql";
 import { DuckDBStore } from "@mastra/duckdb";
 import { PinoLogger } from "@mastra/loggers";
 import { Observability, DefaultExporter } from "@mastra/observability";
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { lapAnalystAgent } from "./agents/lap-analyst";
 import { lapChatAgent } from "./agents/lap-chat";
 import { compareEngineerAgent } from "./agents/compare-engineer";

@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { resolve } from "path";
-import { API, BATCH, CarSpecRow, WikiCar } from "./types";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { API, BATCH, type CarSpecRow, type WikiCar } from "./types";
 import { fetchJson } from "./wiki";
 
 export async function resolveImageUrls(cars: WikiCar[]): Promise<Map<string, string>> {
@@ -59,5 +59,5 @@ export async function downloadImages(rows: CarSpecRow[], projectRoot: string): P
 export function writeCsv(rows: CarSpecRow[], outputPath: string): void {
   const header = "ordinal,hp,torque,weightLbs,weightKg,displacement,engine,drivetrain,gears,aspiration,frontWeightPct,pi,speedRating,brakingRating,handlingRating,accelRating,price,division,topSpeedMph,quarterMile,zeroToSixty,zeroToHundred,braking60,braking100,lateralG60,lateralG120,imageUrl,wikiUrl,synopsis";
   const lines = rows.map(row => [row.ordinal, row.hp, row.torque, row.weightLbs, row.weightKg, row.displacement, `"${row.engine}"`, row.drivetrain, row.gears, row.aspiration, row.frontWeightPct, row.pi, row.speedRating, row.brakingRating, row.handlingRating, row.accelRating, row.price, `"${row.division}"`, row.topSpeedMph, row.quarterMile, row.zeroToSixty, row.zeroToHundred, row.braking60, row.braking100, row.lateralG60, row.lateralG120, `"${row.imageUrl}"`, `"${row.wikiUrl}"`, `"${row.synopsis}"`].join(","));
-  writeFileSync(outputPath, [header, ...lines].join("\n") + "\n");
+  writeFileSync(outputPath, `${[header, ...lines].join("\n")}\n`);
 }

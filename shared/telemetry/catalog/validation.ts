@@ -184,7 +184,7 @@ export function assertTelemetryCatalogComplete(): void {
       throw new Error(`${variable.id} has invalid range`);
     }
     const parent = groupsById.get(variable.parentId);
-    if (!parent || !parent.children.includes(variable.id)) {
+    if (!parent?.children.includes(variable.id)) {
       throw new Error(`${variable.id} has invalid parent ${variable.parentId}`);
     }
     for (const gameId of KNOWN_GAME_IDS) {
@@ -244,8 +244,7 @@ export function assertTelemetryCatalogComplete(): void {
       if (mapping.kind !== "direct") {
         const execution = mapping.execution;
         if (
-          !execution ||
-          !execution.id ||
+          !execution?.id ||
           !execution.version ||
           !execution.deterministic ||
           !/^[a-f0-9]{64}$/.test(execution.codeHash) ||
@@ -318,7 +317,7 @@ export function assertTelemetryCatalogComplete(): void {
   for (const group of TELEMETRY_CATALOG.groups) {
     if (group.parentId) {
       const parent = groupsById.get(group.parentId);
-      if (!parent || !parent.children.includes(group.id)) {
+      if (!parent?.children.includes(group.id)) {
         throw new Error(`${group.id} has invalid parent ${group.parentId}`);
       }
     }

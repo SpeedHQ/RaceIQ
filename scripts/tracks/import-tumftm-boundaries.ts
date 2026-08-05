@@ -8,9 +8,9 @@
  * Usage: bun run scripts/tracks/import-tumftm-boundaries.ts
  */
 
-import { writeFileSync, mkdirSync } from "fs";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { writeFileSync, mkdirSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = resolve(__dirname, "../../shared/data/tracks/tumftm");
@@ -54,7 +54,7 @@ async function fetchTrackCSV(tumftmName: string): Promise<RawRow[]> {
   const rows: RawRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const parts = lines[i].split(",").map(Number);
-    if (parts.length < 4 || parts.some(isNaN)) continue;
+    if (parts.length < 4 || parts.some(Number.isNaN)) continue;
     rows.push({ x: parts[0], y: parts[1], wRight: parts[2], wLeft: parts[3] });
   }
   return rows;

@@ -6,7 +6,7 @@
  * type=0 → physics (800 bytes)
  */
 
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 
 const PHYSICS_SIZE = 800;
 const HEADER_SIZE = 16;
@@ -170,7 +170,7 @@ function readField(offset: number, type: "f32" | "i32"): number {
   return view.getInt32(offset, true);
 }
 
-console.log("\n=== PHYSICS FIELD VALUES AT FRAME " + targetIdx + " ===");
+console.log(`\n=== PHYSICS FIELD VALUES AT FRAME ${targetIdx} ===`);
 console.log("Field                    Offset  Type   Value");
 console.log("─".repeat(60));
 
@@ -200,12 +200,12 @@ const hasData: number[] = [];
 
 for (let off = 0; off <= 796; off += 4) {
   let allZero = true;
-  let anyNonZero = false;
+  let _anyNonZero = false;
   for (const dv of allViews) {
     if (off + 4 > dv.byteLength) continue;
     const v = dv.getFloat32(off, true);
-    if (v !== 0.0 && !isNaN(v) && isFinite(v)) {
-      anyNonZero = true;
+    if (v !== 0.0 && !Number.isNaN(v) && Number.isFinite(v)) {
+      _anyNonZero = true;
       allZero = false;
       break;
     }

@@ -18,9 +18,9 @@
  * required. Appended rows default to variant "GP"; extra layouts still
  * need one drive each (the table has no layout list).
  */
-import { readFileSync, readdirSync, existsSync, appendFileSync } from "fs";
-import { gunzipSync } from "zlib";
-import { join, resolve } from "path";
+import { readFileSync, readdirSync, existsSync, appendFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
+import { join, resolve } from "node:path";
 import { STATIC_EVO } from "../../../server/games/ac-evo/structs";
 import { readCString } from "../../../server/games/ac-evo/utils";
 import { getAcEvoTrackByName, getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
@@ -77,7 +77,7 @@ function fromGame(explicitPath?: string): void {
   console.log(`reading ${kspkgPath}\n`);
 
   const pkg = Kspkg.open(kspkgPath);
-  let records;
+  let records: ReturnType<typeof parseTracksTable>;
   try {
     records = parseTracksTable(pkg.readFile("system\\tracks.table"));
   } finally {
@@ -116,7 +116,7 @@ function fromGame(explicitPath?: string): void {
 
   const content = readFileSync(CSV_PATH, "utf-8");
   const trailingNewline = content.endsWith("\n") ? "" : "\n";
-  appendFileSync(CSV_PATH, trailingNewline + newRows.join("\n") + "\n");
+  appendFileSync(CSV_PATH, `${trailingNewline + newRows.join("\n")}\n`);
   console.log(
     `\nappended ${newRows.length} row(s) to ${CSV_PATH} (variant defaults to GP — extra layouts still need one drive each; the table has no layout list)`,
   );

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detection/types"
 import { parseDump } from "../support/recordings/parse-dump";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
+import { assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
 import { generateRecordingVisualizations } from "../support/laps/visualizations";
 import { getRecordingFixture } from "../support/recordings/fixtures";
 
@@ -14,7 +14,7 @@ describe("F1-2025 recording", () => {
       if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);
-      const { laps, sessions, carModel, trackName, wsNotifications } = await parseDump("f1-2025", recording);
+      const { laps, carModel, trackName, wsNotifications } = await parseDump("f1-2025", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);

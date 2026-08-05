@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { writeFileSync } from "fs";
-import { resolve } from "path";
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /** Format a lap time in seconds as "m:ss.sss". */
 function formatLapTime(seconds: number): string {

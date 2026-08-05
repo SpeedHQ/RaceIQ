@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
 import { getAccCarByModel } from "../../shared/racing/cars/acc";
 import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc";

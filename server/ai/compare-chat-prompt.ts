@@ -57,7 +57,7 @@ function summarizeComparison(comp: ComparisonResult): string {
       out += `  ${c.label}: ${sign}${c.deltaSeconds.toFixed(3)}s (A=${c.timeA.toFixed(3)}s, B=${c.timeB.toFixed(3)}s)\n`;
     }
   }
-  return out + "\n";
+  return `${out}\n`;
 }
 
 export function buildCompareChatContext(

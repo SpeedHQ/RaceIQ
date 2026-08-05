@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { z } from "zod";
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
@@ -138,7 +138,7 @@ export function saveSettings(settings: AppSettings): void {
   // Validate before writing
   const validated = AppSettingsSchema.parse(settings);
   const tmpPath = `${SETTINGS_PATH}.tmp`;
-  writeFileSync(tmpPath, JSON.stringify(validated, null, 2) + "\n");
+  writeFileSync(tmpPath, `${JSON.stringify(validated, null, 2)}\n`);
   renameSync(tmpPath, SETTINGS_PATH);
 }
 

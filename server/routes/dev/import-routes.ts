@@ -1,7 +1,7 @@
-import { readFileSync, unlinkSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { resolve } from "path";
-import { gunzipSync } from "zlib";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { Hono } from "hono";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"

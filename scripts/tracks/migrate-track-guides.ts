@@ -18,8 +18,8 @@
  * Usage: bun scripts/tracks/migrate-track-guides.ts   (then revert that export)
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { TrackGuideCornerFile, TrackGuideFile } from "../../shared/racing/tracks/guide/types";
 // @ts-expect-error — __rawGuides is a temporary export that exists only while this script runs.
 import { __rawGuides } from "../../server/ai/track-guides";

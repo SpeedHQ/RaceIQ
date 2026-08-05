@@ -5,8 +5,8 @@
  * parses the BXML gate data, and outputs centerline CSV + boundaries JSON.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 import * as fzstd from "fzstd";
 import { USER_TRACKS_DIR } from "../../runtime/config/paths";
 import { findSteamInstall } from "../shared/steam-install";
@@ -136,7 +136,7 @@ function parseBXML(data: Buffer): Gate[] {
     const p = parts[i];
     if (p === "gate" && i + 1 < parts.length && parts[i + 1] === "id") {
       if (currentGate?.x !== undefined) gates.push(currentGate as Gate);
-      currentGate = { id: parseInt(parts[i + 2]), name: "", x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, waypoints: [] };
+      currentGate = { id: parseInt(parts[i + 2], 10), name: "", x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, waypoints: [] };
       if (parts[i + 3] === "name") { currentGate.name = parts[i + 4]; i += 5; }
       else i += 3;
       inWaypoints = false;
@@ -196,12 +196,12 @@ function parseTrackSpaceSpline(data: Buffer): { maintrack: TrackSpacePoint[]; pi
       const next = parts[i + 1];
       if (next?.includes(",")) {
         const [x, y, z] = next.split(",").map((s) => parseFloat(s.trim()));
-        if (!isNaN(x) && !isNaN(z)) splines[currentSpline].push({ x, y, z });
+        if (!Number.isNaN(x) && !Number.isNaN(z)) splines[currentSpline].push({ x, y, z });
         i++;
       }
     }
   }
-  return { maintrack: splines["maintrack"] ?? [], pit: splines["pit_1"] ?? [] };
+  return { maintrack: splines.maintrack ?? [], pit: splines.pit_1 ?? [] };
 }
 
 // ── Alignment helpers ───────────────────────────────────────────────

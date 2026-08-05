@@ -1,5 +1,5 @@
-import { cpSync, mkdirSync } from "fs";
-import path from "path";
+import { cpSync, mkdirSync } from "node:fs";
+import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..", "..");
 mkdirSync(path.join(ROOT, "dist"), { recursive: true });

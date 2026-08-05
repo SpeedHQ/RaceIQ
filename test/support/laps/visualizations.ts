@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { mkdirSync, rmSync } from "fs";
-import { join } from "path";
+import { mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { generateLapSvg, generateRawSvg } from "./svg";
 
 const OUTPUT_DIR = "test/e2e/output";

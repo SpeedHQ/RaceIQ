@@ -1,5 +1,5 @@
 import { fetchText } from "../../lib/http";
-import { GuideSection, SRS, SetupRecord, SrsData } from "./types";
+import { type GuideSection, SRS, type SetupRecord, type SrsData } from "./types";
 
 const HEADERS = { "User-Agent": "RaceIQ-SetupScraper/1.0 (racing telemetry app)" };
 
@@ -18,8 +18,11 @@ function toPlainText(fragment: string): string {
 export function parseListingPage(html: string): { setupUrls: string[]; videoUrl: string; trackGuide: GuideSection[]; setupTips: string; drivingTips: string } {
   const setupUrls: string[] = [];
   const urlRe = /href="(https:\/\/simracingsetup\.com\/setups\/f1-25-setups\/[^" ]+)"/gi;
-  let match: RegExpExecArray | null;
-  while ((match = urlRe.exec(html)) !== null) if (!match[1].includes("-pro")) setupUrls.push(match[1]);
+  while (true) {
+    const match = urlRe.exec(html);
+    if (match === null) break;
+    if (!match[1].includes("-pro")) setupUrls.push(match[1]);
+  }
   const vidMatch = html.match(/(?:tube\.rvere\.com\/embed\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
   const videoUrl = vidMatch ? `https://www.youtube.com/watch?v=${vidMatch[1]}` : "";
 
@@ -38,8 +41,9 @@ export function parseListingPage(html: string): { setupUrls: string[]; videoUrl:
     const sections: GuideSection[] = [];
     let lastIdx = 0;
     let pendingHeading = "";
-    let headingMatch: RegExpExecArray | null;
-    while ((headingMatch = headingRe.exec(chunk)) !== null) {
+    while (true) {
+      const headingMatch = headingRe.exec(chunk);
+      if (headingMatch === null) break;
       if (pendingHeading) {
         const body = toPlainText(chunk.slice(lastIdx, headingMatch.index));
         if (body) sections.push({ heading: pendingHeading, body });
@@ -78,10 +82,10 @@ export function parseListingPage(html: string): { setupUrls: string[]; videoUrl:
 export function parseDetail(html: string): SetupRecord {
   const val = (label: string): number | null => {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const match = html.match(new RegExp(escaped + `[^<]*</div>\\s*<div class="setup-part-number">\\s*(-?\\d+\\.?\\d*)`, "i"));
+    const match = html.match(new RegExp(`${escaped}[^<]*</div>\\s*<div class="setup-part-number">\\s*(-?\\d+\\.?\\d*)`, "i"));
     return match ? parseFloat(match[1]) : null;
   };
-  const lapMatch = html.match(/(\d:\d{2}[\.:]\d{3})/);
+  const lapMatch = html.match(/(\d:\d{2}[.:]\d{3})/);
   const teams = ["Ferrari", "McLaren", "Red Bull", "Mercedes", "Aston Martin", "Alpine", "Williams", "Haas", "Kick Sauber", "RB", "Racing Bulls"];
   const title = html.match(/<title>([^<]+)/i)?.[1] ?? "";
   const videoMatch = html.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);

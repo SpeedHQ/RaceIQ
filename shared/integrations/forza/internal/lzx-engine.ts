@@ -122,7 +122,8 @@ function decodeTable( nsyms: number, nbits: number, lengths: number[] ): number[
     for (let sym = 0; sym < nsyms; sym++) {
       if (lengths[sym] !== bitCount) continue;
       let leaf = pos;
-      if ((pos += bitMask) > tableMask)
+      pos += bitMask;
+      if (pos > tableMask)
         throw new Error("Huffman table overrun!");
       let fill = bitMask;
       while (fill--) table[leaf++] = sym;
@@ -150,7 +151,8 @@ function decodeTable( nsyms: number, nbits: number, lengths: number[] ): number[
         if ((pos >>> (15 - fill)) & 1) leaf++;
       }
       table[leaf] = sym;
-      if ((pos += bitMask) > tableMask16)
+      pos += bitMask;
+      if (pos > tableMask16)
         throw new Error("Huffman table overrun!");
     }
     bitMask >>= 1;
@@ -167,7 +169,8 @@ function readHuffSymbol( reader: BitReader, table: number[], lengths: number[], 
       sym <<= 1;
       sym |= peeked32 & j ? 1 : 0;
       if (!j) return 0;
-    } while ((sym = table[sym]) >= nsyms);
+      sym = table[sym];
+    } while (sym >= nsyms);
   }
   reader.bitPosition += lengths[sym];
   return sym;
@@ -241,13 +244,14 @@ export class LzxDecoder {
         const lo = reader.readLZXBits(8);
         this.blockRemaining = (hi << 8) | lo;
         switch (this.blockType) {
-          // @ts-ignore — intentional fallthrough: ALIGNED initialises extra table then shares VERBATIM logic
           case BLOCKTYPE_ALIGNED:
-            for (let i = 0; i < ALIGNED_NUM_ELEMENTS; i++) {
-              this.alignedLen[i] = reader.readLZXBits(3);
-            }
-            this.alignedTable = decodeTable( ALIGNED_NUM_ELEMENTS, ALIGNED_MAXBITS, this.alignedLen );
           case BLOCKTYPE_VERBATIM:
+            if (this.blockType === BLOCKTYPE_ALIGNED) {
+              for (let i = 0; i < ALIGNED_NUM_ELEMENTS; i++) {
+                this.alignedLen[i] = reader.readLZXBits(3);
+              }
+              this.alignedTable = decodeTable( ALIGNED_NUM_ELEMENTS, ALIGNED_MAXBITS, this.alignedLen );
+            }
             this.readLengths(reader, this.maintreeLen, 0, NUM_CHARS);
             this.readLengths( reader, this.maintreeLen, NUM_CHARS, this.mainElements );
             this.maintreeTable = decodeTable( NUM_CHARS + 50 * 8, MAINTREE_MAXBITS, this.maintreeLen );
@@ -264,9 +268,8 @@ export class LzxDecoder {
             throw new Error(`Invalid block type: ${this.blockType}`);
         }
       }
-      let thisRun: number;
-      while ((thisRun = this.blockRemaining) > 0 && togo > 0) {
-        if (thisRun > togo) thisRun = togo;
+      while (this.blockRemaining > 0 && togo > 0) {
+        const thisRun = Math.min(this.blockRemaining, togo);
         togo -= thisRun;
         this.blockRemaining -= thisRun;
         this.windowPosn &= this.windowSize - 1;

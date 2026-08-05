@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readdirSync } from "fs";
-import { join, relative, sep } from "path";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import pixelmatch from "pixelmatch";
 import sharp from "sharp";
 import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "./visual-diff-config";

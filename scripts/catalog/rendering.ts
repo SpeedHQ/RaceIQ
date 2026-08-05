@@ -283,7 +283,6 @@ async function verifyArtifacts(
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  CATALOG_SCHEMA_VERSION,
   GAME_IDS,
   OUTPUT_MARKDOWN_PATH,
   OUTPUT_MATRIX_PATH,

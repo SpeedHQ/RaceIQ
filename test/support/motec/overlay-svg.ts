@@ -23,8 +23,8 @@
  * reviewable image diff.
  */
 
-import { writeFileSync } from "fs";
-import { resolve } from "path";
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { GameId } from "../../../shared/games/ids";
 import { flipPoints, needsTrackFlip, type Pt } from "../../../shared/racing/tracks/coords";
 import { makeTrackProjection } from "../../../shared/racing/tracks/projection";

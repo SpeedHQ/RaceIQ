@@ -70,7 +70,7 @@ export interface PromptSegment {
 }
 
 function pct(n: number) {
-  return (n * 100).toFixed(1) + "%";
+  return `${(n * 100).toFixed(1)}%`;
 }
 
 function mOrDash(v: number | null): string {

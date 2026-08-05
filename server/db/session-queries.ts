@@ -7,8 +7,8 @@ import type { SessionMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { tryGetGame } from "../../shared/games/registry";
-import { existsSync, unlinkSync } from "fs";
-import { relative, resolve, sep } from "path";
+import { existsSync, unlinkSync } from "node:fs";
+import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
@@ -191,7 +191,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
  */
 
 export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
-  let query = db
+  const query = db
     .select({
       id: sessions.id,
       carOrdinal: sessions.carOrdinal,

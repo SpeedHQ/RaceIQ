@@ -6,10 +6,10 @@
  *   bun run scripts/games/f1-2025/erp-extract.ts <file.erp> <resource-pattern> [--output <dir>]
  *   bun run scripts/games/f1-2025/erp-extract.ts <file.erp> --list-types
  */
-import { readFileSync, mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import * as fzstd from "fzstd";
-import * as zlib from "zlib";
+import * as zlib from "node:zlib";
 import { parseErpFile, readErpFragment, type ErpFragment } from "./lib/erp";
 
 async function decompressFragment(buffer: Buffer, resourceOffset: bigint, fragment: ErpFragment): Promise<Buffer> {

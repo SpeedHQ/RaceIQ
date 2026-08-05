@@ -37,11 +37,11 @@ export const trackRecomputeOutlineRoutes = new Hono()
         // Single lap mode — use its telemetry directly as the outline
         const lapId = parseInt(lapIdParam, 10);
         const lapData = await getLapById(lapId);
-        if (!lapData || !lapData.telemetry) {
+        if (!lapData?.telemetry) {
           return c.json({ error: `Lap ${lapId} not found` }, 404);
         }
 
-        let raw: { x: number; z: number }[] = [];
+        const raw: { x: number; z: number }[] = [];
         for (const p of lapData.telemetry) {
           if (p.PositionX === 0 && p.PositionZ === 0) continue;
           raw.push({ x: p.PositionX, z: p.PositionZ });
@@ -51,7 +51,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
         }
 
         // Light smoothing to clean up noise while preserving shape
-        let outline = smoothOutline(raw, 5);
+        const outline = smoothOutline(raw, 5);
 
         const recomputeGameId = requireGameId(c);
         recordLapTrace(trackOrdinal, outline, null, null, recomputeGameId);
@@ -81,7 +81,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
 
       for (const lapMeta of bestLaps) {
         const lapData = await getLapById(lapMeta.id);
-        if (!lapData || !lapData.telemetry || lapData.telemetry.length < 50) continue;
+        if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
 
         let raw: { x: number; z: number; speed: number }[] = [];
         for (const p of lapData.telemetry) {

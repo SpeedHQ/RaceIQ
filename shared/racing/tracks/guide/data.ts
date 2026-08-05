@@ -12,8 +12,8 @@
  * deliberately small and honest so the shape can't drift before the first
  * translation lands.
  */
-import { readFileSync, readdirSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import type { TrackGuideCornerFile, TrackGuideFile } from "./types";
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { buildDriverFingerprint } from "../../server/driver-profile/fingerprint";
 import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "../../server/driver-profile/trend";
-import { GLOBAL_SCOPE, SCOPE, habitualDriver, insight, lap } from "../support/driver-profile/factories";
+import { GLOBAL_SCOPE, insight, lap } from "../support/driver-profile/factories";
 
 describe("normalized driver trend", () => {
   test("uses newest-first 70-lap slices and leaves oldest laps for benchmarks", () => {

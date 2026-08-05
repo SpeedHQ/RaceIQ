@@ -3,12 +3,12 @@
  *   macOS:   Keychain via `security` CLI
  *   Windows: Credential Manager via PowerShell
  */
-import { execSync } from "child_process";
-import { existsSync, readFileSync, unlinkSync } from "fs";
-import { resolve, dirname, join } from "path";
-import { fileURLToPath } from "url";
-import { tmpdir } from "os";
-import { randomUUID } from "crypto";
+import { execSync } from "node:child_process";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { IS_COMPILED } from "../config/paths";
 import { IS_DARWIN, IS_WINDOWS, runPowerShellScript } from "./shell";
 

@@ -2,9 +2,9 @@ import { describe, test, expect } from "bun:test";
 import { KunosRecorder } from "../../../server/games/kunos/recorder";
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
 import { PHYSICS, GRAPHICS, STATIC } from "../../../server/games/acc/structs";
-import { mkdtempSync, rmSync } from "fs";
-import { join } from "path";
-import os from "os";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import os from "node:os";
 
 describe("readKunosFrames", () => {
   test("emits one triplet per [physics, graphics, static] group", async () => {

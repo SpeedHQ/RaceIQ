@@ -6,8 +6,8 @@
  *   bun run scripts/data/import-laps.ts <path-to-zip>
  */
 import { importLapsZip } from "../../server/laps/archive"
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const input = process.argv[2];
 if (!input) {

@@ -6,9 +6,9 @@
  * + boundaries JSON.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
-import { join, resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { findSteamInstall } from "../shared/steam-install";
 
 const _scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -61,7 +61,7 @@ function loadTrackNames(): Map<number, string> {
     for (const line of csv.trim().split("\n")) {
       const parts = line.split(",");
       const id = parseInt(parts[0], 10);
-      if (isNaN(id)) continue;
+      if (Number.isNaN(id)) continue;
       const commonName = parts[3]?.trim();
       map.set(id, commonName || "");
     }

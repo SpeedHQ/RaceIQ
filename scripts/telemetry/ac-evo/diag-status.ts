@@ -9,8 +9,8 @@
  *   - Frames gated out by parser (AC_OFF / AC_REPLAY)
  *   - Whether lap detector finalises session after menu exit
  */
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { developmentReleaseFeatures } from "../../release/development-release-features";
@@ -61,7 +61,7 @@ let parsedCount = 0;
 let gatedCount = 0;
 let lastStatus = -999;
 let firstSessionId: number | null = null;
-let sessionNulledAtFrame: number | null = null;
+const _sessionNulledAtFrame: number | null = null;
 const transitions: { frame: number; rawStatus: number; statusName: string; parsed: boolean }[] = [];
 
 while (offset < buf.length) {

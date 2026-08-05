@@ -23,7 +23,7 @@ import { GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "./structs";
 class AcEvoParsingProcessor implements TripletProcessor {
   private cache: AcEvoParserCache = createAcEvoParserCache();
 
-  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
+  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<undefined> {
     try {
       const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
       if (packet) {
@@ -36,6 +36,7 @@ class AcEvoParsingProcessor implements TripletProcessor {
       console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);
       throw err;
     }
+    return undefined;
   }
 }
 

@@ -1,5 +1,5 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from "fs";
-import { dirname, join } from "path";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 const root = process.cwd();

@@ -31,10 +31,11 @@ export class DumpToBinProcessor implements TripletProcessor {
     this.recorder = recorder;
   }
 
-  async process(triplet: Triplet): Promise<void> {
+  async process(triplet: Triplet): Promise<undefined> {
     this.recorder.writePhysics(triplet.physics);
     this.recorder.writeGraphics(triplet.graphics);
     this.recorder.writeStatic(triplet.staticData);
+    return undefined;
   }
 }
 

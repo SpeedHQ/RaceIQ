@@ -1,8 +1,7 @@
 // Setup-file variables and derived/normalized links.
-import { getSchemaForGame } from "../../shared/racing/setups/schema";
+import type { getSchemaForGame } from "../../shared/racing/setups/schema";
 import { SETUP_FILE_SOURCE_MAPPINGS } from "../../shared/racing/setups/catalog/file-source-mappings";
 import { SEMANTIC_DEFINITIONS } from "./semantic-definitions";
-import { humanize } from "./ast-discovery";
 import { addSource } from "./extension-field-mapping";
 import { unavailableGames } from "./extension-metadata";
 import { attachChild } from "./packet-mapping";

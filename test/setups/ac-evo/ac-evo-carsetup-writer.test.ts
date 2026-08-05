@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { carSetupToKnobValues } from "../../../server/games/ac-evo/carsetup";
-import { patchCarSetup, rebuildFields, WRITABLE_CARSETUP_KNOBS, type CarSetupEdit } from "../../../server/games/ac-evo/carsetup-writer";
+import { patchCarSetup, rebuildFields, WRITABLE_CARSETUP_KNOBS, } from "../../../server/games/ac-evo/carsetup-writer";
 import { parseCarSetup, type WireField } from "../../../server/games/ac-evo/carsetup-wire";
 
 const FIXTURE = join(import.meta.dir, "..", "..", "artifacts", "carsetup", "Default-12312.carsetup");

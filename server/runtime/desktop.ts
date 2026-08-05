@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+import { spawn } from "node:child_process";
 import { IS_DARWIN, IS_WINDOWS } from "./platform/shell";
 
 export function preventMacSleep(): void {

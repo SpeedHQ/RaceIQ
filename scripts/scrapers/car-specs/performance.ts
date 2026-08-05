@@ -1,4 +1,4 @@
-import { API, WikiCar } from "./types";
+import { API, type WikiCar } from "./types";
 
 export function parseHtmlStats(html: string, car: WikiCar): void {
   const num = (pattern: RegExp): number | undefined => { const match = html.match(pattern); return match ? parseFloat(match[1]) : undefined; };

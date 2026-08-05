@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import { fmCarCatalog, getFmCarSpecs } from "../../shared/racing/cars/fm";

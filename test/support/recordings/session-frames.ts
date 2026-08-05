@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import type { GameId } from "../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { getServerGame } from "../../../server/games/registry";

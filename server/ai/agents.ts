@@ -22,7 +22,7 @@
  * Mastra instance out of the prod bundle while still letting the dev server
  * emit traces.
  */
-import { resolve } from "path";
+import { resolve } from "node:path";
 import type { ExperimentFocus } from "../../shared/racing/experiments/focus";
 import { lapAnalystAgent as rawLapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";

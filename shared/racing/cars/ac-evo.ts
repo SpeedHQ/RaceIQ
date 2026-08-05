@@ -7,7 +7,8 @@ let catalog: KunosCarCatalog | undefined;
 const discoveredById = new Map<number, KunosCar>();
 
 function getCatalog(): KunosCarCatalog {
-  return catalog ??= loadKunosCarCatalog("ac-evo");
+  catalog ??= loadKunosCarCatalog("ac-evo");
+  return catalog;
 }
 
 /** Overlay DB-discovered cars without changing bundled roster iteration. */

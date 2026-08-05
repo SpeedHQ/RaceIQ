@@ -5,7 +5,7 @@
  * .bin files older than 24 hours and gzips them in-place, updating the DB path
  * to .bin.gz. Skips if a session is active to avoid competing with live writes.
  */
-import { unlinkSync, existsSync } from "fs";
+import { unlinkSync, existsSync } from "node:fs";
 import { getUncompressedSessions, updateSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";

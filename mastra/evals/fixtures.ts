@@ -12,8 +12,8 @@
  * for packets via `loadLapPackets()`, so the file listing step stays fast
  * and can run without the zip present.
  */
-import { readdirSync, readFileSync, existsSync } from "fs";
-import { resolve, dirname, join } from "path";
+import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
 import { unzipSync } from "fflate";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";

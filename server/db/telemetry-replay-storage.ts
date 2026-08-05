@@ -6,8 +6,8 @@ import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
-import { gunzip } from "zlib";
-import { promisify } from "util";
+import { gunzip } from "node:zlib";
+import { promisify } from "node:util";
 
 const gunzipAsync = promisify(gunzip);
 

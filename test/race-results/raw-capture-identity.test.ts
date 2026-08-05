@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { unlinkSync } from "fs";
-import { gzipSync } from "zlib";
+import { unlinkSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
 import { getSessionResult } from "../../server/db/session-result-queries";
 import { initServerGameAdapters } from "../../server/games/init";

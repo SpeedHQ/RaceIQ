@@ -93,7 +93,7 @@ export class TripletAssembler {
       this._metrics.totalPolls++;
     }, 1000 / 100); // 10ms
 
-    console.log("[TripletAssembler] Started at 100Hz" + (this._enableMetrics ? " (observability enabled)" : ""));
+    console.log(`[TripletAssembler] Started at 100Hz${this._enableMetrics ? " (observability enabled)" : ""}`);
 
     // Log metrics periodically (every 5s)
     if (this._enableMetrics) {

@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, openSync, writeSync, closeSync } from "fs";
-import { dirname } from "path";
+import { existsSync, mkdirSync, openSync, writeSync, closeSync } from "node:fs";
+import { dirname } from "node:path";
 import { encodeFrameLength, encodeMetaFrame, META_FRAME_BYTES } from "./framing";
 
 /**

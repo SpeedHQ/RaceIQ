@@ -104,7 +104,14 @@ const NAME_OVERRIDES: Record<string, string> = {
 /** Normalize venue display names after all layouts have been built. */
 export function applyVenueNames(all: TrackFacts[]): void {
   const byTrack: Record<string, TrackFacts[]> = {};
-  for (const facts of all) (byTrack[facts.track] ??= []).push(facts);
+  for (const facts of all) {
+    let layouts = byTrack[facts.track];
+    if (!layouts) {
+      layouts = [];
+      byTrack[facts.track] = layouts;
+    }
+    layouts.push(facts);
+  }
 
   for (const [track, layouts] of Object.entries(byTrack)) {
     const base = layouts.find((layout) => layout.slug === track) ?? layouts.reduce((a, b) => (a.slug.length <= b.slug.length ? a : b));

@@ -1,4 +1,4 @@
-import { API, BATCH, WikiCar } from "./types";
+import { API, BATCH, type WikiCar } from "./types";
 
 function jsonRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
@@ -65,7 +65,7 @@ export async function fetchWikiCars(pageNames: string[]): Promise<WikiCar[]> {
       const revisions = Array.isArray(page.revisions) ? page.revisions : [];
       const revision = jsonRecord(revisions[0]);
       const slots = jsonRecord(revision.slots);
-      const content = String(jsonRecord(slots.main)["content"] ?? "");
+      const content = String(jsonRecord(slots.main).content ?? "");
       if (!content) continue;
       const car = parsePage(content, String(page.title ?? ""));
       if (!car) continue;

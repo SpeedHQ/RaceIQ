@@ -239,14 +239,14 @@ function ensureOrdinals() {
     const ordinal = parseInt(parts[0], 10);
     const name = parts[1];
     const lengthKm = parseFloat(parts[5]);
-    if (isNaN(ordinal) || !name) continue;
+    if (Number.isNaN(ordinal) || !name) continue;
 
     ordinalToTrackName.set(ordinal, name);
     const commonTrackName = parts[6]?.trim();
     if (commonTrackName) ordinalToSharedOutline.set(ordinal, commonTrackName);
 
     const outlineLen = OUTLINE_LENGTH_KM[name];
-    const excluded = outlineLen != null && !isNaN(lengthKm) && lengthKm > 0
+    const excluded = outlineLen != null && !Number.isNaN(lengthKm) && lengthKm > 0
       && Math.abs(lengthKm - outlineLen) / outlineLen > 0.30;
 
     if (availableOutlineNames.has(name) && !excluded) {

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { existsSync, readdirSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { PUBLIC_DIR, IS_COMPILED } from "../runtime/config/paths";
 
 import { GameIdQuerySchema } from "@shared/platform/http/route-schemas";
@@ -146,11 +146,17 @@ export const settingsRoutes = new Hono()
         && cachedLocalEmpty
         && cachedLocalEmpty.endpoint === endpoint
         && (Date.now() - cachedLocalEmpty.at) < MODELS_EMPTY_RETRY_MS;
-      const fetchedLocal = localCacheHit && cachedLocalModels
-        ? (console.info("[AI] ai-models local cache hit"), { models: cachedLocalModels.models, error: null as string | null })
-        : localEmptyRecent
-          ? (console.info("[AI] ai-models local recent-empty cache hit"), { models: [] as { id: string; name: string; contextLength?: number }[], error: localError })
-          : (console.info("[AI] ai-models local cache miss"), await getLocalModelsDetailed(endpoint));
+      let fetchedLocal: Awaited<ReturnType<typeof getLocalModelsDetailed>>;
+      if (localCacheHit && cachedLocalModels) {
+        console.info("[AI] ai-models local cache hit");
+        fetchedLocal = { models: cachedLocalModels.models, error: null };
+      } else if (localEmptyRecent) {
+        console.info("[AI] ai-models local recent-empty cache hit");
+        fetchedLocal = { models: [], error: localError };
+      } else {
+        console.info("[AI] ai-models local cache miss");
+        fetchedLocal = await getLocalModelsDetailed(endpoint);
+      }
       localError = fetchedLocal.error;
       const fetchedLocalModels = fetchedLocal.models;
       localModels = fetchedLocalModels.length > 0

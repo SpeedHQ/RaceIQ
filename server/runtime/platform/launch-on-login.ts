@@ -1,4 +1,4 @@
-import { dirname, join } from "path";
+import { dirname, join } from "node:path";
 import { IS_COMPILED } from "../config/paths";
 import { IS_WINDOWS, runPowerShellCommand } from "./shell";
 

@@ -5,7 +5,7 @@
  *
  * Usage: bun run scripts/telemetry/recordings/verify-lap-alignment.ts <sessionId>
  */
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import { db, initDb } from "../../../server/db/index";
 import { sessions, laps } from "../../../server/db/schema";
 import { eq } from "drizzle-orm";

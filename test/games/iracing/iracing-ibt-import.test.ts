@@ -8,7 +8,7 @@ import {
   existsSync,
   readFileSync,
   rmSync,
-} from "fs";
+} from "node:fs";
 import { getDiscoveredCarName } from "../../../server/db/discovered-cars";
 import { getDiscoveredTrackName } from "../../../server/db/discovered-tracks";
 import { db } from "../../../server/db/index";

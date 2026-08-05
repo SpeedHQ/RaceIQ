@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 
 const binPath = "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
 const data = readFileSync(binPath);

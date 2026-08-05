@@ -5,8 +5,8 @@
  * page slow to load 8 laps. It must produce byte-identical telemetry.
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";

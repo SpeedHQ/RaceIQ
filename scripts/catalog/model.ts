@@ -26,7 +26,6 @@ type GameId = (typeof GAME_IDS)[number];
 
 // Babel's public parser result is a large discriminated union. Generator only
 // needs generic traversal and a small set of well-known node properties.
-// biome-ignore lint/suspicious/noExplicitAny: generic AST traversal is clearer with Babel's runtime node shape
 type AstNode = Record<string, any>;
 
 interface SourceVariable {

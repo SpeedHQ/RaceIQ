@@ -1,4 +1,4 @@
-type ProcessorResult = boolean | void;
+type ProcessorResult = boolean | undefined;
 
 export interface AsyncProcessor<TInput> {
   process(input: TInput): Promise<ProcessorResult>;

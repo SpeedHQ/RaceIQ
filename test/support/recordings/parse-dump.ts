@@ -16,8 +16,8 @@ import { readWString } from "../../../server/games/acc/utils";
 import { STATIC } from "../../../server/games/acc/structs";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 
 let _initialized = false;

@@ -4,7 +4,7 @@
  *
  * Usage: bun scripts/build/patch-pe-gui.ts dist/raceiq.exe
  */
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 const exePath = process.argv[2];
 if (!exePath) {

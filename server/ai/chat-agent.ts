@@ -7,7 +7,7 @@
  */
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { cancelChatRun } from "./chat-run-registry";
 import type { ChatTurnMessage } from "./chat-message-context";
 

@@ -109,7 +109,7 @@ class WebSocketManager {
   }
 
   setRefreshRate(hz: string): void {
-    const rate = parseInt(hz) || 60;
+    const rate = parseInt(hz, 10) || 60;
     this.broadcastIntervalMs = rate > 0 ? Math.round(1000 / rate) : 16;
     if (this._broadcastTimer) this.startBroadcastTimer(); // restart with new interval
   }

@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 import { gunzipBuffer, isGzip } from "./framing";
 
 export interface RawCaptureIdentity {

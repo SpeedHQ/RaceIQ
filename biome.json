@@ -1,7 +1,16 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
   "files": {
-    "includes": ["**", "!!client/dist", "!!dist"]
+    "includes": [
+      "**",
+      "!!client/dist",
+      "!!client/src/paraglide",
+      "!!dist",
+      "!!.ui-diff",
+      "!!shared/data/tracks/**/*-boundaries.json",
+      "!!shared/telemetry/catalog/generated",
+      "!!test/e2e/output"
+    ]
   },
   "formatter": {
     "enabled": true,

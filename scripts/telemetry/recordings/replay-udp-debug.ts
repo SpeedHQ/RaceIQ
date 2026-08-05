@@ -5,8 +5,8 @@
  * Reads the binary format: [u32le length] [u32le timestamp_ms] [raw bytes]
  * Sends each packet to localhost:port with original timing (adjusted by speed).
  */
-import { readFileSync } from "fs";
-import { createSocket } from "dgram";
+import { readFileSync } from "node:fs";
+import { createSocket } from "node:dgram";
 
 const file = process.argv[2];
 if (!file) {
@@ -14,7 +14,7 @@ if (!file) {
   process.exit(1);
 }
 
-const port = parseInt(process.argv[3] || "5301");
+const port = parseInt(process.argv[3] || "5301", 10);
 const speed = parseFloat(process.argv[4] || "1");
 
 const data = readFileSync(file);
@@ -81,8 +81,8 @@ if (packets.length > 1) {
 }
 
 // Replay with timing
-const startTs = packets[0].timestamp;
-const startWall = Date.now();
+const _startTs = packets[0].timestamp;
+const _startWall = Date.now();
 
 let i = 0;
 

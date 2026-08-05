@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 import {
   CATALOG_FORMAT,
   CATALOG_SCHEMA_VERSION,
-  DERIVATION_VERSION,
   GAME_IDS,
   GENERATOR_NAME,
   IRACING_DIAGNOSTIC,
@@ -25,7 +24,6 @@ import {
 import {
   ast,
   categoryFor,
-  fieldDescription,
   humanize,
   interfaceFields,
   interfaceLeafFields,
@@ -35,7 +33,6 @@ import {
   slug,
 } from "./ast-discovery";
 import {
-  CATEGORY_META,
   DESCRIPTION_OVERRIDES,
   SEMANTIC_DEFINITIONS,
   TIRE_IDS,
@@ -75,7 +72,6 @@ import type {
   CatalogGroup,
   CatalogMetadata,
   CatalogVariable,
-  FieldInfo,
   GameId,
   GameLink,
   ParserOutput,

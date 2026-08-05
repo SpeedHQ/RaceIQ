@@ -20,8 +20,8 @@
  * Reader must accept both versions. Frames are self-describing (length per frame),
  * so V2 bins parse fine — tail fields just return null on V2 buffers.
  */
-import { existsSync, mkdirSync } from "fs";
-import { resolve } from "path";
+import { existsSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 // Header: magic(8) + version(4) + frameCount(4) = 16 bytes (same layout v2 and v3)
 const HEADER_SIZE = 16;
@@ -97,7 +97,7 @@ export class KunosRecorder {
    * avoiding ~100Hz duplicate static frames.
    */
   writeStatic(buffer: Buffer): void {
-    if (this._lastStatic && this._lastStatic.equals(buffer)) return;
+    if (this._lastStatic?.equals(buffer)) return;
     this._lastStatic = Buffer.from(buffer);
     this._writeBufferFrame(2, buffer);
   }
@@ -117,7 +117,7 @@ export class KunosRecorder {
       await Bun.write(this._path, buf);
 
       const fileSizeKb = (buf.length / 1024).toFixed(2);
-      const filename = this._path.split(/[\\\/]/).pop();
+      const filename = this._path.split(/[\\/]/).pop();
       console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
     }
 

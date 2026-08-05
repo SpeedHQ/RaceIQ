@@ -1,4 +1,4 @@
-import { writeFileSync } from "fs";
+import { writeFileSync } from "node:fs";
 import type { GameId } from "../../../shared/games/ids";
 import { tryGetGame } from "../../../shared/games/registry";
 import { flipPoints, needsTrackFlip, type Pt } from "../../../shared/racing/tracks/coords";
@@ -53,7 +53,7 @@ export function generateSegmentSvg(
     cum.push(cum[i - 1] + Math.sqrt(dx * dx + dz * dz));
   }
   const total = cum[cum.length - 1] || 1;
-  const fracOf = (i: number) => cum[i] / total;
+  const _fracOf = (i: number) => cum[i] / total;
   const idxAtFrac = (f: number) => {
     const target = f * total;
     let lo = 0;

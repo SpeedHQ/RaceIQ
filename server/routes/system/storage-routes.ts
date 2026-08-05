@@ -1,6 +1,6 @@
-import { existsSync } from "fs";
-import { readdir, stat, statfs } from "fs/promises";
-import { join, resolve } from "path";
+import { existsSync } from "node:fs";
+import { readdir, stat, statfs } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { Hono } from "hono";
 
 import { getAllGames } from "../../../shared/games/registry";
@@ -27,7 +27,11 @@ export const storageRoutes = new Hono()
     let binCount = 0, gzCount = 0, binBytes = 0, gzBytes = 0;
 
     function tally(gameId: string, file: string, size: number) {
-      const g = byGame[gameId] ??= { binCount: 0, gzCount: 0, binBytes: 0, gzBytes: 0 };
+      let g = byGame[gameId];
+      if (!g) {
+        g = { binCount: 0, gzCount: 0, binBytes: 0, gzBytes: 0 };
+        byGame[gameId] = g;
+      }
       if (file.endsWith(".bin.gz")) { gzCount++; gzBytes += size; g.gzCount++; g.gzBytes += size; }
       else if (file.endsWith(".bin")) { binCount++; binBytes += size; g.binCount++; g.binBytes += size; }
     }

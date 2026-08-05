@@ -1,5 +1,5 @@
-import { existsSync, readdirSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { USER_TRACKS_DIR } from "../../runtime/config/paths";
 import { scanRecordedFiles } from "../../../shared/racing/tracks/recording/outlines";

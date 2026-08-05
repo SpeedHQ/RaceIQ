@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { z } from "zod";
 
 import { collectBrowserErrors } from "../../support/browser-errors";

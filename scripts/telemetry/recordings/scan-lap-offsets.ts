@@ -2,7 +2,7 @@
  * Scan a session bin and report LapNumber transitions with their byte offsets.
  * Usage: bun run scripts/telemetry/recordings/scan-lap-offsets.ts <sessionId>
  */
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import { db, initDb } from "../../../server/db/index";
 import { sessions } from "../../../server/db/schema";
 import { eq } from "drizzle-orm";

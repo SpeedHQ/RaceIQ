@@ -16,8 +16,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, rmSync } from "fs";
-import { resolve } from "path";
+import { mkdirSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";

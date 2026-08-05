@@ -1,6 +1,6 @@
 /** Setup source/sink adapter for file-backed and snapshot-backed games. */
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "fs";
-import { dirname, resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 import { writeSetupFile } from "../ai/tune-writer";
 import { carSetupToKnobValues } from "../games/ac-evo/carsetup";

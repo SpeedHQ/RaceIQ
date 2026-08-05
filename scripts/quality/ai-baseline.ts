@@ -10,8 +10,8 @@
  *
  *   bun run ai:baseline
  */
-import { writeFileSync, mkdirSync, existsSync } from "fs";
-import { resolve } from "path";
+import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
@@ -117,7 +117,11 @@ for (const fx of listComparePairFixtures()) {
 const aggregate: Record<string, { sum: number; count: number }> = {};
 for (const row of rows) {
   for (const [id, score] of Object.entries(row.scores)) {
-    const agg = aggregate[id] ?? (aggregate[id] = { sum: 0, count: 0 });
+    let agg = aggregate[id];
+    if (!agg) {
+      agg = { sum: 0, count: 0 };
+      aggregate[id] = agg;
+    }
     agg.sum += score;
     agg.count += 1;
   }

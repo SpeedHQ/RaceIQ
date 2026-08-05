@@ -57,7 +57,14 @@ export function parseTuneRow(row: any): ParsedTune {
 
 /** Reduce one user-supplied name to a single safe path segment. */
 export function sanitisePathSegment(s: string): string {
-  return s.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").trim();
+  let safe = "";
+  for (let i = 0; i < s.length; i++) {
+    const character = s[i];
+    const code = s.charCodeAt(i);
+    if (code <= 0x1f || '<>:"/\\|?*'.includes(character)) continue;
+    safe += character;
+  }
+  return safe.trim();
 }
 
 /** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.

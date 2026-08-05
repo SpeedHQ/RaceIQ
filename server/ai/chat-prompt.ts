@@ -97,13 +97,13 @@ export function buildChatSystemPrompt(
       const parsed = JSON.parse(analysisJson);
       analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict}\n`;
       if (parsed.corners?.length) {
-        analysisContext += "Problem corners: " + parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ") + "\n";
+        analysisContext += `Problem corners: ${parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ")}\n`;
       }
       if (parsed.technique?.length) {
-        analysisContext += "Technique tips: " + parsed.technique.map((t: any) => t.tip).join("; ") + "\n";
+        analysisContext += `Technique tips: ${parsed.technique.map((t: any) => t.tip).join("; ")}\n`;
       }
       if (parsed.setup?.length) {
-        analysisContext += "Setup changes: " + parsed.setup.map((s: any) => `${s.change}: ${s.fix}`).join("; ") + "\n";
+        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.change}: ${s.fix}`).join("; ")}\n`;
       }
     } catch {
       // If analysis JSON is invalid, include raw

@@ -10,8 +10,8 @@
  * zip back, and assert the same lap reappears with the same lap time.
  */
 import { describe, test, expect, afterEach } from "bun:test";
-import { gunzipSync } from "zlib";
-import { rmSync } from "fs";
+import { gunzipSync } from "node:zlib";
+import { rmSync } from "node:fs";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";

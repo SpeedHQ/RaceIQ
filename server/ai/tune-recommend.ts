@@ -212,7 +212,7 @@ function applyDriverNotes(
   notes: string | undefined,
   telemetryBalances: Set<Balance>,
 ): void {
-  if (!notes || !notes.trim()) return;
+  if (!notes?.trim()) return;
   for (const hint of parseDriverNotes(notes)) {
     const confirmed = telemetryBalances.has(hint.balance);
     // Agreeing hint bumps the telemetry symptom one step; a lone (unconfirmed)

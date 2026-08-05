@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { Hono } from "hono";
-import { resolve, sep } from "path";
+import { resolve, sep } from "node:path";
 import { z } from "zod";
 
 import { getAllAccCars } from "../../../shared/racing/cars/acc"

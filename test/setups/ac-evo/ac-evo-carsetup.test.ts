@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { formatCarSetup, readCarSetupFile } from "../../../server/games/ac-evo/carsetup";
 import { parseCarSetup } from "../../../server/games/ac-evo/carsetup-wire";
 
@@ -52,8 +52,8 @@ describe("ac-evo carsetup parser", () => {
 
     const fl = rows("Front left");
     expect(fl["Tyre pressure"]).toBe("35 psi");
-    expect(fl["Camber"]).toBe("-3.8°");
-    expect(fl["Toe"]).toBe("-0.15");
+    expect(fl.Camber).toBe("-3.8°");
+    expect(fl.Toe).toBe("-0.15");
     expect(fl["Wheel rate"]).toBe("240 kN/m");
     expect(fl["Packer rate"]).toBe("3500");
     expect(fl["Bumpstop rate"]).toBe("1500");
@@ -71,9 +71,9 @@ describe("ac-evo carsetup parser", () => {
     expect(front["Steer ratio"]).toBe("15");
 
     const elec = rows("Electronics");
-    expect(elec["TC"]).toBe("12");
-    expect(elec["TC2"]).toBe("7");
-    expect(elec["ABS"]).toBe("4");
+    expect(elec.TC).toBe("12");
+    expect(elec.TC2).toBe("7");
+    expect(elec.ABS).toBe("4");
     expect(elec["Telemetry laps"]).toBe("20");
 
     const aero = rows("Aero & ride height");

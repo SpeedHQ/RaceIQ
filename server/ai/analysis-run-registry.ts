@@ -25,7 +25,7 @@ export function beginAnalysisRun(key: string): AnalysisRun | undefined {
 
 export function finishAnalysisRun(key: string, error?: unknown): void {
   const run = runs.get(key);
-  if (!run || run.status !== "active") return;
+  if (run?.status !== "active") return;
   run.status = error == null ? "finished" : "failed";
   run.finishedAt = Date.now();
   if (error != null) run.error = error instanceof Error ? error.message : String(error);

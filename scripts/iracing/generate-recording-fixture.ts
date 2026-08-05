@@ -8,10 +8,10 @@ import {
   readFileSync,
   rmSync,
   writeFileSync,
-} from "fs";
-import { tmpdir } from "os";
-import { resolve } from "path";
-import { gzipSync } from "zlib";
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { gzipSync } from "node:zlib";
 import {
   IRacingRecorder,
 } from "../../server/games/iracing/recorder";

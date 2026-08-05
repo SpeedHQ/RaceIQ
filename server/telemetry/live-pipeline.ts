@@ -385,7 +385,7 @@ export class LiveTelemetryPipeline {
     // Collect calibration positions for adapters that require track-outline alignment.
     if (this._totalProcessed % 6 === 0 && adapter.runtime.requiresTrackCalibration) {
       const session = detector.session;
-      if (session && session.trackOrdinal) {
+      if (session?.trackOrdinal) {
         const outline = getTrackOutlineByOrdinal(session.trackOrdinal, session.gameId);
         if (outline) {
           feedCalibrationPosition(

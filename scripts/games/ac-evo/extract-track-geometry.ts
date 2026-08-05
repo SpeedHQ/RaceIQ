@@ -15,8 +15,8 @@
  * Run: bun scripts/games/ac-evo/extract-track-geometry.ts
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { findContentKspkg, Kspkg, type KspkgEntry } from "../../../server/games/ac-evo/kspkg";
 import { parseAiSpline, type AiSplinePoint } from "../../../server/games/ac-evo/aispline";
 import { autoTrackSegments } from "../../../shared/racing/tracks/curation/generate";
@@ -151,7 +151,7 @@ function computeBoundaries(centerline: { x: number; z: number }[], halfWidthM = 
 }
 
 function writeCenterlineCsv(slug: string, pts: AiSplinePoint[]): void {
-  const body = "x,z\n" + pts.map((p) => `${p.x},${p.z}`).join("\n");
+  const body = `x,z\n${pts.map((p) => `${p.x},${p.z}`).join("\n")}`;
   writeFileSync(resolve(OUT_DIR, `${slug}-centerline.csv`), body);
 }
 
@@ -160,7 +160,7 @@ function writeCenterlineCsv(slug: string, pts: AiSplinePoint[]): void {
  *  separate dense centerline spline, so centerline and raceline share this
  *  source until a true centerline becomes available. */
 function writeRacelineCsv(slug: string, pts: AiSplinePoint[]): void {
-  const body = "x,z\n" + pts.map((p) => `${p.x},${p.z}`).join("\n");
+  const body = `x,z\n${pts.map((p) => `${p.x},${p.z}`).join("\n")}`;
   writeFileSync(resolve(OUT_DIR, `${slug}-raceline.csv`), body);
 }
 
@@ -311,7 +311,7 @@ export async function extractAcEvoTrackGeometry() {
 
   console.log("\n=== Extraction validation ===");
   console.log(
-    "slug".padEnd(20) + "pts".padStart(6) + "length(m)".padStart(12) + "expected(m)".padStart(13) + "delta%".padStart(9) + "  status  metaStatus"
+    `${"slug".padEnd(20) + "pts".padStart(6) + "length(m)".padStart(12) + "expected(m)".padStart(13) + "delta%".padStart(9)}  status  metaStatus`
   );
   for (const r of rows) {
     console.log(

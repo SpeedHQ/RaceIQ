@@ -106,7 +106,7 @@ describe("FM-2023 recording", () => {
       if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);
-      const { laps, sessions, carModel, trackName, wsNotifications } = await parseDump("fm-2023", recording);
+      const { laps, carModel, trackName, wsNotifications } = await parseDump("fm-2023", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);

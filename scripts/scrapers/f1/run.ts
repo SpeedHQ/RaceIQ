@@ -1,10 +1,10 @@
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { runPool } from "../../lib/pool";
 import { scrape as scrapeF1Laps } from "./f1laps";
 import { scrape as scrapeSrs } from "./simracing-setup";
 import { scrape as scrapeOvertake, sourceUrl } from "./overtake";
 import { ensureSourceMeta, updateSourceTimestamps, writeTrack } from "./output";
-import { OUT_DIR, SrsData, TRACK_MAP } from "./types";
+import { OUT_DIR, type SrsData, TRACK_MAP } from "./types";
 
 const outDir = resolve(import.meta.dir, "../../../", OUT_DIR);
 

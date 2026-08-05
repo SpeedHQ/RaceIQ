@@ -263,7 +263,7 @@ export const tuneChatRoutes = new Hono()
       // one is in flight), `isNew` is false and we skip starting a second
       // agent call entirely, just attaching to the existing run's stream.
       if (isNew) {
-        let stream;
+        let stream: Awaited<ReturnType<typeof agent.stream>>;
         try {
           stream = await agent.stream(messages, {
             ...chatMemoryOptions(threadId),

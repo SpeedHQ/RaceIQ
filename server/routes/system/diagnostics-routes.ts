@@ -1,6 +1,6 @@
-import { existsSync, statSync } from "fs";
-import { join } from "path";
-import { arch, platform, release, type as osType, cpus, networkInterfaces, totalmem, freemem, uptime as osUptime } from "os";
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { arch, platform, release, type as osType, cpus, networkInterfaces, totalmem, freemem, uptime as osUptime } from "node:os";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -65,7 +65,7 @@ export const diagnosticsRoutes = new Hono()
     const browserMemoryStr = c.req.query("browserMemory");
     if (browserMemoryStr) {
       const parsed = parseFloat(browserMemoryStr);
-      if (!isNaN(parsed)) browserMemoryMB = parsed;
+      if (!Number.isNaN(parsed)) browserMemoryMB = parsed;
     }
 
     // Server process memory usage
@@ -156,7 +156,7 @@ export const diagnosticsRoutes = new Hono()
       // CPU usage
       const cpuOut = ps("(Get-CimInstance Win32_Processor).LoadPercentage");
       const cpuPct = parseInt(cpuOut, 10);
-      if (!isNaN(cpuPct)) cpuUsagePercent = cpuPct;
+      if (!Number.isNaN(cpuPct)) cpuUsagePercent = cpuPct;
 
       // GPU name (first discrete GPU, skip integrated)
       const gpuOut = ps("Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name");
@@ -168,12 +168,12 @@ export const diagnosticsRoutes = new Hono()
       // GPU usage — try nvidia-smi, fall back to perf counter
       const nvOut = ps("nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits");
       const nvPct = parseInt(nvOut, 10);
-      if (!isNaN(nvPct)) {
+      if (!Number.isNaN(nvPct)) {
         gpuUsagePercent = nvPct;
       } else {
         const counterOut = ps("(Get-Counter '\\GPU Engine(*engtype_3D)\\Utilization Percentage').CounterSamples | Measure-Object -Property CookedValue -Sum | Select-Object -ExpandProperty Sum");
         const cPct = Math.round(parseFloat(counterOut));
-        if (!isNaN(cPct)) gpuUsagePercent = cPct;
+        if (!Number.isNaN(cPct)) gpuUsagePercent = cPct;
       }
 
       // Network adapter name + link speed

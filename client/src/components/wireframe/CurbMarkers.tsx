@@ -75,8 +75,8 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Teleme
   const puddleSegs = useMemo(() => filterByDistanceIndexed(puddleIndex, cx, cz, yaw, GROUND_Y), [puddleIndex, cx, cz, yaw, GROUND_Y]);
 
   // Flatten segments into individual points for rendering as instance positions
-  const curbPts = useMemo(() => curbSegs.flatMap((seg) => seg), [curbSegs]);
-  const puddlePts = useMemo(() => puddleSegs.flatMap((seg) => seg), [puddleSegs]);
+  const curbPts = useMemo(() => curbSegs.flat(), [curbSegs]);
+  const puddlePts = useMemo(() => puddleSegs.flat(), [puddleSegs]);
 
   // Instanced mesh refs — one draw call per marker type instead of one
   // `<mesh>` per point. Capacity sized to the total per-lap curb/puddle

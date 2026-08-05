@@ -156,7 +156,7 @@ const gatherPrereqs = createStep({
     // `lap_metrics`, so a week-long experiment does not re-decode every .bin.
     const metricsByLap = await getOrComputeLapMetricsBatch(agg.lapIds);
     sections.push(
-      "--- DRIVING OBSERVATIONS (raw measurements) ---\n" + formatLapObservations([...metricsByLap.values()]),
+      `--- DRIVING OBSERVATIONS (raw measurements) ---\n${formatLapObservations([...metricsByLap.values()])}`,
     );
 
     sections.push(
