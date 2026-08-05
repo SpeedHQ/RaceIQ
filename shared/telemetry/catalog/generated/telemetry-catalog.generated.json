@@ -6,10 +6,10 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+      "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
     },
     "generatedAt": "1970-01-01T00:00:00.000Z",
-    "contentHash": "5c315333fd01809a699364e55f0ab6facb338f5a1fbde43e3890eff7f33feb42"
+    "contentHash": "7e8849e3307db33012ea3dd51cc41f3946c53ff3dfb407920bfa7f557a32fc02"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -7902,7 +7902,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": []
         },
@@ -7917,7 +7917,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": []
         },
@@ -9408,7 +9408,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": []
         },
@@ -32256,7 +32256,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32285,7 +32285,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32314,7 +32314,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32461,7 +32461,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32491,7 +32491,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32520,7 +32520,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32626,7 +32626,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32657,7 +32657,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32763,7 +32763,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32792,7 +32792,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32865,7 +32865,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32895,7 +32895,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32924,7 +32924,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33049,7 +33049,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33078,7 +33078,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33545,7 +33545,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33574,7 +33574,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33660,7 +33660,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33689,7 +33689,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33850,7 +33850,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33879,7 +33879,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33965,7 +33965,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33994,7 +33994,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34268,7 +34268,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34299,7 +34299,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35921,7 +35921,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35950,7 +35950,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36019,7 +36019,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36048,7 +36048,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36520,7 +36520,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36549,7 +36549,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36578,7 +36578,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36716,7 +36716,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37128,7 +37128,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37157,7 +37157,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37186,7 +37186,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37255,7 +37255,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37285,7 +37285,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37314,7 +37314,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37587,7 +37587,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37617,7 +37617,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37646,7 +37646,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -43356,7 +43356,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -43383,7 +43383,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -43410,7 +43410,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -43437,7 +43437,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -43464,7 +43464,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -43982,7 +43982,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44041,7 +44041,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44116,7 +44116,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44158,7 +44158,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44185,7 +44185,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44212,7 +44212,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44257,7 +44257,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44299,7 +44299,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44326,7 +44326,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44353,7 +44353,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44398,7 +44398,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44425,7 +44425,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44452,7 +44452,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44479,7 +44479,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44506,7 +44506,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44553,7 +44553,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44646,7 +44646,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44729,7 +44729,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -44821,7 +44821,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45211,7 +45211,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45298,7 +45298,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45325,7 +45325,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45370,7 +45370,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45412,7 +45412,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45439,7 +45439,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45466,7 +45466,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45511,7 +45511,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45553,7 +45553,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45580,7 +45580,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45607,7 +45607,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45652,7 +45652,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45694,7 +45694,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45721,7 +45721,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45748,7 +45748,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45794,7 +45794,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45885,7 +45885,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45968,7 +45968,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -45995,7 +45995,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -46022,7 +46022,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -46049,7 +46049,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -46113,7 +46113,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -46140,7 +46140,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -46167,7 +46167,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -46194,7 +46194,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [],
           "execution": {
@@ -47216,7 +47216,7 @@
           "sources": [
             "f1.trackLength"
           ],
-          "freshness": "continuous",
+          "freshness": "session-update",
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
@@ -47236,7 +47236,7 @@
           "sources": [
             "acc.acEvo.lapLengthKm"
           ],
-          "freshness": "continuous",
+          "freshness": "session-update",
           "normalization": "kilometres * 1000",
           "description": "ac-evo parser exposes 1 linked field.",
           "provenance": {
@@ -47264,7 +47264,7 @@
             "iracing.trackLengthM",
             "iRacing.SessionInfo.WeekendInfo.TrackLength"
           ],
-          "freshness": "continuous",
+          "freshness": "session-update",
           "description": "iracing parser exposes 1 linked field.",
           "normalization": "parse YAML value-with-unit as m",
           "provenance": {
@@ -47463,7 +47463,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "execution": {
             "kind": "simplification",
@@ -47636,7 +47636,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "execution": {
             "kind": "simplification",
@@ -50136,7 +50136,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50165,7 +50165,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50194,7 +50194,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -52200,7 +52200,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "execution": {
             "kind": "simplification",
@@ -54016,7 +54016,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
+            "commit": "1a183126e3a18cba54b95b7b8bf1066c94bb8fd0838aa33d558e54be843f432b"
           },
           "execution": {
             "kind": "simplification",
@@ -65588,7 +65588,7 @@
         "unit": "m",
         "dataType": "number",
         "count": 1,
-        "description": "Track Length M source value reported by iracing in m.",
+        "description": "iRacing track length retained from session metadata.",
         "semanticId": "timing.track-length",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,

@@ -1,15 +1,21 @@
 import type { GameId } from "../../games/ids";
-import type { TelemetryPacket } from "../types";
 import type { MappingStatus, TelemetryDerivation } from "../derivations/contracts";
+import type { TelemetryPacket } from "../types";
 
 export type SemanticSlot = number & { readonly __brand: "SemanticSlot" };
-export type ResolutionState =
-  | "ok"
-  | "missing"
-  | "stale"
-  | "invalid"
-  | "not-applicable"
-  | "error";
+
+export type TelemetryTimestamp =
+  | { readonly domain: "wall-clock"; readonly milliseconds: number }
+  | { readonly domain: "session"; readonly milliseconds: number }
+  | { readonly domain: "monotonic"; readonly nanoseconds: bigint };
+
+export interface SourceObservation {
+  readonly timestamp: TelemetryTimestamp;
+  readonly updateSequence: bigint;
+}
+
+export type FreshnessState = "fresh" | "stale" | "unknown";
+export type ResolutionState = "ok" | "missing" | "stale" | "invalid" | "not-applicable" | "error";
 
 export interface ResolutionProvenance {
   simulator: GameId;
@@ -21,13 +27,13 @@ export interface ResolutionProvenance {
   catalogVersion: string;
   catalogHash: string;
   derivation?: { id: string; version: string; codeHash: string };
-  observedAt: number;
-  sourceTimestamp?: number;
+  observedAt: TelemetryTimestamp;
+  sourceObservation?: SourceObservation;
 }
 
 export interface ConfidenceComponents {
   semanticFidelity: number;
-  freshness: number;
+  freshness: number | null;
   inputCompleteness: number;
   derivationReliability?: number;
 }
@@ -38,7 +44,8 @@ export interface ResolvedValue<T> {
   unit: string | null;
   mappingStatus: MappingStatus;
   state: ResolutionState;
-  confidence: number;
+  confidence: number | null;
+  freshness: FreshnessState;
   confidenceComponents: ConfidenceComponents;
   provenance: ResolutionProvenance;
   schemaVersion: string;
@@ -62,7 +69,7 @@ export interface ResolverCompileOptions {
 
 export interface TelemetryFrameView<NativeFrame = TelemetryPacket> {
   readonly __nativeFrameType?: NativeFrame;
-  timestamp: number;
+  observation: SourceObservation;
   has(slot: SemanticSlot): boolean;
   readValue<T>(slot: SemanticSlot): T | undefined;
   readNumber(slot: SemanticSlot): number | undefined;
@@ -70,10 +77,7 @@ export interface TelemetryFrameView<NativeFrame = TelemetryPacket> {
   resolveValue<T>(slot: SemanticSlot): ResolvedValue<T>;
   resolveNumber(slot: SemanticSlot): ResolvedValue<number>;
   resolveBoolean(slot: SemanticSlot): ResolvedValue<boolean>;
-  resolveMany(
-    slots: readonly SemanticSlot[],
-    target?: ResolvedValue<unknown>[],
-  ): readonly ResolvedValue<unknown>[];
+  resolveMany(slots: readonly SemanticSlot[], target?: ResolvedValue<unknown>[]): readonly ResolvedValue<unknown>[];
 }
 
 export interface CompiledTelemetryResolver<NativeFrame = TelemetryPacket> {
@@ -85,9 +89,5 @@ export interface CompiledTelemetryResolver<NativeFrame = TelemetryPacket> {
   readonly resolverVersion: string;
   readonly derivationVersion: string;
   slot(semanticId: string): SemanticSlot;
-  createFrameView(
-    native: NativeFrame,
-    timestamp: number,
-    reuse?: TelemetryFrameView<NativeFrame>,
-  ): TelemetryFrameView<NativeFrame>;
+  createFrameView(native: NativeFrame, observation: SourceObservation, reuse?: TelemetryFrameView<NativeFrame>): TelemetryFrameView<NativeFrame>;
 }

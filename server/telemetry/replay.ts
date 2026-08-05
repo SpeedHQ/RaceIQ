@@ -1,48 +1,22 @@
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
-import type {
-  ResolvedValue,
-  SemanticSlot,
-  TelemetryFrameView,
-} from "../../shared/telemetry/resolver/contracts";
 import { canonicalizeTelemetryScalar } from "../../shared/telemetry/replay/canonicalize";
-import type {
-  CanonicalTelemetryEnvelope,
-  CanonicalTelemetryValue,
-  SemanticTelemetryReplay,
-  TelemetryRawReference,
-} from "../../shared/telemetry/replay/contracts";
+import type { CanonicalTelemetryEnvelope, CanonicalTelemetryValue, SemanticTelemetryReplay, TelemetryRawReference } from "../../shared/telemetry/replay/contracts";
+import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
+import type { ResolvedValue, SemanticSlot, SourceObservation, TelemetryFrameView, TelemetryTimestamp } from "../../shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
-import {
-  createIRacingSourceDecoderState,
-  decodeIRacingSourceFrame,
-  type IRacingValue,
-} from "../games/iracing/source-frame";
+import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "../games/iracing/source-frame";
 import { readFrameStreamStart } from "../session-capture/framing";
-import {
-  loadRawCaptureIdentity,
-  rawCaptureObjectId,
-  sha256ContentHash,
-  type RawCaptureIdentity,
-} from "../session-capture/identity";
+import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId, sha256ContentHash } from "../session-capture/identity";
 
 interface ReplayNativeFrame {
   packet: TelemetryPacket;
   nativeValues?: Readonly<Record<string, IRacingValue>>;
 }
 
-function* iterateIRacingNativeFrames(
-  source: LapReplaySource,
-  capture: Buffer | undefined,
-): Generator<Readonly<Record<string, IRacingValue>>, undefined, void> {
-  if (
-    source.gameId !== "iracing" ||
-    !capture ||
-    source.rawByteOffset == null ||
-    source.rawFrameCount == null
-  ) {
+function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | undefined): Generator<Readonly<Record<string, IRacingValue>>, undefined, void> {
+  if (source.gameId !== "iracing" || !capture || source.rawByteOffset == null || source.rawFrameCount == null) {
     return undefined;
   }
   const decoderState = createIRacingSourceDecoderState();
@@ -55,24 +29,23 @@ function* iterateIRacingNativeFrames(
     if (frameLength <= 0 || offset + frameLength > capture.length) break;
     const frame = capture.subarray(offset, offset + frameLength);
     offset += frameLength;
+    if (frameOffset < source.rawByteOffset) {
+      decodeIRacingSourceFrame(frame, decoderState);
+      continue;
+    }
+    if (replayFrames >= source.rawFrameCount) break;
     const decoded = decodeIRacingSourceFrame(frame, decoderState);
-    if (frameOffset < source.rawByteOffset) continue;
-    if (replayFrames > source.rawFrameCount) break;
     replayFrames += 1;
     if (decoded) yield decoded.values;
   }
   return undefined;
 }
 
-function resolveRawReference(
-  source: LapReplaySource,
-  capture: RawCaptureIdentity | undefined,
-): TelemetryRawReference | undefined {
-  if (
-    capture &&
-    source.rawByteOffset != null &&
-    source.rawFrameCount != null
-  ) {
+/** Test-only export for exact iRacing replay frame-window assertions. */
+export const iterateIRacingNativeFramesForTest = iterateIRacingNativeFrames;
+
+function resolveRawReference(source: LapReplaySource, capture: RawCaptureIdentity | undefined): TelemetryRawReference | undefined {
+  if (capture && source.rawByteOffset != null && source.rawFrameCount != null) {
     return {
       objectId: rawCaptureObjectId(source.sessionId),
       contentHash: capture.contentHash,
@@ -93,19 +66,21 @@ function resolveRawReference(
   return undefined;
 }
 
-function receivedTimestamp(createdAt: string): number {
+function receivedTimestamp(createdAt: string): TelemetryTimestamp {
   const iso = createdAt.includes("T") ? createdAt : `${createdAt.replace(" ", "T")}Z`;
-  const timestamp = Date.parse(iso);
-  if (!Number.isFinite(timestamp)) {
+  const milliseconds = Date.parse(iso);
+  if (!Number.isFinite(milliseconds)) {
     throw new Error(`Lap has invalid persistence timestamp: ${createdAt}`);
   }
-  return timestamp;
+  return { domain: "wall-clock", milliseconds };
 }
 
-function canonicalValue(
-  slot: SemanticSlot,
-  resolved: ResolvedValue<unknown>,
-): CanonicalTelemetryValue {
+function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp): TelemetryTimestamp {
+  if (!Number.isFinite(packet.TimestampMS)) return fallback;
+  return packet.gameId === "acc" || packet.gameId === "ac-evo" ? { domain: "wall-clock", milliseconds: packet.TimestampMS } : { domain: "session", milliseconds: packet.TimestampMS };
+}
+
+function canonicalValue(slot: SemanticSlot, resolved: ResolvedValue<unknown>): CanonicalTelemetryValue {
   return {
     semanticId: resolved.semanticId,
     slot,
@@ -113,6 +88,7 @@ function canonicalValue(
     unit: resolved.unit,
     mappingStatus: resolved.mappingStatus,
     state: resolved.state,
+    freshness: resolved.freshness,
     confidence: resolved.confidence,
     confidenceComponents: resolved.confidenceComponents,
     provenance: resolved.provenance,
@@ -126,18 +102,12 @@ function canonicalValue(
  * Returned diagnostics expose mapping state, freshness, limitations, and source
  * provenance; callers never need to inspect simulator-specific packet fields.
  */
-export async function queryLapTelemetryBySemanticId(
-  lapId: number,
-  requestedSemanticIds: readonly string[],
-): Promise<SemanticTelemetryReplay | null> {
+export async function queryLapTelemetryBySemanticId(lapId: number, requestedSemanticIds: readonly string[]): Promise<SemanticTelemetryReplay | null> {
   if (requestedSemanticIds.length === 0) {
     throw new Error("At least one semantic ID is required for telemetry replay");
   }
   const semanticIds = [...new Set(requestedSemanticIds)];
-  const [lap, source] = await Promise.all([
-    getLapById(lapId),
-    getLapReplaySource(lapId),
-  ]);
+  const [lap, source] = await Promise.all([getLapById(lapId), getLapReplaySource(lapId)]);
   if (!lap || !source) return null;
   if (lap.parseError) throw new Error(lap.parseError);
   if (lap.telemetry.length === 0) {
@@ -160,10 +130,14 @@ export async function queryLapTelemetryBySemanticId(
 
   for (let sequence = 0; sequence < lap.telemetry.length; sequence++) {
     const packet = lap.telemetry[sequence];
-    const observedAt = packet.TimestampMS ?? receivedAt;
+    const observedAt = replayTimestamp(packet, receivedAt);
+    const observation: SourceObservation = {
+      timestamp: observedAt,
+      updateSequence: BigInt(sequence),
+    };
     nativeFrame.packet = packet;
     nativeFrame.nativeValues = nativeFrames.next().value;
-    view = resolver.createFrameView(nativeFrame, observedAt, view);
+    view = resolver.createFrameView(nativeFrame, observation, view);
     const resolved = view.resolveMany(slots, target);
     const values: CanonicalTelemetryValue[] = new Array(resolved.length);
     for (let index = 0; index < resolved.length; index++) {

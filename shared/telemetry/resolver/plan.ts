@@ -1,7 +1,7 @@
 import type { GameId } from "../../games/ids";
 import type { TelemetryVariableDefinition } from "../catalog/contracts";
 import type { TelemetryDerivation } from "../derivations/contracts";
-import type { SemanticSlot } from "./contracts";
+import type { SemanticSlot, SourceObservation } from "./contracts";
 
 export type RuntimeCatalogMetadata = {
   catalogVersion?: string;
@@ -10,7 +10,16 @@ export type RuntimeCatalogMetadata = {
 };
 export type NativeObject = Record<string, unknown>;
 export type Mapping = TelemetryVariableDefinition["games"][GameId];
-export type Reader = (frame: NativeObject) => unknown;
+export type SourceFreshness = Exclude<Mapping, { kind: "unavailable" }>["freshness"];
+export interface SourceReading {
+  value: unknown;
+  observation: SourceObservation;
+  sourceChannel: string;
+}
+export interface ReaderContext {
+  observe(sourceChannel: string, value: unknown, freshness: SourceFreshness): SourceObservation;
+}
+export type Reader = (frame: NativeObject, context: ReaderContext) => SourceReading | undefined;
 
 export interface ResolutionPlan {
   semanticId: string;

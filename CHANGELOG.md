@@ -9,6 +9,8 @@
 
 ### Fixes
 
+- Keep iRacing lap replay within saved frame boundaries so telemetry from the following lap is not included
+- Report telemetry freshness from each source's own update time and mark incompatible clock domains as unknown instead of current
 - Highlight only one fastest lap per sector in session and live lap tables
 - Exclude pit-entry and pit-exit laps from pace, sector, consistency, improvement, and theoretical-best metrics
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures

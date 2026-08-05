@@ -1,17 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryCatalogData } from "../../../shared/telemetry/catalog/contracts";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
+import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
 import { TELEMETRY_DERIVATION_VERSION } from "../../../shared/telemetry/derivations/builtins";
-import type { TelemetryDerivation } from "../../../shared/telemetry/derivations/contracts";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
-import type { ResolvedValue } from "../../../shared/telemetry/resolver/contracts";
-import {
-  TELEMETRY_PARSER_VERSIONS,
-  TELEMETRY_RESOLVER_VERSION,
-} from "../../../shared/telemetry/resolver/versions";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../../shared/telemetry/resolver/versions";
 import { packet } from "../../support/telemetry/resolver";
 
 describe("compiled telemetry resolver", () => {
@@ -22,7 +15,7 @@ describe("compiled telemetry resolver", () => {
         requested: [{ semanticId: "motion.speed", required: true }],
       });
       const speed = resolver.slot("motion.speed");
-      const frame = resolver.createFrameView(packet(gameId), 1_000);
+      const frame = resolver.createFrameView(packet(gameId), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
 
       expect(frame.readNumber(speed)).toBe(42);
       expect(frame.resolveNumber(speed)).toMatchObject({
@@ -65,7 +58,7 @@ describe("compiled telemetry resolver", () => {
       derivations: [derivation],
     });
     const resolved = resolver
-      .createFrameView(packet("acc", { Speed: 42 }), 1_000)
+      .createFrameView(packet("acc", { Speed: 42 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) })
       .resolveNumber(resolver.slot("motion.speed"));
 
     expect(resolved).toMatchObject({
@@ -89,10 +82,7 @@ describe("compiled telemetry resolver", () => {
         requested: [{ semanticId: "fuel.fuel-percent" }],
       });
       const slot = resolver.slot("fuel.fuel-percent");
-      const frame = resolver.createFrameView(
-        packet(simulator, { Fuel: 0.375 }),
-        1_000,
-      );
+      const frame = resolver.createFrameView(packet(simulator, { Fuel: 0.375 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
 
       expect(frame.readNumber(slot)).toBe(37.5);
       expect(frame.resolveNumber(slot)).toMatchObject({
@@ -116,7 +106,7 @@ describe("compiled telemetry resolver", () => {
         TireCarcassTempRL: 82,
         TireCarcassTempRR: 83,
       }),
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
@@ -132,35 +122,160 @@ describe("compiled telemetry resolver", () => {
       requested: [{ semanticId: "motion.speed" }],
     });
     const speed = resolver.slot("motion.speed");
-    const first = resolver.createFrameView(packet("acc", { Speed: 10 }), 1_000);
+    const first = resolver.createFrameView(packet("acc", { Speed: 10 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
     expect(first.readNumber(speed)).toBe(10);
 
-    const second = resolver.createFrameView(
-      packet("acc", { Speed: 20, TimestampMS: 2_000 }),
-      2_000,
-      first,
-    );
+    const second = resolver.createFrameView(packet("acc", { Speed: 20, TimestampMS: 2_000 }), { timestamp: { domain: "session", milliseconds: 2_000 }, updateSequence: BigInt(2_000) }, first);
     expect(second).toBe(first);
     expect(second.readNumber(speed)).toBe(20);
   });
 
-  test("separates stale runtime state from mapping fidelity", () => {
+  test("tracks pit snapshots from their own source change", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
-      simulator: "acc",
-      requested: [{ semanticId: "motion.speed" }],
-      staleAfterMs: { "motion.speed": 50 },
+      simulator: "iracing",
+      requested: [{ semanticId: "tire.temperature.carcass.average" }],
+      staleAfterMs: { "tire.temperature.carcass.average": 50 },
     });
-    const speed = resolver.slot("motion.speed");
-    const frame = resolver.createFrameView(
-      packet("acc", { TimestampMS: 1_000 }),
-      1_100,
+    const slot = resolver.slot("tire.temperature.carcass.average");
+    const snapshot = {
+      TireCarcassTempFL: 80,
+      TireCarcassTempFR: 81,
+      TireCarcassTempRL: 82,
+      TireCarcassTempRR: 83,
+    };
+    const first = resolver.createFrameView(packet("iracing", snapshot), {
+      timestamp: { domain: "session", milliseconds: 1_000 },
+      updateSequence: 1n,
+    });
+    expect(first.resolveValue(slot)).toMatchObject({
+      freshness: "fresh",
+      provenance: {
+        sourceObservation: {
+          timestamp: { domain: "session", milliseconds: 1_000 },
+          updateSequence: 1n,
+        },
+      },
+    });
+
+    const second = resolver.createFrameView(
+      packet("iracing", snapshot),
+      {
+        timestamp: { domain: "session", milliseconds: 1_100 },
+        updateSequence: 2n,
+      },
+      first,
     );
 
-    expect(frame.readNumber(speed)).toBeUndefined();
-    expect(frame.resolveNumber(speed)).toMatchObject({
-      value: 42,
-      mappingStatus: getTelemetryVariable("motion.speed").games.acc.kind,
+    expect(second.readValue(slot)).toBeUndefined();
+    expect(second.resolveValue(slot)).toMatchObject({
+      value: [80, 81, 82, 83],
+      mappingStatus: "simplified",
       state: "stale",
+      freshness: "stale",
+      confidenceComponents: { freshness: 0 },
+      provenance: {
+        sourceObservation: {
+          timestamp: { domain: "session", milliseconds: 1_000 },
+          updateSequence: 1n,
+        },
+      },
+    });
+  });
+
+  test("reports cross-domain freshness as unknown until source changes", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "tire.temperature.carcass.average" }],
+      staleAfterMs: { "tire.temperature.carcass.average": 50 },
+    });
+    const slot = resolver.slot("tire.temperature.carcass.average");
+    const snapshot = {
+      TireCarcassTempFL: 80,
+      TireCarcassTempFR: 81,
+      TireCarcassTempRL: 82,
+      TireCarcassTempRR: 83,
+    };
+    const first = resolver.createFrameView(packet("iracing", snapshot), {
+      timestamp: { domain: "session", milliseconds: 1_000 },
+      updateSequence: 1n,
+    });
+    expect(first.readValue<readonly number[]>(slot)).toEqual([80, 81, 82, 83]);
+
+    const unknown = resolver.createFrameView(
+      packet("iracing", snapshot),
+      {
+        timestamp: { domain: "wall-clock", milliseconds: 1_800_000_000_000 },
+        updateSequence: 2n,
+      },
+      first,
+    );
+    expect(unknown.readValue<readonly number[]>(slot)).toEqual([80, 81, 82, 83]);
+    expect(unknown.resolveValue(slot)).toMatchObject({
+      state: "ok",
+      freshness: "unknown",
+      confidence: null,
+      confidenceComponents: { freshness: null },
+      provenance: {
+        sourceObservation: {
+          timestamp: { domain: "session", milliseconds: 1_000 },
+          updateSequence: 1n,
+        },
+      },
+    });
+
+    const changed = resolver.createFrameView(
+      packet("iracing", { ...snapshot, TireCarcassTempFL: 84 }),
+      {
+        timestamp: { domain: "wall-clock", milliseconds: 1_800_000_000_001 },
+        updateSequence: 3n,
+      },
+      unknown,
+    );
+    expect(changed.resolveValue(slot)).toMatchObject({
+      freshness: "fresh",
+      confidenceComponents: { freshness: 1 },
+      provenance: {
+        sourceObservation: {
+          timestamp: {
+            domain: "wall-clock",
+            milliseconds: 1_800_000_000_001,
+          },
+          updateSequence: 3n,
+        },
+      },
+    });
+  });
+
+  test("converts matching monotonic timestamps from nanoseconds for freshness", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "tire.temperature.carcass.average" }],
+      staleAfterMs: { "tire.temperature.carcass.average": 50 },
+    });
+    const slot = resolver.slot("tire.temperature.carcass.average");
+    const snapshot = {
+      TireCarcassTempFL: 80,
+      TireCarcassTempFR: 81,
+      TireCarcassTempRL: 82,
+      TireCarcassTempRR: 83,
+    };
+    const first = resolver.createFrameView(packet("iracing", snapshot), {
+      timestamp: { domain: "monotonic", nanoseconds: 1_000_000_000n },
+      updateSequence: 1n,
+    });
+    expect(first.readValue<readonly number[]>(slot)).toEqual([80, 81, 82, 83]);
+
+    const stale = resolver.createFrameView(
+      packet("iracing", snapshot),
+      {
+        timestamp: { domain: "monotonic", nanoseconds: 1_060_000_000n },
+        updateSequence: 2n,
+      },
+      first,
+    );
+    expect(stale.resolveValue(slot)).toMatchObject({
+      state: "stale",
+      freshness: "stale",
       confidenceComponents: { freshness: 0 },
     });
   });
@@ -171,7 +286,7 @@ describe("compiled telemetry resolver", () => {
       requested: [{ semanticId: "weather.wind-speed" }],
     });
     const slot = resolver.slot("weather.wind-speed");
-    const frame = resolver.createFrameView(packet("f1-2025"), 1_000);
+    const frame = resolver.createFrameView(packet("f1-2025"), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
 
     expect(frame.readNumber(slot)).toBeUndefined();
     expect(frame.resolveNumber(slot)).toMatchObject({
@@ -180,22 +295,4 @@ describe("compiled telemetry resolver", () => {
       state: "missing",
     });
   });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 });

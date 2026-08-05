@@ -1,15 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryCatalogData } from "../../../shared/telemetry/catalog/contracts";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
-import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
-import { TELEMETRY_DERIVATION_VERSION } from "../../../shared/telemetry/derivations/builtins";
-import type { TelemetryDerivation } from "../../../shared/telemetry/derivations/contracts";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
-import type { ResolvedValue } from "../../../shared/telemetry/resolver/contracts";
-import {
-  TELEMETRY_PARSER_VERSIONS,
-  TELEMETRY_RESOLVER_VERSION,
-} from "../../../shared/telemetry/resolver/versions";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { packet } from "../../support/telemetry/resolver";
 
@@ -27,15 +18,10 @@ describe("compiled telemetry resolver native sources", () => {
         TireSlipRatioRL: 0.3,
         TireSlipRatioRR: 0.4,
       }),
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
-    expect(frame.readValue<readonly number[]>(slot)).toEqual([
-      0.1,
-      0.2,
-      0.3,
-      0.4,
-    ]);
+    expect(frame.readValue<readonly number[]>(slot)).toEqual([0.1, 0.2, 0.3, 0.4]);
     expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
       value: [0.1, 0.2, 0.3, 0.4],
       state: "ok",
@@ -60,7 +46,7 @@ describe("compiled telemetry resolver native sources", () => {
           RRbrakeLinePress: 14,
         },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.readValue<readonly number[]>(slot)).toEqual([11, 12, 13, 14]);
@@ -81,7 +67,7 @@ describe("compiled telemetry resolver native sources", () => {
         }),
         nativeValues: { Speed: 61 },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.readNumber(slot)).toBe(61);
@@ -102,7 +88,7 @@ describe("compiled telemetry resolver native sources", () => {
         }),
         nativeValues: { "Physics.speedKmh": 219.6 },
       },
-      1_000,
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.readNumber(slot)).toBeUndefined();
@@ -137,7 +123,7 @@ describe("compiled telemetry resolver native sources", () => {
       }),
       nativeValues,
     };
-    const firstFrame = resolver.createFrameView(nativeFrame, 1_000);
+    const firstFrame = resolver.createFrameView(nativeFrame, { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
     const first = firstFrame.readValue<number[]>(slot)!;
     expect(first).toEqual([0.1, 0.2, 0.3, 0.4]);
 
@@ -145,11 +131,7 @@ describe("compiled telemetry resolver native sources", () => {
     nativeValues.TireSlipRatioFR = 1.2;
     nativeValues.TireSlipRatioRL = 1.3;
     nativeValues.TireSlipRatioRR = 1.4;
-    const secondFrame = resolver.createFrameView(
-      nativeFrame,
-      1_000,
-      firstFrame,
-    );
+    const secondFrame = resolver.createFrameView(nativeFrame, { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) }, firstFrame);
     const second = secondFrame.readValue<number[]>(slot)!;
     expect(second).toBe(first);
     expect(second).toEqual([1.1, 1.2, 1.3, 1.4]);
