@@ -1,4 +1,4 @@
-import { arityLabels, getByPath, getSchemaForGame } from "@shared/racing/setups/schema";
+import { getSchemaForGame, readSetupField } from "@shared/racing/setups/schema";
 import type { GameId } from "../../../../shared/games/ids";
 
 /** Read-only summary of an ACC / AC-EVO setup JSON, grouped by the same
@@ -12,10 +12,10 @@ export function SetupSettingsPanel({ gameId, settings }: { gameId: GameId; setti
       {sections.map((section) => {
         const rows: [string, string][] = [];
         for (const field of section.fields) {
-          const value = getByPath(settings, field.path);
+          const value = readSetupField(settings, field);
           if (value == null) continue;
           if (Array.isArray(value)) {
-            const labels = arityLabels(field.arity);
+            const labels = field.cardinality.kind === "fixed" ? field.cardinality.ordering : [];
             value.forEach((v, i) => {
               if (v == null) return;
               rows.push([labels[i] ? `${field.label} (${labels[i]})` : field.label, String(v)]);

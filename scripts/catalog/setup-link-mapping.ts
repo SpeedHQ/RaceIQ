@@ -1,6 +1,5 @@
 // Setup-file variables and derived/normalized links.
 import type { getSchemaForGame } from "../../shared/racing/setups/schema";
-import { SETUP_FILE_SOURCE_MAPPINGS } from "../../shared/racing/setups/catalog/file-source-mappings";
 import { SEMANTIC_DEFINITIONS } from "./semantic-definitions";
 import { addSource } from "./extension-field-mapping";
 import { unavailableGames } from "./extension-metadata";
@@ -14,10 +13,7 @@ function addSetupFileVariable(
   gameId: "acc" | "ac-evo",
   field: ReturnType<typeof getSchemaForGame>[number]["fields"][number],
 ): void {
-  const mapping = SETUP_FILE_SOURCE_MAPPINGS[field.path];
-  if (!mapping) {
-    throw new Error(`Missing setup-file semantic mapping for ${field.path}`);
-  }
+  const mapping = field;
   const definition = SEMANTIC_DEFINITIONS[mapping.semanticId];
   if (!definition) {
     throw new Error(`Missing setup semantic definition ${mapping.semanticId}`);
@@ -37,6 +33,7 @@ function addSetupFileVariable(
   }
 
   const sourcePath = `${gameId === "acc" ? "ACC" : "ACEvo"}.SetupFile.${field.path}`;
+  const cardinality = field.cardinality.kind === "scalar" ? "scalar" : `${field.cardinality.count}-value`;
   const existing = variable.games[gameId];
   if (existing.kind === "unavailable") {
     variable.games[gameId] = {
@@ -47,7 +44,7 @@ function addSetupFileVariable(
       ...(mapping.normalization
         ? { normalization: mapping.normalization }
         : {}),
-      description: `${gameId} setup file exposes this ${field.arity} value.`,
+      description: `${gameId} setup file exposes this ${cardinality} value.`,
     };
   } else if (Array.isArray(existing.sources)) {
     if (!existing.sources.includes(sourcePath)) {
@@ -60,7 +57,7 @@ function addSetupFileVariable(
     label: field.label,
     unit: mapping.nativeUnit,
     dataType: "setup-value",
-    count: 1,
+    count: field.cardinality.kind === "scalar" ? 1 : field.cardinality.count,
     description: `${field.label} from ${gameId} setup file${field.hint ? `; ${field.hint}` : ""}.`,
     semanticId: mapping.semanticId,
     sourceKind: "setup",

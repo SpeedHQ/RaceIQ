@@ -254,8 +254,10 @@ describe("semantic telemetry catalog", () => {
     ).toEqual([
       "setup.suspension.front-anti-roll-bar.arms",
       "setup.suspension.front-anti-roll-bar.blades",
+      "setup.suspension.front-anti-roll-bar.connection",
       "setup.suspension.front-anti-roll-bar.diameter",
       "setup.suspension.front-anti-roll-bar.outer-diameter",
+      "setup.suspension.front-anti-roll-bar.rate",
       "setup.suspension.front-anti-roll-bar.setting",
     ]);
     expect(

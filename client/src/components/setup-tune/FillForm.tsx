@@ -1,4 +1,4 @@
-import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "@shared/racing/setups/schema";
+import { type FieldDef, readSetupField, readSetupSection, type SectionDef, SETUP_FORM_TAB_ORDER, writeSetupField } from "@shared/racing/setups/schema";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 // Renders each setup section as a collapsible card with numeric inputs.
 // `settings` is the source of truth; every edit calls `onChange` with a
 // cloned-and-patched object so unknown keys in the original are preserved.
+
 
 function cloneObj(obj: Record<string, unknown>): Record<string, unknown> {
   return JSON.parse(JSON.stringify(obj));
@@ -27,7 +28,7 @@ function displayValue(v: unknown): string {
 }
 
 function ScalarInput({ field, settings, onChange }: { field: FieldDef; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
-  const value = getByPath(settings, field.path);
+  const value = readSetupField(settings, field);
   return (
     <label className="space-y-1 block">
       <span className="text-xs font-medium text-app-text-muted">{field.label}</span>
@@ -38,7 +39,7 @@ function ScalarInput({ field, settings, onChange }: { field: FieldDef; settings:
         onChange={(e) => {
           const n = parseNum(e.target.value);
           const next = cloneObj(settings);
-          setByPath(next, field.path, n === "" ? undefined : n);
+          writeSetupField(next, field, n === "" ? undefined : n);
           onChange(next);
         }}
         className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
@@ -49,9 +50,9 @@ function ScalarInput({ field, settings, onChange }: { field: FieldDef; settings:
 }
 
 function ArrayInput({ field, settings, onChange }: { field: FieldDef; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
-  const len = arityLength(field.arity);
-  const labels = arityLabels(field.arity);
-  const raw = getByPath(settings, field.path);
+  if (field.cardinality.kind !== "fixed") throw new Error(`Expected fixed cardinality for ${field.path}`);
+  const { count: len, ordering: labels } = field.cardinality;
+  const raw = readSetupField(settings, field);
   const arr: unknown[] = Array.isArray(raw) ? raw : [];
 
   return (
@@ -75,7 +76,7 @@ function ArrayInput({ field, settings, onChange }: { field: FieldDef; settings: 
                 while (nextArr.length < len) nextArr.push(0);
                 nextArr[i] = n === "" ? 0 : n;
                 const next = cloneObj(settings);
-                setByPath(next, field.path, nextArr.slice(0, len));
+                writeSetupField(next, field, nextArr.slice(0, len));
                 onChange(next);
               }}
               className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
@@ -99,7 +100,7 @@ function SectionCard({
   defaultOpen: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const present = getByPath(settings, section.key);
+  const present = readSetupSection(settings, section);
   const hasData = present != null && typeof present === "object";
 
   return (
@@ -115,8 +116,8 @@ function SectionCard({
       </Button>
       {open && (
         <div className="space-y-3 border-t border-app-border px-3 pb-3 pt-1">
-          {section.fields.map((f) =>
-            f.arity === "scalar" ? <ScalarInput key={f.path} field={f} settings={settings} onChange={onChange} /> : <ArrayInput key={f.path} field={f} settings={settings} onChange={onChange} />,
+          {section.fields.map((field) =>
+            field.cardinality.kind === "scalar" ? <ScalarInput key={field.path} field={field} settings={settings} onChange={onChange} /> : <ArrayInput key={field.path} field={field} settings={settings} onChange={onChange} />,
           )}
         </div>
       )}
@@ -124,23 +125,11 @@ function SectionCard({
   );
 }
 
-// Tab layout: each tab groups one or more schema sections by key.
-const TAB_DEFS: { label: string; keys: string[] }[] = [
-  { label: "Tyres", keys: ["basicSetup.tyres", "basicSetup.alignment"] },
-  { label: "Electronics", keys: ["basicSetup.electronics"] },
-  { label: "Fuel & strategy", keys: ["basicSetup.strategy"] },
-  { label: "Suspension", keys: ["advancedSetup.mechanicalBalance", "advancedSetup.suspension", "advancedSetup.drivetrain"] },
-  { label: "Dampers", keys: ["advancedSetup.dampers"] },
-  { label: "Aero", keys: ["advancedSetup.aeroBalance"] },
-];
-
-export function FillForm({ sections, settings, onChange }: { sections: SectionDef[]; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
-  // Group sections into tabs; anything the tab map doesn't know about lands
-  // in an "Other" tab so game-specific sections are never silently dropped.
-  const known = new Set(TAB_DEFS.flatMap((t) => t.keys));
-  const tabs = [...TAB_DEFS.map((t) => ({ label: t.label, sections: sections.filter((s) => t.keys.includes(s.key)) })), { label: "Other", sections: sections.filter((s) => !known.has(s.key)) }].filter(
-    (t) => t.sections.length > 0,
-  );
+export function FillForm({ sections, settings, onChange }: { sections: readonly SectionDef[]; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
+  const tabs = SETUP_FORM_TAB_ORDER.map((label) => ({
+    label,
+    sections: sections.filter((section) => section.tab === label),
+  })).filter((tab) => tab.sections.length > 0);
 
   const [active, setActive] = useState(0);
   const activeValue = tabs[Math.min(active, tabs.length - 1)]?.label;
@@ -157,7 +146,7 @@ export function FillForm({ sections, settings, onChange }: { sections: SectionDe
         <TabsList>
           {tabs.map((t) => {
             const hasData = t.sections.some((s) => {
-              const present = getByPath(settings, s.key);
+              const present = readSetupSection(settings, s);
               return present != null && typeof present === "object";
             });
             return (

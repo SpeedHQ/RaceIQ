@@ -7,9 +7,9 @@
 - Catalog version: `0.13.0`
 - Schema version: `v6`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator commit: `5f0ae06eebb369e6be2f3f78dbaa6267e4f9f9517e36f593e7877a747a797fb2`
+- Generator commit: `9c004cfb6f1bdfaebe8f0c3caf2d671885f1b1cccf25fba3e1aee23d30090883`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `bc29fa6fea09e5feaa5eef531042426e21350f7758b0ea3e1b8ed8720976548d`
+- Content SHA-256: `196163fb96939a6d2a1a27d25d1d653f801d3115166f7864fc4795dce3a7a748`
 
 ## Coverage
 
@@ -474,7 +474,7 @@
 | `session.sim-mode` | Sim Mode | string | dimensionless | text | scalar |  |  |  |
 | `session.subsession-id` | Subsession ID | number | dimensionless | id | scalar |  |  |  |
 | `session.team-racing` | Team Racing | boolean | dimensionless | boolean | scalar |  |  |  |
-| `setup.aero.brake-duct` | Brake ducts | structured | unit:level | level | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
+| `setup.aero.brake-duct` | Brake ducts | structured | unit:level | level | variable:0-2 | source-path:source-order | indices: source-path (variable:0-2, source-order); fields: value:number |  |
 | `setup.aero.front-downforce` | Calculated front downforce | number | dimensionless | % | scalar |  |  |  |
 | `setup.aero.front-ride-height-at-speed` | Calculated front ride height at speed | number | length | mm | scalar |  |  |  |
 | `setup.aero.front-wing` | Front wing | number | unit:level | level | scalar |  |  |  |
@@ -558,7 +558,7 @@
 | `setup.tires.tread-remaining` | Tread remaining bands | structured | dimensionless | % | fixed:4 | FL, FR, RL, RR | indices: wheel-position (fixed:4, semantic-order); fields: value:number |  |
 | `setup.weight.corner-weight` | Corner weight | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.weight.cross-weight` | Cross weight | number | dimensionless | % | scalar |  |  |  |
-| `setup.weight.front-distribution` | Front weight distribution | number | dimensionless | value-with-unit | scalar |  |  |  |
+| `setup.weight.front-distribution` | Front weight distribution | number | dimensionless | % | scalar |  |  |  |
 | `suspension.cg-height` | Center-of-gravity height | number | length | m | scalar |  |  |  |
 | `suspension.norm-suspension-travel` | Norm Suspension Travel | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `suspension.ride-height` | Live ride height | number | length | m | variable:0-* | source-order |  |  |
