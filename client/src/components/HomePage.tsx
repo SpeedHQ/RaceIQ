@@ -474,6 +474,7 @@ export function HomePageView({
                       recap={latestRecap}
                       gameId={latestRecap.gameId}
                       linkToAnalyse
+                      finishPosition={latestSession.finishingPosition}
                       copied={recapCopied}
                       onCopy={onCopyRecap}
                       onAnalyse={onAnalyseRecap}
@@ -488,78 +489,89 @@ export function HomePageView({
             </aside>
           </div>
         ) : (
-          <>
-            {latestSession && (
-              <div className="rounded-lg border border-app-border bg-app-surface p-4">
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.recap_latest_session()}</h2>
-                {latestRecapLoading ? (
-                  <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
-                ) : latestRecapError || !latestRecap ? (
-                  <div className="p-6 text-center text-status-danger">{m.common_error()}</div>
-                ) : (
-                  <SessionRecapView
-                    recap={latestRecap}
-                    gameId={latestRecap.gameId}
-                    linkToAnalyse
-                    copied={recapCopied}
-                    onCopy={onCopyRecap}
-                    onAnalyse={onAnalyseRecap}
-                    outlineData={latestRecapOutline}
-                    bounds={latestRecapBounds}
-                  />
-                )}
-              </div>
-            )}
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <main className="min-w-0 space-y-6">
+              <ActivityHeatmap laps={allLaps} />
 
-            <ActivityHeatmap laps={allLaps} />
-
-            <div>
-              <div className="mb-3 flex flex-wrap items-center gap-1">
-                {(
-                  [
-                    ["today", m.home_period_today()],
-                    ["week", m.home_period_week()],
-                    ["month", m.home_period_month()],
-                    ["year", m.home_period_year()],
-                    ["allTime", m.home_period_all_time()],
-                  ] as const
-                ).map(([key, label]) => (
-                  <Button
-                    variant="app-ghost"
-                    size="app-sm"
-                    key={key}
-                    onClick={() => onPeriodTabChange(key)}
-                    className={`!px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
-                  >
-                    {label}
-                  </Button>
-                ))}
+              <div>
+                <div className="mb-3 flex flex-wrap items-center gap-1">
+                  {(
+                    [
+                      ["today", m.home_period_today()],
+                      ["week", m.home_period_week()],
+                      ["month", m.home_period_month()],
+                      ["year", m.home_period_year()],
+                      ["allTime", m.home_period_all_time()],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <Button
+                      variant="app-ghost"
+                      size="app-sm"
+                      key={key}
+                      onClick={() => onPeriodTabChange(key)}
+                      className={`!px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                {(() => {
+                  const data = periodStats[periodTab];
+                  const timeSec = data.totalTime;
+                  const fmtTime = (s: number) => {
+                    const h = Math.floor(s / 3600);
+                    const m = Math.floor((s % 3600) / 60);
+                    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                  };
+                  return (
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                      <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+                      <StatCard label={m.label_laps()} value={`${data.laps}`} />
+                      <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+                      <StatCard label={m.label_cars()} value={`${data.cars}`} />
+                      {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-app-accent" />}
+                    </div>
+                  );
+                })()}
               </div>
-              {(() => {
-                const data = periodStats[periodTab];
-                const timeSec = data.totalTime;
-                const fmtTime = (s: number) => {
-                  const h = Math.floor(s / 3600);
-                  const m = Math.floor((s % 3600) / 60);
-                  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-                };
-                return (
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
-                    <StatCard label={m.label_laps()} value={`${data.laps}`} />
-                    <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
-                    <StatCard label={m.label_cars()} value={`${data.cars}`} />
-                    {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-app-accent" />}
+
+              <div>
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
+                <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
+              </div>
+            </main>
+
+            <aside className="lg:sticky lg:top-6">
+              {latestSession ? (
+                <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
+                  <div className="relative mb-3 flex items-center gap-2 text-app-caption font-semibold uppercase tracking-app-label text-app-accent">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[var(--app-glow-accent)]" />
+                    {m.recap_latest_session()}
                   </div>
-                );
-              })()}
-            </div>
-
-            <div>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
-              <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
-            </div>
-          </>
+                  {latestRecapLoading ? (
+                    <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
+                  ) : latestRecapError || !latestRecap ? (
+                    <div className="p-6 text-center text-status-danger">{m.common_error()}</div>
+                  ) : (
+                    <SessionRecapView
+                      recap={latestRecap}
+                      gameId={latestRecap.gameId}
+                      linkToAnalyse
+                      finishPosition={latestSession.finishingPosition}
+                      copied={recapCopied}
+                      onCopy={onCopyRecap}
+                      onAnalyse={onAnalyseRecap}
+                      outlineData={latestRecapOutline}
+                      bounds={latestRecapBounds}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
+              )}
+            </aside>
+          </div>
         )}
       </div>
     </div>
