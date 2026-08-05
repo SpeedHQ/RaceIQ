@@ -12,13 +12,14 @@
  *
  * Uses kernel32.dll via Bun FFI to open and map shared memory.
  */
-import { accRecorder } from "../kunos/recorder";
+
 import { BufferedKunosMemoryReader } from "../kunos/buffered-memory-reader";
+import { accRecorder } from "../kunos/recorder";
 import { TripletAssembler } from "../kunos/triplet-assembler";
 import { DumpToBinProcessor, TripletPipeline } from "../kunos/triplet-pipeline";
+import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
 import { ParsingProcessor, StatusCheckProcessor } from "./processors";
 import { GRAPHICS, PHYSICS, STATIC } from "./structs";
-
 
 export class AccSharedMemoryReader {
   private _bufferedReader: BufferedKunosMemoryReader;
@@ -33,6 +34,8 @@ export class AccSharedMemoryReader {
   private _trackOrdinal = -1;
   private _retryTimer: ReturnType<typeof setInterval> | null = null;
   private _recordingEnabled = false;
+  /** True while we hold a timer-resolution reference, so stop() releases exactly one. */
+  private _holdsTimerResolution = false;
 
   constructor(recordingEnabled = false) {
     this._bufferedReader = new BufferedKunosMemoryReader({
@@ -76,7 +79,7 @@ export class AccSharedMemoryReader {
     this._running = true;
     console.log("[ACC] Starting shared memory reader...");
 
-    // Process detection is handled by the central supervisor in server/index.ts.
+    // Process detection is handled by the central supervisor in server/runtime/native-sources.ts.
     // This reader is only instantiated once the ACC process is already running,
     // so connect immediately instead of polling for the process ourselves.
     this._onAccDetected();
@@ -91,6 +94,12 @@ export class AccSharedMemoryReader {
       this._retryTimer = null;
     }
     this._connected = false;
+    // Drop the timer resolution once no capture interval needs it. Guarded so a
+    // stop() without a matching start() cannot underflow the refcount.
+    if (this._holdsTimerResolution) {
+      this._holdsTimerResolution = false;
+      releaseHighResolutionTimer();
+    }
     // Recording mode: this reader opened the bin file in its constructor, so
     // close it when the reader goes down (game exit / shutdown). Finalizes the
     // frameCount header instead of relying on the killed-process scan path.
@@ -105,6 +114,17 @@ export class AccSharedMemoryReader {
 
     console.log("[ACC] ACC process detected, starting buffered reader...");
 
+    // Raise the process timer resolution BEFORE any capture interval is armed.
+    // On Windows the default 15.625ms tick rounds up every setInterval below it,
+    // which silently collapses the reader's 300Hz/60Hz timers and the
+    // assembler's 100Hz timer to ~63.5Hz. Held only for the capture's lifetime
+    // because a raised resolution costs power.
+    // See docs/research/telemetry-fidelity.md section 1.
+    if (!this._holdsTimerResolution) {
+      acquireHighResolutionTimer();
+      this._holdsTimerResolution = true;
+    }
+
     // Start buffered reader (loads FFI, opens shared memory, starts 300Hz/60Hz timers)
     this._bufferedReader.start();
 
@@ -113,15 +133,12 @@ export class AccSharedMemoryReader {
     // Register pipeline processors
     // Chain: StatusCheckProcessor (passes AC_LIVE + AC_PAUSE) → Mode-specific
     // processor. StatusCheckProcessor halts the pipeline for AC_OFF/AC_REPLAY
-    // without tearing the reader down — the process supervisor in
-    // `server/index.ts` owns reader lifecycle.
+    // without tearing the reader down — `server/runtime/native-sources.ts`
+    // owns reader lifecycle.
     this._pipeline.register(new StatusCheckProcessor("ACC"));
 
     if (this._recordingEnabled) {
-      this._pipeline.register(
-        new DumpToBinProcessor(accRecorder),
-        new ParsingProcessor(this._carOrdinal, this._trackOrdinal),
-      );
+      this._pipeline.register(new DumpToBinProcessor(accRecorder), new ParsingProcessor(this._carOrdinal, this._trackOrdinal));
       console.log("[ACC] Triplet pipeline: StatusCheckProcessor → DumpToBinProcessor → ParsingProcessor");
     } else {
       this._pipeline.register(new ParsingProcessor(this._carOrdinal, this._trackOrdinal));
@@ -135,6 +152,4 @@ export class AccSharedMemoryReader {
 
     console.log("[ACC] Connected - buffers reading and pipeline active");
   }
-
-
 }
