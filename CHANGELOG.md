@@ -6,6 +6,7 @@
 - Import MoTeC logs as normal sessions for analysis, comparison, and experiments
 - Export and import individual laps or complete sessions as portable compressed captures
 - View release history in Settings and see the installed version in the sidebar
+- Move app navigation from the top bar into a left-hand sidebar, with a responsive mobile navigation drawer
 - Copy AI Compare conversations as JSON and resume or regenerate analysis chats with complete persisted history
 - Generate detailed, sector-aware lap-analysis results with consistent provider and settings handling
 
