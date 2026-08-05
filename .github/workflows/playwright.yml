@@ -31,6 +31,8 @@ jobs:
 
       - name: Run fresh-install + tunes E2E tests
         working-directory: playwright
+        env:
+          RACEIQ_DISABLE_TRAY: "1"
         run: bunx playwright test --project=fresh-install --project=tunes
 
       - name: Upload traces on failure
@@ -40,3 +42,16 @@ jobs:
           name: playwright-traces
           path: playwright/test-results/
           retention-days: 7
+
+      - name: Upload server diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-diagnostics
+          path: |
+            playwright/test-data*/raceiq.log
+            playwright/test-data*/crash.log
+            dist/crash.log
+            crash.log
+          retention-days: 7
+          if-no-files-found: warn

@@ -8,7 +8,11 @@ import { dirname, join } from "path";
 import { homedir } from "os";
 
 function crashLog(err: unknown): void {
-  const msg = `[${new Date().toISOString()}] FATAL: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`;
+  const detail = err instanceof Error ? err.stack ?? err.message : String(err);
+  const msg = `[${new Date().toISOString()}] FATAL: ${detail}\n`;
+  try {
+    process.stderr.write(msg);
+  } catch {}
   // Try %APPDATA%/RaceIQ first, fall back to exe directory, then cwd
   const candidates = [
     join(process.env.APPDATA ?? homedir(), "RaceIQ"),
