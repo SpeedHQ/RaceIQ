@@ -21,32 +21,13 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
  * needed — the streamed reply already contains the outcome.
  */
 async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/experiments/${sessionId}/chat?gen=${gen}` : `/api/experiments/${sessionId}/chat`;
+  const url = gen === undefined ? `/api/experiments/${sessionId}/chat` : `/api/experiments/${sessionId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };
   const msgs = (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
 
-  // Keep reasoning in history (thinking survives refresh) but dedupe it.
-  // Mastra's read-merge can re-attach a turn's reasoning — often as a
-  // concatenation of that turn's blocks — onto a later persisted branch-note
-  // message, double-showing the thinking. So drop any reasoning part whose
-  // text is composed entirely of reasoning already emitted earlier in the
-  // thread; genuine first-time reasoning is preserved.
-  const seen: string[] = [];
-  return msgs.map((m) => {
-    if (!m.parts) return m;
-    const parts = m.parts.filter((p) => {
-      if (p.type !== "reasoning") return true;
-      const text = (p as { text?: string }).text ?? "";
-      let residual = text;
-      for (const s of seen) if (s) residual = residual.split(s).join("");
-      if (seen.length && residual.trim() === "") return false; // pure echo/concat of prior reasoning
-      seen.push(text);
-      return true;
-    });
-    return { ...m, parts };
-  });
+  return msgs;
 }
 
 export function TuneSetupChat({

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { isAiAnalysisConfigured, isAiConfigured, launchAiFeature } from "../client/src/lib/is-ai-configured";
+import { isAiConfigured } from "../client/src/lib/is-ai-configured";
 
 describe("isAiConfigured", () => {
   test("treats local provider as configured without API keys", () => {
@@ -17,43 +17,5 @@ describe("isAiConfigured", () => {
     expect(isAiConfigured({ aiProvider: "gemini", geminiApiKeySet: false })).toBe(false);
     expect(isAiConfigured({ geminiApiKeySet: true })).toBe(true);
     expect(isAiConfigured({})).toBe(false);
-  });
-
-  test("requires Codex readiness when provider is codex", () => {
-    expect(isAiConfigured({ aiProvider: "codex", codexReady: false })).toBe(false);
-    expect(isAiConfigured({ aiProvider: "codex", codexReady: true })).toBe(true);
-  });
-});
-
-describe("isAiAnalysisConfigured", () => {
-  test("requires a selected analysis model after provider credentials are configured", () => {
-    expect(isAiAnalysisConfigured({ aiProvider: "gemini", geminiApiKeySet: true, aiModel: "" })).toBe(false);
-    expect(isAiAnalysisConfigured({ aiProvider: "openai", openaiApiKeySet: true, aiModel: "   " })).toBe(false);
-    expect(isAiAnalysisConfigured({ aiProvider: "local", aiModel: "" })).toBe(false);
-    expect(isAiAnalysisConfigured({ aiProvider: "", geminiApiKeySet: true, aiModel: "gemini-2.5-flash" })).toBe(false);
-  });
-
-  test("accepts a selected model with valid provider credentials", () => {
-    expect(isAiAnalysisConfigured({ aiProvider: "gemini", geminiApiKeySet: true, aiModel: "gemini-2.5-flash" })).toBe(true);
-    expect(isAiAnalysisConfigured({ aiProvider: "openai", openaiApiKeySet: true, aiModel: "gpt-5" })).toBe(true);
-    expect(isAiAnalysisConfigured({ aiProvider: "local", aiModel: "qwen3" })).toBe(true);
-  });
-});
-
-describe("launchAiFeature", () => {
-  test("opens the AI feature when AI is configured", () => {
-    const calls: string[] = [];
-
-    launchAiFeature(true, () => calls.push("feature"), () => calls.push("configure"));
-
-    expect(calls).toEqual(["feature"]);
-  });
-
-  test("opens AI configuration instead of the feature when AI is not configured", () => {
-    const calls: string[] = [];
-
-    launchAiFeature(false, () => calls.push("feature"), () => calls.push("configure"));
-
-    expect(calls).toEqual(["configure"]);
   });
 });

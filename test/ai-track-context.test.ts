@@ -119,6 +119,9 @@ describe("analyst prompt carries the curated track data", () => {
     // The same string the track map renders — not a bare "Eau Rouge/Raidillon".
     expect(prompt).toContain("Eau Rouge/Raidillon (2-4)");
   });
+  test("omits the Forza export for F1 prompts", () => {
+    expect(prompt).not.toContain("=== Forza Motorsport Lap Export ===");
+  });
 
   test("the corner whitelist uses those same labels", () => {
     const block = prompt.slice(prompt.indexOf("--- Valid Corner Labels"));
@@ -130,7 +133,7 @@ describe("analyst prompt carries the curated track data", () => {
     expect(prompt).toContain("S1: 30.100s");
     expect(prompt).toContain("S2: 42.400s");
     expect(prompt).toContain("S3: 32.000s");
-    expect(prompt).toContain("Sector starts: 0.0%, 32.0%, 72.0%.");
+    expect(prompt).toContain("S1 ends at");
   });
 
   test("each sector names the corners it covers", () => {
@@ -156,4 +159,31 @@ describe("analyst prompt carries the curated track data", () => {
     expect(noSectors).not.toContain("--- Sector Times");
     expect(noSectors).toContain("--- Track Segments");
   });
+});
+
+test("analyst prompt preserves arbitrary native sector times and boundaries", () => {
+  const ord = ordinalFor("f1-2025", "spa")!;
+  const track = resolveTrack("f1-2025", ord);
+  const prompt = buildAnalystPrompt(
+    { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
+    lapPackets("f1-2025"),
+    [],
+    "metric",
+    "C",
+    undefined,
+    track.segments,
+    undefined,
+    "en",
+    {
+      times: [17.1, 18.2, 19.3, 20.4, 21.5, 22.6],
+      sectorStarts: [0, 0.17, 0.34, 0.51, 0.68, 0.84],
+    },
+  );
+  const block = prompt.slice(prompt.indexOf("--- Sector Times"), prompt.indexOf("--- Valid Corner Labels"));
+  for (const [index, time] of [17.1, 18.2, 19.3, 20.4, 21.5, 22.6].entries()) {
+    expect(block).toContain(`S${index + 1}: ${time.toFixed(3)}s`);
+  }
+  for (const boundary of [17, 34, 51, 68, 84]) {
+    expect(block).toContain(`${boundary.toFixed(1)}%`);
+  }
 });

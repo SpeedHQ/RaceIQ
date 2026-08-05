@@ -15,13 +15,16 @@
 import type { GameId } from "../../shared/types";
 import { getCorners } from "../db/queries";
 import { detectCorners } from "../corner-detection";
+import { getSecret } from "../keystore";
 import { loadSettings } from "../settings";
-import { resolveAi } from "./ai-runtime";
 import { buildAnalystPrompt } from "./analyst-prompt";
 import { resolveTrack } from "../track-info";
-import { runAiText } from "./model-provider";
-import { loadRepresentativeLap } from "./setup-engineer-context";
+// Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
+// cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
+// has no such back-edge. We lose the dev-only observability wrapper here, which
+// the setup-engineer consult doesn't need.
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
+import { loadRepresentativeLap } from "./setup-engineer-context";
 
 export interface LapAnalystConsult {
   available: boolean;
@@ -49,17 +52,29 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
     undefined,
     settings.language,
   );
-  const ai = await resolveAi("analysis", settings);
-  const result = await runAiText(ai, {
-    prompt,
-    maxOutputTokens: 4096,
-    temperature: 0,
-  }, async (requestContext) =>
-    lapAnalystAgent.generate(prompt, {
-      maxSteps: 5,
-      modelSettings: { maxOutputTokens: 4096, temperature: 0 },
-      requestContext,
-    }));
-  const text = result.analysis.trim();
+
+  // Bridge the Lap Analyst's provider secret → env. It reads `aiProvider`
+  // (default gemini), independent of the setup-engineer chat provider.
+  const provider = settings.aiProvider;
+  if (provider === "openai") {
+    const key = await getSecret("openai-api-key");
+    if (!key) return { available: false, summary: "Lap Analyst unavailable — OpenAI API key not set (Settings → AI Analysis)." };
+    process.env.OPENAI_API_KEY = key;
+  } else if (provider === "local") {
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+    process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+  } else {
+    const key = await getSecret("gemini-api-key");
+    if (!key) return { available: false, summary: "Lap Analyst unavailable — Gemini API key not set (Settings → AI Analysis)." };
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+  }
+
+  const hideTools = provider === "local";
+  const result = await lapAnalystAgent.generate(prompt, {
+    maxSteps: 5,
+    ...(hideTools ? { activeTools: [] as never[] } : {}),
+    modelSettings: { maxOutputTokens: 4096, temperature: 0 },
+  });
+  const text = typeof result.text === "string" ? result.text.trim() : "";
   return { available: true, summary: text || "Lap Analyst returned no content." };
 }

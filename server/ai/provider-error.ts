@@ -10,6 +10,8 @@ type UpstreamError = {
   code?: number;
   message?: string;
   status?: string;
+  promptTokens?: number;
+  contextLength?: number;
 };
 
 export class AiProviderError extends Error {
@@ -51,16 +53,34 @@ export type ClientAiError = {
   upstream: UpstreamError | null;
 };
 
+export function formatClientAiErrorMessage(error: ClientAiError): string {
+  const upstreamMessage = error.upstream?.message?.trim();
+  if (upstreamMessage && upstreamMessage !== error.message) {
+    return `${error.message}: ${upstreamMessage}`;
+  }
+  return error.message;
+}
+
 function parseUpstreamError(responseBody: unknown): UpstreamError | null {
   if (typeof responseBody !== "string" || responseBody.trim().length === 0) return null;
   try {
-    const parsed = JSON.parse(responseBody) as { error?: UpstreamError };
-    if (!parsed || typeof parsed !== "object" || !parsed.error || typeof parsed.error !== "object") return null;
-    return {
-      code: typeof parsed.error.code === "number" ? parsed.error.code : undefined,
-      message: typeof parsed.error.message === "string" ? parsed.error.message : undefined,
-      status: typeof parsed.error.status === "string" ? parsed.error.status : undefined,
-    };
+    const parsed = JSON.parse(responseBody) as { error?: UpstreamError; message?: unknown };
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.error && typeof parsed.error === "object") {
+      return {
+        code: typeof parsed.error.code === "number" ? parsed.error.code : undefined,
+        message: typeof parsed.error.message === "string" ? parsed.error.message : undefined,
+        status: typeof parsed.error.status === "string" ? parsed.error.status : undefined,
+        promptTokens: typeof (parsed.error as any).n_prompt_tokens === "number" ? (parsed.error as any).n_prompt_tokens : undefined,
+        contextLength: typeof (parsed.error as any).n_ctx === "number" ? (parsed.error as any).n_ctx : undefined,
+      };
+    }
+    if (typeof parsed.message === "string") {
+      const embedded = parsed.message.match(/\{[\s\S]*\}$/)?.[0];
+      const nested = embedded ? parseUpstreamError(embedded) : null;
+      return nested ?? { message: parsed.message };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -85,6 +105,15 @@ export function toClientAiError(err: unknown): ClientAiError {
     : typeof upstream?.message === "string"
       ? upstream.message
       : String(err);
+  const clientUpstream = upstream
+    ? {
+      code: typeof upstream.code === "number" ? upstream.code : undefined,
+      message: typeof upstream.message === "string" ? upstream.message : undefined,
+      status: typeof upstream.status === "string" ? upstream.status : undefined,
+      ...(typeof upstream.promptTokens === "number" ? { promptTokens: upstream.promptTokens } : {}),
+      ...(typeof upstream.contextLength === "number" ? { contextLength: upstream.contextLength } : {}),
+    }
+    : null;
 
   return {
     message,
@@ -92,12 +121,6 @@ export function toClientAiError(err: unknown): ClientAiError {
     retryable: Boolean(e.isRetryable),
     provider: typeof e.provider === "string" ? e.provider : null,
     modelId: typeof e.modelId === "string" ? e.modelId : null,
-    upstream: upstream
-      ? {
-        code: typeof upstream.code === "number" ? upstream.code : undefined,
-        message: typeof upstream.message === "string" ? upstream.message : undefined,
-        status: typeof upstream.status === "string" ? upstream.status : undefined,
-      }
-      : null,
+    upstream: clientUpstream,
   };
 }

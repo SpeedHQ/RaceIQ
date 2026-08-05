@@ -290,7 +290,7 @@ function AppShell() {
 
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-stretch justify-center md:items-start md:pb-12 md:pt-12">
-            <Button type="button" size="content" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60 hover:bg-app-bg/60" />
+            <Button type="button" size="content" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
             <div className="relative h-full w-full overflow-hidden bg-app-bg md:max-w-2xl md:rounded-lg md:border md:border-app-border">
               <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
                 <h1 className="text-app-heading font-semibold text-app-text">{m.nav_settings()}</h1>

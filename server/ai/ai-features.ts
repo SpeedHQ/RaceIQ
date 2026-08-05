@@ -1,5 +1,5 @@
 export type AiFeature = "analysis" | "chat" | "autoTune" | "driverProfile" | "compaction";
-export type AiProvider = "gemini" | "openai" | "local" | "codex";
+export type AiProvider = "gemini" | "openai" | "local";
 
 export type AiFeatureConfig = {
   providerSetting: "aiProvider" | "chatProvider" | "autoTuneProvider" | "driverProfileProvider";

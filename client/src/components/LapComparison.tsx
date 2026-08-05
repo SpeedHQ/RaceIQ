@@ -12,7 +12,6 @@ import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
 import { MobileNotSupported } from "../routes/__root";
 import { useGameId } from "../stores/game";
-import type { CompareAiPanelHandle } from "./comparison/CompareAiPanel";
 import { CompareAiSidebar } from "./comparison/CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./comparison/CompareTrackMap";
 import { TelemetryChart } from "./TelemetryChart";
@@ -89,7 +88,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const prevCarBRef = useRef<number | null | undefined>(undefined);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
-  const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
@@ -374,7 +372,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
           <SearchSelect
             value={lapAId != null ? String(lapAId) : ""}
             onChange={(v) => setLapAId(v ? Number(v) : null)}
-            options={carALaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
+            options={carALaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " ✕" : ""}` }))}
             placeholder={m.compare_search_laps()}
             disabled={!carAOrd}
             focusColor="orange-500"
@@ -403,7 +401,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
           <SearchSelect
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
-            options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
+            options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " ✕" : ""}` }))}
             placeholder={m.compare_search_laps()}
             disabled={!carBOrd}
             focusColor="blue-500"
@@ -585,8 +583,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                 label: `${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
                 lapTime: comparison.lapB.lapTime,
               }}
-              panelRef={aiPanelRef}
-              onClose={toggleAiPanel}
               segments={segmentTimings}
               onJumpToFrac={handleJumpToFrac}
             />

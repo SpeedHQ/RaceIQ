@@ -2,19 +2,22 @@
 
 ### Features
 - Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
-- OpenAI Codex CLI provider using authenticated ChatGPT subscription access for AI analysis and chat
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 - View all release notes since your installed version in the app
+- Copy AI Compare chat history as JSON from the panel header
+- Generate richer lap-analysis results and continue analysis conversations across AI surfaces
+- Persist complete AI chat history, including tool calls and reasoning, across sessions
 
 ### Fixes
 - Hide unfinished F1 Experiments and iRacing integrations from production releases
 - Clean up settings and onboarding wizard controls so navigation, progress indicators, and wheel cards render correctly
 - Render experiment focus choices as wrapping cards, remove the experiment table shell, and underline Analyse tabs
 - Report missing AI model settings instead of silently selecting a provider default
-- Expose Codex subscription models and preserve comparison and setup analysis across AI features
 - Keep AI chat drafts editable and show submitted prompts with the loading state immediately across chat surfaces
+- Show setup-seeded `v1` branches immediately in Setup Engineer experiments
 
+- Keep internal AI system instructions separate from driver prompts in chat history
 - Keep the Compare loading message hidden after comparison data is available
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
 - Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured

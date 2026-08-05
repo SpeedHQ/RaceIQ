@@ -15,7 +15,6 @@ import { z } from "zod";
 
 const AssessmentEnum = z.enum(["good", "warning", "critical"]);
 const SeverityEnum = z.enum(["minor", "moderate", "major"]);
-const DirectionEnum = z.enum(["increase", "decrease", "adjust"]);
 
 const MetricItem = z.object({
   label: z.string(),
@@ -36,20 +35,6 @@ const TechniqueTip = z.object({
   detail: z.string(),
 });
 
-/**
- * Unified setup/tuning item. One card in the UI renders `component`,
- * `current → target` (with a `TuneBar`), direction chip, and `symptom`/`fix`
- * captions. Keeping this as one array (rather than a split setup/tuning pair)
- * matches the client layout — see `client/src/components/ai/analysis-display.tsx`.
- */
-const SetupItem = z.object({
-  component: z.string(),
-  symptom: z.string(),
-  fix: z.string(),
-  current: z.string(),
-  target: z.string(),
-  direction: DirectionEnum,
-});
 
 export const AnalystOutputSchema = z.object({
   verdict: z.string(),
@@ -57,7 +42,14 @@ export const AnalystOutputSchema = z.object({
   handling: z.array(MetricItem),
   corners: z.array(CornerIssue),
   technique: z.array(TechniqueTip),
-  setup: z.array(SetupItem),
+  setup: z.array(z.object({
+    component: z.string(),
+    symptom: z.string(),
+    fix: z.string(),
+    current: z.string(),
+    target: z.string(),
+    direction: z.enum(["increase", "decrease", "adjust"]),
+  })).optional(),
 });
 
 export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;
@@ -73,30 +65,22 @@ export function getAnalystJsonSchema(): Record<string, unknown> {
 }
 
 /**
- * Render the schema as a JSON skeleton to embed in an adapter system prompt.
- *
- * `tuningExampleComponent` varies per game (e.g. "Front Springs" for FM,
- * "Front Wing" for F1) — pass the game-appropriate example.
+ * Render analyst output shape as a JSON skeleton for adapter prompts.
  */
-export function renderAnalystSchemaForPrompt(
-  opts: { tuningExampleComponent: string } = { tuningExampleComponent: "Front Springs" },
-): string {
+export function renderAnalystSchemaForPrompt(): string {
   return `{
   "verdict": "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are.",
   "pace": [
-    { "label": "Short Metric Name (plain English, Title Case, words separated by spaces — never snake_case or camelCase)", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
+    { "label": "Short Metric Name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
   ],
   "handling": [
-    { "label": "Short Metric Name (plain English, Title Case, words separated by spaces — never snake_case or camelCase)", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
+    { "label": "Short Metric Name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
   ],
   "corners": [
-    { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix in 1-2 sentences", "severity": "minor|moderate|major" }
+    { "name": "corner/zone name", "issue": "what's wrong", "fix": "specific actionable fix", "severity": "minor|moderate|major" }
   ],
   "technique": [
-    { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
-  ],
-  "setup": [
-    { "component": "e.g. ${opts.tuningExampleComponent}", "symptom": "what the telemetry shows", "fix": "what to change and why in 1 sentence", "current": "numeric value with unit (e.g. 750 lb/in, 25, 22.5 psi)", "target": "numeric target with unit (e.g. 680 lb/in, 27, 23.0 psi)", "direction": "increase|decrease|adjust" }
+    { "tip": "short imperative title", "detail": "explanation referencing specific data" }
   ]
 }`;
 }
@@ -112,7 +96,6 @@ export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutpu
   const fenceStripped = trimmed
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```\s*$/i, "");
-
   const firstBrace = fenceStripped.indexOf("{");
   const lastBrace = fenceStripped.lastIndexOf("}");
   const jsonSlice =

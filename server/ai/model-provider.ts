@@ -96,11 +96,9 @@ function textFor(result: MastraResult): string {
 
 export async function runAiChat(
   ai: ResolvedAi,
-  input: ChatRequest,
+  _input: ChatRequest,
   runMastra: (context: RequestContext) => Promise<Response>,
 ): Promise<Response> {
-  const nativeChat = getResolvedAiInternals(ai)?.createChatResponse;
-  if (nativeChat) return nativeChat(input);
 
   const context = createModelContext(ai);
   if (!context) {

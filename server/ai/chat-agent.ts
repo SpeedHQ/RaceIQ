@@ -1,12 +1,15 @@
 /**
- * Shared Mastra memory store and thread ownership helpers.
+ * Shared Mastra memory store + thread/model helpers.
  *
  * Agents themselves are defined in `mastra-instance.ts`; this module owns the
- * persistent memory (LibSQL) and thread-id helpers.
+ * persistent memory (LibSQL), the thread-id helpers, and the provider→Mastra
+ * model-id mapping that the dynamic model resolvers use.
  */
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
 import { resolve } from "path";
+import { cancelChatRun } from "./chat-run-registry";
+import type { ChatTurnMessage } from "./chat-message-context";
 
 /**
  * Resolve the chat memory db path. Uses DATA_DIR env override when set,
@@ -33,6 +36,34 @@ export function getChatMemory() {
   return memory;
 }
 
+/**
+ * Map app settings (aiProvider + aiModel) to a Mastra model ID string.
+ * Mastra uses the format "provider/model-name".
+ */
+export function getMastraModelId(
+  aiProvider: string,
+  aiModel: string,
+): string {
+  switch (aiProvider) {
+    case "gemini":
+      return `google/${aiModel || "gemini-flash-latest"}`;
+    case "openai":
+      return `openai/${aiModel || "gpt-4o-mini"}`;
+    case "local": {
+      // Local models use OpenAI-compatible API; model ID passed through
+      return `openai/${aiModel || "local-model"}`;
+    }
+    default: {
+      // claude-cli fallback
+      const claudeMap: Record<string, string> = {
+        haiku: "anthropic/claude-haiku-3-5-20241022",
+        sonnet: "anthropic/claude-sonnet-4-6",
+        opus: "anthropic/claude-opus-4-6",
+      };
+      return claudeMap[aiModel] || "anthropic/claude-haiku-3-5-20241022";
+    }
+  }
+}
 
 /** Build the threadId for a lap's chat. */
 export function chatThreadId(lapId: number): string {
@@ -56,6 +87,91 @@ export function compareChatThreadId(idA: number, idB: number): string {
 
 /** The resource ID used for all chat threads. */
 export const CHAT_RESOURCE_ID = "raceiq";
+
+/** Mastra stream options required to persist turns in the requested thread. */
+export function chatMemoryOptions(threadId: string) {
+  return { memory: { thread: threadId, resource: CHAT_RESOURCE_ID } } as const;
+}
+
+export type ChatExportMemory = {
+  recall(args: { threadId: string }): Promise<{ messages?: unknown[] }>;
+  saveMessages(args: { messages: unknown[] }): Promise<unknown>;
+  getThreadById?: (args: { threadId: string }) => Promise<unknown>;
+  createThread?: (args: { threadId: string; resourceId: string; metadata?: Record<string, unknown> }) => Promise<unknown>;
+  updateThread?: (args: { id: string; title: string; metadata: Record<string, unknown> }) => Promise<unknown>;
+  deleteThread?: (threadId: string) => Promise<unknown>;
+};
+
+type ChatThreadRecord = { id: string; title?: string; metadata?: Record<string, unknown> };
+
+/** Persist initial prompt in thread metadata, once per generation. */
+export async function ensureSystemPrompt(
+  threadId: string,
+  systemPrompt: string,
+  mem: ChatExportMemory = memory as unknown as ChatExportMemory,
+): Promise<void> {
+  if (!systemPrompt.trim() || !mem.getThreadById) return;
+  const thread = (await mem.getThreadById({ threadId })) as ChatThreadRecord | null;
+  if (!thread) {
+    if (mem.createThread) await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID, metadata: { raceiqSystemPrompt: systemPrompt } });
+    return;
+  }
+  if (thread.metadata?.raceiqSystemPrompt !== undefined || !mem.updateThread) return;
+  await mem.updateThread({
+    id: thread.id,
+    title: thread.title ?? "",
+    metadata: { ...(thread.metadata ?? {}), raceiqSystemPrompt: systemPrompt },
+  });
+}
+
+export async function getChatSystemPrompt(threadId: string, mem: ChatExportMemory = memory as unknown as ChatExportMemory): Promise<string | undefined> {
+  const thread = (await mem.getThreadById?.({ threadId })) as ChatThreadRecord | null | undefined;
+  const value = thread?.metadata?.raceiqSystemPrompt;
+  return typeof value === "string" ? value : undefined;
+}
+
+/** Convert canonical raw records to UI messages without reshaping parts. */
+export function chatMemoryMessagesToUiMessages(messages: unknown[]): ChatTurnMessage[] {
+  return messages
+    .filter((message) => {
+      const role = (message as { role?: unknown })?.role;
+      return role === "user" || role === "assistant";
+    })
+    .map((message) => {
+      const record = message as { id?: string; role?: string; metadata?: unknown; content?: { parts?: unknown[]; metadata?: unknown } };
+      const parts = Array.isArray(record.content?.parts) ? record.content.parts : [];
+      return {
+        id: record.id,
+        role: record.role,
+        metadata: record.content?.metadata ?? record.metadata,
+        parts: parts.map((part) => {
+          const candidate = part as { type?: unknown; text?: unknown; reasoning?: unknown; details?: unknown[] };
+          if (candidate.type !== "reasoning" || typeof candidate.text === "string") return part;
+          const text = typeof candidate.reasoning === "string"
+            ? candidate.reasoning
+            : Array.isArray(candidate.details)
+              ? candidate.details.filter((detail) => (detail as { type?: unknown })?.type === "text").map((detail) => (detail as { text?: unknown }).text ?? "").join("")
+              : "";
+          return text ? { ...(part as object), text } : part;
+        }),
+      };
+    });
+}
+export function buildChatExport(systemPrompt: string | undefined, messages: unknown[]): { messages: unknown[] };
+export function buildChatExport(messages: unknown[]): { messages: unknown[] };
+export function buildChatExport(systemPromptOrMessages: string | undefined | unknown[], maybeMessages?: unknown[]) {
+  const systemPrompt = typeof systemPromptOrMessages === "string" || systemPromptOrMessages === undefined ? systemPromptOrMessages : undefined;
+  const messages = Array.isArray(systemPromptOrMessages) ? systemPromptOrMessages : (maybeMessages ?? []);
+  const system = systemPrompt === undefined ? [] : [{
+    role: "system",
+    content: { format: 2, parts: [{ type: "text", text: systemPrompt }], content: systemPrompt },
+  }];
+  return { messages: [...system, ...messages.filter((message) => {
+    const role = (message as { role?: unknown })?.role;
+    return role === "user" || role === "assistant";
+  })] };
+}
+
 
 // ─── Chat generations ──────────────────────────────────────────────────────
 //
@@ -118,6 +234,17 @@ export async function listThreadGenerations(
     out.push({ threadId, generation: gen });
   }
   return out;
+}
+
+export async function deleteChatLineage(baseThreadId: string, mem: ChatExportMemory = memory as unknown as ChatExportMemory): Promise<void> {
+  if (!mem.deleteThread || !mem.getThreadById) throw new Error("Chat memory cannot delete threads");
+  const generations = await listThreadGenerations(baseThreadId, {
+    getThreadById: mem.getThreadById.bind(mem) as ThreadProbeMemory["getThreadById"],
+  });
+  const ids = generations.map(({ threadId }) => threadId);
+  if (!ids.includes(baseThreadId)) ids.unshift(baseThreadId);
+  for (const threadId of ids) await cancelChatRun(threadId);
+  for (const threadId of ids) await mem.deleteThread(threadId);
 }
 
 /**
@@ -208,4 +335,31 @@ export async function saveChatMessages(
   });
   await mem.saveMessages({ messages });
   return messages.map((m) => m.id);
+}
+export type ChatMutationMemory = {
+  recall(args: { threadId: string; perPage?: false }): Promise<{ messages?: unknown[] }>;
+  deleteMessages(input: string[]): Promise<void>;
+};
+
+function messageText(message: any): string {
+  if (typeof message?.content === "string") return message.content;
+  if (typeof message?.content?.content === "string") return message.content.content;
+  return Array.isArray(message?.content?.parts)
+    ? message.content.parts.filter((part: any) => part?.type === "text").map((part: any) => part.text ?? "").join("")
+    : "";
+}
+
+/** Retain history through one user prompt and remove its response and all later messages. */
+export async function truncateChatAfterUserMessage(
+  threadId: string,
+  messageId: string,
+  mem: ChatMutationMemory = getChatMemory(),
+): Promise<{ messages: unknown[]; prompt: string }> {
+  const messages = (await mem.recall({ threadId, perPage: false })).messages ?? [];
+  const selectedIndex = messages.findIndex((message: any) => message?.id === messageId && message?.role === "user");
+  if (selectedIndex < 0) throw new Error("User message not found");
+
+  const removed = messages.slice(selectedIndex + 1);
+  if (removed.length) await mem.deleteMessages(removed.map((message: any) => message.id));
+  return { messages: messages.slice(0, selectedIndex + 1), prompt: messageText(messages[selectedIndex]) };
 }

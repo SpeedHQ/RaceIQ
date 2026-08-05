@@ -14,23 +14,26 @@ import {
   getChatMemory,
   tuneSessionThreadId,
   CHAT_RESOURCE_ID,
+  chatMemoryOptions,
   resolveActiveThread,
   generationThreadId,
-  listThreadGenerations,
+  buildChatExport,
+  chatMemoryMessagesToUiMessages,
+  getChatSystemPrompt,
+  ensureSystemPrompt,
+  deleteChatLineage,
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
-import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "../ai/chat-message-context";
+import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
-import { resolveAi } from "../ai/ai-runtime";
-import { runAiChat } from "../ai/model-provider";
-import type { ResolvedAi } from "../ai/ai-types";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
+import { getSecret } from "../keystore";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
-import { MessageList } from "@mastra/core/agent";
 
 
 const LiveAnalysisSchema = z.object({
@@ -102,15 +105,10 @@ export const tuneChatRoutes = new Hono()
           : await resolveActiveThread(base);
         const thread = await memory.getThreadById({ threadId });
         if (!thread) return c.json({ messages: [] });
-        const result = await memory.recall({ threadId });
-        const raw = result.messages ?? [];
-
-        const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
-        list.add(raw, "memory");
-        const uiMessages = list.get.all.aiV5
-          .ui()
-          .filter((m) => m.role === "user" || m.role === "assistant");
-
+        const raw = (await memory.recall({ threadId })).messages ?? [];
+        const systemPrompt = await getChatSystemPrompt(threadId, memory as unknown as Parameters<typeof getChatSystemPrompt>[1]);
+        if (c.req.query("export") === "1") return c.json(buildChatExport(systemPrompt, raw));
+        const uiMessages = sanitizeChatHistoryMessages(chatMemoryMessagesToUiMessages(raw));
         return c.json({ messages: uiMessages });
       } catch (err: any) {
         console.error("[TuneChat] Failed to load messages:", err.message);
@@ -196,6 +194,7 @@ export const tuneChatRoutes = new Hono()
         sessionName: session.name,
         focus,
       });
+      await ensureSystemPrompt(threadId, sessionSystemPrompt);
 
       // Deterministic prerequisite gathering — force the read side (setup,
       // symptoms, track conditions, history) via the registered Mastra workflow
@@ -213,14 +212,36 @@ export const tuneChatRoutes = new Hono()
         console.error("[SetupEngineer] prereq workflow failed:", err?.message);
       }
 
+      // Provider/key/model plumbing — inlined from startChatStream (see
+      // ../ai/chat-stream.ts) since this route no longer uses the shared
+      // NDJSON helper (assistant-ui speaks the AI SDK v5 UI-message-stream
+      // protocol instead). Keep this block in sync with chat-stream.ts if
+      // the provider matrix changes.
       const settings = loadSettings();
-      let ai: ResolvedAi;
-      try {
-        ai = await resolveAi("chat", settings);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.json({ error: message }, 400);
+      const chatProvider = settings.chatProvider;
+      if (chatProvider === "gemini") {
+        const key = await getSecret("gemini-api-key");
+        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+        delete process.env.OPENAI_BASE_URL;
+      } else if (chatProvider === "openai") {
+        const key = await getSecret("openai-api-key");
+        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+        process.env.OPENAI_API_KEY = key;
+        delete process.env.OPENAI_BASE_URL;
+      } else if (chatProvider === "local") {
+        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
       }
+
+      // Same model-label fallback chain chat-stream.ts uses, so thinking support
+      // is detected off the model that will actually run.
+      const chatModelLabel = settings.chatModel
+        || (chatProvider === "openai"
+          ? "gpt-4o-mini"
+          : chatProvider === "local"
+            ? "local-model"
+            : "gemini-flash-latest");
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier
@@ -228,56 +249,52 @@ export const tuneChatRoutes = new Hono()
       // always >= this) — avoids racing/patching a previous turn's message.
       const turnStartedAt = Date.now();
 
-      // System prompt segments, additive: session identity, deterministic
-      // prereq-gathered context (setup/symptoms/history), then whatever lap
-      // review the driver currently has open on screen (if any) — so the
-      // agent's picture matches what the driver is looking at this turn.
-      const systemSegments = [sessionSystemPrompt];
-      if (gatheredContext) systemSegments.push(gatheredContext);
-      if (extendedContext) systemSegments.push(extendedContext);
+      // Keep route context server-side; Mastra agent owns system instructions.
+      const turnContext = [sessionSystemPrompt, gatheredContext, extendedContext]
+        .filter(Boolean)
+        .join("\n\n");
+      reqCtx.set(CHAT_TURN_CONTEXT_KEY, turnContext);
+      reqCtx.set(CHAT_TURN_MESSAGES_KEY, messages);
+      const { run, isNew } = reserveChatRun(threadId);
 
-      try {
-        return await runAiChat(ai, {
-          systemPrompt: systemSegments.join("\n\n"),
-          messages,
-        }, async (chatContext) => {
-          chatContext.set("gameId", gameId);
-          chatContext.set("sessionId", id);
-          // Reserve (or re-attach to) this thread's detached run BEFORE
-          // calling the agent. Duplicate posts attach to existing run.
-          const { run, isNew } = reserveChatRun(threadId);
-          if (isNew) {
-            const stream = await agent.stream(
-              [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
-              {
-                memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-                requestContext: chatContext,
-                abortSignal: run.abortController.signal,
-                providerOptions: {
-                  openai: { reasoningEffort: "medium" },
-                  google: buildGoogleReasoningProviderOptions(ai.model, settings.chatThinkingBudget) as never,
-                },
-              },
-            );
+      // Reserve (or re-attach to) this thread's detached run BEFORE calling
+      // the agent — the double-start guard lives in the registry: if a turn
+      // is already active for this thread (e.g. a duplicate POST fired while
+      // one is in flight), `isNew` is false and we skip starting a second
+      // agent call entirely, just attaching to the existing run's stream.
+      if (isNew) {
+        let stream;
+        try {
+          stream = await agent.stream(messages, {
+            ...chatMemoryOptions(threadId),
+            requestContext: reqCtx,
+            abortSignal: run.abortController.signal,
+            providerOptions: {
+              openai: { reasoningEffort: "medium" },
+              google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+            },
+          });
+        } catch (err) {
+          finishRun(run);
+          throw err;
+        }
 
-            startDetachedAgentTurn(run, {
-              agentStream: stream,
-              originalMessages: messages,
-              memory: getChatMemory(),
-              threadId,
-              turnStartedAt,
-            });
-          }
-
-          const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
-          response.headers.set("x-resumable-stream-id", run.runId);
-          return response;
+        startDetachedAgentTurn(run, {
+          agentStream: stream,
+          originalMessages: messages,
+          memory: getChatMemory(),
+          threadId,
+          turnStartedAt,
+          abortSignal: run.abortController.signal,
         });
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[SetupEngineer] Stream failed:", message);
-        return c.json({ error: message }, 500);
       }
+
+      // Same replay-then-live-tail stream the reconnect endpoint serves —
+      // identical code path, so a fresh POST and a later reconnect are
+      // indistinguishable to the client's transport.
+      const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+      response.headers.set("x-resumable-stream-id", run.runId);
+      return response;
     }
   )
 
@@ -287,23 +304,12 @@ export const tuneChatRoutes = new Hono()
     async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const memory = getChatMemory();
-        const base = tuneSessionThreadId(id);
-        const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((g) => g.threadId));
-        ids.add(base);
-        for (const threadId of ids) {
-          await memory.deleteThread(threadId);
-        }
-      } catch (err: any) {
-        console.error("[TuneChat] Failed to clear thread:", err.message);
+        await deleteChatLineage(tuneSessionThreadId(id));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[TuneChat] Failed to clear thread:", message);
+        return c.json({ error: message }, 500);
       }
       return c.json({ ok: true });
     }
   )
-
-  // GET /api/experiments/:id — one session.
-  // Ships a computed `lapTarget` (Phase 5, track-length-aware stint nudge):
-  // advisory-only "how many laps is a full stint here", derived from the
-  // session's best known lap time, falling back to track length / avg speed,
-  // falling back to a fixed default. Decoupled from the confidence model.

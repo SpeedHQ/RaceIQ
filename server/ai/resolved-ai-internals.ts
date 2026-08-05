@@ -1,12 +1,11 @@
 import type { BoundMastraModel } from "../../mastra/model";
-import type { ChatRequest, ResolvedAi } from "./ai-types";
+import type { ResolvedAi } from "./ai-types";
 
 /** RequestContext key owned by the central model resolver. */
 export const RESOLVED_AI_MODEL_CONTEXT_KEY = "__raceiq_resolved_ai_model";
 
 export type ResolvedAiInternals = {
   model?: BoundMastraModel;
-  createChatResponse?: (input: ChatRequest) => Promise<Response>;
 };
 
 const internalsByResolvedAi = new WeakMap<ResolvedAi, ResolvedAiInternals>();

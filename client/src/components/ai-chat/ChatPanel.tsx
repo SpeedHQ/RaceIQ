@@ -1,19 +1,19 @@
-import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, useAui, useAuiState } from "@assistant-ui/react";
 import { AssistantChatTransport, createResumableSessionStorage, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@shared/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
-import { useMemo, useState } from "react";
+import { Maximize2, Minimize2, MoreHorizontal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { client } from "@/lib/rpc";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { useUiStore } from "../../stores/ui";
-import { Button } from "../ui/button";
 
+import { resolvedResumableThreadId, type ChatRunStatus } from "./resumable-chat";
 /**
- * ChatPanel — shared assistant-ui chat shell extracted from TuneSetupChat.tsx
  * (plan: migrate Lap Chat + Compare Chat onto the same modern streaming stack
  * as Setup Engineer chat). Renders via assistant-ui + the AI SDK v5
  * UI-message-stream protocol; the server route wraps a Mastra agent stream
@@ -33,11 +33,6 @@ import { Button } from "../ui/button";
 
 // Rough $/1M tokens for a cost estimate (input, output). Chat models are cheap;
 // this is a ballpark shown as "≈", not billing.
-/** Status shape returned by `GET /api/chats/:threadId/run` (server/routes/chat-run-routes.ts). */
-interface ChatRunStatus {
-  status: "none" | "active" | "finished";
-  runId?: string;
-}
 
 async function fetchChatRunStatus(threadId: string): Promise<ChatRunStatus> {
   try {
@@ -97,11 +92,11 @@ export function formatTokens(n: number): string {
 }
 
 /** Tool/token/cost stats for the latest reply — assistant-ui reads token usage
- *  from the AI SDK stream's message metadata via useThreadTokenUsage; cost is a
- *  rough client-side estimate from the configured chat provider's rates. Also
- *  renders a context-window usage meter, a generation prev/next switcher, and
- *  (when a base thread id is available) a "New chat" button that forks the
- *  active generation into a fresh one seeded with a summary. */
+ * from the AI SDK stream's message metadata via useThreadTokenUsage; cost is a
+ * rough client-side estimate from the configured chat provider's rates. Also
+ * renders a context-window usage meter, a generation prev/next switcher, and
+ * (when a base thread id is available) a "New chat" button that forks the
+ * active generation into a fresh one seeded with a summary. */
 function TokenUsageFooter({
   compactThreadId,
   historyQueryKey,
@@ -127,7 +122,6 @@ function TokenUsageFooter({
   const { displaySettings } = useSettings();
   const queryClient = useQueryClient();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const hasChat = useAuiState((s) => s.thread.messages.length > 0);
   const [compactMsg, setCompactMsg] = useState<string | null>(null);
 
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
@@ -171,13 +165,11 @@ function TokenUsageFooter({
   });
   const used = usage?.inputTokens || estimatedTokens;
   const level = meterLevel(used, limit ?? 0);
-  const barColor = level === "danger" ? "bg-status-danger" : level === "warn" ? "bg-status-warning" : "bg-app-border";
+  const barColor = level === "danger" ? "bg-status-danger" : level === "warn" ? "bg-ai-accent" : "bg-app-border";
   const pct = limit != null && limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
 
   const rate = RATE_PER_MTOK[provider] ?? RATE_PER_MTOK.gemini;
   const cost = ((usage?.inputTokens ?? 0) * rate.in + (usage?.outputTokens ?? 0) * rate.out) / 1_000_000;
-
-  const activeThreadId = generations.find((g) => g.active)?.threadId ?? compactThreadId;
 
   async function onNewChat() {
     if (!compactThreadId || compacting || isRunning) return;
@@ -226,51 +218,39 @@ function TokenUsageFooter({
       {hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
       {maxGen > 1 && (
         <span className="flex items-center gap-0.5">
-          <Button
+          <button
             type="button"
             onClick={() => onViewGen(Math.max(1, viewingGen - 1))}
             disabled={viewingGen <= 1}
-            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-30"
+            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-30"
             title="Previous chat generation"
           >
             ‹
-          </Button>
+          </button>
           <span>
             gen {viewingGen}/{maxGen}
           </span>
-          <Button
+          <button
             type="button"
             onClick={() => onViewGen(Math.min(maxGen, viewingGen + 1))}
             disabled={viewingGen >= maxGen}
-            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-30"
+            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-30"
             title="Next chat generation"
           >
             ›
-          </Button>
+          </button>
         </span>
       )}
-      {activeThreadId && isRunning && (
-        <Button
-          type="button"
-          onClick={() => {
-            void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
-          }}
-          className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20"
-          title="Stop the agent turn on the server (not just this view)"
-        >
-          Cancel
-        </Button>
-      )}
       {compactThreadId && (
-        <Button
+        <button
           type="button"
           onClick={onNewChat}
-          disabled={!hasChat || compacting || isRunning}
-          className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-40"
+          disabled={compacting || isRunning}
+          className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-40"
           title="Compact this chat into a summary and continue in a fresh chat (keeps this chat as read-only history)"
         >
           {compacting ? "Compacting…" : "Compact & New chat"}
-        </Button>
+        </button>
       )}
       {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}
     </div>
@@ -280,6 +260,8 @@ function TokenUsageFooter({
 export interface ChatPanelProps {
   /** Chat POST/stream endpoint, e.g. `/api/laps/${id}/chat`. */
   api: string;
+  /** DELETE endpoint used by chat's Clear action. */
+  clearChatApi?: string;
   /** Fetch persisted thread history as real AI SDK v5 UIMessage[]. Optional
    *  `gen` requests a specific (older) generation; omitted/undefined means
    *  "the active generation". */
@@ -292,6 +274,8 @@ export interface ChatPanelProps {
   onFinish?: () => void;
   /** Per-page tool UI passthrough to <Thread/>. */
   components?: ThreadProps["components"];
+  /** Disable composing while the owning surface is not ready for chat. */
+  inputDisabled?: boolean;
   emptyState?: React.ReactNode;
   className?: string;
   /** Extra fields merged into every chat POST body (e.g. a live-updating
@@ -303,6 +287,16 @@ export interface ChatPanelProps {
   /** Persisted BASE thread id (lineage id, generation-suffix stripped) — used
    *  to enable the footer's "New chat" button and generation switcher. */
   compactThreadId?: string;
+}
+
+function PendingPromptSubmit({ prompt, onSubmitted }: { prompt?: string; onSubmitted: () => void }) {
+  const aui = useAui();
+  useEffect(() => {
+    if (!prompt) return;
+    aui.thread().append({ role: "user", content: [{ type: "text", text: prompt }] });
+    onSubmitted();
+  }, [aui, onSubmitted, prompt]);
+  return null;
 }
 
 function ChatPanelThread({
@@ -317,10 +311,15 @@ function ChatPanelThread({
   generations,
   viewingGen,
   activeGen,
-  activeThreadId,
+  resumableThreadId,
   onViewGen,
   onForked,
+  onRegenerate,
+  regeneratePrompt,
+  onSubmitted,
   readOnly,
+  inputDisabled,
+  onClearChat,
 }: {
   api: string;
   initialMessages: UIMessage[];
@@ -333,25 +332,43 @@ function ChatPanelThread({
   generations: ChatGeneration[];
   viewingGen: number;
   activeGen: number;
-  activeThreadId?: string;
+  resumableThreadId?: string;
   onViewGen: (gen: number) => void;
   onForked: (newGen: number) => void;
+  onRegenerate?: (messageId: string, prompt: string) => void;
+  regeneratePrompt?: string;
+  onSubmitted: () => void;
   readOnly: boolean;
+  inputDisabled?: boolean;
+  onClearChat: () => void;
 }) {
-  const transport = useMemo(
-    () =>
-      activeThreadId
-        ? new AssistantChatTransport({
-            api,
-            body: extraBody,
-            resumable: {
-              storage: createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }),
-              resumeApi: () => `/api/chats/${encodeURIComponent(activeThreadId)}/run/stream`,
-            },
-          })
-        : new AssistantChatTransport({ api, body: extraBody }),
-    [activeThreadId, api, extraBody],
-  );
+  // Resumable wiring: survives client unmount/refresh by re-attaching to the
+  // server-side detached run (server/ai/chat-run-registry.ts) instead of
+  // aborting it. `resumeApi` ignores the AI SDK's own stream-id argument —
+  // our registry is keyed by threadId, not per-stream id, and the reconnect
+  // endpoint is the same replay-then-live-tail stream regardless — so this is
+  // a no-op (no header ever set, storage never primed) for chat surfaces that
+  // don't yet start detached runs (lap chat, compare chat).
+  //
+  // Keyed on `activeThreadId`, NOT the base `compactThreadId` — detached runs
+  // register under the active generation's thread id server-side, so once a
+  // lineage has been forked (base !== active), keying resume/cancel on the
+  // base would silently stop finding the live run. Constructed fresh every
+  // render like the plain transport below it (not memoized) — the AI SDK
+  // re-resolves `body` per send, and `useChatRuntime`'s internal
+  // `useDynamicChatTransport` already re-points at whichever transport
+  // instance was passed on the latest render via a ref, so a fresh instance
+  // per render is the existing, working pattern here.
+  const transport = resumableThreadId
+    ? new AssistantChatTransport({
+        api,
+        body: extraBody,
+        resumable: {
+          storage: createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }),
+          resumeApi: () => `/api/chats/${encodeURIComponent(resumableThreadId)}/run/stream`,
+        },
+      })
+    : new AssistantChatTransport({ api, body: extraBody });
 
   const runtime = useChatRuntime({
     messages: initialMessages,
@@ -359,25 +376,113 @@ function ChatPanelThread({
     onFinish,
   });
   const [compacting, setCompacting] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const handler = (event: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setActionsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [actionsOpen]);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fullscreen]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TooltipProvider>
-        <div className={className ?? "h-full min-h-0 flex flex-col text-app-compact [&_*]:text-app-compact [&_svg]:size-3.5 [&_.aui-composer-input]:text-app-compact"}>
-          {readOnly && (
-            <div className="shrink-0 px-2 py-1 text-app-caption text-status-warning bg-status-warning/10 border-b border-status-warning/30">
-              Viewing an earlier chat (read-only). Switch to the latest to continue.
+        {fullscreen && <div className="fixed inset-0 z-[99] bg-app-bg/60" aria-hidden="true" />}
+        <div
+          role="dialog"
+          aria-modal={fullscreen}
+          aria-label="AI chat"
+          className={
+            fullscreen
+              ? "fixed inset-2 sm:inset-4 z-[100] flex min-h-0 flex-col rounded-lg border border-app-border bg-app-bg shadow-2xl text-app-compact [&_*]:text-app-compact [&_svg]:size-3.5 [&_.aui-composer-input]:text-app-compact"
+              : (className ?? "h-full min-h-0 flex flex-col text-app-compact [&_*]:text-app-compact [&_svg]:size-3.5 [&_.aui-composer-input]:text-app-compact")
+          }
+        >
+          <div className="shrink-0 flex items-center justify-between gap-2 px-2 py-1 border-b border-app-border/40">
+            <span className="text-app-text font-medium">{fullscreen ? "AI chat" : ""}</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setFullscreen((open) => !open)}
+                className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-surface-hover/30 hover:text-app-text"
+                title={fullscreen ? "Close full screen chat" : "Open full screen chat"}
+                aria-label={fullscreen ? "Close full screen chat" : "Open full screen chat"}
+              >
+                {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+              </button>
+              <div ref={actionsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((open) => !open)}
+                  className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-surface-hover/30 hover:text-app-text"
+                  title="Chat actions"
+                  aria-label="Chat actions"
+                  aria-expanded={actionsOpen}
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </button>
+                {actionsOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-lg border border-app-border-input bg-app-surface py-1 shadow-xl">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-1.5 text-left text-app-compact text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
+                      onClick={async () => {
+                        try {
+                          const url = new URL(api, window.location.origin);
+                          url.searchParams.set("export", "1");
+                          if (viewingGen > 1) url.searchParams.set("gen", String(viewingGen));
+                          const res = await fetch(url);
+                          if (!res.ok) throw new Error("Could not load chat export");
+                          const data = (await res.json()) as { messages?: unknown[] };
+                          await navigator.clipboard.writeText(JSON.stringify({ messages: data.messages ?? [] }, null, 2));
+                        } catch {
+                          /* ignore */
+                        }
+                        setActionsOpen(false);
+                      }}
+                    >
+                      Copy chat JSON
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-1.5 text-left text-app-compact text-status-danger hover:bg-app-surface-hover hover:text-status-danger/80"
+                      onClick={() => {
+                        onClearChat();
+                        setActionsOpen(false);
+                      }}
+                    >
+                      Clear chat
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+          {readOnly && (
+            <div className="shrink-0 px-2 py-1 text-app-caption text-ai-accent bg-ai-accent/10 border-b border-ai-accent/30">Viewing an earlier chat (read-only). Switch to the latest to continue.</div>
           )}
           <div className="flex-1 min-h-0 flex flex-col">
-            <Thread
-              components={components}
-              inputDisabled={compacting || readOnly}
-              onSend={(text) => {
-                runtime.thread.composer.setText(text);
-                runtime.thread.composer.send();
-              }}
-            />
+            <PendingPromptSubmit prompt={regeneratePrompt} onSubmitted={onSubmitted} />
+            <Thread components={components} inputDisabled={compacting || readOnly || inputDisabled} onRegenerate={readOnly ? undefined : onRegenerate} />
           </div>
           <TokenUsageFooter
             compactThreadId={compactThreadId}
@@ -396,11 +501,22 @@ function ChatPanelThread({
   );
 }
 
-export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId }: ChatPanelProps) {
+export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
   const queryClient = useQueryClient();
+  const [clearVersion, setClearVersion] = useState(0);
+  const [regenerateVersion, setRegenerateVersion] = useState(0);
+  const [regeneratePrompt, setRegeneratePrompt] = useState<string>();
+  const clearChat = async () => {
+    try {
+      await fetch(clearChatApi ?? api, { method: "DELETE" });
+      await queryClient.invalidateQueries({ queryKey: historyQueryKey });
+    } finally {
+      setClearVersion((version) => version + 1);
+    }
+  };
 
   const { data: gensData } = useQuery({
     queryKey: ["chat-generations", compactThreadId],
@@ -421,7 +537,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   const fullHistoryQueryKey = [...historyQueryKey, effectiveGen];
   const { data: history, isSuccess } = useQuery({
     queryKey: fullHistoryQueryKey,
-    queryFn: () => fetchHistory(effectiveGen > 1 ? effectiveGen : undefined),
+    queryFn: () => fetchHistory(effectiveGen),
   });
 
   // True live resume: on mount, ask the server whether a detached run is
@@ -442,18 +558,36 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
     staleTime: 0,
     gcTime: 0,
   });
-  if (activeThreadId && runStatus?.status === "active" && runStatus.runId) {
-    createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }).setStreamId(runStatus.runId);
+  const resumableThreadId = resolvedResumableThreadId(activeThreadId, runStatus, runStatusFetched);
+  if (resumableThreadId && runStatus?.runId) {
+    createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }).setStreamId(runStatus.runId);
   }
+  const regenerateChat = async (messageId: string, prompt: string) => {
+    if (!activeThreadId || !prompt || !window.confirm("Regenerate this response? Later messages will be removed.")) return;
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      });
+      const data = (await res.json().catch(() => null)) as { prompt?: string; error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? "Could not regenerate chat");
+      await queryClient.invalidateQueries({ queryKey: historyQueryKey });
+      setRegeneratePrompt(data?.prompt ?? prompt);
+      setRegenerateVersion((version) => version + 1);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Could not regenerate chat");
+    }
+  };
 
   if (!aiConfigured) {
     return (
       emptyState ?? (
         <div className="pt-2 space-y-1.5">
           <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
-          <Button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
+          <button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
             Set up AI
-          </Button>
+          </button>
         </div>
       )
     );
@@ -468,9 +602,9 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
 
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}`}
-      api={api}
+      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}:${regenerateVersion}`}
       initialMessages={history ?? []}
+      api={api}
       onFinish={onFinish}
       components={components}
       className={className}
@@ -480,13 +614,18 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
       generations={generations}
       viewingGen={effectiveGen}
       activeGen={activeGen}
-      activeThreadId={activeThreadId}
+      resumableThreadId={resumableThreadId}
       onViewGen={(gen) => setViewingGen(gen)}
       onForked={(newGen) => {
         void queryClient.invalidateQueries({ queryKey: historyQueryKey });
         setViewingGen(newGen);
       }}
+      onRegenerate={readOnly || !activeThreadId || runStatus?.status === "active" ? undefined : regenerateChat}
+      regeneratePrompt={regeneratePrompt}
+      onSubmitted={() => setRegeneratePrompt(undefined)}
       readOnly={readOnly}
+      inputDisabled={inputDisabled}
+      onClearChat={() => void clearChat()}
     />
   );
 }

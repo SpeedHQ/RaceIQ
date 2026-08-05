@@ -10,6 +10,8 @@ import {
   CHAT_RESOURCE_ID,
   parseThreadGeneration,
   listThreadGenerations,
+  truncateChatAfterUserMessage,
+  deleteChatLineage,
 } from "../ai/chat-agent";
 import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread-runner";
 
@@ -151,18 +153,13 @@ export const chatsRoutes = new Hono()
     async (c) => {
       const threadId = c.req.param("threadId");
       try {
-        const memory = getChatMemory();
         const { base } = parseThreadGeneration(threadId);
-        const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((g) => g.threadId));
-        ids.add(base);
-        for (const id of ids) {
-          await memory.deleteThread(id);
-        }
+        await deleteChatLineage(base);
         return c.json({ ok: true });
-      } catch (err: any) {
-        console.error("[Chats] Failed to delete:", err.message);
-        return c.json({ error: err.message }, 500);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Chats] Failed to delete:", message);
+        return c.json({ error: message }, 500);
       }
     }
   )
@@ -207,6 +204,28 @@ export const chatsRoutes = new Hono()
         }
         console.error("[Chats] Failed to compact:", err.message);
         return c.json({ error: err.message }, 500);
+      }
+    },
+  )
+
+  // ── Regenerate from a persisted user prompt ─────────────────
+  .post(
+    "/api/chats/:threadId/regenerate",
+    async (c) => {
+      const threadId = c.req.param("threadId");
+      const body = await c.req.json().catch(() => null) as { messageId?: unknown } | null;
+      if (typeof body?.messageId !== "string" || !body.messageId) {
+        return c.json({ error: "messageId is required" }, 400);
+      }
+      try {
+        const result = await truncateChatAfterUserMessage(threadId, body.messageId);
+        return c.json({ ok: true, prompt: result.prompt });
+      } catch (err: any) {
+        if (err?.message === "User message not found") {
+          return c.json({ error: err.message }, 404);
+        }
+        console.error("[Chats] Failed to regenerate:", err?.message);
+        return c.json({ error: err?.message ?? "Could not regenerate chat" }, 500);
       }
     },
   );

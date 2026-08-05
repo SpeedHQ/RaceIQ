@@ -5,7 +5,6 @@ import {
   AiProviderError,
 } from "./provider-error";
 import {
-  CodexProviderAdapter,
   GeminiProviderAdapter,
   LocalProviderAdapter,
   OpenAiProviderAdapter,
@@ -43,7 +42,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "local" && provider !== "codex") {
+  if (provider !== "gemini" && provider !== "openai" && provider !== "local") {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,
@@ -86,7 +85,5 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
         ...config,
         endpoint: settings.localEndpoint || "http://localhost:1234/v1",
       }));
-    case "codex":
-      return resolvedAiFromAdapter(new CodexProviderAdapter(config));
   }
 }

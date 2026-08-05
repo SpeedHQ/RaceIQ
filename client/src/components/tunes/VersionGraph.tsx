@@ -1,6 +1,7 @@
 import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiment-focus";
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import type { F1CarSetup, LapMeta } from "@shared/types";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
@@ -391,9 +392,10 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 }}
                 disabled={deleteVersion.isPending}
                 title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
+                aria-label={hasChildren ? "Delete branch" : "Delete version"}
                 className="normal-case tracking-normal font-sans text-status-danger hover:bg-status-danger/10 shrink-0"
               >
-                Delete branch
+                <Trash2 className="size-3.5" aria-hidden="true" />
               </Button>
               <span
                 className="ml-auto flex items-center gap-3 shrink-0 text-app-compact tabular-nums"

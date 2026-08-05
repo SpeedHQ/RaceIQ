@@ -7,22 +7,46 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
+import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getModel } from "../../server/ai/model-provider";
+import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
+import {
+  getLapAnalysisTool,
+  generateLapAnalysisTool,
+} from "../tools/lap-analysis";
+import { getCompareAnalysisTool } from "../tools/compare-analysis";
 import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 
 export const compareChatAgent = new Agent({
   id: "compare-chat",
   name: "Compare Chat",
-  instructions: () => {
+  instructions: ({ requestContext }) => {
     const s = loadSettings();
-    return compareEngineerPersona(s.unit, s.temperatureUnit, s.language) + TRACK_GUIDE_PROMPT;
+    const context = getChatTurnContext(requestContext);
+    return (
+      compareEngineerPersona(s.unit, s.temperatureUnit, s.language) +
+      TRACK_GUIDE_PROMPT +
+      "\nThe server provides lap IDs and authoritative per-segment timing deltas in context. Use those values; never ask the driver for IDs or recalculate timing deltas." +
+      "\nFor lap-specific technique explanations, call the relevant lap/compare analysis tools before answering. If a tool reports unavailable, state that limitation and do not invent findings." +
+      (context ? `\n\n${context}` : "")
+    );
   },
-  model: ({ requestContext }) => getModel("chat", requestContext),
-  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool },
+  model: () => {
+    const s = loadSettings();
+    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
+  },
+  tools: {
+    getTrackGuideTool,
+    listTrackGuidesTool,
+    compareF1SetupToCatalogTool,
+    getCornerMetricsTool,
+    get_lap_analysis: getLapAnalysisTool,
+    get_compare_analysis: getCompareAnalysisTool,
+    generate_lap_analysis: generateLapAnalysisTool,
+  },
   memory: getChatMemory(),
 });

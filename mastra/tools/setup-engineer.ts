@@ -17,6 +17,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
+import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "../../server/ai/chat-message-context";
+
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
 import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
 import {
@@ -360,6 +362,18 @@ export function buildSetupEngineerTools() {
             "Not applied — driver has not confirmed. First propose the change(s) with preview_change and " +
             "their goal, ask the driver, and only call apply_changes (driverConfirmed: true) after they " +
             "explicitly say yes.",
+          applied: [],
+          skipped: [],
+        };
+      }
+      const turnMessages = execCtx?.requestContext?.get(CHAT_TURN_MESSAGES_KEY);
+      if (
+        Array.isArray(turnMessages) &&
+        !inputData.changes.every((change) => hasExplicitChangeConfirmation(turnMessages as { role?: string; parts?: unknown[]; content?: unknown }[], change))
+      ) {
+        return {
+          ok: false,
+          error: "Not applied — explicit confirmation must follow a matching preview in a later driver message.",
           applied: [],
           skipped: [],
         };
@@ -718,7 +732,9 @@ export function buildSetupEngineerTools() {
         lapTime: z.number(),
         isValid: z.boolean(),
         excluded: z.boolean(),
-        sectorTimes: z.array(z.number()),
+        s1Time: z.number().nullable(),
+        s2Time: z.number().nullable(),
+        s3Time: z.number().nullable(),
         deltaToBestSec: z.number().nullable(),
       })).default([]),
     }),
@@ -737,7 +753,9 @@ export function buildSetupEngineerTools() {
           lapTime: l.lapTime,
           isValid: l.isValid,
           excluded: Boolean(l.experimentExcluded),
-          sectorTimes: l.sectorTimes ?? [],
+          s1Time: l.sectorTimes?.[0] ?? null,
+          s2Time: l.sectorTimes?.[1] ?? null,
+          s3Time: l.sectorTimes?.[2] ?? null,
           deltaToBestSec: bestLapTime != null && l.isValid && l.lapTime > 0 ? l.lapTime - bestLapTime : null,
         })),
       };
@@ -759,7 +777,9 @@ export function buildSetupEngineerTools() {
       lapTime: z.number().optional(),
       isValid: z.boolean().optional(),
       excluded: z.boolean().optional(),
-      sectorTimes: z.array(z.number()).optional(),
+      s1Time: z.number().nullable().optional(),
+      s2Time: z.number().nullable().optional(),
+      s3Time: z.number().nullable().optional(),
       corners: z.array(z.object({
         label: z.string(),
         minSpeedKph: z.number().optional(),
@@ -793,7 +813,9 @@ export function buildSetupEngineerTools() {
           lapTime: meta.lapTime,
           isValid: meta.isValid,
           excluded: Boolean(meta.experimentExcluded),
-          sectorTimes: meta.sectorTimes ?? [],
+          s1Time: meta.sectorTimes?.[0] ?? null,
+          s2Time: meta.sectorTimes?.[1] ?? null,
+          s3Time: meta.sectorTimes?.[2] ?? null,
           corners: [],
           tires: null,
           metrics: null,
@@ -810,7 +832,9 @@ export function buildSetupEngineerTools() {
         lapTime: meta.lapTime,
         isValid: meta.isValid,
         excluded: Boolean(meta.experimentExcluded),
-        sectorTimes: meta.sectorTimes ?? [],
+        s1Time: meta.sectorTimes?.[0] ?? null,
+        s2Time: meta.sectorTimes?.[1] ?? null,
+        s3Time: meta.sectorTimes?.[2] ?? null,
         corners,
         tires: tireSnapshot(telemetry),
         metrics: {

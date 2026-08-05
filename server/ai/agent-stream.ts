@@ -1,5 +1,6 @@
 import { createUIMessageStream, createUIMessageStreamResponse, type UIMessageChunk } from "ai";
 import { toAISdkStream } from "@mastra/ai-sdk";
+import { formatClientAiErrorMessage, toClientAiError } from "./provider-error";
 import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
 
 /**
@@ -22,6 +23,10 @@ import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
 type UiStreamOptions = Parameters<typeof createUIMessageStream>[0];
 type AgentStream = Parameters<typeof toAISdkStream>[0];
 
+export function stripThinkTags(text: string): string {
+  return text.replace(/<\/?think\b[^>]*>/gi, "");
+}
+
 /** Minimal structural view of the Mastra memory we touch. */
 interface AgentTurnMemory {
   recall(args: { threadId: string }): Promise<{ messages?: unknown[] }>;
@@ -42,101 +47,105 @@ export interface StreamAgentTurnOptions {
    * prior turn's assistant row is never matched.
    */
   turnStartedAt: number;
-  /** Patch streamed reasoning back into the saved row. Default true. */
+  /** Abort signal used to stop persistence when the owning chat is cleared. */
+  abortSignal?: AbortSignal;
+  /** Patch streamed reasoning back into the saved assistant row. Default true. */
   persistReasoning?: boolean;
 }
 
-/**
- * Persist the reasoning text assembled on the live stream back into the memory
- * row that Mastra's own async save leaves reasoning-less.
- */
-async function persistReasoningToMemory(
-  responseMessage: { id?: string; parts?: Array<{ type: string; text?: string }> },
+export async function persistAssistantTurnToMemory(
+  responseMessage: any,
   memory: AgentTurnMemory,
   threadId: string,
   turnStartedAt: number,
   reasoningDurationMs: number,
   usage?: { inputTokens: number; outputTokens: number; totalTokens: number },
+  abortSignal?: AbortSignal,
 ): Promise<void> {
-  try {
-    const reasoningText = (responseMessage.parts ?? [])
-      .filter((p) => p.type === "reasoning")
-      .map((p) => p.text ?? "")
-      .join("\n")
-      .trim();
-    // Persist even without reasoning when there's usage to stamp — the token
-    // footer needs it to survive a refresh (Mastra's own save drops both).
-    if (!reasoningText && !usage) return;
+  if (abortSignal?.aborted) return;
+  const parts = Array.isArray(responseMessage?.parts) ? responseMessage.parts : [];
+  if (!parts.length) return;
 
-    // Poll until Mastra's own async save has landed this turn's assistant row
-    // (finish handling runs as the stream is consumed; it can trail this
-    // callback by a few ms).
-    //
-    // Prefer an exact id match against the streamed response message — that is
-    // unambiguously the model's own row. Fall back to the newest assistant row
-    // stamped at/after the turn started, but SKIP deterministic tool/route notes
-    // (apply summaries, .... Those are saved *during* the
-    // turn and can carry a newer createdAt than Mastra's trailing model save, so
-    // the old "newest assistant" heuristic would stamp the reasoning onto the
-    // last branch note — surfacing a phantom thinking block on it.
-    const isNote = (m: any) => m?.content?.metadata?.deterministic === true;
-    let target: any;
-    for (let attempt = 0; attempt < 40; attempt++) {
-      const recalled = await memory.recall({ threadId });
-      const raw: any[] = recalled.messages ?? [];
-      const byId = responseMessage.id
-        ? raw.find((m) => m.role === "assistant" && m.id === responseMessage.id)
-        : undefined;
-      if (byId) {
-        target = byId;
-        break;
-      }
-      const newest = [...raw]
-        .reverse()
-        .find((m) => m.role === "assistant" && !isNote(m));
-      if (newest && new Date(newest.createdAt).getTime() >= turnStartedAt) {
-        target = newest;
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    if (!target) return;
-
-    const existingParts: any[] = Array.isArray(target.content?.parts)
-      ? target.content.parts
-      : [];
-    // Idempotent: skip re-stamping reasoning if it's somehow already there.
-    const hasReasoning =
-      Boolean(target.content?.reasoning) || existingParts.some((p) => p.type === "reasoning");
-    const writeReasoning = Boolean(reasoningText) && !hasReasoning;
-    if (!writeReasoning && !usage) return;
-
-    // Write reasoning both as a leading `parts` entry (so MessageList
-    // reconstructs it in order, before the answer text) and on
-    // `content.reasoning` — mirroring how MessageList itself serialises a
-    // response, and matching the GET route's read path.
-    // Stamp the turn's thinking wall-time onto content.metadata so it
-    // round-trips through MessageList.ui() (same path as usage) and the
-    // reasoning trigger can show "Reasoning (Ns)" after a refresh.
-    const content = {
-      ...target.content,
-      ...(writeReasoning
-        ? {
-            reasoning: reasoningText,
-            parts: [{ type: "reasoning", reasoning: reasoningText }, ...existingParts],
-          }
-        : {}),
-      metadata: {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const raw: any[] = (await memory.recall({ threadId })).messages ?? [];
+    const target =
+      raw.find((message) => message.role === "assistant" && message.id === responseMessage.id) ??
+      [...raw].reverse().find((message) => {
+        if (message.role !== "assistant") return false;
+        const createdAt = message.createdAt instanceof Date ? message.createdAt.getTime() : Date.parse(String(message.createdAt ?? ""));
+        return Number.isFinite(createdAt) && createdAt >= turnStartedAt;
+      });
+    if (target) {
+      const metadata = {
         ...(target.content?.metadata ?? {}),
-        ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
-        // Token usage for the footer — same round-trip path as reasoning
-        // duration (MessageList.ui() → metadata.usage → useThreadTokenUsage).
         ...(usage ? { usage } : {}),
-      },
-    };
-    await memory.saveMessages({ messages: [{ ...target, content }] });
-  } catch (err: any) {
-    console.error("[agent-stream] Failed to persist reasoning:", err?.message ?? err);
+        ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
+      };
+      await memory.saveMessages({
+        messages: [{
+          ...target,
+          content: {
+            ...target.content,
+            format: 2,
+            parts,
+            content: parts
+              .filter((part: any) => part?.type === "text")
+              .map((part: any) => part.text ?? "")
+              .join(""),
+            metadata,
+          },
+        }],
+      });
+      return;
+    }
+    const { promise, resolve } = Promise.withResolvers<void>();
+    setTimeout(resolve, 50);
+    await promise;
+  }
+  throw new Error(`Failed to persist assistant turn ${String(responseMessage?.id ?? "unknown")} in thread ${threadId}`);
+}
+
+export async function restoreOriginalUserMessage(
+  originalMessages: UiStreamOptions["originalMessages"],
+  memory: AgentTurnMemory,
+  threadId: string,
+  turnStartedAt = 0,
+): Promise<void> {
+  const original = [...(originalMessages as any[])].reverse().find((message) => message.role === "user") as any;
+  if (!original?.id) return;
+  const text = Array.isArray(original.parts)
+    ? original.parts.filter((part: any) => part?.type === "text").map((part: any) => part.text ?? "").join("")
+    : typeof original.content === "string"
+      ? original.content
+      : "";
+  if (!text) return;
+
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const raw: any[] = (await memory.recall({ threadId })).messages ?? [];
+    const target =
+      raw.find((message) => message.role === "user" && message.id === original.id) ??
+      [...raw].reverse().find((message) => {
+        if (message.role !== "user") return false;
+        const createdAt = message.createdAt instanceof Date ? message.createdAt.getTime() : Date.parse(String(message.createdAt ?? ""));
+        return Number.isFinite(createdAt) && createdAt >= turnStartedAt;
+      });
+    if (target) {
+      await memory.saveMessages({
+        messages: [{
+          ...target,
+          content: {
+            ...target.content,
+            format: 2,
+            parts: [{ type: "text", text }],
+            content: text,
+          },
+        }],
+      });
+      return;
+    }
+    const { promise, resolve } = Promise.withResolvers<void>();
+    setTimeout(resolve, 50);
+    await promise;
   }
 }
 
@@ -168,55 +177,74 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
   // messageMetadata below, persisted to memory in onFinish so the footer
   // survives a refresh.
   let finishUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
-
   return createUIMessageStream({
-    originalMessages,
-    onFinish: persistReasoning
-      ? async ({ responseMessage }) =>
-          persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage)
-      : undefined,
+
+    onFinish: async ({ responseMessage }) => {
+      if (opts.abortSignal?.aborted) return;
+      if (persistReasoning) {
+        await persistAssistantTurnToMemory(
+          responseMessage as any,
+          memory,
+          threadId,
+          turnStartedAt,
+          reasoningDurationMs(),
+          finishUsage,
+          opts.abortSignal,
+        );
+      }
+      await restoreOriginalUserMessage(originalMessages, memory, threadId, turnStartedAt);
+    },
     execute: async ({ writer }) => {
-      for await (const part of toAISdkStream(agentStream, {
-        from: "agent",
-        // `sendReasoning` defaults to FALSE in @mastra/ai-sdk, which silently
-        // strips the model's thought parts out of the UI-message stream — so
-        // even with includeThoughts:true on the Gemini side the chat only ever
-        // saw the running indicator and never a live thinking block. Turn it on
-        // so reasoning parts actually reach the UI.
-        sendReasoning: true,
-        // Threaded straight into AI SDK v5's UIMessageStreamOptions. Invoked on
-        // the underlying stream's `start`/`finish` TextStreamPart events;
-        // `finish` carries `totalUsage` in ai@7's LanguageModelV2Usage shape —
-        // { inputTokens, outputTokens, totalTokens } — already exactly the shape
-        // assistant-ui's useThreadTokenUsage() reads off metadata.usage.
-        messageMetadata: ({ part }) => {
-          if (part.type !== "finish") return undefined;
-          const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
-          const durationMs = reasoningDurationMs();
-          finishUsage = {
-            inputTokens: inputTokens ?? 0,
-            outputTokens: outputTokens ?? 0,
-            totalTokens: totalTokens ?? 0,
-          };
-          return {
-            usage: finishUsage,
-            ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
-          };
-        },
-      })) {
-        // Stamp thinking wall-time as reasoning chunks flow past. AI SDK v5
-        // emits reasoning as `reasoning-start`/`reasoning-delta`/`reasoning-end`
-        // parts — match the whole family by prefix.
-        if (String((part as { type?: string }).type ?? "").startsWith("reasoning")) {
-          const now = Date.now();
-          if (reasoningFirstTs === 0) reasoningFirstTs = now;
-          reasoningLastTs = now;
+      try {
+        for await (const part of toAISdkStream(agentStream, {
+          from: "agent",
+          sendReasoning: true,
+          messageMetadata: ({ part }) => {
+            if (part.type !== "finish") return undefined;
+            const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
+            const durationMs = reasoningDurationMs();
+            finishUsage = {
+              inputTokens: inputTokens ?? 0,
+              outputTokens: outputTokens ?? 0,
+              totalTokens: totalTokens ?? 0,
+            };
+            return {
+              usage: finishUsage,
+              ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
+            };
+          },
+        })) {
+          if (String((part as { type?: string }).type ?? "").startsWith("reasoning")) {
+            const now = Date.now();
+            if (reasoningFirstTs === 0) reasoningFirstTs = now;
+            reasoningLastTs = now;
+          }
+          const uiPart =
+            (part as { type?: string; delta?: unknown }).type === "text-delta" &&
+            typeof (part as { delta?: unknown }).delta === "string"
+              ? { ...part, delta: stripThinkTags((part as { delta: string }).delta) }
+              : part;
+          await writer.write(uiPart as Parameters<typeof writer.write>[0]);
         }
-        // `toAISdkStream`'s chunk type is inferred from Mastra's own bundled `ai`
-        // types, which drift slightly from this repo's `ai` version (e.g.
-        // `finishReason: "unknown"` isn't in the local FinishReason union). The
-        // wire shape is identical — cast to bridge the two.
-        await writer.write(part as Parameters<typeof writer.write>[0]);
+      } catch (err) {
+        const aiError = toClientAiError(err);
+        const promptTokens = aiError.upstream?.promptTokens;
+        if (promptTokens != null) {
+          await writer.write({
+            type: "message-metadata",
+            messageMetadata: {
+              usage: {
+                inputTokens: promptTokens,
+                outputTokens: 0,
+                totalTokens: promptTokens,
+              },
+            },
+          } as Parameters<typeof writer.write>[0]);
+        }
+        await writer.write({
+          type: "error",
+          errorText: formatClientAiErrorMessage(aiError),
+        } as Parameters<typeof writer.write>[0]);
       }
     },
   });
