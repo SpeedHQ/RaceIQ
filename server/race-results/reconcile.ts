@@ -12,6 +12,7 @@ import {
 import { deriveRaceResult } from "./derive";
 import { extractRaceSource } from "./source";
 import type { PitEvent } from "./types";
+import { getAllServerGames } from "../games/registry";
 
 export interface ReconcileSessionReport {
   sessionId: number;
@@ -150,4 +151,35 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
     errors: results.filter((result) => result.status === "error").length,
     results,
   };
+}
+
+export async function backfillAllRaceResults(): Promise<void> {
+  for (const game of getAllServerGames()) {
+    let afterSessionId: number | undefined;
+    let totals = { processed: 0, enriched: 0, unchanged: 0, ambiguous: 0, errors: 0 };
+
+    try {
+      while (true) {
+        const report = await backfillRaceResults({
+          gameId: game.id,
+          limit: 100,
+          afterSessionId,
+        });
+        totals = {
+          processed: totals.processed + report.processed,
+          enriched: totals.enriched + report.enriched,
+          unchanged: totals.unchanged + report.unchanged,
+          ambiguous: totals.ambiguous + report.ambiguous,
+          errors: totals.errors + report.errors,
+        };
+        const lastSessionId = report.results.at(-1)?.sessionId;
+        if (lastSessionId != null) afterSessionId = lastSessionId;
+        if (report.processed < 100 || lastSessionId == null) break;
+        await Bun.sleep(0);
+      }
+      console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(totals)}`);
+    } catch (error) {
+      console.error(`[RaceResults] Backfill failed for ${game.id}:`, error);
+    }
+  }
 }

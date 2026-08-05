@@ -77,6 +77,7 @@ if (recordingGameId) {
 // stuck DB fails here, at startup, instead of silently wedging the module graph.
 import { initDb } from "./db/index";
 import { deleteEmptySessions, setCacheMaxBytes } from "./db/queries";
+import { backfillAllRaceResults } from "./race-results/reconcile";
 import { injectDiscoveredIRacingIdentity } from "../shared/games/iracing";
 
 await initDb();
@@ -226,6 +227,10 @@ Bun.serve<WSData>({
 });
 
 console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`);
+
+void backfillAllRaceResults().catch((error) => {
+  console.error("[RaceResults] Startup backfill failed:", error);
+});
 
 // UDP-based recording for `dev:dump:fm` / `dev:dump:f1`. Shared-memory games
 // (acc, ac-evo) record via their own readers further down. Set before start()

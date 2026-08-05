@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { insertSession, getSessionResult, replacePitEvents, upsertSessionResult } from "../server/db/queries";
 import { getRecentRaceResults } from "../server/race-results/aggregates";
-import { RACE_RESULT_PROCESSOR_ID, reconcileSessionResult } from "../server/race-results/reconcile";
+import { initServerGameAdapters } from "../server/games/init";
+import { RACE_RESULT_PROCESSOR_ID, backfillAllRaceResults, reconcileSessionResult } from "../server/race-results/reconcile";
 
 
 describe("persisted race result metadata", () => {
@@ -95,6 +96,17 @@ describe("persisted race result metadata", () => {
     expect(results.some((result) => result.sessionId === oldest + 1 || result.sessionId === oldest + 2)).toBe(false);
     expect(await getSessionResult(oldest + 1, "f1-2025")).toBeNull();
     expect(await getSessionResult(oldest + 2, "f1-2025")).toBeNull();
+  });
+
+  test("backfills historical sessions across all registered games", async () => {
+    initServerGameAdapters();
+    const f1SessionId = await insertSession(1, 1, "f1-2025", "race");
+    const accSessionId = await insertSession(1, 1, "acc", "race");
+
+    await backfillAllRaceResults();
+
+    expect((await getSessionResult(f1SessionId, "f1-2025"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
+    expect((await getSessionResult(accSessionId, "acc"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
   });
 
 });
