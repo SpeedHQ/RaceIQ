@@ -7,8 +7,6 @@
     "types": ["bun"],
     "strict": true,
     "esModuleInterop": true,
-    "allowJs": true,
-    "checkJs": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
