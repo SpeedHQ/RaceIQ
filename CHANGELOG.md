@@ -26,6 +26,7 @@
 - Improve session and sector tables when timing data is sparse or unavailable
 - Show every registered game in storage settings, including games without recorded sessions
 - Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
+- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
