@@ -64,6 +64,11 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     const labels = (outlineRaw as { labels?: unknown }).labels;
     return Array.isArray(labels) ? (labels as TrackMapLabel[]) : null;
   }, [outlineRaw]);
+  const pitRoad = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object") return null;
+    const contours = (outlineRaw as { pitRoad?: unknown }).pitRoad;
+    return Array.isArray(contours) ? (contours as Point[][]) : null;
+  }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
   const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
@@ -185,6 +190,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedLapId,
     outline,
     mapLabels,
+    pitRoad,
     boundaries,
     sectorData,
     sectors,

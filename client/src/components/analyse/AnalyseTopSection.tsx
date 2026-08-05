@@ -22,6 +22,7 @@ interface AnalyseTopSectionProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
+  pitRoad?: Point[][] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
   sectors: SectorBoundaries | null;
@@ -65,6 +66,7 @@ export function AnalyseTopSection({
   cursorIdx,
   outline,
   mapLabels,
+  pitRoad,
   boundaries,
   sectors,
   segments,
@@ -162,6 +164,7 @@ export function AnalyseTopSection({
           cursorIdx={cursorIdx}
           outline={outline}
           mapLabels={mapLabels}
+          pitRoad={pitRoad}
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}

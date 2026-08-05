@@ -48,13 +48,26 @@ describe("GET /api/cars game context", () => {
       path: string;
       category: string;
       imageUrl: string;
+      shortName: string;
+      hp: number | null;
+      weightLb: number | null;
+      hasHeadlights: boolean | null;
+      rainEnabled: boolean | null;
+      hasMultipleDryTireTypes: boolean | null;
+      searchTerms: string;
     }>;
-    expect(cars).toContainEqual({
-      ordinal: 208,
-      name: "Porsche 911 Cup (992.2)",
-      path: "cars\\porsche9922cup",
+    expect(cars.find((car) => car.ordinal === 216)).toMatchObject({
+      ordinal: 216,
+      name: "BMW M2 Racing (G87)",
+      path: "cars\\bmwm2g87",
       category: "sports_car",
-      imageUrl: "/iracing-car-images/208.jpg",
+      imageUrl: "/iracing-car-images/216.jpg",
+      shortName: "BMWM2R",
+      hp: 313,
+      weightLb: 3472,
+      hasHeadlights: true,
+      rainEnabled: true,
+      hasMultipleDryTireTypes: true,
     });
     expect(cars).toContainEqual({
       ordinal: CAR_ID,
@@ -62,8 +75,15 @@ describe("GET /api/cars game context", () => {
       path: "",
       category: "discovered",
       imageUrl: "",
+      shortName: "",
+      hp: null,
+      weightLb: null,
+      hasHeadlights: null,
+      rainEnabled: null,
+      hasMultipleDryTireTypes: null,
+      searchTerms: "",
     });
-    expect(cars).toHaveLength(180);
+    expect(cars).toHaveLength(186);
     expect(cars.some((car) => car.name === "Foreign AC Evo Car")).toBe(false);
     const catalogCars = cars.filter((car) => car.ordinal !== CAR_ID);
     const catalogPaths = catalogCars.map((car) => car.path);
@@ -86,14 +106,16 @@ describe("GET /api/cars game context", () => {
   });
 
   test("returns seeded iRacing car details by native ID", async () => {
-    const response = await carRoutes.request("/api/cars/208", {
+    const response = await carRoutes.request("/api/cars/216", {
       headers: { "X-Game-Id": "iracing" },
     });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      ordinal: 208,
-      name: "Porsche 911 Cup (992.2)",
+    expect(await response.json()).toMatchObject({
+      ordinal: 216,
+      name: "BMW M2 Racing (G87)",
+      hp: 313,
+      rainEnabled: true,
     });
   });
 

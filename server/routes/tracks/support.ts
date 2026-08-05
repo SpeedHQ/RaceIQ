@@ -10,8 +10,13 @@ import {
 } from "../../../shared/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
+import { applyAlignment, computeAlignment } from "../../../shared/racing/tracks/geometry/points";
 import { tryGetServerGame } from "../../games/registry";
 import { tryGetGame } from "../../../shared/games/registry";
+import {
+  getIRacingOvalDirection,
+  getIRacingTrack,
+} from "../../../shared/racing/tracks/catalogs/iracing";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
 import type { IRacingMapLabel } from "../../games/iracing/track-map-svg";
@@ -65,6 +70,8 @@ export function getSharedTrackName(ordinal: number, gameId?: string): string | u
 export interface ResolvedTrackOutline {
   points: { x: number; z: number }[];
   labels: IRacingMapLabel[];
+  /** Decorative official iRacing pit-road contours, never lap geometry. */
+  pitRoad: { x: number; z: number }[][];
   recorded: boolean;
   source: "shared" | "official-svg" | "generated" | "bundled" | "recorded";
 }
@@ -81,20 +88,28 @@ export async function resolveTrackOutline(
   const sharedName = getSharedTrackName(ordinal, gameId);
 
   if (gameId === "iracing") {
+    const official = await getIRacingSvgTrackMap(ordinal);
     if (sharedName) {
       const shared = loadSharedOutline(sharedName);
       const labelledSegments = loadLabelledSegments(sharedName, "iracing");
       if (shared && labelledSegments.length > 0) {
+        const alignment = official
+          ? computeAlignment(official.points, shared)
+          : null;
         return {
           points: shared,
           labels: [],
+          pitRoad: official && alignment
+            ? official.pitRoad.map((contour) =>
+                contour.map((point) => applyAlignment(point, alignment)),
+              )
+            : [],
           recorded: false,
           source: "shared",
         };
       }
     }
 
-    const official = await getIRacingSvgTrackMap(ordinal);
     if (official) {
       return {
         ...official,
@@ -108,6 +123,7 @@ export async function resolveTrackOutline(
       return {
         points: generated,
         labels: [],
+        pitRoad: [],
         recorded: true,
         source: "generated",
       };
@@ -118,17 +134,18 @@ export async function resolveTrackOutline(
       return {
         points: outline,
         labels: [],
+        pitRoad: [],
         recorded: true,
         source: "bundled",
       };
     }
   }
-
   const dbOutline = await getDbTrackOutline(ordinal, gameId as GameId);
   if (dbOutline) {
     return {
       points: dbOutline,
       labels: [],
+      pitRoad: [],
       recorded: true,
       source: "recorded",
     };
@@ -160,6 +177,7 @@ export async function resolveTrackOutline(
         return {
           points: generated,
           labels: [],
+          pitRoad: [],
           recorded: true,
           source: "generated",
         };
@@ -192,9 +210,21 @@ export async function resolveTrackSegments(
 
   const resolved = gameId ? await resolveTrackOutline(ordinal, gameId) : null;
   const outline = resolved?.points ?? null;
-  if (!outline || outline.length < 20) return { segments: [], totalDist: 0, source: "none" };
+  if (!outline || outline.length < 20) {
+    return { segments: [], totalDist: 0, source: "none" };
+  }
+  const iracingTrack = gameId === "iracing" ? getIRacingTrack(ordinal) : undefined;
+  const ovalDirection = gameId === "iracing" ? getIRacingOvalDirection(ordinal) : undefined;
+  const isFourTurnOval =
+    iracingTrack?.category.endsWith("oval") === true &&
+    iracingTrack.cornersPerLap === 4;
+  const result = autoTrackSegments(
+    outline,
+    isFourTurnOval && ovalDirection
+      ? { fourTurnOval: { direction: ovalDirection } }
+      : {},
+  );
 
-  const result = autoTrackSegments(outline);
   return {
     segments: result.segments,
     totalDist: result.totalDist,

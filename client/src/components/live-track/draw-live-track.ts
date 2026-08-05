@@ -3,6 +3,7 @@ import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import type { MutableRefObject, RefObject } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { drawPitRoadLayer } from "@/lib/canvas/draw-track";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 
 export interface Point {
@@ -22,6 +23,7 @@ export function drawLiveTrack({
   canvasRef,
   packet,
   outline,
+  pitRoad,
   noOutline,
   isRecorded,
   startYaw,
@@ -35,6 +37,7 @@ export function drawLiveTrack({
   canvasRef: RefObject<HTMLCanvasElement | null>;
   packet: TelemetryPacket | null;
   outline: Point[] | null;
+  pitRoad: Point[][];
   noOutline: boolean;
   isRecorded: boolean;
   startYaw: number | null;
@@ -84,6 +87,7 @@ export function drawLiveTrack({
   let minZ = Number.POSITIVE_INFINITY;
   let maxZ = Number.NEGATIVE_INFINITY;
   const allPoints = [displayOutline];
+  if (pitRoad) allPoints.push(...pitRoad);
   if (boundaries) {
     if (boundaries.leftEdge) allPoints.push(boundaries.leftEdge);
     if (boundaries.rightEdge) allPoints.push(boundaries.rightEdge);
@@ -111,6 +115,8 @@ export function drawLiveTrack({
   function toCanvas(x: number, z: number): [number, number] {
     return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
+
+  drawPitRoadLayer(ctx, pitRoad, toCanvas);
 
   // Compute jump threshold: skip segments where world-space distance is abnormally large.
   // Use the 90th percentile * 3 to avoid breaking at normal sparse sections (straights).

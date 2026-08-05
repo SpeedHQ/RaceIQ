@@ -46,6 +46,7 @@
     "telemetry:catalog": "bun scripts/catalog/generate-telemetry-catalog.ts",
     "telemetry:catalog:check": "bun scripts/catalog/generate-telemetry-catalog.ts --check --repeat",
     "iracing:cars:seed": "bun scripts/iracing/seed-cars.ts",
+    "iracing:car-classes:seed": "bun scripts/iracing/seed-car-classes.ts",
     "iracing:tracks:seed": "bun scripts/iracing/seed-tracks.ts",
     "gzip:recording": "bun scripts/telemetry/recordings/gzip-recording.ts",
     "fixtures:iracing": "bun scripts/iracing/generate-recording-fixture.ts",

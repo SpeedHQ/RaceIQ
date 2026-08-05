@@ -10,6 +10,8 @@ export interface IRacingMapLabel extends IRacingMapPoint {
 export interface IRacingSvgTrackMap {
   points: IRacingMapPoint[];
   labels: IRacingMapLabel[];
+  /** Filled decorative contours from iRacing's official pitroad.svg layer. */
+  pitRoad: IRacingMapPoint[][];
 }
 
 interface SvgPoint {
@@ -359,6 +361,21 @@ function allContours(svg: string): SvgPoint[][] {
   );
 }
 
+/** Parse iRacing's pitroad.svg shapes as separate decorative contours. */
+export function parseIRacingPitRoadSvg(
+  svg: string,
+): IRacingMapPoint[][] {
+  return allContours(svg)
+    .filter(
+      (points) =>
+        points.length >= 3 &&
+        closedPerimeter(points) > 0,
+    )
+    .map((points) =>
+      points.map((point) => ({ x: -point.x, z: point.y })),
+    );
+}
+
 function closedPerimeter(points: readonly SvgPoint[]): number {
   let total = 0;
   for (let index = 0; index < points.length; index++) {
@@ -529,6 +546,7 @@ export function parseIRacingActiveSvg(
   activeSvg: string,
   startFinishSvg?: string | null,
   turnsSvg?: string | null,
+  pitRoadSvg?: string | null,
 ): IRacingSvgTrackMap | null {
   const contours = allContours(activeSvg)
     .filter((points) => points.length >= 4)
@@ -578,5 +596,6 @@ export function parseIRacingActiveSvg(
     // pixels. Negating SVG X here preserves iRacing's published orientation.
     points: centerline.map((point) => ({ x: -point.x, z: point.y })),
     labels: rawLabels,
+    pitRoad: pitRoadSvg ? parseIRacingPitRoadSvg(pitRoadSvg) : [],
   };
 }

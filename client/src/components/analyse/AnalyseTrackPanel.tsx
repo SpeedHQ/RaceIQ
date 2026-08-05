@@ -14,6 +14,7 @@ interface AnalyseTrackPanelProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
+  pitRoad?: Point[][] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
   sectors: SectorBoundaries | null;
@@ -54,6 +55,7 @@ export function AnalyseTrackPanel({
   cursorIdx,
   outline,
   mapLabels,
+  pitRoad,
   boundaries,
   sectors,
   segments,
@@ -87,6 +89,7 @@ export function AnalyseTrackPanel({
         cursorIdx={cursorIdx}
         outline={outline}
         mapLabels={trackOverlay === "segments" ? mapLabels : null}
+        pitRoad={pitRoad}
         boundaries={boundaries}
         sectors={trackOverlay === "sectors" ? sectors : null}
         segments={trackOverlay === "segments" ? segments : null}

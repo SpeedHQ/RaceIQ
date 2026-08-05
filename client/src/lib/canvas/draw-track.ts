@@ -93,6 +93,33 @@ function cumulativeDistances(outline: Point[]): number[] {
   return cumulative;
 }
 
+/** Draw official iRacing pit-road contours as decorative filled geometry. */
+export function drawPitRoadLayer(
+  ctx: CanvasRenderingContext2D,
+  pitRoad: readonly (readonly Point[])[] | null | undefined,
+  toCanvas: (x: number, z: number) => [number, number],
+  opacity = 0.55,
+  lineWidth = 0.8,
+): void {
+  ctx.save();
+  ctx.fillStyle = "var(--track-pit-lane)";
+  ctx.strokeStyle = "var(--track-pit-lane)";
+  ctx.globalAlpha = opacity;
+  ctx.lineWidth = lineWidth;
+  for (const contour of pitRoad ?? []) {
+    if (contour.length < 3) continue;
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(contour[0].x, contour[0].z));
+    for (let index = 1; index < contour.length; index++) {
+      ctx.lineTo(...toCanvas(contour[index].x, contour[index].z));
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /**
  * drawTrack — Shared canvas rendering for both gallery thumbnails and detail views.
  * Draws a thick base outline, then overlays color-coded segments (corner/straight).
@@ -109,6 +136,8 @@ export function drawTrack(
   sectorOverride?: { starts: number[] },
   flipX?: boolean,
   sectorColors?: string[],
+  /** Decorative filled contours from iRacing's pitroad.svg layer. */
+  pitRoad?: Point[][] | null,
   /** Debug editing: label every segment individually instead of once per group. */
   perSegmentLabels?: boolean,
 ) {
@@ -134,6 +163,14 @@ export function drawTrack(
     minZ = Math.min(minZ, p.z);
     maxZ = Math.max(maxZ, p.z);
   }
+  for (const contour of pitRoad ?? []) {
+    for (const p of contour) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minZ = Math.min(minZ, p.z);
+      maxZ = Math.max(maxZ, p.z);
+    }
+  }
 
   const rangeX = maxX - minX || 1;
   const rangeZ = maxZ - minZ || 1;
@@ -146,6 +183,16 @@ export function drawTrack(
   function toCanvas(x: number, z: number): [number, number] {
     return [flipX ? offsetX + (x - minX) * scale : offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
+
+  // Official pit-road markings are decorative only: they never participate
+  // in lap-distance, sector, or segment calculations.
+  drawPitRoadLayer(
+    ctx,
+    pitRoad,
+    toCanvas,
+    large ? 0.55 : 0.45,
+    large ? 0.8 : 0.6,
+  );
 
   // Track outline
   ctx.beginPath();
@@ -252,6 +299,7 @@ export function drawTrack(
     let cornerIdx = 0,
       straightIdx = 0;
     const labels: LabelCandidate[] = [];
+    const groupColors = new Map<string, string>();
 
     // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
     // thumbnails stay clean with names only.
@@ -272,7 +320,13 @@ export function drawTrack(
       const labelText = labelTexts[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
-      const color = seg.type === "corner" ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length] : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
+      let color = seg.group ? groupColors.get(seg.group) : undefined;
+      if (!color) {
+        color = seg.type === "corner"
+          ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length]
+          : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
+        if (seg.group) groupColors.set(seg.group, color);
+      }
 
       ctx.beginPath();
       ctx.strokeStyle = color;

@@ -1,4 +1,5 @@
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { drawPitRoadLayer } from "@/lib/canvas/draw-track";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
@@ -18,8 +19,9 @@ export interface StaticTrackOptions {
   resolvedPositions: Point[];
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  boundaries: TrackMapBoundaries | null;
+  pitRoad?: Point[][] | null;
   sectors: SectorBoundaries | null;
+  boundaries: TrackMapBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;
   showInputs?: boolean;
@@ -28,7 +30,7 @@ export interface StaticTrackOptions {
   zoom: number;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
+  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, pitRoad, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -38,10 +40,11 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
   const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
-  if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
+  if (displayOutline.length < 2) return { bufferCanvas: null, transform: null };
   const flip = needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
+  const flippedPitRoad = flip && pitRoad ? pitRoad.map((contour) => flipPoints(contour)) : pitRoad;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
@@ -50,6 +53,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const allBoundsPts: Point[][] = [displayOutline];
   if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
   if (mapLabels?.length) allBoundsPts.push(mapLabels);
+  if (flippedPitRoad?.length) allBoundsPts.push(...flippedPitRoad);
   for (const pts of allBoundsPts)
     for (const p of pts) {
       minX = Math.min(minX, p.x);
@@ -78,6 +82,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
   ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
 
+  drawPitRoadLayer(ctx, flippedPitRoad, toCanvas);
   if (hasBounds) {
     const left = flippedLeft!;
     const right = flippedRight!;

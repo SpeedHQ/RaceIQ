@@ -6,11 +6,14 @@
 ### Features
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
+- Enriched iRacing car and track catalogs with current specifications, capabilities, official map layers, and contextual car-class metadata
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Show official iRacing pit-road and merge markings on track maps without including them in lap-distance or segment calculations
+- Present start/finish straights as one logical segment on every circuit and use standard Frontstretch, Turns 1–2, Backstretch, and Turns 3–4 ordering for automatic iRacing oval segments
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run

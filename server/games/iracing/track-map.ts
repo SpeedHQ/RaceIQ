@@ -5,17 +5,46 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing"
-import { USER_TRACKS_DIR } from "../../../shared/platform/runtime/data-paths"
+import { getIRacingOvalDirection, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
+import { USER_TRACKS_DIR } from "../../../shared/platform/runtime/data-paths";
 
 import {
   parseIRacingActiveSvg,
+  parseIRacingPitRoadSvg,
   type IRacingSvgTrackMap,
 } from "./track-map-svg";
 
-interface CachedMapFile extends IRacingSvgTrackMap {
+interface CachedMapFile extends Omit<IRacingSvgTrackMap, "pitRoad"> {
   version: 1;
   mapUrl: string;
+  /** Optional for upgrading existing caches written before pit-road support. */
+  pitRoad?: IRacingSvgTrackMap["pitRoad"];
+}
+
+/**
+ * SVG contour order is arbitrary when turn-label layer is unavailable.
+ * Normalize oval traversal to physical race direction while retaining
+ * start/finish as point zero.
+ */
+export function orientIRacingOvalMap(
+  map: IRacingSvgTrackMap,
+  direction: "left" | "right",
+): IRacingSvgTrackMap {
+  let signedArea = 0;
+  for (let index = 0; index < map.points.length; index++) {
+    const point = map.points[index];
+    const next = map.points[(index + 1) % map.points.length];
+    signedArea += point.x * next.z - next.x * point.z;
+  }
+  const shouldBePositive = direction === "left";
+  if ((signedArea > 0) === shouldBePositive) return map;
+  return {
+    ...map,
+    points: [
+      map.points[0],
+      ...map.points.slice(1).reverse(),
+    ],
+  };
 }
 
 const MAP_CACHE_VERSION = 1;
@@ -36,17 +65,28 @@ function cachePath(ordinal: number): string {
 function readCachedMap(
   ordinal: number,
   mapUrl: string,
-): IRacingSvgTrackMap | null {
+): {
+  map: IRacingSvgTrackMap;
+  hasPitRoadLayer: boolean;
+} | null {
   const path = cachePath(ordinal);
   if (!existsSync(path)) return null;
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8")) as CachedMapFile;
-    return parsed.version === MAP_CACHE_VERSION &&
+    const valid = parsed.version === MAP_CACHE_VERSION &&
       parsed.mapUrl === mapUrl &&
       Array.isArray(parsed.points) &&
-      parsed.points.length >= 20
-      ? { points: parsed.points, labels: parsed.labels ?? [] }
-      : null;
+      parsed.points.length >= 20;
+    if (!valid) return null;
+    const hasPitRoadLayer = Array.isArray(parsed.pitRoad);
+    return {
+      map: {
+        points: parsed.points,
+        labels: parsed.labels ?? [],
+        pitRoad: hasPitRoadLayer ? parsed.pitRoad! : [],
+      },
+      hasPitRoadLayer,
+    };
   } catch {
     return null;
   }
@@ -56,6 +96,7 @@ function writeCachedMap(
   ordinal: number,
   mapUrl: string,
   map: IRacingSvgTrackMap,
+  includePitRoad = true,
 ): void {
   const path = cachePath(ordinal);
   try {
@@ -65,7 +106,9 @@ function writeCachedMap(
       JSON.stringify({
         version: MAP_CACHE_VERSION,
         mapUrl,
-        ...map,
+        points: map.points,
+        labels: map.labels,
+        ...(includePitRoad && { pitRoad: map.pitRoad }),
       } satisfies CachedMapFile),
     );
   } catch (error) {
@@ -94,27 +137,62 @@ async function fetchSvg(url: string): Promise<string | null> {
 
 async function loadMap(ordinal: number): Promise<IRacingSvgTrackMap | null> {
   const track = getIRacingTrack(ordinal);
-  const mapUrl = track?.mapUrl ?? "";
+  if (!track) return null;
+  const mapUrl = track.mapUrl;
   if (!mapUrl.startsWith(PUBLIC_MAP_PREFIX)) return null;
+  const ovalDirection = getIRacingOvalDirection(ordinal);
+  const orientMap = (map: IRacingSvgTrackMap) =>
+    ovalDirection ? orientIRacingOvalMap(map, ovalDirection) : map;
 
   const cached = readCachedMap(ordinal, mapUrl);
-  if (cached) return cached;
+  if (cached?.hasPitRoadLayer) return orientMap(cached.map);
+  if (cached) {
+    const pitRoadSvg = track.pitMapUrl
+      ? await fetchSvg(track.pitMapUrl)
+      : null;
+    const upgraded = {
+      ...cached.map,
+      pitRoad: pitRoadSvg
+        ? parseIRacingPitRoadSvg(pitRoadSvg)
+        : [],
+    };
+    if (pitRoadSvg || !track.pitMapUrl) {
+      writeCachedMap(ordinal, mapUrl, upgraded);
+    } else {
+      // Keep serving the valid outline, but retry the transient missing layer.
+      memoryCache.delete(ordinal);
+    }
+    return orientMap(upgraded);
+  }
 
-  const layerUrl = (name: string) =>
-    new URL(name, mapUrl).href;
-  const [activeSvg, startFinishSvg, turnsSvg] = await Promise.all([
+  const layerUrl = (name: string) => new URL(name, mapUrl).href;
+  const [activeSvg, startFinishSvg, turnsSvg, pitRoadSvg] = await Promise.all([
     fetchSvg(mapUrl),
-    fetchSvg(layerUrl("start-finish.svg")),
-    fetchSvg(layerUrl("turns.svg")),
+    fetchSvg(track.startFinishMapUrl || layerUrl("start-finish.svg")),
+    fetchSvg(track.turnsMapUrl || layerUrl("turns.svg")),
+    track.pitMapUrl ? fetchSvg(track.pitMapUrl) : null,
   ]);
   if (!activeSvg) return null;
   const map = parseIRacingActiveSvg(
     activeSvg,
     startFinishSvg,
     turnsSvg,
+    pitRoadSvg,
   );
-  if (map) writeCachedMap(ordinal, mapUrl, map);
-  return map;
+  const oriented = map ? orientMap(map) : null;
+  if (oriented) {
+    writeCachedMap(
+      ordinal,
+      mapUrl,
+      oriented,
+      !!pitRoadSvg || !track.pitMapUrl,
+    );
+  }
+    if (!pitRoadSvg && track.pitMapUrl) {
+      // Active map succeeded; only pit-road fetch was transiently incomplete.
+      memoryCache.delete(ordinal);
+    }
+  return oriented;
 }
 
 /** Resolve and memoize one exact iRacing layout's official SVG map. */

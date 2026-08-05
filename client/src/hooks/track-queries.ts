@@ -49,7 +49,7 @@ export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId
     queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
     queryFn: async () => {
       const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
-      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string } | { x: number; z: number }[]>(
+      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; pitRoad?: { x: number; z: number }[][]; flipX?: boolean; recorded?: boolean; source?: string } | { x: number; z: number }[]>(
         res,
       );
     },

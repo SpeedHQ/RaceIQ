@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { orientIRacingOvalMap } from "../../../server/games/iracing/track-map";
 import {
   parseIRacingActiveSvg,
+  parseIRacingPitRoadSvg,
   parseIRacingTurnLabels,
 } from "../../../server/games/iracing/track-map-svg";
-import { getIRacingSharedTrackName,
-getIRacingTrack, } from "../../../shared/racing/tracks/catalogs/iracing"
+import {
+  getIRacingSharedTrackName,
+  getIRacingTrack,
+} from "../../../shared/racing/tracks/catalogs/iracing";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 
 const activeSvg = `
@@ -30,6 +34,13 @@ const turnsSvg = `
   </svg>
 `;
 
+const pitRoadSvg = `
+  <svg viewBox="0 0 100 100">
+    <path d="M10,20 L20,20 L20,25 L10,25 z"/>
+    <path d="M30,40 L40,40 L40,45 L30,45 z"/>
+  </svg>
+`;
+
 function nearestIndex(
   points: { x: number; z: number }[],
   target: { x: number; z: number },
@@ -49,11 +60,12 @@ function nearestIndex(
 }
 
 describe("iRacing official SVG track maps", () => {
-  test("turns the active ribbon into a start-aligned ordered centerline", () => {
+  test("turns active ribbon into start-aligned ordered centerline", () => {
     const map = parseIRacingActiveSvg(
       activeSvg,
       startFinishSvg,
       turnsSvg,
+      pitRoadSvg,
     );
 
     expect(map).not.toBeNull();
@@ -65,12 +77,48 @@ describe("iRacing official SVG track maps", () => {
       "2",
       "Main Straight",
     ]);
+    expect(map!.pitRoad).toHaveLength(2);
+    expect(map!.pitRoad[0][0]).toEqual({ x: -10, z: 20 });
+    expect(map!.points).toEqual(
+      parseIRacingActiveSvg(
+        activeSvg,
+        startFinishSvg,
+        turnsSvg,
+      )!.points,
+    );
 
     const turn1 = map!.labels.find((label) => label.text === "1")!;
     const turn2 = map!.labels.find((label) => label.text === "2")!;
     expect(nearestIndex(map!.points, turn1)).toBeLessThan(
       nearestIndex(map!.points, turn2),
     );
+  });
+
+  test("keeps pit-road markings as separate filled contours", () => {
+    const contours = parseIRacingPitRoadSvg(pitRoadSvg);
+    expect(contours).toHaveLength(2);
+    expect(contours.every((contour) => contour.length >= 4)).toBe(true);
+  });
+
+  test("normalizes oval traversal while retaining pit-road contours", () => {
+    const map = {
+      points: [
+        { x: 0, z: 0 },
+        { x: 1, z: 0 },
+        { x: 1, z: 1 },
+        { x: 0, z: 1 },
+      ],
+      labels: [],
+      pitRoad: [[{ x: 2, z: 2 }, { x: 3, z: 2 }, { x: 3, z: 3 }]],
+    };
+    expect(orientIRacingOvalMap(map, "left").points).toEqual(map.points);
+    expect(orientIRacingOvalMap(map, "right").points).toEqual([
+      map.points[0],
+      map.points[3],
+      map.points[2],
+      map.points[1],
+    ]);
+    expect(orientIRacingOvalMap(map, "right").pitRoad).toEqual(map.pitRoad);
   });
 
   test("reads matrix-positioned official turn names", () => {
@@ -91,10 +139,7 @@ describe("iRacing official SVG track maps", () => {
       "353-limerock-2019-gp",
     );
 
-    const roadAmerica = loadLabelledSegments(
-      "road-america",
-      "iracing",
-    );
+    const roadAmerica = loadLabelledSegments("road-america", "iracing");
     expect(roadAmerica.some((segment) => segment.name === "The Kink")).toBe(
       true,
     );

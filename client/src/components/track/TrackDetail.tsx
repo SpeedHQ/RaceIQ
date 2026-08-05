@@ -46,6 +46,7 @@ export function TrackDetail({
   const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitRoad, setPitRoad] = useState<Point[][]>([]);
   const [flipX, setFlipX] = useState(false);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [segSource, setSegSource] = useState<string>(""); // "user" | "extracted" | "named" | "shared" | "auto"
@@ -119,7 +120,7 @@ export function TrackDetail({
       Promise.all([
         client.api["track-outline"][":ordinal"]
           .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } })
-          .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
+          .then((r) => r.json() as unknown as { points?: Point[]; pitRoad?: Point[][]; flipX?: boolean } | Point[]),
         client.api["track-sectors"][":ordinal"]
           .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
@@ -136,11 +137,14 @@ export function TrackDetail({
     const { outlineData, sectorData, boundsData } = trackMapData;
     if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
+      setPitRoad(Array.isArray(outlineData.pitRoad) ? outlineData.pitRoad : []);
       setFlipX(outlineData.flipX ?? false);
     } else if (Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
+      setPitRoad([]);
     } else {
       setOutline(null);
+      setPitRoad([]);
     }
     setSectors(sectorData);
     setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
@@ -171,8 +175,8 @@ export function TrackDetail({
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, pitRoad, editing);
+  }, [outline, pitRoad, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
+import { useUnits } from "../../hooks/useUnits";
 import { client } from "../../lib/rpc";
 import { errorFromResponse } from "../../lib/rpc-error";
 import { AppInput } from "../ui/AppInput";
@@ -12,6 +13,13 @@ interface IRacingCatalogCar {
   path: string;
   category: string;
   imageUrl: string;
+  shortName: string;
+  hp: number | null;
+  weightLb: number | null;
+  hasHeadlights: boolean | null;
+  rainEnabled: boolean | null;
+  hasMultipleDryTireTypes: boolean | null;
+  searchTerms: string;
 }
 
 function iracingCarSortName(name: string): string {
@@ -53,6 +61,7 @@ function categoryLabel(category: string): string {
 export function IRacingCars() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const units = useUnits();
   const { data: cars = [], isLoading } = useQuery<IRacingCatalogCar[]>({
     queryKey: ["cars", "iracing"],
     queryFn: async () => {
@@ -71,7 +80,11 @@ export function IRacingCars() {
       cars.filter(
         (car) =>
           (!filterCategory || car.category === filterCategory) &&
-          (!query || car.name.toLowerCase().includes(query) || categoryLabel(car.category).toLowerCase().includes(query)),
+          (!query ||
+            car.name.toLowerCase().includes(query) ||
+            car.shortName.toLowerCase().includes(query) ||
+            car.searchTerms.toLowerCase().includes(query) ||
+            categoryLabel(car.category).toLowerCase().includes(query)),
       ),
     );
   }, [cars, filterCategory, search]);
@@ -146,8 +159,27 @@ export function IRacingCars() {
                     {categoryLabel(car.category)}
                   </span>
                 </div>
-                <div className="p-3">
+                <div className="p-3 space-y-2">
                   <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>
+                  {(car.hp !== null || car.weightLb !== null) && (
+                    <div className="text-app-caption text-app-text-muted tabular-nums">
+                      {[
+                        car.hp !== null ? `${car.hp} hp` : null,
+                        car.weightLb !== null
+                          ? units.unit === "metric"
+                            ? `${Math.round(car.weightLb * 0.453592)} kg`
+                            : `${Math.round(car.weightLb).toLocaleString()} lb`
+                          : null,
+                      ].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                  {(car.rainEnabled || car.hasHeadlights || car.hasMultipleDryTireTypes) && (
+                    <div className="flex flex-wrap gap-1">
+                      {car.rainEnabled && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_rain_ready()}</span>}
+                      {car.hasHeadlights && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_headlights()}</span>}
+                      {car.hasMultipleDryTireTypes && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.iracingcars_multiple_dry_tires()}</span>}
+                    </div>
+                  )}
                 </div>
               </article>
             );

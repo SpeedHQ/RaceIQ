@@ -55,26 +55,34 @@ export function TrackCard({
   const cardRef = useRef<HTMLButtonElement>(null);
   const [outlineVisible, setOutlineVisible] = useState(false);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitRoad, setPitRoad] = useState<Point[][]>([]);
   const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
     if (!track.hasOutline || !cardRef.current) return;
     return observeTrackCardVisibility(cardRef.current, () => setOutlineVisible(true));
   }, [track.hasOutline]);
-
   useEffect(() => {
-    if (!track.hasOutline || !outlineVisible) return;
+    if (!track.hasOutline || !outlineVisible) {
+      setOutline(null);
+      setPitRoad([]);
+      setFlipX(false);
+      return;
+    }
     client.api["track-outline"][":ordinal"]
       .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
+      .then((r) => r.json() as unknown as { points?: Point[]; pitRoad?: Point[][]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
           setOutline(data.points);
+          setPitRoad(Array.isArray(data.pitRoad) ? data.pitRoad : []);
           setFlipX(data.flipX ?? false);
         } else if (Array.isArray(data)) {
           setOutline(data);
+          setPitRoad([]);
         } else {
           setOutline(null);
+          setPitRoad([]);
         }
       })
       .catch(() => {});
@@ -82,8 +90,8 @@ export function TrackCard({
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX);
-  }, [outline, flipX]);
+    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX, undefined, pitRoad);
+  }, [outline, flipX, pitRoad]);
 
   return (
     <button
