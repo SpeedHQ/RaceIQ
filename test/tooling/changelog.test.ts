@@ -134,6 +134,14 @@ describe("changelog parser", () => {
 ### Fixes
 - Old fix`);
   });
+
+  test("formats a publication timestamp as a UTC ISO date", () => {
+    expect(formatReleaseDate("2026-08-05T23:30:00-07:00")).toBe("2026-08-06");
+  });
+
+  test("rejects an invalid publication timestamp", () => {
+    expect(() => formatReleaseDate("not-a-date")).toThrow("Invalid release date");
+  });
 });
 
   test("formats publication date and versions rendered unreleased notes", () => {
