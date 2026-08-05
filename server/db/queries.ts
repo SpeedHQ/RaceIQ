@@ -13,6 +13,7 @@ import { promisify } from "util";
 import { existsSync, unlinkSync } from "fs";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import type { RecapLapInput, RecapSessionInput } from "../recap";
+import { RACE_RESULT_PROCESSOR_ID } from "../../shared/race-results";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -175,6 +176,7 @@ export async function updateSession(
 
 export type SessionResultInput = {
   sessionId: number;
+  processorVersion?: string;
   sessionType: string;
   classification: string;
   finishingPosition: number | null;
@@ -210,6 +212,7 @@ export async function upsertSessionResult(input: SessionResultInput): Promise<{ 
     .get();
   const values = {
     sessionId: input.sessionId,
+    processorVersion: input.processorVersion ?? RACE_RESULT_PROCESSOR_ID,
     sessionType: input.sessionType,
     classification: input.classification,
     finishingPosition: input.finishingPosition,
@@ -1777,10 +1780,20 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       createdAt: sessions.createdAt,
       gameId: sessions.gameId,
       sessionType: sessions.sessionType,
+      resultClassification: sessionResults.classification,
+      finishingPosition: sessionResults.finishingPosition,
+      qualifyingPosition: sessionResults.qualifyingPosition,
+      isPodium: sessionResults.isPodium,
+      isFastestLap: sessionResults.isFastestLap,
+      pitCount: sessionResults.pitCount,
+      pitDurationSeconds: sql<number | null>`sum(${pitEvents.durationSeconds})`,
       notes: sessions.notes,
       source: sessions.source,
     })
     .from(sessions)
+    .leftJoin(sessionResults, eq(sessionResults.sessionId, sessions.id))
+    .leftJoin(pitEvents, eq(pitEvents.resultId, sessionResults.id))
+    .groupBy(sessions.id, sessionResults.id)
     .orderBy(desc(sessions.id));
 
   const rows = gameId

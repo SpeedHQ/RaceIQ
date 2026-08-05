@@ -6,6 +6,7 @@ import { notifyDriverProfileLap } from "./ai/driver-profile-runner";
 import type { ExclusionScopeLap } from "./experiment-auto-exclude";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
+import { reconcileSessionResultAfterLap } from "./race-results/reconcile";
 import { SessionRecorder } from "./session-recorder";
 import { resolveDataDir } from "./data-dir";
 
@@ -110,11 +111,13 @@ export class RealDbAdapter implements DbAdapter {
     this.sessionScopes.set(sessionId, { gameId, carOrdinal, trackOrdinal });
     return sessionId;
   }
-
   async insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null): Promise<number> {
     const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
     const scope = this.sessionScopes.get(sessionId);
-    if (scope) notifyDriverProfileLap(scope.gameId);
+    if (scope) {
+      notifyDriverProfileLap(scope.gameId);
+      await reconcileSessionResultAfterLap(sessionId, scope.gameId);
+    }
     return lapId;
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {

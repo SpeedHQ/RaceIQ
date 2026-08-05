@@ -58,6 +58,27 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   );
 }
 
+function SessionResultMeta({ session }: { session: SessionMeta }) {
+  const hasResult = session.resultClassification != null || session.finishingPosition != null || session.qualifyingPosition != null || session.isPodium || session.isFastestLap;
+  if (!hasResult) return <span className="text-app-text/60">—</span>;
+  const classification = session.resultClassification ? session.resultClassification[0].toUpperCase() + session.resultClassification.slice(1) : "Unknown";
+  const position = session.finishingPosition ?? session.qualifyingPosition;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+      <span className="rounded border border-app-border px-1.5 py-0.5">{classification}</span>
+      {position != null && <span>P{position}</span>}
+      {session.isPodium && <span className="text-status-success">Podium</span>}
+      {session.isFastestLap && <span className="text-app-accent">Fastest</span>}
+      {session.pitCount != null && (
+        <span>
+          {session.pitCount} pit{session.pitCount === 1 ? "" : "s"}
+        </span>
+      )}
+      {session.pitDurationSeconds != null && <span>{session.pitDurationSeconds.toFixed(1)}s pits</span>}
+    </div>
+  );
+}
+
 type LapSortKey = "lap" | "time";
 
 function SessionLapTable({
@@ -251,7 +272,7 @@ function SessionLapTable({
   );
 }
 
-type SortKey = "date" | "track" | "car" | "laps" | "best" | "type";
+type SortKey = "date" | "track" | "car" | "laps" | "best" | "type" | "result";
 type SortDir = "asc" | "desc";
 
 function formatSessionType(type?: string): string {
@@ -404,6 +425,10 @@ export function SessionsPage() {
           valA = a.sessionType ?? "";
           valB = b.sessionType ?? "";
           break;
+        case "result":
+          valA = a.resultClassification ?? "";
+          valB = b.resultClassification ?? "";
+          break;
         default:
           return 0;
       }
@@ -497,7 +522,7 @@ export function SessionsPage() {
   /** Only games with a verified MoTeC channel mapping get the import UI. */
   const motecEnabled = motecImportSupported(gameId);
   const isF1 = gameId === "f1-2025";
-  const colCount = isF1 ? 8 : 7;
+  const colCount = isF1 ? 9 : 8;
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
@@ -670,6 +695,9 @@ export function SessionsPage() {
                       {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
                       {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                     </div>
+                    <div className="mt-2">
+                      <SessionResultMeta session={session} />
+                    </div>
                     <div className="flex items-center gap-4 mt-2 text-xs">
                       <span className="text-app-text/90">
                         {m.label_laps()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
@@ -741,7 +769,7 @@ export function SessionsPage() {
                 ["best", m.sessions_col_best_lap()],
                 ["track", m.label_track()],
                 ["car", m.label_car()],
-                ...(isF1 ? ([["type", m.label_type()]] as const) : []),
+                ["result", "Result"],
               ] as const
             ).map(([field, label]) => (
               <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
@@ -827,6 +855,9 @@ export function SessionsPage() {
                       </TD>
                       <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
                       <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                      <TD tone="primary">
+                        <SessionResultMeta session={session} />
+                      </TD>
                       {isF1 && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
                       <TD>
                         <NoteCell

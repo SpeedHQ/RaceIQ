@@ -1,4 +1,6 @@
 import type { GameId, TelemetryPacket } from "../../shared/types";
+import { RACE_RESULT_PROCESSOR_ID } from "../../shared/race-results";
+export { RACE_RESULT_PROCESSOR_ID } from "../../shared/race-results";
 import {
   getLapById,
   getLapsForSession,
@@ -66,6 +68,7 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   const derived = deriveRaceResult({ ...source, sessionType: session.sessionType ?? source.sessionType, reasons });
   const existing = await getSessionResult(sessionId, gameId);
   const unchanged = existing != null &&
+    existing.processorVersion === RACE_RESULT_PROCESSOR_ID &&
     existing.sessionType === derived.sessionType &&
     existing.classification === derived.classification &&
     existing.finishingPosition === derived.finishingPosition &&
@@ -89,6 +92,7 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     });
   const result = await upsertSessionResult({
     sessionId,
+    processorVersion: RACE_RESULT_PROCESSOR_ID,
     sessionType: derived.sessionType,
     classification: derived.classification,
     finishingPosition: derived.finishingPosition,
@@ -109,6 +113,18 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
       ? "ambiguous"
       : "enriched";
   return { sessionId, status, eventCount: derived.events.length, reasons: derived.reasons };
+}
+
+const reconciliationInFlight = new Map<number, Promise<ReconcileSessionReport>>();
+
+export function reconcileSessionResultAfterLap(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
+  const existing = reconciliationInFlight.get(sessionId);
+  if (existing) return existing;
+  const pending = reconcileSessionResult(sessionId, gameId).finally(() => {
+    reconciliationInFlight.delete(sessionId);
+  });
+  reconciliationInFlight.set(sessionId, pending);
+  return pending;
 }
 
 export async function backfillRaceResults(options: { gameId: GameId; limit: number; afterSessionId?: number }): Promise<BackfillReport> {

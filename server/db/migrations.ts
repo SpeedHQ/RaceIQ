@@ -1133,4 +1133,12 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
     ],
   },
+  // v49: Version normalized race-result derivation for future reconciliation.
+  {
+    version: 49,
+    name: "version race result processor",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`,
+    ],
+  },
 ];

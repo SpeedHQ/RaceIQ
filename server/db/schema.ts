@@ -105,6 +105,7 @@ export const sessionResults = sqliteTable(
 		sessionId: integer("session_id")
 			.notNull()
 			.references(() => sessions.id, { onDelete: "cascade" }),
+		processorVersion: text("processor_version").notNull().default("race-result-v1"),
 		sessionType: text("session_type").notNull().default("unknown"),
 		classification: text("classification").notNull().default("unknown"),
 		finishingPosition: integer("finishing_position"),

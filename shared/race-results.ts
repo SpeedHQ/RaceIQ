@@ -1,11 +1,13 @@
 import type { GameId } from "./types";
 
-export type RaceResultStatus = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v1";
 
+export type RaceResultStatus = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
 export interface RaceResult {
   id: number;
   sessionId: number;
   gameId: GameId;
+  processorVersion: string;
   sessionType: string;
   classification: RaceResultStatus;
   finishingPosition: number | null;
