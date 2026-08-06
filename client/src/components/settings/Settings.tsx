@@ -26,8 +26,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="@container/settings flex h-full flex-col @xl/settings:flex-row">
-      <div className="flex shrink-0 items-center justify-between border-b border-app-border bg-app-surface-alt/50 px-3 py-2 @xl/settings:hidden">
+    <div className="flex h-full flex-col md:flex-row">
+      <div className="flex shrink-0 items-center justify-between border-b border-app-border bg-app-surface-alt/50 px-3 py-2 md:hidden">
         <span className="text-app-body font-medium text-app-text">{(NAV_LABELS[activeSection] ?? (() => ""))()}</span>
         <Button
           variant="app-ghost"
@@ -40,7 +40,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       </div>
 
       <nav
-        className={`${mobileMenuOpen ? "flex" : "hidden"} shrink-0 flex-col overflow-y-auto border-b border-app-border bg-app-surface-alt/50 py-2 @xl/settings:flex @xl/settings:w-48 @xl/settings:overflow-visible @xl/settings:border-r @xl/settings:border-b-0`}
+        className={`${mobileMenuOpen ? "flex" : "hidden"} shrink-0 flex-col overflow-y-auto border-b border-app-border bg-app-surface-alt/50 py-2 md:flex md:w-48 md:overflow-visible md:border-r md:border-b-0`}
       >
         {filteredNavItems.map((item) => (
           <Button
@@ -55,7 +55,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             {(NAV_LABELS[item.id] ?? (() => item.label))()}
           </Button>
         ))}
-        <div className="mx-2 mt-auto hidden border-t border-app-border pt-2 @xl/settings:block">
+        <div className="mx-2 mt-auto hidden border-t border-app-border pt-2 md:block">
           <Button
             variant="full-width-action"
             size="app-md"
@@ -67,7 +67,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             {m.settings_setup_wizard()}
           </Button>
         </div>
-        <div className="mx-2 border-t border-app-border pt-2 @xl/settings:hidden">
+        <div className="mx-2 border-t border-app-border pt-2 md:hidden">
           <Button
             variant="app-ghost"
             size="app-md"
@@ -84,7 +84,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       </nav>
 
       {/* Right content */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 @xl/settings:p-6">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
         {activeSection === "general" && <GeneralSection />}
 
         {activeSection === "games" && <GamesSection />}
