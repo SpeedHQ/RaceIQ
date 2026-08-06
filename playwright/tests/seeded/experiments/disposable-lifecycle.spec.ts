@@ -64,6 +64,9 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) => supported
       await expect(page.getByRole("heading", { name: new RegExp(experimentName) })).toBeVisible();
       await expect(page.getByText("Race engineer", { exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Add laps from history" })).toBeVisible();
+      if (baseSetupPath !== null) {
+        await expect(page.getByText("v1", { exact: true })).toBeVisible();
+      }
 
       let versionsResponse = await request.get(`/api/experiments/${experimentId}/versions`);
       expect(versionsResponse.ok()).toBe(true);

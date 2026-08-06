@@ -95,15 +95,8 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
     return <div className="px-3 py-4 text-center text-xs text-app-text-dim">No setup versions yet. Create the session from a base setup to seed v1, or run Save &amp; recommend.</div>;
   }
 
-  // Shared across the whole recursive render (not per-branch) so a corrupt
-  // cyclic parentVersionId (A's parent is B, B's parent is A) can't recurse
-  // forever: once a node has been rendered once, it's never visited again.
-  const rendered = new Set<number>();
 
   const renderNode = (t: ExperimentVersion, depth: number, isLastSibling: boolean): React.ReactNode => {
-    if (rendered.has(t.id)) return null;
-    rendered.add(t.id);
-
     const isHead = t.id === headVersionId;
     const isOpen = expanded.has(t.id);
     const laps = lapsByTest.get(t.id) ?? [];
@@ -122,7 +115,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
     // averaged across the evaluated laps.
     const tyreVals = evalLaps.map((l) => metricsById.get(l.id)?.tyreWear).filter((v): v is number => v != null);
     const avgWorstWear = tyreVals.length ? tyreVals.reduce((s, v) => s + v, 0) / tyreVals.length : null;
-    const children = (childrenOf.get(t.id) ?? []).filter((c) => !rendered.has(c.id));
+    const children = childrenOf.get(t.id) ?? [];
     const hasChildren = children.length > 0;
 
     return (
