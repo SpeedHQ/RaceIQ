@@ -1151,16 +1151,6 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
     ],
   },
-  // v51: Converge databases that applied v50 before legacy fallback restoration.
-  // This restores column shape only; rows deleted by an already-applied v35
-  // cannot be reconstructed because no telemetry bytes remain in the database.
-  {
-    version: 51,
-    name: "ensure historical telemetry fallback column",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN legacy_telemetry BLOB`,
-    ],
-  },
   // v52: Earlier migrations reused v43/v44, so databases that recorded those
   // ledger entries skipped the current sessions.source and driver_profiles SQL.
   // Applied migration history cannot be safely rewritten; replay both effects
