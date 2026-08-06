@@ -4,13 +4,12 @@ import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, Copy } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PanelSectionHeader } from "@/components/ui/panel-section-header";
 import { useAccCarName, useResolveNames } from "@/hooks/catalog-queries";
 import type { ExperimentGameId, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
-import { useExperiment, useExperimentLapMetrics, useExperimentVersions } from "@/hooks/experiments";
+import { useExperiment, useExperimentLapMetrics, useExperimentVersions, useAddBase } from "@/hooks/experiments";
 import { useLaps } from "@/hooks/laps";
 import { formatLapTime } from "@/lib/format";
 import { client } from "@/lib/rpc";
@@ -46,7 +45,9 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const [showImportLaps, setShowImportLaps] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const { data: session, isLoading: loadingSession, isError: sessionError } = useExperiment(experimentId);
-  const { data: tests = [], isError: versionsError } = useExperimentVersions(experimentId);
+  const { data: tests = [], isError: versionsError, isLoading: loadingVersions } = useExperimentVersions(experimentId);
+  const addBase = useAddBase();
+  const baseSeededForSession = useRef<number | null>(null);
   /** Setup file the session is currently on: the head test's version, falling
    *  back to the session's base setup (before any test exists). */
   const { data: lapMetrics = [] } = useExperimentLapMetrics(experimentId);
@@ -83,6 +84,19 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       (client.api as any).experiments[":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
     };
   }, [experimentId]);
+  // A setup-backed session must always expose its selected file as v1. Older
+  // sessions and interrupted creates can leave the session row ahead of its
+  // version row; repair that invariant before rendering an empty graph.
+  useEffect(() => {
+    if (loadingVersions || !session?.baseSetupPath || tests.length > 0 || baseSeededForSession.current === session.id) return;
+    baseSeededForSession.current = session.id;
+    addBase.mutate({
+      sessionId: session.id,
+      setupPath: session.baseSetupPath,
+      label: "v1",
+      setHead: true,
+    });
+  }, [addBase, loadingVersions, session, tests.length]);
 
   // Header car/track labels: setup-file-seeded sessions carry names directly;
   // ordinal-seeded ones resolve names from the ordinals.
@@ -233,7 +247,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
           panel (Recommend + chat) is permanent and full-height. */}
       {/* Chat column is hidden during a live test — the live dashboard gets the
           full width; chat returns on the review page / idle workspace. */}
-      <div className={`grid min-h-0 flex-1 grid-cols-1 gap-3 ${testPhase === "live" ? "" : "@5xl/workspace:grid-cols-[1fr_360px]"}`}>
+      <div className={`flex-1 min-h-0 grid grid-cols-1 gap-3 ${testPhase === "live" ? "" : "lg:grid-cols-[1fr_360px]"}`}>
         {/* Left: tune-tests table normally; the live dashboard takes over the
             panel while a test is running. Review moved to its own route
             (…/review) — no tab switcher. */}
@@ -243,7 +257,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
               <>
                 {/* Session overview — always rendered as placeholders ("—") so
                     the row layout doesn't jump once laps start landing. */}
-                <div className="grid grid-cols-2 gap-2 border-b border-app-border p-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-2 border-b border-app-border">
                   <StatCard label="Laps" value={String(lapCount)} />
                   <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
                   <StatCard label="Best setup" value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
@@ -351,15 +365,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
             Hidden during a live test — the live dashboard gets the full width. */}
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-            <div className="shrink-0 border-b border-app-border px-3 py-2">
-              {/* Panel identity follows active experiment focus. */}
-              <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
-                <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
-                  Dashboard
-                </Button>
-                <CopyChatJsonButton sessionId={session.id} />
-              </PanelSectionHeader>
-            </div>
+            <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
+              <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
+                Dashboard
+              </Button>
+            </PanelSectionHeader>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <TuneSetupChat sessionId={session.id} headVersionId={session?.headVersionId ?? null} />
             </div>
@@ -389,34 +399,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Copy the persisted chat thread (full AI-SDK UIMessage[] — parts, tool calls,
- *  metadata) as JSON to the clipboard, from the setup-engineer header. Debug aid. */
-function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button
-      variant="app-ghost"
-      size="app-sm"
-      onClick={async () => {
-        try {
-          const res = await fetch(`/api/experiments/${sessionId}/chat`);
-          const data = res.ok ? await res.json() : { error: res.statusText };
-          await navigator.clipboard.writeText(JSON.stringify(data.messages ?? data, null, 2));
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        } catch {
-          /* ignore */
-        }
-      }}
-      title="Copy chat JSON (debug)"
-    >
-      {copied ? <Check data-icon="inline-start" aria-hidden="true" /> : <Copy data-icon="inline-start" aria-hidden="true" />}
-      {copied ? "Copied" : "JSON"}
-    </Button>
-  );
-}
-
-/** Compact inline stat for the horizontal "Current stint" strip. */
 function InlineStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-1.5">

@@ -41,7 +41,7 @@ export function ExperimentTable({
             #
           </TH>
           <TH>Session</TH>
-          <TH showFrom="workspace-md">Varying</TH>
+          <TH showFrom="workspace-md">Focus</TH>
           <TH showFrom="workspace-md">Car</TH>
           <TH showFrom="workspace-lg">Track</TH>
           <TH showFrom="workspace-lg">Base setup</TH>

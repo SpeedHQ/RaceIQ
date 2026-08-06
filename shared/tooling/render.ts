@@ -4,10 +4,17 @@ import {
   type ChangelogEntry,
 } from "./sections";
 
+const EMPTY_UNRELEASED = "## Unreleased\n\n### Features\n\n### Fixes\n\n### Internal";
+
+export function formatReleaseDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("Invalid release date");
+  return date.toISOString().slice(0, 10);
+}
+
 function cleanBlock(block: string): string {
   return block.trim().replace(/\n{3,}/g, "\n\n");
 }
-
 export function renderReleaseBody(markdown: string): string {
   const sections = new Map<string, string>();
   const heading = /^###\s+(.+)\s*$/gm;
@@ -53,12 +60,28 @@ export function parseChangelog(markdown: string): ChangelogEntry[] {
   }).filter((entry) => entry.notes.length > 0);
 }
 
-export function renderAllReleaseNotes(markdown: string): string {
+export function renderAllReleaseNotes(markdown: string, release?: { version: string; date?: string }): string {
   const blocks: string[] = [];
   const unreleased = renderUnreleasedBody(markdown);
-  if (unreleased) blocks.push(`## Unreleased\n\n${unreleased}`);
+  if (unreleased) {
+    const heading = release ? `## v${release.version}${release.date ? ` - ${release.date}` : ""}` : "## Unreleased";
+    blocks.push(`${heading}\n\n${unreleased}`);
+  }
   for (const entry of parseChangelog(markdown)) {
     blocks.push(`## v${entry.version}${entry.date ? ` - ${entry.date}` : ""}\n\n${entry.notes}`);
   }
   return blocks.join("\n\n");
+}
+
+export function rolloverChangelog(markdown: string, release: { version: string; date: string }): string {
+  const heading = /^##\s+Unreleased\s*$/m.exec(markdown);
+  if (!heading || heading.index === undefined) throw new Error("No ## Unreleased heading found");
+
+  const start = heading.index + heading[0].length;
+  const nextHeading = markdown.slice(start).search(/^##\s+/m);
+  const end = nextHeading === -1 ? markdown.length : start + nextHeading;
+  const body = markdown.slice(start, end).trim();
+  const released = `## v${release.version} - ${release.date}${body ? `\n\n${body}` : ""}`;
+  const history = markdown.slice(end).trim();
+  return `${EMPTY_UNRELEASED}\n\n${released}${history ? `\n\n${history}` : ""}`;
 }

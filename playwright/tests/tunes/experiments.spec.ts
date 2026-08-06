@@ -50,6 +50,79 @@ test.describe("Setup Engineer experiments", () => {
     await expect(page.getByText("HEAD", { exact: true })).toBeVisible();
     await expect(page.getByText(/No setup versions yet/)).toHaveCount(0);
   });
+
+  test("creates v1 for a new AC Evo setup experiment", async ({ page }) => {
+    await page.goto("/");
+    await completeOnboarding(page);
+
+    const createResponse = await page.request.post("/api/experiments", {
+      data: {
+        gameId: "ac-evo",
+        name: "E2E AC Evo setup-seeded experiment",
+        carName: "e2e-car",
+        trackName: "e2e-track",
+        baseSetupPath: "fixtures/e2e-base.carsetup",
+        focus: "car",
+      },
+    });
+    expect(createResponse.status()).toBe(201);
+    const session = (await createResponse.json()) as {
+      id: number;
+      headVersionId: number | null;
+    };
+
+    const versionsResponse = await page.request.get(`/api/experiments/${session.id}/versions`);
+    expect(versionsResponse.ok()).toBeTruthy();
+    const versions = (await versionsResponse.json()) as Array<{
+      version: number;
+      label: string;
+      setupPath: string | null;
+      kind: string;
+    }>;
+    expect(versions).toHaveLength(1);
+    expect(versions[0]).toMatchObject({
+      version: 1,
+      label: "v1",
+      setupPath: "fixtures/e2e-base.carsetup",
+      kind: "setup",
+    });
+    expect(versions[0]?.label).toBe("v1");
+    expect(session.headVersionId).toBeGreaterThan(0);
+  });
+
+  test("API creation seeds v1 from selected ACC and AC Evo setups", async ({ page }) => {
+    await page.goto("/");
+    await completeOnboarding(page);
+
+    for (const gameId of ["acc", "ac-evo"] as const) {
+      const setupFilesResponse = await page.request.get(`/api/tunes/setup-files?gameId=${gameId}`);
+      expect(setupFilesResponse.ok(), `${gameId} setup catalog`).toBe(true);
+      const setupFiles = (await setupFilesResponse.json()) as {
+        files: Array<{ absolutePath: string }>;
+      };
+      expect(setupFiles.files.length, `${gameId} must expose a selectable setup`).toBeGreaterThan(0);
+
+      const createResponse = await page.request.post("/api/experiments", {
+        data: {
+          gameId,
+          name: `E2E ${gameId} API setup-seeded experiment`,
+          carName: "e2e-car",
+          trackName: "e2e-track",
+          baseSetupPath: setupFiles.files[0]!.absolutePath,
+          focus: "car",
+        },
+      });
+      expect(createResponse.status(), `${gameId} create status`).toBe(201);
+      const session = (await createResponse.json()) as { id: number; headVersionId: number | null };
+
+      const versionsResponse = await page.request.get(`/api/experiments/${session.id}/versions`);
+      expect(versionsResponse.ok()).toBe(true);
+      const versions = (await versionsResponse.json()) as Array<{ id: number; version: number; label: string; setupPath: string | null; kind: string }>;
+      expect(versions, `${gameId} versions`).toHaveLength(1);
+      expect(versions[0]).toMatchObject({ version: 1, label: "v1", setupPath: setupFiles.files[0]!.absolutePath, kind: "setup" });
+      expect(session.headVersionId, `${gameId} HEAD`).toBe(versions[0]?.id);
+    }
+  });
   test("streams Race engineer reply before completion without reload", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (message) => {

@@ -60,7 +60,20 @@ export function useCreateExperiment() {
     }) => {
       const res = await (client.api as any).experiments.$post({ json: data });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as Experiment;
+      const created = (await res.json()) as Experiment;
+      // Setup-backed creation must return with its v1 HEAD materialised.
+      // Fallback keeps the client correct when talking to an older server
+      // that returns the session row before its seed is visible.
+      if (data.baseSetupPath && created.headVersionId == null) {
+        const seed = await (client.api as any).experiments[":id"].bases.$post({
+          param: { id: String(created.id) },
+          json: { setupPath: data.baseSetupPath, label: "v1", setHead: true },
+        });
+        if (!seed.ok) throw await errorFromResponse(seed);
+        const seeded = (await seed.json()) as { id: number };
+        return { ...created, headVersionId: seeded.id };
+      }
+      return created;
     },
     onSuccess: (s) => qc.invalidateQueries({ queryKey: ["experiments", s.gameId] }),
   });

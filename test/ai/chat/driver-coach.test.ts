@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
-import { driverCoachAgent, DRIVER_COACH_INSTRUCTIONS } from "../../../mastra/agents/driver-coach";
+import { buildDriverCoachInstructions, driverCoachAgent, DRIVER_COACH_INSTRUCTIONS } from "../../../mastra/agents/driver-coach";
 import { setupEngineerAgent } from "../../../mastra/agents/setup-engineer";
 import { sessionAgentForFocus } from "../../../server/ai/agents";
 import { buildSetupEngineerSystemPrompt } from "../../../mastra/agents/setup-engineer";
 import { createModelContext } from "../../../server/ai/model-provider";
 import { resolveAi } from "../../../server/ai/ai-runtime";
 import { loadSettings } from "../../../server/runtime/config/settings";
-
+import { CHAT_TURN_CONTEXT_KEY } from "../../../server/ai/chat-message-context";
 /**
  * Two specialists, one session, no coordinator.
  *
@@ -125,5 +125,12 @@ describe("coach prompt boundaries", () => {
     // A drill is judged on spread, not best lap — the blind spot the whole
     // per-arm metric split exists to close.
     expect(DRIVER_COACH_INSTRUCTIONS).toContain("CONSISTENCY, not on best lap");
+  });
+
+  test("includes server-provided session context in coach instructions", () => {
+    const requestContext = new RequestContext();
+    requestContext.set(CHAT_TURN_CONTEXT_KEY, "ACTIVE SESSION — driver focus at Spa");
+
+    expect(buildDriverCoachInstructions(requestContext)).toContain("ACTIVE SESSION — driver focus at Spa");
   });
 });

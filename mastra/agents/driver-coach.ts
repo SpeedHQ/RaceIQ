@@ -25,6 +25,7 @@ import { Agent } from "@mastra/core/agent";
 
 import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
 import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/runtime/config/settings";
@@ -72,10 +73,15 @@ HOW TO ANSWER
 
 LAP DATA — a focused lap review may already be provided inline in this turn's context. For any other laps, comparisons, or detected issues, call \`list_laps\` for the full lap pool, \`get_lap_detail\` for one lap's sectors/tyres/corners, \`get_lap_issues\` for detected issues, and \`compare_laps\` for a head-to-head delta between two laps.`;
 
+export function buildDriverCoachInstructions(requestContext?: Parameters<typeof getChatTurnContext>[0]): string {
+  const context = getChatTurnContext(requestContext);
+  return `${DRIVER_COACH_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${aiLanguageInstruction(loadSettings().language)}${context ? `\n\n${context}` : ""}`;
+}
+
 export const driverCoachAgent = new Agent({
   id: "driver-coach",
   name: "Driver Coach",
-  instructions: () => `${DRIVER_COACH_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
+  instructions: ({ requestContext }) => buildDriverCoachInstructions(requestContext),
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);

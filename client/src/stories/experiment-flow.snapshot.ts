@@ -31,8 +31,8 @@ const stories: StoryCase[] = [
   {
     name: "list (both variants)",
     id: "dashboards-experiments-flow--list-both-variants",
-    expectText: "Spa — rear stability on entry",
-    forbidText: ["No experiments yet"],
+    expectText: ["Spa — rear stability on entry", "Focus"],
+    forbidText: ["No experiments yet", "Varying"],
   },
   {
     name: "list (empty)",

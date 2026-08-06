@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { parseChangelog, renderAllReleaseNotes, renderReleaseBody, renderUnreleasedBody } from "@shared/tooling/render";
+import {
+  formatReleaseDate,
+  parseChangelog,
+  renderAllReleaseNotes,
+  renderReleaseBody,
+  renderUnreleasedBody,
+  rolloverChangelog,
+} from "@shared/tooling/render";
 import { hasUnreleasedChangelogChange } from "@shared/tooling/validation";
 describe("changelog parser", () => {
   test("parses releases and strips Internal from rendered notes", () => {
@@ -74,6 +81,43 @@ describe("changelog parser", () => {
 `)).toBe("## Unreleased\n\n### Features\n- New feature\n\n## v0.13.0 - 2026-07-16\n\n### Fixes\n- Old fix");
   });
 });
+
+  test("formats publication date and versions rendered unreleased notes", () => {
+    expect(formatReleaseDate("2026-08-06T23:30:00-05:00")).toBe("2026-08-07");
+    expect(
+      renderAllReleaseNotes(
+        `## Unreleased
+
+### Fixes
+- Fixed release notes
+
+## v1.0.0 - 2026-08-01
+
+### Features
+- Existing feature
+`,
+        { version: "2.0.0", date: "2026-08-07" },
+      ),
+    ).toContain("## v2.0.0 - 2026-08-07");
+  });
+
+  test("rolls changelog into a fresh unreleased section", () => {
+    expect(
+      rolloverChangelog(
+        `## Unreleased
+
+### Fixes
+- Released fix
+
+## v1.0.0 - 2026-08-01
+
+### Features
+- Existing feature
+`,
+        { version: "2.0.0", date: "2026-08-07" },
+      ),
+    ).toContain("## Unreleased\n\n### Features\n\n### Fixes\n\n### Internal\n\n## v2.0.0 - 2026-08-07");
+  });
 
 
 

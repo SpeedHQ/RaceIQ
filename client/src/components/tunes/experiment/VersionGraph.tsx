@@ -2,15 +2,12 @@ import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/racing/ex
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import type { F1CarSetup } from "@shared/telemetry/f1-2025";
-import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { F1SetupModal } from "@/components/analyse/F1SetupModal";
 import { SetupContentModal } from "@/components/tunes/SetupFilePicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useDeletedExperimentVersions, useDeleteVersion, useRestoreVersion } from "@/hooks/experiment-history";
-import { type ExperimentLapMetric, type ExperimentVersion, useExperimentArmComparison, useExperimentFocusHistory, useSetHead } from "@/hooks/experiments";
+import { type ExperimentLapMetric, type ExperimentVersion, useExperimentFocusHistory, useSetHead } from "@/hooks/experiments";
 import { formatLapTime } from "@/lib/format";
 import { AppliedChangesList } from "./AppliedChangesList";
 import { summarizeAppliedChanges } from "./applied-changes";
@@ -61,9 +58,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [notesForId, setNotesForId] = useState<number | null>(null);
   const [setupForId, setSetupForId] = useState<number | null>(null);
-  const [trashOpen, setTrashOpen] = useState(false);
-  const [compareFirstId, setCompareFirstId] = useState<number | null>(null);
-  const [compareSecondId, setCompareSecondId] = useState<number | null>(null);
   const setupTest = setupForId != null ? (tests.find((t) => t.id === setupForId) ?? null) : null;
   // F1: setup lives as an F1CarSetup JSON snapshot on the node, not a file.
   const setupSnapshot = useMemo<F1CarSetup | null>(() => {
@@ -76,18 +70,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
     }
   }, [setupTest]);
   const setHead = useSetHead();
-  const deleteVersion = useDeleteVersion();
-  const restoreVersion = useRestoreVersion();
-  const { data: deletedTests = [], isLoading: loadingTrash, isError: trashError } = useDeletedExperimentVersions(sessionId, trashOpen);
-  const comparison = useExperimentArmComparison(sessionId, compareFirstId, compareSecondId);
-  const compareTest = (id: number) => {
-    if (compareFirstId == null || compareFirstId === id) {
-      setCompareFirstId(id);
-      setCompareSecondId(null);
-      return;
-    }
-    setCompareSecondId(id);
-  };
   // Focus eras, keyed by the version the driver was sitting on when they
   // switched — this is why the ledger records fromVersionId at all. Marking the
   // node makes "v1-v3 were setup work, then I moved to my braking" visible in
@@ -226,17 +208,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 </Button>
               )}
               <Button
-                variant={compareFirstId === t.id ? "app-primary" : "app-outline"}
-                size="app-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  compareTest(t.id);
-                }}
-                className="normal-case tracking-normal font-sans shrink-0"
-              >
-                {compareFirstId === t.id ? "Compare selected" : "Compare"}
-              </Button>
-              <Button
                 variant="app-outline"
                 size="app-sm"
                 onClick={(e) => {
@@ -248,21 +219,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
               >
                 Notes
                 {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
-              </Button>
-              <Button
-                variant="destructive-outline"
-                size="icon-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const extra = hasChildren ? " and its whole branch" : "";
-                  if (!window.confirm(`Delete "${t.label}"${extra}? This can be restored from the trash.`)) return;
-                  deleteVersion.mutate({ sessionId, versionId: t.id });
-                }}
-                disabled={deleteVersion.isPending}
-                title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
-                aria-label={hasChildren ? "Delete branch" : "Delete version"}
-              >
-                <Trash2 aria-hidden="true" />
               </Button>
               <span
                 className="ml-auto flex items-center gap-3 shrink-0 text-app-compact tabular-nums"
@@ -296,14 +252,8 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
     );
   };
 
-  const actionError = setHead.error ?? deleteVersion.error ?? restoreVersion.error;
+  const actionError = setHead.error;
   const notesTest = notesForId != null ? (tests.find((t) => t.id === notesForId) ?? null) : null;
-  const compareA = compareFirstId != null ? tests.find((t) => t.id === compareFirstId) : null;
-  const compareB = compareSecondId != null ? tests.find((t) => t.id === compareSecondId) : null;
-  const closeComparison = () => {
-    setCompareFirstId(null);
-    setCompareSecondId(null);
-  };
 
   return (
     <div className="py-1">
@@ -313,76 +263,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       )}
       {gameId === "f1-2025" && setupSnapshot && <F1SetupModal setup={setupSnapshot} onClose={() => setSetupForId(null)} />}
       {actionError && <div className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">{(actionError as Error).message}</div>}
-      <div className="mx-2 mb-2 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-app-text-dim">
-          {compareFirstId == null
-            ? "Select two versions to compare."
-            : compareSecondId == null
-              ? "Select one more version to compare."
-              : `Comparing ${compareA?.label ?? "version"} vs ${compareB?.label ?? "version"}.`}
-        </span>
-        <Button variant="app-outline" size="app-sm" onClick={() => setTrashOpen(true)}>
-          Trash
-        </Button>
-      </div>
       <RecursiveVersionRows roots={roots} childrenOf={childrenOf} renderNode={renderNode} />
-      {compareFirstId != null && compareSecondId != null && (
-        <Dialog open onOpenChange={(open) => !open && closeComparison()}>
-          <DialogContent size="md" showCloseButton={false} layout="scrollable">
-            <DialogHeader>
-              <DialogTitle>Version comparison</DialogTitle>
-            </DialogHeader>
-            {comparison.isLoading && <div className="text-sm text-app-text-dim">Comparing versions…</div>}
-            {comparison.isError && <div className="text-sm text-status-danger">{(comparison.error as Error).message}</div>}
-            {comparison.data && (
-              <div className="space-y-2 text-sm">
-                <div className="font-medium text-app-text">
-                  {comparison.data.a.label} vs {comparison.data.b.label}
-                </div>
-                <div className="text-app-text-dim">
-                  {comparison.data.metricLabel}: {comparison.data.significance}
-                </div>
-                <div className="text-app-text-dim">
-                  Samples: {comparison.data.a.n} vs {comparison.data.b.n}
-                </div>
-                <div className="text-app-text-dim">Mean delta: {comparison.data.deltaMean == null ? "—" : `${comparison.data.deltaMean.toFixed(3)} ${comparison.data.unit}`}</div>
-                {comparison.data.reason && <div className="text-status-warning">{comparison.data.reason}</div>}
-                {comparison.data.underpowered && <div className="text-status-warning">More laps needed for a reliable comparison.</div>}
-              </div>
-            )}
-            <Button variant="app-outline" size="app-sm" onClick={closeComparison}>
-              Close
-            </Button>
-          </DialogContent>
-        </Dialog>
-      )}
-      {trashOpen && (
-        <Dialog open onOpenChange={(open) => !open && setTrashOpen(false)}>
-          <DialogContent size="md" showCloseButton={false} layout="scrollable">
-            <DialogHeader>
-              <DialogTitle>Deleted branches</DialogTitle>
-            </DialogHeader>
-            {loadingTrash && <div className="text-sm text-app-text-dim">Loading trash…</div>}
-            {trashError && <div className="text-sm text-status-danger">Could not load deleted branches.</div>}
-            {!loadingTrash && !trashError && deletedTests.length === 0 && <div className="text-sm text-app-text-dim">Trash is empty.</div>}
-            <div className="space-y-2">
-              {deletedTests
-                .filter((t) => t.parentVersionId == null || !deletedTests.some((parent) => parent.id === t.parentVersionId))
-                .map((t) => (
-                  <div key={t.id} className="flex items-center justify-between gap-2 rounded border border-app-border px-2 py-1.5">
-                    <span className="text-sm text-app-text">{t.label}</span>
-                    <Button variant="app-outline" size="app-sm" onClick={() => restoreVersion.mutate({ sessionId, versionId: t.id })} disabled={restoreVersion.isPending}>
-                      Restore
-                    </Button>
-                  </div>
-                ))}
-            </div>
-            <Button variant="app-outline" size="app-sm" onClick={() => setTrashOpen(false)}>
-              Close
-            </Button>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }
