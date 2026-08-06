@@ -351,7 +351,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                     </Button>
                   </div>
                 </div>
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 p-2">
                   <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
                 </div>
               </div>
@@ -365,12 +365,14 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
             Hidden during a live test — the live dashboard gets the full width. */}
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-            <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
-              <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
-                Dashboard
-              </Button>
-            </PanelSectionHeader>
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="shrink-0 border-b border-app-border px-2 py-1.5">
+              <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
+                <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
+                  Dashboard
+                </Button>
+              </PanelSectionHeader>
+            </div>
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-2">
               <TuneSetupChat sessionId={session.id} headVersionId={session?.headVersionId ?? null} />
             </div>
           </div>
