@@ -9,6 +9,7 @@ import { LAP_DETECTOR_ID } from "../../server/lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../../server/games/acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "../../server/games/ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "../../server/games/iracing/lap-detector";
+import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
 import { wsManager } from "../../server/runtime/websocket-manager";
 
 mock.module("../../server/tunes/community-sync", () => ({ startCommunityTunesSync: () => {} }));
@@ -17,8 +18,34 @@ mock.module("../../server/session-capture/compressor", () => ({ startSessionComp
 mock.module("../../server/runtime/update/check", () => ({ startUpdateCheckSchedule: () => {} }));
 
 const { startSyncAndStaleSessionJobs } = await import("../../server/runtime/startup-jobs");
-const provenance = { test: true };
-const evidence = { fieldStatus: {}, conflicts: [] };
+const provenance: RaceResultProvenance = {
+  catalogVersion: "catalog-7",
+  catalogHash: "sha256:catalog",
+  catalogSchemaVersion: "schema-2",
+  parserVersion: "f1-parser-3",
+  resolverVersion: "resolver-4",
+  derivationId: "race-result-derivation",
+  derivationVersion: "3",
+  derivationCodeHash: "sha256:derivation",
+  rawInput: { objectId: "session.bin", contentHash: "sha256:raw", byteOffset: 64, byteLength: 128 },
+  canonicalInput: { sessionId: "session-1", firstSequence: 0, lastSequence: 10, contentHash: "sha256:canonical" },
+  authorityPolicyId: "race-result-outcome-authority",
+  authorityPolicyVersion: "1",
+};
+const evidence: RaceResultEvidence = {
+  fieldStatus: {
+    sessionType: "direct",
+    classification: "direct",
+    finishingPosition: "direct",
+    qualifyingPosition: "direct",
+    isPodium: "derived",
+    isFastestLap: "derived",
+    pitEvents: "derived",
+    tyreStrategy: "simplified",
+    fuelStrategy: "unavailable",
+  },
+  conflicts: [],
+};
 
 async function waitForStartupChecks() {
   await Promise.resolve();
