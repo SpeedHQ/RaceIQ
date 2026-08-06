@@ -3,7 +3,6 @@ import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { RaceResultSummary } from "@/components/race-results/ResultSummary";
 import { buildRecapText } from "@/components/SessionRecap";
 import { useLaps } from "@/hooks/laps";
 import { useSessionRecap, useSessions } from "@/hooks/session-queries";
@@ -217,11 +216,6 @@ export function HomePageContainer() {
         sessionsLoading={sessionsLoading}
         sessionsError={sessionsError}
       />
-      {gameId && (
-        <div className="mx-auto max-w-[1400px] px-4 pb-4 md:px-6 md:pb-6">
-          <RaceResultSummary gameId={gameId} title="Race results" />
-        </div>
-      )}
     </>
   );
 }

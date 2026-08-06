@@ -50,7 +50,7 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) => supported
 
     await page.goto(`/${game.prefix}/driver`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Driver Profile" })).toBeVisible();
-    await expect(page.getByText(`All ${profile.gameName} laps`, { exact: true })).toBeVisible();
+    await expect(page.getByText("Driver result breakdown", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Run history" })).toBeVisible();
     if (runs.runs.length === 0) {
       await expect(page.getByText("No AI runs yet.", { exact: true })).toBeVisible();
