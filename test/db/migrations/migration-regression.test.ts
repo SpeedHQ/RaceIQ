@@ -177,10 +177,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v53 excludes persisted pit entry and exit laps from pace metrics", async () => {
+  test("v52 excludes persisted pit entry and exit laps from pace metrics", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 52);
+    await runMigrations(client, 51);
     await client.execute("INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')");
     await client.execute("INSERT INTO laps (session_id, lap_number, lap_time, is_valid) VALUES (1, 7, 110, 1), (1, 8, 150, 1), (1, 9, 100, 1)");
     await client.execute("INSERT INTO session_results (id, session_id) VALUES (1, 1)");
@@ -197,7 +197,7 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v52 repairs legacy v43/v44 collisions without data loss", async () => {
+  test("v51 repairs legacy v43/v44 collisions without data loss", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 42);

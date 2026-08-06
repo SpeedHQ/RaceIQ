@@ -1151,13 +1151,13 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
     ],
   },
-  // v52: Earlier migrations reused v43/v44, so databases that recorded those
+  // v51: Earlier migrations reused v43/v44, so databases that recorded those
   // ledger entries skipped the current sessions.source and driver_profiles SQL.
   // Applied migration history cannot be safely rewritten; replay both effects
   // in a new forward-only version and let duplicate-column tolerance converge
   // databases that already have sessions.source.
   {
-    version: 52,
+    version: 51,
     name: "schema convergence: repair v43/v44 collision",
     sql: [
       `ALTER TABLE sessions ADD COLUMN source TEXT`,
@@ -1181,9 +1181,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS driver_profiles_game_idx ON driver_profiles (game_id)`,
     ],
   },
-  // v53: Materialize catalog-derived pit transitions as non-pace laps.
+  // v52: Materialize catalog-derived pit transitions as non-pace laps.
   {
-    version: 53,
+    version: 52,
     name: "exclude pit transitions from lap metrics",
     sql: [
       `UPDATE laps
@@ -1210,17 +1210,17 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          )`,
     ],
   },
-  // v54: Version normalized race-result derivation for future reconciliation.
+  // v53: Version normalized race-result derivation for future reconciliation.
   {
-    version: 54,
+    version: 53,
     name: "version race result processor",
     sql: [
       `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`,
     ],
   },
-  // v55: Persist race timeline event types and position transitions.
+  // v54: Persist race timeline event types and position transitions.
   {
-    version: 55,
+    version: 54,
     name: "persist race timeline positions",
     sql: [
       `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
