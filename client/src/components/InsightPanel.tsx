@@ -85,7 +85,7 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
             {items.length === 0 ? (
               <div className="text-app-caption text-app-text-dim pl-5">✓ No issues detected</div>
             ) : (
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-1.5">
                 {items.map((insight) => (
                   <InsightRow key={insight.id} insight={insight} onJump={onJumpToFrame} />
                 ))}
