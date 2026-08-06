@@ -14,7 +14,7 @@ import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { countStaleSessions } from "../../server/db/session-queries";
+import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -270,6 +270,7 @@ describe("reprocessSession", () => {
 
 describe("countStaleSessions", () => {
   const insertedIds: number[] = [];
+  const detectorId = "lapdetector_v1";
 
   afterEach(async () => {
     for (const id of insertedIds) {
@@ -290,33 +291,35 @@ describe("countStaleSessions", () => {
     return id;
   }
 
-  test("counts session with null lapDetectorVersion as stale when rawFile is set", async () => {
-    await insertSession("/some/path.bin", null);
+  test("counts only raw sessions with stale detector versions", async () => {
+    const beforeCount = await countStaleSessions(detectorId);
 
-    const count = await countStaleSessions(["lapdetector_v1"]);
-    // At least 1 — other test data may exist in shared DB, so use >=
-    expect(count).toBeGreaterThanOrEqual(1);
-  });
-
-  test("does not count session with current lapDetectorVersion as stale", async () => {
-    await insertSession("/some/path.bin", null);
-    const before = await countStaleSessions(["lapdetector_v1"]);
-
-    await insertSession("/other/path.bin", "lapdetector_v1");
-    const after = await countStaleSessions(["lapdetector_v1"]);
-
-    // Adding a current-version session should not increase stale count
-    expect(after).toBe(before);
-  });
-
-  test("does not count sessions without rawFile as stale", async () => {
-    const before = await countStaleSessions(["lapdetector_v1"]);
-
-    // Insert session with null rawFile and null lapDetectorVersion
+    await insertSession("/some/path-old.bin", "lapdetector_v0");
+    await insertSession("/some/path-null.bin", null);
+    await insertSession("/some/path-current.bin", detectorId);
     await insertSession(null, null);
 
-    const after = await countStaleSessions(["lapdetector_v1"]);
-    // Count must not have increased — no raw file means can't reprocess
-    expect(after).toBe(before);
+    const afterCount = await countStaleSessions(detectorId);
+
+    expect(afterCount - beforeCount).toBe(2);
+  });
+
+  test("getStaleSessions returns only raw sessions with stale detector versions", async () => {
+    const baselineIds = await getStaleSessions(detectorId);
+    const baselineSet = new Set(baselineIds);
+
+    const staleRawOldVersion = await insertSession("/some/path-old.bin", "lapdetector_v0");
+    const staleRawNullVersion = await insertSession("/some/path-null.bin", null);
+    const currentVersion = await insertSession("/some/path-current.bin", detectorId);
+    const noRaw = await insertSession(null, null);
+
+    const allIds = await getStaleSessions(detectorId);
+    const insertedIdsOnly = allIds.filter((id) => !baselineSet.has(id));
+
+    expect(insertedIdsOnly).toHaveLength(2);
+    expect(insertedIdsOnly).toContain(staleRawOldVersion);
+    expect(insertedIdsOnly).toContain(staleRawNullVersion);
+    expect(insertedIdsOnly).not.toContain(currentVersion);
+    expect(insertedIdsOnly).not.toContain(noRaw);
   });
 });
