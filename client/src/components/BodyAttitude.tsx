@@ -12,7 +12,9 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
   const roll = packet.Roll * toDeg;
   const pitch = packet.Pitch * toDeg;
   const yaw = packet.Yaw * toDeg;
-  const clampRoll = Math.max(-25, Math.min(25, roll));
+  const clampedVehicleRoll = Math.max(-25, Math.min(25, roll));
+  // Fixed vehicle reference, moving horizon: scenery rotates opposite vehicle roll.
+  const horizonRoll = -clampedVehicleRoll;
   const clampPitch = Math.max(-15, Math.min(15, pitch));
 
   return (
@@ -26,7 +28,7 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
             </clipPath>
           </defs>
           <g clipPath="url(#ati-clip)">
-            <g transform={`rotate(${clampRoll}, 25, 22)`}>
+            <g transform={`rotate(${horizonRoll}, 25, 22)`}>
               {/* Sky */}
               <rect x={-10} y={-30} width={70} height={52 + clampPitch * 1.2} fill="var(--attitude-sky)" fillOpacity={0.35} />
               {/* Ground */}

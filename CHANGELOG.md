@@ -51,6 +51,7 @@
 - Keep live telemetry stable during route and game transitions by resolving car names from each packet and skipping invalid track metadata requests
 - Group rear setup controls with their populated mechanical-balance section
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
+- Show vehicle roll in the correct direction on the Analyse attitude indicator
 
 ### Internal
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
