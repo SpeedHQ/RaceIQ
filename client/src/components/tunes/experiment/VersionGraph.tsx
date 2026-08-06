@@ -315,6 +315,8 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                         onClick={() => restoreVersion.mutate({ sessionId, versionId: t.id })}
                         disabled={restoreVersion.isPending}
                         aria-label={`Restore ${t.label}`}
+                      >
+                        Restore
                       </Button>
                     </div>
                   </div>
