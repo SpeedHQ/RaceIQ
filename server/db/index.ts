@@ -10,7 +10,8 @@ import { resolveDataDir } from "../runtime/config/data-dir";
 // here with DATA_DIR unset (see server/runtime/config/data-dir.ts), and sibling state such as
 // settings.json still lives on disk.
 const DB_DIR = resolveDataDir();
-const DB_PATH = `${DB_DIR}/forza-telemetry.db`;
+const DB_FILENAME = process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "forza-telemetry.db";
+const DB_PATH = `${DB_DIR}/${DB_FILENAME}`;
 
 /**
  * Opt-in only: set DB_IN_MEMORY=1. Tests deliberately do NOT default to this.

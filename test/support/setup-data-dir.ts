@@ -9,12 +9,24 @@
  * user DB — and those wipes destroy live tuning sessions.
  */
 import { afterAll } from "bun:test";
+import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { USER_DATA_DIR } from "../../server/runtime/config/paths";
 
 const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
+process.env.RACEIQ_TEST_MODE = "1";
 
 if (!process.env.DATA_DIR) {
   process.env.DATA_DIR = TEST_DATA_DIR;
+}
+
+if (resolve(process.env.DATA_DIR) === resolve(USER_DATA_DIR)) {
+  throw new Error("Test database DATA_DIR must not point at the real user data directory.");
+}
+
+mkdirSync(process.env.DATA_DIR, { recursive: true });
+for (const suffix of ["", "-wal", "-shm"]) {
+  rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), { force: true });
 }
 
 /**
