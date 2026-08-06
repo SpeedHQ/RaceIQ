@@ -14,7 +14,6 @@ function FocusBadge({ focus }: { focus: ExperimentFocus }) {
 }
 
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
-import { Card } from "@/components/ui/card";
 import { useAccCarName } from "@/hooks/catalog-queries";
 import type { Experiment, ExperimentGameId } from "@/hooks/experiments";
 
@@ -35,7 +34,7 @@ export function ExperimentTable({
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
 
   return (
-    <Card className="min-w-0 max-w-full overflow-x-auto">
+    <div className="min-w-0 max-w-full overflow-x-auto">
       <Table fit layout="fixed">
         <THead>
           <TH align="end" showFrom="workspace-sm">
@@ -99,6 +98,6 @@ export function ExperimentTable({
           })}
         </TBody>
       </Table>
-    </Card>
+    </div>
   );
 }

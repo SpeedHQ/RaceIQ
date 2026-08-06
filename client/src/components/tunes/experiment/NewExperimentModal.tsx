@@ -262,11 +262,8 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="lg" layout="scrollable" className="flex w-[680px] max-w-[94vw] flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
-          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
-            ×
-          </Button>
+        <DialogHeader className="min-w-0 pr-8">
+          <DialogTitle className="truncate text-sm font-semibold">New experiment</DialogTitle>
         </DialogHeader>
         {/* What this experiment starts on. Presented as a starting mode rather
             than a type, because it is switchable from the workspace at any
@@ -336,7 +333,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs text-app-text truncate" title={pendingDrop.fileName}>
+                  <span className="min-w-0 break-all font-mono text-xs text-app-text" title={pendingDrop.fileName}>
                     {pendingDrop.fileName}
                   </span>
                   {dropStatus && (
@@ -382,8 +379,8 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
             {/* Two ways in: a file that was never in Setups, and an existing
                 one the driver chose to copy to a second circuit. Saying "isn't
                 in your Setups folder yet" in the second case is simply false. */}
-            <div className="text-app-compact text-app-text">
-              <span className="font-mono">{pendingDrop.fileName}</span>{" "}
+            <div className="break-words text-app-compact text-app-text">
+              <span className="break-all font-mono">{pendingDrop.fileName}</span>{" "}
               {dropStatus == null ? "isn't in your Setups folder yet — add it and pick its track:" : "will be copied into the track folder you pick — the existing copy stays where it is:"}
             </div>
             <div className="flex flex-wrap items-end gap-2">

@@ -66,11 +66,8 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="md" layout="scrollable" className="flex w-[480px] max-w-[94vw] flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
-          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
-            ×
-          </Button>
+        <DialogHeader className="min-w-0 pr-8">
+          <DialogTitle className="truncate text-sm font-semibold">New experiment</DialogTitle>
         </DialogHeader>
 
         <FocusPicker value={focus} onChange={setFocus} />
