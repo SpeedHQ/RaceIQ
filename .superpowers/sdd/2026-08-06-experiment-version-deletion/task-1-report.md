@@ -1,4 +1,4 @@
 
-## Follow-up fix
+## Accessibility follow-up
 
-Removed the early return for an empty active graph so Trash remains available after deleting the sole root version; empty-state text now renders alongside the launcher/dialog. Targeted client validation: `bunx tsc --project client/tsconfig.json --noEmit` passed.
+Marked the aggregated delete/restore action error banner with `role="alert"` so failures are announced to assistive technology. Targeted client TypeScript validation still passes.
