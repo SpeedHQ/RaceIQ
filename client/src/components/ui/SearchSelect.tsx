@@ -117,10 +117,8 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
             setSearch(e.target.value);
             if (!open) setOpen(true);
           }}
-          onFocus={() => {
-            setOpen(true);
-            setSearch("");
-          }}
+          onFocus={() => setSearch("")}
+          onClick={() => setOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
@@ -141,6 +139,7 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
             <Popover.Positioner anchor={inputRef} positionMethod="fixed" align="start" sideOffset={4} collisionPadding={8} className="z-[60] outline-none">
               <Popover.Popup
                 initialFocus={false}
+                finalFocus={false}
                 id={listboxId}
                 role="listbox"
                 aria-label={placeholder}

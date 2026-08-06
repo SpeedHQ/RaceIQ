@@ -425,7 +425,10 @@ export const SearchSelectMenu: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("combobox", { name: "" }));
-    await expect(within(document.body).getByRole("listbox", { name: "Search tracks..." })).toBeVisible();
+    const body = within(document.body);
+    await expect(body.getByRole("listbox", { name: "Search tracks..." })).toBeVisible();
+    await userEvent.click(body.getByRole("option", { name: "Brands Hatch" }));
+    await expect(body.queryByRole("listbox", { name: "Search tracks..." })).not.toBeInTheDocument();
   },
 };
 
