@@ -105,6 +105,7 @@ Drizzle is used **only as a query builder and type-safe schema reference** — N
 1. Edit `server/db/schema.ts` (keeps Drizzle types in sync)
 2. Add a new entry at the bottom of `server/db/migrations.ts` with the next version number and the raw SQL
 3. Do NOT use `bun run db:push` to apply schema changes — it is for dev introspection only and must never drop `schema_migrations` (protected via `tablesFilter` in `drizzle.config.ts`)
+4. NEVER edit historical migrations already released. Append a new migration with the next version; editing old migrations breaks production databases.
 
 ### Pipeline dependency injection
 
