@@ -28,7 +28,7 @@ export function startSyncAndStaleSessionJobs(): void {
       wsManager.setStaleSessionsNotification({
         type: "stale-lap-detection",
         sessionCount: count,
-        currentVersion: LAP_DETECTOR_ID,
+        currentVersion: ALL_DETECTOR_IDS.join(","),
       });
     }
   }).catch((err) => {

@@ -6,6 +6,9 @@ import { insertSession } from "../../server/db/session-queries";
 import { upsertSessionResult, type SessionResultInput } from "../../server/db/session-result-queries";
 import { RACE_RESULT_PROCESSOR_ID } from "../../server/race-results/reconcile";
 import { LAP_DETECTOR_ID } from "../../server/lap-detection/detector";
+import { LAP_DETECTOR_ACC_ID } from "../../server/games/acc/lap-detector";
+import { LAP_DETECTOR_AC_EVO_ID } from "../../server/games/ac-evo/lap-detector";
+import { LAP_DETECTOR_IRACING_ID } from "../../server/games/iracing/lap-detector";
 import { wsManager } from "../../server/runtime/websocket-manager";
 
 mock.module("../../server/tunes/community-sync", () => ({ startCommunityTunesSync: () => {} }));
@@ -72,7 +75,7 @@ describe("startup stale-session notifications", () => {
     startSyncAndStaleSessionJobs();
     await waitForStartupChecks();
 
-    expect(staleSessionsSpy).toHaveBeenCalledWith({ type: "stale-lap-detection", sessionCount: 2, currentVersion: LAP_DETECTOR_ID });
+    expect(staleSessionsSpy).toHaveBeenCalledWith({ type: "stale-lap-detection", sessionCount: 2, currentVersion: [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID].join(",") });
     expect(staleResultsSpy).toHaveBeenCalledWith({ type: "stale-race-results", sessionCount: 2, currentVersion: RACE_RESULT_PROCESSOR_ID });
   });
 
