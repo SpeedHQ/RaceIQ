@@ -34,8 +34,8 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
     else saveSettings.mutate({ onboardingComplete: true } as never);
   }
   return (
-    <div className="@container/onboarding fixed inset-0 z-50 flex items-stretch justify-center bg-app-bg @3xl/onboarding:items-center @3xl/onboarding:p-4">
-      <div className="flex max-h-screen w-full flex-col overflow-hidden border-app-border bg-app-surface shadow-2xl @3xl/onboarding:max-w-3xl @3xl/onboarding:rounded-xl @3xl/onboarding:border">
+    <div className="@container/onboarding fixed inset-0 z-50 flex items-center justify-center bg-app-bg p-4">
+      <div className="flex h-auto max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-2xl">
         {step > 0 && (
           <div className="shrink-0 px-4 pt-4 pb-4 @3xl/onboarding:px-6 @3xl/onboarding:pt-6">
             <h1 className="text-app-heading font-semibold text-app-text @3xl/onboarding:text-app-title">{m.ob_configure_title()}</h1>

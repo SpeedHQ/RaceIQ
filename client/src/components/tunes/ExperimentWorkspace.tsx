@@ -247,7 +247,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
           panel (Recommend + chat) is permanent and full-height. */}
       {/* Chat column is hidden during a live test — the live dashboard gets the
           full width; chat returns on the review page / idle workspace. */}
-      <div className={`flex-1 min-h-0 grid grid-cols-1 gap-3 ${testPhase === "live" ? "" : "lg:grid-cols-[1fr_360px]"}`}>
+      <div className={`flex-1 min-h-0 grid grid-cols-1 gap-3 ${testPhase === "live" ? "" : "@5xl/workspace:grid-cols-[1fr_360px]"}`}>
         {/* Left: tune-tests table normally; the live dashboard takes over the
             panel while a test is running. Review moved to its own route
             (…/review) — no tab switcher. */}
@@ -257,7 +257,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
               <>
                 {/* Session overview — always rendered as placeholders ("—") so
                     the row layout doesn't jump once laps start landing. */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-2 border-b border-app-border">
+                <div className="grid grid-cols-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6 gap-2 p-2 border-b border-app-border">
                   <StatCard label="Laps" value={String(lapCount)} />
                   <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
                   <StatCard label="Best setup" value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
