@@ -2,12 +2,15 @@ import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/racing/ex
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import type { F1CarSetup } from "@shared/telemetry/f1-2025";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { F1SetupModal } from "@/components/analyse/F1SetupModal";
 import { SetupContentModal } from "@/components/tunes/SetupFilePicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { type ExperimentLapMetric, type ExperimentVersion, useExperimentFocusHistory, useSetHead } from "@/hooks/experiments";
+import { useDeleteVersion, useDeletedExperimentVersions, useRestoreVersion } from "@/hooks/experiment-history";
 import { formatLapTime } from "@/lib/format";
 import { AppliedChangesList } from "./AppliedChangesList";
 import { summarizeAppliedChanges } from "./applied-changes";
@@ -58,6 +61,15 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [notesForId, setNotesForId] = useState<number | null>(null);
   const [setupForId, setSetupForId] = useState<number | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const deleteVersion = useDeleteVersion();
+  const restoreVersion = useRestoreVersion();
+  const setHead = useSetHead();
+  const { data: deletedTests = [], isLoading: loadingTrash, isError: trashError } = useDeletedExperimentVersions(sessionId, trashOpen);
+  const deletedRoots = useMemo(() => {
+    const deletedParentIds = new Set(deletedTests.map((t) => t.id));
+    return deletedTests.filter((t) => t.parentVersionId == null || !deletedParentIds.has(t.parentVersionId));
+  }, [deletedTests]);
   const setupTest = setupForId != null ? (tests.find((t) => t.id === setupForId) ?? null) : null;
   // F1: setup lives as an F1CarSetup JSON snapshot on the node, not a file.
   const setupSnapshot = useMemo<F1CarSetup | null>(() => {
@@ -69,7 +81,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       return null;
     }
   }, [setupTest]);
-  const setHead = useSetHead();
   // Focus eras, keyed by the version the driver was sitting on when they
   // switched — this is why the ledger records fromVersionId at all. Marking the
   // node makes "v1-v3 were setup work, then I moved to my braking" visible in
@@ -205,6 +216,25 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
+                  const confirmMessage = children.length > 0 ? "Delete this branch and all its descendants?" : "Delete this version?";
+                  if (!window.confirm(confirmMessage)) {
+                    return;
+                  }
+                  deleteVersion.mutate({ sessionId, versionId: t.id });
+                }}
+                disabled={deleteVersion.isPending}
+                aria-label={children.length > 0 ? "Delete branch" : "Delete version"}
+                title={children.length > 0 ? "Delete branch" : "Delete version"}
+                className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
+              >
+                <Trash2 aria-hidden="true" />
+                {children.length > 0 ? "Delete branch" : "Delete version"}
+              </Button>
+              <Button
+                variant="app-outline"
+                size="app-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
                   setNotesForId(t.id);
                 }}
                 title={t.driverComment || t.notes ? "View / edit notes" : "Add notes"}
@@ -245,7 +275,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
     );
   };
 
-  const actionError = setHead.error;
+  const actionError = setHead.error ?? deleteVersion.error ?? restoreVersion.error;
   const notesTest = notesForId != null ? (tests.find((t) => t.id === notesForId) ?? null) : null;
 
   return (
@@ -255,7 +285,55 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
         <SetupContentModal gameId={gameId} path={setupTest.setupPath} fileName={setupTest.setupPath.split(/[\\/]/).pop() ?? setupTest.label} onClose={() => setSetupForId(null)} />
       )}
       {gameId === "f1-2025" && setupSnapshot && <F1SetupModal setup={setupSnapshot} onClose={() => setSetupForId(null)} />}
+      <div className="mx-2 mb-2 flex justify-end">
+        <Button
+          variant="app-outline"
+          size="app-sm"
+          onClick={() => setTrashOpen(true)}
+          className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
+        >
+          <Trash2 aria-hidden="true" />
+          Trash
+        </Button>
+      </div>
       {actionError && <div className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">{(actionError as Error).message}</div>}
+      <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
+        <DialogContent showCloseButton={false} layout="scrollable" overlayClassName="bg-app-bg/60">
+          <DialogHeader>
+            <DialogTitle>Deleted branches</DialogTitle>
+          </DialogHeader>
+          <div className="px-4 pb-4 text-sm">
+            {loadingTrash && <p className="text-app-text">Loading trash…</p>}
+            {!loadingTrash && trashError && <p className="text-status-danger">Could not load deleted branches.</p>}
+            {!loadingTrash && !trashError && deletedRoots.length === 0 && <p className="text-app-text-muted">Trash is empty.</p>}
+            {!loadingTrash && !trashError && deletedRoots.length > 0 && (
+              <div className="space-y-2">
+                {deletedRoots.map((t) => (
+                  <div key={t.id} className="rounded-md border border-app-border bg-app-surface/40 px-2 py-1.5 text-app-text">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs">{t.label}</span>
+                      <Button
+                        variant="app-outline"
+                        size="app-sm"
+                        onClick={() => restoreVersion.mutate({ sessionId, versionId: t.id })}
+                        disabled={restoreVersion.isPending}
+                        aria-label="Restore version"
+                      >
+                        Restore
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="app-outline" size="app-sm" onClick={() => setTrashOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <RecursiveVersionRows roots={roots} childrenOf={childrenOf} renderNode={renderNode} />
     </div>
   );
