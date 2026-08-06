@@ -1,4 +1,4 @@
 
-## Accessibility follow-up
+## Markup follow-up
 
-Made each Trash restore button label include its deleted version label for distinct screen-reader announcements. Targeted client TypeScript validation passes.
+Repaired Trash restore button JSX by closing its opening tag before visible `Restore` content. Targeted client TypeScript validation passes.
