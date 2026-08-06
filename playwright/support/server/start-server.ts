@@ -50,7 +50,11 @@ try {
 // dist/node_modules/@libsql/<target> — native .node modules can't be embedded
 // in a Bun single-file executable (oven-sh/bun#18909). This matches the
 // installed layout, where raceiq.exe sits next to node_modules/.
-const child = spawn(binary, { stdio: "inherit", cwd: distDir, env: process.env });
+const child = spawn(binary, {
+  stdio: "inherit",
+  cwd: distDir,
+  env: { ...process.env, RACEIQ_APP_ROOT: repoDir },
+});
 
 let shuttingDown = false;
 

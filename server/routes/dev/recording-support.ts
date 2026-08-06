@@ -45,7 +45,7 @@ export type RecordingPathValidation =
       error: "Invalid filename" | "Access denied" | "Recording not found";
     };
 
-const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/sessions");
+const ARTIFACTS_DIR = resolve(process.env.RACEIQ_APP_ROOT ?? process.cwd(), "test/artifacts/sessions");
 const RECORDING_GAME_IDS = [...KNOWN_GAME_IDS].sort(
   (left, right) => right.length - left.length,
 );

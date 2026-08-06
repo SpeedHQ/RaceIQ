@@ -80,7 +80,7 @@ export async function exercise3dGuide(page: Page, assertClosed = true): Promise<
 export async function exerciseAiSetup(page: Page): Promise<void> {
   await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
   await expect(page.getByText("AI not set up", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Configure AI to use this feature", exact: true }).click();
+  await page.getByRole("button", { name: "Set up AI", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await page.getByRole("button", { name: "Close settings" }).click();
   await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
