@@ -7,6 +7,7 @@ import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "../db/index";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "../db/discovered-cars";
+import { backfillAllRaceResults } from "../race-results/reconcile";
 import { listDiscoveredTracks } from "../db/discovered-tracks";
 import { deleteEmptySessions } from "../db/session-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
@@ -106,6 +107,12 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     devPublicDir,
   });
   console.log(`[Server] HTTP/WS server listening on http://localhost:${httpPort}`);
+
+  // Reconcile historical sessions without delaying HTTP startup.
+  void backfillAllRaceResults().catch((error) => {
+    console.error("[RaceResults] Startup backfill failed:", error);
+  });
+
 
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
     udpListener.setRecordingGameId(recordingGameId);
