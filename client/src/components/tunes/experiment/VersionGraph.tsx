@@ -293,7 +293,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
           Trash
         </Button>
       </div>
-      {actionError && <div className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">{(actionError as Error).message}</div>}
+      {actionError && <div role="alert" className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">{(actionError as Error).message}</div>}
       <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
         <DialogContent showCloseButton={false} layout="scrollable" overlayClassName="bg-app-bg/60">
           <DialogHeader>
