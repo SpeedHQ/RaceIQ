@@ -252,4 +252,37 @@ test.describe("Setup Engineer experiments", () => {
     await expect(page.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 15000 });
     expect(consoleErrors.filter((message) => message.includes("Maximum update depth exceeded"))).toEqual([]);
   });
+  test("keeps typed chat input visible", async ({ page }) => {
+    await page.goto("/");
+    await completeOnboarding(page);
+
+    const settingsResponse = await page.request.put("/api/settings", {
+      data: {
+        aiProvider: "local",
+        aiModel: "playwright-input",
+        chatProvider: "local",
+        chatModel: "playwright-input",
+        localEndpoint: "http://127.0.0.1:9/v1",
+      },
+    });
+    expect(settingsResponse.ok()).toBeTruthy();
+
+    const createResponse = await page.request.post("/api/experiments", {
+      data: {
+        gameId: "acc",
+        name: "E2E chat input",
+        carName: "e2e-car",
+        trackName: "e2e-track",
+        baseSetupPath: "fixtures/e2e-base.json",
+        focus: "car",
+      },
+    });
+    expect(createResponse.status()).toBe(201);
+    const session = (await createResponse.json()) as { id: number };
+    await page.goto(`/acc/experiments/${session.id}`);
+
+    const input = page.getByRole("textbox", { name: "Message input" });
+    await input.fill("Visible input");
+    await expect(input).toHaveValue("Visible input");
+  });
 });
