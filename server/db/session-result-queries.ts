@@ -1,4 +1,4 @@
-import { eq, desc, and, inArray, not } from "drizzle-orm";
+import { eq, desc, and, inArray, ne, or, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions, sessionResults, pitEvents } from "./schema";
 import type { GameId } from "../../shared/games/ids";
@@ -206,19 +206,31 @@ export async function getRecentSessionResults(gameId: GameId, limit: number) {
 }
 export async function countStaleRaceResults(currentProcessorVersion: string): Promise<number> {
   const rows = await db
-    .select({ sessionId: sessionResults.sessionId })
-    .from(sessionResults)
-    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
+    .select({ sessionId: sessions.id })
+    .from(sessions)
+    .leftJoin(sessionResults, eq(sessionResults.sessionId, sessions.id))
+    .where(
+      or(
+        isNull(sessionResults.id),
+        ne(sessionResults.processorVersion, currentProcessorVersion),
+      ),
+    )
     .all();
   return rows.length;
 }
 
 export async function getStaleRaceResultSessionIds(currentProcessorVersion: string): Promise<number[]> {
   const rows = await db
-    .select({ sessionId: sessionResults.sessionId })
-    .from(sessionResults)
-    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
-    .orderBy(sessionResults.sessionId)
+    .select({ sessionId: sessions.id })
+    .from(sessions)
+    .leftJoin(sessionResults, eq(sessionResults.sessionId, sessions.id))
+    .where(
+      or(
+        isNull(sessionResults.id),
+        ne(sessionResults.processorVersion, currentProcessorVersion),
+      ),
+    )
+    .orderBy(sessions.id)
     .all();
   return rows.map((row) => row.sessionId);
 }

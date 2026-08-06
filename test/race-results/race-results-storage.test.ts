@@ -82,6 +82,7 @@ describe("persisted race result metadata", () => {
   });
   test("counts and lists only results from older processor versions", async () => {
     const staleSessionId = await insertSession(12, 13, "f1-2025", "race");
+    const resultlessSessionId = await insertSession(12, 13, "f1-2025", "race");
     const currentSessionId = await insertSession(12, 13, "f1-2025", "race");
     const input = (sessionId: number, processorVersion: string): SessionResultInput => ({
       sessionId,
@@ -100,22 +101,15 @@ describe("persisted race result metadata", () => {
       evidence,
       reasons: [],
     });
-    const previousCount = await countStaleRaceResults(RACE_RESULT_PROCESSOR_ID);
-    const previousIds = new Set(
-      await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID),
-    );
     await upsertSessionResult(input(staleSessionId, "race-result-v0"));
     await upsertSessionResult(input(currentSessionId, RACE_RESULT_PROCESSOR_ID));
-
-    expect(await countStaleRaceResults(RACE_RESULT_PROCESSOR_ID)).toBe(
-      previousCount + 1,
-    );
+    expect(await countStaleRaceResults(RACE_RESULT_PROCESSOR_ID)).toBeGreaterThanOrEqual(2);
     const staleIds = await getStaleRaceResultSessionIds(
       RACE_RESULT_PROCESSOR_ID,
     );
-    expect(staleIds.filter((sessionId) => !previousIds.has(sessionId))).toEqual([
-      staleSessionId,
-    ]);
+    expect(staleIds).toEqual(
+      expect.arrayContaining([staleSessionId, resultlessSessionId]),
+    );
     expect(staleIds).not.toContain(currentSessionId);
   });
 
