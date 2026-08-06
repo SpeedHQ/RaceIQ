@@ -141,6 +141,11 @@ export class RealDbAdapter implements DbAdapter {
     trackOrdinal: number;
     versionIdentity: TelemetryVersionIdentity;
   }>();
+  private readonly options: { notifyDriverProfile?: boolean };
+
+  constructor(options: { notifyDriverProfile?: boolean } = {}) {
+    this.options = options;
+  }
 
   async insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
     const identity = versionIdentity ?? currentTelemetryVersionIdentity(gameId);
@@ -152,7 +157,7 @@ export class RealDbAdapter implements DbAdapter {
   async insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
     const scope = this.sessionScopes.get(sessionId);
     const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
-    if (scope) notifyDriverProfileLap(scope.gameId);
+    if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
     return lapId;
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {

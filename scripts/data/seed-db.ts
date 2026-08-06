@@ -40,7 +40,7 @@ async function main(): Promise<void> {
       const existingSessionIds = new Set(
         (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
       );
-      const result = await importSessionBin(readFileSync(fixturePath), game);
+      const result = await importSessionBin(readFileSync(fixturePath), game, { notifyDriverProfile: false });
       const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
         .map((row) => row.id)
         .filter((id) => !existingSessionIds.has(id));

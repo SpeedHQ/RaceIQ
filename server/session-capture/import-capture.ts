@@ -37,11 +37,13 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
 export async function importSessionBin(
   bytes: Buffer,
   gameId: GameId,
+  options: { notifyDriverProfile?: boolean } = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
   const { packetCount, laps } = await importSessionFrames(
     iterateSessionFrames(buf),
     gameId,
+    options,
   );
   return { packetCount, laps };
 }

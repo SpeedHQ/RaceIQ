@@ -65,6 +65,18 @@ test("RealDbAdapter notifies global profile after valid and dirty persisted laps
   }
 });
 
+test("RealDbAdapter can suppress profile notifications for imports", async () => {
+  const notify = spyOn(DriverProfileRunner, "notifyDriverProfileLap").mockImplementation(() => {});
+  try {
+    const db = new RealDbAdapter({ notifyDriverProfile: false });
+    const sessionId = await db.insertSession(1, 1, "f1-2025");
+    await db.insertLap(sessionId, 1, 90000, true, null, 0, null, null, null, null);
+    expect(notify).not.toHaveBeenCalled();
+  } finally {
+    notify.mockRestore();
+  }
+});
+
 describe("NullWsAdapter", () => {
   test("all methods are no-ops and do not throw", () => {
     const ws = new NullWsAdapter();

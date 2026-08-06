@@ -25,7 +25,7 @@ export interface ImportedLap {
  * deep links into the analyse page.
  */
 export class ImportCaptureAdapter implements DbAdapter {
-  private readonly _inner = new RealDbAdapter();
+  private readonly _inner: RealDbAdapter;
   readonly laps: ImportedLap[] = [];
   readonly sessionIds = new Set<number>();
   readonly rawFiles = new Set<string>();
@@ -35,6 +35,10 @@ export class ImportCaptureAdapter implements DbAdapter {
     number,
     { carOrdinal: number; trackOrdinal: number }
   >();
+
+  constructor(options: { notifyDriverProfile?: boolean } = {}) {
+    this._inner = new RealDbAdapter(options);
+  }
 
   async insertSession(
     carOrdinal: number,
@@ -156,6 +160,8 @@ type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
 interface ImportSessionFramesOptions {
   /** Roll back the imported session and capture when no complete lap exists. */
   requireLaps?: boolean;
+  /** Opt out of background profile generation for offline imports such as seeds. */
+  notifyDriverProfile?: boolean;
 }
 
 /**
@@ -175,7 +181,7 @@ export async function importSessionFrames(
 }> {
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
-  const db = new ImportCaptureAdapter();
+  const db = new ImportCaptureAdapter({ notifyDriverProfile: options.notifyDriverProfile });
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
   });
