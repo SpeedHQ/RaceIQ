@@ -102,9 +102,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       return next;
     });
 
-  if (tests.length === 0) {
-    return <div className="px-3 py-4 text-center text-xs text-app-text-dim">No setup versions yet. Create the session from a base setup to seed v1, or run Save &amp; recommend.</div>;
-  }
 
 
   const renderNode = (t: ExperimentVersion, depth: number, isLastSibling: boolean): React.ReactNode => {
@@ -334,7 +331,11 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <RecursiveVersionRows roots={roots} childrenOf={childrenOf} renderNode={renderNode} />
+      {tests.length === 0 ? (
+        <div className="px-3 py-4 text-center text-xs text-app-text-dim">No setup versions yet. Create the session from a base setup to seed v1, or run Save &amp; recommend.</div>
+      ) : (
+        <RecursiveVersionRows roots={roots} childrenOf={childrenOf} renderNode={renderNode} />
+      )}
     </div>
   );
 }

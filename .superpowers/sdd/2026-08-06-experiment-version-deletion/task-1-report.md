@@ -1,11 +1,4 @@
-# Task 1 Report
 
-Implemented version deletion and Trash controls in `client/src/components/tunes/experiment/VersionGraph.tsx`.
+## Follow-up fix
 
-- Added delete/restore mutations and lazy deleted-version query.
-- Added per-node Delete version/Delete branch confirmation action with pending state.
-- Added aggregated set-head/delete/restore action error banner.
-- Added Trash launcher and Deleted branches dialog with loading, error, empty, root filtering, restore, close, and lazy-query behavior.
-- No comparison UI or backend changes.
-
-Verification: `bun run typecheck` reached client compilation but exits non-zero on three pre-existing diagnostics in `test/setups/tuning/format-tune.test.ts` and `server/session-capture/import-pipeline.ts`; no diagnostics reference VersionGraph.tsx.
+Removed the early return for an empty active graph so Trash remains available after deleting the sole root version; empty-state text now renders alongside the launcher/dialog. Targeted client validation: `bunx tsc --project client/tsconfig.json --noEmit` passed.
