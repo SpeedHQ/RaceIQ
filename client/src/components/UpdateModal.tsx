@@ -35,7 +35,7 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, newReleases, onClose }: { version: string; newReleases: { version: string; notes: string; date: string }[]; onClose: () => void }) {
+export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }: { version: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
@@ -108,7 +108,12 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               <p className="text-sm text-app-text-secondary">
                 RaceIQ <span className="font-mono text-app-accent">v{version}</span> {m.update_ready_suffix()}
               </p>
-              {newReleases.length > 0 &&
+              {fullReleaseNotes ? (
+                <div className="max-h-52 overflow-y-auto">
+                  <ReleaseNotes notes={fullReleaseNotes} />
+                </div>
+              ) : (
+                newReleases.length > 0 &&
                 (() => {
                   const [latest, ...older] = newReleases;
                   return (
@@ -139,7 +144,8 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                         ))}
                     </div>
                   );
-                })()}
+                })()
+              )}
               <div className="flex justify-end gap-3">
                 <Button variant="app-primary" size="app-md" onClick={handleInstall}>
                   {m.label_install_update()}

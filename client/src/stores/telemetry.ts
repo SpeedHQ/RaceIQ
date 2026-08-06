@@ -74,6 +74,7 @@ export interface VersionInfo {
   latest: string | null;
   updateAvailable: boolean;
   newReleases: ReleaseInfo[];
+  fullReleaseNotes: string | null;
   currentReleaseNotes: string | null;
   currentReleaseDate: string | null;
   lastChecked: string | null;

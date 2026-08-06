@@ -53,6 +53,7 @@ function AppShell() {
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const updateState = useUpdateCheck();
+  const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -173,7 +174,7 @@ function AppShell() {
           </div>
         )}
 
-        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? "?"} newReleases={updateState?.newReleases ?? []} onClose={() => setShowUpdateModal(false)} />}
+        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <StaleLapReprocessing />

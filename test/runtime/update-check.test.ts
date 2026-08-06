@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
-import { isNewer } from "../../server/runtime/update/version";
-
+import { findReleaseAsset, isNewer, mergeLatestRelease } from "../../server/runtime/update/check";
 describe("resolveDataDir", () => {
   let originalDataDir: string | undefined;
 
@@ -49,5 +48,35 @@ describe("isNewer", () => {
 
   test("older version is not newer", () => {
     expect(isNewer("1.2.1", "1.2.3")).toBe(false);
+  });
+});
+
+describe("release list merging", () => {
+  test("keeps the latest release when the releases list is stale", () => {
+    const latest = { tag_name: "v0.14.0", assets: [] };
+    const releases = [{ tag_name: "v0.13.0", assets: [] }];
+
+    expect(mergeLatestRelease(releases, latest)).toEqual([latest, ...releases]);
+  });
+
+  test("does not duplicate the latest release when the list includes it", () => {
+    const latest = { tag_name: "v0.14.0", assets: [] };
+    const releases = [latest, { tag_name: "v0.13.0", assets: [] }];
+
+    expect(mergeLatestRelease(releases, latest)).toEqual(releases);
+  });
+});
+
+describe("release asset selection", () => {
+  test("selects the full plural release history asset", () => {
+    const release = {
+      tag_name: "v0.14.0",
+      assets: [
+        { name: "releasenote.md", browser_download_url: "single" },
+        { name: "releasenotes.md", browser_download_url: "full" },
+      ],
+    };
+
+    expect(findReleaseAsset(release, "releasenotes.md")).toBe("full");
   });
 });

@@ -47,6 +47,8 @@ interface UpdateState {
   downloadUrl: string | null;
   /** All releases newer than current version */
   newReleases: ReleaseInfo[];
+  /** Full public release history from releasenotes.md for the latest release. */
+  fullReleaseNotes: string | null;
   currentReleaseNotes: string | null;
   currentReleaseDate: string | null;
   lastChecked: string | null;
@@ -59,6 +61,7 @@ let state: UpdateState = {
   updateAvailable: false,
   downloadUrl: null,
   newReleases: [],
+  fullReleaseNotes: null,
   currentReleaseNotes: null,
   currentReleaseDate: null,
   lastChecked: null,
@@ -93,29 +96,45 @@ interface GitHubRelease {
   assets: { name: string; browser_download_url: string }[];
 }
 
-/** Fetch the complete curated release note asset attached to a GitHub release. */
-async function fetchReleaseNotes(release: GitHubRelease): Promise<string | null> {
-  const asset = release.assets.find((candidate) => candidate.name.toLowerCase() === "releasenote.md");
-  if (!asset) return null;
-  const response = await fetch(asset.browser_download_url, { headers: GH_HEADERS });
+export function findReleaseAsset(release: GitHubRelease, filename: string): string | null {
+  return release.assets.find((candidate) => candidate.name.toLowerCase() === filename.toLowerCase())?.browser_download_url ?? null;
+}
+
+async function fetchReleaseAsset(release: GitHubRelease, filename: string): Promise<string | null> {
+  const url = findReleaseAsset(release, filename);
+  if (!url) return null;
+  const response = await fetch(url, { headers: GH_HEADERS });
   if (!response.ok) return null;
   const notes = (await response.text()).trim();
   return notes || null;
 }
 
+/** Fetch the complete curated release note asset attached to a GitHub release. */
+async function fetchReleaseNotes(release: GitHubRelease): Promise<string | null> {
+  return fetchReleaseAsset(release, "releasenote.md");
+}
+
 /** Fetch all releases from GitHub and split into new/current. */
-async function fetchReleases(currentVersion: string): Promise<{
+export function mergeLatestRelease(releases: GitHubRelease[], latest?: GitHubRelease): GitHubRelease[] {
+  if (!latest || releases.some((release) => release.tag_name === latest.tag_name)) return releases;
+  return [latest, ...releases];
+}
+
+async function fetchReleases(currentVersion: string, latest?: GitHubRelease): Promise<{
   newReleases: ReleaseInfo[];
+  fullReleaseNotes: string | null;
   currentReleaseNotes: string | null;
   currentReleaseDate: string | null;
 }> {
   const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=50`, { headers: GH_HEADERS });
-  if (!res.ok) return { newReleases: [], currentReleaseNotes: null, currentReleaseDate: null };
+  if (!res.ok) return { newReleases: [], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null };
 
-  const releases = await res.json() as GitHubRelease[];
+  const releases = mergeLatestRelease(await res.json() as GitHubRelease[], latest);
+  const fullReleaseNotes = latest ? await fetchReleaseAsset(latest, "releasenotes.md") : null;
   const newReleases: ReleaseInfo[] = [];
   let currentReleaseNotes: string | null = null;
   let currentReleaseDate: string | null = null;
+
 
   for (const r of releases) {
     const ver = r.tag_name.replace(/^v/, "");
@@ -129,7 +148,7 @@ async function fetchReleases(currentVersion: string): Promise<{
     }
   }
 
-  return { newReleases, currentReleaseNotes, currentReleaseDate };
+  return { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate };
 }
 
 
@@ -137,9 +156,9 @@ export async function checkForUpdate(): Promise<UpdateState> {
   // Dev mode: fake an available update using a local installer, but fetch real release notes
   if (DEV_FORCE_UPDATE) {
     const fakeVersion = "99.0.0";
-    const { newReleases, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], currentReleaseNotes: null, currentReleaseDate: null }));
+    const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null }));
     const lastChecked = new Date().toISOString();
-    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, downloadUrl: LOCAL_INSTALLER ?? null, newReleases, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
+    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, downloadUrl: LOCAL_INSTALLER ?? null, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
     notifyUpdateAvailable(fakeVersion);
     console.log(`[Update] DEV_FORCE_UPDATE: faking update to v${fakeVersion}${LOCAL_INSTALLER ? ` (local: ${LOCAL_INSTALLER})` : ""}`);
     return state;
@@ -159,10 +178,10 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const installerAsset = data.assets.find((a) => a.name.match(/RaceIQ-Setup-v.*\.exe$/));
     const downloadUrl = installerAsset?.browser_download_url ?? null;
 
-    const { newReleases, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], currentReleaseNotes: null, currentReleaseDate: null }));
+    const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION, data).catch(() => ({ newReleases: [] as ReleaseInfo[], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null }));
 
     const lastChecked = new Date().toISOString();
-    state = { current: VERSION, latest, updateAvailable, downloadUrl, newReleases, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
+    state = { current: VERSION, latest, updateAvailable, downloadUrl, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
 
     if (updateAvailable) {
       notifyUpdateAvailable(latest);
