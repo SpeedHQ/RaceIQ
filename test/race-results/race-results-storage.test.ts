@@ -115,6 +115,7 @@ describe("persisted race result metadata", () => {
 
   test("reconciles stale results through bulk endpoint", async () => {
     const sessionId = await insertSession(14, 15, "f1-2025", "race");
+    const resultlessSessionId = await insertSession(16, 17, "f1-2025", "race");
     await upsertSessionResult({
       sessionId,
       processorVersion: "race-result-v0",
@@ -136,6 +137,7 @@ describe("persisted race result metadata", () => {
     const response = await sessionRoutes.request("/api/race-results/reconcile-stale", { method: "POST" });
     expect(response.status).toBe(200);
     expect((await getSessionResult(sessionId, "f1-2025"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
+    expect((await getSessionResult(resultlessSessionId, "f1-2025"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
   });
 
   test("reconciles stored results from an older processor version", async () => {
