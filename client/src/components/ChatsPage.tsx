@@ -4,7 +4,7 @@ import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "../stores/game";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/AppTable";
+import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 
 interface LapSummary {
@@ -148,20 +148,22 @@ export function ChatsPage() {
       )}
 
       {!loading && rows.length > 0 && (
-        <div className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface">
-          <Table>
-            <TableHeader>
-              <TableHead>{m.label_type()}</TableHead>
-              <TableHead>{m.label_track()}</TableHead>
-              <TableHead>{m.chats_col_cars()}</TableHead>
-              <TableHead>{m.chats_col_laps()}</TableHead>
-              <TableHead>{m.chats_col_updated()}</TableHead>
-              <TableHead align="end">{m.label_actions()}</TableHead>
-            </TableHeader>
-            <TableBody>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <Table fit>
+            <THead>
+              <TH nowrap>{m.label_type()}</TH>
+              <TH nowrap>{m.label_track()}</TH>
+              <TH nowrap>{m.chats_col_cars()}</TH>
+              <TH nowrap>{m.chats_col_laps()}</TH>
+              <TH nowrap>{m.chats_col_updated()}</TH>
+              <TH align="end" nowrap>
+                {m.label_actions()}
+              </TH>
+            </THead>
+            <TBody>
               {rows.map((row) => (
-                <TableRow key={row.threadId} data-testid={`chat-row-${row.threadId}`}>
-                  <TableCell>
+                <TRow key={row.threadId} data-testid={`chat-row-${row.threadId}`}>
+                  <TD>
                     <span
                       className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                         row.type === "compare"
@@ -173,11 +175,13 @@ export function ChatsPage() {
                     >
                       {row.type === "tune" ? "setup" : row.type}
                     </span>
-                  </TableCell>
-                  <TableCell tone="primary">{row.trackName || "—"}</TableCell>
-                  <TableCell>
+                  </TD>
+                  <TD tone="primary" nowrap truncate="wide">
+                    {row.trackName || "—"}
+                  </TD>
+                  <TD>
                     {row.type === "tune" && row.tune ? (
-                      <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
+                      <span className="block truncate max-w-[180px]">{row.tune.carName || "—"}</span>
                     ) : (
                       row.laps.map((l, lapIndex) => (
                         <div key={`${row.threadId}:${l.id}`} className="flex items-center gap-1.5">
@@ -186,10 +190,10 @@ export function ChatsPage() {
                         </div>
                       ))
                     )}
-                  </TableCell>
-                  <TableCell numeric>
+                  </TD>
+                  <TD numeric>
                     {row.type === "tune" && row.tune ? (
-                      <span className="truncate max-w-[220px] block">
+                      <span className="block truncate max-w-[220px]">
                         #{row.tune.seq} — {row.tune.name}
                       </span>
                     ) : (
@@ -200,9 +204,11 @@ export function ChatsPage() {
                         </div>
                       ))
                     )}
-                  </TableCell>
-                  <TableCell tone="muted">{formatRelative(row.updatedAt)}</TableCell>
-                  <TableCell align="end">
+                  </TD>
+                  <TD tone="muted" nowrap>
+                    {formatRelative(row.updatedAt)}
+                  </TD>
+                  <TD align="end">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         onClick={() => handleOpen(row)}
@@ -219,10 +225,10 @@ export function ChatsPage() {
                         <Trash2 className="size-3" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </TD>
+                </TRow>
               ))}
-            </TableBody>
+            </TBody>
           </Table>
         </div>
       )}
