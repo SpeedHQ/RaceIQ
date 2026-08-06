@@ -73,6 +73,7 @@ describe("semantic telemetry catalog artifacts", () => {
     ).toEqual([
       "telemetry/catalog/generated/telemetry-catalog.generated.json",
       "telemetry/catalog/generated/telemetry-catalog.generated.ts",
+      "telemetry/catalog/generated/telemetry-catalog.types.ts",
       "telemetry/catalog/generated/TELEMETRY_CATALOG.md",
       "telemetry/catalog/generated/telemetry-catalog-matrix.md",
     ]);

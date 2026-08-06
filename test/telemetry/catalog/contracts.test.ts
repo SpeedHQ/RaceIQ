@@ -144,37 +144,37 @@ describe("semantic telemetry catalog contracts", () => {
   test("merges duplicate concepts while preserving source-specific detail", () => {
     expect(
       TELEMETRY_CATALOG.variables.some(
-        (variable) => variable.id === "timing.lap-distance-pct",
+        (variable) => String(variable.id) === "timing.lap-distance-pct",
       ),
     ).toBe(false);
     expect(
       TELEMETRY_CATALOG.variables.some(
-        (variable) => variable.id === "identity.track-length",
+        (variable) => String(variable.id) === "identity.track-length",
       ),
     ).toBe(false);
     expect(
       TELEMETRY_CATALOG.variables.some(
-        (variable) => variable.id === "race.incidents",
+        (variable) => String(variable.id) === "race.incidents",
       ),
     ).toBe(false);
     expect(
       TELEMETRY_CATALOG.variables.some(
-        (variable) => variable.id === "race.is-on-track",
+        (variable) => String(variable.id) === "race.is-on-track",
       ),
     ).toBe(false);
     expect(
       TELEMETRY_CATALOG.variables.some(
-        (variable) => variable.id === "tires.cold-pressure",
+        (variable) => String(variable.id) === "tires.cold-pressure",
       ),
     ).toBe(false);
     expect(
       TELEMETRY_CATALOG.variables
-        .map((variable) => variable.id)
+        .map((variable) => String(variable.id))
         .filter((id) => /-(?:fl|fr|rl|rr)-2$/.test(id)),
     ).toEqual([]);
     expect(
       TELEMETRY_CATALOG.variables.some(
-        (variable) => variable.id === "tires.tire-slip-combined-fl-2",
+        (variable) => String(variable.id) === "tires.tire-slip-combined-fl-2",
       ),
     ).toBe(false);
 

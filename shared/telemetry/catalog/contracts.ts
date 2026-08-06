@@ -1,6 +1,12 @@
 import type { GameId } from "../../games/ids";
+import type {
+  TelemetryGroupId,
+  TelemetryMappingSourcePath,
+  TelemetryNodeId,
+  TelemetrySourcePath,
+  TelemetryVariableId,
+} from "./generated/telemetry-catalog.types";
 import type { TelemetryPacket } from "../types";
-
 export type TelemetryLinkKind =
   | "direct"
   | "normalized"
@@ -59,10 +65,10 @@ export interface TelemetryCompatibilityReview {
   rationale: string;
 }
 
-export interface AvailableTelemetryLink {
+export interface AvailableTelemetryLink<G extends GameId = GameId> {
   kind: Exclude<TelemetryLinkKind, "unavailable">;
   nativeUnit: string;
-  sources: readonly string[] | Record<string, readonly string[]>;
+  sources: readonly TelemetryMappingSourcePath<G>[] | Record<string, readonly TelemetryMappingSourcePath<G>[]>;
   freshness: "continuous" | "pit-snapshot" | "session-update" | "static";
   normalization?: string;
   description: string;
@@ -82,22 +88,22 @@ export interface UnavailableTelemetryLink {
   description: string;
 }
 
-export type TelemetryGameLink = AvailableTelemetryLink | UnavailableTelemetryLink;
+export type TelemetryGameLink<G extends GameId = GameId> = AvailableTelemetryLink<G> | UnavailableTelemetryLink;
 
 export interface TelemetryCatalogGroup {
-  id: string;
+  id: TelemetryGroupId;
   label: string;
   description: string;
-  parentId?: string;
+  parentId?: TelemetryGroupId;
   canonicalUnit?: string;
-  children: readonly string[];
+  children: readonly TelemetryNodeId[];
 }
 
 export interface TelemetryVariableDefinition {
-  id: string;
+  id: TelemetryVariableId;
   label: string;
   description: string;
-  parentId: string;
+  parentId: TelemetryGroupId;
   canonicalUnit: string;
   valueType: TelemetryValueType;
   dimensions: readonly string[];
@@ -109,17 +115,17 @@ export interface TelemetryVariableDefinition {
   limitations: readonly string[];
   shape: "scalar" | "per-wheel" | "vector" | "array" | "structured";
   packetFields?: readonly (keyof TelemetryPacket)[];
-  games: Record<GameId, TelemetryGameLink>;
+  games: { [G in GameId]: TelemetryGameLink<G> };
 }
 
-export interface TelemetrySourceVariable {
-  path: string;
+export interface TelemetrySourceVariable<G extends GameId = GameId> {
+  path: TelemetrySourcePath<G>;
   label: string;
   unit: string;
   dataType?: string;
   count?: number;
   description: string;
-  semanticId: string;
+  semanticId: TelemetryVariableId;
   sourceKind: "packet" | "extension" | "sdk" | "yaml" | "setup";
   recordedByRaceIQ: boolean;
   retention: "exact" | "normalized" | "not-recorded";
@@ -153,7 +159,7 @@ export interface TelemetryCatalogData {
   generatedFrom: readonly string[];
   groups: readonly TelemetryCatalogGroup[];
   variables: readonly TelemetryVariableDefinition[];
-  sources: Record<GameId, readonly TelemetrySourceVariable[]>;
+  sources: { [G in GameId]: readonly TelemetrySourceVariable<G>[] };
   coverage: {
     normalizedPacketFields: number;
     semanticVariables: number;

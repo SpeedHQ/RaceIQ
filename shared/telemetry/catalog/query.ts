@@ -6,10 +6,10 @@ import type {
 } from "./contracts";
 import { TELEMETRY_CATALOG } from "./data";
 
-export const groupsById = new Map(
+export const groupsById = new Map<string, TelemetryCatalogGroup>(
   TELEMETRY_CATALOG.groups.map((group) => [group.id, group]),
 );
-export const variablesById = new Map(
+export const variablesById = new Map<string, TelemetryVariableDefinition>(
   TELEMETRY_CATALOG.variables.map((variable) => [variable.id, variable]),
 );
 
@@ -49,15 +49,15 @@ export function getTelemetryChildren(
   return group.children.map(getTelemetryNode);
 }
 
-export function getTelemetrySources(
-  gameId: GameId,
-): readonly TelemetrySourceVariable[] {
+export function getTelemetrySources<G extends GameId>(
+  gameId: G,
+): readonly TelemetrySourceVariable<G>[] {
   return TELEMETRY_CATALOG.sources[gameId];
 }
 
-export function getSourcesWithoutSemanticDefinition(
-  gameId: GameId,
-): TelemetrySourceVariable[] {
+export function getSourcesWithoutSemanticDefinition<G extends GameId>(
+  gameId: G,
+): TelemetrySourceVariable<G>[] {
   return TELEMETRY_CATALOG.sources[gameId].filter(
     (source) => !variablesById.has(source.semanticId),
   );

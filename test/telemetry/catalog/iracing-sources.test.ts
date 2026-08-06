@@ -327,7 +327,7 @@ CarSetup:
 
     expect(
       TELEMETRY_CATALOG.variables.some(
-        (variable) => variable.id === "setup.iracing-car-setup",
+        (variable) => String(variable.id) === "setup.iracing-car-setup",
       ),
     ).toBe(false);
   });

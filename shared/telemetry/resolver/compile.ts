@@ -1,5 +1,5 @@
 import type { GameId } from "../../games/ids";
-import type { TelemetryCatalogData } from "../catalog/contracts";
+import type { TelemetryCatalogData, TelemetryVariableDefinition } from "../catalog/contracts";
 import { TELEMETRY_CATALOG } from "../catalog/data";
 import { getBuiltinTelemetryDerivation, TELEMETRY_DERIVATION_VERSION } from "../derivations/builtins";
 import type { TelemetryDerivation } from "../derivations/contracts";
@@ -38,8 +38,12 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
     this.simulator = options.simulator;
     this.parserId = options.parserId ?? options.simulator;
     this.parserVersion = options.parserVersion ?? TELEMETRY_PARSER_VERSIONS[options.simulator];
-    const variables = new Map(catalog.variables.map((variable) => [variable.id, variable]));
-    const custom = new Map((options.derivations ?? []).map((definition) => [definition.output.semanticId, definition]));
+    const variables = new Map<string, TelemetryVariableDefinition>(
+      catalog.variables.map((variable) => [variable.id, variable]),
+    );
+    const custom = new Map<string, TelemetryDerivation>(
+      (options.derivations ?? []).map((definition) => [definition.output.semanticId, definition]),
+    );
     const visiting = new Set<string>();
     const ordered = new Set<string>();
     const derivationFor = (id: string, mapping: Mapping): TelemetryDerivation | undefined => (mapping.kind === "derived" ? (custom.get(id) ?? getBuiltinTelemetryDerivation(id)) : undefined);
