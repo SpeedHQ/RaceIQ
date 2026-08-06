@@ -8,7 +8,7 @@ import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "../games/iracing/source-frame";
 import { readFrameStreamStart } from "../session-capture/framing";
-import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId, sha256ContentHash } from "../session-capture/identity";
+import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 
 interface ReplayNativeFrame {
   packet: TelemetryPacket;
@@ -53,14 +53,6 @@ function resolveRawReference(source: LapReplaySource, capture: RawCaptureIdentit
       storageEncoding: capture.storageEncoding,
       byteOffset: source.rawByteOffset,
       frameCount: source.rawFrameCount,
-    };
-  }
-  if (source.legacyTelemetry) {
-    return {
-      objectId: `lap:${source.id}:legacy-telemetry`,
-      contentHash: sha256ContentHash(source.legacyTelemetry),
-      contentEncoding: "gzip",
-      storageEncoding: "gzip",
     };
   }
   return undefined;

@@ -1198,5 +1198,47 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
     ],
   },
+  // v54: Persist telemetry catalog and resolver identity on sessions.
+  {
+    version: 54,
+    name: "persist telemetry version identity",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN catalog_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN catalog_hash TEXT`,
+      `ALTER TABLE sessions ADD COLUMN catalog_schema_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN parser_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN resolver_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN derivation_version TEXT`,
+    ],
+  },
+  // v55: Persist telemetry version identity on laps.
+  {
+    version: 55,
+    name: "persist lap telemetry version identity",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN catalog_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN catalog_hash TEXT`,
+      `ALTER TABLE laps ADD COLUMN catalog_schema_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN parser_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN resolver_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN derivation_version TEXT`,
+    ],
+  },
+  // v56: Persist race result outcome status.
+  {
+    version: 56,
+    name: "persist race result outcome status",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`,
+    ],
+  },
+  // v57: Persist structured race-result evidence.
+  {
+    version: 57,
+    name: "persist race result evidence",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN evidence TEXT`,
+    ],
+  },
 ];
 

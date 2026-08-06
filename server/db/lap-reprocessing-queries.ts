@@ -8,7 +8,7 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean;
   notes: string | null; tuneId: number | null;
   rawByteOffset: number | null; rawFrameCount: number | null;
-  sectorTimes: number[] | null; legacyTelemetry: Buffer | null;
+  sectorTimes: number[] | null;
 }>> {
   const rows = await db
     .select({
@@ -21,7 +21,6 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
       sectorTimes: laps.sectorTimes,
-      legacyTelemetry: laps.legacyTelemetry,
     })
     .from(laps)
     .where(eq(laps.sessionId, sessionId))
@@ -67,7 +66,6 @@ export async function insertReprocessedLap(
   notes: string | null,
   invalidReason: string | null,
   sectors: number[] | null,
-  legacyTelemetry: Buffer | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
   const result = await db.insert(laps).values({
@@ -75,7 +73,6 @@ export async function insertReprocessedLap(
     rawByteOffset, rawFrameCount,
     tuneId, notes, invalidReason,
     sectorTimes: sectors,
-    legacyTelemetry,
     ...versionIdentity,
   }).returning({ id: laps.id }).get();
   return result.id;

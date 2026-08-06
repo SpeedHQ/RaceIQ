@@ -130,18 +130,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
           : undefined;
       return { detected, preserved };
     });
-    const replacedIds = new Set(
-      replacements.flatMap(({ preserved }) =>
-        preserved ? [preserved.id] : []
-      ),
-    );
-    const archivedIds = existingLaps
-      .filter(
-        (existing) =>
-          existing.legacyTelemetry != null && !replacedIds.has(existing.id),
-      )
-      .map(({ id }) => id);
-    await deleteLapsForSession(sessionId, archivedIds);
+    await deleteLapsForSession(sessionId);
     for (const { detected, preserved } of replacements) {
       const sectors = detected.sectors ? [...detected.sectors] : null;
       await insertReprocessedLap(
@@ -155,7 +144,6 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         preserved?.notes ?? null,
         detected.invalidReason,
         sectors,
-        preserved?.legacyTelemetry ?? null,
         versionIdentity,
       );
       lapsUpdated++;

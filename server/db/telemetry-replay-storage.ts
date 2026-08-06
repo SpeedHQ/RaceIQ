@@ -359,7 +359,6 @@ export interface LapReplaySource {
   rawFile: string | null;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
-  legacyTelemetry: Buffer | null;
   versionIdentity?: TelemetryVersionIdentity;
 }
 
@@ -375,7 +374,6 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
       rawFile: sessions.rawFile,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
-      legacyTelemetry: laps.legacyTelemetry,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion,
@@ -403,7 +401,6 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
     rawFile: row.rawFile,
     rawByteOffset: row.rawByteOffset,
     rawFrameCount: row.rawFrameCount,
-    legacyTelemetry: row.legacyTelemetry,
     versionIdentity: hasVersionIdentity
       ? {
           catalogVersion: row.catalogVersion!,

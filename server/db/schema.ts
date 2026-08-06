@@ -190,9 +190,6 @@ export const laps = sqliteTable(
 		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
-		// Pre-v19 gzip CSV telemetry retained only when raw offsets are unavailable.
-		// Current captures leave this null and replay from their raw session file.
-		legacyTelemetry: blob("legacy_telemetry", { mode: "buffer" }),
 		catalogVersion: text("catalog_version"),
 		catalogHash: text("catalog_hash"),
 		catalogSchemaVersion: text("catalog_schema_version"),
