@@ -106,8 +106,8 @@ export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineN
   ];
 }
 
-function formatService(service: RaceResult["events"][number]["service"]): string {
-  return service === "unknown" ? "Service" : service[0].toUpperCase() + service.slice(1);
+export function formatService(service: RaceResult["events"][number]["service"]): string {
+  return service === "unknown" ? "Pit" : service[0].toUpperCase() + service.slice(1);
 }
 
 function tyreChangeLabel(value: unknown): string | null {

@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildRaceResultTimeline } from "../src/components/race-results/RaceResultLedger";
-
+import { buildRaceResultTimeline, formatService } from "../src/components/race-results/RaceResultLedger";
 const result = {
   id: 1,
   sessionId: 7,
@@ -81,5 +80,8 @@ describe("race result timeline", () => {
   test("omits null optional event values", () => {
     const [pit] = buildRaceResultTimeline({ ...result, events: [{ ...result.events[0], lapNumber: null, durationSeconds: null, tyreChange: null }] }).filter((node) => node.kind === "pit");
     expect(pit).toMatchObject({ lapNumber: null, durationSeconds: null, tyreChange: null });
+  });
+  test("labels unknown pit service as Pit", () => {
+    expect(formatService("unknown")).toBe("Pit");
   });
 });
