@@ -243,8 +243,6 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE sessions ADD COLUMN lap_detector_version TEXT`,
       `ALTER TABLE laps ADD COLUMN raw_byte_offset INTEGER`,
       `ALTER TABLE laps ADD COLUMN raw_frame_count INTEGER`,
-      `ALTER TABLE laps ADD COLUMN legacy_telemetry BLOB`,
-      `UPDATE laps SET legacy_telemetry = telemetry`,
       `ALTER TABLE laps DROP COLUMN telemetry`,
     ],
   },
@@ -398,7 +396,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // stints while iterating setups), so membership can't be derived from
   // sessionId or a fragile created-at time window. Instead every lap recorded
   // while a tuning session is active is stamped with its id at insert time
-  // (see server/experiments/active.ts + queries.ts::insertLap).
+  // (see server/experiment-active.ts + queries.ts::insertLap).
   //
   // NOTE: SQLite cannot add a column WITH an inline REFERENCES clause via
   // ALTER TABLE, so the FK is omitted here — the column is a plain nullable
@@ -458,7 +456,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
 
   // ── v30: Setup Engineer flow — exclusions, F1 snapshot, action log ─────────
   // Three additive changes for the solidified tuning-session flow
-  // (docs/architecture/setup-engineer.md):
+  // (docs/setup-engineer-flow-design.md §Phase 0):
   //  • laps.tuning_excluded    — user flag dropping a lap from the tuning aggregate.
   //  • tuning_tests.setup_snapshot — F1's captured/target F1CarSetup JSON (null for
   //    file-based ACC/AC-Evo nodes, which keep using setup_path).
@@ -532,11 +530,11 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   },
 
   // ── v34: auto-exclude source tracking for fastest-5 curation ───────────────
-  // (docs/architecture/setup-engineer.md)
+  // (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md)
   // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
   // disagreed with the fastest-5 curation the review paths (`/line-spread`,
   // `useStintTraces`) actually analysed. This column tracks WHO set the flag:
-  //  • 'auto'   — server/experiments/auto-exclude.ts's fastest-5 reconciliation pass.
+  //  • 'auto'   — server/experiment-auto-exclude.ts's fastest-5 reconciliation pass.
   //  • 'manual' — user or Setup Engineer; the auto pass never touches these.
   //  • NULL     — not yet reconciled (pre-existing NULL rows).
   // Backfill: every existing `tuning_excluded = 1` row was hand-set (the auto
@@ -552,73 +550,32 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v35: purge rows with neither raw nor legacy telemetry ──────────────────
-  // `sessions.raw_file` arrived in v19 alongside raw binary lap storage. v19
-  // retains the previous gzip CSV blob in `laps.legacy_telemetry`, so only
-  // sessions with neither representation are unreplayable and safe to purge.
+  // ── v35: purge pre-v0.8.0 laps (no raw capture) ─────────────────────────────
+  // `sessions.raw_file` arrived in v19 alongside raw binary lap storage. A
+  // session with `raw_file IS NULL` has no .bin behind it, so none of its laps
+  // can ever produce telemetry — they were surfaced read-only as "legacy" laps
+  // with Analyse/Compare disabled. That carve-out is gone: the rows go instead.
   //
   // Deletes are explicit and child-first rather than leaning on the declared
   // ON DELETE CASCADE, because `runMigrations` sets `PRAGMA foreign_keys = OFF`
   // for the whole batch (SQLite ignores the pragma inside the per-migration
   // transaction, so a migration cannot re-enable it) — under OFF, deleting a
   // session leaves its laps and their analyses orphaned. `compare_analyses`
-  // additionally has no foreign key at all, so it needs an explicit delete.
+  // additionally has no foreign key at all, so it would need an explicit
+  // delete under either pragma.
+  //
+  // Nothing on disk to unlink: these sessions never had a raw file.
   {
     version: 35,
-    name: "purge laps with no replayable telemetry",
+    name: "purge pre-v0.8.0 laps with no raw capture",
     sql: [
       `DELETE FROM compare_analyses
-         WHERE lap_a_id IN (
-           SELECT id FROM laps WHERE session_id IN (
-             SELECT id FROM sessions
-             WHERE raw_file IS NULL
-               AND NOT EXISTS (
-                 SELECT 1 FROM laps retained
-                 WHERE retained.session_id = sessions.id
-                   AND retained.legacy_telemetry IS NOT NULL
-               )
-           )
-         )
-            OR lap_b_id IN (
-              SELECT id FROM laps WHERE session_id IN (
-                SELECT id FROM sessions
-                WHERE raw_file IS NULL
-                  AND NOT EXISTS (
-                    SELECT 1 FROM laps retained
-                    WHERE retained.session_id = sessions.id
-                      AND retained.legacy_telemetry IS NOT NULL
-                  )
-              )
-            )`,
+         WHERE lap_a_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))
+            OR lap_b_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))`,
       `DELETE FROM lap_analyses
-         WHERE lap_id IN (
-           SELECT id FROM laps WHERE session_id IN (
-             SELECT id FROM sessions
-             WHERE raw_file IS NULL
-               AND NOT EXISTS (
-                 SELECT 1 FROM laps retained
-                 WHERE retained.session_id = sessions.id
-                   AND retained.legacy_telemetry IS NOT NULL
-               )
-           )
-         )`,
-      `DELETE FROM laps
-         WHERE session_id IN (
-           SELECT id FROM sessions
-           WHERE raw_file IS NULL
-             AND NOT EXISTS (
-               SELECT 1 FROM laps retained
-               WHERE retained.session_id = sessions.id
-                 AND retained.legacy_telemetry IS NOT NULL
-             )
-         )`,
-      `DELETE FROM sessions
-         WHERE raw_file IS NULL
-           AND NOT EXISTS (
-             SELECT 1 FROM laps retained
-             WHERE retained.session_id = sessions.id
-               AND retained.legacy_telemetry IS NOT NULL
-           )`,
+         WHERE lap_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))`,
+      `DELETE FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL)`,
+      `DELETE FROM sessions WHERE raw_file IS NULL`,
     ],
   },
 
@@ -789,7 +746,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       //
       // Deliberately NOT named 'setup'/'drill' like experiment_versions.kind:
       // the mode and the arm are different levels, and sharing words made
-      // "setup" mean three things at once. See shared/racing/experiments/focus.ts.
+      // "setup" mean three things at once. See shared/experiment-focus.ts.
       `ALTER TABLE experiments ADD COLUMN focus TEXT NOT NULL DEFAULT 'car'`,
 
       // Append-only record of focus switches, so a session that moved between
@@ -820,7 +777,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       // v39 first shipped focus as 'setup'|'driving', which collided with
       // experiment_versions.kind ('setup'|'drill') and made "setup" mean a
       // mode, an arm and a knob edit at once. The values are now 'car'|'driver'
-      // (see shared/racing/experiments/focus.ts).
+      // (see shared/experiment-focus.ts).
       //
       // v39 is edited in place for anyone who has not run it yet; this pass
       // exists for databases that already applied the old version — a migration
@@ -1066,7 +1023,6 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          sector_times               TEXT,
          raw_byte_offset            INTEGER,
          raw_frame_count            INTEGER,
-         legacy_telemetry           BLOB,
          experiment_id              INTEGER,
          experiment_version_id      INTEGER,
          experiment_excluded        INTEGER,
@@ -1078,14 +1034,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `INSERT INTO laps_v46 (
          id, session_id, lap_number, lap_time, is_valid, invalid_reason,
          notes, profile_id, pi, car_setup, tune_id, sector_times,
-         raw_byte_offset, raw_frame_count, legacy_telemetry, experiment_id,
-         experiment_version_id, experiment_excluded, experiment_excluded_source,
-         fuel_per_lap, tyre_wear, created_at
+         raw_byte_offset, raw_frame_count, experiment_id, experiment_version_id,
+         experiment_excluded, experiment_excluded_source, fuel_per_lap,
+         tyre_wear, created_at
        )
        SELECT
          id, session_id, lap_number, lap_time, is_valid, invalid_reason,
          notes, profile_id, pi, car_setup, tune_id, sector_times,
-         raw_byte_offset, raw_frame_count, legacy_telemetry, experiment_id,
+         raw_byte_offset, raw_frame_count, experiment_id,
          experiment_version_id, experiment_excluded,
          experiment_excluded_source, fuel_per_lap, tyre_wear, created_at
        FROM laps`,
@@ -1177,64 +1133,22 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
     ],
   },
-  // v49: Persist authority state and make missing pit linkage explicit.
+  // v49: Version normalized race-result derivation for future reconciliation.
   {
     version: 49,
-    name: "race result authority evidence",
+    name: "version race result processor",
     sql: [
-      `ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'
-         CHECK (outcome_status IN ('confirmed', 'provisional', 'unavailable'))`,
-      `ALTER TABLE session_results ADD COLUMN evidence TEXT`,
-      `CREATE TABLE pit_events_new (
-         id                INTEGER PRIMARY KEY AUTOINCREMENT,
-         result_id         INTEGER NOT NULL REFERENCES session_results(id) ON DELETE CASCADE,
-         sequence          INTEGER NOT NULL,
-         lap_number        INTEGER,
-         elapsed_seconds   REAL,
-         duration_seconds  REAL,
-         service           TEXT NOT NULL DEFAULT 'unknown',
-         tyre_change       TEXT,
-         fuel_added        REAL,
-         fuel_before       REAL,
-         fuel_after        REAL,
-         linkage           TEXT NOT NULL DEFAULT 'unknown',
-         source            TEXT,
-         created_at        TEXT NOT NULL DEFAULT (datetime('now')),
-         UNIQUE(result_id, sequence)
-       )`,
-      `INSERT INTO pit_events_new (
-         id, result_id, sequence, lap_number, elapsed_seconds, duration_seconds,
-         service, tyre_change, fuel_added, fuel_before, fuel_after, linkage, source, created_at
-       )
-       SELECT
-         id, result_id, sequence, lap_number, elapsed_seconds, duration_seconds,
-         service, tyre_change, fuel_added, fuel_before, fuel_after, linkage, source, created_at
-       FROM pit_events`,
-      `DROP TABLE pit_events`,
-      `ALTER TABLE pit_events_new RENAME TO pit_events`,
-      `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
+      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`,
     ],
   },
-  // v50: Immutable runtime identity for deterministic telemetry replay.
+  // v50: Persist race timeline event types and position transitions.
   {
     version: 50,
-    name: "telemetry replay version identity",
+    name: "persist race timeline positions",
     sql: [
-      // Databases that already applied the original v46 rebuild lost the v19
-      // column; duplicate-column tolerance makes this converge with fresh DBs.
-      `ALTER TABLE laps ADD COLUMN legacy_telemetry BLOB`,
-      `ALTER TABLE sessions ADD COLUMN catalog_version TEXT`,
-      `ALTER TABLE sessions ADD COLUMN catalog_hash TEXT`,
-      `ALTER TABLE sessions ADD COLUMN catalog_schema_version TEXT`,
-      `ALTER TABLE sessions ADD COLUMN parser_version TEXT`,
-      `ALTER TABLE sessions ADD COLUMN resolver_version TEXT`,
-      `ALTER TABLE sessions ADD COLUMN derivation_version TEXT`,
-      `ALTER TABLE laps ADD COLUMN catalog_version TEXT`,
-      `ALTER TABLE laps ADD COLUMN catalog_hash TEXT`,
-      `ALTER TABLE laps ADD COLUMN catalog_schema_version TEXT`,
-      `ALTER TABLE laps ADD COLUMN parser_version TEXT`,
-      `ALTER TABLE laps ADD COLUMN resolver_version TEXT`,
-      `ALTER TABLE laps ADD COLUMN derivation_version TEXT`,
+      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
+      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
+      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
     ],
   },
   // v51: Converge databases that applied v50 before legacy fallback restoration.
@@ -1325,3 +1239,4 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 ];
+
