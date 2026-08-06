@@ -4,7 +4,6 @@ import { useTracks } from "@/hooks/catalog-queries";
 import { trackRoutePath, tracksIndexPath } from "@/lib/track-routes";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
-import { RaceResultSummary } from "../race-results/ResultSummary";
 import { TrackDetail } from "./TrackDetail";
 import type { TrackInfo } from "./types";
 
@@ -40,10 +39,5 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
   if (isLoading) return <div className="p-4 text-app-text-dim">{m.trackviewer_loading()}</div>;
   if (!track) return <div className="p-4 text-app-text-dim">{m.trackdetailroute_not_found()}</div>;
 
-  return (
-    <>
-      <RaceResultSummary className="mx-4 mt-4" gameId={gameId} trackOrdinal={ordinal} title="Track result summary" />
-      <TrackDetail track={track} onBack={onBack} tab={tab} onTabChange={onTabChange} />
-    </>
-  );
+  return <TrackDetail track={track} onBack={onBack} tab={tab} onTabChange={onTabChange} />;
 }
