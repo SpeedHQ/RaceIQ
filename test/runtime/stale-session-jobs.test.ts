@@ -79,14 +79,14 @@ describe("startup stale-session notifications", () => {
     expect(staleResultsSpy).toHaveBeenCalledWith({ type: "stale-race-results", sessionCount: 2, currentVersion: RACE_RESULT_PROCESSOR_ID });
   });
   test("publishes no notification for all-current detector IDs and non-raw sessions", async () => {
-    expect([LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID]).toEqual([
-      LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID,
-    ]);
-    const currentDetector = await insertDetectorSession("current.bin", LAP_DETECTOR_ID);
+    const currentDetectorSessions: Array<{ id: number }> = [];
+    for (const detectorVersion of [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID]) {
+      currentDetectorSessions.push(await insertDetectorSession(`${detectorVersion}.bin`, detectorVersion));
+    }
     const noRaw = await insertDetectorSession(null, null);
     const currentResult = await insertSession(2, 6, "f1-2025", "race");
-    sessionIds.push(currentDetector.id, noRaw.id, currentResult);
-    await insertResult(currentDetector.id, RACE_RESULT_PROCESSOR_ID);
+    sessionIds.push(...currentDetectorSessions.map(({ id }) => id), noRaw.id, currentResult);
+    for (const { id } of currentDetectorSessions) await insertResult(id, RACE_RESULT_PROCESSOR_ID);
     await insertResult(noRaw.id, RACE_RESULT_PROCESSOR_ID);
     await insertResult(currentResult, RACE_RESULT_PROCESSOR_ID);
 
