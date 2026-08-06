@@ -6,9 +6,11 @@ Capture and compare quality/performance measurements and exercise update install
 |---|---|
 | `bun scripts/quality/ai-baseline.ts` | Run AI evaluation fixtures and write a SHA/model baseline under `test/ai-fixtures/baselines`. Requires Gemini API credentials. |
 | `bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--fail-on-regression]` | Emit benchmark markdown diff; optionally fail when regressions exceed threshold. |
+| `bun scripts/quality/replay-parser-bench-compare.ts <baseline.json> <current.json> [--fail-on-regression]` | Compare compatible same-machine reports; enforce relative throughput/memory and hard memory budgets when requested. |
+| `bun scripts/quality/replay-parser-bench-local.ts [--base=main]` | Benchmark base ref and current worktree on same machine; bootstrap hard memory only when base predates benchmark. |
 | `bun scripts/quality/test-updater.ts` | Build/reuse local installer and start dev server with forced-update variables. |
 
-Inputs: AI credentials and fixtures, Mitata JSON result files, or local package/installer state. Outputs: baseline JSON, markdown on stdout, or update-test process logs/status.
+Inputs: AI credentials and fixtures, same-machine Mitata or replay/parser benchmark JSON result files, or local package/installer state. Outputs: baseline JSON, markdown on stdout, or update-test process logs/status.
 
 Boundary: measurement and local verification workflows only. Scripts do not own production builds, test fixtures, benchmark generation, or release publication.
 

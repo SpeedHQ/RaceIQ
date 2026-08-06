@@ -13,10 +13,6 @@ concurrency:
   group: bench-${{ github.head_ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
 
 jobs:
   bench:
@@ -34,33 +30,65 @@ jobs:
           path: base
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
 
-      - name: Run bench on base
+      - name: Install PR benchmark dependencies
+        working-directory: pr
+        run: bun install --frozen-lockfile
+
+
+      - name: Detect base replay/parser benchmark
+        id: base-benchmark
+        run: |
+          if [ -f base/test/benchmarks/replay-parser.bench.ts ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run benchmarks on base
         working-directory: base
         run: |
-          bun install --frozen-lockfile
+          bun install --no-save --ignore-scripts
           bun run test/benchmarks/pipeline.bench.ts
           mv bench-results.json ../base-results.json
+          if [ -f test/benchmarks/replay-parser.bench.ts ]; then
+            bun test/benchmarks/replay-parser.bench.ts --no-enforce --output=../base-telemetry-results.json
+          fi
 
-      - name: Run bench on PR
+      - name: Run benchmarks on PR
         working-directory: pr
         run: |
-          bun install --frozen-lockfile
           bun run test/benchmarks/pipeline.bench.ts
           mv bench-results.json ../pr-results.json
+          bun test/benchmarks/replay-parser.bench.ts --output=../pr-telemetry-results.json
 
       - name: Compare
         id: compare
         working-directory: pr
         run: |
-          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --threshold=5 > ../comparison.md
-          cat ../comparison.md
+          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --threshold=5 > ../pipeline-comparison.md
+          if [ -f ../base-telemetry-results.json ]; then
+            bun scripts/quality/replay-parser-bench-compare.ts ../base-telemetry-results.json ../pr-telemetry-results.json > ../telemetry-comparison.md
+          else
+            {
+              echo "## Replay/parser benchmark budgets"
+              echo
+              echo "Base commit has no replay/parser benchmark. Current hard memory budgets passed; same-machine throughput comparison starts after this benchmark lands on the base branch."
+            } > ../telemetry-comparison.md
+          fi
+          {
+            cat ../pipeline-comparison.md
+            echo
+            cat ../telemetry-comparison.md
+          } | tee ../comparison.md
+          cat ../comparison.md >> "$GITHUB_STEP_SUMMARY"
           {
             echo 'body<<EOF'
             cat ../comparison.md
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
-
       - name: Find existing comment
         id: find
         uses: peter-evans/find-comment@v3
@@ -75,3 +103,23 @@ jobs:
           comment-id: ${{ steps.find.outputs.comment-id }}
           body: ${{ steps.compare.outputs.body }}
           edit-mode: replace
+
+      - name: Enforce replay/parser budgets
+        if: steps.base-benchmark.outputs.available == 'true'
+        working-directory: pr
+        run: bun scripts/quality/replay-parser-bench-compare.ts ../base-telemetry-results.json ../pr-telemetry-results.json --fail-on-regression
+
+      - name: Upload benchmark reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports
+          path: |
+            base-results.json
+            pr-results.json
+            base-telemetry-results.json
+            pr-telemetry-results.json
+            pipeline-comparison.md
+            telemetry-comparison.md
+            comparison.md
+          retention-days: 7

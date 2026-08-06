@@ -15,13 +15,20 @@ bun run test
 bun test test/games/shared/parser.test.ts --timeout 30000
 bun run test:ai
 bun run bench
+bun run bench:telemetry
+bun run bench:telemetry:current --no-enforce --output=telemetry-benchmark-results.json
 ```
 
 `bun run test` is standard suite. Focused command runs one final-path file;
 Bun preload still isolates `DATA_DIR` in `.data-test`. `bun run test:ai` runs
 `test/ai/evals/ai-quality.ai-eval.ts` with its longer timeout. `bun run bench`
-runs `test/benchmarks/pipeline.bench.ts`; benchmarks are explicit scripts, not
-ordinary tests.
+runs parser/pipeline microbenchmarks. `bun run bench:telemetry` checks the current
+worktree against `main` (or `--base=<ref>`) on the same machine. It replays
+20,000 committed AC Evo frames and enforces relative throughput/memory plus hard
+memory budgets. When the base predates this benchmark, the command explicitly
+bootstraps hard memory budgets without fabricating a throughput comparison.
+`bun run bench:telemetry:current` produces one report without a base comparison.
+Benchmarks are explicit scripts, not ordinary tests.
 
 ## Top-level map
 
@@ -61,7 +68,8 @@ ordinary tests.
   and output boundaries. Put recording-driven suites in `e2e/`; telemetry catalog
   E2E suites stay in `telemetry/catalog/` with that domain.
 - **Benchmark:** performance measurement only. Keep setup and input stable; run
-  through `bun run bench`, never as part of standard discovery.
+  through `bun run bench` or `bun run bench:telemetry`, never as part of standard
+  discovery.
 - **AI eval:** model-backed quality checks under `ai/evals/`; use explicit
   `*.ai-eval.ts` entry points and curated `ai-fixtures/` data.
 

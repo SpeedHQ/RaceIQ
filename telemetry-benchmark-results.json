@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 2,
+  "runtime": "bun 1.3.14",
+  "platform": "win32",
+  "architecture": "x64",
+  "machine": {
+    "cpuModel": "13th Gen Intel(R) Core(TM) i7-13650HX",
+    "logicalCpuCount": 20,
+    "totalMemoryBytes": 16849256448
+  },
+  "results": [
+    {
+      "name": "parser",
+      "fixture": "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
+      "inputFrames": 20000,
+      "outputItems": 20001,
+      "semanticCount": 0,
+      "durationMs": 428.2736,
+      "throughputPerSecond": 46699.11944140381,
+      "baselineRssBytes": 156393472,
+      "peakRssBytes": 526618624,
+      "incrementalPeakRssBytes": 370225152,
+      "baselineHeapBytes": 156385280,
+      "peakHeapBytes": 526614528,
+      "incrementalPeakHeapBytes": 370229248,
+      "budget": {
+        "maxPeakRssBytes": 805306368,
+        "maxIncrementalRssBytes": 536870912,
+        "maxIncrementalHeapBytes": 536870912
+      }
+    },
+    {
+      "name": "replay",
+      "fixture": "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
+      "inputFrames": 20000,
+      "outputItems": 20001,
+      "semanticCount": 8,
+      "durationMs": 763.1012,
+      "throughputPerSecond": 26208.843597677478,
+      "baselineRssBytes": 161251328,
+      "peakRssBytes": 834031616,
+      "incrementalPeakRssBytes": 672780288,
+      "baselineHeapBytes": 161243136,
+      "peakHeapBytes": 834031616,
+      "incrementalPeakHeapBytes": 672788480,
+      "budget": {
+        "maxPeakRssBytes": 1610612736,
+        "maxIncrementalRssBytes": 1073741824,
+        "maxIncrementalHeapBytes": 1073741824
+      }
+    }
+  ]
+}
