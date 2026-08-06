@@ -31,9 +31,11 @@ describe(recordingFile, () => {
     // Laps 2-3: clean laps
     expect(laps[2].isValid).toBe(true);
     assertValidLapHasSectors(laps[2]);
+    expect(laps[2].sectors).toHaveLength(3);
     assertBrandHatchSectorBounds(laps[2]);
     expect(laps[3].isValid).toBe(true);
     assertValidLapHasSectors(laps[3]);
+    expect(laps[3].sectors).toHaveLength(3);
     assertBrandHatchSectorBounds(laps[3]);
   }, 120_000); // replays a full recorded UDP session through the pipeline; slow on CI
 });

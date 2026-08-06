@@ -171,6 +171,7 @@ describe("AC Evo v0.6 recording", () => {
 			expect(l.lapTime).toBeGreaterThan(60);
 			expect(l.lapTime).toBeLessThan(180);
 			assertValidLapHasSectors(l);
+			expect(l.sectors).toHaveLength(3);
 		}
 
 		// Final lap: recording stopped mid-lap

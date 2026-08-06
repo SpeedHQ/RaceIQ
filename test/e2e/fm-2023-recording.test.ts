@@ -52,6 +52,7 @@ describe("FM-2023 recording", () => {
         expect(lap.packets.length).toBeGreaterThan(0);
         if (lap.isValid) {
           assertValidLapHasSectors(lap);
+          expect(lap.sectors).toHaveLength(3);
         }
       }
 
@@ -145,6 +146,7 @@ describe("FM-2023 recording", () => {
         if (lap.isValid) {
           assertLapTimesProper(lap.packets, lap.lapTime);
           assertValidLapHasSectors(lap);
+          expect(lap.sectors).toHaveLength(3);
         }
       }
 

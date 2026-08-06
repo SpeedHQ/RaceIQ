@@ -92,4 +92,16 @@ describe("formatTuneForPrompt", () => {
 		expect(result).toContain("Track-specific setup");
 		expect(result).toContain("Anti-Roll Bars: F 2, R 3");
 	});
+
+	test("summarises game-specific setup blobs without throwing", () => {
+		const result = formatTuneForPrompt({
+			name: "AC Evo setup",
+			author: "RaceIQ",
+			category: "road",
+			settings: { frontARB: 2, rearARB: 3 } as TuneSettings,
+		});
+		expect(result).toContain("AC Evo setup");
+		expect(result).toContain("frontARB: 2");
+		expect(result).toContain("rearARB: 3");
+	});
 });

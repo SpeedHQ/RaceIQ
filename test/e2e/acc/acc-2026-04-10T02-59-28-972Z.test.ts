@@ -48,8 +48,11 @@ describe(recordingFile, () => {
     expect(laps[3].lapTime).toBeCloseTo(89.277, 0);
 
     assertValidLapHasSectors(laps[1]);
+    expect(laps[1].sectors).toHaveLength(3);
     assertValidLapHasSectors(laps[2]);
+    expect(laps[2].sectors).toHaveLength(3);
     assertValidLapHasSectors(laps[3]);
+    expect(laps[3].sectors).toHaveLength(3);
     assertBrandHatchSectorBounds(laps[1]);
     assertBrandHatchSectorBounds(laps[2]);
     assertBrandHatchSectorBounds(laps[3]);

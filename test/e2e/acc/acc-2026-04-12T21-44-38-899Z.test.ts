@@ -30,6 +30,7 @@ describe(recordingFile, () => {
     // Lap 1: clean lap
     expect(laps[1].isValid).toBe(true);
     assertValidLapHasSectors(laps[1]);
+    expect(laps[1].sectors).toHaveLength(3);
     assertBrandHatchSectorBounds(laps[1]);
 
     // Lap 2: incomplete tail

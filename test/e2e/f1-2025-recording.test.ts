@@ -54,6 +54,7 @@ describe("F1-2025 recording", () => {
         if (lap.isValid) {
           assertLapTimesProper(lap.packets, lap.lapTime);
           assertValidLapHasSectors(lap);
+          expect(lap.sectors).toHaveLength(3);
         }
       }
 

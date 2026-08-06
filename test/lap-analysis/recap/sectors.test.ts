@@ -94,10 +94,10 @@ describe("computeRecap", () => {
       expect(recap.sectors!.map((s) => s.index)).toEqual([1, 2, 3]);
     });
 
-    test("preserves a six-sector session layout without projecting it to three", () => {
+    test("preserves an iRacing six-sector layout without projecting it to three", () => {
       const sectorStarts = [0, 0.1, 0.25, 0.45, 0.7, 0.85];
       const recap = computeRecap({
-        session: baseSession,
+        session: { ...baseSession, gameId: "iracing" },
         laps: [
           lap({ lapNumber: 1, lapTime: 60, sectorTimes: [8, 10, 11, 12, 9, 10] }),
           lap({ lapNumber: 2, lapTime: 59, sectorTimes: [7, 10, 12, 11, 9, 10] }),
