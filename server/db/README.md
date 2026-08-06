@@ -9,14 +9,14 @@ Owns RaceIQ's SQLite persistence boundary: connection startup, schema evolution,
 - `index.ts` creates the libSQL/Drizzle client and exposes idempotent `initDb()` startup.
 - `schema.ts` describes current tables; `migrations.ts` preserves ordered upgrades for existing databases.
 - `*-queries.ts` modules group reads and mutations by stored aggregate. Lap operations are split between read, mutation, reprocessing, and experiment-link concerns.
-- `telemetry-codec.ts` handles legacy compressed blobs; `telemetry-replay-storage.ts` replays indexed frames from session capture files and owns replay caches.
+- `telemetry-codec.ts` serializes compressed CSV telemetry fixtures; `telemetry-replay-storage.ts` replays indexed frames from session capture files and owns replay caches.
 - `discovered-*.ts` persists game-provided identities that are not yet in static catalogs.
 
 ## Boundaries and invariants
 
 - Schema and migration history are append-only compatibility contracts. Change both deliberately; never rewrite an applied migration.
 - Entrypoints must await `initDb()` before querying. Foreign keys, WAL mode, backfills, and migration ordering are established there.
-- Raw session files remain authoritative for current telemetry replay. Legacy blobs are fallback storage; frame offsets and counts retain their persisted meaning.
+- Raw session files are the authoritative telemetry replay source; frame offsets and counts retain their persisted meaning.
 - Query modules normalize SQLite nulls and booleans at the boundary. Game IDs, ordinal pairs, experiment links, and exclusion provenance must remain scoped together.
 - Database code may use game adapters to interpret persisted telemetry, but game policy and parsing semantics stay in their owning domains.
 

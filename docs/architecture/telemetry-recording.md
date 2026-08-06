@@ -61,7 +61,7 @@ The framing keeps `SessionRecorder` game-agnostic. Each server adapter's `tryPar
 
 ## Replay, import, and reprocessing
 
-`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap counts update raw indexes and metadata in place; changed counts rebuild detected lap rows while preserving eligible user data and legacy archive rows.
+`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap counts update raw indexes and metadata in place; changed counts rebuild detected lap rows while preserving eligible user data on matched replacements.
 
 `server/session-capture/import-capture.ts` uses the same parser and pipeline path for uploaded `.bin` or `.bin.gz` data. It rewrites accepted input as a canonical RaceIQ session capture, so later replay and reprocessing do not depend on the upload format.
 

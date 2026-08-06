@@ -93,8 +93,8 @@ export const sessions = sqliteTable("sessions", {
 	notes: text("notes"),
 	rawFile: text("raw_file"),
 	lapDetectorVersion: text("lap_detector_version"),
-	// Runtime telemetry identity snapshot attached at first persisted capture (migration v50).
-	// Null = legacy rows and rows inserted before migration.
+	// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
+	// Null for rows inserted before that migration.
 	catalogVersion: text("catalog_version"),
 	catalogHash: text("catalog_hash"),
 	catalogSchemaVersion: text("catalog_schema_version"),

@@ -21,4 +21,4 @@ Replay keeps persisted packet order and timestamps, advances native source frame
 
 ## Testing
 
-Use injected `DbAdapter`, `WsAdapter`, and `SessionRecorderAdapter` implementations to isolate live-pipeline behavior. Replay coverage should exercise both legacy telemetry blobs and raw native captures, including timestamp validation, requested semantic ordering, native-frame alignment, and provenance metadata.
+Use injected `DbAdapter`, `WsAdapter`, and `SessionRecorderAdapter` implementations to isolate live-pipeline behavior. Replay coverage should exercise raw native captures, including timestamp validation, requested semantic ordering, native-frame alignment, and provenance metadata.

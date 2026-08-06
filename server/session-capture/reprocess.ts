@@ -104,9 +104,8 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     }
   } else {
     // Count changed — rebuild detected laps. Match old rows by lap number and
-    // raw offset so their notes, tune, and historical fallback bytes survive.
-    // Old fallback rows with no detected replacement remain as explicit archive
-    // rows instead of being silently destroyed.
+    // raw offset so notes and tune links survive on detected replacements.
+    // Existing rows without a detected replacement are removed.
     strategy = "replace";
     const candidatesByLapNumber = new Map<
       number,

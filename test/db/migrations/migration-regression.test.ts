@@ -1,89 +1,12 @@
 import { describe, test, expect } from "bun:test";
-import { migrations } from "../../../server/db/migrations";
 import {
   bootstrap,
-  getAppliedVersions,
   newClient,
   runMigrations,
 } from "../../support/db/migrations";
 
 describe("migration regressions", () => {
-  test("v19 legacy telemetry remains replayable through latest migration", async () => {
-    const client = newClient();
-    await bootstrap(client);
-    await runMigrations(client, 18);
 
-    const legacyTelemetry = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x52, 0x49, 0x51]);
-    await client.execute(
-      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
-       VALUES (101, 10, 20, 'fm-2023'),
-              (102, 11, 21, 'fm-2023')`,
-    );
-    await client.execute({
-      sql: `INSERT INTO laps (
-              id, session_id, lap_number, lap_time, telemetry
-            ) VALUES (?, ?, ?, ?, ?)`,
-      args: [201, 101, 1, 90.25, legacyTelemetry],
-    });
-
-    await runMigrations(client);
-
-    const survivingSessions = await client.execute(
-      "SELECT id, raw_file FROM sessions ORDER BY id",
-    );
-    expect(
-      survivingSessions.rows.map((row) => ({
-        id: Number(row.id),
-        rawFile: row.raw_file,
-      })),
-    ).toEqual([{ id: 101, rawFile: null }]);
-
-    const retainedLap = await client.execute(
-      `SELECT raw_byte_offset, raw_frame_count, legacy_telemetry
-       FROM laps WHERE id = 201`,
-    );
-    expect(retainedLap.rows).toHaveLength(1);
-    expect(retainedLap.rows[0].raw_byte_offset).toBeNull();
-    expect(retainedLap.rows[0].raw_frame_count).toBeNull();
-    expect(new Uint8Array(retainedLap.rows[0].legacy_telemetry as ArrayBuffer)).toEqual(
-      legacyTelemetry,
-    );
-
-    const sessionColumns = await client.execute("PRAGMA table_info(sessions)");
-    const lapColumns = await client.execute("PRAGMA table_info(laps)");
-    for (const columns of [sessionColumns, lapColumns]) {
-      const names = columns.rows.map((row) => String(row.name));
-      expect(names).toEqual(
-        expect.arrayContaining([
-          "catalog_version",
-          "catalog_hash",
-          "catalog_schema_version",
-          "parser_version",
-          "resolver_version",
-          "derivation_version",
-        ]),
-      );
-    }
-    expect(lapColumns.rows.map((row) => String(row.name))).toContain("legacy_telemetry");
-    expect(lapColumns.rows.map((row) => String(row.name))).not.toContain("telemetry");
-
-    client.close();
-  });
-
-  test("v51 restores fallback after a partially applied v50 history", async () => {
-    // v51 can restore only the missing column. Any row purged by an already
-    // applied v35 has no remaining bytes and is intentionally unrecoverable.
-    const client = newClient();
-    await bootstrap(client);
-    await runMigrations(client, 50);
-    await client.execute("ALTER TABLE laps DROP COLUMN legacy_telemetry");
-
-    await runMigrations(client);
-
-    const columns = await client.execute("PRAGMA table_info(laps)");
-    expect(columns.rows.map((row) => String(row.name))).toContain("legacy_telemetry");
-    client.close();
-  });
 
   test("v45 keeps native car ordinals unique without treating names as identity", async () => {
     const client = newClient();

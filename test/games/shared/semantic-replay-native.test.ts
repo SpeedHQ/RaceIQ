@@ -73,7 +73,6 @@ for (const rawFrameCount of [0, 1, 3]) {
       rawFile: null,
       rawByteOffset: meta.length + preceding.length,
       rawFrameCount,
-      legacyTelemetry: null,
     };
 
     const sessionTicks = Array.from(iterateIRacingNativeFramesForTest(source, capture), (values) => values.SessionTick);
