@@ -133,7 +133,7 @@ export function WheelInfoCard({
 
     // Background card — subtle, high-contrast, rounded
     drawRoundedRect(ctx, 4, 4, CARD_W - 8, cardH - 8, 16);
-    ctx.fillStyle = "color-mix(in srgb, var(--app-surface) 78%, transparent)";
+    ctx.fillStyle = "rgba(5, 5, 5, 0.78)";
     ctx.fill();
     ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 18%, transparent)";
     ctx.lineWidth = 2;
