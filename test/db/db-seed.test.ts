@@ -28,7 +28,7 @@ async function runSeed(dataDir: string, ...args: string[]): Promise<{ code: numb
 }
 
 function withSeedDb<T>(dataDir: string, operation: (db: Database) => T): T {
-  const db = new Database(join(dataDir, "forza-telemetry.db"));
+  const db = new Database(join(dataDir, "test.db"));
   try {
     return operation(db);
   } finally {
