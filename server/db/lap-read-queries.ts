@@ -351,6 +351,7 @@ function buildLapResult(
     carOrdinal: row.carOrdinal,
     trackOrdinal: row.trackOrdinal,
     ownership: row.ownership === "others" ? "others" : "mine",
+    tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
     carSetup: row.carSetup ?? undefined,
