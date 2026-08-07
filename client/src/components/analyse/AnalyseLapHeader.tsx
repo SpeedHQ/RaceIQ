@@ -123,7 +123,7 @@ export function AnalyseLapHeader({
               const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
               return {
                 value: String(lap.id),
-                label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)}${!lap.isValid ? " ✕" : ""}`,
+                label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " ✕" : ""}`,
                 group: sessionLabel,
               };
             })}

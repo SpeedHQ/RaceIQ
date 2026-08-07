@@ -86,7 +86,7 @@ export function ComparisonSelectors({
             id="compare-lap-a"
             value={lapAId != null ? String(lapAId) : ""}
             onChange={(v) => setLapAId(v ? Number(v) : null)}
-            options={carALaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
+            options={carALaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " (inv)" : ""}` }))}
             placeholder={m.compare_search_laps()}
             disabled={!carAOrd}
             focusColor="orange-500"
@@ -124,9 +124,8 @@ export function ComparisonSelectors({
             id="compare-lap-b"
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
-            options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
             placeholder={m.compare_search_laps()}
-            disabled={!carBOrd}
+            options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " (inv)" : ""}` }))}
             focusColor="blue-500"
           />
           {lapBId != null && (
