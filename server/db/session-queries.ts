@@ -208,6 +208,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       parserVersion: sessions.parserVersion,
       resolverVersion: sessions.resolverVersion,
       derivationVersion: sessions.derivationVersion,
+      ownership: sessions.ownership,
     })
     .from(sessions)
     .orderBy(desc(sessions.id));
@@ -271,6 +272,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       parserVersion: session.parserVersion ?? undefined,
       resolverVersion: session.resolverVersion ?? undefined,
       derivationVersion: session.derivationVersion ?? undefined,
+      ownership: session.ownership === "others" ? "others" : "mine",
     });
   }
   return result;
@@ -303,6 +305,7 @@ export async function getSessionRecapData(
       trackOrdinal: sessions.trackOrdinal,
       gameId: sessions.gameId,
       createdAt: sessions.createdAt,
+      ownership: sessions.ownership,
     })
     .from(sessions)
     .where(eq(sessions.id, id))
@@ -405,6 +408,7 @@ export async function getSessionRecapData(
       trackOrdinal: sessionRow.trackOrdinal,
       gameId: sessionRow.gameId as GameId,
       createdAt: sessionRow.createdAt,
+      ownership: sessionRow.ownership === "others" ? "others" : "mine",
     },
     laps: lapRows.map((l) => ({ ...l, isValid: Boolean(l.isValid) })),
     trackLengthM,
