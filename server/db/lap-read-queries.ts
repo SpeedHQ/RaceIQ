@@ -18,7 +18,7 @@ interface LapStats {
 
 
 export async function getLapStats(gameId?: GameId): Promise<LapStats> {
-  const owned = sql`COALESCE(sessions.ownership, 'mine') = 'mine'`;
+  const owned = sql`COALESCE(sessions.ownership, 'mine') != 'others'`;
   const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId} AND ${owned}` : sql`WHERE ${owned}`;
   const whereClauseByTrack = gameId
     ? sql`WHERE sessions.game_id = ${gameId} AND ${owned} AND laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`
@@ -124,7 +124,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
  * separately by MAX_PROFILE_LAPS in driver-profile-aggregate.ts.
  */
 export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: number, trackOrdinal?: number): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), sql`COALESCE(${sessions.ownership}, 'mine') = 'mine'`];
+  const filters = [eq(sessions.gameId, gameId), sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`];
   if (carOrdinal != null) filters.push(eq(sessions.carOrdinal, carOrdinal));
   if (trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal));
 
@@ -349,8 +349,8 @@ function buildLapResult(
     isValid: Boolean(row.isValid),
     createdAt: row.createdAt,
     carOrdinal: row.carOrdinal,
+    trackOrdinal: row.trackOrdinal,
     ownership: row.ownership === "others" ? "others" : "mine",
-    tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
     carSetup: row.carSetup ?? undefined,
