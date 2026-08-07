@@ -19,3 +19,10 @@ Implemented ownership selection across supported client import paths. Shared `Ow
 ## Concerns
 - No existing ZIP UI caller exists in client source; helper contract now serializes ownership for any future/current caller.
 - Existing focused test suite has no component-render tests, so verification covered type-check, message compilation, and import-focused request tests.
+
+
+## Binary import follow-up
+- Normal `.bin`/`.bin.gz` selection now opens an accessible Mine/Others dialog after file selection and before POST submission.
+- `.ibt` files continue directly to classification-neutral preview; ownership remains selected in preview and is sent only on commit.
+- `useAnalyseImports` remains source of shared ownership state and serializes exact value in binary and IBT requests.
+- Focused check: `npx tsc --noEmit --pretty false --project client/tsconfig.json` passed; `git diff --check` passed.

@@ -334,6 +334,8 @@ function LapAnalyseInner() {
         onImportBin={handleImportBin}
         exportingBin={exportingBin}
         importingBin={importingBin}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
         onToggleAi={() => setAiPanelOpen((v) => !v)}
         onDeleteLap={handleDeleteLap}
         onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}

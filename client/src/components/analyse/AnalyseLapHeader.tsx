@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
@@ -10,7 +10,8 @@ import { NoteModal } from "../ui/NoteModal";
 import { SearchSelect } from "../ui/SearchSelect";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
-
+import { OwnershipChoice } from "../import/OwnershipChoice";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
   // Selection state
   selectedTrack: number | null;
@@ -42,6 +43,8 @@ interface Props {
   onImportBin: (file: File) => void;
   exportingBin: boolean;
   importingBin: boolean;
+  ownership: SessionOwnership;
+  onOwnershipChange: (value: SessionOwnership) => void;
   onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
@@ -74,6 +77,8 @@ export function AnalyseLapHeader({
   onImportBin,
   exportingBin,
   importingBin,
+  ownership,
+  onOwnershipChange,
   onToggleAi,
   onDeleteLap,
   onNotesChange,
@@ -83,6 +88,7 @@ export function AnalyseLapHeader({
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImport, setPendingImport] = useState<File | null>(null);
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
@@ -201,7 +207,10 @@ export function AnalyseLapHeader({
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) onImportBin(file);
+              if (file) {
+                if (file.name.toLowerCase().endsWith(".ibt")) onImportBin(file);
+                else setPendingImport(file);
+              }
               e.target.value = "";
             }}
           />
@@ -258,6 +267,24 @@ export function AnalyseLapHeader({
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
         </div>
       </div>
+      {pendingImport && (
+        <Dialog open onOpenChange={(open) => !open && setPendingImport(null)}>
+          <DialogContent size="sm">
+            <DialogHeader>
+              <DialogTitle>Choose lap ownership</DialogTitle>
+            </DialogHeader>
+            <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
+            <DialogFooter>
+              <Button variant="app-ghost" size="app-sm" disabled={importingBin} onClick={() => setPendingImport(null)}>Cancel</Button>
+              <Button variant="app-primary" size="app-sm" disabled={importingBin} onClick={() => {
+                const file = pendingImport;
+                setPendingImport(null);
+                onImportBin(file);
+              }}>Import</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       {guideOpen && <DataGuideModal onClose={() => setGuideOpen(false)} />}
       {motecOpen && (
         <MotecImportModal
