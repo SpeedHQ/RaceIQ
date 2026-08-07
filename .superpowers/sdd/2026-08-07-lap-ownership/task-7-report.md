@@ -57,7 +57,7 @@ Full browser smoke was not reachable in this worktree: no supported import fixtu
 ## Commit
 
 - Message: `docs: note lap ownership controls`
-- Hash: pending until commit creation
+- Hash: `1f542a3f`
 
 ## Blockers and concerns
 
