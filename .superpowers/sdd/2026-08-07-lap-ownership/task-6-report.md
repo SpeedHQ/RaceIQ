@@ -24,3 +24,16 @@ Pending commit creation by task agent.
 - Reapplied Compare A/B and Analyse active-lap ownership badges directly beside selectors using persisted `LapMeta.ownership`; legacy null remains Mine.
 - Preserved selector callbacks and comparison request/math paths unchanged.
 - Verification rerun: `bun test ./test/lap-ownership-labels.test.ts` (1 passed) and `bunx tsc -p tsconfig.json --noEmit` (passed).
+
+## Behavioral test completion
+- Exported deterministic Analyse and Compare A/B lap-option builders for direct component-level testing.
+- Tests assert persisted Mine/Others labels for valid and invalid laps in English and German, including Compare A/B option output.
+- Restored existing Compare B disabled guard and preserved production label behavior.
+
+## Final verification
+- `bun test ./test/lap-ownership-labels.test.ts` — 3 passed, 0 failed; 11 assertions.
+- `bunx tsc -p tsconfig.app.json --noEmit` — passed.
+
+## Commit
+- `test: cover ownership labels`
+- Commit hash: see final `git rev-parse HEAD` (amending this report changes hash).

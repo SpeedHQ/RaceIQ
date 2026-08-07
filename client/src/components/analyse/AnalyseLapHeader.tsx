@@ -5,9 +5,16 @@ import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessio
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
+import { SearchSelect } from "../ui/SearchSelect";
+
+export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
+  return {
+    value: String(lap.id),
+    label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " ✕" : ""}`,
+  };
+}
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
-import { SearchSelect } from "../ui/SearchSelect";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
 import { OwnershipChoice } from "../import/OwnershipChoice";
@@ -121,11 +128,7 @@ export function AnalyseLapHeader({
               const sessionLaps = filteredLaps.filter((l) => l.sessionId === lap.sessionId);
               const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
               const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
-              return {
-                value: String(lap.id),
-                label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " ✕" : ""}`,
-                group: sessionLabel,
-              };
+              return { ...buildAnalyseLapOption(lap), group: sessionLabel };
             })}
             placeholder={m.analyse_search_laps_placeholder()}
             disabled={selectedCar == null}
