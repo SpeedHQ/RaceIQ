@@ -5,7 +5,7 @@ import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { getGame } from "../../../shared/games/registry";
 import { getLapsForSession } from "../../db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
-import { buildLapsZip, lapsZipFilename, importLapsZip } from "../../laps/archive";
+import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
@@ -35,6 +35,40 @@ export const transferRoutes = new Hono()
     return c.body(bytes.slice().buffer as ArrayBuffer);
   })
 
+  .post("/api/laps/detect-import", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const lower = file.name.toLowerCase();
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+      try {
+        const detection = detectLapsZip(bytes);
+        return c.json({
+          format: "zip" as const,
+          supported: detection.isRaceIqArchive,
+          gameIds: detection.gameIds,
+          captureCount: detection.captureCount,
+          message: detection.isRaceIqArchive ? null : "ZIP does not contain RaceIQ session captures.",
+        });
+      } catch {
+        return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "File is not a readable ZIP archive." });
+      }
+    }
+    if (lower.endsWith(".bin") || lower.endsWith(".bin.gz")) {
+      const gameId = detectGameIdFromBuffer(Buffer.from(bytes));
+      return c.json({
+        format: "bin" as const,
+        supported: gameId != null,
+        gameIds: gameId ? [gameId] : [],
+        captureCount: 1,
+        message: gameId ? null : "Could not detect a supported game from this capture.",
+      });
+    }
+    if (lower.endsWith(".ibt")) return c.json({ format: "ibt" as const, supported: true, gameIds: ["iracing"], captureCount: 1, message: null });
+    if (lower.endsWith(".ld")) return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
+    return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "Unsupported import file." });
+  })
   .post("/api/laps/import-zip", async (c) => {
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");

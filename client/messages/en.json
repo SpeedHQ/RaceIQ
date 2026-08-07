@@ -234,6 +234,7 @@
   "sessions_tab_mine": "Mine",
   "sessions_tab_others": "Others",
   "sessions_import_motec": "Import MoTeC log",
+  "sessions_import": "Import",
   "sessions_none_others": "No sessions from other drivers yet",
   "import_ownership_label": "Who does this recording belong to?",
   "import_ownership_mine": "Mine",

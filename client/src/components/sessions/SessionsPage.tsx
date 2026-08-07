@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MotecImportModal } from "@/components/analyse/MotecImportModal";
+import { SessionImportModal } from "./SessionImportModal";
 import { SessionRecapModal } from "@/components/SessionRecapModal";
 import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
@@ -204,10 +204,9 @@ export function SessionsPage() {
     <div className="h-full flex flex-col p-4 gap-3">
       {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} gameId={gameId} onClose={() => setRecapSessionId(null)} />}
       {importOpen && (
-        <MotecImportModal
+        <SessionImportModal
           onClose={() => setImportOpen(false)}
           onImported={() => {
-            setImportOpen(false);
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             void queryClient.invalidateQueries({ queryKey: queryKeys.laps });
           }}

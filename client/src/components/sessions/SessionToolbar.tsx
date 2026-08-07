@@ -1,11 +1,11 @@
-import { motecImportSupported } from "@shared/integrations/motec";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { useGameId, useGameRoute } from "@/stores/game";
+import { useGameRoute } from "@/stores/game";
 import type { SessionsTab } from "./types";
+
 
 export type SessionToolbarProps = {
   sessions: SessionMeta[];
@@ -48,10 +48,8 @@ export function SessionToolbar({
   isDeleting,
   deleteError,
 }: SessionToolbarProps) {
-  const gameId = useGameId();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
-  const motecEnabled = motecImportSupported(gameId);
 
   return (
     <div className="flex items-center flex-wrap gap-3">
@@ -62,7 +60,7 @@ export function SessionToolbar({
           </Button>
         ))}
       </div>
-      {motecEnabled && <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>{m.sessions_import_motec()}</Button>}
+      <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
       <AppInput
         type="search"
         value={search}

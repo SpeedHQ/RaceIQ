@@ -123,6 +123,22 @@ function parseCaptureGameId(
     detectGameIdFromFilename(captureFileName(memberName))
   );
 }
+export interface LapsZipDetection {
+  isRaceIqArchive: boolean;
+  captureCount: number;
+  gameIds: GameId[];
+}
+
+/** Inspect archive contents without importing any captures. */
+export function detectLapsZip(zipData: Uint8Array): LapsZipDetection {
+  const files = unzipSync(zipData);
+  const names = fileNamesForZip(files);
+  const manifest = parseManifestFile(files);
+  const manifestGame = new Map<string, GameId>();
+  for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
+  const gameIds = [...new Set(names.map((name) => parseCaptureGameId(name, Buffer.from(files[name]), manifestGame)).filter((gameId): gameId is GameId => gameId != null))];
+  return { isRaceIqArchive: names.length > 0, captureCount: names.length, gameIds };
+}
 
 function selectedLapsBySession(
   rows: ReadonlyArray<RawLapRow>,
