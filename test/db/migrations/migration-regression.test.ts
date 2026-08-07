@@ -120,7 +120,25 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v58 backfills old sessions and normalizes legacy ownership values", async () => {
+  test("v58 normalizes pre-existing null and invalid ownership values", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 57);
+    await client.execute("ALTER TABLE sessions ADD COLUMN ownership TEXT");
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, ownership) VALUES (1, 10, 20, 'iracing', NULL), (2, 10, 20, 'iracing', 'legacy')",
+    );
+    await runMigrations(client);
+
+    const rows = await client.execute("SELECT id, ownership FROM sessions ORDER BY id");
+    expect(rows.rows.map((row) => ({ id: Number(row.id), ownership: row.ownership }))).toEqual([
+      { id: 1, ownership: "mine" },
+      { id: 2, ownership: "mine" },
+    ]);
+    client.close();
+  });
+
+  test("v58 backfills old sessions", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 57);
@@ -133,7 +151,6 @@ describe("migration regressions", () => {
     expect(rows.rows[0]?.ownership).toBe("mine");
     client.close();
   });
-
   test("v58 defaults ownership to mine when omitted", async () => {
     const client = newClient();
     await bootstrap(client);
@@ -146,5 +163,6 @@ describe("migration regressions", () => {
     expect(rows.rows[0]?.ownership).toBe("mine");
     client.close();
   });
+
 
 });
