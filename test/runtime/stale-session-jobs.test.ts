@@ -11,11 +11,27 @@ import { LAP_DETECTOR_AC_EVO_ID } from "../../server/games/ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "../../server/games/iracing/lap-detector";
 import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
 import { wsManager } from "../../server/runtime/websocket-manager";
+import * as RealCommunitySync from "../../server/tunes/community-sync";
+import * as RealLaptimes from "../../server/sync/laptimes";
+import * as RealCompressor from "../../server/session-capture/compressor";
+import * as RealUpdateCheck from "../../server/runtime/update/check";
 
-mock.module("../../server/tunes/community-sync", () => ({ startCommunityTunesSync: () => {} }));
-mock.module("../../server/sync/laptimes", () => ({ startLaptimesSync: () => {} }));
-mock.module("../../server/session-capture/compressor", () => ({ startSessionCompressor: () => {} }));
-mock.module("../../server/runtime/update/check", () => ({ startUpdateCheckSchedule: () => {} }));
+mock.module("../../server/tunes/community-sync", () => ({
+  ...RealCommunitySync,
+  startCommunityTunesSync: () => {},
+}));
+mock.module("../../server/sync/laptimes", () => ({
+  ...RealLaptimes,
+  startLaptimesSync: () => {},
+}));
+mock.module("../../server/session-capture/compressor", () => ({
+  ...RealCompressor,
+  startSessionCompressor: () => {},
+}));
+mock.module("../../server/runtime/update/check", () => ({
+  ...RealUpdateCheck,
+  startUpdateCheckSchedule: () => {},
+}));
 
 const { startSyncAndStaleSessionJobs } = await import("../../server/runtime/startup-jobs");
 const provenance: RaceResultProvenance = {
