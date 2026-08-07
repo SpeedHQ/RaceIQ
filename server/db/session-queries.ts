@@ -3,7 +3,7 @@ import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
-import type { SessionMeta } from "../../shared/racing/sessions/types";
+import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { tryGetGame } from "../../shared/games/registry";
@@ -19,10 +19,11 @@ export async function insertSession(
   gameId: GameId,
   sessionType?: string,
   versionIdentity?: TelemetryVersionIdentity,
+  ownership?: SessionOwnership,
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ...versionIdentity })
+    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity })
     .returning({ id: sessions.id })
     .get();
   return result.id;

@@ -10,7 +10,7 @@ import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
-import { ExportZipQuerySchema, IbtImportTokenSchema } from "./support";
+import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 export const transferRoutes = new Hono()
   .get("/api/laps/export-zip", zValidator("query", ExportZipQuerySchema), async (c) => {
@@ -61,7 +61,8 @@ export const transferRoutes = new Hono()
     if (!lower.endsWith(".bin") && !lower.endsWith(".bin.gz")) {
       return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
     }
-
+    const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
+    if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
     const bytes = Buffer.from(await file.arrayBuffer());
     const gameId = detectGameIdFromBuffer(bytes);
     if (!gameId) {
@@ -70,9 +71,9 @@ export const transferRoutes = new Hono()
         400
       );
     }
-
     try {
-      const { packetCount, laps } = await importSessionBin(bytes, gameId);
+
+      const { packetCount, laps } = await importSessionBin(bytes, gameId, { ownership: ownership.data });
       if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
       return c.json({
         ok: true,
@@ -111,8 +112,10 @@ export const transferRoutes = new Hono()
 
     // The sidecar carries the lap beacons. Without it the log imports as a
     // single unsplit stint, which is correct for a standalone hotlap export.
+    const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     const sidecar = form?.get("ldx");
     const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+    if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
 
     // Car and track are the user's call, not the log header's — a log filed
     // against the wrong track gets meaningless sectors and corner names. The
@@ -155,6 +158,7 @@ export const transferRoutes = new Hono()
         carOrdinal,
         trackOrdinal,
         tuneId,
+        ownership: ownership.data,
       });
       if (result.laps.length === 0) {
         return c.json(
@@ -209,12 +213,12 @@ export const transferRoutes = new Hono()
 
   .post(
     "/api/laps/import-ibt/commit",
-    zValidator("json", IbtImportTokenSchema),
+    zValidator("json", IbtCommitSchema),
     async (c) => {
-      const { token } = c.req.valid("json");
+      const { token, ownership } = c.req.valid("json");
       try {
         const { packetCount, laps, preview } =
-          await commitStagedIbt(token);
+          await commitStagedIbt(token, ownership);
         return c.json({
           ok: true,
           gameId: "iracing" as const,

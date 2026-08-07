@@ -32,6 +32,7 @@ import type { ImportedLap } from "../session-capture/import-pipeline";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
+import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import {
   getDefaultMotecTarget,
   initMotecTargets,
@@ -99,6 +100,7 @@ export interface MotecImportOptions {
    * unlike car and track, an absent setup costs nothing but a missing label.
    */
   tuneId?: number;
+  ownership?: SessionOwnership;
 }
 
 /**
@@ -121,7 +123,7 @@ export async function importMotec(
     carOrdinal: options?.carOrdinal,
     trackOrdinal: options?.trackOrdinal,
   });
-  const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId);
+  const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId, { ownership: options?.ownership });
 
   // Stamp every session the import touched. Normally one, but the pipeline
   // rotates sessions on a car/track change, so don't assume.
