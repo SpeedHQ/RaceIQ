@@ -113,25 +113,31 @@ export function AnalyseLapHeader({
           fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
         />
 
-        {/* Lap selector */}
-        <SearchSelect
-          value={selectedLapId != null ? String(selectedLapId) : ""}
-          onChange={(v) => onLapChange(v ? Number(v) : null)}
-          options={filteredLaps.map((lap) => {
-            const sessionLaps = filteredLaps.filter((l) => l.sessionId === lap.sessionId);
-            const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
-            const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
-            return {
-              value: String(lap.id),
-              label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)}${!lap.isValid ? " ✕" : ""}`,
-              group: sessionLabel,
-            };
-          })}
-          placeholder={m.analyse_search_laps_placeholder()}
-          disabled={selectedCar == null}
-          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
-          fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
-        />
+        <div className="flex items-center gap-2">
+          <SearchSelect
+            value={selectedLapId != null ? String(selectedLapId) : ""}
+            onChange={(v) => onLapChange(v ? Number(v) : null)}
+            options={filteredLaps.map((lap) => {
+              const sessionLaps = filteredLaps.filter((l) => l.sessionId === lap.sessionId);
+              const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
+              const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
+              return {
+                value: String(lap.id),
+                label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)}${!lap.isValid ? " ✕" : ""}`,
+                group: sessionLabel,
+              };
+            })}
+            placeholder={m.analyse_search_laps_placeholder()}
+            disabled={selectedCar == null}
+            className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
+            fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
+          />
+          {selectedLapId != null && (
+            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-app-text-muted" aria-label={selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}>
+              {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+            </span>
+          )}
+        </div>
 
         {/* Tune / setup controls.
           F1 25 laps capture the full car setup on-packet, surfaced via the

@@ -19,3 +19,8 @@ Pending commit creation by task agent.
 
 ## Concerns
 - No browser smoke fixture was available in this worktree; validation used focused component-adjacent tests and client typecheck.
+
+## Follow-up implementation
+- Reapplied Compare A/B and Analyse active-lap ownership badges directly beside selectors using persisted `LapMeta.ownership`; legacy null remains Mine.
+- Preserved selector callbacks and comparison request/math paths unchanged.
+- Verification rerun: `bun test ./test/lap-ownership-labels.test.ts` (1 passed) and `bunx tsc -p tsconfig.json --noEmit` (passed).
