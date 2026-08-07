@@ -12,11 +12,14 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
     driverProfileModel,
     setDriverProfileModel,
     setDriverProfileThinkingBudget,
+    driverProfileMaxOutputTokens,
+    setDriverProfileMaxOutputTokens,
+    driverProfileModelContextLength,
     driverProfileApiKey,
     setDriverProfileApiKey,
+    driverProfileKeyInfo,
     keyStatus,
     hasDriverProfileProviderKey,
-    driverProfileKeyInfo,
     driverProfileModels,
     canShowDriverProfileModelPicker,
     driverProfileModelSupportsThinking,
@@ -141,6 +144,23 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
             </select>
           </div>
         )}
+        <div>
+          <label htmlFor="ai-driver-profile-max-output-tokens" className="block text-xs text-app-text-muted mb-1">
+            {m.ai_max_output_tokens_label()}
+          </label>
+          <input
+            id="ai-driver-profile-max-output-tokens"
+            type="number"
+            min={512}
+            max={Math.max(512, Math.min(32_768, driverProfileModelContextLength ?? 32_768))}
+            value={driverProfileMaxOutputTokens}
+            onChange={(e) => setDriverProfileMaxOutputTokens(Number(e.target.value))}
+            className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+          />
+          <p className="text-xs text-app-text-muted mt-1">
+            {m.ai_max_output_tokens_desc({ max: String(Math.max(512, Math.min(32_768, driverProfileModelContextLength ?? 32_768))) })}
+          </p>
+        </div>
         {driverProfileProvider === "gemini" && canShowDriverProfileModelPicker && (
           <div>
             <div id="ai-driver-profile-thinking-label" className="block text-xs text-app-text-muted mb-1">

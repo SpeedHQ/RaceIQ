@@ -13,6 +13,7 @@ type DriverProfileSettings = {
   driverProfileProvider?: string;
   driverProfileModel?: string;
   driverProfileThinkingBudget?: number | null;
+  driverProfileMaxOutputTokens?: number;
 };
 
 export interface AiSettingsState {
@@ -107,6 +108,7 @@ export function useAiSettings(): AiSettingsState {
   const [driverProfileBackgroundEnabled, setDriverProfileBackgroundEnabled] = useState(Boolean(driverProfileSettings.driverProfileBackgroundEnabled ?? false));
   const [driverProfileProvider, setDriverProfileProvider] = useState<string>(driverProfileSettings.driverProfileProvider ?? "");
   const [driverProfileModel, setDriverProfileModel] = useState(driverProfileSettings.driverProfileModel ?? "");
+  const [driverProfileMaxOutputTokens, setDriverProfileMaxOutputTokens] = useState<number>(driverProfileSettings.driverProfileMaxOutputTokens ?? 5_000);
   const [driverProfileThinkingBudget, setDriverProfileThinkingBudget] = useState<number | null>(driverProfileSettings.driverProfileThinkingBudget ?? null);
   const [driverProfileApiKey, setDriverProfileApiKey] = useState("");
   const [driverProfileSaveError, setDriverProfileSaveError] = useState<string | null>(null);
@@ -115,6 +117,7 @@ export function useAiSettings(): AiSettingsState {
     provider: driverProfileSettings.driverProfileProvider ?? "",
     model: driverProfileSettings.driverProfileModel ?? "",
     thinkingBudget: (driverProfileSettings.driverProfileProvider ?? "") === "gemini" ? (driverProfileSettings.driverProfileThinkingBudget ?? null) : null,
+    maxOutputTokens: driverProfileSettings.driverProfileMaxOutputTokens ?? 5_000,
   }));
   const driverProfileSynced = useRef(false);
   useEffect(() => {
@@ -124,17 +127,26 @@ export function useAiSettings(): AiSettingsState {
     const nextProvider = driverProfileSettings.driverProfileProvider ?? "";
     const nextModel = driverProfileSettings.driverProfileModel ?? "";
     const nextThinkingBudget = nextProvider === "gemini" ? (driverProfileSettings.driverProfileThinkingBudget ?? null) : null;
+    const nextMaxOutputTokens = driverProfileSettings.driverProfileMaxOutputTokens ?? 5_000;
     setDriverProfileBackgroundEnabled(nextBackgroundEnabled);
     setDriverProfileProvider(nextProvider);
     setDriverProfileModel(nextModel);
     setDriverProfileThinkingBudget(nextThinkingBudget);
-    setDriverProfileBaseline({ backgroundEnabled: nextBackgroundEnabled, provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget });
+    setDriverProfileMaxOutputTokens(nextMaxOutputTokens);
+    setDriverProfileBaseline({
+      backgroundEnabled: nextBackgroundEnabled,
+      provider: nextProvider,
+      model: nextModel,
+      thinkingBudget: nextThinkingBudget,
+      maxOutputTokens: nextMaxOutputTokens,
+    });
   }, [
     settingsLoaded,
     driverProfileSettings.driverProfileBackgroundEnabled,
     driverProfileSettings.driverProfileProvider,
     driverProfileSettings.driverProfileModel,
     driverProfileSettings.driverProfileThinkingBudget,
+    driverProfileSettings.driverProfileMaxOutputTokens,
   ]);
 
   const selectedProviders = Array.from(new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter(isAiProvider)));
@@ -178,6 +190,8 @@ export function useAiSettings(): AiSettingsState {
   const hasDriverProfileProviderKey = driverProfileProvider === "local" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(driverProfileModel || "gemini-flash-latest");
+  const selectedDriverProfileModel = driverProfileModels.find((mm) => mm.id === driverProfileModel);
+  const driverProfileModelContextLength = selectedDriverProfileModel?.contextLength;
   const effectiveDriverProfileThinkingBudget = driverProfileModelSupportsThinking ? driverProfileThinkingBudget : null;
   const driverProfileProviderModelError = isAiProvider(driverProfileProvider) ? (modelErrors[driverProfileProvider] ?? null) : null;
 
@@ -198,7 +212,8 @@ export function useAiSettings(): AiSettingsState {
     driverProfileBackgroundEnabled !== driverProfileBaseline.backgroundEnabled ||
     driverProfileProvider !== driverProfileBaseline.provider ||
     driverProfileModel !== driverProfileBaseline.model ||
-    nextDriverProfileThinkingBudget !== driverProfileBaseline.thinkingBudget;
+    nextDriverProfileThinkingBudget !== driverProfileBaseline.thinkingBudget ||
+    driverProfileMaxOutputTokens !== driverProfileBaseline.maxOutputTokens;
   const canSaveDriverProfile = driverProfileConfigDirty || driverProfileApiKey.trim().length > 0;
 
   const saveApiKey = useMutation({
@@ -288,6 +303,7 @@ export function useAiSettings(): AiSettingsState {
         driverProfileProvider,
         driverProfileModel,
         driverProfileThinkingBudget: nextDriverProfileThinkingBudget,
+        driverProfileMaxOutputTokens,
       };
       updateSettingsInCache(updates);
       await saveSettings.mutateAsync(updates);
@@ -300,7 +316,13 @@ export function useAiSettings(): AiSettingsState {
           .catch((err: unknown) => setDriverProfileSaveError(err instanceof Error ? err.message : m.ai_save_key_failed()));
       }
       qc.invalidateQueries({ queryKey: ["settings"] });
-      setDriverProfileBaseline({ backgroundEnabled: driverProfileBackgroundEnabled, provider: driverProfileProvider, model: driverProfileModel, thinkingBudget: nextDriverProfileThinkingBudget });
+      setDriverProfileBaseline({
+        backgroundEnabled: driverProfileBackgroundEnabled,
+        provider: driverProfileProvider,
+        model: driverProfileModel,
+        thinkingBudget: nextDriverProfileThinkingBudget,
+        maxOutputTokens: driverProfileMaxOutputTokens,
+      });
       console.info(`[AI Settings] driver profile save completed in ${Math.round(performance.now() - startedAt)}ms`);
     } catch (err) {
       console.error(`[AI Settings] driver profile save failed in ${Math.round(performance.now() - startedAt)}ms`, err instanceof Error ? err.message : String(err));
@@ -418,6 +440,9 @@ export function useAiSettings(): AiSettingsState {
       setDriverProfileModel,
       driverProfileThinkingBudget,
       setDriverProfileThinkingBudget,
+      driverProfileMaxOutputTokens,
+      setDriverProfileMaxOutputTokens,
+      driverProfileModelContextLength,
       driverProfileApiKey,
       setDriverProfileApiKey,
       keyStatus,

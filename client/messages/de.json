@@ -116,6 +116,8 @@
   "ai_driver_profile_desc": "Metriken und das Fahrerprofil funktionieren ohne KI. Aktiviere Hintergrund-Coaching nur, wenn du zwischen Sessions optionale KI-Coachings möchtest.",
   "ai_driver_profile_background_label": "Hintergrund-Coaching aktivieren",
   "ai_driver_profile_background_desc": "Erlaube der App, im Hintergrund ein KI-Coaching-Profil zu erstellen. Standardmäßig ist diese Option deaktiviert.",
+  "ai_max_output_tokens_label": "Maximale Ausgabetokens",
+  "ai_max_output_tokens_desc": "Beinhaltet Modellüberlegungen. Maximal zulässig: {max} Tokens.",
   "storage_files": "Dateien",
   "storage_compressed": "Komprimiert",
   "storage_uncompressed": "Unkomprimiert",

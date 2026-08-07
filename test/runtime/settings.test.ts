@@ -91,6 +91,17 @@ describe("settings with unit system", () => {
     expect(settings.hiddenGames).toEqual(["ac", "acc"]);
   });
 });
+describe("driver profile output budget", () => {
+  test("defaults to 5,000 tokens", () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({}));
+    expect(loadSettings().driverProfileMaxOutputTokens).toBe(5_000);
+  });
+
+  test("rejects budgets outside supported bounds", () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ driverProfileMaxOutputTokens: 511 }));
+    expect(loadSettings().driverProfileMaxOutputTokens).toBe(5_000);
+  });
+});
 
 describe("AI model discovery", () => {
 

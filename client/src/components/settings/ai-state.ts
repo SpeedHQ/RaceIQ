@@ -1,5 +1,5 @@
 type ProviderInfo = { id: string; name: string };
-type ModelInfo = { id: string; name: string };
+export type ModelInfo = { id: string; name: string; contextLength?: number };
 type AsyncAction = { mutate: () => void; isPending: boolean; isError: boolean };
 
 type KeyInfo = { label: string; placeholder: string; helpText: string; helpUrl: string };
@@ -95,6 +95,9 @@ export interface AiDriverProfileState {
   setDriverProfileModel: (value: string) => void;
   driverProfileThinkingBudget: number | null;
   setDriverProfileThinkingBudget: (value: number | null) => void;
+  driverProfileMaxOutputTokens: number;
+  setDriverProfileMaxOutputTokens: (value: number) => void;
+  driverProfileModelContextLength?: number;
   driverProfileApiKey: string;
   setDriverProfileApiKey: (value: string) => void;
   keyStatus: Record<string, boolean>;

@@ -48,6 +48,8 @@ export interface DriverProfileRunOptions {
 }
 
 const BACKGROUND_LAP_BATCH = 5;
+export const DRIVER_PROFILE_DEFAULT_OUTPUT_TOKENS = 5_000;
+export const DRIVER_PROFILE_MAX_OUTPUT_TOKENS = 32_768;
 
 export function driverProfilePoolKey(lapIds: readonly number[]): string {
   return createHash("sha1")
@@ -74,7 +76,29 @@ function normalizedError(err: unknown): { message: string; details: ClientAiErro
   const details = toClientAiError(err);
   return { message: details.message || "Driver profile generation failed", details };
 }
-
+export function logDriverProfileFailure(runId: number, model: string, error: string): void {
+  console.error(`[AI] Driver profile run ${runId} failed (model=${model}): ${error}`);
+}
+export function logDriverProfileOutput(
+  runId: number,
+  model: string,
+  result: { text?: unknown; object?: unknown; reasoning?: unknown; finishReason?: unknown; usage?: unknown },
+): void {
+  let output = typeof result.text === "string" ? result.text : "";
+  if (!output && typeof result.reasoning === "string") output = `[reasoning-only] ${result.reasoning}`;
+  if (result.object !== undefined) {
+    try {
+      output = JSON.stringify(result.object) ?? "<empty>";
+    } catch {
+      output = "[unserializable object]";
+    }
+  }
+  const finishReason = typeof result.finishReason === "string" ? result.finishReason : "<unknown>";
+  const usage = result.usage === undefined ? "<none>" : JSON.stringify(result.usage);
+  console.error(
+    `[AI] Driver profile run ${runId} raw output (model=${model}, finishReason=${finishReason}, usage=${usage}, resultKeys=${Object.keys(result).join(",")}): ${output || "<empty>"}`,
+  );
+}
 async function failDriverProfileRun(
   scope: DriverProfileScope,
   runId: number,
@@ -178,7 +202,7 @@ async function runDriverProfileInternal(
       language: loadSettings().language,
     });
     const result = await driverProfilerAgent.generate(prompt, {
-      modelSettings: { maxOutputTokens: 512, temperature: 0 },
+      modelSettings: { maxOutputTokens: loadSettings().driverProfileMaxOutputTokens, temperature: 0 },
       providerOptions: {
         openai: {
           responseFormat: {
@@ -200,6 +224,12 @@ async function runDriverProfileInternal(
 
     const parsed = parseDriverProfileSummary(typeof result.text === "string" ? result.text : "");
     if (!parsed.success) {
+      logDriverProfileOutput(runId, config.model, result);
+      logDriverProfileFailure(
+        runId,
+        config.model,
+        "Model produced output that did not match the expected driver profile summary shape.",
+      );
       return await failDriverProfileRun(
         scope,
         runId,

@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
 
 type ProviderId = "gemini" | "openai" | "local";
+export type ModelInfo = { id: string; name: string; contextLength?: number };
 export type ModelsResponse = {
-  gemini: { id: string; name: string }[];
-  openai: { id: string; name: string }[];
-  local: { id: string; name: string }[];
+  gemini: ModelInfo[];
+  openai: ModelInfo[];
+  local: ModelInfo[];
   _errors?: Partial<Record<ProviderId, string | null>>;
 };
 

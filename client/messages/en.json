@@ -116,6 +116,8 @@
   "ai_driver_profile_desc": "Metrics and the driver profile work without AI. Turn on background coaching only if you want optional AI-generated coaching between sessions.",
   "ai_driver_profile_background_label": "Enable background coaching",
   "ai_driver_profile_background_desc": "Opt in to have the app build an AI coaching profile in the background. This is off by default.",
+  "ai_max_output_tokens_label": "Maximum output tokens",
+  "ai_max_output_tokens_desc": "Includes model reasoning. Maximum allowed: {max} tokens.",
   "storage_files": "files",
   "storage_compressed": "Compressed",
   "storage_uncompressed": "Uncompressed",
