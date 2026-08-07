@@ -14,6 +14,20 @@ interface IRacingCatalogCar {
   imageUrl: string;
 }
 
+function iracingCarSortName(name: string): string {
+  return name.replace(/^\[Legacy\]\s*/i, "");
+}
+
+export function sortIRacingCars<T extends Pick<IRacingCatalogCar, "ordinal" | "name">>(cars: readonly T[]): T[] {
+  return cars.toSorted(
+    (a, b) =>
+      iracingCarSortName(a.name).localeCompare(iracingCarSortName(b.name)) ||
+      a.name.localeCompare(b.name) ||
+      a.ordinal - b.ordinal,
+  );
+}
+
+
 function categoryLabel(category: string): string {
   switch (category) {
     case "sports_car":
@@ -53,8 +67,12 @@ export function IRacingCars() {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return cars.filter(
-      (car) => (!filterCategory || car.category === filterCategory) && (!query || car.name.toLowerCase().includes(query) || categoryLabel(car.category).toLowerCase().includes(query)),
+    return sortIRacingCars(
+      cars.filter(
+        (car) =>
+          (!filterCategory || car.category === filterCategory) &&
+          (!query || car.name.toLowerCase().includes(query) || categoryLabel(car.category).toLowerCase().includes(query)),
+      ),
     );
   }, [cars, filterCategory, search]);
 
