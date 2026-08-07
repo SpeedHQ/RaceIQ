@@ -1,6 +1,6 @@
 
-## ZIP follow-up
+## ZIP regression coverage
 
-Updated `/api/laps/import-zip` to require exact ownership, and threaded ownership through `importLapsZip` into every binary member import. Client payload callers intentionally unchanged for Task 5.
+Added `test/routes/import-ownership.test.ts` covering missing and invalid ownership rejection on ZIP multipart route.
 
-Verification: affected archive/transfer route TypeScript diagnostics clear; `git diff --check` passed. Focused route/archive regression tests remain a concern.
+Focused command: `bun test test/routes/import-ownership.test.ts` — 2 pass, 0 fail.
