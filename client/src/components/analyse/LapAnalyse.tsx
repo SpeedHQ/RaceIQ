@@ -296,7 +296,7 @@ function LapAnalyseInner() {
   }, [selectedLapId, filteredLaps, deleteLapMutation]);
 
 
-  const { exportingBin, importingBin, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
+  const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
     gameId,
     setSelectedTrack,
@@ -441,6 +441,8 @@ function LapAnalyseInner() {
         setup={null}
         onCloseSetup={() => undefined}
         importingBin={importingBin}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
         onCommitIbt={() => void handleCommitIbt()}
         onCancelIbt={handleCancelIbt}
         importResult={importResult}

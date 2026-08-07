@@ -1,6 +1,7 @@
 import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
 import type { ComponentProps } from "react";
+import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
 import { F1SetupModal } from "./F1SetupModal";
 import { IbtImportPreviewModal } from "./IbtImportPreviewModal";
 import { ImportResultModal } from "./ImportResultModal";
@@ -16,6 +17,8 @@ interface AnalyseWorkspaceModalsProps {
   onCloseSetup: () => void;
   ibtPreview: IbtPreviewState | null;
   importingBin: boolean;
+  ownership: SessionOwnership;
+  onOwnershipChange: (value: SessionOwnership) => void;
   onCommitIbt: () => void;
   onCancelIbt: () => void;
   importResult: AnalyseImportResult | null;
@@ -33,6 +36,8 @@ export function AnalyseWorkspaceModals({
   onCloseSetup,
   ibtPreview,
   importingBin,
+  ownership,
+  onOwnershipChange,
   onCommitIbt,
   onCancelIbt,
   importResult,
@@ -50,7 +55,7 @@ export function AnalyseWorkspaceModals({
 
       {setup && <F1SetupModal setup={setup} onClose={onCloseSetup} />}
 
-      {ibtPreview && <IbtImportPreviewModal token={ibtPreview.token} preview={ibtPreview.preview} importing={importingBin} onImport={onCommitIbt} onClose={onCancelIbt} />}
+      {ibtPreview && <IbtImportPreviewModal token={ibtPreview.token} preview={ibtPreview.preview} importing={importingBin} ownership={ownership} onOwnershipChange={onOwnershipChange} onImport={onCommitIbt} onClose={onCancelIbt} />}
 
       {importResult &&
         (() => {

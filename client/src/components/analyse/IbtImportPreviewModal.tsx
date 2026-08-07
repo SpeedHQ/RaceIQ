@@ -1,3 +1,5 @@
+import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { IbtTelemetryWarning } from "./IbtTelemetryWarning";
@@ -32,6 +34,8 @@ interface Props {
   token: string | null;
   preview: IbtImportPreview;
   importing: boolean;
+  ownership: SessionOwnership;
+  onOwnershipChange: (value: SessionOwnership) => void;
   onImport: () => void;
   onClose: () => void;
 }
@@ -50,7 +54,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KiB`;
 }
 
-export function IbtImportPreviewModal({ token, preview, importing, onImport, onClose }: Props) {
+export function IbtImportPreviewModal({ token, preview, importing, ownership, onOwnershipChange, onImport, onClose }: Props) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60">
@@ -88,6 +92,8 @@ export function IbtImportPreviewModal({ token, preview, importing, onImport, onC
         )}
 
         <p className="text-xs text-app-text-muted">Import creates a normal RaceIQ iRacing session and canonical .bin capture. The original .ibt file is not copied into session storage.</p>
+
+        <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importing} />
 
         <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
           <Button variant="app-ghost" size="app-sm" disabled={importing} onClick={onClose}>
