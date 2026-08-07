@@ -44,7 +44,7 @@ export function TokenUsageFooter({
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const [compactMsg, setCompactMsg] = useState<string | null>(null);
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
-  const provider = settings.chatProvider ?? settings.aiProvider ?? "gemini";
+  const provider = settings.chatProvider ?? settings.aiProvider ?? "";
   const model = settings.chatModel ?? settings.aiModel ?? "";
   const { data: localModels } = useQuery({
     queryKey: ["ai-models", "local-context"],
@@ -72,7 +72,7 @@ export function TokenUsageFooter({
   const level = meterLevel(used, limit ?? 0);
   const barColor = level === "danger" ? "bg-status-danger" : level === "warn" ? "bg-status-warning" : "bg-app-border";
   const pct = limit != null && limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
-  const rate = RATE_PER_MTOK[provider] ?? RATE_PER_MTOK.gemini;
+  const rate = RATE_PER_MTOK[provider] ?? { in: 0, out: 0 };
   const cost = ((usage?.inputTokens ?? 0) * rate.in + (usage?.outputTokens ?? 0) * rate.out) / 1_000_000;
   const activeThreadId = generations.find((g) => g.active)?.threadId ?? compactThreadId;
 

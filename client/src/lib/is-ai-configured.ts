@@ -8,10 +8,11 @@ export interface AiConfigSettings {
 }
 
 export function isAiConfigured(settings: AiConfigSettings): boolean {
-  const provider = settings.aiProvider ?? "gemini";
+  const provider = settings.aiProvider ?? "";
   if (provider === "local") return true;
   if (provider === "openai") return !!settings.openaiApiKeySet;
-  return !!settings.geminiApiKeySet;
+  if (provider === "gemini") return !!settings.geminiApiKeySet;
+  return false;
 }
 
 export function isAiAnalysisConfigured(settings: AiConfigSettings): boolean {

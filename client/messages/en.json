@@ -102,7 +102,7 @@
   "ai_refresh_models_title": "Refresh models",
   "ai_refresh": "Refresh",
   "ai_loading_models": "Loading models…",
-  "ai_model_default": "Default (gemini-flash-latest)",
+  "ai_model_default": "None",
   "ai_thinking_label": "Thinking",
   "ai_thinking_unsupported": "This model does not support thinking. Using None.",
   "ai_add_key_hint": "Add and save an API key to load available models.",

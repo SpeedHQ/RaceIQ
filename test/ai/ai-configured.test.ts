@@ -12,10 +12,10 @@ describe("isAiConfigured", () => {
     expect(isAiConfigured({ aiProvider: "openai", openaiApiKeySet: false })).toBe(false);
   });
 
-  test("requires Gemini key for gemini and default provider", () => {
+  test("requires an explicitly selected provider", () => {
     expect(isAiConfigured({ aiProvider: "gemini", geminiApiKeySet: true })).toBe(true);
     expect(isAiConfigured({ aiProvider: "gemini", geminiApiKeySet: false })).toBe(false);
-    expect(isAiConfigured({ geminiApiKeySet: true })).toBe(true);
+    expect(isAiConfigured({ geminiApiKeySet: true })).toBe(false);
     expect(isAiConfigured({})).toBe(false);
   });
 });
