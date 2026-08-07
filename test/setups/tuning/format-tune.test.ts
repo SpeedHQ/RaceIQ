@@ -98,7 +98,7 @@ describe("formatTuneForPrompt", () => {
 			name: "AC Evo setup",
 			author: "RaceIQ",
 			category: "road",
-			settings: { frontARB: 2, rearARB: 3 } as TuneSettings,
+			settings: { frontARB: 2, rearARB: 3 },
 		});
 		expect(result).toContain("AC Evo setup");
 		expect(result).toContain("frontARB: 2");
