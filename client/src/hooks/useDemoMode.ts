@@ -79,7 +79,10 @@ export function useDemoMode(preferGameId?: string) {
         return;
       }
 
-      const lapData = await client.api.laps[":id"].$get({ param: { id: String(best.id) } }).then((r) => r.json() as any);
+      const lapData = await client.api.laps[":id"].$get(
+        { param: { id: String(best.id) } },
+        { headers: { "X-Game-Id": best.gameId } },
+      ).then((r) => r.json() as any);
       if (!lapData?.telemetry || lapData.telemetry.length < 50) {
         setLoading(false);
         return;
@@ -91,7 +94,7 @@ export function useDemoMode(preferGameId?: string) {
     } catch {
       setLoading(false);
     }
-  }, [startPlayback]);
+  }, [preferGameId, startPlayback]);
 
   const toggle = useCallback(() => {
     if (active) stop();
