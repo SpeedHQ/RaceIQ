@@ -16,6 +16,7 @@
  *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
  */
 import { zipSync, unzipSync } from "fflate";
+import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
@@ -310,7 +311,7 @@ export interface ImportZipResult {
  * re-detected. Duplicates are not merged — importing the same zip twice gives
  * you the laps twice, same as the single-file `.bin` import.
  */
-export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResult> {
+export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership } = {}): Promise<ImportZipResult> {
   const files = unzipSync(zipData);
 
   const manifest = parseManifestFile(files);
@@ -343,7 +344,7 @@ export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResul
       continue;
     }
     try {
-      const result = await importSessionBin(bytes, gameId);
+      const result = await importSessionBin(bytes, gameId, { ownership: options.ownership });
       laps.push(...result.laps);
     } catch (err) {
       skipped++;

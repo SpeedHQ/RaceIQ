@@ -39,12 +39,11 @@ export const transferRoutes = new Hono()
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
-    if (!(file.name || "").toLowerCase().endsWith(".zip")) {
-      return c.json({ error: "Expected a .zip file" }, 400);
-    }
-
+    const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
+    if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
+    if (!file.name.toLowerCase().endsWith(".zip")) return c.json({ error: "Expected a .zip file" }, 400);
     try {
-      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()));
+      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data });
       return c.json(result);
     } catch (err) {
       return c.json({ error: `Failed to import zip: ${err instanceof Error ? err.message : String(err)}` }, 400);
