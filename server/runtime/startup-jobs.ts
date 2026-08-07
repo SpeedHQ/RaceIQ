@@ -18,9 +18,16 @@ const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_IRACING_ID,
 ];
 
-export function startSyncAndStaleSessionJobs(): void {
-  startCommunityTunesSync();
-  startLaptimesSync();
+export interface StartupJobDependencies {
+  startCommunityTunesSync?: () => void;
+  startLaptimesSync?: () => void;
+  startSessionCompressor?: () => void;
+  startUpdateCheckSchedule?: () => void;
+}
+
+export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
+  (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
+  (dependencies.startLaptimesSync ?? startLaptimesSync)();
 
   countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
     if (count > 0) {

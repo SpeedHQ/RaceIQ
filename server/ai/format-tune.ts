@@ -1,4 +1,4 @@
-import type { TuneSettings, TuneCategory } from "../../shared/racing/tuning/types";
+import type { TuneSettings } from "../../shared/racing/tuning/types";
 
 interface TuneForPrompt {
 	name: string;

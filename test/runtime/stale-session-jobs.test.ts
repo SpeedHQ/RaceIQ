@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test, spyOn } from "bun:test";
+import { afterEach, describe, expect, test, spyOn } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../../server/db";
 import { sessions, sessionResults } from "../../server/db/schema";
@@ -11,29 +11,15 @@ import { LAP_DETECTOR_AC_EVO_ID } from "../../server/games/ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "../../server/games/iracing/lap-detector";
 import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
 import { wsManager } from "../../server/runtime/websocket-manager";
-import * as RealCommunitySync from "../../server/tunes/community-sync";
-import * as RealLaptimes from "../../server/sync/laptimes";
-import * as RealCompressor from "../../server/session-capture/compressor";
-import * as RealUpdateCheck from "../../server/runtime/update/check";
+import { startSyncAndStaleSessionJobs } from "../../server/runtime/startup-jobs";
 
-mock.module("../../server/tunes/community-sync", () => ({
-  ...RealCommunitySync,
+
+const NOOP_STARTUP_JOBS = {
   startCommunityTunesSync: () => {},
-}));
-mock.module("../../server/sync/laptimes", () => ({
-  ...RealLaptimes,
   startLaptimesSync: () => {},
-}));
-mock.module("../../server/session-capture/compressor", () => ({
-  ...RealCompressor,
   startSessionCompressor: () => {},
-}));
-mock.module("../../server/runtime/update/check", () => ({
-  ...RealUpdateCheck,
   startUpdateCheckSchedule: () => {},
-}));
-
-const { startSyncAndStaleSessionJobs } = await import("../../server/runtime/startup-jobs");
+};
 const provenance: RaceResultProvenance = {
   catalogVersion: "catalog-7",
   catalogHash: "sha256:catalog",
@@ -115,7 +101,7 @@ describe("startup stale-session notifications", () => {
 
     staleSessionsSpy = spyOn(wsManager, "setStaleSessionsNotification").mockImplementation(() => {});
     staleResultsSpy = spyOn(wsManager, "setStaleRaceResultsNotification").mockImplementation(() => {});
-    startSyncAndStaleSessionJobs();
+    startSyncAndStaleSessionJobs(NOOP_STARTUP_JOBS);
     await waitForStartupChecks();
 
     expect(staleSessionsSpy).toHaveBeenCalledWith({ type: "stale-lap-detection", sessionCount: 2, currentVersion: [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID].join(",") });
@@ -135,7 +121,7 @@ describe("startup stale-session notifications", () => {
 
     staleSessionsSpy = spyOn(wsManager, "setStaleSessionsNotification").mockImplementation(() => {});
     staleResultsSpy = spyOn(wsManager, "setStaleRaceResultsNotification").mockImplementation(() => {});
-    startSyncAndStaleSessionJobs();
+    startSyncAndStaleSessionJobs(NOOP_STARTUP_JOBS);
     await waitForStartupChecks();
 
     expect(staleSessionsSpy).not.toHaveBeenCalled();

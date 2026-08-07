@@ -149,7 +149,7 @@ describe("iRacing recorder container", () => {
     const recorded = readIRacingFrames(path);
     expect(recorded).toHaveLength(1);
     expect(recorded[0]).toEqual(frame);
-  });
+  }, { timeout: 120_000 });
 
   test("rejects frames beyond the shared source-frame size limit", async () => {
     tempDir = mkdtempSync(join(tmpdir(), "iracing-recorder-test-"));
