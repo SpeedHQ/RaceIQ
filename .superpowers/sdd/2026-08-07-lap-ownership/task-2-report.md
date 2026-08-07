@@ -1,6 +1,4 @@
 
-## ZIP regression coverage
+## ZIP test strengthening
 
-Added `test/routes/import-ownership.test.ts` covering missing and invalid ownership rejection on ZIP multipart route.
-
-Focused command: `bun test test/routes/import-ownership.test.ts` — 2 pass, 0 fail.
+ZIP validation tests now assert exact ownership error body, proving rejection occurs before malformed archive processing. `bun test test/routes/import-ownership.test.ts`: 2 pass, 0 fail.
