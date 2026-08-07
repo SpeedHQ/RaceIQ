@@ -11,5 +11,6 @@ describe("ZIP import ownership validation", () => {
     if (ownership) form.append("ownership", ownership);
     const response = await transferRoutes.request("/api/laps/import-zip", { method: "POST", body: form });
     expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "ownership must be exactly mine or others" });
   });
 });
