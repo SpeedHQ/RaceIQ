@@ -124,7 +124,7 @@ export function useAnalyseImports(args: {
     if (!staged?.token) return;
     setImportingBin(true);
     try {
-      const res = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token } });
+      const res = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token, ownership: "mine" } });
       const data = (await res.json().catch(() => null)) as { error?: string; packetCount?: number; laps?: ImportedLap[]; gameId?: string; routePrefix?: string } | null;
       if (!res.ok) {
         setIbtPreview(null);

@@ -1,5 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
-import { and, eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getLapStats, getLapMetaForProfileScope, getLaps } from "../../server/db/lap-read-queries";
 import { deleteSession, getSessions, insertSession } from "../../server/db/session-queries";
 import { insertLap } from "../../server/db/lap-mutation-queries";
@@ -34,7 +33,7 @@ test("owned stats and profile pool exclude others while general reads preserve o
 test("legacy null ownership normalizes to mine at read boundary", async () => {
   const id = await insertSession(3, 4, "fm-2023");
   sessionIds.push(id);
-  await db.update(sessions).set({ ownership: "legacy" }).where(eq(sessions.id, id)).run();
+  await db.update(sessions).set({ ownership: sql`'legacy'` }).where(eq(sessions.id, id)).run();
   await insertLap(id, 1, 100_000, true, null, 0);
   expect((await getSessions("fm-2023")).find((session) => session.id === id)?.ownership).toBe("mine");
   expect((await getLaps("fm-2023")).find((lap) => lap.sessionId === id)?.ownership).toBe("mine");

@@ -55,24 +55,14 @@ export function SessionToolbar({
 
   return (
     <div className="flex items-center flex-wrap gap-3">
-      {motecEnabled && (
-        <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
-          {(["recorded", "imported"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
-            <Button
-              key={nextTab}
-              variant="app-ghost"
-              size="app-md"
-              onClick={() => {
-                setTab(nextTab);
-                setPage(0);
-              }}
-              className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
-            >
-              {nextTab === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
-            </Button>
-          ))}
-        </div>
-      )}
+      <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
+        {(["mine", "others"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
+          <Button key={nextTab} variant="app-ghost" size="app-md" onClick={() => { setTab(nextTab); setPage(0); }} className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}>
+            {nextTab === "mine" ? m.sessions_tab_mine() : m.sessions_tab_others()}
+          </Button>
+        ))}
+      </div>
+      {motecEnabled && <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>{m.sessions_import_motec()}</Button>}
       <AppInput
         type="search"
         value={search}
@@ -89,11 +79,6 @@ export function SessionToolbar({
         )}
       </h1>
       <div className="flex items-center flex-wrap gap-2">
-        {tab === "imported" && (
-          <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>
-            {m.sessions_import_motec()}
-          </Button>
-        )}
         {selectedLaps.size === 2 &&
           (() => {
             const ids = [...selectedLaps];

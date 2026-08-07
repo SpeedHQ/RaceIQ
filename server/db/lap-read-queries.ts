@@ -331,6 +331,7 @@ type LapResultRow = {
   catalogVersion: string | null;
   catalogHash: string | null;
   catalogSchemaVersion: string | null;
+  parserVersion: string | null;
   ownership: string | null;
   resolverVersion: string | null;
   derivationVersion: string | null;
