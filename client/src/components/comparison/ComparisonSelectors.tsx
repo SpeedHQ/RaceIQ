@@ -124,7 +124,7 @@ export function ComparisonSelectors({
             id="compare-lap-b"
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
-            placeholder={m.compare_search_laps()}
+            disabled={!carBOrd}
             options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}${!lap.isValid ? " (inv)" : ""}` }))}
             focusColor="blue-500"
           />
