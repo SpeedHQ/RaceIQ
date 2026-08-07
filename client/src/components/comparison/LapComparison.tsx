@@ -371,7 +371,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         >
           {/* Left: track map */}
           <div
-            className="h-[42rem] w-full shrink-0 @5xl/workspace:h-auto @5xl/workspace:min-h-0 @5xl/workspace:w-(--compare-map-width)"
+            className="h-[42rem] w-full shrink-0 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:w-(--compare-map-width)"
             style={{ "--compare-map-width": `${mapWidth}px` } as CSSProperties}
           >
             <CompareTrackMap
@@ -397,7 +397,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             aria-valuemax={comparisonLayoutWidth > 0 ? clampCompareMapWidth(Number.MAX_SAFE_INTEGER, comparisonLayoutWidth, aiPanelOpen) : COMPARE_MAP_DEFAULT_WIDTH}
             aria-valuenow={Math.round(mapWidth)}
             tabIndex={0}
-            className="-mx-2 hidden w-2 shrink-0 cursor-col-resize border-x border-app-border bg-app-surface-alt/80 transition-colors hover:bg-app-accent/30 focus-visible:bg-app-accent/30 @5xl/workspace:block"
+            className="-mx-2 hidden h-full w-2 shrink-0 cursor-col-resize border-x border-app-border bg-app-surface-alt/80 transition-colors hover:bg-app-accent/30 focus-visible:bg-app-accent/30 @5xl/workspace:block"
             onKeyDown={(event) => {
               if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
               event.preventDefault();
