@@ -120,4 +120,31 @@ describe("migration regressions", () => {
     client.close();
   });
 
+  test("v58 backfills old sessions and normalizes legacy ownership values", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 57);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await runMigrations(client);
+
+    const rows = await client.execute("SELECT ownership FROM sessions WHERE id = 1");
+    expect(rows.rows[0]?.ownership).toBe("mine");
+    client.close();
+  });
+
+  test("v58 defaults ownership to mine when omitted", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+
+    const rows = await client.execute("SELECT ownership FROM sessions WHERE id = 1");
+    expect(rows.rows[0]?.ownership).toBe("mine");
+    client.close();
+  });
+
 });
