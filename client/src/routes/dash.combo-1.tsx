@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import type { GameId } from "../../../shared/games/ids";
 import { ComboDash } from "../components/dashes/ComboDash";
-import { useUnits } from "../hooks/useUnits";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 
@@ -14,7 +13,6 @@ function ComboDash1Route() {
   const pit = useTelemetryStore((s) => s.pit);
   const unitSystem = useTelemetryStore((s) => s.unitSystem);
   const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as GameId | null | undefined;
-  const units = useUnits();
   const game = detectedGameId ? tryGetGame(detectedGameId) : null;
 
   useEffect(() => {

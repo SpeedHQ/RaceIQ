@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";

@@ -83,7 +83,7 @@ export const comparisonRoutes = new Hono()
     const toSamples = (replay: typeof replayA) =>
       replay.envelopes.map((envelope) => ({
         sequence: envelope.sequence.toString(),
-        observedAtMs: typeof envelope.observedAt.milliseconds === "bigint" ? Number(envelope.observedAt.milliseconds) : envelope.observedAt.milliseconds,
+        observedAtMs: envelope.observedAt.domain === "monotonic" ? Number(envelope.observedAt.nanoseconds) / 1_000_000 : envelope.observedAt.milliseconds,
         values: Object.fromEntries(envelope.values.filter((entry) => entry.state === "ok").map((entry) => [entry.semanticId, entry.value])),
       }));
 

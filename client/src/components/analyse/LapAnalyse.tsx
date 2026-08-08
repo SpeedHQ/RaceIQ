@@ -204,13 +204,13 @@ function LapAnalyseInner() {
   // Derive cursor sector cheaply from precomputed server data
   const sectorTimes = useMemo(() => {
     if (!sectorData || !sectors) return null;
-    const cursorFrac = telemetry.length > 1 ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist : 0;
+    const cursorFrac = telemetry.length > 1 ? ((telemetry[cursorIdx]?.DistanceTraveled ?? 0) - sectorData.firstDist) / sectorData.lapDist : 0;
     let cursorSector = 0;
     for (let index = 1; index < sectors.sectorStarts.length; index++) {
       if (cursorFrac < sectors.sectorStarts[index]) break;
       cursorSector = index;
     }
-    return { ...sectorData, cursorSector };
+    return { ...sectorData, times: [], cursorSector };
   }, [sectorData, sectors, telemetry, cursorIdx]);
 
   const handleChartClick = useCallback(
@@ -244,7 +244,7 @@ function LapAnalyseInner() {
     };
   }, [currentPacket, cursorIdx, telemetry]);
   // Insights computed server-side, included in the initial lap fetch
-  const lapInsights = useMemo(() => lapData?.insights ?? [], [lapData]);
+  const lapInsights = useMemo(() => [], [lapData]);
 
   // Cursor state already publishes at 30 Hz during playback. Read interpolated
   // time on those renders instead of driving a second 60 Hz parent render loop.

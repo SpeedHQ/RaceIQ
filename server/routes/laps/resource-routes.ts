@@ -16,6 +16,7 @@ import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutat
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { assessLapRecording } from "../../lap-analysis/quality";
+import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
@@ -23,7 +24,8 @@ import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 const semanticReplayIds = TELEMETRY_CATALOG.variables.map((variable) => variable.id);
-
+const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
+  timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
 const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
@@ -43,8 +45,8 @@ export const resourceRoutes = new Hono()
         requestedSemanticIds: replay.requestedSemanticIds,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
-          observedAt: envelope.observedAt,
-          receivedAt: envelope.receivedAt,
+          observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
+          receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) },
           simulator: envelope.simulator,
           values: envelope.values.map(({ semanticId, value, state, freshness }) => ({ semanticId, value, state, freshness })),
         })),

@@ -20,7 +20,7 @@ export interface BoundaryData {
 
 /** Find the telemetry index closest to a given distance value */
 export function findTelemetryAtDistance(telemetry: SemanticTelemetrySample[], distance: number): number {
-  const distStart = (num(telemetry[0], "timing.distance-traveled") ?? 0) ?? 0;
+  const distStart = num(telemetry[0]!, "timing.distance-traveled") ?? 0;
   let closest = 0;
   let closestDelta = Infinity;
   for (let i = 0; i < telemetry.length; i++) {
@@ -347,8 +347,8 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
     ctx.strokeRect(x, y0, barW, barH);
   };
 
-  const brakeA = pA ? pA.Brake / 255 : 0;
-  const brakeB = pB ? pB.Brake / 255 : 0;
+  const brakeA = num(pA!, "inputs.brake") ?? 0;
+  const brakeB = num(pB!, "inputs.brake") ?? 0;
   drawBar(cx, brakeA, "var(--ch-brake)", COLOR_A);
   cx += barW + barGap;
   drawBar(cx, brakeB, "var(--ch-brake)", COLOR_B);
@@ -398,16 +398,16 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
     ctx.textBaseline = "alphabetic";
   };
 
-  const steerA = pA ? pA.Steer : 0;
-  const gearA = pA ? pA.Gear : 0;
+  const steerA = num(pA!, "inputs.steer") ?? 0;
+  const gearA = num(pA!, "inputs.gear") ?? 0;
   const wheelAcx = cx + wheelR;
   const wheelAcy = y0 + barH / 2 - 6;
   drawWheel(wheelAcx, wheelAcy, steerA, gearA, COLOR_A);
   cx += wheelR * 2 + sectionGap;
 
   // --- Steering wheel B ---
-  const steerB = pB ? pB.Steer : 0;
-  const gearB = pB ? pB.Gear : 0;
+  const steerB = num(pB!, "inputs.steer") ?? 0;
+  const gearB = num(pB!, "inputs.gear") ?? 0;
   const wheelBcx = cx + wheelR;
   const wheelBcy = y0 + barH / 2 - 6;
   drawWheel(wheelBcx, wheelBcy, steerB, gearB, COLOR_B);
@@ -420,8 +420,8 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   ctx.fillText("Steering / Gear", (wheelAcx + wheelBcx) / 2, y0 + barH + 14);
 
   // --- Throttle bars for laps A and B ---
-  const throttleA = pA ? pA.Accel / 255 : 0;
-  const throttleB = pB ? pB.Accel / 255 : 0;
+  const throttleA = num(pA!, "inputs.accel") ?? 0;
+  const throttleB = num(pB!, "inputs.accel") ?? 0;
   drawBar(cx, throttleA, "var(--ch-throttle)", COLOR_A);
   cx += barW + barGap;
   drawBar(cx, throttleB, "var(--ch-throttle)", COLOR_B);
