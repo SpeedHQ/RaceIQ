@@ -6,14 +6,26 @@ import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
 import { useLaps as useLapsQuery, useLapSemanticTelemetry, useLapTelemetry } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
-import { useConvertedTelemetry } from "../../hooks/useConvertedTelemetry";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
 import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapLabel } from "./track-map/types";
+import type { SemanticLapTelemetry } from "../../hooks/laps";
 
-const emptyTelemetry: TelemetryPacket[] = [];
+export interface SemanticAnalysisFrame {
+  sequence: number;
+  values: Readonly<Record<string, unknown>>;
+  observedAtMs: number;
+}
+
+function toSemanticFrames(replay: SemanticLapTelemetry | undefined): SemanticAnalysisFrame[] {
+  return replay?.envelopes.map((envelope) => ({
+    sequence: envelope.sequence,
+    observedAtMs: envelope.observedAt.milliseconds,
+    values: Object.fromEntries(envelope.values.map((entry) => [entry.semanticId, entry.value])),
+  })) ?? [];
+}
 const emptyLaps: LapMeta[] = [];
 
 export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0]) {
@@ -23,8 +35,11 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedCar, setSelectedCar] = useState<number | null>(search.car ?? null);
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
   const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
-  const { data: lapData, isLoading: packetLoading, error: packetError } = useLapTelemetry(selectedLapId);
-  const lapLoading = semanticLoading;
+  const { data: lapData, error: packetError } = useLapTelemetry(selectedLapId);
+  const semanticFrames = useMemo(() => toSemanticFrames(semanticReplay), [semanticReplay]);
+  const telemetry = lapData?.telemetry ?? emptyTelemetry;
+  const displayTelemetry = useConvertedTelemetry(telemetry);
+  const parseError = (lapData as { parseError?: string } | undefined)?.parseError;
   const lapError = semanticError ?? packetError;
   useEffect(() => {
     if (selectedTrack == null && lapData?.trackOrdinal != null) setSelectedTrack(lapData.trackOrdinal);
@@ -148,6 +163,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     telemetry,
     displayTelemetry,
     semanticReplay,
+    semanticFrames,
     selectedTrack,
     setSelectedTrack,
     selectedCar,
