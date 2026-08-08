@@ -1,12 +1,11 @@
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import type { DisplayPacket } from "../../lib/convert-packet";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
-import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
 
 interface AnalyseTopSectionProps {
   // Layout
@@ -17,7 +16,7 @@ interface AnalyseTopSectionProps {
   onRightResize: (width: number) => void;
 
   // Data
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
@@ -25,9 +24,8 @@ interface AnalyseTopSectionProps {
   boundaries: any;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
-  currentPacket: TelemetryPacket | null;
-  currentDisplayPacket: DisplayPacket | null;
-  displayTelemetry: DisplayPacket[];
+  currentFrame: SemanticAnalysisFrame | null;
+  displayTelemetry: SemanticAnalysisFrame[];
   lapLine: Point[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   units: any;
@@ -51,7 +49,7 @@ interface AnalyseTopSectionProps {
   // Refs
   trackMapRef: RefObject<TrackMapHandle | null>;
   cursorRef: RefObject<number>;
-  displayTelemetryRef: RefObject<DisplayPacket[]>;
+  displayTelemetryRef: RefObject<SemanticAnalysisFrame[]>;
 }
 
 export function AnalyseTopSection({
@@ -67,8 +65,6 @@ export function AnalyseTopSection({
   boundaries,
   sectors,
   segments,
-  currentPacket,
-  currentDisplayPacket,
   displayTelemetry,
   lapLine,
   units,
@@ -165,7 +161,7 @@ export function AnalyseTopSection({
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}
-          currentPacket={currentPacket}
+          currentFrame={telemetry[cursorIdx] ?? null}
           aiPanelOpen={aiPanelOpen}
           aiHighlights={aiHighlights}
           rotateWithCar={rotateWithCar}
@@ -217,8 +213,7 @@ export function AnalyseTopSection({
       <AnalyseVizPanel
         vizMode={vizMode}
         onVizModeChange={onVizModeChange}
-        currentPacket={currentPacket}
-        currentDisplayPacket={currentDisplayPacket}
+        currentFrame={telemetry[cursorIdx] ?? null}
         displayTelemetry={displayTelemetry}
         cursorRef={cursorRef}
         displayTelemetryRef={displayTelemetryRef}

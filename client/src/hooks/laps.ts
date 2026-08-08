@@ -1,10 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
-import { semanticReplayToAnalysisFrames } from "../lib/semantic-replay";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
@@ -21,23 +19,6 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-/** Canonical semantic replay exposed to user-facing analysis/tuning UI. */
-export function useLapTelemetry(lapId: number | null) {
-  const gameId = useGameId();
-  return useQuery({
-    queryKey: ["lap-telemetry", lapId, gameId ?? null],
-    queryFn: async () => {
-      if (!gameId) throw new Error("Missing game context");
-      const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
-      if (!res.ok) throw new Error(res.statusText);
-      const replay = (await res.json()) as SemanticLapTelemetry;
-      return { telemetry: semanticReplayToAnalysisFrames(replay), sectorTimes: null as SectorTimeline | null, semanticReplay: replay };
-    },
-    enabled: lapId != null && gameId != null,
-    gcTime: 0,
-    staleTime: 0,
-  });
-}
 
 export interface SemanticReplayFrame {
   sequence: number;
@@ -50,6 +31,9 @@ export interface SemanticReplayFrame {
 export interface SemanticLapTelemetry {
   lapId: number;
   requestedSemanticIds: string[];
+  sectorTimes?: number[] | null;
+  sectorStarts?: number[] | null;
+  insights?: unknown[];
   envelopes: SemanticReplayFrame[];
 }
 

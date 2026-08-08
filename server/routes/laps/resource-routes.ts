@@ -39,12 +39,20 @@ export const resourceRoutes = new Hono()
 
   .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
     try {
+      const lap = await getLapById(id);
+      if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds);
       if (!replay) return c.json({ error: "Lap not found" }, 404);
+      const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       return c.json({
         lapId: replay.lapId,
         requestedSemanticIds: replay.requestedSemanticIds,
+        sectorTimes: lap.sectorTimes ?? null,
+        sectorStarts: nativeLayout?.starts ?? null,
+        insights: analyzeLap(lap.telemetry, lap.gameId),
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },

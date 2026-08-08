@@ -1,128 +1,26 @@
-import { tryGetGame } from "@shared/games/registry";
 import type { GameId } from "../../../../shared/games/ids";
-import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";
-import type { DisplayPacket } from "../../lib/convert-packet";
 import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
+import type { SemanticAnalysisFrame } from "./track-map/types";
 
-interface WearRate {
-  FL: number;
-  FR: number;
-  RL: number;
-  RR: number;
-}
-
-interface Props {
-  currentPacket: TelemetryPacket;
-  currentDisplayPacket: DisplayPacket | null;
-  gameId: GameId;
-  units: ReturnType<typeof useUnits>;
-  wearRate: WearRate | null;
-}
-
-export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, gameId, units, wearRate }: Props) {
-  const fl = currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL;
-  const fr = currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR;
-  const rl = currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL;
-  const rr = currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR;
-  const healths = [currentPacket.TireWearFL, currentPacket.TireWearFR, currentPacket.TireWearRL, currentPacket.TireWearRR];
-  const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
-  const wearRates = (["FL", "FR", "RL", "RR"] as const).map((w) => (wearRate ? wearRate[w] * 100 : null));
-  const adapter = tryGetGame(gameId);
-  const analysis = resolveAnalysisTelemetry(adapter);
-  const hThresh = adapter?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
-  const pressureOptimal = useTirePressureOptimal(gameId, currentPacket.CarOrdinal);
-
-  const brakeFL = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
-  const brakeFR = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
-  const brakeRL = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
-  const brakeRR = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
-  const hasBrakes = adapter?.telemetry.brakeTemperature !== undefined;
-
-  const pressFL = currentPacket.TirePressureFrontLeft ?? currentPacket.f1?.tyrePressureFL ?? 0;
-  const pressFR = currentPacket.TirePressureFrontRight ?? currentPacket.f1?.tyrePressureFR ?? 0;
-  const pressRL = currentPacket.TirePressureRearLeft ?? currentPacket.f1?.tyrePressureRL ?? 0;
-  const pressRR = currentPacket.TirePressureRearRight ?? currentPacket.f1?.tyrePressureRR ?? 0;
-  const hasPressure = pressFL > 0 || pressFR > 0;
-
-  // Camber row intentionally omitted: ACC declares camberRAD[4] in its shared
-  // memory struct but Kunos has never populated it — the field ships as 0 on
-  // every release, in pit/track/replay. Re-enable once ACC (or AC Evo) starts
-  // writing real values.
-
+interface WearRate { FL: number; FR: number; RL: number; RR: number; }
+interface Props { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits>; wearRate: WearRate | null; }
+const WHEELS = ["FL", "FR", "RL", "RR"] as const;
+const vals = (f: SemanticAnalysisFrame, id: string): (number | null)[] => { const v = f.values[id]; return WHEELS.map((_, i) => Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? v[i] : null); };
+const unavailable = <span className="text-app-text-dim">—</span>;
+export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props) {
+  const temp = vals(frame, "tire.temperature.average"); const health = vals(frame, "tires.tire-wear"); const speed = vals(frame, "tires.wheel-rotation-speed");
+  const brake = vals(frame, "brakes.brake-temp"); const pressure = vals(frame, "tires.tire-pressure");
+  const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-  const unavailable = <span className="text-app-text-dim">—</span>;
-  const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
-  const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
-  const temperatureAvailable = hasTireTemperatureData(currentPacket, analysis.tireTemperature);
-  const healthAvailable = hasTireHealthData(currentPacket, analysis.tireHealth);
-  const coldPressure = analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure";
-  const pressureColor = (pressure: number) => (coldPressure ? "var(--app-text)" : tirePressureColor(pressure, pressureOptimal));
-
-  const rows = [
-    {
-      label: m.analyse_wheels_rotation_s(),
-      fl: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[0].toFixed(1),
-      fr: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[1].toFixed(1),
-      rl: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[2].toFixed(1),
-      rr: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[3].toFixed(1),
-    },
-    {
-      label: pitTemperature ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp(),
-      fl: temperatureAvailable ? C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)) : unavailable,
-      fr: temperatureAvailable ? C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)) : unavailable,
-      rl: temperatureAvailable ? C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)) : unavailable,
-      rr: temperatureAvailable ? C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)) : unavailable,
-    },
-    {
-      label: pitHealth ? m.analyse_wheels_pit_health() : m.analyse_wheels_health(),
-      fl: healthAvailable ? C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)) : unavailable,
-      fr: healthAvailable ? C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)) : unavailable,
-      rl: healthAvailable ? C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)) : unavailable,
-      rr: healthAvailable ? C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)) : unavailable,
-    },
-    ...(analysis.tireWearRate.source !== "unavailable"
-      ? [
-          {
-            label: m.analyse_wheels_wear_s(),
-            fl: C(wearRates[0] != null ? `${wearRates[0].toFixed(3)}%` : "—", wearRateColor(wearRates[0])),
-            fr: C(wearRates[1] != null ? `${wearRates[1].toFixed(3)}%` : "—", wearRateColor(wearRates[1])),
-            rl: C(wearRates[2] != null ? `${wearRates[2].toFixed(3)}%` : "—", wearRateColor(wearRates[2])),
-            rr: C(wearRates[3] != null ? `${wearRates[3].toFixed(3)}%` : "—", wearRateColor(wearRates[3])),
-          },
-        ]
-      : []),
-    ...(hasBrakes
-      ? [
-          {
-            label: m.analyse_wheels_brake(),
-            fl: C(`${brakeFL.toFixed(0)}°C`, brakeTempColor(brakeFL, false)),
-            fr: C(`${brakeFR.toFixed(0)}°C`, brakeTempColor(brakeFR, false)),
-            rl: C(`${brakeRL.toFixed(0)}°C`, brakeTempColor(brakeRL, true)),
-            rr: C(`${brakeRR.toFixed(0)}°C`, brakeTempColor(brakeRR, true)),
-          },
-        ]
-      : []),
-    ...(hasPressure && analysis.tirePressure.source !== "unavailable"
-      ? [
-          {
-            label: coldPressure ? m.analyse_wheels_cold_pressure() : m.analyse_wheels_pressure(),
-            fl: C(`${pressFL.toFixed(1)} psi`, pressureColor(pressFL)),
-            fr: C(`${pressFR.toFixed(1)} psi`, pressureColor(pressFR)),
-            rl: C(`${pressRL.toFixed(1)} psi`, pressureColor(pressRL)),
-            rr: C(`${pressRR.toFixed(1)} psi`, pressureColor(pressRR)),
-          },
-        ]
-      : []),
-  ];
-
-  return (
-    <div className="text-app-compact font-mono">
-      <WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows} />
-    </div>
-  );
+  const rows = [{ label: m.analyse_wheels_rotation_s(), fl: speed[0]?.toFixed(1) ?? unavailable, fr: speed[1]?.toFixed(1) ?? unavailable, rl: speed[2]?.toFixed(1) ?? unavailable, rr: speed[3]?.toFixed(1) ?? unavailable },
+    { label: m.analyse_wheels_temp(), ...Object.fromEntries(WHEELS.map((w, i) => [w.toLowerCase(), temp[i] == null ? unavailable : C(`${temp[i]!.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(temp[i]!), units.thresholds))])) },
+    { label: m.analyse_wheels_health(), ...Object.fromEntries(WHEELS.map((w, i) => [w.toLowerCase(), health[i] == null ? unavailable : C(`${((1 - health[i]!) * 100).toFixed(1)}%`, tireHealthColor(health[i]!, { green: .7, yellow: .4 }))])) },
+    ...(wearRate ? [{ label: m.analyse_wheels_wear_s(), ...Object.fromEntries(WHEELS.map((w) => [w.toLowerCase(), C(`${wearRate[w] * 100}%`, wearRateColor(wearRate[w] * 100))])) }] : []),
+    ...(brake.some((v) => v != null) ? [{ label: m.analyse_wheels_brake(), ...Object.fromEntries(WHEELS.map((w, i) => [w.toLowerCase(), brake[i] == null ? unavailable : C(`${brake[i]!.toFixed(0)}°C`, brakeTempColor(brake[i]!, i > 1))])) }] : []),
+    ...(pressure.some((v) => v != null) ? [{ label: m.analyse_wheels_pressure(), ...Object.fromEntries(WHEELS.map((w, i) => [w.toLowerCase(), pressure[i] == null ? unavailable : C(`${pressure[i]!.toFixed(1)} psi`, tirePressureColor(pressure[i]!, optimal))])) }] : [])];
+  return <WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows as never} />;
 }

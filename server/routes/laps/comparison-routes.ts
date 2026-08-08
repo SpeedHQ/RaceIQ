@@ -70,6 +70,11 @@ export const comparisonRoutes = new Hono()
       "motion.position-x",
       "motion.position-z",
       "motion.yaw",
+      "motion.speed",
+      "inputs.accel",
+      "inputs.brake",
+      "engine.current-engine-rpm",
+      "tires.tire-wear",
       "timing.distance-traveled",
       "timing.current-lap",
     ] as const;

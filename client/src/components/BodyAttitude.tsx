@@ -1,6 +1,11 @@
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 
 const toDeg = 180 / Math.PI;
+
+const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
 
 /**
  * BodyAttitude — Three SVG mini-views showing car orientation:
@@ -8,10 +13,10 @@ const toDeg = 180 / Math.PI;
  * 2. Side view: car body rotates with pitch angle (braking/acceleration dive)
  * 3. Compass: arrow rotates with yaw heading
  */
-export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
-  const roll = packet.Roll * toDeg;
-  const pitch = packet.Pitch * toDeg;
-  const yaw = packet.Yaw * toDeg;
+export function BodyAttitude({ frame }: { frame: SemanticAnalysisFrame }) {
+  const roll = (numeric(frame, "motion.roll") ?? 0) * toDeg;
+  const pitch = (numeric(frame, "motion.pitch") ?? 0) * toDeg;
+  const yaw = (numeric(frame, "motion.yaw") ?? 0) * toDeg;
   const clampedVehicleRoll = Math.max(-25, Math.min(25, roll));
   // Fixed vehicle reference, moving horizon: scenery rotates opposite vehicle roll.
   const horizonRoll = -clampedVehicleRoll;

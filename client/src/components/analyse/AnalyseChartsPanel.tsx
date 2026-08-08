@@ -2,7 +2,7 @@ import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } f
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import type { DisplayPacket } from "../../lib/convert-packet";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
 
@@ -34,7 +34,7 @@ export interface ChartsPanelHandle {
 }
 
 interface ChartsPanelProps {
-  displayTelemetry: DisplayPacket[];
+  displayTelemetry: SemanticAnalysisFrame[];
   totalPackets: number;
   visualTimeFrac: number | null;
   onVisualFracChange: (frac: number | null) => void;
@@ -44,86 +44,47 @@ interface ChartsPanelProps {
   tempLabel: string;
 }
 
-function buildChartData(displayTelemetry: DisplayPacket[]): ChartData | null {
+const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+const wheel = (frame: SemanticAnalysisFrame, id: string, index: number): number | null => {
+  const value = frame.values[id];
+  if (Array.isArray(value)) {
+    const item = value[index];
+    return typeof item === "number" && Number.isFinite(item) ? item : null;
+  }
+  return numeric(frame, id);
+};
+
+function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
   if (displayTelemetry.length === 0) return null;
-  const speed: number[] = [];
-  const throttle: number[] = [];
-  const brake: number[] = [];
-  const rpm: number[] = [];
-  const steering: number[] = [];
-  const drs: number[] = [];
-  const ersStore: number[] = [];
-  const ersDeployed: number[] = [];
-
-  const isF1 = displayTelemetry[0]?.gameId === "f1-2025";
-  const tireTempFL: number[] = [],
-    tireTempFR: number[] = [],
-    tireTempRL: number[] = [],
-    tireTempRR: number[] = [];
-  const brakeTempFL: number[] = [],
-    brakeTempFR: number[] = [],
-    brakeTempRL: number[] = [],
-    brakeTempRR: number[] = [];
+  const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
+  const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
+  const times = displayTelemetry.map((p) => numeric(p, "timing.current-lap") ?? NaN);
+  const firstTime = times[0];
+  const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
+  const lapDuration = maxTime - firstTime || 1;
+  const timeFracs = times.map((time, i) => (Number.isFinite(time) ? Math.max(i ? 0 : 0, (time - firstTime) / lapDuration) : NaN));
   let hasBrakeTemp = false;
-
-  const startTime = displayTelemetry[0].CurrentLap;
-  // Use max CurrentLap as end time — last packet may have reset to next lap
-  let maxTime = startTime;
-  for (const p of displayTelemetry) {
-    if (p.CurrentLap > maxTime) maxTime = p.CurrentLap;
+  const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
+  for (const frame of displayTelemetry) {
+    speed.push(numeric(frame, "motion.speed") ?? NaN);
+    throttle.push(numeric(frame, "inputs.accel") ?? NaN);
+    brake.push(numeric(frame, "inputs.brake") ?? NaN);
+    rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
+    steering.push(numeric(frame, "inputs.steer") ?? NaN);
+    tireTempFL.push(wheel(frame, "tire.temperature.average", 0) ?? NaN);
+    tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
+    tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);
+    tireTempRR.push(wheel(frame, "tire.temperature.average", 3) ?? NaN);
+    const brakes = ["brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp"].map((id, i) => wheel(frame, id, i));
+    brakeTempFL.push(brakes[0] ?? NaN); brakeTempFR.push(brakes[1] ?? NaN); brakeTempRL.push(brakes[2] ?? NaN); brakeTempRR.push(brakes[3] ?? NaN);
+    if (brakes.some((value) => value != null)) hasBrakeTemp = true;
   }
-  const lapDuration = maxTime - startTime || 1;
-  const timeFracs: number[] = [];
-
-  let prevFrac = 0;
-  for (const p of displayTelemetry) {
-    const frac = Math.max(prevFrac, (p.CurrentLap - startTime) / lapDuration);
-    timeFracs.push(frac);
-    prevFrac = frac;
-    speed.push(p.DisplaySpeed);
-    throttle.push((p.Accel / 255) * 100);
-    brake.push((p.Brake / 255) * 100);
-    rpm.push(p.CurrentEngineRpm);
-    steering.push(p.Steer);
-    if (isF1) {
-      drs.push(p.DrsActive ?? 0);
-      ersStore.push(((p.ErsStoreEnergy ?? 0) / 4_000_000) * 100);
-      ersDeployed.push(((p.ErsDeployed ?? 0) / 4_000_000) * 100);
-    }
-    tireTempFL.push(p.DisplayTireTempFL ?? p.TireTempFL);
-    tireTempFR.push(p.DisplayTireTempFR ?? p.TireTempFR);
-    tireTempRL.push(p.DisplayTireTempRL ?? p.TireTempRL);
-    tireTempRR.push(p.DisplayTireTempRR ?? p.TireTempRR);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const btfl = p.BrakeTempFrontLeft ?? (p as any).f1?.brakeTempFL ?? 0;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const btfr = p.BrakeTempFrontRight ?? (p as any).f1?.brakeTempFR ?? 0;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const btrl = p.BrakeTempRearLeft ?? (p as any).f1?.brakeTempRL ?? 0;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const btrr = p.BrakeTempRearRight ?? (p as any).f1?.brakeTempRR ?? 0;
-    brakeTempFL.push(btfl);
-    brakeTempFR.push(btfr);
-    brakeTempRL.push(btrl);
-    brakeTempRR.push(btrr);
-    if (btfl > 0) hasBrakeTemp = true;
-  }
-  const times = displayTelemetry.map((p) => p.CurrentLap);
-  return {
-    speed,
-    throttle,
-    brake,
-    rpm,
-    steering,
-    timeFracs,
-    times,
-    tireTempFL,
-    tireTempFR,
-    tireTempRL,
-    tireTempRR,
-    ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}),
-    ...(isF1 ? { drs, ersStore, ersDeployed } : {}),
-  };
+  return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
+    ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
 }
 
 export const AnalyseChartsPanel = memo(

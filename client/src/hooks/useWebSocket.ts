@@ -138,7 +138,7 @@ export function useWebSocket() {
               issues: data.issues,
             });
           } else {
-            handleWebSocketMessage(data);
+            if (handleWebSocketMessage(data)) packetCountRef.current++;
           }
         } catch {
           // ignore malformed messages

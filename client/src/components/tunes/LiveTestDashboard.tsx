@@ -1,4 +1,5 @@
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
@@ -10,6 +11,28 @@ import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
+
+function packetToSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
+  return { values: {
+    "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
+    "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
+    "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
+    "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.steer": packet.Steer, "inputs.gear": packet.Gear,
+    "timing.distance-traveled": packet.DistanceTraveled, "timing.current-lap": packet.CurrentLap,
+    "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
+  }};
+}
+
+function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
+  return { values: {
+    "identity.track-ordinal": view.identity.trackOrdinal, "identity.car-ordinal": view.identity.carOrdinal,
+    "motion.position-x": view.motion.position?.x, "motion.position-z": view.motion.position?.z, "motion.speed": view.motion.speedMps,
+    "motion.yaw": view.motion.attitude?.yaw, "motion.pitch": view.motion.attitude?.pitch, "motion.roll": view.motion.attitude?.roll,
+    "inputs.accel": view.inputs.throttle, "inputs.brake": view.inputs.brake, "inputs.steer": view.inputs.steer, "inputs.gear": view.inputs.gear,
+    "timing.distance-traveled": view.motion.distanceM, "timing.current-lap": view.timing.currentLapS,
+    "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
+  }};
+}
 
 const MAX_LIVE_TRACE = 5000;
 
@@ -72,20 +95,24 @@ export function LiveTestDashboard({
 
   // Live driving line for the current in-progress lap: append each new packet,
   // reset when a new lap starts. Capped defensively for very long laps.
-  const [liveTrace, setLiveTrace] = useState<TelemetryPacket[]>(() => initialTrace ?? []);
+  const [rawTrace, setRawTrace] = useState<TelemetryPacket[]>(() => initialTrace ?? []);
+  const semanticInitialTrace = useMemo(() => (initialTrace ?? []).map(packetToSemanticFrame), [initialTrace]);
+  const [liveTrace, setLiveTrace] = useState<SemanticAnalysisFrame[]>(() => semanticInitialTrace);
   const lastRawRef = useRef<TelemetryPacket | null>(null);
+  const semanticTrace = useMemo(() => {
+    if (telemetryView) return [viewToSemanticFrame(telemetryView)];
+    return liveTrace;
+  }, [liveTrace, telemetryView]);
+  const currentFrame = semanticTrace.at(-1) ?? null;
   useEffect(() => {
-    if (!rawPacket) return;
-    // Guard against re-processing the same packet: if rawPacket's identity is
-    // unstable across renders, appending it would set state every render and
-    // trigger an infinite update loop ("Maximum update depth exceeded").
-    if (rawPacket === lastRawRef.current) return;
-    lastRawRef.current = rawPacket;
+    if (!rawPacket || rawPacket === lastRawRef.current) return;
+    setRawTrace((prev) => {
+      const next = rawPacket.CurrentLap < (prev.at(-1)?.CurrentLap ?? 0) ? [rawPacket] : [...prev, rawPacket];
+      return next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next;
+    });
     setLiveTrace((prev) => {
-      if (prev.length && rawPacket.CurrentLap < prev[prev.length - 1].CurrentLap) {
-        return [rawPacket];
-      }
-      const next = prev.length ? [...prev, rawPacket] : [rawPacket];
+      if (prev.length && rawPacket.CurrentLap < Number(prev.at(-1)?.values["timing.current-lap"] ?? 0)) return [packetToSemanticFrame(rawPacket)];
+      const next = [...prev, packetToSemanticFrame(rawPacket)];
       return next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next;
     });
   }, [rawPacket]);
@@ -110,13 +137,13 @@ export function LiveTestDashboard({
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
           <div className="relative h-[22.5rem]">
             <AnalyseTrackPanel
-              telemetry={liveTrace}
-              cursorIdx={liveTrace.length - 1}
+              telemetry={semanticTrace}
+              cursorIdx={semanticTrace.length - 1}
               outline={outline}
               boundaries={boundaries}
               sectors={null}
               segments={null}
-              currentPacket={rawPacket ?? null}
+              currentFrame={currentFrame}
               showTrace={false}
               rotateWithCar={rotateWithCar}
               trackOverlay={trackOverlay}
@@ -127,7 +154,6 @@ export function LiveTestDashboard({
               hideSteeringOverlay
               weatherBottomRight
             />
-            <LiveTrackConditions view={telemetryView} />
           </div>
         </div>
         <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
@@ -149,7 +175,7 @@ export function LiveTestDashboard({
             breakdown reviews a completed lap, not what's happening right now */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">This Test — Tyres &amp; Fuel</div>
-          <CurrentLapTireStrip telemetry={liveTrace} />
+          <CurrentLapTireStrip telemetry={rawTrace} />
         </div>
       </div>
     </div>

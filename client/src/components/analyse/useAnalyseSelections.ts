@@ -4,28 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
 import { useLaps as useLapsQuery, useLapSemanticTelemetry } from "../../hooks/laps";
-import { useConvertedTelemetry } from "../../hooks/useConvertedTelemetry";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
 import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapLabel } from "./track-map/types";
-import type { SemanticLapTelemetry } from "../../hooks/laps";
-import { semanticReplayToAnalysisFrames } from "../../lib/semantic-replay";
-
-export interface SemanticAnalysisFrame {
+import type { SemanticReplayFrame } from "../../hooks/laps";
+interface AnalyseSemanticFrame {
   sequence: number;
-  values: Readonly<Record<string, unknown>>;
   observedAtMs: number;
-}
-
-function toSemanticFrames(replay: SemanticLapTelemetry | undefined): SemanticAnalysisFrame[] {
-  return replay?.envelopes.map((envelope) => ({
-    sequence: envelope.sequence,
-    observedAtMs: envelope.observedAt.milliseconds,
-    values: Object.fromEntries(envelope.values.map((entry) => [entry.semanticId, entry.value])),
-  })) ?? [];
+  values: Readonly<Record<string, unknown>>;
+  states: Readonly<Record<string, string | undefined>>;
+  freshness: Readonly<Record<string, string | undefined>>;
 }
 const emptyLaps: LapMeta[] = [];
 
@@ -37,9 +28,15 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
   const { data: allLaps = emptyLaps } = useLapsQuery();
   const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
-  const semanticFrames = useMemo(() => toSemanticFrames(semanticReplay), [semanticReplay]);
-  const telemetry = useMemo(() => semanticReplayToAnalysisFrames(semanticReplay), [semanticReplay]);
-  const displayTelemetry = useConvertedTelemetry(telemetry);
+  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(() => semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
+    sequence: envelope.sequence,
+    observedAtMs: envelope.observedAt.milliseconds,
+    values: Object.fromEntries(envelope.values.map((entry) => [entry.semanticId, entry.value])),
+    states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
+    freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
+  })) ?? [], [semanticReplay]);
+  const telemetry = semanticFrames;
+  const displayTelemetry = semanticFrames;
   const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
   const lapLoading = semanticLoading;
   const parseError = null;
@@ -65,7 +62,17 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
   const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
-  const sectorData = useMemo<{ sectorStarts: number[]; sectorCount: number; firstDist: number; lapDist: number } | null>(() => null, [semanticReplay]);
+  const sectorData = useMemo<{ sectorStarts: number[]; sectorCount: number; firstDist: number; lapDist: number; times: number[] } | null>(() => {
+    if (!semanticReplay || semanticFrames.length < 2) return null;
+    const distances = semanticFrames.map((frame) => frame.values["timing.distance-traveled"]).filter((value): value is number => typeof value === "number");
+    const firstDist = distances[0] ?? 0;
+    const lapDist = (distances.at(-1) ?? 0) - firstDist;
+    const rawSectors = sectorsRaw && typeof sectorsRaw === "object" ? (sectorsRaw as { s1End?: number; s2End?: number }) : null;
+    const starts = semanticReplay.sectorStarts ?? (rawSectors?.s1End != null && rawSectors.s2End != null ? [0, rawSectors.s1End, rawSectors.s2End] : null);
+    if (!starts?.length) return null;
+    const times = semanticReplay.sectorTimes ?? [];
+    return { sectorStarts: starts, sectorCount: starts.length, firstDist, lapDist, times };
+  }, [semanticReplay, semanticFrames, sectorsRaw]);
   const sectors = useMemo(() => {
     if (getGame(gameId).nativeSectors) return sectorData ? ({ sectorStarts: sectorData.sectorStarts, sectorCount: sectorData.sectorCount } satisfies SectorBoundaries) : null;
     if (!sectorsRaw || typeof sectorsRaw !== "object") return null;
@@ -158,7 +165,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   return {
     laps,
     setLaps,
-    lapData: undefined as { insights?: unknown[] } | undefined,
     lapLoading,
     lapError,
     parseError,

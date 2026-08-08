@@ -1,4 +1,13 @@
-import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
+export interface SemanticAnalysisFrame {
+  values: Readonly<Record<string, unknown>>;
+}
+
+export const semanticNumber = (frame: SemanticAnalysisFrame | undefined, id: string): number | null => {
+  const value = frame?.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+export const semanticBoolean = (frame: SemanticAnalysisFrame | undefined, id: string): boolean => semanticNumber(frame, id) === 1;
 
 export interface Point {
   x: number;
@@ -34,7 +43,7 @@ export interface TrackMapBoundaries {
 }
 
 export interface TrackMapProps {
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;

@@ -23,3 +23,20 @@ export function tireSnapshot(pkts: TelemetryPacket[]): Record<"FL" | "FR" | "RL"
     RR: { tempC: avg((p) => p.TireTempRR), wear: last.TireWearRR, pressure: avg((p) => p.TirePressureRearRight), brakeTemp: avg((p) => p.BrakeTempRearRight) },
   };
 }
+import type { SemanticTuneSample } from "../semantic-tune";
+import { wheelValue } from "../semantic-tune";
+
+export function semanticTireSnapshot(samples: SemanticTuneSample[]): Record<"FL" | "FR" | "RL" | "RR", CornerSnap> | null {
+  if (samples.length === 0) return null;
+  const last = samples[samples.length - 1];
+  const avg = (id: string, i: number) => {
+    const values = samples.map((s) => wheelValue(s, id, i)).filter((v): v is number => v != null);
+    return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  };
+  return {
+    FL: { tempC: avg("tire.temperature.average", 0), wear: wheelValue(last, "tire.wear", 0) ?? 0, pressure: avg("tire.pressure", 0), brakeTemp: avg("brakes.brake-temp", 0) },
+    FR: { tempC: avg("tire.temperature.average", 1), wear: wheelValue(last, "tire.wear", 1) ?? 0, pressure: avg("tire.pressure", 1), brakeTemp: avg("brakes.brake-temp", 1) },
+    RL: { tempC: avg("tire.temperature.average", 2), wear: wheelValue(last, "tire.wear", 2) ?? 0, pressure: avg("tire.pressure", 2), brakeTemp: avg("brakes.brake-temp", 2) },
+    RR: { tempC: avg("tire.temperature.average", 3), wear: wheelValue(last, "tire.wear", 3) ?? 0, pressure: avg("tire.pressure", 3), brakeTemp: avg("brakes.brake-temp", 3) },
+  };
+}

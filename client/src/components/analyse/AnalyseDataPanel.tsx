@@ -1,14 +1,9 @@
-import { getGame } from "@shared/games/registry";
-import { getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
+import type { GameId } from "../../../../shared/games/ids";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
-import { getSteeringLock } from "@/lib/settings-storage";
-import type { GameId } from "../../../../shared/games/ids";
-import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { useUnits } from "../../hooks/useUnits";
-import type { DisplayPacket } from "../../lib/convert-packet";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 import { InsightPanel } from "../InsightPanel";
 import { Button } from "../ui/button";
@@ -29,8 +24,7 @@ interface WearRate {
 interface Props {
   sidebarTab: "live" | "insights";
   onSidebarTabChange: (tab: "live" | "insights") => void;
-  currentPacket: TelemetryPacket | null;
-  currentDisplayPacket: DisplayPacket | null;
+  currentFrame: SemanticAnalysisFrame | null;
   startFuel: number | undefined;
   gameId: GameId;
   units: ReturnType<typeof useUnits>;
@@ -39,79 +33,15 @@ interface Props {
   onJumpToFrame: (idx: number) => void;
 }
 
-export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket, currentDisplayPacket, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
+export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
   const [copied, setCopied] = useState(false);
-  const adapter = getGame(gameId);
-  const analysis = resolveAnalysisTelemetry(adapter);
-  const telemetryModel = adapter.telemetry;
   const handleCopyValues = useCallback(() => {
-    if (!currentPacket) return;
-    const pkt = currentPacket;
-    const dp = currentDisplayPacket;
-    const speed = dp?.DisplaySpeed ?? pkt.Speed;
-    const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
-    const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
-    const lock = getSteeringLock();
-    const steerDeg = (pkt.Steer / 127) * (lock / 2);
-
-    const lines: string[] = [
-      `Speed: ${speed.toFixed(0)} ${units.speedLabel}`,
-      `RPM: ${pkt.CurrentEngineRpm.toFixed(0)}`,
-      `Gear: ${pkt.Gear}`,
-      `Throttle: ${throttlePct}%`,
-      `Brake: ${brakePct}%`,
-      `Steer: ${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`,
-    ];
-    if (telemetryModel.boost) lines.push(`Boost: ${pkt.Boost.toFixed(1)} psi`);
-    if (telemetryModel.power) lines.push(`Power: ${(pkt.Power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`);
-    if (telemetryModel.torque) lines.push(`Torque: ${pkt.Torque.toFixed(0)} Nm`);
-    const fuel = getFuelDisplay(pkt, telemetryModel.fuel);
-    lines.push(`Fuel: ${fuel.amount.toFixed(1)}${fuel.unit}`);
-
-    // Dynamics
-    lines.push("", "--- Dynamics ---");
-    lines.push(`G-Force Lat: ${(-pkt.AccelerationX / 9.81).toFixed(2)}g`);
-    lines.push(`G-Force Lon: ${(-pkt.AccelerationZ / 9.81).toFixed(2)}g`);
-
-    // Tire temps
-    const tFL = dp?.DisplayTireTempFL ?? pkt.TireTempFL;
-    const tFR = dp?.DisplayTireTempFR ?? pkt.TireTempFR;
-    const tRL = dp?.DisplayTireTempRL ?? pkt.TireTempRL;
-    const tRR = dp?.DisplayTireTempRR ?? pkt.TireTempRR;
-    const tireTemperatureHeading = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? "Last Pit Tire Temps" : "Tire Temps";
-    lines.push("", `--- ${tireTemperatureHeading} ---`);
-    if (hasTireTemperatureData(pkt, analysis.tireTemperature)) {
-      lines.push(`FL: ${tFL.toFixed(0)}  FR: ${tFR.toFixed(0)}`);
-      lines.push(`RL: ${tRL.toFixed(0)}  RR: ${tRR.toFixed(0)}`);
-    } else {
-      lines.push("Unavailable");
-    }
-
-    // Tire wear
-    const tireHealthHeading = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? "Last Pit Tire Health" : "Tire Health";
-    lines.push("", `--- ${tireHealthHeading} ---`);
-    if (hasTireHealthData(pkt, analysis.tireHealth)) {
-      lines.push(`FL: ${((1 - pkt.TireWearFL) * 100).toFixed(1)}%  FR: ${((1 - pkt.TireWearFR) * 100).toFixed(1)}%`);
-      lines.push(`RL: ${((1 - pkt.TireWearRL) * 100).toFixed(1)}%  RR: ${((1 - pkt.TireWearRR) * 100).toFixed(1)}%`);
-    } else {
-      lines.push("Unavailable");
-    }
-
-    // Suspension
-    lines.push("", "--- Suspension Travel ---");
-    if (analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters") {
-      lines.push(`FL: ${(pkt.SuspensionTravelMFL * 1000).toFixed(0)}mm  FR: ${(pkt.SuspensionTravelMFR * 1000).toFixed(0)}mm`);
-      lines.push(`RL: ${(pkt.SuspensionTravelMRL * 1000).toFixed(0)}mm  RR: ${(pkt.SuspensionTravelMRR * 1000).toFixed(0)}mm`);
-    } else {
-      lines.push(`FL: ${(pkt.NormSuspensionTravelFL * 100).toFixed(0)}%  FR: ${(pkt.NormSuspensionTravelFR * 100).toFixed(0)}%`);
-      lines.push(`RL: ${(pkt.NormSuspensionTravelRL * 100).toFixed(0)}%  RR: ${(pkt.NormSuspensionTravelRR * 100).toFixed(0)}%`);
-    }
-
-    navigator.clipboard.writeText(lines.join("\n"));
+    if (!currentFrame) return;
+    const speed = currentFrame.values["motion.speed"];
+    navigator.clipboard.writeText(typeof speed === "number" ? `Speed: ${units.speed(speed).toFixed(0)} ${units.speedLabel}` : "Speed: Unavailable");
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-  }, [analysis, currentPacket, currentDisplayPacket, telemetryModel, units]);
-
+  }, [currentFrame, units]);
   return (
     <Tabs
       value={sidebarTab}
@@ -133,7 +63,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
       <TabsContent value="live" className="flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1">
           <h3 className="mb-0 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_metrics_at_cursor()}</h3>
-          {currentPacket && (
+          {currentFrame && (
             <Button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted transition-colors hover:text-app-text">
               {copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
             </Button>
@@ -141,20 +71,20 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={startFuel} />}
+          {currentFrame && <MetricsPanel frame={currentFrame} startFuel={startFuel} />}
 
-          {currentPacket && (
+          {currentFrame && (
             <>
               <div className="mt-3 mb-2 border-t border-app-border pt-2">
                 <h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3>
               </div>
-              <AnalyseDynamicsPanel currentPacket={currentPacket} gameId={gameId} units={units} />
+              <AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} />
 
-              <AnalyseTireWheelsPanel currentPacket={currentPacket} currentDisplayPacket={currentDisplayPacket} gameId={gameId} units={units} wearRate={wearRate} />
+              <AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} />
 
-              <AnalyseSuspensionPanel currentPacket={currentPacket} />
+              <AnalyseSuspensionPanel frame={currentFrame} />
 
-              {telemetryModel.ers && <AnalyseF1ErsPanel currentPacket={currentPacket} />}
+              <AnalyseF1ErsPanel frame={currentFrame} />
             </>
           )}
         </div>

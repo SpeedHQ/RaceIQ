@@ -1,16 +1,15 @@
 import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
-import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
 import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
@@ -18,7 +17,7 @@ interface AnalyseTrackPanelProps {
   boundaries: any;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
-  currentPacket: TelemetryPacket | null;
+  currentFrame: SemanticAnalysisFrame | null;
 
   aiPanelOpen?: boolean;
   aiHighlights?: AnalysisHighlight[] | null;
@@ -56,7 +55,7 @@ export function AnalyseTrackPanel({
   boundaries,
   sectors,
   segments,
-  currentPacket,
+  currentFrame,
   aiPanelOpen,
   aiHighlights,
   rotateWithCar,
@@ -95,7 +94,7 @@ export function AnalyseTrackPanel({
         zoom={mapZoom}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
-      {telemetry[cursorIdx]?.f1 && <WeatherWidget f1={telemetry[cursorIdx].f1!} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
+      {telemetry[cursorIdx]?.values["weather.air-temperature"] != null && <WeatherWidget f1={telemetry[cursorIdx].values as never} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
 
       {/* View toggles — top left */}
       <div className="absolute top-2 left-2 flex flex-wrap gap-1">
@@ -141,11 +140,10 @@ export function AnalyseTrackPanel({
             </Button>
           </div>
         )}
-        {currentPacket && <Compass yaw={currentPacket.Yaw} />}
+        {currentFrame && <Compass yaw={Number(currentFrame.values["motion.yaw"]) || 0} />}
       </div>
 
       {/* Steering wheel + pedal bars — bottom right */}
-      {!hideSteeringOverlay && currentPacket && <AnalyseSteeringOverlay packet={currentPacket} />}
     </div>
   );
 }

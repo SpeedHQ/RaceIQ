@@ -1,46 +1,19 @@
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 
 const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
+const number = (frame: SemanticAnalysisFrame, id: string): number | null => { const value = frame.values[id]; return typeof value === "number" && Number.isFinite(value) ? value : null; };
 
-interface Props {
-  currentPacket: TelemetryPacket;
-}
+interface Props { frame: SemanticAnalysisFrame; }
 
-export function AnalyseF1ErsPanel({ currentPacket }: Props) {
-  const ersPct = ((currentPacket.ErsStoreEnergy ?? 0) / 4_000_000) * 100;
-  const ersBarColor = ersPct < 20 ? "bg-(--severity-critical)" : ersPct < 50 ? "bg-(--severity-caution)" : "bg-(--severity-nominal)";
-
-  return (
-    <>
-      <h3 className="text-app-caption text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">{m.analyse_drs_ers()}</h3>
-      <div className="text-app-compact font-mono space-y-1.5 mb-3">
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">{m.analyse_drs()}</span>
-          <span className={`font-bold ${currentPacket.DrsActive ? "text-(--telemetry-drs)" : "text-app-text-dim"}`}>{currentPacket.DrsActive ? "OPEN" : "OFF"}</span>
-        </div>
-        <div>
-          <div className="flex justify-between mb-0.5">
-            <span className="text-app-text-muted">{m.analyse_ers_store()}</span>
-            <span className="tabular-nums text-(--telemetry-ers-store)">{ersPct.toFixed(1)}%</span>
-          </div>
-          <div className="h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${ersBarColor}`} style={{ width: `${ersPct}%` }} />
-          </div>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">{m.analyse_deployed()}</span>
-          <span className="tabular-nums text-(--telemetry-ers-deployed)">{(((currentPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">{m.analyse_harvested()}</span>
-          <span className="tabular-nums text-(--severity-nominal)">{(((currentPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">{m.analyse_mode()}</span>
-          <span className="tabular-nums text-app-text">{ERS_MODES[currentPacket.ErsDeployMode ?? 0] ?? "Unknown"}</span>
-        </div>
-      </div>
-    </>
-  );
+export function AnalyseF1ErsPanel({ frame }: Props) {
+  const store = number(frame, "fuel.ers-store-energy");
+  const deployed = number(frame, "fuel.ers-deployed");
+  const harvested = number(frame, "fuel.ers-harvested");
+  const mode = number(frame, "fuel.ers-deploy-mode");
+  const drs = frame.values["aero.drs-active"] === true || frame.values["aero.drs-active"] === 1;
+  const pct = (value: number | null) => value == null ? "—" : `${((value / 4_000_000) * 100).toFixed(1)}%`;
+  const ersPct = store == null ? null : (store / 4_000_000) * 100;
+  const ersBarColor = ersPct == null ? "bg-app-surface-alt" : ersPct < 20 ? "bg-(--severity-critical)" : ersPct < 50 ? "bg-(--severity-caution)" : "bg-(--severity-nominal)";
+  return <><h3 className="text-app-caption text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">{m.analyse_drs_ers()}</h3><div className="text-app-compact font-mono space-y-1.5 mb-3"><div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_drs()}</span><span className={`font-bold ${drs ? "text-(--telemetry-drs)" : "text-app-text-dim"}`}>{drs ? "OPEN" : "OFF"}</span></div><div><div className="flex justify-between mb-0.5"><span className="text-app-text-muted">{m.analyse_ers_store()}</span><span className="tabular-nums text-(--telemetry-ers-store)">{pct(store)}</span></div><div className="h-1.5 bg-app-surface-alt rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all ${ersBarColor}`} style={{ width: `${Math.max(0, Math.min(100, ersPct ?? 0))}%` }} /></div></div><div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_deployed()}</span><span className="tabular-nums text-(--telemetry-ers-deployed)">{pct(deployed)}</span></div><div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_harvested()}</span><span className="tabular-nums text-(--severity-nominal)">{pct(harvested)}</span></div><div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_mode()}</span><span className="tabular-nums text-app-text">{mode == null ? "—" : ERS_MODES[mode] ?? "Unknown"}</span></div></div></>;
 }

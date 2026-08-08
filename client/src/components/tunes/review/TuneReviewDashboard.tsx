@@ -1,24 +1,25 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta } from "@shared/racing/sessions/types";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
+import type { LapMeta } from "@shared/racing/sessions/types";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";
 import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
-import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "@/components/tunes/SectorRangeBreakdown";
-import { TrackFocusView } from "@/components/tunes/track-focus/TrackFocusView";
+import { bandColor, buildSemanticSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "@/components/tunes/SectorRangeBreakdown";
 import { Button } from "@/components/ui/button";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentVersion } from "@/hooks/experiments";
-import { useLapTelemetry } from "@/hooks/laps";
+import { useLapSemanticTelemetry } from "@/hooks/laps";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { ArmHeadline, ReviewOverviewSkeleton } from "./OverviewSkeleton";
-import { buildOpenLapContext } from "./open-lap-context";
 import { IssuePill } from "./ReviewIssues";
-import { tireSnapshot } from "./tire-snapshot";
+import { semanticTireSnapshot } from "./tire-snapshot";
+import { semanticSamples, wheelValue, type SemanticTuneSample } from "../semantic-tune";
+import { buildOpenLapContext } from "./open-lap-context";
+import { TrackFocusView } from "../track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
   gameId: "acc" | "ac-evo";
@@ -72,21 +73,19 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
     navigate({ replace: true, search: (p: any) => ({ ...p, lap: validLaps[0].id }) } as any);
   }, [search.lap, validLaps, navigate]);
 
-  const { data: lapTel, isLoading: loadingTel } = useLapTelemetry(focusLap?.id ?? null);
+  const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(focusLap?.id ?? null);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
 
-  const telemetry = lapTel?.telemetry ?? [];
-  const sectorTimes = lapTel?.sectorTimes ?? null;
+  const telemetry = useMemo(() => semanticSamples(lapTel?.envelopes), [lapTel]);
+  const sectorTimes = lapTel?.sectorTimes ? { times: lapTel.sectorTimes, boundaryIndices: lapTel.sectorStarts ?? [] } : null;
   const sectorCount = sectorTimes?.times.length ?? 3;
-  const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
+  const corners = useMemo(() => semanticTireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
 
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
   const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
-  const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
-
-  // Bucket detected issues into sectors by their distance fraction. Issues with
+  const ranges = useMemo(() => buildSemanticSectorRanges(telemetry, sectorTimes, metric.key), [telemetry, sectorTimes, metric.key]);
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
     const count = sectorTimes?.times.length ?? 3;
@@ -125,34 +124,23 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
     if (!f) return undefined;
-    const out: Partial<Record<CornerKey, number>> = {};
-    for (const c of CORNERS) {
-      const v = metric.sel[c](f);
-      if (v != null && Number.isFinite(v)) out[c] = v;
-    }
-    return out;
-  }, [hoverPos, telemetry, metric]);
+    const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tire.pressure", wear: "tire.wear" } as const)[metric.key];
+    return Object.fromEntries(CORNERS.map((c, i) => [c, wheelValue(f, id, i)]).filter(([, v]) => v != null)) as Partial<Record<CornerKey, number>>;
+  }, [hoverPos, telemetry, metric.key]);
 
   // Hover readout for the map: the selected metric's four corner values at the
   // cursor's point on the lap.
   const readout = useCallback(
-    (frame: TelemetryPacket) =>
-      CORNERS.map((c) => {
-        const v = metric.sel[c](frame);
+    (frame: SemanticTuneSample) => {
+      const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tire.pressure", wear: "tire.wear" } as const)[metric.key];
+      return CORNERS.map((c, i) => {
+        const v = wheelValue(frame, id, i);
         const ok = v != null && Number.isFinite(v);
-        return {
-          label: c,
-          value: ok ? `${v!.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.unit}` : "—",
-          color: !ok ? undefined : metric.semantic ? bandColor(v!) : metric.accent,
-        };
-      }),
+        return { label: c, value: ok ? `${v!.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.unit}` : "—", color: !ok ? undefined : metric.semantic ? bandColor(v!) : metric.accent };
+      });
+    },
     [metric],
   );
-
-  // Compact text summary of exactly what's rendered for the focused lap —
-  // lap/time, sector times + deltas vs this session's best, corner/tyre data,
-  // detected issues, the selected metric's per-sector ranges, driver/engineer
-  // notes, and excluded/invalid flags. Piped up to the parent so it can feed
   // the Setup Engineer chat "what the user currently sees" (rebuilt whenever
   // any of this changes, not captured once).
   const openLapContext = useMemo(
@@ -287,12 +275,12 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                   <div className="text-xl font-mono tabular-nums text-app-text mt-1.5">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</div>
                   {telemetry.length > 0 ? (
                     <SectorMap
-                      telemetry={telemetry}
+                      telemetry={telemetry as unknown as TelemetryPacket[]}
                       sectorTimes={sectorTimes}
                       highlight={i}
                       showTimes={false}
                       trackOrdinal={focusLap.trackOrdinal}
-                      readout={readout}
+                      readout={readout as unknown as (frame: TelemetryPacket, fraction: number) => { label: string; value: string; color?: string }[]}
                       onHover={(idx) => setHoverPos(idx == null ? null : { sector: i, idx })}
                       markFraction={markedIssue?.sector === i ? markedIssue.frac : null}
                     />
@@ -322,7 +310,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         {view === "track" ? (
           <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
         ) : sectorIndex != null ? (
-          <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+          <SectorDetailView telemetry={telemetry as unknown as TelemetryPacket[]} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
         ) : (
           <>
             {/* Detected issues, laid out per sector */}

@@ -1,15 +1,13 @@
 import { useCallback, useEffect } from "react";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { semanticNumber, type SemanticAnalysisFrame, type TrackMapHandle } from "../components/analyse/track-map/types";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
-import type { TrackMapHandle } from "../components/analyse/track-map/types";
-
 // React-owned gauges stay synchronized with playback at display cadence.
 export const REACT_STATE_INTERVAL_MS = 1000 / 60;
-
 interface UseLapPlaybackOptions {
   playing: boolean;
-  telemetry: TelemetryPacket[];
   playRef: React.MutableRefObject<boolean>;
+
+  telemetry: SemanticAnalysisFrame[];
   speedRef: React.MutableRefObject<number>;
   cursorRef: React.MutableRefObject<number>;
   seekRef: React.MutableRefObject<number>;
@@ -60,10 +58,9 @@ export function useLapPlayback({
 
     let rafId: number;
     let wallStart = performance.now();
-    let gameStart = telemetry[cursorRef.current].CurrentLap;
+    let gameStart = semanticNumber(telemetry[cursorRef.current], "timing.current-lap") ?? 0;
     let lastSpeedChange = speedChangeRef.current;
     let lastSeek = seekRef.current;
-
     function step(now: number) {
       if (!playRef.current) return;
       const idx = cursorRef.current;
@@ -72,9 +69,7 @@ export function useLapPlayback({
         updateOverlays(0);
         setCursorIdx(0);
         lastStateUpdateRef.current = now;
-        wallStart = now;
-        gameStart = telemetry[0].CurrentLap;
-        lastSeek = seekRef.current;
+        gameStart = semanticNumber(telemetry[0], "timing.current-lap") ?? 0;
         rafId = requestAnimationFrame(step);
         return;
       }
@@ -82,20 +77,19 @@ export function useLapPlayback({
       if (seekRef.current !== lastSeek) {
         lastSeek = seekRef.current;
         wallStart = now;
-        gameStart = telemetry[idx].CurrentLap;
+        gameStart = semanticNumber(telemetry[idx], "timing.current-lap") ?? 0;
       }
       if (speedChangeRef.current !== lastSpeedChange) {
         lastSpeedChange = speedChangeRef.current;
         wallStart = now;
-        gameStart = telemetry[idx].CurrentLap;
+        gameStart = semanticNumber(telemetry[idx], "timing.current-lap") ?? 0;
       }
 
+      let nextIdx = idx;
       const wallElapsed = (now - wallStart) / 1000;
       const gameTarget = gameStart + wallElapsed * speedRef.current;
       interpolatedTimeRef.current = gameTarget;
-
-      let nextIdx = idx;
-      while (nextIdx < telemetry.length - 1 && telemetry[nextIdx + 1].CurrentLap <= gameTarget) {
+      while (nextIdx < telemetry.length - 1 && (semanticNumber(telemetry[nextIdx + 1], "timing.current-lap") ?? 0) <= gameTarget) {
         nextIdx++;
       }
 

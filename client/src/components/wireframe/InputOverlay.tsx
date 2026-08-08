@@ -1,17 +1,17 @@
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import type * as THREE from "three";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { threeColor } from "../../lib/wireframe-utils";
 
-export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket[]; packet: TelemetryPacket }) {
+export function InputOverlay({ telemetry, packet }: { telemetry: SemanticAnalysisFrame[]; packet: SemanticAnalysisFrame }) {
   const data = useMemo(() => {
     const throttleColor = threeColor("var(--ch-throttle)").clone().convertSRGBToLinear();
     const brakeColor = threeColor("var(--ch-brake)").clone().convertSRGBToLinear();
     const inactiveColor = threeColor("var(--app-bg)").clone().convertSRGBToLinear();
-    const cx = packet.PositionX;
-    const cz = packet.PositionZ;
-    const yaw = packet.Yaw;
+    const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
+    const cz = (semanticNumber(packet, "motion.position-z") ?? 0);
+    const yaw = (semanticNumber(packet, "motion.yaw") ?? 0);
     const s = Math.sin(yaw);
     const c = Math.cos(yaw);
     const Y = -0.44; // match TrackOutline race-line Y
@@ -28,8 +28,8 @@ export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket
     let current: LocalPt[] = [];
     for (let sourceIndex = 0; sourceIndex < telemetry.length; sourceIndex++) {
       const p = telemetry[sourceIndex];
-      const dx = p.PositionX - cx;
-      const dz = p.PositionZ - cz;
+      const dx = (semanticNumber(p, "motion.position-x") ?? 0) - cx;
+      const dz = (semanticNumber(p, "motion.position-z") ?? 0) - cz;
       let inRange = dx * dx + dz * dz <= maxDist2;
       let localFwd = 0,
         localLat = 0;
@@ -39,7 +39,7 @@ export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket
         if (localFwd < -BEHIND || localFwd > AHEAD || Math.abs(localLat) > 30) inRange = false;
       }
       if (inRange) {
-        current.push({ sourceIndex, fwd: localFwd, lat: localLat, throttle: (p.Accel ?? 0) / 255, brake: (p.Brake ?? 0) / 255 });
+        current.push({ sourceIndex, fwd: localFwd, lat: localLat, throttle: semanticNumber(p, "inputs.throttle") ?? 0, brake: (semanticNumber(p, "inputs.brake") ?? 0) / 255 });
       } else if (current.length > 0) {
         runs.push(current);
         current = [];
@@ -105,7 +105,7 @@ export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket
     }
 
     return { throttleRuns, brakeRuns };
-  }, [telemetry, packet.PositionX, packet.PositionZ, packet.Yaw]);
+  }, [telemetry, semanticNumber(packet, "motion.position-x"), semanticNumber(packet, "motion.position-z"), semanticNumber(packet, "motion.yaw")]);
 
   return (
     <>

@@ -11,7 +11,7 @@ describe("websocket message router", () => {
     useTelemetryStore.getState().clearTelemetry();
     handleWebSocketMessage(schema);
     expect(useTelemetryStore.getState().telemetrySchema?.schemaId).toBe("s");
-    handleWebSocketMessage({ type: "telemetry-frame", protocolVersion: 1, schemaId: "s", streamId: "x", sessionId: null, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [] });
+    expect(handleWebSocketMessage({ type: "telemetry-frame", protocolVersion: 1, schemaId: "s", streamId: "x", sessionId: null, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [] })).toBe(true);
     expect(useTelemetryStore.getState().telemetryFrame?.sequence).toBe(1);
   });
   it("routes dev packets only to isolated dev store and ignores legacy packets", () => {

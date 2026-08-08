@@ -2,102 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "../../components/analyse/track-map/types";
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
 import { client } from "../../lib/rpc";
 
-function makeStaticPacket(carOrdinal: number): TelemetryPacket {
-  return {
-    IsRaceOn: 1,
-    TimestampMS: 0,
-    EngineMaxRpm: 8000,
-    EngineIdleRpm: 800,
-    CurrentEngineRpm: 800,
-    Accel: 0,
-    Brake: 0,
-    Clutch: 0,
-    HandBrake: 0,
-    Gear: 0,
-    Steer: 0,
-    NormDrivingLine: 0,
-    NormAIBrakeDiff: 0,
-    VelocityX: 0,
-    VelocityY: 0,
-    VelocityZ: 0,
-    AngularVelocityX: 0,
-    AngularVelocityY: 0,
-    AngularVelocityZ: 0,
-    Yaw: 0,
-    Pitch: 0,
-    Roll: 0,
-    NormSuspensionTravelFL: 0.5,
-    NormSuspensionTravelFR: 0.5,
-    NormSuspensionTravelRL: 0.5,
-    NormSuspensionTravelRR: 0.5,
-    TireSlipRatioFL: 0,
-    TireSlipRatioFR: 0,
-    TireSlipRatioRL: 0,
-    TireSlipRatioRR: 0,
-    WheelRotationSpeedFL: 0,
-    WheelRotationSpeedFR: 0,
-    WheelRotationSpeedRL: 0,
-    WheelRotationSpeedRR: 0,
-    WheelOnRumbleStripFL: 0,
-    WheelOnRumbleStripFR: 0,
-    WheelOnRumbleStripRL: 0,
-    WheelOnRumbleStripRR: 0,
-    WheelInPuddleDepthFL: 0,
-    WheelInPuddleDepthFR: 0,
-    WheelInPuddleDepthRL: 0,
-    WheelInPuddleDepthRR: 0,
-    SurfaceRumbleFL: 0,
-    SurfaceRumbleFR: 0,
-    SurfaceRumbleRL: 0,
-    SurfaceRumbleRR: 0,
-    TireSlipAngleFL: 0,
-    TireSlipAngleFR: 0,
-    TireSlipAngleRL: 0,
-    TireSlipAngleRR: 0,
-    TireCombinedSlipFL: 0,
-    TireCombinedSlipFR: 0,
-    TireCombinedSlipRL: 0,
-    TireCombinedSlipRR: 0,
-    SuspensionTravelMFL: 0,
-    SuspensionTravelMFR: 0,
-    SuspensionTravelMRL: 0,
-    SuspensionTravelMRR: 0,
-    CarOrdinal: carOrdinal,
-    CarClass: 0,
-    CarPerformanceIndex: 0,
-    DrivetrainType: 0,
-    NumCylinders: 0,
-    PositionX: 0,
-    PositionY: 0,
-    PositionZ: 0,
-    Speed: 0,
-    Power: 0,
-    Torque: 0,
-    TireTempFL: 0,
-    TireTempFR: 0,
-    TireTempRL: 0,
-    TireTempRR: 0,
-    Boost: 0,
-    Fuel: 1,
-    DistanceTraveled: 0,
-    BestLap: 0,
-    LastLap: 0,
-    CurrentLap: 0,
-    CurrentRaceTime: 0,
-    LapNumber: 0,
-    RacePosition: 0,
-    TireWearFL: 0,
-    TireWearFR: 0,
-    TireWearRL: 0,
-    TireWearRR: 0,
-    TrackOrdinal: 0,
-  } as TelemetryPacket;
+function makeStaticFrame(carOrdinal: number): SemanticAnalysisFrame {
+  return { values: {
+    "identity.car-ordinal": carOrdinal, "identity.car-class": 0, "identity.car-performance-index": 0,
+    "motion.speed": 0, "motion.position-x": 0, "motion.position-z": 0, "motion.yaw": 0, "motion.pitch": 0, "motion.roll": 0,
+    "inputs.accel": 0, "inputs.brake": 0, "inputs.steer": 0, "inputs.gear": 0,
+    "engine.rpm": 800, "engine.idle-rpm": 800, "engine.max-rpm": 8000, "fuel.amount": 1,
+    "tires.tire-temperature": [0, 0, 0, 0], "suspension.norm-suspension-travel": [0.5, 0.5, 0.5, 0.5],
+  }};
 }
 
 function CarModelPage() {
@@ -115,8 +33,8 @@ function CarModelPage() {
     queryFn: () => client.api.cars[":ordinal"].$get({ param: { ordinal: String(ordinal) } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
   });
 
-  const staticPacket = useMemo(() => makeStaticPacket(ordinal), [ordinal]);
-  const telemetry = useMemo(() => [staticPacket], [staticPacket]);
+  const staticFrame = useMemo(() => makeStaticFrame(ordinal), [ordinal]);
+  const telemetry = useMemo(() => [staticFrame], [staticFrame]);
 
   if (!carModel) return <div className="flex items-center justify-center h-full text-app-text-dim">{m.carmodel_loading()}</div>;
 
@@ -154,7 +72,7 @@ function CarModelPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <CarWireframe packet={staticPacket} telemetry={telemetry} cursorIdx={0} outline={null} carOrdinal={ordinal} minimal />
+        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} outline={null} carOrdinal={ordinal} minimal />
       </div>
     </div>
   );
