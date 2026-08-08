@@ -6,7 +6,7 @@ import { laps } from "../../server/db/schema";
 import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, replacePitEvents, upsertSessionResult, type SessionResultInput } from "../../server/db/session-result-queries";
 import { getRecentRaceResults } from "../../server/race-results/aggregates";
 import { initServerGameAdapters } from "../../server/games/init";
-import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, reconcileSessionResult } from "../../server/race-results/reconcile";
+import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "../../server/race-results/reconcile";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
 
@@ -185,6 +185,36 @@ describe("persisted race result metadata", () => {
     expect(
       (await getSessionResult(accSessionId, "acc"))?.processorVersion,
     ).toBe(RACE_RESULT_PROCESSOR_ID);
+  });
+
+  test("startup backfill skips results from the current processor", async () => {
+    const sessionId = await insertSession(1, 1, "fm-2023", "race");
+    await upsertSessionResult({
+      sessionId,
+      processorVersion: RACE_RESULT_PROCESSOR_ID,
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: null,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    });
+
+    const report = await backfillStaleRaceResults({
+      gameId: "fm-2023",
+      limit: 1,
+      afterSessionId: sessionId - 1,
+    });
+
+    expect(report.processed).toBe(0);
+    expect(report.results).toEqual([]);
   });
 
 
