@@ -29,12 +29,14 @@ const scalar = (value: unknown): value is CanonicalTelemetryScalar => {
 const sparseStates = (value: unknown): boolean => {
   if (value === undefined) return true;
   const v = record(value);
-  return !!v && Object.values(v).every((state) => state !== "ok");
+  const allowed = new Set(["missing", "stale", "invalid", "not-applicable", "error"]);
+  return !!v && Object.values(v).every((state) => typeof state === "string" && allowed.has(state));
 };
 const sparseFreshness = (value: unknown): boolean => {
   if (value === undefined) return true;
   const v = record(value);
-  return !!v && Object.values(v).every((state) => state !== "fresh");
+  const allowed = new Set(["stale", "unknown"]);
+  return !!v && Object.values(v).every((state) => typeof state === "string" && allowed.has(state));
 };
 export function isLiveTelemetrySchemaMessageV1(value: unknown): value is LiveTelemetrySchemaMessageV1 {
   const v = record(value);

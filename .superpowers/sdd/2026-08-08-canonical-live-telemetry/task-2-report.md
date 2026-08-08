@@ -1,6 +1,4 @@
 
-## Rereview remediation
+## Sparse-map remediation
 
-Frame validation now requires supplied schema ID to match frame schema ID. Schema validation now checks every required metadata field, known simulator ID, and each definition's required fields/types, including string limitations.
-
-Focused rerun passed: 4 tests, 0 failures, 17 expectations.
+States/freshness now accept only their documented non-default union members and reject arbitrary values/default entries. Added malformed-map assertions. Focused rerun: 4 passed, 0 failed, 19 expectations.

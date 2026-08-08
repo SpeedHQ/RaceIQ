@@ -47,5 +47,7 @@ describe("live telemetry contracts", () => {
     expect(isLiveTelemetryFrameMessageV1({ ...frame, protocolVersion: 2 }, schema)).toBe(false);
     expect(isLiveTelemetryFrameMessageV1({ ...frame, sequence: Number.NaN }, schema)).toBe(false);
     expect(isLiveTelemetryFrameMessageV1({ ...frame, values: [] }, schema)).toBe(false);
+    expect(isLiveTelemetryFrameMessageV1({ ...frame, states: { 0: "bogus" } }, schema)).toBe(false);
+    expect(isLiveTelemetryFrameMessageV1({ ...frame, freshness: { 0: "fresh" } }, schema)).toBe(false);
   });
 });
