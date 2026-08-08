@@ -1,6 +1,5 @@
-import { getGame } from "@shared/games/registry";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -22,18 +21,18 @@ const WEATHER_LABELS: Record<number, string> = {
   5: "Storm",
 };
 
-/** Top-level track conditions for sources that publish those channels outside
- * F1's extended packet. Capability metadata, not zero/non-zero values, decides
- * whether zero-degree or clear conditions are real. */
-export function LiveTrackConditions({ packet }: { packet: TelemetryPacket | undefined }) {
-  if (!packet || packet.f1 || !getGame(packet.gameId).telemetry.weather) return null;
+/** Top-level track conditions from catalog-resolved semantic telemetry. */
+export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null | undefined }) {
+  if (!view || view.simulator === "f1-2025") return null;
+  const weather = view.weather;
+  if (weather.kind == null && weather.trackTemperatureC == null && weather.airTemperatureC == null) return null;
   return (
     <div className="absolute bottom-2 right-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-app-caption space-y-0.5">
-      {packet.WeatherType != null && <div className="text-app-text font-medium">{WEATHER_LABELS[packet.WeatherType] ?? "Unknown"}</div>}
-      {(packet.TrackTemp != null || packet.AirTemp != null) && (
+      {weather.kind != null && <div className="text-app-text font-medium">{WEATHER_LABELS[weather.kind] ?? "Unknown"}</div>}
+      {(weather.trackTemperatureC != null || weather.airTemperatureC != null) && (
         <div className="flex gap-3 text-app-text-muted">
-          {packet.TrackTemp != null && <span>Track {packet.TrackTemp.toFixed(0)}°C</span>}
-          {packet.AirTemp != null && <span>Air {packet.AirTemp.toFixed(0)}°C</span>}
+          {weather.trackTemperatureC != null && <span>Track {weather.trackTemperatureC.toFixed(0)}°C</span>}
+          {weather.airTemperatureC != null && <span>Air {weather.airTemperatureC.toFixed(0)}°C</span>}
         </div>
       )}
     </div>

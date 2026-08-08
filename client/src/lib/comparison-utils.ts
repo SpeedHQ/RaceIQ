@@ -1,4 +1,6 @@
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
+const v = (p: SemanticTelemetrySample, id: string): any => p.values[id];
+const num = (p: SemanticTelemetrySample, id: string): number | undefined => { const x=v(p,id); return typeof x === "number" ? x : undefined; };
 
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";
@@ -17,12 +19,12 @@ export interface BoundaryData {
 }
 
 /** Find the telemetry index closest to a given distance value */
-export function findTelemetryAtDistance(telemetry: TelemetryPacket[], distance: number): number {
-  const distStart = telemetry[0]?.DistanceTraveled ?? 0;
+export function findTelemetryAtDistance(telemetry: SemanticTelemetrySample[], distance: number): number {
+  const distStart = (num(telemetry[0], "timing.distance-traveled") ?? 0) ?? 0;
   let closest = 0;
   let closestDelta = Infinity;
   for (let i = 0; i < telemetry.length; i++) {
-    const d = Math.abs(telemetry[i].DistanceTraveled - distStart - distance);
+    const d = Math.abs((num(telemetry[i], "timing.distance-traveled") ?? 0) - distStart - distance);
     if (d < closestDelta) {
       closestDelta = d;
       closest = i;
@@ -31,17 +33,17 @@ export function findTelemetryAtDistance(telemetry: TelemetryPacket[], distance: 
   return closest;
 }
 
-function findMapPosition(telemetry: TelemetryPacket[], distance: number, outline: Point[], telX: (x: number) => number): { x: number; z: number; packet: TelemetryPacket } | null {
+function findMapPosition(telemetry: SemanticTelemetrySample[], distance: number, outline: Point[], telX: (x: number) => number): { x: number; z: number; packet: SemanticTelemetrySample } | null {
   if (telemetry.length < 2) return null;
 
   const packet = telemetry[findTelemetryAtDistance(telemetry, distance)];
   if (!packet) return null;
-  if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
-    return { x: telX(packet.PositionX), z: packet.PositionZ, packet };
+  if ((num(packet, "motion.position-x") ?? 0) !== 0 || (num(packet, "motion.position-z") ?? 0) !== 0) {
+    return { x: telX((num(packet, "motion.position-x") ?? 0)), z: (num(packet, "motion.position-z") ?? 0), packet };
   }
 
   if (outline.length < 2) return null;
-  const lapDistance = telemetry[telemetry.length - 1].DistanceTraveled - telemetry[0].DistanceTraveled;
+  const lapDistance = (num(telemetry[telemetry.length - 1], "timing.distance-traveled") ?? 0) - (num(telemetry[0], "timing.distance-traveled") ?? 0);
   if (!(lapDistance > 0)) return null;
 
   const fraction = Math.max(0, Math.min(distance / lapDistance, 1));
@@ -55,8 +57,8 @@ export function drawTrackCanvas(
   w: number,
   h: number,
   outline: Point[],
-  telemetryA: TelemetryPacket[],
-  telemetryB: TelemetryPacket[],
+  telemetryA: SemanticTelemetrySample[],
+  telemetryB: SemanticTelemetrySample[],
   hoveredDistance: number | null,
   zoom: { centerX: number; centerZ: number; range: number } | null,
   segmentPoints?: Array<{ x: number; z: number; type: "corner" | "straight"; label: string }>,
@@ -113,11 +115,11 @@ export function drawTrackCanvas(
   let needsRestore = false;
   if (followCar && zoom && hoveredDistance != null && telemetryA.length >= 2) {
     const pA = telemetryA[findTelemetryAtDistance(telemetryA, hoveredDistance)];
-    if (pA && (pA.PositionX !== 0 || pA.PositionZ !== 0) && pA.Yaw !== undefined) {
-      const [carCx, carCy] = toCanvas(telX(pA.PositionX), pA.PositionZ);
+    if (pA && ((num(pA, "motion.position-x") ?? 0) !== 0 || (num(pA, "motion.position-z") ?? 0) !== 0) && num(pA, "motion.yaw") !== undefined) {
+      const [carCx, carCy] = toCanvas(telX((num(pA, "motion.position-x") ?? 0)), (num(pA, "motion.position-z") ?? 0));
       ctx.save();
       ctx.translate(w / 2, h / 2);
-      ctx.rotate(Math.PI - pA.Yaw);
+      ctx.rotate(Math.PI - num(pA, "motion.yaw"));
       ctx.translate(-carCx, -carCy);
       needsRestore = true;
     }
@@ -215,9 +217,9 @@ export function drawTrackCanvas(
   }
 
   // Racing lines
-  const drawRacingLine = (telemetry: TelemetryPacket[], color: string) => {
+  const drawRacingLine = (telemetry: SemanticTelemetrySample[], color: string) => {
     if (telemetry.length < 2) return;
-    const hasPos = telemetry.some((p) => p.PositionX !== 0 || p.PositionZ !== 0);
+    const hasPos = telemetry.some((p) => (num(p, "motion.position-x") ?? 0) !== 0 || (num(p, "motion.position-z") ?? 0) !== 0);
     if (!hasPos) return;
     ctx.lineWidth = zoom ? 3 : 2;
     ctx.lineCap = "round";
@@ -228,8 +230,8 @@ export function drawTrackCanvas(
     let moved = false;
     for (let i = 0; i < telemetry.length; i++) {
       const p = telemetry[i];
-      if (p.PositionX === 0 && p.PositionZ === 0) continue;
-      const [cx, cy] = toCanvas(telX!(p.PositionX), p.PositionZ);
+      if ((num(p, "motion.position-x") ?? 0) === 0 && (num(p, "motion.position-z") ?? 0) === 0) continue;
+      const [cx, cy] = toCanvas(telX!((num(p, "motion.position-x") ?? 0)), (num(p, "motion.position-z") ?? 0));
       if (!moved) {
         ctx.moveTo(cx, cy);
         moved = true;
@@ -254,7 +256,7 @@ export function drawTrackCanvas(
     const overlaps = canvasA !== null && canvasB !== null && Math.hypot(canvasA[0] - canvasB[0], canvasA[1] - canvasB[1]) < dotSize * 2;
     const overlapOffset = overlaps ? dotSize : 0;
 
-    const drawDot = (position: { x: number; z: number; packet: TelemetryPacket } | null, color: string, offsetX: number) => {
+    const drawDot = (position: { x: number; z: number; packet: SemanticTelemetrySample } | null, color: string, offsetX: number) => {
       if (!position) return;
       const [baseX, cy] = toCanvas(position.x, position.z);
       const cx = baseX + offsetX;
@@ -273,12 +275,13 @@ export function drawTrackCanvas(
       ctx.lineWidth = 1.5;
       ctx.stroke();
       // Direction line from Yaw (heading)
-      if (zoom && position.packet.Yaw !== undefined) {
+      const yaw = num(position.packet, "motion.yaw");
+      if (zoom && yaw !== undefined) {
         const lineLen = 22;
         // Yaw: 0 = +Z, positive = clockwise from above
         // Canvas: X is flipped (viewCenterX - x), Z is normal (z - viewCenterZ)
-        const dx = -Math.sin(position.packet.Yaw) * lineLen;
-        const dy = Math.cos(position.packet.Yaw) * lineLen;
+        const dx = -Math.sin(yaw) * lineLen;
+        const dy = Math.cos(yaw) * lineLen;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(cx + dx, cy + dy);
@@ -313,7 +316,7 @@ export function drawTrackCanvas(
  * Draw combined input HUD for both laps:
  * Layout: [Brake A][Brake B] — [Wheel A / Gear] — [Wheel B / Gear] — [Throttle A][Throttle B]
  */
-export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: number, pA: TelemetryPacket | null, pB: TelemetryPacket | null) {
+export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: number, pA: SemanticTelemetrySample | null, pB: SemanticTelemetrySample | null) {
   const barW = 14;
   const barH = 80;
   const wheelR = 28;
@@ -430,8 +433,8 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
 
 /** Compute zoom view centered on both car positions */
 export function computeZoom(
-  telemetryA: TelemetryPacket[],
-  telemetryB: TelemetryPacket[],
+  telemetryA: SemanticTelemetrySample[],
+  telemetryB: SemanticTelemetrySample[],
   hoveredDistance: number,
   trackRange: number,
   telX: (x: number) => number = (x) => x,

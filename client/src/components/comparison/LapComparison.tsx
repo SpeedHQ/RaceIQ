@@ -1,4 +1,5 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
+const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: string): number | undefined => { const value = sample.values[id]; return typeof value === "number" ? value : undefined; };
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -294,7 +295,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     const step = Math.max(1, Math.floor(tel.length / 400));
     const out: Point[] = [];
     for (let i = 0; i < tel.length; i += step) {
-      out.push({ x: tel[i].PositionX, z: tel[i].PositionZ });
+      out.push({ x: (semanticNumber(tel[i], "motion.position-x") ?? 0), z: (semanticNumber(tel[i], "motion.position-z") ?? 0) });
     }
     return out;
   }, [comparison]);
@@ -318,8 +319,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         const n = tel.length;
         const startIdx = Math.round(seg.startFrac * (n - 1));
         const endIdx = Math.min(Math.round(seg.endFrac * (n - 1)), n - 1);
-        const startTime = tel[startIdx]?.CurrentLap ?? 0;
-        const endTime = tel[endIdx]?.CurrentLap ?? 0;
+        const startTime = semanticNumber(tel[startIdx], "timing.current-lap") ?? 0;
+        const endTime = semanticNumber(tel[endIdx], "timing.current-lap") ?? 0;
         return Math.round((endTime - startTime) * 1000) / 1000;
       };
 

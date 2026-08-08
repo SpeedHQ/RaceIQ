@@ -1,23 +1,16 @@
 import type { LivePitData, LiveSectorData } from "../../../../shared/racing/live/types";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import type { DisplayPacket } from "../../lib/convert-packet";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { SectorTimes } from "../SectorTimes";
-import { LapTimes } from "../telemetry/LapTimes";
 import { TireGrid } from "../telemetry/TireGrid";
 import { DashShell } from "./dash-shell";
 import { FitToViewport } from "./FitToViewport";
 import { RevBar } from "./RevBar";
 interface ComboDashProps {
-  rawPacket?: TelemetryPacket | null;
-  packet?: DisplayPacket | null;
   view?: LiveTelemetryView | null;
   sectors: LiveSectorData | null;
   pit: LivePitData | null;
   unitSystem: "metric" | "imperial";
   tireHealthThresholds?: { green: number; yellow: number };
-  /** Convert a tire temperature from the game's native unit to °C. */
-  toTempC: (t: number) => number;
 }
 
 function gearLabel(gear: number): string {
@@ -25,7 +18,7 @@ function gearLabel(gear: number): string {
   if (gear === 1) return "N";
   return String(gear - 1);
 }
-export function ComboDash({ rawPacket, packet, view, sectors, pit, unitSystem, tireHealthThresholds, toTempC }: ComboDashProps) {
+export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds }: ComboDashProps) {
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
   const tireCliffs = pit?.tireEstimates?.toCliff ?? [];
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
@@ -39,17 +32,17 @@ export function ComboDash({ rawPacket, packet, view, sectors, pit, unitSystem, t
       weakestLabel = tireLabels[i];
     }
   }
-  const rpm = view?.engine.rpm ?? packet?.CurrentEngineRpm ?? 0;
-  const idle = view?.engine.idleRpm ?? packet?.EngineIdleRpm ?? 0;
-  const max = view?.engine.maxRpm ?? packet?.EngineMaxRpm ?? 10000;
-  const gear = view?.inputs.gear ?? packet?.Gear ?? 1;
-  const speed = view ? ((view.motion.speedMps ?? 0) * (unitSystem === "metric" ? 3.6 : 2.23694)) : (packet?.DisplaySpeed ?? 0);
+  const rpm = view?.engine.rpm ?? 0;
+  const idle = view?.engine.idleRpm ?? 0;
+  const max = view?.engine.maxRpm ?? 10000;
+  const gear = view?.inputs.gear ?? 1;
+  const speed = (view?.motion.speedMps ?? 0) * (unitSystem === "metric" ? 3.6 : 2.23694);
   const unit = unitSystem === "metric" ? "km/h" : "mph";
-  const lapNumber = view?.timing.lapNumber ?? packet?.LapNumber ?? 0;
-  const totalLaps = view?.timing.totalLaps ?? rawPacket?.f1?.totalLaps;
+  const lapNumber = view?.timing.lapNumber ?? 0;
+  const totalLaps = view?.timing.totalLaps;
   const health = tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
   const tires = view?.tires;
-  const hasTelemetry = !!(view || rawPacket);
+  const hasTelemetry = !!view;
 
   return (
     <DashShell>
@@ -106,7 +99,6 @@ export function ComboDash({ rawPacket, packet, view, sectors, pit, unitSystem, t
             {hasTelemetry ? (
               <FitToViewport padding={12} alignX="start" alignY="center">
                 <div style={{ width: 560 }} className="space-y-3">
-                  {!view && rawPacket ? <LapTimes packet={rawPacket} sectors={sectors} /> : null}
                   <SectorTimes sectors={sectors} />
                 </div>
               </FitToViewport>
@@ -115,14 +107,14 @@ export function ComboDash({ rawPacket, packet, view, sectors, pit, unitSystem, t
             )}
           </div>
           <div className="flex-[2] min-w-0 min-h-0 rounded-md border border-app-text/10 bg-app-text/[0.02] overflow-hidden">
-            {tires || rawPacket ? (
+            {tires ? (
               <FitToViewport padding={4} maxScale={5}>
                 <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
                   <TireGrid
-                    fl={{ tempC: Math.round(tires?.temperatureC?.fl ?? (rawPacket ? toTempC(rawPacket.TireTempFL) : 0)), wear: tires?.wear?.fl ?? rawPacket?.TireWearFL ?? 0, brakeTemp: tires?.brakeTemperatureC?.fl ?? rawPacket?.BrakeTempFrontLeft ?? 0, pressure: tires?.pressurePsi?.fl ?? rawPacket?.TirePressureFrontLeft ?? 0 }}
-                    fr={{ tempC: Math.round(tires?.temperatureC?.fr ?? (rawPacket ? toTempC(rawPacket.TireTempFR) : 0)), wear: tires?.wear?.fr ?? rawPacket?.TireWearFR ?? 0, brakeTemp: tires?.brakeTemperatureC?.fr ?? rawPacket?.BrakeTempFrontRight ?? 0, pressure: tires?.pressurePsi?.fr ?? rawPacket?.TirePressureFrontRight ?? 0 }}
-                    rl={{ tempC: Math.round(tires?.temperatureC?.rl ?? (rawPacket ? toTempC(rawPacket.TireTempRL) : 0)), wear: tires?.wear?.rl ?? rawPacket?.TireWearRL ?? 0, brakeTemp: tires?.brakeTemperatureC?.rl ?? rawPacket?.BrakeTempRearLeft ?? 0, pressure: tires?.pressurePsi?.rl ?? rawPacket?.TirePressureRearLeft ?? 0 }}
-                    rr={{ tempC: Math.round(tires?.temperatureC?.rr ?? (rawPacket ? toTempC(rawPacket.TireTempRR) : 0)), wear: tires?.wear?.rr ?? rawPacket?.TireWearRR ?? 0, brakeTemp: tires?.brakeTemperatureC?.rr ?? rawPacket?.BrakeTempRearRight ?? 0, pressure: tires?.pressurePsi?.rr ?? rawPacket?.TirePressureRearRight ?? 0 }}
+                    fl={{ tempC: Math.round(tires.temperatureC?.fl ?? 0), wear: tires.wear?.fl ?? 0, brakeTemp: tires.brakeTemperatureC?.fl ?? 0, pressure: tires.pressurePsi?.fl ?? 0 }}
+                    fr={{ tempC: Math.round(tires.temperatureC?.fr ?? 0), wear: tires.wear?.fr ?? 0, brakeTemp: tires.brakeTemperatureC?.fr ?? 0, pressure: tires.pressurePsi?.fr ?? 0 }}
+                    rl={{ tempC: Math.round(tires.temperatureC?.rl ?? 0), wear: tires.wear?.rl ?? 0, brakeTemp: tires.brakeTemperatureC?.rl ?? 0, pressure: tires.pressurePsi?.rl ?? 0 }}
+                    rr={{ tempC: Math.round(tires.temperatureC?.rr ?? 0), wear: tires.wear?.rr ?? 0, brakeTemp: tires.brakeTemperatureC?.rr ?? 0, pressure: tires.pressurePsi?.rr ?? 0 }}
                     healthThresholds={health} tempThresholds={{ blue: 60, orange: 85, red: 100 }}
                   />
                 </div>
