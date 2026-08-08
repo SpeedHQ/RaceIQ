@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
-import { useLaps as useLapsQuery, useLapTelemetry } from "../../hooks/laps";
+import { useLaps as useLapsQuery, useLapSemanticTelemetry, useLapTelemetry } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useConvertedTelemetry } from "../../hooks/useConvertedTelemetry";
 import { useCookieState } from "../../hooks/useCookieState";
@@ -22,10 +22,10 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
   const [selectedCar, setSelectedCar] = useState<number | null>(search.car ?? null);
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
-  const { data: lapData, isLoading: lapLoading, error: lapError } = useLapTelemetry(selectedLapId);
-  const parseError = (lapData as { parseError?: string } | undefined)?.parseError;
-  const telemetry = lapData?.telemetry ?? emptyTelemetry;
-  const displayTelemetry = useConvertedTelemetry(telemetry);
+  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
+  const { data: lapData, isLoading: packetLoading, error: packetError } = useLapTelemetry(selectedLapId);
+  const lapLoading = semanticLoading;
+  const lapError = semanticError ?? packetError;
   useEffect(() => {
     if (selectedTrack == null && lapData?.trackOrdinal != null) setSelectedTrack(lapData.trackOrdinal);
     if (selectedCar == null && lapData?.carOrdinal != null) setSelectedCar(lapData.carOrdinal);
@@ -147,6 +147,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     parseError,
     telemetry,
     displayTelemetry,
+    semanticReplay,
     selectedTrack,
     setSelectedTrack,
     selectedCar,
