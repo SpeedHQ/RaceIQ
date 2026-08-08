@@ -1,3 +1,4 @@
+import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
 import { severityColor, severityRangeColor } from "@/lib/colors";
@@ -81,7 +82,6 @@ export function F1LiveDashboard() {
             <TireGrid
               fl={{ tempC: Math.round(view.tires.temperatureC?.fl ?? 0), wear: view.tires.wear?.fl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fl ?? 0, pressure: view.tires.pressurePsi?.fl ?? 0 }}
               fr={{ tempC: Math.round(view.tires.temperatureC?.fr ?? 0), wear: view.tires.wear?.fr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fr ?? 0, pressure: view.tires.pressurePsi?.fr ?? 0 }}
-              rl={{ tempC: Math.round(view.tires.temperatureC?.rl ?? 0), wear: view.tires.wear?.rl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rl ?? 0, pressure: view.tires.pressurePsi?.rl ?? 0 }}
               rr={{ tempC: Math.round(view.tires.temperatureC?.rr ?? 0), wear: view.tires.wear?.rr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rr ?? 0, pressure: view.tires.pressurePsi?.rr ?? 0 }}
               healthThresholds={{ green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
@@ -96,7 +96,7 @@ export function F1LiveDashboard() {
       </div>
       {/* Right column: Race info + Charts + Recorded Laps */}
       <div data-live-dashboard-race className="overflow-y-auto overflow-x-hidden flex flex-col">
-        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />
+        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} totalLaps={typeof f1.totalLaps === "number" ? f1.totalLaps : undefined} sessionType={typeof f1.sessionType === "string" ? f1.sessionType : undefined} showTrackMap={false} showSectors={true} />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
         </div>

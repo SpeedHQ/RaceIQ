@@ -15,7 +15,6 @@ import { TireGrid } from "../telemetry/TireGrid";
 
 export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   const view = useTelemetryStore((s) => s.telemetryView);
-  const packet = useTelemetryStore((s) => s.packet);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
@@ -23,7 +22,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   const { data: carName } = useCarName(view?.identity.carOrdinal);
   const pressureOptimal = useTirePressureOptimal(gameId, view?.identity.carOrdinal);
 
-  if (!view || view.simulator !== gameId || !packet || packet.gameId !== gameId) {
+  if (!view || view.simulator !== gameId) {
     return (
       <div className="flex-1 flex flex-col">
         <NoDataView />
@@ -56,7 +55,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_pit_window()}</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} pit={pit} />
+            <PitEstimate view={view} pit={pit} />
           </div>
         </div>
       </div>
