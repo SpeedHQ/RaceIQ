@@ -441,9 +441,9 @@ export class LiveTelemetryPipeline {
 
 // Module-level pipeline used by live runtime callers.
 const _defaultWs: WsAdapter = {
-  wantsDevTelemetry: false,
+  get wantsDevTelemetry() { return wsManager.wantsDevTelemetry; },
   broadcast: (packet, sectors, pit, liveIssues) => wsManager.broadcast(packet, sectors, pit, liveIssues),
-  stageDevTelemetry: () => {},
+  stageDevTelemetry: (packet) => wsManager.stageDevTelemetry(packet),
   publishTelemetry: ({ packet, sectors, pit, liveIssues, projection }) => {
     wsManager.broadcast(packet, sectors, pit, liveIssues);
     if (projection) wsManager.publishTelemetry(projection);
