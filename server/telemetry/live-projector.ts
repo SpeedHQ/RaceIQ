@@ -8,8 +8,6 @@ import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "
 import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import { encodeLiveFrame, encodeLiveSchema } from "./live-wire";
-
-
 export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
 export interface LiveProjection { schema?: LiveTelemetrySchemaMessageV1; frame?: LiveTelemetryFrameMessageV1; }
 const hash = (parts: readonly string[]) => createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
@@ -42,7 +40,7 @@ export class LiveTelemetryProjector {
     if (this.sequence < 0) {
       const ids = liveSemanticIds(gameId);
       const { definitions: _oldDefinitions, ...schemaMeta } = this.schema!;
-      this.schema = encodeLiveSchema(resolved.map((value, index) => ({ semanticId: ids[index], unit: value.unit, mappingStatus: value.mappingStatus, schemaVersion: value.schemaVersion, limitations: [...value.limitations] })), schemaMeta);
+      this.schema = encodeLiveSchema(resolved.map((value, index) => ({ semanticId: ids[index], unit: value.unit, mappingStatus: value.mappingStatus, schemaVersion: value.schemaVersion, limitations: Array.isArray(value.limitations) ? value.limitations.filter((limitation): limitation is string => typeof limitation === "string") : typeof value.limitations === "string" ? [value.limitations] : [] })), schemaMeta);
     }
     const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence: this.sequence + 1, observedAt: { domain: timestampDomain, milliseconds: observedMs }, receivedAtMs: input.receivedAtMs, values: resolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}) } });
     this.sequence += 1;

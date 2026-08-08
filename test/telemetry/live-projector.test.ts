@@ -14,6 +14,7 @@ describe("LiveTelemetryProjector", () => {
     expect(second.schema).toBeUndefined();
     expect(second.frame?.sequence).toBe(1);
     expect(second.frame?.streamId).toBe(first.frame?.streamId);
+    expect(first.schema?.definitions.every((definition) => Array.isArray(definition.limitations) && definition.limitations.every((limitation) => typeof limitation === "string"))).toBe(true);
   });
 
   test("game/session mutation starts fresh stream", () => {
