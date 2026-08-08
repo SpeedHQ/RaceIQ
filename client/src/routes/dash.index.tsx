@@ -49,7 +49,7 @@ function DashCatalogue() {
     if (slug === "combo-1") {
       return <ComboDash view={fakeF1SemanticFixture.view} sectors={fakeSectors} pit={fakePit} unitSystem="metric" />;
     }
-    return <ComboDash2 rawPacket={PREVIEW_RAW_PACKET} sessionLaps={PREVIEW_LAPS} />;
+    return <ComboDash2 rawPacket={null} sessionLaps={PREVIEW_LAPS} />;
   };
 
   return (
