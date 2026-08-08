@@ -38,7 +38,19 @@ const sparseFreshness = (value: unknown): boolean => {
 };
 export function isLiveTelemetrySchemaMessageV1(value: unknown): value is LiveTelemetrySchemaMessageV1 {
   const v = record(value);
-  return !!v && v.type === "telemetry-schema" && v.protocolVersion === 1 && typeof v.schemaId === "string" && Array.isArray(v.definitions);
+  const definitions = Array.isArray(v?.definitions) ? v.definitions : [];
+  const validDefinitions = definitions.every((definition) => {
+    const d = record(definition);
+    return !!d && typeof d.semanticId === "string" && (typeof d.unit === "string" || d.unit === null) &&
+      typeof d.mappingStatus === "string" && typeof d.schemaVersion === "string" && Array.isArray(d.limitations) &&
+      d.limitations.every((limitation) => typeof limitation === "string");
+  });
+  return !!v && v.type === "telemetry-schema" && v.protocolVersion === 1 && typeof v.schemaId === "string" &&
+    typeof v.simulator === "string" && KNOWN_GAME_IDS.includes(v.simulator as GameId) &&
+    typeof v.catalogVersion === "string" && typeof v.catalogHash === "string" &&
+    typeof v.catalogSchemaVersion === "string" && typeof v.parserVersion === "string" &&
+    typeof v.resolverVersion === "string" && typeof v.derivationVersion === "string" &&
+    Array.isArray(v.definitions) && validDefinitions;
 }
 export function isLiveTelemetryFrameMessageV1(value: unknown, schema?: LiveTelemetrySchemaMessageV1): value is LiveTelemetryFrameMessageV1 {
   const v = record(value);
@@ -47,7 +59,7 @@ export function isLiveTelemetryFrameMessageV1(value: unknown, schema?: LiveTelem
     (v.sessionId === null || finite(v.sessionId)) && finite(v.sequence) && finite(v.receivedAtMs) && !!observed &&
     (observed.domain === "session" || observed.domain === "wall-clock") && finite(observed.milliseconds) &&
     Array.isArray(v.values) && v.values.every(scalar) && sparseStates(v.states) && sparseFreshness(v.freshness) &&
-    (!schema || v.values.length === schema.definitions.length);
+    (!schema || (v.schemaId === schema.schemaId && v.values.length === schema.definitions.length));
 }
 export function isDevTelemetryControlMessageV1(value: unknown): value is DevTelemetryControlMessageV1 {
   const v = record(value);

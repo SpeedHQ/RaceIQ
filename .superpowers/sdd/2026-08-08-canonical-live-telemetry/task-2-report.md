@@ -1,6 +1,6 @@
 
-## Review remediation
+## Rereview remediation
 
-Amended guards now recursively reject bigint, non-finite numbers, and non-canonical nested frame values; enforce sparse state/freshness maps; and validate native packet `gameId` against `KNOWN_GAME_IDS` plus finite numeric `TimestampMS`.
+Frame validation now requires supplied schema ID to match frame schema ID. Schema validation now checks every required metadata field, known simulator ID, and each definition's required fields/types, including string limitations.
 
-Focused rerun: `DATA_DIR="$PWD/.data-test" bun test test/telemetry/live-contracts.test.ts --timeout 30000` — 4 passed, 0 failed, 17 expectations.
+Focused rerun passed: 4 tests, 0 failures, 17 expectations.
