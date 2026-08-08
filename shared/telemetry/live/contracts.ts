@@ -1,3 +1,4 @@
+import { KNOWN_GAME_IDS } from "../../games/ids";
 import type { GameId } from "../../games/ids";
 import type { LivePitData, LiveSectorData } from "../../racing/live/types";
 import type { TuneIssue } from "../../racing/tuning/issues";
@@ -18,6 +19,23 @@ export interface DevTelemetryPacketMessageV1 { type: "dev-telemetry"; protocolVe
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const record = (value: unknown): Record<string, unknown> | undefined =>
   value !== null && typeof value === "object" ? value as Record<string, unknown> : undefined;
+const scalar = (value: unknown): value is CanonicalTelemetryScalar => {
+  if (value === null || typeof value === "boolean" || typeof value === "string") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(scalar);
+  if (typeof value === "object") return Object.values(value).every(scalar);
+  return false;
+};
+const sparseStates = (value: unknown): boolean => {
+  if (value === undefined) return true;
+  const v = record(value);
+  return !!v && Object.values(v).every((state) => state !== "ok");
+};
+const sparseFreshness = (value: unknown): boolean => {
+  if (value === undefined) return true;
+  const v = record(value);
+  return !!v && Object.values(v).every((state) => state !== "fresh");
+};
 export function isLiveTelemetrySchemaMessageV1(value: unknown): value is LiveTelemetrySchemaMessageV1 {
   const v = record(value);
   return !!v && v.type === "telemetry-schema" && v.protocolVersion === 1 && typeof v.schemaId === "string" && Array.isArray(v.definitions);
@@ -28,7 +46,8 @@ export function isLiveTelemetryFrameMessageV1(value: unknown, schema?: LiveTelem
   return !!v && v.type === "telemetry-frame" && v.protocolVersion === 1 && typeof v.schemaId === "string" && typeof v.streamId === "string" &&
     (v.sessionId === null || finite(v.sessionId)) && finite(v.sequence) && finite(v.receivedAtMs) && !!observed &&
     (observed.domain === "session" || observed.domain === "wall-clock") && finite(observed.milliseconds) &&
-    Array.isArray(v.values) && (!schema || v.values.length === schema.definitions.length);
+    Array.isArray(v.values) && v.values.every(scalar) && sparseStates(v.states) && sparseFreshness(v.freshness) &&
+    (!schema || v.values.length === schema.definitions.length);
 }
 export function isDevTelemetryControlMessageV1(value: unknown): value is DevTelemetryControlMessageV1 {
   const v = record(value);
@@ -43,5 +62,5 @@ export function isDevTelemetryPacketMessageV1(value: unknown): value is DevTelem
   const v = record(value);
   const packet = record(v?.packet);
   return !!v && v.type === "dev-telemetry" && v.protocolVersion === 1 && !!packet &&
-    typeof packet.gameId === "string" && finite(packet.TimestampMS);
+    typeof packet.gameId === "string" && KNOWN_GAME_IDS.includes(packet.gameId as GameId) && finite(packet.TimestampMS);
 }
