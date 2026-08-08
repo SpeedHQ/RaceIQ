@@ -3,6 +3,7 @@
 ### Features
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
+- Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
 ### Fixes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
