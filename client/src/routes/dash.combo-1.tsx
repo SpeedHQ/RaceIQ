@@ -22,7 +22,7 @@ function ComboDash1Route() {
     return () => setGameId(null);
   }, [detectedGameId, setGameId]);
 
-  return <ComboDash view={view} sectors={sectors} pit={pit} unitSystem={unitSystem} tireHealthThresholds={game?.tireHealthThresholds} toTempC={units.toTempC} />;
+  return <ComboDash view={view} sectors={sectors} pit={pit} unitSystem={unitSystem} tireHealthThresholds={game?.tireHealthThresholds} />;
 }
 
 export const Route = createFileRoute("/dash/combo-1")({

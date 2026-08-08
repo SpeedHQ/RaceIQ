@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -126,7 +126,7 @@ export function LiveTestDashboard({
               hideSteeringOverlay
               weatherBottomRight
             />
-            <LiveTrackConditions packet={liveTrace[liveTrace.length - 1]} />
+            <LiveTrackConditions view={telemetryView} />
           </div>
         </div>
         <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
