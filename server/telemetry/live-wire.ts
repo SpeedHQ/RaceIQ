@@ -25,7 +25,7 @@ export function encodeLiveFrame(input: Omit<LiveTelemetryFrameMessageV1, "type" 
   if (!Number.isSafeInteger(input.sequence) || input.sequence < 0) throw new RangeError("Live sequence must be non-negative safe integer");
   const values = input.values.map((value, i) => {
     if (value === undefined) return null;
-    if (value && typeof value === "object" && "semanticId" in value && "state" in value) return value.state === "ok" ? encodeCanonicalLiveValue(value.value, value.semanticId) : null;
+    if (value && typeof value === "object" && "semanticId" in value && "state" in value) return value.state === "ok" ? encodeCanonicalLiveValue(value.value, String(value.semanticId)) : null;
     return encodeCanonicalLiveValue(value, `slot-${i}`);
   });
   return { type: "telemetry-frame", protocolVersion: 1, ...input, values };

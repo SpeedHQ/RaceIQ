@@ -36,6 +36,7 @@ export class LiveTelemetryPipeline {
   private ws: WsAdapter;
   private recorder: SessionRecorderAdapter;
   private _bypassPacketRateFilter: boolean;
+  private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
   private projector = new LiveTelemetryProjector();
   private _sessionLaps: LapMeta[] = [];

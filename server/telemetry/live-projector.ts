@@ -44,7 +44,7 @@ export class LiveTelemetryProjector {
       const { definitions: _oldDefinitions, ...schemaMeta } = this.schema!;
       this.schema = encodeLiveSchema(resolved.map((value, index) => ({ semanticId: ids[index], unit: value.unit, mappingStatus: value.mappingStatus, schemaVersion: value.schemaVersion, limitations: [...value.limitations] })), schemaMeta);
     }
-    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence: this.sequence + 1, observedAt: { domain: timestampDomain, milliseconds: observedMs }, receivedAtMs: input.receivedAtMs, values: resolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { sectors: input.sectors, pit: input.pit, liveIssues: input.liveIssues } });
+    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence: this.sequence + 1, observedAt: { domain: timestampDomain, milliseconds: observedMs }, receivedAtMs: input.receivedAtMs, values: resolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}) } });
     this.sequence += 1;
     return this.sequence === 0 ? { schema: this.schema, frame } : { frame };
   }

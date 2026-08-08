@@ -80,7 +80,6 @@ export class WebSocketManager {
   private lastFrameJson: string | null = null;
   private lastDevPacketJson: string | null = null;
   private readonly allowDevTelemetry = IS_DEV || IS_E2E;
-  private lastBroadcastJson: string | null = null;
   /** Injected getter for session laps — avoids circular import with pipeline */
   private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
   /** Stale lap detection notification — sent to each new client on connect */
@@ -240,13 +239,6 @@ export class WebSocketManager {
   flushLatest(): void { this._pushToClients(); }
 
   // Latest state — written by packet handler, read by broadcast timer
-  private _latestPacket: TelemetryPacket | null = null;
-  private _latestSectors: LiveSectorData | null = null;
-  private _latestPit: LivePitData | null = null;
-  /** Live Tuning Dashboard transient issues — undefined when live analysis is
-   *  off (pipeline doesn't pass the arg at all); an array (possibly empty)
-   *  each packet while on, so stale alerts get cleared client-side. */
-  private _latestLiveIssues: TuneIssue[] | undefined = undefined;
   private _broadcastTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
@@ -255,15 +247,11 @@ export class WebSocketManager {
    */
   broadcast(
     packet: TelemetryPacket,
-    sectors?: LiveSectorData | null,
-    pit?: LivePitData | null,
-    liveIssues?: TuneIssue[],
+    _sectors?: LiveSectorData | null,
+    _pit?: LivePitData | null,
+    _liveIssues?: TuneIssue[],
   ): void {
     this._packetCount++;
-    this._latestPacket = packet;
-    if (sectors) this._latestSectors = sectors;
-    if (pit) this._latestPit = pit;
-    this._latestLiveIssues = liveIssues;
 
     // Sample telemetry history at ~10Hz
     this.gripSampleCounter++;

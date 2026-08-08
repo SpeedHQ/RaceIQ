@@ -337,6 +337,7 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
   start(_gameId: GameId): void {}
   writeMetaFrame(): void {}
   writeRecord(_buf: Buffer): void {}
+  getCurrentByteOffset(): number { return 0; }
   flush(): void {}
   async stop(): Promise<void> {}
 }
