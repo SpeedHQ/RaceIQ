@@ -43,8 +43,11 @@ export function isLiveTelemetrySchemaMessageV1(value: unknown): value is LiveTel
   const definitions = Array.isArray(v?.definitions) ? v.definitions : [];
   const validDefinitions = definitions.every((definition) => {
     const d = record(definition);
+    const mappingStatus = d?.mappingStatus;
+    const validMappingStatus = mappingStatus === "direct" || mappingStatus === "normalized" || mappingStatus === "derived" ||
+      mappingStatus === "simplified" || mappingStatus === "unavailable";
     return !!d && typeof d.semanticId === "string" && (typeof d.unit === "string" || d.unit === null) &&
-      typeof d.mappingStatus === "string" && typeof d.schemaVersion === "string" && Array.isArray(d.limitations) &&
+      validMappingStatus && typeof d.schemaVersion === "string" && Array.isArray(d.limitations) &&
       d.limitations.every((limitation) => typeof limitation === "string");
   });
   return !!v && v.type === "telemetry-schema" && v.protocolVersion === 1 && typeof v.schemaId === "string" &&

@@ -1,4 +1,4 @@
 
-## Sparse-map remediation
+## Mapping-status remediation
 
-States/freshness now accept only their documented non-default union members and reject arbitrary values/default entries. Added malformed-map assertions. Focused rerun: 4 passed, 0 failed, 19 expectations.
+Schema definition guards now validate `mappingStatus` against the complete `TelemetryLinkKind` union (`direct`, `normalized`, `derived`, `simplified`, `unavailable`); malformed mapping status test added. Focused rerun: 4 passed, 0 failed, 20 expectations.

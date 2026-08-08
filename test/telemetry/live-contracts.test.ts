@@ -20,7 +20,7 @@ function roundTrip<T>(value: T): T {
 const schema: LiveTelemetrySchemaMessageV1 = {
   type: "telemetry-schema", protocolVersion: LIVE_TELEMETRY_PROTOCOL_VERSION, schemaId: "s1", simulator: "acc",
   catalogVersion: "c", catalogHash: "h", catalogSchemaVersion: "1", parserVersion: "p", resolverVersion: "r", derivationVersion: "d",
-  definitions: [{ semanticId: "motion.speed", unit: "m/s", mappingStatus: "native", schemaVersion: "1", limitations: [] }],
+  definitions: [{ semanticId: "motion.speed", unit: "m/s", mappingStatus: "direct", schemaVersion: "1", limitations: [] }],
 };
 const frame: LiveTelemetryFrameMessageV1 = {
   type: "telemetry-frame", protocolVersion: 1, schemaId: "s1", streamId: "x", sessionId: 2, sequence: 3,
@@ -31,6 +31,7 @@ describe("live telemetry contracts", () => {
   test("round-trips schema and frame JSON", () => {
     expect(isLiveTelemetrySchemaMessageV1(roundTrip(schema))).toBe(true);
     expect(isLiveTelemetryFrameMessageV1(roundTrip(frame), schema)).toBe(true);
+    expect(isLiveTelemetrySchemaMessageV1({ ...schema, definitions: [{ ...schema.definitions[0], mappingStatus: "bogus" }] })).toBe(false);
   });
   test("round-trips dev controls and subscription result", () => {
     expect(isDevTelemetryControlMessageV1(roundTrip({ type: "subscribe", channel: "dev-telemetry" }))).toBe(true);
