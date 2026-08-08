@@ -54,7 +54,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const accCarName = useAccCarName();
   const { data: allLaps = [] } = useLaps();
   const liveSessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const livePacket = useTelemetryStore((s) => s.packet);
+  const livePit = useTelemetryStore((s) => s.pit);
 
   // Mark this session active while the workspace is open so every lap the
   // driver records is stamped with this experiment_id at insert (server
@@ -196,7 +196,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const liveAvg = liveValid.length ? liveValid.reduce((s, l) => s + l.lapTime, 0) / liveValid.length : null;
   // Both ACC and AC-Evo populate acc.fuelPerLap; live-only (per-lap fuel for
   // recorded laps is Phase C).
-  const liveFuelPerLap = livePacket?.acc?.fuelPerLap || null;
+  const liveFuelPerLap = livePit?.fuelPerLap ?? null;
   const lapsDone = liveSessionLaps.length;
   // Phase 5 — track-length-aware stint nudge, advisory only. Falls back to 3
   // (the old hardcoded target) until the session payload lands.

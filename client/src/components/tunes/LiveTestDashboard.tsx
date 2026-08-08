@@ -57,8 +57,8 @@ export function LiveTestDashboard({
   /** Test/story-only: pre-seed the live trace so it renders instantly without replaying packets. */
   initialTrace?: TelemetryPacket[];
 }) {
-  const packet = useTelemetryStore((s) => s.packet);
-  const rawPacket = useTelemetryStore((s) => s.rawPacket);
+  const packet: TelemetryPacket | null = null;
+  const rawPacket: TelemetryPacket | null = null;
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
 
