@@ -41,6 +41,37 @@ export function useLapTelemetry(lapId: number | null) {
   });
 }
 
+export interface SemanticReplayFrame {
+  sequence: number;
+  observedAt: { domain: string; milliseconds: number };
+  receivedAt: { domain: string; milliseconds: number };
+  simulator: string;
+  values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }>;
+}
+
+export interface SemanticLapTelemetry {
+  lapId: number;
+  requestedSemanticIds: string[];
+  envelopes: SemanticReplayFrame[];
+}
+
+/** Canonical semantic replay; unlike useLapTelemetry this never exposes native packets. */
+export function useLapSemanticTelemetry(lapId: number | null) {
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
+    queryFn: async () => {
+      if (!gameId) throw new Error("Missing game context");
+      const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
+      if (!res.ok) throw new Error(res.statusText);
+      return (await res.json()) as SemanticLapTelemetry;
+    },
+    enabled: lapId != null && gameId != null,
+    gcTime: 0,
+    staleTime: 0,
+  });
+}
+
 export function useDeleteLap() {
   const qc = useQueryClient();
   return useMutation({

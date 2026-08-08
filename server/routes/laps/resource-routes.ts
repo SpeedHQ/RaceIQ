@@ -17,9 +17,11 @@ import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
-import { generateExport } from "../../lap-analysis/report";
-import { resolveTrack } from "../../tracks/info";
+import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
+
+const semanticReplayIds = TELEMETRY_CATALOG.variables.map((variable) => variable.id);
 
 const gzipAsync = promisify(gzip);
 
@@ -28,6 +30,27 @@ export const resourceRoutes = new Hono()
     const { gameId } = c.req.valid("query");
     const lapList = await getLaps(gameId);
     return c.json(lapList);
+  })
+
+  .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    try {
+      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds);
+      if (!replay) return c.json({ error: "Lap not found" }, 404);
+      return c.json({
+        lapId: replay.lapId,
+        requestedSemanticIds: replay.requestedSemanticIds,
+        envelopes: replay.envelopes.map((envelope) => ({
+          sequence: Number(envelope.sequence),
+          observedAt: envelope.observedAt,
+          receivedAt: envelope.receivedAt,
+          simulator: envelope.simulator,
+          values: envelope.values.map(({ semanticId, value, state, freshness }) => ({ semanticId, value, state, freshness })),
+        })),
+      });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to replay telemetry" }, 422);
+    }
   })
 
   .post("/api/laps/bulk-delete", zValidator("json", BulkDeleteSchema), async (c) => {
