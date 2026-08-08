@@ -24,28 +24,12 @@ export interface IbtPreviewState {
   preview: IbtImportPreview;
 }
 
-export function useAnalyseImports(args: {
-  queryClient: QueryClient;
-  gameId: string;
-  setSelectedTrack: (value: number) => void;
-  setSelectedCar: (value: number) => void;
-  setSelectedLapId: (value: number) => void;
-}) {
-  const { queryClient, gameId, setSelectedTrack, setSelectedCar, setSelectedLapId } = args;
+export function useAnalyseImports(args: { queryClient: QueryClient }) {
+  const { queryClient } = args;
   const [exportingBin, setExportingBin] = useState(false);
   const [importingBin, setImportingBin] = useState(false);
   const [importResult, setImportResult] = useState<AnalyseImportResult | null>(null);
   const [ibtPreview, setIbtPreview] = useState<IbtPreviewState | null>(null);
-  const selectLastLap = useCallback(
-    (laps: ImportedLap[], importedGameId: string | undefined) => {
-      if (importedGameId !== gameId || laps.length === 0) return;
-      const last = laps[laps.length - 1];
-      setSelectedTrack(last.trackOrdinal);
-      setSelectedCar(last.carOrdinal);
-      setSelectedLapId(last.lapId);
-    },
-    [gameId, setSelectedTrack, setSelectedCar, setSelectedLapId],
-  );
   const handleExportBin = useCallback(async (selectedLapId: number | null) => {
     if (selectedLapId == null) return;
     setExportingBin(true);
@@ -105,14 +89,13 @@ export function useAnalyseImports(args: {
         void queryClient.invalidateQueries({ queryKey: ["tracks"] });
         const laps = data?.laps ?? [];
         setImportResult({ fileName: file.name, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
-        selectLastLap(laps, data?.gameId);
       } catch (e) {
         window.alert(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setImportingBin(false);
       }
     },
-    [queryClient, selectLastLap],
+    [queryClient],
   );
   const handleCancelIbt = useCallback(() => {
     const token = ibtPreview?.token;
@@ -137,13 +120,12 @@ export function useAnalyseImports(args: {
       void queryClient.invalidateQueries({ queryKey: ["tracks"] });
       const laps = data?.laps ?? [];
       setImportResult({ fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
-      selectLastLap(laps, data?.gameId);
     } catch (e) {
       setIbtPreview(null);
       window.alert(`IBT import failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setImportingBin(false);
     }
-  }, [ibtPreview, queryClient, selectLastLap]);
+  }, [ibtPreview, queryClient]);
   return { exportingBin, importingBin, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult };
 }

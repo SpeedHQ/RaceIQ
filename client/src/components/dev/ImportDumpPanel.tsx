@@ -37,7 +37,7 @@ export function ImportDumpPanel() {
   const navigate = useNavigate();
 
   const openInAnalyse = (lap: ImportedLap) => {
-    if (!result) return;
+    if (!result || lap.trackOrdinal <= 0 || lap.carOrdinal <= 0) return;
     // Route is /{routePrefix}/analyse with ?track&car&lap search params
     navigate({
       to: `/${result.routePrefix}/analyse`,
@@ -180,8 +180,14 @@ export function ImportDumpPanel() {
                       <span className="text-app-text-muted">#{lap.lapNumber}</span> <span>{formatLapTime(lap.lapTime)}</span>
                       {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-app-caption">invalid</span>}
                     </div>
-                    <Button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity">
-                      {m.dev_open_analyse()}
+                    <Button
+                      type="button"
+                      disabled={lap.trackOrdinal <= 0 || lap.carOrdinal <= 0}
+                      title={lap.trackOrdinal <= 0 || lap.carOrdinal <= 0 ? "Analyse unavailable: track/car identity unresolved" : undefined}
+                      onClick={() => openInAnalyse(lap)}
+                      className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity"
+                    >
+                      {lap.trackOrdinal <= 0 || lap.carOrdinal <= 0 ? "Identity unavailable" : m.dev_open_analyse()}
                     </Button>
                   </div>
                 ))}

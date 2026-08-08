@@ -7,9 +7,11 @@ export type AnalyseSearch = {
   track?: number;
   car?: number;
   lap?: number;
+  laps?: string;
   cursor?: number;
   viz?: string;
   ai?: number;
+  view?: string;
 };
 export type CompareSearch = {
   track?: number;
@@ -78,14 +80,26 @@ export function parseOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+/** Parse the canonical comparison lap list without silently accepting malformed IDs. */
+export function parseAnalyseLapIds(value: string | undefined): number[] | null | undefined {
+  if (value == null) return undefined;
+  const parts = value.split(",");
+  if (parts.length === 0 || parts.some((part) => part.trim() === "")) return null;
+  const ids = parts.map((part) => Number(part));
+  if (ids.some((id) => !Number.isInteger(id) || id <= 0) || new Set(ids).size !== ids.length) return null;
+  return ids;
+}
+
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
   return {
     track: parseOptionalNumber(search.track),
     car: parseOptionalNumber(search.car),
     lap: parseOptionalNumber(search.lap),
+    laps: typeof search.laps === "string" ? search.laps : undefined,
     cursor: parseOptionalNumber(search.cursor),
     viz: typeof search.viz === "string" ? search.viz : undefined,
     ai: parseOptionalNumber(search.ai),
+    view: typeof search.view === "string" ? search.view : undefined,
   };
 }
 

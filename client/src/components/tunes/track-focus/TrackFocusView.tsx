@@ -1,3 +1,4 @@
+import type { GameId } from "@shared/games/ids";
 import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMemo, useState } from "react";
@@ -25,17 +26,16 @@ import { SuspensionLanes } from "./SuspensionLanes";
 import { TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
 import { TrackFocusZoom } from "./TrackFocusZoom";
-
 interface TrackFocusViewProps {
-  gameId: "acc" | "ac-evo" | "fm-2023" | "f1-2025";
+  gameId: GameId;
   laps: LapMeta[];
   trackOrdinal?: number;
-  /** Controlled focus lap (null = "All" — falls back to the best lap for map/telemetry). Omit for internal state. */
+  /** Controlled focus lap (null = "All" — falls back to the best lap for map/telemetry). */
   focusLapId?: number | null;
   onFocusLap?: (lapId: number) => void;
-  /** Experiment id, when this view is hosted inside an experiment
-   *  review (drives the /line-spread racing-line consistency query). Omit to
-   *  hide the line-spread lane + map overlay (e.g. Storybook, non-tuning contexts). */
+  /** Explicit comparison set from the Analyse URL; defaults to shared fastest-five selection. */
+  evaluationLapIds?: number[];
+  /** Experiment id, when this view is hosted inside an experiment review. */
   experimentId?: number | null;
 }
 
@@ -46,7 +46,7 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
-export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId }: TrackFocusViewProps) {
+export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, evaluationLapIds, experimentId }: TrackFocusViewProps) {
   // Invalid laps are excluded from the whole Track Focus view —
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
@@ -59,18 +59,21 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // the old local fastestLaps() trim could disagree when auto-exclude had
   // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.
-  const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
+  const reviewLaps = useMemo(() => {
+    if (evaluationLapIds == null) return selectEvaluationLaps(laps).chosen;
+    const selectedIds = new Set(evaluationLapIds);
+    return laps.filter((lap) => selectedIds.has(lap.id) && lap.isValid && lap.lapTime > 0);
+  }, [evaluationLapIds, laps]);
   const { traces } = useStintTraces(reviewLaps);
   const { data: lineSpread } = useLineSpread(experimentId);
 
   const bestLapId = useMemo(() => {
     let best: LapMeta | null = null;
-    for (const l of stintLaps) {
-      if (!l.isValid || l.experimentExcluded) continue;
+    for (const l of reviewLaps) {
       if (best == null || l.lapTime < best.lapTime) best = l;
     }
     return best?.id ?? null;
-  }, [stintLaps]);
+  }, [reviewLaps]);
 
   const [localFocusId, setLocalFocusId] = useState<number | null>(null);
   const focusLapId = controlledFocusId !== undefined ? controlledFocusId : localFocusId;

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
@@ -22,11 +22,13 @@ import { useAnalyseSelections } from "./useAnalyseSelections";
 
 // ── Main Component ───────────────────────────────────────────────────
 
-export function LapAnalyse() {
-  return <LapAnalyseInner />;
+export function LapAnalyse({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: number; carOrdinal: number; lapId: number }) {
+  return <LapAnalyseInner trackOrdinal={trackOrdinal} carOrdinal={carOrdinal} lapId={lapId} />;
 }
 
-function LapAnalyseInner() {
+function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: number; carOrdinal: number; lapId: number }) {
+  const navigate = useNavigate();
+
   const search = useSearch({ strict: false }) as AnalyseSearch;
   const units = useUnits();
   const gameId = useRequiredGameId();
@@ -42,11 +44,8 @@ function LapAnalyseInner() {
     telemetry,
     displayTelemetry,
     selectedTrack,
-    setSelectedTrack,
     selectedCar,
-    setSelectedCar,
     selectedLapId,
-    setSelectedLapId,
     outline,
     mapLabels,
     boundaries,
@@ -79,8 +78,10 @@ function LapAnalyseInner() {
     setTrackName,
     handleTrackChange,
     handleCarChange,
+    handleLapChange,
     cursorRef,
-  } = useAnalyseSelections(search, gameId);
+  } = useAnalyseSelections(search, gameId, { trackOrdinal, carOrdinal, lapId });
+  const resourceMismatch = lapData != null && (lapData.trackOrdinal !== trackOrdinal || lapData.carOrdinal !== carOrdinal);
   const loading = lapLoading;
   const [cursorIdx, setCursorIdx] = useState(0);
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
@@ -283,9 +284,13 @@ function LapAnalyseInner() {
   });
 
   const deleteLapMutation = useMutation({
-    mutationFn: (lapId: number) => client.api.laps[":id"].$delete({ param: { id: String(lapId) } }).then((r) => r.json() as any),
+    mutationFn: async (lapId: number) => {
+      const response = await client.api.laps[":id"].$delete({ param: { id: String(lapId) } });
+      if (!response.ok) throw new Error(`Failed to delete lap (${response.status})`);
+      return response.json();
+    },
     onSuccess: () => {
-      setSelectedLapId(null);
+      void navigate({ search: { ...search, lap: undefined, view: "track", cursor: undefined } } as never);
       queryClient.invalidateQueries({ queryKey: ["laps"] });
     },
   });
@@ -304,13 +309,7 @@ function LapAnalyseInner() {
     buildExportCsv(telemetry, carName, trackName, selectedLap, selectedLapId, displaySettings.driverName);
   }, [telemetry, selectedLapId, selectedLap, carName, trackName]);
 
-  const { exportingBin, importingBin, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
-    queryClient,
-    gameId,
-    setSelectedTrack,
-    setSelectedCar,
-    setSelectedLapId,
-  });
+  const { exportingBin, importingBin, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({ queryClient });
 
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
@@ -333,7 +332,7 @@ function LapAnalyseInner() {
         aiPanelOpen={aiPanelOpen}
         onTrackChange={handleTrackChange}
         onCarChange={handleCarChange}
-        onLapChange={setSelectedLapId}
+        onLapChange={handleLapChange}
         onTuneChange={(tuneId) => updateLapTune.mutate(tuneId)}
         onViewTune={setViewingTuneId}
         onShowSetup={() => setShowSetup(true)}
@@ -347,9 +346,9 @@ function LapAnalyseInner() {
         onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}
       />
 
-      {telemetry.length === 0 && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
+      {(resourceMismatch || telemetry.length === 0) && <AnalyseWorkspaceStatus loading={loading} lapError={resourceMismatch ? new Error("Lap not found in this track/car analysis") : lapError} parseError={parseError} selectedLapId={selectedLapId} />}
 
-      {telemetry.length > 0 && (
+      {telemetry.length > 0 && !resourceMismatch && (
         <AnalyseWorkspacePanels
           topSectionProps={{
             topHeight,
@@ -454,9 +453,17 @@ function LapAnalyseInner() {
         onCancelIbt={handleCancelIbt}
         importResult={importResult}
         gameId={gameId}
-        setSelectedTrack={setSelectedTrack}
-        setSelectedCar={setSelectedCar}
-        setSelectedLapId={setSelectedLapId}
+        onGoToLap={(lap) =>
+          void navigate({
+            search: {
+              ...search,
+              track: lap.trackOrdinal,
+              car: lap.carOrdinal,
+              lap: lap.lapId,
+              cursor: undefined,
+            },
+          } as never)
+        }
         onCloseImport={() => setImportResult(null)}
       />
     </div>

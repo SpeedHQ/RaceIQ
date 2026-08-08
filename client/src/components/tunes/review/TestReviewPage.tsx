@@ -81,11 +81,8 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
           `items-start` lets the sticky chat column pin instead of stretching. */}
       <div className="grid grid-cols-1 items-start gap-3 @5xl/workspace:grid-cols-[1fr_360px]">
         <div className="border border-app-border rounded-lg">
-          {/* TuneReviewDashboard's gameId union is ACC/AC-Evo (setup-engineer
-              panels); F1 rides the ACC path — it never reaches ACC-specific
-              setup data, and the sector/tyre analysis is game-agnostic. */}
           <TuneReviewDashboard
-            gameId={gameId === "f1-2025" ? "acc" : gameId}
+            gameId={gameId}
             laps={laps}
             trackName={session?.trackName ?? undefined}
             onBack={backToWorkspace}

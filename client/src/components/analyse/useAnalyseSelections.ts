@@ -16,20 +16,29 @@ import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapLabel } from 
 const emptyTelemetry: TelemetryPacket[] = [];
 const emptyLaps: LapMeta[] = [];
 
-export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0]) {
+export function useAnalyseSelections(
+  search: AnalyseSearch,
+  gameId: Parameters<typeof getGame>[0],
+  initialSelection: { trackOrdinal: number; carOrdinal: number; lapId: number } = {
+    trackOrdinal: search.track ?? 0,
+    carOrdinal: search.car ?? 0,
+    lapId: search.lap ?? 0,
+  },
+) {
   const navigate = useNavigate();
   const [laps, setLaps] = useState<LapMeta[]>([]);
-  const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
-  const [selectedCar, setSelectedCar] = useState<number | null>(search.car ?? null);
-  const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
+  const [selectedTrack, setSelectedTrack] = useState<number | null>(initialSelection.trackOrdinal || null);
+  const [selectedCar, setSelectedCar] = useState<number | null>(initialSelection.carOrdinal || null);
+  const [selectedLapId, setSelectedLapId] = useState<number | null>(initialSelection.lapId || null);
+  useEffect(() => {
+    setSelectedTrack((current) => (current === initialSelection.trackOrdinal ? current : initialSelection.trackOrdinal));
+    setSelectedCar((current) => (current === initialSelection.carOrdinal ? current : initialSelection.carOrdinal));
+    setSelectedLapId((current) => (current === initialSelection.lapId ? current : initialSelection.lapId));
+  }, [initialSelection.carOrdinal, initialSelection.lapId, initialSelection.trackOrdinal]);
   const { data: lapData, isLoading: lapLoading, error: lapError } = useLapTelemetry(selectedLapId);
   const parseError = (lapData as { parseError?: string } | undefined)?.parseError;
   const telemetry = lapData?.telemetry ?? emptyTelemetry;
   const displayTelemetry = useConvertedTelemetry(telemetry);
-  useEffect(() => {
-    if (selectedTrack == null && lapData?.trackOrdinal != null) setSelectedTrack(lapData.trackOrdinal);
-    if (selectedCar == null && lapData?.carOrdinal != null) setSelectedCar(lapData.carOrdinal);
-  }, [lapData, selectedTrack, selectedCar]);
   const trackOrd = selectedTrack ?? lapData?.trackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
   const outline = useMemo(() => {
@@ -112,20 +121,32 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (resolvedNames.trackNames) setTrackNames((p) => mergeNameCache(p, resolvedNames.trackNames));
     if (resolvedNames.carNames) setCarNames((p) => mergeNameCache(p, resolvedNames.carNames));
   }, [resolvedNames]);
-  useEffect(() => {
+  const updateSearch = (track: number | null, car: number | null, lap: number | null, clearCursor = false) => {
     void navigate({
-      search: (prev: Record<string, unknown>) => ({ ...prev, track: selectedTrack ?? undefined, car: selectedCar ?? undefined, lap: selectedLapId ?? undefined }) as never,
-      replace: true,
-    });
-  }, [selectedTrack, selectedCar, selectedLapId, navigate]);
+      search: {
+        ...search,
+        track: track ?? undefined,
+        car: car ?? undefined,
+        lap: lap ?? undefined,
+        laps: lap == null ? undefined : search.laps,
+        cursor: clearCursor ? undefined : search.cursor,
+      },
+    } as never);
+  };
   const handleTrackChange = (value: number | null) => {
     setSelectedTrack(value);
     setSelectedCar(null);
     setSelectedLapId(null);
+    updateSearch(null, null, null);
   };
   const handleCarChange = (value: number | null) => {
     setSelectedCar(value);
     setSelectedLapId(null);
+    updateSearch(selectedTrack, value, null);
+  };
+  const handleLapChange = (value: number | null) => {
+    setSelectedLapId(value);
+    updateSearch(selectedTrack, selectedCar, value, true);
   };
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
@@ -180,6 +201,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     carsForTrack,
     filteredLaps,
     carName,
+    handleLapChange,
     trackName,
     setCarName,
     setTrackName,

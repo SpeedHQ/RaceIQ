@@ -94,6 +94,23 @@ export function SessionToolbar({
             {m.sessions_import_motec()}
           </Button>
         )}
+        {selectedLaps.size >= 2 &&
+          (() => {
+            const ids = [...selectedLaps];
+            const selected = ids.map((id) => allLaps.find((lap) => lap.id === id)).filter((lap): lap is LapMeta => lap != null);
+            const first = selected[0];
+            const sameGroup = first?.trackOrdinal != null && first.carOrdinal != null && selected.length === ids.length && selected.every((lap) => lap.trackOrdinal === first.trackOrdinal && lap.carOrdinal === first.carOrdinal);
+            if (!sameGroup) return null;
+            return (
+              <Button
+                variant="app-primary"
+                size="app-md"
+                onClick={() => void navigate({ to: `${gameRoute}/analyse` as never, search: { track: first.trackOrdinal, car: first.carOrdinal, laps: ids.join(",") } as never })}
+              >
+                {m.label_analyse()} ({ids.length})
+              </Button>
+            );
+          })()}
         {selectedLaps.size === 2 &&
           (() => {
             const ids = [...selectedLaps];

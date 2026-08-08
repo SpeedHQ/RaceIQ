@@ -20,9 +20,7 @@ interface AnalyseWorkspaceModalsProps {
   onCancelIbt: () => void;
   importResult: AnalyseImportResult | null;
   gameId: string;
-  setSelectedTrack: (value: number) => void;
-  setSelectedCar: (value: number) => void;
-  setSelectedLapId: (value: number) => void;
+  onGoToLap: (lap: AnalyseImportResult["laps"][number]) => void;
   onCloseImport: () => void;
 }
 
@@ -37,9 +35,7 @@ export function AnalyseWorkspaceModals({
   onCancelIbt,
   importResult,
   gameId,
-  setSelectedTrack,
-  setSelectedCar,
-  setSelectedLapId,
+  onGoToLap,
   onCloseImport,
 }: AnalyseWorkspaceModalsProps) {
   const navigate = useNavigate();
@@ -66,13 +62,8 @@ export function AnalyseWorkspaceModals({
               onGoToSession={
                 lastLap
                   ? () => {
-                      if (sameGame) {
-                        setSelectedTrack(lastLap.trackOrdinal);
-                        setSelectedCar(lastLap.carOrdinal);
-                        setSelectedLapId(lastLap.lapId);
-                      } else {
-                        navigate({ to: `/${importResult.routePrefix}/analyse`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
-                      }
+                      if (sameGame) onGoToLap(lastLap);
+                      else navigate({ to: `/${importResult.routePrefix}/analyse`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
                       onCloseImport();
                     }
                   : undefined
