@@ -6,8 +6,10 @@ import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { encodeLiveFrame, encodeLiveSchema } from "../../telemetry/live-wire";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 import { getServerGame } from "../../games/registry";
-import { PitTracker } from "../../live-strategy/pit-tracker";
 import { SectorTracker } from "../../live-strategy/sector-tracker";
+import { PitTracker } from "../../live-strategy/pit-tracker";
+import { LiveTelemetryProjector } from "../../telemetry/live-projector";
+import { normalizeTelemetryPacket } from "../../telemetry/normalization";
 import { wsManager } from "../../runtime/websocket-manager";
 import {
   resolveRecordingGameId,
@@ -205,16 +207,30 @@ export const replayRoutes = new Hono()
       }
     }
     const pitTracker = new PitTracker();
+    const projector = new LiveTelemetryProjector();
+    let replaySessionId = 0;
+
     pitTracker.reset();
     pitTracker.setTireThresholds(getServerGame(gameId).tireHealthThresholds.yellow);
-
     for (const packet of packets) {
+      normalizeTelemetryPacket(
+        getServerGame(gameId).coordSystem === "standard-xyz",
+        getServerGame(gameId).runtime.normSuspensionTravelMm,
+      );
       const sectors = sectorTracker.feed(packet);
       const pit = pitTracker.feed(
         packet,
         sectorTracker.getTrackLength(),
         sectorTracker.getLapDistStart(),
       );
+      const projection = projector.project({
+        packet,
+        sessionId: replaySessionId,
+        sectors,
+        pit,
+        receivedAtMs: Date.now(),
+      });
+      wsManager.publishTelemetry(projection);
       wsManager.broadcast(packet, sectors, pit);
       if (intervalMs > 0) {
         await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
