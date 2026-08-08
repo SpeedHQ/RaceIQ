@@ -5,10 +5,10 @@ import { WheelTable } from "./WheelTable";
 
 interface Props { frame: SemanticAnalysisFrame; }
 const WHEELS = ["FL", "FR", "RL", "RR"] as const;
-const wheel = (frame: SemanticAnalysisFrame, id: string, index: number) => {
+const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number) => {
   const value = frame.values[id];
   return Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null;
-};
+}
 const unavailable = <span className="text-app-text-dim">—</span>;
 
 export function AnalyseSuspensionPanel({ frame }: Props) {

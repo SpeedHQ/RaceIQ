@@ -2,7 +2,7 @@ import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 
 const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
-const number = (frame: SemanticAnalysisFrame, id: string): number | null => { const value = frame.values[id]; return typeof value === "number" && Number.isFinite(value) ? value : null; };
+const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id]; return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 interface Props { frame: SemanticAnalysisFrame; }
 

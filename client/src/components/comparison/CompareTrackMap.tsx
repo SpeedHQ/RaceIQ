@@ -1,8 +1,8 @@
 import type { GameId } from "@shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
-const value = (p: SemanticTelemetrySample, id: string): any => p.values[id];
-const numberValue = (p: SemanticTelemetrySample, id: string): number | undefined => { const x=value(p,id); return typeof x === "number" ? x : undefined; };
+const value = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
+const numberValue = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=value(p,id); return typeof x === "number" ? x : undefined; }
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, type Point } from "@/lib/comparison-utils";

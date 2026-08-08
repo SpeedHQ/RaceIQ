@@ -4,9 +4,8 @@ import { TimeDelta } from "@/components/TimeDelta";
 import { COLOR_A, COLOR_B } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
 
-const numericSeries = (samples: SemanticTelemetrySample[], id: string) =>
-  samples.map((sample) => (typeof sample.values[id] === "number" ? sample.values[id] as number : Number.NaN));
-const interpolateSeries = (samples: SemanticTelemetrySample[], id: string, grid: number[]) => {
+const numericSeries = (samples: SemanticTelemetrySample[], id: keyof SemanticTelemetrySample["values"]) => samples.map((sample) => (typeof sample.values[id] === "number" ? sample.values[id] as number : Number.NaN))
+const interpolateSeries = (samples: SemanticTelemetrySample[], id: keyof SemanticTelemetrySample["values"], grid: number[]) => {
   const points = samples.map((sample) => ({ x: sample.values["timing.distance-traveled"], y: sample.values[id] }))
     .filter((point): point is { x: number; y: number } => typeof point.x === "number" && typeof point.y === "number");
   return grid.map((x) => {
@@ -19,7 +18,7 @@ const interpolateSeries = (samples: SemanticTelemetrySample[], id: string, grid:
     const span = next.x - left.x;
     return span > 0 ? left.y + ((next.y - left.y) * (x - left.x)) / span : next.y;
   });
-};
+}
 const hasValues = (series: number[]) => series.some(Number.isFinite);
 
 export function ComparisonCharts({

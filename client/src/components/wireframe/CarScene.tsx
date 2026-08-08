@@ -24,7 +24,7 @@ import { Wheel } from "./Wheel";
 // normalized compression (how hard that corner is loaded). Dot reaches a
 // corner edge only when that corner is at 100% compression AND the others
 // are at the baseline.
-const wheel = (f: SemanticAnalysisFrame, id: string, i: number) => { const v=f.values[id]; return Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? v[i] as number : 0; };
+const wheel = (f: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], i: number) => { const v = f.values[id]; return Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? v[i] as number : 0; }
 
 function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft: number, rt: number): { x: number; z: number } | null {
   const base = Math.min(susp[0], susp[1], susp[2], susp[3]);
@@ -86,16 +86,16 @@ export function CarScene({
     packetRef.current = frame;
   });
     const carGroupRef = useRef<THREE.Group>(null);
-  const prevTimeRef = useRef(semanticNumber(frame, "timing.timestamp-ms") ?? 0);
+  const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
   const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
 
   // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
   // Higher suspension travel = more compressed on that corner
-  const suspFL = wheel(frame, "suspension.travel", 0);
-  const suspFR = wheel(frame, "suspension.travel", 1);
-  const suspRL = wheel(frame, "suspension.travel", 2);
-  const suspRR = wheel(frame, "suspension.travel", 3);
+  const suspFL = wheel(frame, "suspension.suspension-travel-m", 0);
+  const suspFR = wheel(frame, "suspension.suspension-travel-m", 1);
+  const suspRL = wheel(frame, "suspension.suspension-travel-m", 2);
+  const suspRR = wheel(frame, "suspension.suspension-travel-m", 3);
 
   // Body drops when suspension compresses (wheels stay on ground).
   // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
@@ -129,8 +129,8 @@ export function CarScene({
 
   // Compute tire wear rate (/s) — smoothed with EMA
   useEffect(() => {
-    const dt = (semanticNumber(frame, "timing.timestamp-ms") ?? 0 - prevTimeRef.current) / 1000;
-    prevTimeRef.current = semanticNumber(frame, "timing.timestamp-ms") ?? 0;
+    const dt = (semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0 - prevTimeRef.current) / 1000;
+    prevTimeRef.current = semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0;
     const currentWear = [wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)];
     if (dt > 0 && dt < 1) {
       setWearRatesVal((prev) => {
@@ -145,7 +145,7 @@ export function CarScene({
     prevWear.current = currentWear;
   });
 
-  const steerRad = -(semanticNumber(frame, "inputs.steering") ?? 0 / 127) * 0.35;
+  const steerRad = -(semanticNumber(frame, "inputs.steer") ?? 0 / 127) * 0.35;
 
   // All games: fronts rotate by the normalized Steer input scaled to a
   // ballpark max front wheel angle; rears stay at 0. ACC's tyreContactHeading
@@ -182,24 +182,24 @@ export function CarScene({
   const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
   const fTireW = carModel.frontTireWidth ?? 0.3;
   const rTireW = carModel.rearTireWidth ?? 0.3;
-  const pressFL = semanticNumber(frame, "tire.pressure") ?? 0;
-  const pressFR = semanticNumber(frame, "tire.pressure") ?? 0;
-  const pressRL = semanticNumber(frame, "tire.pressure") ?? 0;
-  const pressRR = semanticNumber(frame, "tire.pressure") ?? 0;
+  const pressFL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
+  const pressFR = semanticNumber(frame, "tires.tire-pressure") ?? 0;
+  const pressRL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
+  const pressRR = semanticNumber(frame, "tires.tire-pressure") ?? 0;
   const wheelData = [
     {
       id: "fl",
       pos: [wb, 0, -ft] as [number, number, number],
       steer: steerFL,
       camber: cambFL,
-      susp: wheel(frame, "suspension.travel", 0),
+      susp: wheel(frame, "suspension.suspension-travel-m", 0),
       drop: dropFL,
       traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.tire-slip-angle", 0)).color,
       rimColor: colorFL,
-      brakeTemp: semanticNumber(frame, "tire.temperature.brake") ?? 0,
+      brakeTemp: semanticNumber(frame, "brakes.brake-temp") ?? 0,
       pressure: pressFL,
       onRumble: false,
-      puddle: wheel(frame, "tire.puddle-depth", 0),
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 0),
       wearRate: wearRatesVal[0],
       wear: wheel(frame, "tires.tire-wear", 0),
       rotSpeed: rotFL,
@@ -211,14 +211,14 @@ export function CarScene({
       pos: [wb, 0, ft] as [number, number, number],
       steer: steerFR,
       camber: cambFR,
-      susp: wheel(frame, "suspension.travel", 1),
+      susp: wheel(frame, "suspension.suspension-travel-m", 1),
       drop: dropFR,
       traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.tire-slip-angle", 1)).color,
       rimColor: colorFR,
-      brakeTemp: semanticNumber(frame, "tire.temperature.brake") ?? 0,
+      brakeTemp: semanticNumber(frame, "brakes.brake-temp") ?? 0,
       pressure: pressFR,
       onRumble: false,
-      puddle: wheel(frame, "tire.puddle-depth", 1),
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 1),
       wearRate: wearRatesVal[1],
       wear: wheel(frame, "tires.tire-wear", 1),
       rotSpeed: rotFR,
@@ -230,14 +230,14 @@ export function CarScene({
       pos: [-wb, 0, -rt] as [number, number, number],
       steer: steerRL,
       camber: cambRL,
-      susp: wheel(frame, "suspension.travel", 2),
+      susp: wheel(frame, "suspension.suspension-travel-m", 2),
       drop: dropRL,
       traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.tire-slip-angle", 2)).color,
       rimColor: colorRL,
-      brakeTemp: semanticNumber(frame, "tire.temperature.brake") ?? 0,
+      brakeTemp: semanticNumber(frame, "brakes.brake-temp") ?? 0,
       pressure: pressRL,
       onRumble: false,
-      puddle: wheel(frame, "tire.puddle-depth", 2),
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 2),
       wearRate: wearRatesVal[2],
       wear: wheel(frame, "tires.tire-wear", 2),
       rotSpeed: rotRL,
@@ -249,14 +249,14 @@ export function CarScene({
       pos: [-wb, 0, rt] as [number, number, number],
       steer: steerRR,
       camber: cambRR,
-      susp: wheel(frame, "suspension.travel", 3),
+      susp: wheel(frame, "suspension.suspension-travel-m", 3),
       drop: dropRR,
       traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.tire-slip-angle", 3)).color,
       rimColor: colorRR,
-      brakeTemp: semanticNumber(frame, "tire.temperature.brake") ?? 0,
+      brakeTemp: semanticNumber(frame, "brakes.brake-temp") ?? 0,
       pressure: pressRR,
       onRumble: false,
-      puddle: wheel(frame, "tire.puddle-depth", 3),
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 3),
       wearRate: wearRatesVal[3],
       wear: wheel(frame, "tires.tire-wear", 3),
       rotSpeed: rotRR,
@@ -291,7 +291,7 @@ export function CarScene({
       const lap = semanticNumber(p, "timing.current-lap") ?? 0;
       if (lap > endLap) break;
       if (endLap - lap > 1) break;
-      const suspension = p.values["suspension.travel"];
+      const suspension = p.values["suspension.suspension-travel-m"];
       const xz = computeLoadDotXZ(
         [0, 1, 2, 3].map((i) => (Array.isArray(suspension) && typeof suspension[i] === "number" ? suspension[i] : 0)) as [number, number, number, number],
         wb,

@@ -6,10 +6,10 @@ interface Props {
   frame: SemanticAnalysisFrame;
 }
 
-const number = (frame: SemanticAnalysisFrame, id: string) => {
+const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
   const value = frame.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+}
 
 
 export function AnalyseSteeringOverlay({ frame }: Props) {

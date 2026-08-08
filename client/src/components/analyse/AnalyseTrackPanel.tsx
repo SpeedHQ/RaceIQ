@@ -94,7 +94,7 @@ export function AnalyseTrackPanel({
         zoom={mapZoom}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
-      {telemetry[cursorIdx]?.values["weather.air-temperature"] != null && <WeatherWidget f1={telemetry[cursorIdx].values as never} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
+      {telemetry[cursorIdx]?.values["weather.air-temp"] != null && <WeatherWidget f1={telemetry[cursorIdx].values as never} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
 
       {/* View toggles — top left */}
       <div className="absolute top-2 left-2 flex flex-wrap gap-1">

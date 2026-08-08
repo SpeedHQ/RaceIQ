@@ -124,7 +124,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
     if (!f) return undefined;
-    const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tire.pressure", wear: "tire.wear" } as const)[metric.key];
+    const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tires.tire-pressure", wear: "tires.tire-wear" } as const)[metric.key];
     return Object.fromEntries(CORNERS.map((c, i) => [c, wheelValue(f, id, i)]).filter(([, v]) => v != null)) as Partial<Record<CornerKey, number>>;
   }, [hoverPos, telemetry, metric.key]);
 
@@ -132,7 +132,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   // cursor's point on the lap.
   const readout = useCallback(
     (frame: SemanticTuneSample) => {
-      const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tire.pressure", wear: "tire.wear" } as const)[metric.key];
+      const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tires.tire-pressure", wear: "tires.tire-wear" } as const)[metric.key];
       return CORNERS.map((c, i) => {
         const v = wheelValue(frame, id, i);
         const ok = v != null && Number.isFinite(v);

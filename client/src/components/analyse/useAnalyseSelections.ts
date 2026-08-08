@@ -9,15 +9,9 @@ import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
-import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapLabel } from "./track-map/types";
+import { semanticValues, type Point, type SectorBoundaries, type SemanticAnalysisFrame, type TrackMapBoundaries, type TrackMapLabel } from "./track-map/types";
 import type { SemanticReplayFrame } from "../../hooks/laps";
-interface AnalyseSemanticFrame {
-  sequence: number;
-  observedAtMs: number;
-  values: Readonly<Record<string, unknown>>;
-  states: Readonly<Record<string, string | undefined>>;
-  freshness: Readonly<Record<string, string | undefined>>;
-}
+interface AnalyseSemanticFrame { sequence: number; observedAtMs: number; values: SemanticAnalysisFrame["values"]; states: Readonly<Record<string, string | undefined>>; freshness: Readonly<Record<string, string | undefined>>; }
 const emptyLaps: LapMeta[] = [];
 
 export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0]) {
@@ -31,7 +25,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const semanticFrames = useMemo<AnalyseSemanticFrame[]>(() => semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
     sequence: envelope.sequence,
     observedAtMs: envelope.observedAt.milliseconds,
-    values: Object.fromEntries(envelope.values.map((entry) => [entry.semanticId, entry.value])),
+    values: semanticValues(envelope.values),
     states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
     freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
   })) ?? [], [semanticReplay]);

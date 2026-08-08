@@ -2,10 +2,8 @@ import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 
 const toDeg = 180 / Math.PI;
 
-const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 /**
  * BodyAttitude — Three SVG mini-views showing car orientation:

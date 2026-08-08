@@ -205,7 +205,7 @@ import { wheelValue } from "./semantic-tune";
 
 export function buildSemanticSectorRanges(samples: SemanticTuneSample[], sectorTimes: SectorTimes | null, metric: MetricKey): SectorRangeModel | null {
   if (samples.length < 5) return null;
-  const ids: Record<MetricKey, string> = { tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tire.pressure", wear: "tire.wear" };
+  const ids: Record<MetricKey, keyof SemanticTuneSample["values"]> = { tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tires.tire-pressure", wear: "tires.tire-wear" };
   const n = samples.length;
   const count = sectorTimes?.times.length && sectorTimes.times.length >= 2 ? sectorTimes.times.length : 3;
   const bounds = sectorTimes?.boundaryIndices.length === count - 1 ? sectorTimes.boundaryIndices : Array.from({ length: count - 1 }, (_, i) => Math.floor(((i + 1) * n) / count));

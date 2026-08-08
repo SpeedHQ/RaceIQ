@@ -17,10 +17,8 @@ export function GForceCircle({ frame, view }: { frame?: SemanticAnalysisFrame; v
   const size = 110;
   const maxG = 2.5;
 
-  function number(current: SemanticAnalysisFrame | undefined, id: string): number | null {
-    const value = current?.values[id];
-    return typeof value === "number" && Number.isFinite(value) ? value : null;
-  }
+  function number(current: SemanticAnalysisFrame | undefined, id: keyof SemanticAnalysisFrame["values"]): number | null { const value = current?.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
   useEffect(() => {
     const canvas = canvasRef.current;

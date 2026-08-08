@@ -4,10 +4,8 @@ import { useUnits } from "../../hooks/useUnits";
 import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 
-const number = (frame: SemanticAnalysisFrame, id: string): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 export function MetricsPanel({ frame, startFuel }: { frame: SemanticAnalysisFrame; startFuel?: number }) {
   const units = useUnits();

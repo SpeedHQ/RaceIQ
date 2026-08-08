@@ -23,7 +23,5 @@ export function Vitals2D({ frame, view }: { frame?: SemanticAnalysisFrame; view?
   );
 }
 
-function number(frame: SemanticAnalysisFrame | undefined, id: string): number | null {
-  const value = frame?.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
+function number(frame: SemanticAnalysisFrame | undefined, id: keyof SemanticAnalysisFrame["values"]): number | null { const value = frame?.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }

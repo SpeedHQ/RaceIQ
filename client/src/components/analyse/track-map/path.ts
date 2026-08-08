@@ -1,9 +1,9 @@
 import type { Point, SemanticAnalysisFrame } from "./types";
 
-const number = (frame: SemanticAnalysisFrame, id: string) => {
+const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
   const value = frame.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+}
 
 export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], _outline: Point[] | null): Point[] {
   return telemetry.map((frame) => ({ x: number(frame, "motion.position-x") ?? 0, z: number(frame, "motion.position-z") ?? 0 }));

@@ -44,19 +44,15 @@ interface ChartsPanelProps {
   tempLabel: string;
 }
 
-const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
-const wheel = (frame: SemanticAnalysisFrame, id: string, index: number): number | null => {
-  const value = frame.values[id];
-  if (Array.isArray(value)) {
-    const item = value[index];
-    return typeof item === "number" && Number.isFinite(item) ? item : null;
-  }
-  return numeric(frame, id);
-};
+const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number | null => { const value = frame.values[id];
+if (Array.isArray(value)) {
+  const item = value[index];
+  return typeof item === "number" && Number.isFinite(item) ? item : null;
+}
+return numeric(frame, id); }
 
 function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
   if (displayTelemetry.length === 0) return null;
@@ -79,7 +75,7 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
     tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
     tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);
     tireTempRR.push(wheel(frame, "tire.temperature.average", 3) ?? NaN);
-    const brakes = ["brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp"].map((id, i) => wheel(frame, id, i));
+    const brakes = (["brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp"] as const).map((id, i) => wheel(frame, id, i));
     brakeTempFL.push(brakes[0] ?? NaN); brakeTempFR.push(brakes[1] ?? NaN); brakeTempRL.push(brakes[2] ?? NaN); brakeTempRR.push(brakes[3] ?? NaN);
     if (brakes.some((value) => value != null)) hasBrakeTemp = true;
   }

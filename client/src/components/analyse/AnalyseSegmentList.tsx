@@ -1,14 +1,11 @@
 import { memo, useMemo } from "react";
 import { m } from "@/paraglide/messages";
 
-export interface SemanticAnalysisFrame {
-  values: Readonly<Record<string, unknown>>;
-}
+import type { SemanticAnalysisFrame } from "./track-map/types";
+export type { SemanticAnalysisFrame } from "./track-map/types";
 
-const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 interface Segment {
   type: string;

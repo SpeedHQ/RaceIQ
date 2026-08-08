@@ -1,13 +1,39 @@
+import { isTelemetryVariableId } from "../../../../../shared/telemetry/catalog/query";
+import type { TelemetryVariableId } from "../../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+
 export interface SemanticAnalysisFrame {
-  values: Readonly<Record<string, unknown>>;
+  values: Partial<Readonly<Record<TelemetryVariableId, unknown>>>;
 }
 
-export const semanticNumber = (frame: SemanticAnalysisFrame | undefined, id: string): number | null => {
+export interface SemanticValueEntry {
+  semanticId: string;
+  value: unknown;
+}
+
+export function semanticValues(
+  entries: readonly SemanticValueEntry[],
+): SemanticAnalysisFrame["values"] {
+  const values: Partial<Record<TelemetryVariableId, unknown>> = {};
+  for (const entry of entries) {
+    if (isTelemetryVariableId(entry.semanticId)) {
+      values[entry.semanticId] = entry.value;
+    }
+  }
+  return values;
+}
+
+export const semanticNumber = (
+  frame: SemanticAnalysisFrame | undefined,
+  id: TelemetryVariableId,
+): number | null => {
   const value = frame?.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 };
 
-export const semanticBoolean = (frame: SemanticAnalysisFrame | undefined, id: string): boolean => semanticNumber(frame, id) === 1;
+export const semanticBoolean = (
+  frame: SemanticAnalysisFrame | undefined,
+  id: TelemetryVariableId,
+): boolean => semanticNumber(frame, id) === 1;
 
 export interface Point {
   x: number;

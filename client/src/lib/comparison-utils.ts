@@ -1,6 +1,6 @@
 import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
-const v = (p: SemanticTelemetrySample, id: string): any => p.values[id];
-const num = (p: SemanticTelemetrySample, id: string): number | undefined => { const x=v(p,id); return typeof x === "number" ? x : undefined; };
+const v = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
+const num = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=v(p,id); return typeof x === "number" ? x : undefined; }
 
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";
