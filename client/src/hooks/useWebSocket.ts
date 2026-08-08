@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
+import { handleWebSocketMessage } from "../lib/websocket-messages";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
+import { useDevTelemetryStore } from "../stores/dev-telemetry";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
@@ -75,9 +76,11 @@ export function useWebSocket() {
       const store = useTelemetryStore.getState();
 
       ws.onopen = () => {
-        // setConnected handles reconnecting → complete transition internally
         store.setConnected(true);
         startVersionRequest();
+        if (useDevTelemetryStore.getState().subscriptionWanted) {
+          ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
+        }
       };
 
       ws.onmessage = (event) => {
@@ -134,17 +137,8 @@ export function useWebSocket() {
               lapNumber: data.lapNumber as number,
               issues: data.issues,
             });
-          } else if (typeof data.gameId === "string" && typeof data.TimestampMS === "number") {
-            // Telemetry packets are the only untagged WebSocket payloads.
-            // Ignore unknown control notifications instead of treating their
-            // missing numeric fields as live telemetry.
-            const { _sectors, _pit, _liveIssues, ...packet } = data;
-            const s = useTelemetryStore.getState();
-            s.setPacket(packet as TelemetryPacket);
-            if (_sectors) s.setSectors(_sectors);
-            if (_pit) s.setPit(_pit);
-            if (_liveIssues) s.setLiveIssues(_liveIssues);
-            packetCountRef.current++;
+          } else {
+            handleWebSocketMessage(data);
           }
         } catch {
           // ignore malformed messages
@@ -156,6 +150,7 @@ export function useWebSocket() {
         const s = useTelemetryStore.getState();
         s.setConnected(false);
         s.setServerStatus(null);
+        useDevTelemetryStore.getState().clear();
         // If update was in progress, transition to reconnecting stage
         // Covers both "installing" and "downloading" (race: server may exit before WS "installing" message arrives)
         const stage = s.updateProgress?.stage;
@@ -171,6 +166,14 @@ export function useWebSocket() {
       };
     }
 
+    const unsubscribeDev = useDevTelemetryStore.subscribe((state, previous) => {
+      if (state.subscriptionWanted === previous.subscriptionWanted) return;
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
+      }
+    });
+
     connect();
 
     const interval = setInterval(() => {
@@ -179,11 +182,13 @@ export function useWebSocket() {
     }, 1000);
 
     return () => {
+      unsubscribeDev();
       clearInterval(interval);
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      clearTimeout(reconnectTimeoutRef.current);
       abortVersionRequest();
+      useDevTelemetryStore.getState().clear();
       if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect on cleanup
+        wsRef.current.onclose = null;
         wsRef.current.close();
         wsRef.current = null;
       }
