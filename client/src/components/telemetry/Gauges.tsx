@@ -3,12 +3,11 @@ import { getFuelAmount, getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/gam
 import { useEffect, useRef, useState } from "react";
 import { severityColor } from "@/lib/colors";
 import { client } from "@/lib/rpc";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 /**
- * ArcGauge — 270-degree SVG arc gauge (135deg to 405deg sweep).
- * Used for power, torque, and boost readouts. SVG arc path is computed
- * from polar coordinates converted to Cartesian for the arc endpoints.
+ * Used for power, torque, and boost readouts.
  */
 export function ArcGauge({ value, max, label, unit, color }: { value: number; max: number; label: string; unit: string; color: string }) {
   const size = 70;
@@ -59,7 +58,8 @@ export function ArcGauge({ value, max, label, unit, color }: { value: number; ma
  * so estimates survive page refreshes. Fraction sources reject impossible
  * values (>100% per lap); litre sources retain their native burn amount.
  */
-export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
+export function FuelGauge({ packet, view }: { packet: TelemetryPacket; view?: LiveTelemetryView }) {
+
   const fuelSpec = getGame(packet.gameId).telemetry.fuel;
   const fuelRef = useRef<{
     lapStart: number;
@@ -158,7 +158,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
-export function PowerTorque({ packet }: { packet: TelemetryPacket }) {
+export function PowerTorque({ packet, view }: { packet: TelemetryPacket; view?: LiveTelemetryView }) {
   const telemetryModel = getGame(packet.gameId).telemetry;
   const showPower = telemetryModel.power !== undefined;
   const showTorque = telemetryModel.torque !== undefined;

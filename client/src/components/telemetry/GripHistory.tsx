@@ -41,8 +41,12 @@ export function GripHistory({ packet, view }: { packet?: TelemetryPacket; view?:
       })
       .catch(() => {});
   }, []);
+  useEffect(() => {
+    if (!packet && !view) return;
+    frameRef.current++;
+    if (frameRef.current % 6 !== 0) return;
+    const h = historyRef.current;
     const grip = view?.tires.combinedSlip;
-    h.fl.push(Math.abs(grip?.fl ?? packet?.TireCombinedSlipFL ?? 0));
     h.fr.push(Math.abs(grip?.fr ?? packet?.TireCombinedSlipFR ?? 0));
     h.rl.push(Math.abs(grip?.rl ?? packet?.TireCombinedSlipRL ?? 0));
     h.rr.push(Math.abs(grip?.rr ?? packet?.TireCombinedSlipRR ?? 0));

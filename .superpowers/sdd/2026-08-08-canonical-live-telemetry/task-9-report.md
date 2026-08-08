@@ -29,3 +29,9 @@ Some child widgets still use legacy packet-shaped props through LiveTelemetry's 
 ## Commit
 
 Pending commit: `refactor: consume semantic live telemetry`
+## Remaining widget adapters
+
+SurfaceConditions, TelemetryCharts, TireDiagram, FuelGauge, and PowerTorque now accept optional `LiveTelemetryView` props, and LiveTelemetry forwards its semantic view while preserving packet arguments for historical callers.
+
+Verification: `pnpm exec tsc --noEmit --pretty false` in `client/` passed.
+Follow-up repair amended commit `6d37db66`: restored Gauges imports/comment, repaired GripHistory effect closure, restored PitEstimate semantic import, and made chart/surface sampling consume semantic view fields. Client typecheck now reaches only unrelated server/test diagnostics.

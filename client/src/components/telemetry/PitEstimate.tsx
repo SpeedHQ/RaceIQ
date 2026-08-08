@@ -4,6 +4,7 @@ import { hasTireHealthData, hasTireHealthDataSemantic, resolveAnalysisTelemetry 
 import { severityColor } from "@/lib/colors";
 import { tireHealthPctColor } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { LivePitData } from "../../../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { PitWindow } from "./PitWindow";
@@ -48,7 +49,7 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
     };
   });
 
-  const pitStatus = telemetryModel.pitStatus ? (packet.acc?.pitStatus ?? (packet.iracing?.onPitRoad ? "pit_lane" : "out")) : undefined;
+  const pitStatus = telemetryModel.pitStatus ? (view?.competitors[0]?.pitStatus ?? packet?.acc?.pitStatus ?? (packet?.iracing?.onPitRoad ? "pit_lane" : "out")) : undefined;
   const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
 
   return (

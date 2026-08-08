@@ -2,7 +2,9 @@ import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { useEffect, useRef, useState } from "react";
 import type { DisplayPacket } from "@/lib/convert-packet";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { client } from "@/lib/rpc";
+
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
 import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
 
@@ -12,8 +14,11 @@ import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
  * Seeds from server on mount so charts populate immediately after page refresh.
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
-export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
-  const analysis = resolveAnalysisTelemetry(getGame(packet.gameId));
+export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view?: LiveTelemetryView }) {
+  if (!packet && !view) return null;
+  const gameId = view?.simulator ?? packet!.gameId;
+  const p = packet!;
+  const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const showGrip = analysis.gripDemand.source !== "unavailable";
   const showTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "continuous";
   const showWear = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "continuous";
@@ -89,15 +94,19 @@ export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
         t.rr.shift();
       }
     };
-    push4(h.grip, Math.abs(packet.TireCombinedSlipFL), Math.abs(packet.TireCombinedSlipFR), Math.abs(packet.TireCombinedSlipRL), Math.abs(packet.TireCombinedSlipRR));
-    push4(h.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
-    push4(h.wear, packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
-    push4(h.slipAngle, packet.TireSlipAngleFL * (180 / Math.PI), packet.TireSlipAngleFR * (180 / Math.PI), packet.TireSlipAngleRL * (180 / Math.PI), packet.TireSlipAngleRR * (180 / Math.PI));
-    push4(h.slipRatio, Math.abs(packet.TireSlipRatioFL), Math.abs(packet.TireSlipRatioFR), Math.abs(packet.TireSlipRatioRL), Math.abs(packet.TireSlipRatioRR));
-    push4(h.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
-    h.throttle.push((packet.Accel / 255) * 100);
-    h.brake.push((packet.Brake / 255) * 100);
-    h.speed.push(packet.DisplaySpeed);
+    const tires = view?.tires;
+    const wheel = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") =>
+      tires?.[key] ?? { fl: packet!.TireCombinedSlipFL, fr: packet!.TireCombinedSlipFR, rl: packet!.TireCombinedSlipRL, rr: packet!.TireCombinedSlipRR };
+    const grip = wheel("combinedSlip"), temp = wheel("temperatureC"), wear = wheel("wear"), angle = wheel("slipAngleRad"), ratio = wheel("slipRatio"), suspension = wheel("suspensionNormalized");
+    push4(h.grip, Math.abs(grip.fl), Math.abs(grip.fr), Math.abs(grip.rl), Math.abs(grip.rr));
+    push4(h.temp, temp.fl, temp.fr, temp.rl, temp.rr);
+    push4(h.wear, wear.fl, wear.fr, wear.rl, wear.rr);
+    push4(h.slipAngle, angle.fl * (180 / Math.PI), angle.fr * (180 / Math.PI), angle.rl * (180 / Math.PI), angle.rr * (180 / Math.PI));
+    push4(h.slipRatio, Math.abs(ratio.fl), Math.abs(ratio.fr), Math.abs(ratio.rl), Math.abs(ratio.rr));
+    push4(h.suspension, suspension.fl, suspension.fr, suspension.rl, suspension.rr);
+    h.throttle.push((view?.inputs.throttle ?? (packet!.Accel / 255)) * (view ? 100 : 1));
+    h.brake.push((view?.inputs.brake ?? (packet!.Brake / 255)) * (view ? 100 : 1));
+    h.speed.push(view?.motion.speedMps ?? packet!.DisplaySpeed);
     if (h.throttle.length > GRIP_MAX_SAMPLES) {
       h.throttle.shift();
       h.brake.shift();

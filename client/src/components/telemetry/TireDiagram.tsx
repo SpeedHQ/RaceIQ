@@ -4,11 +4,13 @@ import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } f
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import { useUnits } from "@/hooks/useUnits";
 import type { DisplayPacket } from "@/lib/convert-packet";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { convertTemp } from "@/lib/temperature";
 import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { SuspBar } from "./SuspBar";
 import { WheelCard } from "./WheelCard";
+
 
 /**
  * TireDiagram — Arranges 4 WheelCards in a front/rear axle layout with suspension bars.
@@ -16,7 +18,7 @@ import { WheelCard } from "./WheelCard";
  * spin percentage (how much faster/slower each wheel turns vs ground truth).
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
-export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
+export function TireDiagram({ packet, view }: { packet: DisplayPacket | TelemetryPacket; view?: LiveTelemetryView }) {
   const units = useUnits();
   const adapter = getGame(packet.gameId);
   const telemetryModel = adapter.telemetry;

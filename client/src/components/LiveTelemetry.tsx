@@ -185,7 +185,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
           </div>
           {(telemetryModel.power || telemetryModel.torque || telemetryModel.boost) && (
             <div className="flex gap-1 shrink-0">
-              <PowerTorque packet={packet} />
+              <PowerTorque packet={packet} view={view ?? undefined} />
               {telemetryModel.boost && <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="var(--app-accent)" />}
             </div>
           )}
@@ -198,7 +198,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
           <GForceCircle view={view} />
           <SteeringWheel steer={packet.Steer} />
           <div className="flex-1">
-            <FuelGauge packet={packet} />
+            <FuelGauge packet={packet} view={view ?? undefined} />
           </div>
         </div>
       </div>
@@ -206,13 +206,13 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       {/* Full tire diagram with suspension */}
       <div className="px-3 py-2 border-b border-app-border/50">
         <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
-        <TireDiagram packet={packet} />
+        <TireDiagram packet={packet} view={view ?? undefined} />
       </div>
 
       {/* Surface conditions */}
       {showPerWheelSurface && (
         <div className="px-3 py-2 border-b border-app-border/50">
-          <SurfaceConditions packet={packet} />
+          <SurfaceConditions packet={packet} view={view ?? undefined} />
         </div>
       )}
 
@@ -227,7 +227,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       {/* Telemetry charts */}
       <div className="px-3 py-2">
         <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_telemetry()} (60s)</div>
-        <TelemetryCharts packet={packet} />
+        <TelemetryCharts packet={packet} view={view ?? undefined} />
       </div>
     </div>
   );

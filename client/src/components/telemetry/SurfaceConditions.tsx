@@ -2,16 +2,20 @@ import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { m } from "@/paraglide/messages";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 /**
  * Per-wheel curb and puddle status. Games whose normalized zeroes are source
  * placeholders omit this widget; supported zeroes remain visible as dashes.
  */
-export function SurfaceConditions({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
+export function SurfaceConditions({ packet, view }: { packet?: DisplayPacket | TelemetryPacket; view?: LiveTelemetryView }) {
+  if (view && !packet) {
+    return <div><div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">{m.surface_heading()}</div><div className="text-app-text-dim text-xs text-center">—</div></div>;
+  }
+  if (!packet) return null;
   const surface = resolveAnalysisTelemetry(getGame(packet.gameId)).surface;
   if (surface.source === "unavailable" || surface.display === "vehicle") return null;
-
   const wheels = [
     { label: "FL", rumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL },
     { label: "FR", rumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR },
