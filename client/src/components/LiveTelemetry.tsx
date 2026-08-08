@@ -150,7 +150,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} pit={pit} />
+            <PitEstimate view={view} pit={pit} />
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplay } from "@shared/games/telemetry";
-import { hasTireHealthData, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { hasTireHealthData, hasTireHealthDataSemantic, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { severityColor } from "@/lib/colors";
 import { tireHealthPctColor } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
@@ -9,7 +9,8 @@ import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { PitWindow } from "./PitWindow";
 
 interface PitEstimateProps {
-  packet: TelemetryPacket;
+  packet?: TelemetryPacket;
+  view?: LiveTelemetryView;
   pit: LivePitData | null;
 }
 
@@ -17,22 +18,22 @@ interface PitEstimateProps {
  * PitEstimate — Displays server-computed fuel and tire estimates.
  * All computation happens server-side in PitTracker; this component just renders.
  */
-export function PitEstimate({ packet, pit }: PitEstimateProps) {
-  const adapter = getGame(packet.gameId);
+export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
+  const gameId = view?.simulator ?? packet?.gameId ?? "acc";
+  const adapter = getGame(gameId);
   const telemetryModel = adapter.telemetry;
   const analysis = resolveAnalysisTelemetry(adapter);
-  const healthAvailable = hasTireHealthData(packet, analysis.tireHealth);
-  const fuel = getFuelDisplay(packet, telemetryModel.fuel);
+  const wears = view?.tires.wear ? [view.tires.wear.fl, view.tires.wear.fr, view.tires.wear.rl, view.tires.wear.rr] : [packet?.TireWearFL ?? 0, packet?.TireWearFR ?? 0, packet?.TireWearRL ?? 0, packet?.TireWearRR ?? 0];
+  const healthAvailable = view ? hasTireHealthDataSemantic(wears, analysis.tireHealth) : hasTireHealthData(packet!, analysis.tireHealth);
+  const fuel = view ? getFuelDisplay({ Fuel: view.fuel.amount ?? 0, FuelCapacity: view.fuel.capacity }, telemetryModel.fuel) : getFuelDisplay(packet!, telemetryModel.fuel);
   const fuelPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
   const isFuelCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
   const isFuelWarning = !isFuelCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
   const fuelColor = severityColor(isFuelCritical ? 3 : isFuelWarning ? 1 : 0);
 
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
-
-  // Per-tire display
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
-  const wears = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
+  // Per-tire display
   const tireData = tireLabels.map((label, i) => {
     const health = healthAvailable ? (1 - wears[i]) * 100 : null;
     const canEstimateWear = analysis.tireWearRate.source !== "unavailable";
