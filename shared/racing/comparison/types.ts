@@ -1,5 +1,5 @@
 import type { LapMeta } from "../sessions/types";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+
 export interface AlignedTrace {
   distance: number[];
   speedA: number[];
@@ -17,16 +17,23 @@ export interface AlignedTrace {
 export interface CornerDelta {
   label: string;
   deltaSeconds: number;
-  timeA: number; // section time for lap A in seconds
-  timeB: number; // section time for lap B in seconds
+  timeA: number;
+  timeB: number;
+}
+
+/** Canonical semantic values consumed by comparison/map UI. */
+export interface SemanticTelemetrySample {
+  values: Readonly<Record<string, number | boolean | string | null | readonly unknown[]>>;
+  sequence: string;
+  observedAtMs: number;
 }
 
 export interface ComparisonData {
   lapA: LapMeta;
   lapB: LapMeta;
   traces: AlignedTrace;
-  timeDelta: number[]; // cumulative time gain/loss at each distance point
+  timeDelta: number[];
   corners: CornerDelta[];
-  telemetryA: TelemetryPacket[];
-  telemetryB: TelemetryPacket[];
+  telemetryA: SemanticTelemetrySample[];
+  telemetryB: SemanticTelemetrySample[];
 }
