@@ -1,19 +1,19 @@
 import type { TelemetryVariableDefinition } from "../catalog/contracts";
 import type { Mapping, NativeObject, Reader, ReaderContext, SourceReading } from "./plan";
-import { packetField, readPath, sources } from "./value";
+import { packetField, readCollectionPath, sources } from "./value";
 
 function sourceValue(frame: NativeObject, source: string): unknown {
   const packet = frame.packet ?? frame;
   if (source.startsWith("TelemetryPacket.")) {
-    return readPath(packet, source.slice(16).split("."));
+    return readCollectionPath(packet, source.slice(16).split("."));
   }
-  const packetValue = readPath(packet, source.split("."));
+  const packetValue = readCollectionPath(packet, source.split("."));
   if (packetValue !== undefined) return packetValue;
   const nativeValues = frame.nativeValues !== null && typeof frame.nativeValues === "object" ? (frame.nativeValues as NativeObject) : undefined;
   if (!nativeValues) return undefined;
   const nativePath = source.split(".").slice(1);
   const flatKey = nativePath.join(".");
-  return flatKey in nativeValues ? nativeValues[flatKey] : readPath(nativeValues, nativePath);
+  return flatKey in nativeValues ? nativeValues[flatKey] : readCollectionPath(nativeValues, nativePath);
 }
 
 function setReading(

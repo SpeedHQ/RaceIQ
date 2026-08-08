@@ -1,8 +1,8 @@
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
-import { canonicalizeTelemetryScalar } from "../../shared/telemetry/replay/canonicalize";
+import { canonicalTelemetryValue } from "../../shared/telemetry/replay/canonicalize";
 import type { CanonicalTelemetryEnvelope, CanonicalTelemetryValue, SemanticTelemetryReplay, TelemetryRawReference } from "../../shared/telemetry/replay/contracts";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
-import type { ResolvedValue, SemanticSlot, SourceObservation, TelemetryFrameView, TelemetryTimestamp } from "../../shared/telemetry/resolver/contracts";
+import type { ResolvedValue, SourceObservation, TelemetryFrameView, TelemetryTimestamp } from "../../shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
@@ -72,23 +72,6 @@ function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp):
   return packet.gameId === "acc" || packet.gameId === "ac-evo" ? { domain: "wall-clock", milliseconds: packet.TimestampMS } : { domain: "session", milliseconds: packet.TimestampMS };
 }
 
-function canonicalValue(slot: SemanticSlot, resolved: ResolvedValue<unknown>): CanonicalTelemetryValue {
-  return {
-    semanticId: resolved.semanticId,
-    slot,
-    value: canonicalizeTelemetryScalar(resolved.value, resolved.semanticId),
-    unit: resolved.unit,
-    mappingStatus: resolved.mappingStatus,
-    state: resolved.state,
-    freshness: resolved.freshness,
-    confidence: resolved.confidence,
-    confidenceComponents: resolved.confidenceComponents,
-    provenance: resolved.provenance,
-    schemaVersion: resolved.schemaVersion,
-    limitations: resolved.limitations,
-  };
-}
-
 /**
  * Replay one persisted lap through the current compiled semantic resolver.
  * Returned diagnostics expose mapping state, freshness, limitations, and source
@@ -133,7 +116,7 @@ export async function queryLapTelemetryBySemanticId(lapId: number, requestedSema
     const resolved = view.resolveMany(slots, target);
     const values: CanonicalTelemetryValue[] = new Array(resolved.length);
     for (let index = 0; index < resolved.length; index++) {
-      values[index] = canonicalValue(slots[index], resolved[index]);
+      values[index] = canonicalTelemetryValue(slots[index], resolved[index]);
     }
     envelopes[sequence] = {
       sessionId: String(source.sessionId),
