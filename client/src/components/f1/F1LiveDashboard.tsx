@@ -1,4 +1,5 @@
 import { tryGetGame } from "@shared/games/registry";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
@@ -49,10 +50,10 @@ function formatGap(gap: number): string {
 
 export function F1LiveDashboard() {
   const view = useTelemetryStore((s) => s.telemetryView);
-  const rawPacket = useTelemetryStore((s) => s.rawPacket);
-  const packet = useTelemetryStore((s) => s.packet);
+  const rawPacket = useTelemetryStore((s) => (s as typeof s & { rawPacket?: TelemetryPacket }).rawPacket);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
+  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const hasF1Data = rawPacket?.gameId === "f1-2025" && rawPacket.f1;
   const f1 = hasF1Data ? rawPacket.f1! : null;
   const { data: trackName } = useTrackName(rawPacket?.TrackOrdinal);

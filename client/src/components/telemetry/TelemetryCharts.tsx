@@ -16,8 +16,8 @@ import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
  */
 export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view?: LiveTelemetryView }) {
   if (!packet && !view) return null;
-  const gameId = view?.simulator ?? packet!.gameId;
-  const p = packet!;
+  const gameId = view?.simulator ?? packet?.gameId;
+  if (!gameId) return null;
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const showGrip = analysis.gripDemand.source !== "unavailable";
   const showTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "continuous";
@@ -58,7 +58,7 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
       .then((r) => r.json() as Promise<typeof histRef.current>)
       .then((data) => {
         if (data && Array.isArray(data.grip?.fl)) {
-          histRef.current = data;
+          histRef.current = { ...data, temp: { fl: [], fr: [], rl: [], rr: [] } };
         }
       })
       .catch(() => {});
@@ -95,8 +95,15 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
       }
     };
     const tires = view?.tires;
-    const wheel = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") =>
-      tires?.[key] ?? { fl: packet!.TireCombinedSlipFL, fr: packet!.TireCombinedSlipFR, rl: packet!.TireCombinedSlipRL, rr: packet!.TireCombinedSlipRR };
+    const wheel = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") => {
+      if (tires?.[key]) return tires[key]!;
+      return {
+        fl: key === "combinedSlip" ? packet?.TireCombinedSlipFL ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempFL ?? 0 : key === "wear" ? packet?.TireWearFL ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleFL ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioFL ?? 0 : packet?.NormSuspensionTravelFL ?? 0,
+        fr: key === "combinedSlip" ? packet?.TireCombinedSlipFR ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempFR ?? 0 : key === "wear" ? packet?.TireWearFR ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleFR ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioFR ?? 0 : packet?.NormSuspensionTravelFR ?? 0,
+        rl: key === "combinedSlip" ? packet?.TireCombinedSlipRL ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempRL ?? 0 : key === "wear" ? packet?.TireWearRL ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleRL ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioRL ?? 0 : packet?.NormSuspensionTravelRL ?? 0,
+        rr: key === "combinedSlip" ? packet?.TireCombinedSlipRR ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempRR ?? 0 : key === "wear" ? packet?.TireWearRR ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleRR ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioRR ?? 0 : packet?.NormSuspensionTravelRR ?? 0,
+      };
+    };
     const grip = wheel("combinedSlip"), temp = wheel("temperatureC"), wear = wheel("wear"), angle = wheel("slipAngleRad"), ratio = wheel("slipRatio"), suspension = wheel("suspensionNormalized");
     push4(h.grip, Math.abs(grip.fl), Math.abs(grip.fr), Math.abs(grip.rl), Math.abs(grip.rr));
     push4(h.temp, temp.fl, temp.fr, temp.rl, temp.rr);
@@ -104,16 +111,16 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
     push4(h.slipAngle, angle.fl * (180 / Math.PI), angle.fr * (180 / Math.PI), angle.rl * (180 / Math.PI), angle.rr * (180 / Math.PI));
     push4(h.slipRatio, Math.abs(ratio.fl), Math.abs(ratio.fr), Math.abs(ratio.rl), Math.abs(ratio.rr));
     push4(h.suspension, suspension.fl, suspension.fr, suspension.rl, suspension.rr);
-    h.throttle.push((view?.inputs.throttle ?? (packet!.Accel / 255)) * (view ? 100 : 1));
-    h.brake.push((view?.inputs.brake ?? (packet!.Brake / 255)) * (view ? 100 : 1));
-    h.speed.push(view?.motion.speedMps ?? packet!.DisplaySpeed);
+    h.throttle.push(view ? (view.inputs.throttle ?? 0) * 100 : ((packet?.Accel ?? 0) / 255) * 100);
+    h.brake.push(view ? (view.inputs.brake ?? 0) * 100 : ((packet?.Brake ?? 0) / 255) * 100);
+    h.speed.push(view?.motion.speedMps ?? packet?.DisplaySpeed ?? 0);
     if (h.throttle.length > GRIP_MAX_SAMPLES) {
       h.throttle.shift();
       h.brake.shift();
       h.speed.shift();
     }
     setChartData({ ...h });
-  }, [packet]);
+  }, [packet, view?.sequence, view?.streamId]);
 
   return (
     <div className="grid gap-2">

@@ -58,9 +58,15 @@ export function ArcGauge({ value, max, label, unit, color }: { value: number; ma
  * so estimates survive page refreshes. Fraction sources reject impossible
  * values (>100% per lap); litre sources retain their native burn amount.
  */
-export function FuelGauge({ packet, view }: { packet: TelemetryPacket; view?: LiveTelemetryView }) {
-
-  const fuelSpec = getGame(packet.gameId).telemetry.fuel;
+export function FuelGauge({ packet, view }: { packet?: TelemetryPacket; view?: LiveTelemetryView }) {
+  if (!packet && view) {
+    const amount = view.fuel.amount ?? 0;
+    const capacity = view.fuel.capacity;
+    const fill = capacity && capacity > 0 ? (amount / capacity) * 100 : undefined;
+    return <div className="flex-1"><div className="flex justify-between text-app-caption mb-0.5"><span className="font-mono font-bold">Fuel {amount.toFixed(1)}</span></div><div className="h-2 rounded-full overflow-hidden">{fill !== undefined && <div className="h-full rounded-full" style={{ width: `${fill}%` }} />}</div></div>;
+  }
+  if (!packet) return null;
+  const fuelSpec = getGame(view?.simulator ?? packet.gameId).telemetry.fuel;
   const fuelRef = useRef<{
     lapStart: number;
     lastLap: number;
@@ -158,12 +164,15 @@ export function FuelGauge({ packet, view }: { packet: TelemetryPacket; view?: Li
   );
 }
 
-export function PowerTorque({ packet, view }: { packet: TelemetryPacket; view?: LiveTelemetryView }) {
-  const telemetryModel = getGame(packet.gameId).telemetry;
-  const showPower = telemetryModel.power !== undefined;
-  const showTorque = telemetryModel.torque !== undefined;
-  if (!showPower && !showTorque) return null;
+export function PowerTorque({ packet, view }: { packet?: TelemetryPacket; view?: LiveTelemetryView }) {
+  if (!packet && view) {
+    const model = getGame(view.simulator).telemetry;
+    return <div className="flex justify-center gap-2">{model.power && <ArcGauge value={(view.engine.powerW ?? 0) / WATTS_PER_HORSEPOWER} max={1000} label="Power" unit="hp" color="var(--telemetry-power)" />}{model.torque && <ArcGauge value={view.engine.torqueNm ?? 0} max={1000} label="Torque" unit="Nm" color="var(--telemetry-torque)" />}</div>;
+  }
+  if (!packet) return null;
 
+  const showPower = getGame(view?.simulator ?? packet.gameId).telemetry.power !== undefined;
+  const showTorque = getGame(view?.simulator ?? packet.gameId).telemetry.torque !== undefined;
   const hp = packet.Power / WATTS_PER_HORSEPOWER;
   const nm = packet.Torque;
   const maxHp = 1000;

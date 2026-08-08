@@ -9,6 +9,7 @@ import { convertTemp } from "@/lib/temperature";
 import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { SuspBar } from "./SuspBar";
+import { TireGrid } from "./TireGrid";
 import { WheelCard } from "./WheelCard";
 
 
@@ -18,9 +19,14 @@ import { WheelCard } from "./WheelCard";
  * spin percentage (how much faster/slower each wheel turns vs ground truth).
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
-export function TireDiagram({ packet, view }: { packet: DisplayPacket | TelemetryPacket; view?: LiveTelemetryView }) {
+export function TireDiagram({ packet, view }: { packet?: DisplayPacket | TelemetryPacket; view?: LiveTelemetryView }) {
   const units = useUnits();
-  const adapter = getGame(packet.gameId);
+  if (!packet && view) {
+    const t = view.tires;
+    return <TireGrid fl={{ tempC: t.temperatureC?.fl ?? 0, wear: t.wear?.fl ?? 0 }} fr={{ tempC: t.temperatureC?.fr ?? 0, wear: t.wear?.fr ?? 0 }} rl={{ tempC: t.temperatureC?.rl ?? 0, wear: t.wear?.rl ?? 0 }} rr={{ tempC: t.temperatureC?.rr ?? 0, wear: t.wear?.rr ?? 0 }} healthThresholds={{ green: 0.7, yellow: 0.4 }} tempThresholds={{ blue: 60, orange: 85, red: 100 }} />;
+  }
+  if (!packet) return null;
+  const adapter = getGame(view?.simulator ?? packet.gameId);
   const telemetryModel = adapter.telemetry;
   const analysis = resolveAnalysisTelemetry(adapter);
   const suspThresh = adapter.suspensionThresholds.values;
