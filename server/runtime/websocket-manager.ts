@@ -212,7 +212,6 @@ export class WebSocketManager {
   }
 
   publishTelemetry(projection: LiveProjection): void {
-    console.log("[WS] semantic publish", projection.schema?.schemaId, projection.schema?.definitions.length, projection.frame?.schemaId, projection.frame?.values.length);
     if (projection.schema) this.lastSchemaJson = JSON.stringify(projection.schema);
     if (projection.frame) this.lastFrameJson = JSON.stringify(projection.frame);
   }
