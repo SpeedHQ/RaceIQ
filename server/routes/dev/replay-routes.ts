@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import { getGame } from "../../../shared/games/registry";
+import type { LiveTelemetryDefinitionV1 } from "../../../shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { encodeLiveFrame, encodeLiveSchema } from "../../telemetry/live-wire";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 import { getServerGame } from "../../games/registry";
 import { PitTracker } from "../../live-strategy/pit-tracker";
@@ -24,6 +27,10 @@ function boundedInteger(
   return Number.isFinite(parsed)
     ? Math.min(maximum, Math.max(minimum, parsed))
     : fallback;
+}
+
+function timestampMilliseconds(timestamp: { domain: string; milliseconds?: number }): number {
+  return timestamp.domain === "monotonic" ? 0 : timestamp.milliseconds ?? 0;
 }
 
 interface ReplayLapWindow {
@@ -93,9 +100,38 @@ function selectIRacingReferenceLap(
     : null;
 }
 
-export const replayRoutes = new Hono().post(
-  "/api/dev/replay/:recordingName",
-  async (c) => {
+export const replayRoutes = new Hono()
+  .get("/api/dev/laps/:id/live-telemetry", async (c) => {
+    const lapId = Number.parseInt(c.req.param("id"), 10);
+    if (!Number.isSafeInteger(lapId) || lapId < 1) return c.json({ error: "Invalid lap id" }, 400);
+    const ids = c.req.query("semanticIds")?.split(",").map((id) => id.trim()).filter(Boolean);
+    if (!ids?.length) return c.json({ error: "semanticIds query parameter is required" }, 400);
+    try {
+      const replay = await queryLapTelemetryBySemanticId(lapId, ids);
+      if (!replay || replay.envelopes.length === 0) return c.json({ error: "Lap not found" }, 404);
+      const first = replay.envelopes[0];
+      const definitions: LiveTelemetryDefinitionV1[] = ids.map((semanticId) => ({
+        semanticId, unit: null, mappingStatus: "direct", schemaVersion: first.catalogSchemaVersion, limitations: [],
+      }));
+      const schema = encodeLiveSchema(definitions, {
+        schemaId: `replay-${lapId}-${first.catalogHash.slice(0, 16)}`, simulator: first.simulator,
+        catalogVersion: first.catalogVersion, catalogHash: first.catalogHash,
+        catalogSchemaVersion: first.catalogSchemaVersion, parserVersion: first.parserVersion,
+        resolverVersion: first.resolverVersion, derivationVersion: first.derivationVersion,
+      });
+      const frames = replay.envelopes.map((envelope) => encodeLiveFrame({
+        schemaId: schema.schemaId, streamId: `replay-${lapId}`, sessionId: Number(envelope.sessionId),
+        sequence: Number(envelope.sequence), observedAt: envelope.observedAt.domain === "monotonic" ? { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) } : envelope.observedAt,
+        receivedAtMs: timestampMilliseconds(envelope.receivedAt), values: envelope.values, context: {},
+      }));
+      return c.json({ schema, frames });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Replay failed" }, 400);
+    }
+  })
+  .post(
+    "/api/dev/replay/:recordingName",
+    async (c) => {
     const recordingName = c.req.param("recordingName");
     const recordingPath = resolveRecordingPath(recordingName);
     if (!recordingPath.ok) {
