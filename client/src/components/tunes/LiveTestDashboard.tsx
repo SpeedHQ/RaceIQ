@@ -57,8 +57,9 @@ export function LiveTestDashboard({
   /** Test/story-only: pre-seed the live trace so it renders instantly without replaying packets. */
   initialTrace?: TelemetryPacket[];
 }) {
-  const packet: TelemetryPacket | null = null;
-  const rawPacket: TelemetryPacket | null = null;
+  const telemetryView = useTelemetryStore((s) => s.telemetryView);
+  const packet = initialTrace?.[initialTrace.length - 1] ?? null;
+  const rawPacket = packet;
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
 
@@ -89,7 +90,7 @@ export function LiveTestDashboard({
     });
   }, [rawPacket]);
 
-  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? rawPacket?.TrackOrdinal ?? null;
+  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? telemetryView?.identity.trackOrdinal ?? rawPacket?.TrackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined, gameId);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
@@ -130,8 +131,7 @@ export function LiveTestDashboard({
           </div>
         </div>
         <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
-          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Live Timing</div>
-          <LiveLapInfo sectors={sectors} currentLap={packet?.CurrentLap ?? null} totalLaps={sessionLaps.length} />
+          <LiveLapInfo sectors={sectors} currentLap={telemetryView?.timing.currentLapS ?? packet?.CurrentLap ?? null} totalLaps={sessionLaps.length} />
         </div>
         <div className="h-full min-h-0">
           <LiveIssuesFeed />

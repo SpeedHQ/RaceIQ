@@ -48,9 +48,9 @@ export function F1LiveDashboard() {
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const f1 = view?.simulator === "f1-2025" ? view.f1 : undefined;
-  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
   const f1 = (view?.simulator === "f1-2025" ? view.f1 : undefined) as Required<LiveF1Extension> | undefined;
+  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
+  const { data: carName } = useCarName(view?.identity.carOrdinal);
 
   if (!view || !f1) {
     return <div className="flex-1 flex flex-col"><NoDataView /></div>;
@@ -415,6 +415,7 @@ function GridSection({ competitors, playerPosition }: { competitors: LiveTelemet
                       ""
                     )}
                   </TableCell>
+                </TableRow>
               );
             })}
           </TableBody>

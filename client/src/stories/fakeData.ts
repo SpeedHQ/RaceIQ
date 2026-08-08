@@ -354,16 +354,15 @@ export const fakeF1Packet: TelemetryPacket = {
 const semanticFixtureIds = [
   "identity.car-ordinal", "identity.track-ordinal", "identity.car-class", "identity.car-performance-index", "identity.drivetrain-type",
   "motion.speed", "motion.acceleration-x", "motion.acceleration-z", "motion.position-x", "motion.position-z", "motion.roll", "motion.pitch", "motion.yaw",
-  "inputs.accel", "inputs.brake", "inputs.steer", "inputs.gear", "engine.current-engine-rpm", "engine.engine-max-rpm", "engine.engine-idle-rpm",
-  "engine.power", "engine.torque", "engine.boost", "fuel.fuel", "fuel.fuel-capacity", "timing.best-lap", "timing.last-lap", "timing.current-lap", "timing.lap-number",
-  "timing.distance-traveled", "race.race-position", "tires.tire-temperature", "tires.tire-wear", "tires.tire-pressure", "brakes.brake-temp",
+  "inputs.accel", "inputs.brake", "inputs.steer", "inputs.gear", "engine.current-engine-rpm", "engine.engine-max-rpm", "engine.engine-idle-rpm", "engine.power", "engine.torque", "engine.boost",
+  "fuel.fuel", "fuel.fuel-capacity", "timing.best-lap", "timing.last-lap", "timing.current-lap", "timing.lap-number",
+  "timing.distance-traveled", "race.race-position", "tire.temperature.average", "tires.tire-wear", "tires.tire-pressure", "brakes.brake-temp",
   "aero.drs-active", "aero.drs-available", "aero.drs-zone-approaching", "weather.weather-type", "weather.track-temp", "weather.air-temp", "weather.rain-percent",
-  "ers.store-energy", "ers.deploy-mode", "ers.deployed", "ers.harvested",
-] as const;
+  "fuel.ers-store-energy", "fuel.ers-deploy-mode", "fuel.ers-deployed", "fuel.ers-harvested",
+];
 
 function makeSemanticFixture(raw: TelemetryPacket) {
   const values: unknown[] = semanticFixtureIds.map((id) => {
-    const p = raw as unknown as Record<string, unknown>;
     const f1 = raw.f1 as Record<string, unknown> | undefined;
     const map: Record<string, unknown> = {
       "identity.car-ordinal": raw.CarOrdinal, "identity.track-ordinal": raw.TrackOrdinal, "identity.car-class": raw.CarClass,
@@ -375,15 +374,18 @@ function makeSemanticFixture(raw: TelemetryPacket) {
       "engine.power": raw.Power, "engine.torque": raw.Torque, "engine.boost": raw.Boost, "fuel.fuel": raw.Fuel, "fuel.fuel-capacity": raw.FuelCapacity,
       "timing.best-lap": raw.BestLap, "timing.last-lap": raw.LastLap, "timing.current-lap": raw.CurrentLap, "timing.lap-number": raw.LapNumber,
       "timing.distance-traveled": raw.DistanceTraveled, "race.race-position": raw.RacePosition,
-      "tires.tire-temperature": [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR],
+      "tire.temperature.average": [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR],
       "tires.tire-wear": [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
       "tires.tire-pressure": [f1?.tyrePressureFL, f1?.tyrePressureFR, f1?.tyrePressureRL, f1?.tyrePressureRR],
       "brakes.brake-temp": [f1?.brakeTempFL, f1?.brakeTempFR, f1?.brakeTempRL, f1?.brakeTempRR],
+      "weather.weather-type": f1?.weather, "weather.track-temp": f1?.trackTemperature, "weather.air-temp": f1?.airTemperature, "weather.rain-percent": f1?.rainPercentage,
       "aero.drs-active": f1?.drsActivated, "aero.drs-available": f1?.drsAllowed, "aero.drs-zone-approaching": f1?.drsZoneApproaching,
-      "weather.weather-type": raw.WeatherType, "weather.track-temp": raw.TrackTemp, "weather.air-temp": raw.AirTemp, "weather.rain-percent": raw.RainPercent,
-      "ers.store-energy": f1?.ersStoreEnergy, "ers.deploy-mode": f1?.ersDeployMode, "ers.deployed": f1?.ersDeployedThisLap, "ers.harvested": f1?.ersHarvestedThisLap,
+      "fuel.ers-store-energy": f1?.ersStoreEnergy,
+      "fuel.ers-deploy-mode": f1?.ersDeployMode,
+      "fuel.ers-deployed": f1?.ersDeployedThisLap,
+      "fuel.ers-harvested": f1?.ersHarvestedThisLap,
     };
-    return map[id] ?? p[id];
+    return map[id];
   });
   const schema: LiveTelemetrySchemaMessageV1 = {
     type: "telemetry-schema", protocolVersion: 1, schemaId: `storybook-${raw.gameId}`, simulator: raw.gameId,
