@@ -13,6 +13,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "../../shared/racing/live/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { LiveProjection } from "../telemetry/live-projector";
 
 export interface WSData {
   createdAt: number;
@@ -197,6 +198,10 @@ class WebSocketManager {
     for (const client of this.clients) {
       try { client.send(json); } catch {}
     }
+  }
+  publishTelemetry(projection: LiveProjection): void {
+    if (projection.schema) this.broadcastNotification(projection.schema as unknown as Record<string, unknown>);
+    if (projection.frame) this.broadcastNotification(projection.frame as unknown as Record<string, unknown>);
   }
 
   // Latest state — written by packet handler, read by broadcast timer

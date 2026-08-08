@@ -10,7 +10,7 @@ import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import { encodeLiveFrame, encodeLiveSchema } from "./live-wire";
 
 
-export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
+export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
 export interface LiveProjection { schema?: LiveTelemetrySchemaMessageV1; frame?: LiveTelemetryFrameMessageV1; }
 const hash = (parts: readonly string[]) => createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
 

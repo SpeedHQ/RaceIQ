@@ -9,6 +9,7 @@ import {
   RealDbAdapter,
   RealSessionRecorderAdapter,
 } from "./pipeline-ports";
+import { LiveTelemetryProjector } from "./live-projector";
 import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
@@ -35,8 +36,8 @@ export class LiveTelemetryPipeline {
   private ws: WsAdapter;
   private recorder: SessionRecorderAdapter;
   private _bypassPacketRateFilter: boolean;
-  private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
+  private projector = new LiveTelemetryProjector();
   private _sessionLaps: LapMeta[] = [];
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
@@ -333,6 +334,7 @@ export class LiveTelemetryPipeline {
    * Shared telemetry processing pipeline used by every telemetry source.
    *
    * Stages: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
+   * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, sourceFrame?: Buffer): Promise<void> {
     this._totalProcessed++;
@@ -346,6 +348,10 @@ export class LiveTelemetryPipeline {
     }
 
     const adapter = getServerGame(packet.gameId);
+    if (this.ws.wantsDevTelemetry) {
+      // Clone parser-native values before any in-place normalization/derivation.
+      this.ws.stageDevTelemetry(structuredClone(packet));
+    }
 
     // Normalize coordinates and derived channels using the adapter profile.
     normalizeTelemetryPacket(
@@ -404,8 +410,15 @@ export class LiveTelemetryPipeline {
       ? detectLiveIssues(packet, this.sectorTracker.getTrackLength())
       : undefined;
 
-    // Broadcast to WebSocket clients (handles 30Hz throttle internally)
-    this.ws.broadcast(packet, sectors, pit, liveIssues);
+    const projection = this.projector.project({
+      packet,
+      sessionId: detector.session?.sessionId,
+      sectors,
+      pit,
+      liveIssues,
+      receivedAtMs: Date.now(),
+    });
+    this.ws.publishTelemetry({ packet, sectors, pit, liveIssues, projection });
 
     if (!this._skipDevState) {
       this.ws.broadcastDevState({
@@ -428,8 +441,13 @@ export class LiveTelemetryPipeline {
 
 // Module-level pipeline used by live runtime callers.
 const _defaultWs: WsAdapter = {
-  broadcast: (packet, sectors, pit, liveIssues) =>
-    wsManager.broadcast(packet, sectors, pit, liveIssues),
+  wantsDevTelemetry: false,
+  broadcast: (packet, sectors, pit, liveIssues) => wsManager.broadcast(packet, sectors, pit, liveIssues),
+  stageDevTelemetry: () => {},
+  publishTelemetry: ({ packet, sectors, pit, liveIssues, projection }) => {
+    wsManager.broadcast(packet, sectors, pit, liveIssues);
+    if (projection) wsManager.publishTelemetry(projection);
+  },
   broadcastNotification: (event) => wsManager.broadcastNotification(event),
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };
