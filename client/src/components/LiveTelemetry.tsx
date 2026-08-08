@@ -220,7 +220,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       {analysis.gripDemand.source !== "unavailable" && (
         <div className="px-3 py-2 border-b border-app-border/50">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
-          <GripHistory packet={packet} />
+          <GripHistory view={view} />
         </div>
       )}
 

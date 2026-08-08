@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { GRIP_MAX_SAMPLES, GripSparkline } from "./GripSparkline";
 
 /**
@@ -8,7 +9,7 @@ import { GRIP_MAX_SAMPLES, GripSparkline } from "./GripSparkline";
  * Seeds from server history on mount so the chart isn't empty after page refresh.
  * Downsamples 60Hz telemetry to ~10Hz to keep buffer sizes reasonable.
  */
-export function GripHistory({ packet }: { packet: TelemetryPacket }) {
+export function GripHistory({ packet, view }: { packet?: TelemetryPacket; view?: LiveTelemetryView }) {
   const historyRef = useRef<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({
     fl: [],
     fr: [],
@@ -40,18 +41,11 @@ export function GripHistory({ packet }: { packet: TelemetryPacket }) {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    const h = historyRef.current;
-
-    // Downsample: only keep every 6th packet (~10 samples/sec from 60Hz)
-    frameRef.current++;
-    if (frameRef.current % 6 !== 0) return;
-
-    h.fl.push(Math.abs(packet.TireCombinedSlipFL));
-    h.fr.push(Math.abs(packet.TireCombinedSlipFR));
-    h.rl.push(Math.abs(packet.TireCombinedSlipRL));
-    h.rr.push(Math.abs(packet.TireCombinedSlipRR));
+    const grip = view?.tires.combinedSlip;
+    h.fl.push(Math.abs(grip?.fl ?? packet?.TireCombinedSlipFL ?? 0));
+    h.fr.push(Math.abs(grip?.fr ?? packet?.TireCombinedSlipFR ?? 0));
+    h.rl.push(Math.abs(grip?.rl ?? packet?.TireCombinedSlipRL ?? 0));
+    h.rr.push(Math.abs(grip?.rr ?? packet?.TireCombinedSlipRR ?? 0));
 
     if (h.fl.length > GRIP_MAX_SAMPLES) {
       h.fl.shift();
@@ -62,8 +56,7 @@ export function GripHistory({ packet }: { packet: TelemetryPacket }) {
 
     setGripData({ fl: h.fl, fr: h.fr, rl: h.rl, rr: h.rr });
     setRenderKey((v) => v + 1);
-  }, [packet]);
-
+  }, [packet, view]);
   return (
     <div className="grid grid-cols-2 gap-2">
       <GripSparkline data={gripData.fl} label="FL" renderKey={renderKey} />
