@@ -1,41 +1,44 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { hasWorldPositions, lapPath } from "../../shared/racing/tracks/path";
 import type { Corner } from "./corners";
 import { speedMphFromPacket } from "./metrics";
 
-/** A single aligned data point at a given distance. */
 export interface AlignedTrace {
-  speed: number[]; // mph
-  throttle: number[]; // 0-1
-  brake: number[]; // 0-1
-  steer: number[]; // raw u8 (127=center)
+  speed: number[];
+  throttle: number[];
+  brake: number[];
+  steer: number[];
   rpm: number[];
   gear: number[];
   posX: number[];
   posZ: number[];
-  elapsedTime: number[]; // seconds from lap start
-  tireWear: number[]; // average of all 4 tires (0-1)
-  fuel: number[]; // raw fuel value (game-dependent units; treated as a fraction for FM)
+  elapsedTime: number[];
+  tireWear: number[];
+  fuel: number[];
+  sourceIndices: number[];
 }
 
 export interface ComparisonResult {
-  distances: number[]; // 1-meter grid
+  distances: number[];
   lapA: AlignedTrace;
   lapB: AlignedTrace;
-  timeDelta: number[]; // cumulative time delta (positive = lapA slower, lapB gaining)
+  timeDelta: number[];
   cornerDeltas: CornerDelta[];
 }
 
 export interface CornerDelta {
   label: string;
-  deltaSeconds: number; // positive = lapA slower in this corner
-  timeA: number; // section time for lap A in seconds
-  timeB: number; // section time for lap B in seconds
+  deltaSeconds: number;
+  timeA: number;
+  timeB: number;
 }
 
+export interface ComparisonOptions {
+  lapAIsValid?: boolean;
+  lapBIsValid?: boolean;
+  trackLengthMeters?: number | null;
+}
 
-/**
- * Build per-packet arrays of values we want to interpolate.
- */
 interface LapData {
   distances: number[];
   speeds: number[];
@@ -51,201 +54,213 @@ interface LapData {
   fuels: number[];
 }
 
-function extractLapData(packets: TelemetryPacket[]): LapData {
-  const first = packets[0];
-  const distanceAtLapStart = first.DistanceTraveled;
-  const data: LapData = {
-    distances: new Array(packets.length),
-    speeds: new Array(packets.length),
-    throttles: new Array(packets.length),
-    brakes: new Array(packets.length),
-    steers: new Array(packets.length),
-    rpms: new Array(packets.length),
-    gears: new Array(packets.length),
-    posXs: new Array(packets.length),
-    posZs: new Array(packets.length),
-    times: new Array(packets.length),
-    tireWears: new Array(packets.length),
-    fuels: new Array(packets.length),
-  };
-
-  for (let index = 0; index < packets.length; index++) {
-    const packet = packets[index];
-    data.distances[index] = packet.DistanceTraveled - distanceAtLapStart;
-    data.speeds[index] = speedMphFromPacket(packet);
-    data.throttles[index] = packet.Accel / 255;
-    data.brakes[index] = packet.Brake / 255;
-    data.steers[index] = packet.Steer;
-    data.rpms[index] = packet.CurrentEngineRpm;
-    data.gears[index] = packet.Gear;
-    data.posXs[index] = packet.VelocityX;
-    data.posZs[index] = packet.VelocityZ;
-    data.times[index] = (packet.TimestampMS - first.TimestampMS) / 1000;
-    data.tireWears[index] =
-      (packet.TireWearFL + packet.TireWearFR + packet.TireWearRL + packet.TireWearRR) / 4;
-    data.fuels[index] = packet.Fuel;
-  }
-
-  return data;
+function positiveSpan(packets: TelemetryPacket[]): number {
+  const first = packets.find((packet) => Number.isFinite(packet.DistanceTraveled));
+  const last = [...packets].reverse().find((packet) => Number.isFinite(packet.DistanceTraveled));
+  return first && last ? Math.max(0, last.DistanceTraveled - first.DistanceTraveled) : 0;
 }
 
-function interpolateSample(
-  values: number[],
-  lower: number,
-  upper: number,
-  interpolation: number,
-): number {
+function rawDistances(packets: TelemetryPacket[]): number[] {
+  const first = packets.find((packet) => Number.isFinite(packet.DistanceTraveled))?.DistanceTraveled ?? 0;
+  let previous = 0;
+  return packets.map((packet) => {
+    const raw = packet.DistanceTraveled - first;
+    const next = Number.isFinite(raw) && raw >= previous ? raw : previous;
+    previous = next;
+    return next;
+  });
+}
+
+function fractionDistances(packets: TelemetryPacket[], span: number): number[] | null {
+  const values = packets.map((packet) => packet.iracing?.lapDistancePct);
+  if (values.filter((value) => Number.isFinite(value)).length < 2) return null;
+  let previous = 0;
+  let offset = 0;
+  const fractions = values.map((value) => {
+    if (!Number.isFinite(value)) return previous;
+    let next = value! + offset;
+    if (next < previous - 0.5) {
+      offset += 1;
+      next = value! + offset;
+    }
+    next = Math.max(previous, Math.min(1, next));
+    previous = next;
+    return next;
+  });
+  const start = fractions[0] ?? 0;
+  const end = fractions.at(-1) ?? start;
+  if (!(end > start)) return null;
+  return fractions.map((fraction) => ((fraction - start) / (end - start)) * span);
+}
+
+function projectPoint(px: number, pz: number, ax: number, az: number, bx: number, bz: number): { t: number; distance: number } {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const lengthSquared = dx * dx + dz * dz;
+  const rawT = lengthSquared > 0 ? ((px - ax) * dx + (pz - az) * dz) / lengthSquared : 0;
+  const t = Math.max(0, Math.min(1, rawT));
+  return { t, distance: Math.hypot(px - (ax + dx * t), pz - (az + dz * t)) };
+}
+
+function projectedDistances(packets: TelemetryPacket[], referencePackets: TelemetryPacket[], nominalSpan: number): number[] | null {
+  const path = lapPath(referencePackets);
+  const points = path.x
+    .map((x, index) => ({ x, z: path.z[index] }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z) && (point.x !== 0 || point.z !== 0));
+  if (points.length < 20) return null;
+  const cumulative = [0];
+  for (let index = 1; index < points.length; index++) {
+    cumulative.push(cumulative[index - 1] + Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z));
+  }
+  const total = cumulative.at(-1) ?? 0;
+  if (!(total > 0)) return null;
+
+  const raw = rawDistances(packets);
+  const projected: number[] = [];
+  let previous = 0;
+  for (let index = 0; index < packets.length; index++) {
+    const packet = packets[index];
+    const { PositionX: x, PositionZ: z } = packet;
+    if (!Number.isFinite(x) || !Number.isFinite(z) || (x === 0 && z === 0)) {
+      projected.push(previous);
+      continue;
+    }
+    const increment = index > 0 ? Math.max(0, raw[index] - raw[index - 1]) : 50;
+    const low = index === 0 ? 0 : Math.max(0, previous - 25);
+    const high = index === 0 ? Math.min(total, 50) : Math.min(total, previous + Math.min(250, Math.max(50, increment * 3)));
+    let bestProgress = previous;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let segment = 0; segment < points.length - 1; segment++) {
+      if (cumulative[segment + 1] < low || cumulative[segment] > high) continue;
+      const candidate = projectPoint(x, z, points[segment].x, points[segment].z, points[segment + 1].x, points[segment + 1].z);
+      const progress = cumulative[segment] + candidate.t * (cumulative[segment + 1] - cumulative[segment]);
+      if (progress >= low && progress <= high && candidate.distance < bestDistance) {
+        bestDistance = candidate.distance;
+        bestProgress = progress;
+      }
+    }
+    previous = Math.max(previous, Math.min(high, bestProgress));
+    projected.push(previous);
+  }
+  const start = projected[0] ?? 0;
+  const end = projected.at(-1) ?? start;
+  if (!(end > start)) return null;
+  return projected.map((value) => ((value - start) / (end - start)) * nominalSpan);
+}
+
+function chooseReferenceIndex(packetsA: TelemetryPacket[], packetsB: TelemetryPacket[], options: ComparisonOptions): 0 | 1 {
+  if (options.lapAIsValid !== options.lapBIsValid) return options.lapAIsValid ? 0 : 1;
+  const spanA = positiveSpan(packetsA);
+  const spanB = positiveSpan(packetsB);
+  if (Number.isFinite(options.trackLengthMeters) && options.trackLengthMeters! > 0) {
+    const errorA = Math.abs(spanA - options.trackLengthMeters!);
+    const errorB = Math.abs(spanB - options.trackLengthMeters!);
+    if (errorA !== errorB) return errorA < errorB ? 0 : 1;
+  }
+  return spanA <= spanB ? 0 : 1;
+}
+
+function buildAlignmentDistances(packetsA: TelemetryPacket[], packetsB: TelemetryPacket[], options: ComparisonOptions): [number[], number[], number] {
+  const referencePackets = chooseReferenceIndex(packetsA, packetsB, options) === 0 ? packetsA : packetsB;
+  const nominalSpan = positiveSpan(referencePackets) || Math.max(positiveSpan(packetsA), positiveSpan(packetsB));
+  if (hasWorldPositions(packetsA) && hasWorldPositions(packetsB) && nominalSpan > 0) {
+    const distancesA = projectedDistances(packetsA, referencePackets, nominalSpan);
+    const distancesB = projectedDistances(packetsB, referencePackets, nominalSpan);
+    if (distancesA && distancesB) return [distancesA, distancesB, nominalSpan];
+  }
+  const fractionsA = fractionDistances(packetsA, nominalSpan);
+  const fractionsB = fractionDistances(packetsB, nominalSpan);
+  if (fractionsA && fractionsB) return [fractionsA, fractionsB, nominalSpan];
+  return [rawDistances(packetsA), rawDistances(packetsB), nominalSpan];
+}
+
+function extractLapData(packets: TelemetryPacket[], distances: number[]): LapData {
+  const first = packets[0];
+  return {
+    distances,
+    speeds: packets.map(speedMphFromPacket),
+    throttles: packets.map((packet) => packet.Accel / 255),
+    brakes: packets.map((packet) => packet.Brake / 255),
+    steers: packets.map((packet) => packet.Steer),
+    rpms: packets.map((packet) => packet.CurrentEngineRpm),
+    gears: packets.map((packet) => packet.Gear),
+    posXs: packets.map((packet) => packet.PositionX),
+    posZs: packets.map((packet) => packet.PositionZ),
+    times: packets.map((packet) => (packet.TimestampMS - first.TimestampMS) / 1000),
+    tireWears: packets.map((packet) => (packet.TireWearFL + packet.TireWearFR + packet.TireWearRL + packet.TireWearRR) / 4),
+    fuels: packets.map((packet) => packet.Fuel),
+  };
+}
+
+function interpolateSample(values: number[], lower: number, upper: number, interpolation: number): number {
   if (lower === upper) return values[lower];
   return values[lower] + interpolation * (values[upper] - values[lower]);
 }
 
-/**
- * Align all channels to the 1-metre distance grid in one pass.
- * Source distances must be monotonically non-decreasing.
- */
 function alignLap(data: LapData, grid: number[]): AlignedTrace {
   const trace: AlignedTrace = {
-    speed: new Array(grid.length),
-    throttle: new Array(grid.length),
-    brake: new Array(grid.length),
-    steer: new Array(grid.length),
-    rpm: new Array(grid.length),
-    gear: new Array(grid.length),
-    posX: new Array(grid.length),
-    posZ: new Array(grid.length),
-    elapsedTime: new Array(grid.length),
-    tireWear: new Array(grid.length),
-    fuel: new Array(grid.length),
+    speed: new Array(grid.length), throttle: new Array(grid.length), brake: new Array(grid.length), steer: new Array(grid.length),
+    rpm: new Array(grid.length), gear: new Array(grid.length), posX: new Array(grid.length), posZ: new Array(grid.length),
+    elapsedTime: new Array(grid.length), tireWear: new Array(grid.length), fuel: new Array(grid.length), sourceIndices: new Array(grid.length),
   };
-  const lastSourceIndex = data.distances.length - 1;
+  const last = Math.max(0, data.distances.length - 1);
   let sourceIndex = 0;
-
   for (let gridIndex = 0; gridIndex < grid.length; gridIndex++) {
     const distance = grid[gridIndex];
-    while (
-      sourceIndex < lastSourceIndex - 1 &&
-      data.distances[sourceIndex + 1] < distance
-    ) {
-      sourceIndex++;
-    }
-
+    while (sourceIndex < last && data.distances[sourceIndex + 1] <= distance) sourceIndex++;
     let lower = sourceIndex;
-    let upper = sourceIndex + 1;
-    if (distance <= data.distances[0]) {
-      lower = upper = 0;
-    } else if (distance >= data.distances[lastSourceIndex]) {
-      lower = upper = lastSourceIndex;
-    }
-
+    let upper = Math.min(last, sourceIndex + 1);
+    if (distance <= data.distances[0]) lower = upper = 0;
+    else if (distance >= data.distances[last]) lower = upper = last;
     const x0 = data.distances[lower];
     const x1 = data.distances[upper];
-    if (x1 === x0) upper = lower;
-    const interpolation = x1 === x0 ? 0 : (distance - x0) / (x1 - x0);
+    const interpolation = x1 === x0 ? 0 : Math.max(0, Math.min(1, (distance - x0) / (x1 - x0)));
+    trace.sourceIndices[gridIndex] = interpolation < 0.5 ? lower : upper;
     trace.speed[gridIndex] = interpolateSample(data.speeds, lower, upper, interpolation);
     trace.throttle[gridIndex] = interpolateSample(data.throttles, lower, upper, interpolation);
     trace.brake[gridIndex] = interpolateSample(data.brakes, lower, upper, interpolation);
     trace.steer[gridIndex] = interpolateSample(data.steers, lower, upper, interpolation);
     trace.rpm[gridIndex] = interpolateSample(data.rpms, lower, upper, interpolation);
-    trace.gear[gridIndex] = Math.round(
-      interpolateSample(data.gears, lower, upper, interpolation),
-    );
+    trace.gear[gridIndex] = Math.round(interpolateSample(data.gears, lower, upper, interpolation));
     trace.posX[gridIndex] = interpolateSample(data.posXs, lower, upper, interpolation);
     trace.posZ[gridIndex] = interpolateSample(data.posZs, lower, upper, interpolation);
     trace.elapsedTime[gridIndex] = interpolateSample(data.times, lower, upper, interpolation);
     trace.tireWear[gridIndex] = interpolateSample(data.tireWears, lower, upper, interpolation);
     trace.fuel[gridIndex] = interpolateSample(data.fuels, lower, upper, interpolation);
   }
-
   return trace;
 }
 
-/**
- * Compute cumulative time delta at each distance point.
- * Positive = lapA is slower (lapB is ahead / gaining time).
- */
-function computeTimeDelta(
-  lapATime: number[],
-  lapBTime: number[]
-): number[] {
-  return lapATime.map((tA, i) => tA - lapBTime[i]);
+function computeTimeDelta(lapATime: number[], lapBTime: number[]): number[] {
+  return lapATime.map((time, index) => time - lapBTime[index]);
 }
 
-/**
- * Compute per-corner time deltas.
- * For each corner, the delta is the change in cumulative time delta
- * from corner start to corner end.
- */
-function computeCornerDeltas(
-  corners: Corner[],
-  distances: number[],
-  timeDelta: number[],
-  lapATime: number[],
-  lapBTime: number[],
-): CornerDelta[] {
+function computeCornerDeltas(corners: Corner[], distances: number[], timeDelta: number[], lapATime: number[], lapBTime: number[]): CornerDelta[] {
   return corners.map((corner) => {
-    // Find grid indices closest to corner start/end
-    const startIdx = distances.findIndex((d) => d >= corner.distanceStart);
-    let endIdx = distances.findIndex((d) => d >= corner.distanceEnd);
+    const startIdx = distances.findIndex((distance) => distance >= corner.distanceStart);
+    let endIdx = distances.findIndex((distance) => distance >= corner.distanceEnd);
     if (endIdx === -1) endIdx = distances.length - 1;
-    if (startIdx === -1 || startIdx >= endIdx) {
-      return { label: corner.label, deltaSeconds: 0, timeA: 0, timeB: 0 };
-    }
-
-    const deltaSeconds = timeDelta[endIdx] - timeDelta[startIdx];
-    const timeA = lapATime[endIdx] - lapATime[startIdx];
-    const timeB = lapBTime[endIdx] - lapBTime[startIdx];
+    if (startIdx === -1 || startIdx >= endIdx) return { label: corner.label, deltaSeconds: 0, timeA: 0, timeB: 0 };
     return {
       label: corner.label,
-      deltaSeconds: Math.round(deltaSeconds * 1000) / 1000,
-      timeA: Math.round(timeA * 1000) / 1000,
-      timeB: Math.round(timeB * 1000) / 1000,
+      deltaSeconds: Math.round((timeDelta[endIdx] - timeDelta[startIdx]) * 1000) / 1000,
+      timeA: Math.round((lapATime[endIdx] - lapATime[startIdx]) * 1000) / 1000,
+      timeB: Math.round((lapBTime[endIdx] - lapBTime[startIdx]) * 1000) / 1000,
     };
   });
 }
 
-/**
- * Compare two laps by aligning their telemetry to a common 1-meter distance grid.
- *
- * @param packetsA - Telemetry packets for lap A
- * @param packetsB - Telemetry packets for lap B
- * @param corners - Optional corner definitions for per-corner breakdown
- * @returns Comparison result with aligned traces, time deltas, and corner deltas
- */
 export function compareLaps(
   packetsA: TelemetryPacket[],
   packetsB: TelemetryPacket[],
-  corners: Corner[] = []
+  corners: Corner[] = [],
+  options: ComparisonOptions = {},
 ): ComparisonResult {
-  const dataA = extractLapData(packetsA);
-  const dataB = extractLapData(packetsB);
-
-  // Determine common distance range (intersection of both laps)
-  const maxDistA = dataA.distances[dataA.distances.length - 1];
-  const maxDistB = dataB.distances[dataB.distances.length - 1];
-  const maxDist = Math.min(maxDistA, maxDistB);
-
-  // Build 1-meter grid
-  const gridLength = Math.floor(maxDist);
-  const distances: number[] = [];
-  for (let d = 0; d <= gridLength; d++) {
-    distances.push(d);
-  }
-
-  // Align both laps to the grid
-  const lapA = alignLap(dataA, distances);
-  const lapB = alignLap(dataB, distances);
-
-  // Compute cumulative time delta
+  const [distancesA, distancesB, nominalSpan] = buildAlignmentDistances(packetsA, packetsB, options);
+  const gridLength = Math.max(0, Math.floor(nominalSpan));
+  const distances = Array.from({ length: gridLength + 1 }, (_, index) => index);
+  const lapA = alignLap(extractLapData(packetsA, distancesA), distances);
+  const lapB = alignLap(extractLapData(packetsB, distancesB), distances);
   const timeDelta = computeTimeDelta(lapA.elapsedTime, lapB.elapsedTime);
-
-  // Compute per-corner deltas if corners provided
-  const cornerDeltas = computeCornerDeltas(corners, distances, timeDelta, lapA.elapsedTime, lapB.elapsedTime);
-
-  return {
-    distances,
-    lapA,
-    lapB,
-    timeDelta,
-    cornerDeltas,
-  };
+  return { distances, lapA, lapB, timeDelta, cornerDeltas: computeCornerDeltas(corners, distances, timeDelta, lapA.elapsedTime, lapB.elapsedTime) };
 }
