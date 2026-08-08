@@ -48,9 +48,9 @@ function formatGap(gap: number): string {
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 
 export function F1LiveDashboard() {
+  const view = useTelemetryStore((s) => s.telemetryView);
   const rawPacket = useTelemetryStore((s) => s.rawPacket);
   const packet = useTelemetryStore((s) => s.packet);
-  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
   const hasF1Data = rawPacket?.gameId === "f1-2025" && rawPacket.f1;
@@ -113,7 +113,7 @@ export function F1LiveDashboard() {
 
       {/* Right column: Race info + Charts + Recorded Laps */}
       <div data-live-dashboard-race className="overflow-y-auto overflow-x-hidden flex flex-col">
-        <RaceInfo packet={packet!} sectors={sectors} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />
+        {view && <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />}
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
         </div>

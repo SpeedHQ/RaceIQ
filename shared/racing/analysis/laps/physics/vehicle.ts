@@ -279,6 +279,32 @@ export function wheelState(
   return { state: "grip", slipRatio: sr };
 }
 
+export interface WheelDynamicsFrame {
+  speedMps: number;
+  steer: number;
+  wheelRotationRadS: { fl: number; fr: number; rl: number; rr: number };
+  wheelRadiusM: number;
+}
+
+/** Semantic wheel-dynamics primitive. Units are canonical SI (m/s, rad/s, m). */
+export function wheelDynamicsFrame(frame: WheelDynamicsFrame): {
+  fl: WheelState;
+  fr: WheelState;
+  rl: WheelState;
+  rr: WheelState;
+} {
+  const { speedMps: gs, steer } = frame;
+  const turningRight = steer > 5;
+  const turningLeft = steer < -5;
+  return {
+    fl: wheelState(frame.wheelRotationRadS.fl, gs, frame.wheelRadiusM, steer, turningRight),
+    fr: wheelState(frame.wheelRotationRadS.fr, gs, frame.wheelRadiusM, steer, turningLeft),
+    rl: wheelState(frame.wheelRotationRadS.rl, gs, frame.wheelRadiusM, 0, turningRight),
+    rr: wheelState(frame.wheelRotationRadS.rr, gs, frame.wheelRadiusM, 0, turningLeft),
+  };
+}
+
+/** Historical packet compatibility wrapper. Live callers must use wheelDynamicsFrame. */
 export function allWheelStates(pkt: TelemetryPacket): {
   fl: WheelState;
   fr: WheelState;
@@ -286,18 +312,17 @@ export function allWheelStates(pkt: TelemetryPacket): {
   rr: WheelState;
 } {
   const r = effectiveWheelRadius(pkt);
-  const gs = pkt.Speed;
-  const steer = pkt.Steer; // -128 to 127
-  // Determine which side is inner in the turn
-  const turningRight = steer > 5;
-  const turningLeft = steer < -5;
-
-  return {
-    fl: wheelState(pkt.WheelRotationSpeedFL, gs, r, steer, turningRight),
-    fr: wheelState(pkt.WheelRotationSpeedFR, gs, r, steer, turningLeft),
-    rl: wheelState(pkt.WheelRotationSpeedRL, gs, r, 0, turningRight),
-    rr: wheelState(pkt.WheelRotationSpeedRR, gs, r, 0, turningLeft),
-  };
+  return wheelDynamicsFrame({
+    speedMps: pkt.Speed,
+    steer: pkt.Steer,
+    wheelRotationRadS: {
+      fl: pkt.WheelRotationSpeedFL,
+      fr: pkt.WheelRotationSpeedFR,
+      rl: pkt.WheelRotationSpeedRL,
+      rr: pkt.WheelRotationSpeedRR,
+    },
+    wheelRadiusM: r,
+  });
 }
 
 // ── Cornering Efficiency ───────────────────────────────────────────

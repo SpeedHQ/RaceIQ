@@ -4,7 +4,7 @@ import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } f
 import { useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useUnits } from "../hooks/useUnits";
-import type { DisplayPacket } from "../lib/convert-packet";
+import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { client } from "../lib/rpc";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
@@ -23,39 +23,43 @@ export { formatLapTime } from "../lib/format";
 export type DashboardMode = "driver" | "pitcrew";
 
 interface Props {
-  packet: DisplayPacket | null;
+  view: LiveTelemetryView | null;
   mode?: DashboardMode;
 }
 
-export function LiveTelemetry({ packet, mode = "driver" }: Props) {
+export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const pit = useTelemetryStore((s) => s.pit);
   const [carName, setCarName] = useState<string>("");
-  const gameId = packet?.gameId ?? null;
-  const carOrdinal = packet?.CarOrdinal;
+  const gameId = view?.simulator ?? null;
+  const carOrdinal = view?.identity.carOrdinal;
 
   useEffect(() => {
     if (gameId == null || carOrdinal == null) return;
     let active = true;
-
     client.api["car-name"][":ordinal"]
       .$get({ param: { ordinal: String(carOrdinal) }, query: { gameId } })
       .then((response) => (response.ok ? response.text() : `Car #${carOrdinal}`))
-      .then((name) => {
-        if (active) setCarName(name);
-      })
-      .catch(() => {
-        if (active) setCarName(`Car #${carOrdinal}`);
-      });
-    return () => {
-      active = false;
-    };
+      .then((name) => { if (active) setCarName(name); })
+      .catch(() => { if (active) setCarName(`Car #${carOrdinal}`); });
+    return () => { active = false; };
   }, [carOrdinal, gameId]);
 
   const units = useUnits();
-
-  if (!packet) {
+  if (!view) {
     return <div className="flex items-center justify-center h-full text-app-text-dim">{m.live_waiting_data()}</div>;
   }
+
+  // Legacy child widgets still consume packet-shaped props; semantic values stay canonical SI.
+  const packet = {
+    gameId: view.simulator, CarOrdinal: view.identity.carOrdinal ?? 0, TrackOrdinal: view.identity.trackOrdinal ?? 0,
+    CarClass: view.identity.carClass ?? 0, CarPerformanceIndex: view.identity.performanceIndex ?? 0, DrivetrainType: view.identity.drivetrainType ?? 0,
+    DisplaySpeed: units.speed(view.motion.speedMps ?? 0), Accel: (view.inputs.throttle ?? 0) * 255, Brake: (view.inputs.brake ?? 0) * 255,
+    CurrentEngineRpm: view.engine.rpm ?? 0, EngineIdleRpm: view.engine.idleRpm ?? 0, EngineMaxRpm: view.engine.maxRpm ?? 0,
+    Power: view.engine.powerW ?? 0, Boost: view.engine.boost ?? 0, Gear: view.inputs.gear ?? 0, Steer: view.inputs.steer ?? 0,
+    TireTempFL: view.tires.temperatureC?.fl ?? 0, TireTempFR: view.tires.temperatureC?.fr ?? 0, TireTempRL: view.tires.temperatureC?.rl ?? 0, TireTempRR: view.tires.temperatureC?.rr ?? 0,
+    TireWearFL: view.tires.wear?.fl ?? 0, TireWearFR: view.tires.wear?.fr ?? 0, TireWearRL: view.tires.wear?.rl ?? 0, TireWearRR: view.tires.wear?.rr ?? 0,
+  } as any;
+
 
   const speed = packet.DisplaySpeed;
   const throttlePct = (packet.Accel / 255) * 100;
