@@ -16,7 +16,8 @@ import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutat
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { assessLapRecording } from "../../lap-analysis/quality";
-import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
+import { generateExport } from "../../lap-analysis/report";
+import { resolveTrack } from "../../tracks/info";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
