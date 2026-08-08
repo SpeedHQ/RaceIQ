@@ -85,3 +85,11 @@ export function hasTireHealthData(
     ].some((value) => value !== 0)
   );
 }
+
+export function hasTireHealthDataSemantic(
+  wear: readonly number[] | undefined,
+  metric: AnalysisTelemetryMetric,
+): boolean {
+  if (metric.source !== "direct" || metric.freshness !== "pit-snapshot") return metric.source !== "unavailable";
+  return (wear ?? []).some((value) => value !== 0);
+}

@@ -48,6 +48,14 @@ export function getFuelDisplay(
   return display;
 }
 
+export function getFuelDisplaySemantic(
+  fuel: number,
+  capacity: number | undefined,
+  spec: TelemetryModel["fuel"],
+): FuelDisplay {
+  return getFuelDisplay({ Fuel: fuel, FuelCapacity: capacity }, spec);
+}
+
 export function getTireTemperatureSourceUnit(
   spec: TelemetryModel["tireTemperature"],
 ): "C" | "F" {
