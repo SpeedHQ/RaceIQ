@@ -195,7 +195,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       {/* G-Force + Steering + Fuel */}
       <div className="px-3 py-2 border-b border-app-border/50">
         <div className="flex items-center gap-3">
-          <GForceCircle packet={packet} />
+          <GForceCircle view={view} />
           <SteeringWheel steer={packet.Steer} />
           <div className="flex-1">
             <FuelGauge packet={packet} />

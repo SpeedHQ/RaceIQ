@@ -4,6 +4,7 @@ import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 /**
  * GForceCircle — Canvas-drawn G-force plot (friction circle).
@@ -11,7 +12,9 @@ import type { TelemetryPacket } from "../../../../shared/telemetry/types";
  * Raw acceleration (m/s^2) is divided by 9.81 to convert to G units.
  * Dot color indicates total G magnitude.
  */
-export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
+export function GForceCircle({ packet, view }: { packet?: TelemetryPacket; view?: LiveTelemetryView }) {
+  const accelerationX = view?.motion.acceleration?.x ?? packet?.AccelerationX ?? 0;
+  const accelerationZ = view?.motion.acceleration?.z ?? packet?.AccelerationZ ?? 0;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 110;
   const maxG = 2.5;
@@ -50,8 +53,8 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
 
     // Forza acceleration values are inverted relative to felt G-force:
     // braking produces positive Z, but on a G-meter the dot should go UP (negative canvas Y)
-    const latG = -packet.AccelerationX / 9.81;
-    const lonG = -packet.AccelerationZ / 9.81;
+    const latG = -accelerationX / 9.81;
+    const lonG = -accelerationZ / 9.81;
     const dotX = cx + (latG / maxG) * r;
     const dotY = cy - (lonG / maxG) * r;
 
@@ -62,10 +65,10 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
     ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
     ctx.fillStyle = dotColor;
     ctx.fill();
-  }, [packet]);
+  }, [accelerationX, accelerationZ]);
 
-  const latG = -packet.AccelerationX / 9.81;
-  const lonG = -packet.AccelerationZ / 9.81;
+  const latG = -accelerationX / 9.81;
+  const lonG = -accelerationZ / 9.81;
 
   return (
     <div className="flex flex-col items-center gap-0.5 shrink-0" style={{ width: size }}>
