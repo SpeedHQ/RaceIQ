@@ -115,11 +115,12 @@ export function drawTrackCanvas(
   let needsRestore = false;
   if (followCar && zoom && hoveredDistance != null && telemetryA.length >= 2) {
     const pA = telemetryA[findTelemetryAtDistance(telemetryA, hoveredDistance)];
-    if (pA && ((num(pA, "motion.position-x") ?? 0) !== 0 || (num(pA, "motion.position-z") ?? 0) !== 0) && num(pA, "motion.yaw") !== undefined) {
+    const yaw = pA ? num(pA, "motion.yaw") : undefined;
+    if (pA && ((num(pA, "motion.position-x") ?? 0) !== 0 || (num(pA, "motion.position-z") ?? 0) !== 0) && yaw !== undefined) {
       const [carCx, carCy] = toCanvas(telX((num(pA, "motion.position-x") ?? 0)), (num(pA, "motion.position-z") ?? 0));
       ctx.save();
       ctx.translate(w / 2, h / 2);
-      ctx.rotate(Math.PI - num(pA, "motion.yaw"));
+      ctx.rotate(Math.PI - yaw);
       ctx.translate(-carCx, -carCy);
       needsRestore = true;
     }
