@@ -12,7 +12,6 @@ import type { SemanticAnalysisFrame } from "./track-map/types";
 interface WearRate { FL: number; FR: number; RL: number; RR: number; }
 interface Props { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits>; wearRate: WearRate | null; }
 const WHEELS = ["FL", "FR", "RL", "RR"] as const;
-const vals = (f: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): (number | null)[] => { const v = f.values[id]; return WHEELS.map((_, i) => Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? v[i] : null); }
 const unavailable = <span className="text-app-text-dim">—</span>;
 const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
   const value = frame.values[id];
