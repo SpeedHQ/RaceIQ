@@ -65,12 +65,13 @@ export function useLapPlayback({
       if (!playRef.current) return;
       const idx = cursorRef.current;
       if (idx >= telemetry.length - 1) {
-        cursorRef.current = 0;
-        updateOverlays(0);
-        setCursorIdx(0);
-        lastStateUpdateRef.current = now;
-        gameStart = semanticNumber(telemetry[0], "timing.current-lap") ?? 0;
-        rafId = requestAnimationFrame(step);
+        const lastIdx = telemetry.length - 1;
+        cursorRef.current = lastIdx;
+        updateOverlays(lastIdx);
+        setCursorIdx(lastIdx);
+        interpolatedTimeRef.current = semanticNumber(telemetry[lastIdx], "timing.current-lap") ?? 0;
+        playRef.current = false;
+        setPlaying(() => false);
         return;
       }
 

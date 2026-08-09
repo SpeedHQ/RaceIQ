@@ -1,9 +1,13 @@
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { suspensionCompressionBias } from "../../../../shared/racing/analysis/laps/physics/vehicle";
+import { Info } from "lucide-react";
 import { operatingRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 import type { SemanticAnalysisFrame } from "./track-map/types";
 import { WheelTable } from "./WheelTable";
 
-interface Props { frame: SemanticAnalysisFrame; }
+interface Props { frame: SemanticAnalysisFrame; gameId: import("../../../../shared/games/ids").GameId; }
 const WHEELS = ["FL", "FR", "RL", "RR"] as const;
 const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number) => {
   const value = frame.values[id];
@@ -11,19 +15,13 @@ const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["va
 }
 const unavailable = <span className="text-app-text-dim">—</span>;
 
-export function AnalyseSuspensionPanel({ frame }: Props) {
+export function AnalyseSuspensionPanel({ frame, gameId }: Props) {
+  const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const normalized = WHEELS.map((_, i) => wheel(frame, "suspension.norm-suspension-travel", i));
-  const millimeters = WHEELS.map((_, i) => { const v = wheel(frame, "suspension.suspension-travel-m", i); return v == null ? null : v * 1000; });
-  const values = normalized.some((v) => v != null) ? normalized : millimeters.map((v) => (v == null ? null : v / 100));
-  const hasMm = millimeters.some((v) => v != null);
-  const left = values[0] != null && values[2] != null ? ((values[0] + values[2]) / 2) : null;
-  const front = values[0] != null && values[1] != null ? (values[0] + values[1]) / 2 : null;
-  const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-  return <WheelTable title={m.dataguide_suspension()} borderTop rows={[{
-    label: m.dataguide_travel(),
-    fl: values[0] == null ? unavailable : hasMm ? `${Math.round(millimeters[0]!)}mm` : C(`${(values[0] * 100).toFixed(0)}%`, operatingRangeColor(values[0], [0.25, 0.65, 0.85])),
-    fr: values[1] == null ? unavailable : hasMm ? `${Math.round(millimeters[1]!)}mm` : C(`${(values[1] * 100).toFixed(0)}%`, operatingRangeColor(values[1], [0.25, 0.65, 0.85])),
-    rl: values[2] == null ? unavailable : hasMm ? `${Math.round(millimeters[2]!)}mm` : C(`${(values[2] * 100).toFixed(0)}%`, operatingRangeColor(values[2], [0.25, 0.65, 0.85])),
-    rr: values[3] == null ? unavailable : hasMm ? `${Math.round(millimeters[3]!)}mm` : C(`${(values[3] * 100).toFixed(0)}%`, operatingRangeColor(values[3], [0.25, 0.65, 0.85])),
-  }, { label: m.analyse_suspension_compression_bias(), fl: front == null ? unavailable : `${m.analyse_suspension_front()} ${(front * 100).toFixed(0)}%`, rl: left == null ? unavailable : `${m.analyse_suspension_left()} ${(left * 100).toFixed(0)}%`, fr: "", rr: "", span2: true }]} />;
+  const millimeters = WHEELS.map((_, i) => { const value = wheel(frame, "suspension.suspension-travel-m", i); return value == null ? null : value * 1000; });
+  const showMillimeters = analysis.suspensionTravel.display === "millimeters";
+  const bias = normalized.every((value): value is number => value != null) ? suspensionCompressionBias([normalized[0], normalized[1], normalized[2], normalized[3]]) : null;
+  const title = <span className="flex items-center gap-1 group relative">{m.dataguide_suspension()}<Info className="w-3 h-3 text-app-text-dim cursor-help inline" /><span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">{m.analyse_suspension_compression_tooltip()}</span></span>;
+  const cell = (index: number) => showMillimeters ? (millimeters[index] == null ? unavailable : `${Math.round(millimeters[index]!)}mm`) : (normalized[index] == null ? unavailable : <span style={{ color: operatingRangeColor(normalized[index]!, [0.25, 0.65, 0.85]) }}>{`${(normalized[index]! * 100).toFixed(0)}%`}</span>);
+  return <WheelTable title={title} borderTop rows={[{ label: m.dataguide_travel(), fl: cell(0), fr: cell(1), rl: cell(2), rr: cell(3) }, { label: m.analyse_suspension_compression_bias(), fl: bias == null ? unavailable : `${m.analyse_suspension_front()} ${(bias.front * 100).toFixed(0)}%`, rl: bias == null ? unavailable : `${m.analyse_suspension_left()} ${(bias.left * 100).toFixed(0)}%`, fr: "", rr: "", span2: true }]} />;
 }

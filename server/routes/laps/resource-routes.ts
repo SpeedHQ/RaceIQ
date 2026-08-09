@@ -23,9 +23,13 @@ import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
-const semanticReplayIds = TELEMETRY_CATALOG.variables
-  .filter((variable) => variable.packetFields && variable.packetFields.length > 0)
-  .map((variable) => variable.id);
+const semanticReplayIds = [...new Set([
+  ...TELEMETRY_CATALOG.variables
+    .filter((variable) => variable.packetFields && variable.packetFields.length > 0)
+    .map((variable) => variable.id),
+  "brakes.brake-bias",
+  "identity.player-track-surface",
+])];
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
 const gzipAsync = promisify(gzip);

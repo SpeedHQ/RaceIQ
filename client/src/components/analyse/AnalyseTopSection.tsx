@@ -1,3 +1,4 @@
+import type { GameId } from "../../../../shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
@@ -8,6 +9,7 @@ import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
 interface AnalyseTopSectionProps {
+  gameId?: GameId;
   // Layout
   topHeight: number;
   leftColWidth: number;
@@ -53,6 +55,7 @@ interface AnalyseTopSectionProps {
 }
 
 export function AnalyseTopSection({
+  gameId,
   topHeight,
   leftColWidth,
   rightColWidth,
@@ -154,6 +157,7 @@ export function AnalyseTopSection({
       {/* Track map */}
       <div className="h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:border-r @5xl/workspace:border-b-0">
         <AnalyseTrackPanel
+          gameId={gameId}
           telemetry={telemetry}
           cursorIdx={cursorIdx}
           outline={outline}

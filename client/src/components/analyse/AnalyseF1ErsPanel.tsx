@@ -11,7 +11,11 @@ export function AnalyseF1ErsPanel({ frame }: Props) {
   const deployed = number(frame, "fuel.ers-deployed");
   const harvested = number(frame, "fuel.ers-harvested");
   const mode = number(frame, "fuel.ers-deploy-mode");
-  const drs = frame.values["aero.drs-active"] === true || frame.values["aero.drs-active"] === 1;
+  const drsValue = frame.values["aero.drs-active"];
+  const hasDrs = typeof drsValue === "boolean" || typeof drsValue === "number";
+  const hasErs = [store, deployed, harvested, mode].some((value) => value != null);
+  if (!hasDrs && !hasErs) return null;
+  const drs = drsValue === true || drsValue === 1;
   const pct = (value: number | null) => value == null ? "—" : `${((value / 4_000_000) * 100).toFixed(1)}%`;
   const ersPct = store == null ? null : (store / 4_000_000) * 100;
   const ersBarColor = ersPct == null ? "bg-app-surface-alt" : ersPct < 20 ? "bg-(--severity-critical)" : ersPct < 50 ? "bg-(--severity-caution)" : "bg-(--severity-nominal)";

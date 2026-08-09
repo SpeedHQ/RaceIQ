@@ -1,14 +1,15 @@
+import type { GameId } from "../../../../shared/games/ids";
 import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
-import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
+import type { Point, SectorBoundaries, SemanticAnalysisFrame, TrackMapHandle, TrackMapLabel } from "./track-map/types";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
+  gameId?: GameId;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
@@ -48,6 +49,7 @@ interface AnalyseTrackPanelProps {
  * and weather widget stay hidden, not the whole panel.
  */
 export function AnalyseTrackPanel({
+  gameId,
   telemetry,
   cursorIdx,
   outline,
@@ -80,6 +82,7 @@ export function AnalyseTrackPanel({
     >
       <AnalyseTrackMap
         ref={trackMapRef}
+        gameId={gameId}
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}

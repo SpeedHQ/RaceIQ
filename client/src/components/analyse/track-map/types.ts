@@ -2,7 +2,9 @@ import { isTelemetryVariableId } from "../../../../../shared/telemetry/catalog/q
 import type { TelemetryVariableId } from "../../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 
 export interface SemanticAnalysisFrame {
-  values: Partial<Readonly<Record<TelemetryVariableId, unknown>>>;
+  values: Readonly<Record<string, unknown>>;
+  states: Readonly<Record<string, string | undefined>>;
+  freshness: Readonly<Record<string, string | undefined>>;
 }
 
 export interface SemanticValueEntry {
@@ -69,6 +71,7 @@ export interface TrackMapBoundaries {
 }
 
 export interface TrackMapProps {
+  gameId?: import("../../../../../shared/games/ids").GameId;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;

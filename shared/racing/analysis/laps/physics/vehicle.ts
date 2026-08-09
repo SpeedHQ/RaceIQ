@@ -214,6 +214,80 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
     severity,
   };
 }
+export interface SemanticBalanceSignals {
+  speedMps: number;
+  accelerationX: number;
+  yawRate: number;
+  slipAngles: readonly [number, number, number, number];
+}
+
+/** Packet-free equivalent of steerBalance for canonical semantic replay values. */
+export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerBalance {
+  const [fl, fr, rl, rr] = signals.slipAngles;
+  const frontSlipDeg = ((Math.abs(fl) + Math.abs(fr)) / 2) * RAD2DEG;
+  const rearSlipDeg = ((Math.abs(rl) + Math.abs(rr)) / 2) * RAD2DEG;
+  const slipDelta = frontSlipDeg - rearSlipDeg;
+  const latG = -signals.accelerationX / G;
+  const speed = Math.max(signals.speedMps, 0.1);
+  const yawRatePath = Math.abs(latG * G) / speed;
+  const yawError = Math.abs(signals.yawRate) - yawRatePath;
+  const gated = Math.abs(latG) < LAT_G_FLOOR || speed < SPEED_FLOOR;
+  const uSlip = slipDelta / SLIP_DELTA_SCALE;
+  const uYaw = -yawError / YAW_ERR_SCALE;
+  const yawContrib = gated ? 0 : uYaw;
+  const signalsAgree = uSlip * yawContrib >= 0;
+  const yawActive = Math.abs(yawContrib) > 0.05;
+  const slipConfident = Math.abs(uSlip) >= 0.15;
+  const blended = 0.5 * uSlip + 0.5 * yawContrib;
+  const balanceRaw =
+    speed < SPEED_FLOOR
+      ? 0
+      : !signalsAgree || !slipConfident
+        ? uSlip
+        : yawActive && Math.abs(blended) > Math.abs(uSlip)
+          ? blended
+          : uSlip;
+  const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
+  const moving = speed >= SPEED_FLOOR;
+  const state: SteerBalance["state"] =
+    moving && balance > CLASSIFY_THRESHOLD
+      ? "understeer"
+      : moving && balance < -CLASSIFY_THRESHOLD
+        ? "oversteer"
+        : "neutral";
+  return {
+    latG,
+    yawRate: signals.yawRate,
+    yawRatePath,
+    yawError,
+    frontSlipDeg,
+    rearSlipDeg,
+    slipDelta,
+    uSlip,
+    uYaw,
+    signalsAgree,
+    balance,
+    state,
+    severity: moving ? Math.min(1, Math.max(0, (Math.abs(balance) - CLASSIFY_THRESHOLD) / (1 - CLASSIFY_THRESHOLD))) : 0,
+  };
+}
+
+export interface SemanticWheelDynamicsFrame {
+  speedMps: number;
+  steer: number;
+  wheelRotationRadS: { fl: number; fr: number; rl: number; rr: number };
+  wheelRadiusM: number;
+}
+
+/** Packet-free wheel-state and slip-ratio calculation for canonical replay. */
+export function semanticWheelDynamics(frame: SemanticWheelDynamicsFrame): {
+  fl: WheelState;
+  fr: WheelState;
+  rl: WheelState;
+  rr: WheelState;
+} {
+  return wheelDynamicsFrame(frame);
+}
 
 // ── Suspension Compression Distribution ────────────────────────────
 // Share of the current normalized shock compression. This can show chassis
@@ -228,20 +302,28 @@ export interface SuspensionCompression {
   leftBias: number; // 0-1: share of compression on the left side
 }
 
+export function suspensionCompressionBias([fl, fr, rl, rr]: readonly [number, number, number, number]): { front: number; left: number } {
+  const total = fl + fr + rl + rr || 1;
+  return {
+    front: (fl + fr) / total,
+    left: (fl + rl) / total,
+  };
+}
+
 export function suspensionCompression(pkt: TelemetryPacket): SuspensionCompression {
   const fl = pkt.NormSuspensionTravelFL;
   const fr = pkt.NormSuspensionTravelFR;
   const rl = pkt.NormSuspensionTravelRL;
   const rr = pkt.NormSuspensionTravelRR;
-  const total = fl + fr + rl + rr || 1;
+  const { front, left } = suspensionCompressionBias([fl, fr, rl, rr]);
 
   return {
     fl,
     fr,
     rl,
     rr,
-    frontBias: (fl + fr) / total,
-    leftBias: (fl + rl) / total,
+    frontBias: front,
+    leftBias: left,
   };
 }
 

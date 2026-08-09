@@ -1,6 +1,7 @@
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform } from "./types";
 
 const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
@@ -13,6 +14,7 @@ export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
   bufferCanvas: HTMLCanvasElement | null;
   telemetry: SemanticAnalysisFrame[];
+  gameId?: import("../../../../../shared/games/ids").GameId;
   resolvedPositions: Point[];
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
@@ -25,9 +27,8 @@ export interface StaticTrackOptions {
   rotateWithCar: boolean;
   zoom: number;
 }
-
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
+  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -37,10 +38,9 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
   const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
-  if (displayOutline.length < 2) return { bufferCanvas: null, transform: null };
-
-  const flippedLeft = boundaries?.leftEdge;
-  const flippedRight = boundaries?.rightEdge;
+  const flip = needsTrackFlip(gameId);
+  const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
+  const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,

@@ -18,7 +18,7 @@ export function Vitals2D({ frame, view }: { frame?: SemanticAnalysisFrame; view?
         </span>
       </div>
       <div className="flex items-center gap-2"><GForceCircle frame={frame} view={view} /></div>
-      <TireDiagram view={view} />
+      <TireDiagram frame={frame} view={view} />
     </div>
   );
 }

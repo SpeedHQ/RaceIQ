@@ -228,8 +228,22 @@ function LapAnalyseInner() {
   }, []);
 
   const currentFrame = telemetry[cursorIdx] ?? null;
-  // Wear-rate requires packet-native tire-health fields; semantic replay marks unavailable instead of guessing.
-  const wearRate = null;
+  const wearRate = useMemo(() => {
+    if (!currentFrame || telemetry.length < 2) return null;
+    const previous = telemetry[Math.max(0, cursorIdx - 60)];
+    const currentTime = semanticNumber(currentFrame, "timing.current-lap");
+    const previousTime = semanticNumber(previous, "timing.current-lap");
+    const dt = (currentTime ?? 0) - (previousTime ?? 0);
+    const currentWear = currentFrame.values["tires.tire-wear"];
+    const previousWear = previous.values["tires.tire-wear"];
+    if (dt <= 0.1 || !Array.isArray(currentWear) || !Array.isArray(previousWear)) return null;
+    const values = [0, 1, 2, 3].map((index) => {
+      const current = currentWear[index];
+      const prior = previousWear[index];
+      return typeof current === "number" && typeof prior === "number" ? (current - prior) / dt : null;
+    });
+    return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
+  }, [currentFrame, cursorIdx, telemetry]);
   const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
   const currentTime = playing ? interpolatedTimeRef.current : semanticNumber(currentFrame, "timing.current-lap") ?? 0;
   const selectedLap = laps.find((l) => l.id === selectedLapId);
@@ -330,6 +344,7 @@ function LapAnalyseInner() {
       {telemetry.length > 0 && (
         <AnalyseWorkspacePanels
           topSectionProps={{
+            gameId,
             topHeight,
             leftColWidth,
             rightColWidth,
@@ -381,7 +396,6 @@ function LapAnalyseInner() {
           }}
           chartsPanelProps={{
             displayTelemetry: semanticFrames,
-            totalPackets: telemetry.length,
             visualTimeFrac,
             onVisualFracChange: setVisualTimeFrac,
             onClickIndex: handleChartClick,

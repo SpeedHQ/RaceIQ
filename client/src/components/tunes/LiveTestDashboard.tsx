@@ -137,6 +137,7 @@ export function LiveTestDashboard({
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
           <div className="relative h-[22.5rem]">
             <AnalyseTrackPanel
+              gameId={gameId}
               telemetry={semanticTrace}
               cursorIdx={semanticTrace.length - 1}
               outline={outline}

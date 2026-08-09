@@ -40,7 +40,7 @@ export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displa
       </TabsList>
 
       <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
-        <Vitals2D />
+        <Vitals2D frame={currentFrame ?? undefined} />
       </TabsContent>
 
       <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">

@@ -1,5 +1,8 @@
+import { getGame } from "@shared/games/registry";
+import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import type { GameId } from "@shared/games/ids";
 import { getSteeringLock } from "@/lib/settings-storage";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import type { SemanticAnalysisFrame } from "./track-map/types";
 import { useUnits } from "../../hooks/useUnits";
 import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
@@ -7,8 +10,9 @@ import { m } from "../../paraglide/messages";
 const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
 return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
-export function MetricsPanel({ frame, startFuel }: { frame: SemanticAnalysisFrame; startFuel?: number }) {
+export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnalysisFrame; startFuel?: number; gameId: GameId }) {
   const units = useUnits();
+  const telemetry = getGame(gameId).telemetry;
   const speedMps = number(frame, "motion.speed");
   const speed = speedMps == null ? null : units.speed(speedMps);
   const accel = number(frame, "inputs.accel");
@@ -20,21 +24,31 @@ export function MetricsPanel({ frame, startFuel }: { frame: SemanticAnalysisFram
   const boost = number(frame, "engine.boost");
   const power = number(frame, "engine.power");
   const torque = number(frame, "engine.torque");
-  const fuel = number(frame, "fuel.remaining-volume");
-  const fuelUsed = startFuel != null && fuel != null ? startFuel - fuel : null;
-  const value = (n: number | null, suffix = "") => n == null ? "—" : `${n.toFixed(0)}${suffix}`;
+  const fuel = number(frame, "fuel.fuel");
+  const capacity = number(frame, "fuel.fuel-capacity") ?? undefined;
+  const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, telemetry.fuel);
+  const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(Math.max(0, startFuel - fuel), capacity, telemetry.fuel) : null;
+  const value = (n: number | null) => n == null ? "—" : `${n.toFixed(0)}`;
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
       <MetricRow label={m.dataguide_speed()} value={speed == null ? "—" : `${speed.toFixed(0)} ${units.speedLabel}`} />
       <MetricRow label={m.dataguide_rpm()} value={value(rpm)} />
       <MetricRow label={m.dataguide_gear()} value={value(gear)} />
-      <MetricRow label={m.dataguide_throttle()} value={accel == null ? "—" : `${((accel / 255) * 100).toFixed(0)}%`} color={accel && accel > 0 ? "var(--ch-throttle)" : undefined} />
-      <MetricRow label={m.dataguide_brake()} value={brake == null ? "—" : `${((brake / 255) * 100).toFixed(0)}%`} color={brake && brake > 0 ? "var(--ch-brake)" : undefined} />
+      <MetricRow label={m.dataguide_throttle()} value={accel == null ? "—" : `${((accel / 255) * 100).toFixed(0)}%`} color={accel != null && accel > 0 ? "var(--ch-throttle)" : undefined} />
+      <MetricRow label={m.dataguide_brake()} value={brake == null ? "—" : `${((brake / 255) * 100).toFixed(0)}%`} color={brake != null && brake > 0 ? "var(--ch-brake)" : undefined} />
       <MetricRow label={m.dataguide_steer()} value={steer == null ? "—" : `${steer > 0 ? "+" : ""}${((steer / 127) * (lock / 2)).toFixed(0)}°`} />
-      {boost != null && <MetricRow label={m.dataguide_boost()} value={`${boost.toFixed(1)} psi`} />}
-      {power != null && <MetricRow label={m.dataguide_power()} value={`${(power / 745.7).toFixed(0)} hp`} />}
-      {torque != null && <MetricRow label={m.dataguide_torque()} value={`${torque.toFixed(0)} Nm`} />}
-      <div className="col-span-2 flex justify-between"><span className="text-app-text-muted">{m.dataguide_fuel()}</span><span className="tabular-nums"><span className="text-app-text-secondary">{fuelUsed == null ? "—" : `${fuelUsed.toFixed(1)}L`} used</span><span className="text-app-text"> {fuel == null ? "—" : `${fuel.toFixed(1)}L`} left</span></span></div>
+      {telemetry.boost && boost != null && <MetricRow label={m.dataguide_boost()} value={`${boost.toFixed(1)} psi`} />}
+      {telemetry.power && power != null && <MetricRow label={m.dataguide_power()} value={`${(power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`} />}
+      {telemetry.torque && torque != null && <MetricRow label={m.dataguide_torque()} value={`${torque.toFixed(0)} Nm`} />}
+      <div className="col-span-2 flex justify-between">
+        <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
+        <span className="tabular-nums">
+          <span style={{ color: "var(--metric-fuel)" }}>{fuelUsed == null ? "?" : `${fuelUsed.amount.toFixed(1)}${fuelUsed.unit}`}</span>
+          <span className="text-app-text-dim"> used </span>
+          <span className="text-app-text">{fuelDisplay == null ? "—" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`}</span>
+          <span className="text-app-text-dim"> left</span>
+        </span>
+      </div>
     </div>
   );
 }

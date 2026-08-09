@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import { m } from "@/paraglide/messages";
+import type { SemanticAnalysisFrame } from "./track-map/types";
 
 import type { SemanticAnalysisFrame } from "./track-map/types";
 export type { SemanticAnalysisFrame } from "./track-map/types";
