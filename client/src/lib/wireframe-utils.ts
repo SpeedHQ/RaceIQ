@@ -18,6 +18,11 @@ export function makeWheelGeometries(radius: number, width: number) {
   return { tire, rim };
 }
 
+/** Convert signed int8 steering input to a bounded front-wheel angle. */
+export function steeringAngleRadians(steerInput: number): number {
+  return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
+}
+
 // ── Color helpers ─────────────────────────────────────────────────────
 
 const threeColorCache = new Map<string, THREE.Color>();

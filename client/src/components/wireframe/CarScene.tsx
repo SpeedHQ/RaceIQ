@@ -3,12 +3,12 @@ import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 import type { GameId } from "../../../../shared/games/ids";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
-import { THREE_COLORS } from "../../lib/wireframe-utils";
+import { steeringAngleRadians, THREE_COLORS } from "../../lib/wireframe-utils";
+import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
 import { CurbMarkers } from "./CurbMarkers";
@@ -145,7 +145,7 @@ export function CarScene({
     prevWear.current = currentWear;
   });
 
-  const steerRad = -(semanticNumber(frame, "inputs.steer") ?? 0 / 127) * 0.35;
+  const steerRad = steeringAngleRadians(semanticNumber(frame, "inputs.steer") ?? 0);
 
   // All games: fronts rotate by the normalized Steer input scaled to a
   // ballpark max front wheel angle; rears stay at 0. ACC's tyreContactHeading
