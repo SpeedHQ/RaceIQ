@@ -27,4 +27,13 @@ describe("analysis metric value resolvers", () => {
     const metric = { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["tires.tire-slip-angle"] } } as const;
     expect(resolveBalance(frame({ "tires.tire-slip-angle": [0, 0, 0, 0] }), metric)).toBeNull();
   });
+  test("resolves balance from canonical semantic motion IDs", () => {
+    const metric = { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } } as const;
+    expect(resolveBalance(frame({
+      "motion.speed": 30,
+      "motion.acceleration-x": 1,
+      "motion.angular-velocity-y": 0.2,
+      "tires.tire-slip-angle": [0.1, 0.1, 0.1, 0.1],
+    }), metric)).not.toBeNull();
+  });
 });

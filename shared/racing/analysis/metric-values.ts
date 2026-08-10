@@ -37,7 +37,7 @@ export function resolveWheelStates(frame: SemanticMetricFrame, metric: AnalysisT
 export function resolveBalance(frame: SemanticMetricFrame, metric: AnalysisTelemetryMetric): SteerBalance | null {
   if (metric.source === "unavailable" || !metric.binding || metric.binding.kind !== "derived" || metric.binding.derivation !== "physical-balance-v1") return null;
   const angles = wheelValues(frame, "tires.tire-slip-angle");
-  const speed = frame.values["motion.speed-mps"];
+  const speed = frame.values["motion.speed"];
   const accelerationX = frame.values["motion.acceleration-x"];
   const yawRate = frame.values["motion.angular-velocity-y"];
   if (!angles.every(finite) || !finite(speed) || !finite(accelerationX) || !finite(yawRate)) return null;

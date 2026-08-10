@@ -32,6 +32,8 @@ function semanticReplayIds(): readonly string[] {
     "inputs.brake",
     "inputs.steer",
     "motion.speed",
+    "motion.acceleration-x",
+    "motion.angular-velocity-y",
     "motion.position-x",
     "motion.position-z",
     "motion.yaw",

@@ -30,7 +30,6 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const temps = numericWheels(frame, "tire.temperature.average");
   const wear = numericWheels(frame, "tires.tire-wear");
   const angles = numericWheels(frame, "tires.tire-slip-angle");
-  const ratios = numericWheels(frame, "tires.tire-slip-ratio");
   const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
   const brakes = numericWheels(frame, "brakes.brake-temp");
   const states = resolveWheelStates(frame, analysis.traction);
@@ -38,7 +37,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const temperatureAvailable = temps.some((value) => value != null);
   const healthAvailable = wear.some((value) => value != null);
   const showSlipAngle = angles.some((value) => value != null);
-  const showWheelState = ratios.some((value) => value != null);
+  const showWheelState = states.some((state) => state != null);
   const steerAngle = steering == null ? 0 : (steering / 127) * 20;
   const wheel = (index: number, outerSide: "left" | "right") => {
     const resolvedState = states[index];
