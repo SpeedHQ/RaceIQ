@@ -22,6 +22,7 @@
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
 - Do not report wheel lockups or brake traction loss for iRacing laps when source telemetry cannot identify them
 - Show fuel used in litres for iRacing, ACC, and Assetto Corsa Evo instead of treating litres as percentages
+- Align game metric contracts with catalog-backed semantic bindings; show Forza source-native Grip Ask and normalized lateral slip while hiding unsupported physical metrics.
 - Hide unsupported telemetry channels and label iRacing pit snapshots instead of presenting normalized zeroes as live data
 - Resolve car and track names on the global home page in each lap's game context
 - Treat tracks without optional boundary geometry as available instead of failed requests
