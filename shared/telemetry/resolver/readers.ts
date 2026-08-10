@@ -98,8 +98,9 @@ export function readerFor(variable: TelemetryVariableDefinition, mapping: Exclud
   const keyedSources: Record<string, readonly string[]> | undefined = Array.isArray(mapping.sources) ? undefined : (mapping.sources as Record<string, readonly string[]>);
   const keyedCollection = keyedSources !== undefined && variable.shape !== "structured";
   const ordering = keyedCollection ? (variable.ordering ?? Object.keys(keyedSources)) : undefined;
+  const normalizedLateralSlip = variable.id === "tires.normalized-tire-slip-angle";
   if ((fields && fields.length > 1) || keyedCollection) {
-    const count = Math.max(fields?.length ?? 0, ordering?.length ?? 0);
+    const count = normalizedLateralSlip ? 4 : Math.max(fields?.length ?? 0, ordering?.length ?? 0);
     const values = new Array<unknown>(count);
     const reading = {} as SourceReading;
     const observationKey = fields
@@ -113,18 +114,21 @@ export function readerFor(variable: TelemetryVariableDefinition, mapping: Exclud
       for (let index = 0; index < count; index += 1) {
         let value: unknown;
         let sourceChannel: string | undefined;
-        if (fields && index < fields.length) {
-          value = packetField(frame, fields[index]);
-          if (value !== undefined) {
-            sourceChannel = `TelemetryPacket.${String(fields[index])}`;
+        if (normalizedLateralSlip && fields) {
+          value = packetField(frame, fields[index + 1]);
+          if (value !== undefined) sourceChannel = `TelemetryPacket.${String(fields[index + 1])}`;
+        } else {
+          if (fields && index < fields.length) {
+            value = packetField(frame, fields[index]);
+            if (value !== undefined) sourceChannel = `TelemetryPacket.${String(fields[index])}`;
           }
-        }
-        if (value === undefined && mapping.kind !== "normalized" && keyedSources && ordering) {
-          for (const source of sourcesForOrderingKey(keyedSources, ordering[index]) ?? []) {
-            value = sourceValue(frame, source);
-            if (value !== undefined) {
-              sourceChannel = source;
-              break;
+          if (value === undefined && mapping.kind !== "normalized" && keyedSources && ordering) {
+            for (const source of sourcesForOrderingKey(keyedSources, ordering[index]) ?? []) {
+              value = sourceValue(frame, source);
+              if (value !== undefined) {
+                sourceChannel = source;
+                break;
+              }
             }
           }
         }

@@ -6,7 +6,8 @@ import { z } from "zod";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
-import { getGame, tryGetGame } from "../../../shared/games/registry";
+import { getAllGames, getGame, tryGetGame } from "../../../shared/games/registry";
+import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
 import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
@@ -19,17 +20,25 @@ import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
-const semanticReplayIds = [...new Set([
-  ...TELEMETRY_CATALOG.variables
-    .filter((variable) => variable.packetFields && variable.packetFields.length > 0)
-    .map((variable) => variable.id),
-  "brakes.brake-bias",
-  "identity.player-track-surface",
-])];
+function semanticReplayIds(): readonly string[] {
+  return [...new Set([
+    ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
+    "brakes.brake-bias",
+    "motion.position-x",
+    "motion.position-z",
+    "motion.yaw",
+    "timing.current-race-time",
+    "timing.distance-traveled",
+    "aero.drs-active",
+    "weather.air-temp",
+    "fuel.ers-store-energy",
+    "fuel.ers-deploy-mode",
+    "identity.player-track-surface",
+  ])];
+}
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
 const gzipAsync = promisify(gzip);
@@ -48,7 +57,7 @@ export const resourceRoutes = new Hono()
     try {
       const lap = await getLapById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
-      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds);
+      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       return c.json({

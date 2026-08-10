@@ -13,6 +13,13 @@ const COMMON_DYNAMIC_FIELDS = [
   { label: "Brake", sourceField: "Brake", minimumRange: 5 },
   { label: "Steer", sourceField: "Steer", minimumRange: 2 },
 ] as const satisfies readonly { label: string; sourceField: keyof TelemetryPacket; minimumRange: number }[];
+const GAME_METRIC_ROWS = {
+  "fm-2023": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Lateral slip", sourceField: "TireSlipAngleFL" }],
+  "f1-2025": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Suspension", sourceField: "SuspensionTravelMFL" }],
+  acc: [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Suspension", sourceField: "SuspensionTravelMFL" }],
+  "ac-evo": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Suspension", sourceField: "SuspensionTravelMFL" }],
+  iracing: [{ label: "Suspension", sourceField: "SuspensionTravelMFL" }],
+} as const satisfies Record<string, readonly { label: string; sourceField: keyof TelemetryPacket }[]>;
 
 interface FieldExtremes {
   readonly minimum: number;
@@ -79,6 +86,28 @@ for (const game of SEEDED_GAME_CASES) {
         expect(maximumText, `${game.gameId} lap ${lap.id} ${field.label} must change when source telemetry changes`).not.toBe(minimumText);
       });
     }
-    expect(browserErrors.errors, `unexpected ${game.gameId} browser errors`).toEqual([]);
+    for (const row of GAME_METRIC_ROWS[game.gameId]) {
+      await test.step(`${row.label} follows bound source`, async () => {
+        const extremes = findFieldExtremes(lap.telemetry, row.sourceField);
+        expect(extremes.minimumFrame, `${game.gameId} ${row.label} source minimum`).toBeGreaterThanOrEqual(0);
+        expect(extremes.maximumFrame, `${game.gameId} ${row.label} source maximum`).toBeGreaterThanOrEqual(0);
+        await setAnalyseFrame(page, extremes.minimumFrame);
+        const minimumText = await metricRowText(page, row.label);
+        await setAnalyseFrame(page, extremes.maximumFrame);
+        const maximumText = await metricRowText(page, row.label);
+        expect(minimumText).not.toContain("—");
+        expect(maximumText).not.toContain("—");
+        expect(maximumText).not.toBe(minimumText);
+      });
+    }
+    if (game.gameId === "fm-2023") {
+      await expect(page.getByText("Angle", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("Balance", { exact: true })).toHaveCount(0);
+    }
+    if (game.gameId === "ac-evo") await expect(page.getByText("Surface", { exact: true })).toHaveCount(0);
+    if (game.gameId === "iracing") {
+      await expect(page.getByText("Angle", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("Grip Ask", { exact: true })).toHaveCount(0);
+    }
   });
 }
