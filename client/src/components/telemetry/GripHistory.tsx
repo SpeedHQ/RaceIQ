@@ -2,7 +2,9 @@ import { getGame } from "@shared/games/registry";
 import { resolveGripDemand } from "@shared/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { GRIP_MAX_SAMPLES, GripSparkline } from "./GripSparkline";
 
 /**
  * GripHistory — Manages a per-wheel rolling buffer of combined slip values.
@@ -44,11 +46,12 @@ export function GripHistory({ packet, view }: { packet?: TelemetryPacket; view?:
   useEffect(() => {
     if (!packet && !view) return;
     frameRef.current++;
+    // Live telemetry arrives at 60Hz; retain ~10Hz samples for a 10-second chart.
     if (frameRef.current % 6 !== 0) return;
     const h = historyRef.current;
     const analysis = getGame(view?.simulator ?? packet?.gameId ?? "iracing").telemetry.analysis;
     const frame = view ? { values: { "tires.tire-combined-slip": view.tires.combinedSlip, "tires.tire-slip-ratio": view.tires.slipRatio, "tires.tire-slip-angle": view.tires.slipAngleRad } } : null;
-    const resolved = frame ? resolveGripDemand(frame, analysis.gripDemand) : null;
+    const resolved = frame && analysis?.gripDemand ? resolveGripDemand(frame, analysis.gripDemand) : null;
     const grip = resolved ? { fl: resolved[0] ?? 0, fr: resolved[1] ?? 0, rl: resolved[2] ?? 0, rr: resolved[3] ?? 0 } : view?.tires.combinedSlip;
     h.fl.push(Math.abs(grip?.fl ?? packet?.TireCombinedSlipFL ?? 0));
     h.fr.push(Math.abs(grip?.fr ?? packet?.TireCombinedSlipFR ?? 0));

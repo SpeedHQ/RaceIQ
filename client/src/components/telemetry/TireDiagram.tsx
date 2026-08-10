@@ -1,5 +1,6 @@
 import { getGame } from "@shared/games/registry";
-import { resolveWheelStates, resolveWheelMetric } from "@shared/racing/analysis/metric-values";
+import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
+import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
 import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
@@ -22,15 +23,10 @@ const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
   const value = frame.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 };
-const wheelState = (ratio: number, speed: number): { state: "grip" | "lockup" | "spin" | "idle"; slipRatio: number } => ({
-  state: speed < 0.5 ? "idle" : ratio < -0.15 ? "lockup" : ratio > 0.15 ? "spin" : "grip",
-  slipRatio: ratio,
-});
 
-
-function SemanticTireDiagram({ frame }: { frame: SemanticAnalysisFrame }) {
+function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0] }) {
   const units = useUnits();
-  const analysis = resolveAnalysisTelemetry(getGame(frame.gameId ?? "iracing"));
+  const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const temps = numericWheels(frame, "tire.temperature.average");
   const wear = numericWheels(frame, "tires.tire-wear");
   const angles = numericWheels(frame, "tires.tire-slip-angle");
@@ -46,10 +42,8 @@ function SemanticTireDiagram({ frame }: { frame: SemanticAnalysisFrame }) {
   const showWheelState = ratios.some((value) => value != null);
   const steerAngle = steering == null ? 0 : (steering / 127) * 20;
   const wheel = (index: number, outerSide: "left" | "right") => {
-    const ratio = ratios[index] ?? 0;
-    const speed = rotation[index] ?? 0;
     const resolvedState = states[index];
-    const state = resolvedState ? { state: resolvedState.state, slipRatio: resolvedState.slipRatio } : wheelState(ratio, speed);
+    const state = resolvedState ? { state: resolvedState.state, slipRatio: resolvedState.slipRatio } : { state: "idle" as const, slipRatio: 0 };
     return (
       <WheelCard
         label={WHEELS[index]}
@@ -96,9 +90,9 @@ function SemanticTireDiagram({ frame }: { frame: SemanticAnalysisFrame }) {
  * TireDiagram — Arranges 4 WheelCards in a front/rear axle layout with suspension bars.
  * Supports both legacy packets/live views and semantic Analyse frames.
  */
-export function TireDiagram({ packet, frame, view }: { packet?: DisplayPacket | TelemetryPacket; frame?: SemanticAnalysisFrame; view?: LiveTelemetryView }) {
+export function TireDiagram({ packet, frame, view, gameId }: { packet?: DisplayPacket | TelemetryPacket; frame?: SemanticAnalysisFrame; view?: LiveTelemetryView; gameId?: Parameters<typeof getGame>[0] }) {
   const units = useUnits();
-  if (frame) return <SemanticTireDiagram frame={frame} />;
+  if (frame) return <SemanticTireDiagram frame={frame} gameId={view?.simulator ?? gameId ?? "ac-evo"} />;
   if (!packet && view) {
     const t = view.tires;
     return <TireGrid fl={{ tempC: t.temperatureC?.fl ?? 0, wear: t.wear?.fl ?? 0 }} fr={{ tempC: t.temperatureC?.fr ?? 0, wear: t.wear?.fr ?? 0 }} rl={{ tempC: t.temperatureC?.rl ?? 0, wear: t.wear?.rl ?? 0 }} rr={{ tempC: t.temperatureC?.rr ?? 0, wear: t.wear?.rr ?? 0 }} healthThresholds={{ green: 0.7, yellow: 0.4 }} tempThresholds={{ blue: 60, orange: 85, red: 100 }} />;

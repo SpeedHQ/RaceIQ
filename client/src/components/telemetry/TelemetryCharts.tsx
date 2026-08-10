@@ -105,6 +105,15 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
         "tires.tire-slip-ratio": view.tires.slipRatio,
         "suspension.norm-suspension-travel": view.tires.suspensionNormalized,
       },
+    } : packet ? {
+      values: {
+        "tires.tire-combined-slip": [packet.TireCombinedSlipFL, packet.TireCombinedSlipFR, packet.TireCombinedSlipRL, packet.TireCombinedSlipRR],
+        "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR].map((value) => gameId === "fm-2023" ? (value - 32) * 5 / 9 : value),
+        "tires.tire-wear": [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
+        "tires.tire-slip-angle": [packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR],
+        "tires.tire-slip-ratio": [packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR],
+        "suspension.norm-suspension-travel": [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR],
+      },
     } : null;
     const metricBinding = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") => {
       const metric = key === "combinedSlip" ? analysis.gripDemand : key === "temperatureC" ? analysis.tireTemperature : key === "wear" ? analysis.tireHealth : key === "slipAngleRad" ? analysis.slipAngle : key === "slipRatio" ? analysis.slipRatio : analysis.suspensionTravel;

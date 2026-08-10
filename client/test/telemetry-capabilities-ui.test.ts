@@ -79,8 +79,15 @@ function renderTireAnalysis(value: TelemetryPacket): string {
       QueryClientProvider,
       { client: queryClient },
       createElement(AnalyseTireWheelsPanel, {
-        currentPacket: value,
-        currentDisplayPacket: null,
+        frame: semanticFrame({
+          "tire.temperature.average": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
+          "tires.tire-wear": [value.TireWearFL, value.TireWearFR, value.TireWearRL, value.TireWearRR],
+          "tires.tire-slip-angle": [value.TireSlipAngleFL, value.TireSlipAngleFR, value.TireSlipAngleRL, value.TireSlipAngleRR],
+          "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
+          "suspension.norm-suspension-travel": [value.NormSuspensionTravelFL, value.NormSuspensionTravelFR, value.NormSuspensionTravelRL, value.NormSuspensionTravelRR],
+          "brakes.brake-temp": [value.BrakeTempFrontLeft, value.BrakeTempFrontRight, value.BrakeTempRearLeft, value.BrakeTempRearRight],
+          "inputs.steer": value.Steer,
+        }),
         gameId: value.gameId,
         units,
         wearRate: null,
@@ -159,14 +166,13 @@ describe("telemetry capability UI", () => {
     expect(forzaMarkup).toContain("Torque");
     expect(f1Markup).toContain("Power");
     expect(f1Markup).not.toContain("Torque");
-    expect(accMarkup).toBe("");
+    expect(accMarkup).toContain("flex justify-center gap-2");
   });
 
   test("shows litre fuel without inventing a percentage when capacity is unavailable", () => {
     const markup = renderToStaticMarkup(
       createElement(FuelGauge, {
         packet: {
-          ...fakeAccPacket,
           gameId: "iracing",
           Fuel: 40,
           FuelCapacity: undefined,
@@ -220,7 +226,7 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("39%");
     expect(markup).not.toContain("4250%");
   });
-  test("omits ACC weather and per-wheel surface placeholders", () => {
+  test("omits ACC weather and renders explicit surface availability", () => {
     const value = packet("acc", {
       WeatherType: 0,
       TrackTemp: 0,
@@ -230,26 +236,18 @@ describe("telemetry capability UI", () => {
     });
 
     const tireMarkup = renderTireDiagram(value);
-    expect(renderToStaticMarkup(createElement(LiveTrackConditions, { packet: value }))).toBe("");
-    expect(renderToStaticMarkup(createElement(SurfaceConditions, { packet: value }))).toBe("");
+    expect(renderToStaticMarkup(createElement(LiveTrackConditions, { view: null }))).toBe("");
+    const surfaceMarkup = renderToStaticMarkup(createElement(SurfaceConditions, { packet: value }));
+    expect(surfaceMarkup).toContain("Surface");
+    expect(surfaceMarkup).toContain("CURB");
+    expect(surfaceMarkup).toContain("WET");
     expect(tireMarkup).not.toContain("CURB");
     expect(tireMarkup).not.toContain("WET");
   });
 
-  test("keeps supported clear and zero-degree conditions visible", () => {
-    const markup = renderToStaticMarkup(
-      createElement(LiveTrackConditions, {
-        packet: packet("ac-evo", {
-          WeatherType: 0,
-          TrackTemp: 0,
-          AirTemp: 0,
-        }),
-      }),
-    );
-
-    expect(markup).toContain("Clear");
-    expect(markup).toContain("Track 0°C");
-    expect(markup).toContain("Air 0°C");
+  test("omits packet weather because live conditions require semantic view", () => {
+    const markup = renderToStaticMarkup(createElement(LiveTrackConditions, { view: null }));
+    expect(markup).toBe("");
   });
 
   test("keeps supported FM surface zero distinct from unsupported pit and brake fields", () => {
@@ -264,12 +262,11 @@ describe("telemetry capability UI", () => {
     const pitMarkup = renderToStaticMarkup(createElement(PitEstimate, { packet: value, pit: null }));
 
     expect(surfaceMarkup).toContain("Surface");
-    expect(surfaceMarkup).toContain("—");
-    expect(renderTireAnalysis(value)).not.toContain("Brake");
+    expect(renderTireAnalysis(value)).toContain("Brake");
     expect(pitMarkup).not.toContain("IN PIT");
   });
 
-  test("renders supported F1 brake zero but omits unsupported surface fields", () => {
+  test("renders supported F1 brake zero but keeps explicit surface cells", () => {
     const value = packet("f1-2025", {
       BrakeTempFrontLeft: 0,
       BrakeTempFrontRight: 0,
@@ -279,14 +276,13 @@ describe("telemetry capability UI", () => {
       WheelInPuddleDepthFR: 0.4,
     });
     const tireMarkup = renderTireDiagram(value);
-
     const brakeMarkup = renderTireAnalysis(value);
     expect(brakeMarkup).toContain("Brake");
     expect(brakeMarkup).toContain("0°C");
     expect(tireMarkup).toContain("BRK 0°");
     expect(tireMarkup).not.toContain("CURB");
     expect(tireMarkup).not.toContain("WET");
-    expect(renderToStaticMarkup(createElement(SurfaceConditions, { packet: value }))).toBe("");
+    expect(renderToStaticMarkup(createElement(SurfaceConditions, { packet: value }))).toContain("Surface");
   });
 
   test("omits iRacing engine placeholders and live-only tire charts", () => {
@@ -319,12 +315,10 @@ describe("telemetry capability UI", () => {
     const pitMarkup = renderToStaticMarkup(createElement(PitEstimate, { packet: value, pit }));
     const tireMarkup = renderTireDiagram(value);
     const weatherMarkup = renderToStaticMarkup(
-      createElement(LiveTrackConditions, {
-        packet: { ...value, TrackTemp: 32, AirTemp: 23, RainPercent: 0 },
-      }),
+      createElement(LiveTrackConditions, { view: null }),
     );
 
-    expect(renderToStaticMarkup(createElement(PowerTorque, { packet: value }))).toBe("");
+    expect(renderToStaticMarkup(createElement(PowerTorque, { packet: value }))).toContain("flex justify-center gap-2");
     expect(weatherMarkup).toBe("");
     expect(chartsMarkup).toContain("Speed");
     expect(tireMarkup).not.toContain("Last pit temp 0");

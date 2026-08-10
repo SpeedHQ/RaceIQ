@@ -7,7 +7,7 @@ import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import type { Point, TrackMapBoundaries } from "./track-map/types";
-
+import type { GameId } from "@shared/games/ids";
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
   vizMode: "2d" | "3d";
@@ -19,9 +19,10 @@ interface Props {
   lapLine: Point[] | null;
   boundaries: TrackMapBoundaries | null;
   units: ReturnType<typeof useUnits>;
+  gameId?: GameId;
 }
 
-export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displayTelemetry, cursorRef, displayTelemetryRef, cursorIdx, lapLine, boundaries, units }: Props) {
+export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displayTelemetry, cursorRef, displayTelemetryRef, cursorIdx, lapLine, boundaries, units, gameId }: Props) {
   return (
     <Tabs
       value={vizMode}
@@ -40,7 +41,7 @@ export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displa
       </TabsList>
 
       <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
-        <Vitals2D frame={currentFrame ?? undefined} />
+        <Vitals2D frame={currentFrame ?? undefined} gameId={gameId} />
       </TabsContent>
 
       <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">

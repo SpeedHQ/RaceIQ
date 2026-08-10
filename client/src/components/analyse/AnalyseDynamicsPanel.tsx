@@ -1,12 +1,11 @@
 import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
-import { semanticWheelDynamics } from "../../../../shared/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
 import type { GameId } from "../../../../shared/games/ids";
 import type { useUnits } from "../../hooks/useUnits";
 import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
-import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
+import { frictionUtilColor, slipRatioColor, tireTempLabel } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 import type { SemanticAnalysisFrame } from "./track-map/types";
@@ -34,26 +33,26 @@ interface Props {
 export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const speed = number(frame, "motion.speed") ?? 0;
+  const sf = Math.max(0.3, Math.min(1, (speed * 2.23694) / 80));
   const puddle = values(frame, "tires.wheel-in-puddle-depth");
   const accelerationX = number(frame, "motion.acceleration-x") ?? 0;
   const accelerationZ = number(frame, "motion.acceleration-z") ?? 0;
   const slipAngleMetric = analysis.slipAngle;
   const slipRatioMetric = analysis.slipRatio;
   const gripMetric = analysis.gripDemand;
-  const tractionMetric = analysis.traction;
-  const slipAngles = slipAngleMetric.binding ? resolveWheelMetric(frame, slipAngleMetric.binding) : [null, null, null, null];
-  const slipRatios = slipRatioMetric.binding ? resolveWheelMetric(frame, slipRatioMetric.binding) : [null, null, null, null];
+  const bindingOf = (metric: ReturnType<typeof resolveAnalysisTelemetry>[keyof ReturnType<typeof resolveAnalysisTelemetry>]) => "binding" in metric ? metric.binding : undefined;
+  const slipAngles = bindingOf(slipAngleMetric) ? resolveWheelMetric(frame, bindingOf(slipAngleMetric)!) : [null, null, null, null];
+  const slipRatios = bindingOf(slipRatioMetric) ? resolveWheelMetric(frame, bindingOf(slipRatioMetric)!) : [null, null, null, null];
   const grip = resolveGripDemand(frame, gripMetric);
   const balanceAvailable = resolveBalance(frame, analysis.balance);
   const balance = balanceAvailable ?? { state: "neutral" as const, balance: 0, uSlip: 0, uYaw: 0, frontSlipDeg: 0, rearSlipDeg: 0, yawError: 0, yawRatePath: 0, signalsAgree: true };
-  const states = resolveWheelStates(frame, tractionMetric).map((state) => state == null ? { label: m.analyse_unavailable(), color: "var(--app-text-dim)" } : tireState(state.state, state.slipRatio, 0));
-  const temps = analysis.tireTemperature.binding ? resolveWheelMetric(frame, analysis.tireTemperature.binding) : [null, null, null, null];
+  const states = resolveWheelStates(frame, analysis.traction);
+  const balanceLabel = balance.state === "understeer" ? m.dynamics_state_understeer() : balance.state === "oversteer" ? m.dynamics_state_oversteer() : m.dynamics_state_neutral();
+  const temps = bindingOf(analysis.tireTemperature) ? resolveWheelMetric(frame, bindingOf(analysis.tireTemperature)!) : [null, null, null, null];
   const C = (value: string, color: string) => <span style={{ color }}>{value}</span>;
   const surfaceValue = number(frame, "identity.player-track-surface");
   const vehicleSurface = surfaceValue === -1 ? m.analyse_surface_not_in_world() : surfaceValue === 0 ? m.analyse_surface_off_track() : surfaceValue === 1 ? m.analyse_surface_pit_stall() : surfaceValue === 2 ? m.analyse_surface_approaching_pits() : surfaceValue === 3 ? m.analyse_surface_on_track() : m.analyse_surface_unknown();
-  const balanceLabel = balance == null ? m.analyse_unavailable() : balance.state === "neutral" ? m.dynamics_neutral() : balance.state === "understeer" ? m.dynamics_under() : m.dynamics_over();
-  const balanceForDisplay = balance ?? { state: "neutral" as const, balance: 0, uSlip: 0, uYaw: 0, frontSlipDeg: 0, rearSlipDeg: 0, yawError: 0, yawRatePath: 0, signalsAgree: true };
-  const balanceColor = balance == null ? "var(--app-text-dim)" : balance.state === "neutral" ? "var(--balance-neutral)" : balance.state === "understeer" ? "var(--balance-positive)" : "var(--balance-negative)";
+  const balanceColor = balance.state === "neutral" ? "var(--balance-neutral)" : balance.state === "understeer" ? "var(--balance-positive)" : "var(--balance-negative)";
   const angleColor = (value: number) => severityRangeColor(Math.abs(value * 180 / Math.PI), [4 / sf, 8 / sf, 14 / sf]);
   const brakeBias = number(frame, "brakes.brake-bias");
   const balanceBarX = (value: number, range = 1) => Math.max(2, Math.min(198, 100 + (Math.max(-range, Math.min(range, value)) / range) * 98));
@@ -124,11 +123,11 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
     <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_g_force()}</span><span className="tabular-nums text-app-text">Lat {(-accelerationX / 9.81) > 0 ? "+" : ""}{(-accelerationX / 9.81).toFixed(2)}g Lon {(-accelerationZ / 9.81) > 0 ? "+" : ""}{(-accelerationZ / 9.81).toFixed(2)}g</span></div>
     {brakeBias != null && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_brake_bias()}</span><span className="tabular-nums text-app-text">{(brakeBias * 100).toFixed(1)}%F</span></div>}
     <WheelTable rows={[
-      { label: m.analyse_dynamics_grip_ask(), fl: grip[0] == null ? unavailable : C(`${(grip[0] * 100).toFixed(0)}%`, frictionUtilColor(grip[0])), fr: grip[1] == null ? unavailable : C(`${(grip[1] * 100).toFixed(0)}%`, frictionUtilColor(grip[1])), rl: grip[2] == null ? unavailable : C(`${(grip[2] * 100).toFixed(0)}%`, frictionUtilColor(grip[2])), rr: grip[3] == null ? unavailable : C(`${(grip[3] * 100).toFixed(0)}%`, frictionUtilColor(grip[3])) },
-      { label: m.analyse_dynamics_traction(), fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
+      { label: m.analyse_dynamics_traction(), fl: states[0] == null ? unavailable : C(states[0].state.toUpperCase(), tireTempLabel(0, units.thresholds).color), fr: states[1] == null ? unavailable : C(states[1].state.toUpperCase(), tireTempLabel(0, units.thresholds).color), rl: states[2] == null ? unavailable : C(states[2].state.toUpperCase(), tireTempLabel(0, units.thresholds).color), rr: states[3] == null ? unavailable : C(states[3].state.toUpperCase(), tireTempLabel(0, units.thresholds).color) },
       { label: m.analyse_dynamics_temp(), fl: temps[0] == null ? unavailable : C(tireTempLabel(temps[0], units.thresholds).label, tireTempLabel(temps[0], units.thresholds).color), fr: temps[1] == null ? unavailable : C(tireTempLabel(temps[1], units.thresholds).label, tireTempLabel(temps[1], units.thresholds).color), rl: temps[2] == null ? unavailable : C(tireTempLabel(temps[2], units.thresholds).label, tireTempLabel(temps[2], units.thresholds).color), rr: temps[3] == null ? unavailable : C(tireTempLabel(temps[3], units.thresholds).label, tireTempLabel(temps[3], units.thresholds).color) },
       ...(analysis.surface.display === "per-wheel" ? [{ label: m.analyse_dynamics_surface(), fl: surfaceCell(0), fr: surfaceCell(1), rl: surfaceCell(2), rr: surfaceCell(3) }] : []),
     ]} />
+    <WheelTable title={m.analyse_dynamics_grip_ask()} borderTop rows={[{ label: m.analyse_dynamics_grip_ask(), fl: grip[0] == null ? unavailable : C(`${(grip[0] * 100).toFixed(0)}%`, frictionUtilColor(grip[0])), fr: grip[1] == null ? unavailable : C(`${(grip[1] * 100).toFixed(0)}%`, frictionUtilColor(grip[1])), rl: grip[2] == null ? unavailable : C(`${(grip[2] * 100).toFixed(0)}%`, frictionUtilColor(grip[2])), rr: grip[3] == null ? unavailable : C(`${(grip[3] * 100).toFixed(0)}%`, frictionUtilColor(grip[3])) }]} />
     {analysis.surface.display === "vehicle" && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span><span className="text-app-text">{vehicleSurface}</span></div>}
     <WheelTable title={m.label_slip()} borderTop rows={[{ label: m.analyse_dynamics_ratio(), fl: C(`${((slipRatios[0] ?? 0) * 100).toFixed(0)}%`, slipRatioColor(slipRatios[0] ?? 0)), fr: C(`${((slipRatios[1] ?? 0) * 100).toFixed(0)}%`, slipRatioColor(slipRatios[1] ?? 0)), rl: C(`${((slipRatios[2] ?? 0) * 100).toFixed(0)}%`, slipRatioColor(slipRatios[2] ?? 0)), rr: C(`${((slipRatios[3] ?? 0) * 100).toFixed(0)}%`, slipRatioColor(slipRatios[3] ?? 0)) }, { label: m.analyse_dynamics_angle(), fl: slipAngles[0] == null ? unavailable : C(`${(slipAngles[0] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[0])), fr: slipAngles[1] == null ? unavailable : C(`${(slipAngles[1] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[1])), rl: slipAngles[2] == null ? unavailable : C(`${(slipAngles[2] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[2])), rr: slipAngles[3] == null ? unavailable : C(`${(slipAngles[3] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[3])) }]} />
   </div>;

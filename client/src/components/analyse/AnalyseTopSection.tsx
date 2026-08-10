@@ -224,7 +224,7 @@ export function AnalyseTopSection({
         cursorIdx={cursorIdx}
         lapLine={lapLine}
         boundaries={boundaries}
-        units={units}
+        gameId={gameId}
       />
     </div>
   );

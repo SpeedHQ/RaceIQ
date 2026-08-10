@@ -1,11 +1,11 @@
 import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { GameId } from "@shared/games/ids";
 import { useUnits } from "../../hooks/useUnits";
 import { GForceCircle } from "./GForceCircle";
 import { TireDiagram } from "./TireDiagram";
 
 /** Semantic 2D telemetry panel; unavailable values remain unavailable. */
-export function Vitals2D({ frame, view }: { frame?: SemanticAnalysisFrame; view?: LiveTelemetryView }) {
+export function Vitals2D({ frame, view, gameId }: { frame?: SemanticAnalysisFrame; view?: LiveTelemetryView; gameId?: GameId }) {
   const units = useUnits();
   const speed = view?.motion.speedMps ?? number(frame, "motion.speed");
   const gear = view?.inputs.gear ?? number(frame, "inputs.gear");
@@ -18,7 +18,7 @@ export function Vitals2D({ frame, view }: { frame?: SemanticAnalysisFrame; view?
         </span>
       </div>
       <div className="flex items-center gap-2"><GForceCircle frame={frame} view={view} /></div>
-      <TireDiagram frame={frame} view={view} />
+      <TireDiagram frame={frame} view={view} gameId={gameId} />
     </div>
   );
 }
