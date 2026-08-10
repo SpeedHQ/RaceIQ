@@ -1,0 +1,108 @@
+import { describe, expect, test } from "bun:test";
+import { assertSemanticBinding } from "../../shared/games/metric-contracts";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
+
+describe("semantic metric bindings", () => {
+  test("accepts Forza normalized lateral slip", () => {
+    expect(() =>
+      assertSemanticBinding(
+        "fm-2023",
+        "lateralSlip",
+        { kind: "value", semanticId: "tires.normalized-tire-slip-angle" },
+        TELEMETRY_CATALOG,
+        { display: "per-wheel", freshness: "continuous" },
+      ),
+    ).not.toThrow();
+  });
+
+  test("rejects unavailable Forza physical slip angle", () => {
+    expect(() =>
+      assertSemanticBinding(
+        "fm-2023",
+        "slipAngle",
+        { kind: "value", semanticId: "tires.tire-slip-angle" },
+        TELEMETRY_CATALOG,
+        { display: "per-wheel", freshness: "continuous" },
+      ),
+    ).toThrow("fm-2023.slipAngle: tires.tire-slip-angle is unavailable");
+  });
+
+  test("rejects unknown semantic ID", () => {
+    expect(() =>
+      assertSemanticBinding(
+        "fm-2023",
+        "mystery",
+        { kind: "value", semanticId: "not-a-semantic" as never },
+        TELEMETRY_CATALOG,
+      ),
+    ).toThrow("fm-2023.mystery: unknown semantic not-a-semantic");
+  });
+
+  test("rejects per-wheel binding of scalar value", () => {
+    expect(() =>
+      assertSemanticBinding(
+        "fm-2023",
+        "rpm",
+        { kind: "value", semanticId: "engine.current-engine-rpm" },
+        TELEMETRY_CATALOG,
+        { display: "per-wheel" },
+      ),
+    ).toThrow("fm-2023.rpm: engine.current-engine-rpm does not match per-wheel display");
+  });
+
+  test("rejects freshness mismatch", () => {
+    expect(() =>
+      assertSemanticBinding(
+        "fm-2023",
+        "lateralSlip",
+        { kind: "value", semanticId: "tires.normalized-tire-slip-angle" },
+        TELEMETRY_CATALOG,
+        { display: "per-wheel", freshness: "pit-snapshot" },
+      ),
+    ).toThrow("fm-2023.lateralSlip: tires.normalized-tire-slip-angle freshness mismatch");
+  });
+
+  test("rejects unavailable derived input", () => {
+    expect(() =>
+      assertSemanticBinding(
+        "fm-2023",
+        "balance",
+        {
+          kind: "derived",
+          derivation: "physical-balance-v1",
+          requires: ["tires.tire-slip-angle"],
+        },
+        TELEMETRY_CATALOG,
+      ),
+    ).toThrow("fm-2023.balance: tires.tire-slip-angle is unavailable");
+  });
+
+  test("accepts group and derivation bindings with available inputs", () => {
+    expect(() =>
+      assertSemanticBinding(
+        "fm-2023",
+        "tires",
+        {
+          kind: "group",
+          required: ["tires.normalized-tire-slip-angle"],
+          optional: [],
+        },
+        TELEMETRY_CATALOG,
+        { display: "per-wheel", freshness: "continuous" },
+      ),
+    ).not.toThrow();
+
+    expect(() =>
+      assertSemanticBinding(
+        "f1-2025",
+        "gForce",
+        {
+          kind: "derived",
+          derivation: "g-force-v1",
+          requires: ["motion.acceleration-x"],
+        },
+        TELEMETRY_CATALOG,
+      ),
+    ).not.toThrow();
+  });
+});
