@@ -62,8 +62,8 @@ export function wheelSlipRatios(pkt: TelemetryPacket): { fl: number; fr: number;
 //
 // The longitudinal slip is derived from wheel-rotation vs ground
 // speed (wheelSlipRatios / slipRatio) — NOT from pkt.TireSlipRatio*,
-// which each game reports in its own non-SAE scale. Slip angle IS
-// radians in all three games (FM/F1/ACC) so we use it directly.
+// which each game reports in its own non-SAE scale. Physical slip-angle
+// callers must provide radians.
 
 export const SLIP_RATIO_PEAK = 0.12;
 export const SLIP_ANGLE_PEAK_RAD = (8 * Math.PI) / 180; // 8°
