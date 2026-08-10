@@ -6,6 +6,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import type { LivePitData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
+import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
@@ -19,6 +20,12 @@ import { fakeAccPacket, fakeF1Packet, fakeForzaPacket, fakePit } from "../src/st
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+if (typeof globalThis.localStorage === "undefined") {
+  Object.defineProperty(globalThis, "localStorage", {
+    value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    configurable: true,
+  });
+}
 const units = {
   tempLabel: "°C",
   thresholds: { cold: 75, warm: 115, hot: 150 },
@@ -339,5 +346,31 @@ describe("telemetry capability UI", () => {
     expect(pitMarkup).toContain("Last pit health");
     expect(pitMarkup).toContain("PIT LANE");
     expect(pitMarkup).not.toContain("9.9%");
+  });
+  test("keeps dynamics metrics out of compact cursor summary", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(MetricsPanel, {
+          frame: semanticFrame({
+            "motion.speed": 30,
+            "inputs.accel": 128,
+            "inputs.brake": 0,
+            "inputs.steer": 0,
+            "inputs.gear": 3,
+            "engine.current-engine-rpm": 4_000,
+            "tires.normalized-tire-slip-angle": [0.1, 0.1, 0.1, 0.1],
+            "tires.tire-combined-slip": [0.2, 0.2, 0.2, 0.2],
+            "suspension.suspension-travel-m": [0.04, 0.04, 0.04, 0.04],
+          }),
+          gameId: "fm-2023",
+        }),
+      ),
+    );
+    expect(markup).toContain("Speed");
+    expect(markup).not.toContain("Lateral slip");
+    expect(markup).not.toContain("Grip Ask");
+    expect(markup).not.toContain("Suspension");
   });
 });

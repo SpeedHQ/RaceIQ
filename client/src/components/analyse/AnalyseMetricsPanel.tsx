@@ -28,14 +28,6 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
   const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, telemetry.fuel);
   const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(Math.max(0, startFuel - fuel), capacity, telemetry.fuel) : null;
   const value = (n: number | null) => n == null ? "—" : `${n.toFixed(0)}`;
-  const wheels = (id: string) => {
-    const values = frame.values[id];
-    return Array.isArray(values) ? values.map((value) => typeof value === "number" && Number.isFinite(value) ? value : null) : [];
-  };
-  const suspension = wheels("suspension.suspension-travel-m");
-  const suspensionDisplay = telemetry.analysis?.suspensionTravel;
-  const lateralSlip = wheels("tires.normalized-tire-slip-angle");
-  const combinedSlip = wheels("tires.tire-combined-slip");
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
       <MetricRow label={m.dataguide_speed()} value={speed == null ? "—" : `${speed.toFixed(0)} ${units.speedLabel}`} />
@@ -44,11 +36,8 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
       <MetricRow label={m.dataguide_throttle()} value={accel == null ? "—" : `${((accel / 255) * 100).toFixed(0)}%`} color={accel != null && accel > 0 ? "var(--ch-throttle)" : undefined} />
       <MetricRow label={m.dataguide_steer()} value={steer == null ? "—" : `${steer > 0 ? "+" : ""}${((steer / 127) * (getSteeringLock() / 2)).toFixed(0)}°`} />
       <MetricRow label={m.dataguide_brake()} value={brake == null ? "—" : `${((brake / 255) * 100).toFixed(0)}%`} color={brake != null && brake > 0 ? "var(--ch-brake)" : undefined} />
-      {gameId === "fm-2023" && <MetricRow label="Lateral slip" value={lateralSlip.length === 4 && lateralSlip.every((value) => value != null) ? lateralSlip.map((value) => value!.toFixed(3)).join(" / ") : "—"} />}
-      {gameId === "fm-2023" && <MetricRow label="Grip Ask" value={combinedSlip.length === 4 && combinedSlip.every((value) => value != null) ? combinedSlip.map((value) => `${(value! * 100).toFixed(0)}%`).join(" / ") : "—"} />}
       {telemetry.boost && boost != null && <MetricRow label={m.dataguide_boost()} value={`${boost.toFixed(1)} psi`} />}
       {telemetry.power && power != null && <MetricRow label={m.dataguide_power()} value={`${(power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`} />}
-      {suspensionDisplay?.source !== "unavailable" && <MetricRow label={m.dataguide_suspension()} value={suspension.every((value) => value != null) ? suspension.map((value) => suspensionDisplay?.display === "millimeters" ? `${(value! * 1000).toFixed(2)}mm` : `${(value! * 100).toFixed(0)}%`).join(" / ") : "—"} />}
       {telemetry.torque && torque != null && <MetricRow label={m.dataguide_torque()} value={`${torque.toFixed(0)} Nm`} />}
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
