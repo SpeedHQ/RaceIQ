@@ -35,7 +35,7 @@ describe("live telemetry semantics", () => {
     }
     for (const gameId of ["acc", "ac-evo"] as const) {
       const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, { simulator: gameId, requested: ["damage.brake-pad-wear", "tires.tire-radius", "tires.tire-camber"].map((semanticId) => ({ semanticId })) });
-      const frame = resolver.createFrameView(packet(gameId, { brakePadWear: [1, 2, 3, 4], tireRadius: [0.3, 0.3, 0.3, 0.3], tireCamber: [0.1, 0.1, 0.1, 0.1] }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) });
+      const frame = resolver.createFrameView(packet(gameId, { acc: { brakePadWear: [1, 2, 3, 4], tireRadius: [0.3, 0.3, 0.3, 0.3], tireCamber: [0.1, 0.1, 0.1, 0.1] } as NonNullable<import("../../shared/telemetry/types").TelemetryPacket["acc"]> }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) });
       expect(frame.resolveValue(resolver.slot("damage.brake-pad-wear")).state).not.toBe("error");
       expect(frame.resolveValue(resolver.slot("tires.tire-camber")).state).not.toBe("error");
       expect(frame.resolveValue(resolver.slot("tires.tire-radius")).state).not.toBe("error");

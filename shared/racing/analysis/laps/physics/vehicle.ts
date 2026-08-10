@@ -132,6 +132,7 @@ export interface SteerBalance {
   frontSlipDeg: number; // avg front slip angle magnitude (degrees)
   rearSlipDeg: number; // avg rear slip angle magnitude (degrees)
   slipDelta: number; // front − rear (degrees, >0 = understeer, <0 = oversteer)
+  slipAvailable: boolean; // whether per-wheel slip-angle signal was available
   // Normalized component signals (both scaled so ±1 = "full" severity)
   uSlip: number; // slip-angle signal: + = understeer, − = oversteer
   uYaw: number; // yaw-rate signal:  + = understeer, − = oversteer
@@ -206,6 +207,7 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
     frontSlipDeg,
     rearSlipDeg,
     slipDelta,
+    slipAvailable: true,
     uSlip,
     uYaw,
     signalsAgree,
@@ -218,14 +220,15 @@ export interface SemanticBalanceSignals {
   speedMps: number;
   accelerationX: number;
   yawRate: number;
-  slipAngles: readonly [number, number, number, number];
+  slipAngles?: readonly [number, number, number, number];
 }
 
 /** Packet-free equivalent of steerBalance for canonical semantic replay values. */
 export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerBalance {
-  const [fl, fr, rl, rr] = signals.slipAngles;
-  const frontSlipDeg = ((Math.abs(fl) + Math.abs(fr)) / 2) * RAD2DEG;
-  const rearSlipDeg = ((Math.abs(rl) + Math.abs(rr)) / 2) * RAD2DEG;
+  const slipAvailable = signals.slipAngles?.every(Number.isFinite) ?? false;
+  const [fl, fr, rl, rr] = signals.slipAngles ?? [0, 0, 0, 0];
+  const frontSlipDeg = slipAvailable ? ((Math.abs(fl) + Math.abs(fr)) / 2) * RAD2DEG : 0;
+  const rearSlipDeg = slipAvailable ? ((Math.abs(rl) + Math.abs(rr)) / 2) * RAD2DEG : 0;
   const slipDelta = frontSlipDeg - rearSlipDeg;
   const latG = -signals.accelerationX / G;
   const speed = Math.max(signals.speedMps, 0.1);
@@ -235,18 +238,20 @@ export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerB
   const uSlip = slipDelta / SLIP_DELTA_SCALE;
   const uYaw = -yawError / YAW_ERR_SCALE;
   const yawContrib = gated ? 0 : uYaw;
-  const signalsAgree = uSlip * yawContrib >= 0;
+  const signalsAgree = !slipAvailable || uSlip * yawContrib >= 0;
   const yawActive = Math.abs(yawContrib) > 0.05;
   const slipConfident = Math.abs(uSlip) >= 0.15;
   const blended = 0.5 * uSlip + 0.5 * yawContrib;
   const balanceRaw =
     speed < SPEED_FLOOR
       ? 0
-      : !signalsAgree || !slipConfident
-        ? uSlip
-        : yawActive && Math.abs(blended) > Math.abs(uSlip)
-          ? blended
-          : uSlip;
+      : !slipAvailable
+        ? yawContrib
+        : !signalsAgree || !slipConfident
+          ? uSlip
+          : yawActive && Math.abs(blended) > Math.abs(uSlip)
+            ? blended
+            : uSlip;
   const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
   const moving = speed >= SPEED_FLOOR;
   const state: SteerBalance["state"] =
@@ -263,6 +268,7 @@ export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerB
     frontSlipDeg,
     rearSlipDeg,
     slipDelta,
+    slipAvailable,
     uSlip,
     uYaw,
     signalsAgree,

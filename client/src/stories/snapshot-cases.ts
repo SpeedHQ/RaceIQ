@@ -122,7 +122,12 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     viewport: { width: 900, height: 650 },
     readyRole: "menu",
   },
+  {
+    name: "AnalyseDataPanelParity",
+    id: "screens-analysedatapanelparity--loaded-main-parity",
+    outputName: "snapshot-AnalyseDataPanelParity.png",
+    viewport: { width: 1080, height: 800 },
+  },
 ];
-
 export const CORE_STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...DASHBOARD_SNAPSHOT_CASES, THEME_SNAPSHOT_CASE];
 export const STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...CORE_STORYBOOK_SNAPSHOT_CASES, ...REUSABLE_UI_SNAPSHOT_CASES];

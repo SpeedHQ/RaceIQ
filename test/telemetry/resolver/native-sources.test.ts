@@ -159,9 +159,9 @@ describe("compiled telemetry resolver native sources", () => {
       { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
-    expect(frame.readValue(resolver.slot("race.competitor.driver-name"))).toEqual(["Alpha", "Bravo"]);
-    expect(frame.readValue(resolver.slot("race.competitor.position"))).toEqual([1, 2]);
-    expect(frame.readValue(resolver.slot("timing.competitor.gap-to-leader"))).toEqual([0, 1.5]);
-    expect(frame.readValue(resolver.slot("timing.sector.competitor-last.s1"))).toEqual([31.2, 32.4]);
+    expect(frame.readValue<readonly string[]>(resolver.slot("race.competitor.driver-name"))).toEqual(["Alpha", "Bravo"]);
+    expect(frame.readValue<readonly number[]>(resolver.slot("race.competitor.position"))).toEqual([1, 2]);
+    expect(frame.readValue<readonly number[]>(resolver.slot("timing.competitor.gap-to-leader"))).toEqual([0, 1.5]);
+    expect(frame.readValue<readonly number[]>(resolver.slot("timing.sector.competitor-last.s1"))).toEqual([31.2, 32.4]);
   });
 });

@@ -67,7 +67,7 @@ describe("semantic metric bindings", () => {
     ).toThrow("fm-2023.lateralSlip: tires.normalized-tire-slip-angle freshness mismatch");
   });
 
-  test("rejects unavailable derived input", () => {
+  test("accepts yaw-only balance inputs for Forza", () => {
     expect(() =>
       assertSemanticBinding(
         "fm-2023",
@@ -75,11 +75,11 @@ describe("semantic metric bindings", () => {
         {
           kind: "derived",
           derivation: "physical-balance-v1",
-          requires: ["tires.tire-slip-angle"],
+          requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"],
         },
         TELEMETRY_CATALOG,
       ),
-    ).toThrow("fm-2023.balance: tires.tire-slip-angle is unavailable");
+    ).not.toThrow();
   });
 
   test("accepts group and derivation bindings with available inputs", () => {

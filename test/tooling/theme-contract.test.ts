@@ -186,6 +186,10 @@ describe("frontend theme contract", () => {
     }
   });
 
+  test("keeps throttle channel bright enough for analysis overlays", () => {
+    expect(themeHex("--ch-throttle")).toBe("#34d399");
+  });
+
   test("rejects malformed semantic utilities", () => {
     const frontendSources = [
       ...sourceFiles.map((path) => readFileSync(path, "utf8")),

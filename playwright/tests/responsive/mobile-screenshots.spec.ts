@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { RESPONSIVE_INTERACTION_CASES, RESPONSIVE_PAGES, RESPONSIVE_VIEWPORTS } from "../support/responsive/cases";
-
+import { getSeededLapTarget } from "../support/seeded/laps";
 // Responsive screenshot tests.
 //
 // Runs against seeded webServer with isolated DATA_DIR. Screenshot workflows
@@ -47,10 +47,13 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
     }
 
     for (const screenshotCase of RESPONSIVE_INTERACTION_CASES) {
-      if (screenshotCase.mobileOnly && viewport.width >= 768) continue;
+      if (screenshotCase.viewports && !screenshotCase.viewports.includes(viewport.name)) continue;
 
-      test(screenshotCase.name, async ({ page: p }) => {
-        await p.goto(screenshotCase.path, { waitUntil: "networkidle" });
+      test(screenshotCase.name, async ({ page: p, request }) => {
+        const target = screenshotCase.kind === "analyse-data-panel-loaded" ? await getSeededLapTarget(request, "f1-2025") : null;
+        const path = target ? `/${"f125"}/analyse?${new URLSearchParams({ track: String(target.trackOrdinal), car: String(target.carOrdinal), lap: String(target.id) })}` : screenshotCase.path;
+        await p.goto(path, { waitUntil: "networkidle" });
+        if (screenshotCase.kind === "analyse-data-panel-loaded") await expect(p.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();
         if (screenshotCase.kind === "nav-drawer") {
           await p.getByLabel("Open navigation").click();
           await expect(p.getByRole("navigation").last()).toBeVisible();

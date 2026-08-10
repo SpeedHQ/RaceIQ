@@ -38,6 +38,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
   const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
+  if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const flip = needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
@@ -265,7 +266,18 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
         ny = dx / len,
         frame = telemetry[telemetryPointsWithIdx[i].idx];
       if (!frame) continue;
-      const brake = semanticNumber(frame, "inputs.brake") ?? 0;
+      const throttle = (semanticNumber(frame, "inputs.accel") ?? 0) / 255;
+      const brake = (semanticNumber(frame, "inputs.brake") ?? 0) / 255;
+      if (throttle > 0) {
+        ctx.beginPath();
+        ctx.moveTo(x0 + nx * 1.5, y0 + ny * 1.5);
+        ctx.lineTo(x1 + nx * 1.5, y1 + ny * 1.5);
+        ctx.globalAlpha = 0.35 + throttle * 0.65;
+        ctx.strokeStyle = "var(--ch-throttle)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       if (brake > 0) {
         ctx.beginPath();
         ctx.moveTo(x0 - nx * 1.5, y0 - ny * 1.5);

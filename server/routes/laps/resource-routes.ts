@@ -44,7 +44,13 @@ export function semanticReplayIds(): readonly string[] {
     "weather.air-temp",
     "fuel.ers-store-energy",
     "fuel.ers-deploy-mode",
+    "brakes.brake-bias",
+    "fuel.ers-deployed",
+    "fuel.ers-harvested",
+    "fuel.fuel-capacity",
+    "identity.car-ordinal",
     "identity.player-track-surface",
+    "tires.tire-radius",
   ])];
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>

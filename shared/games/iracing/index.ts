@@ -46,11 +46,11 @@ export const iracingAdapter: GameAdapter = {
     clutch: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "inputs.clutch" } },
     pitStatus: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "race.on-pit-road" } },
     analysis: {
-      balance: { source: "unavailable", reason: "missing-model" },
+      balance: { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"] } },
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
       gripDemand: { source: "unavailable", reason: "source-limitation" },
       tireTemperature: { source: "direct", freshness: "pit-snapshot", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
-      surface: { source: "unavailable", reason: "source-limitation" },
+      surface: { source: "direct", freshness: "continuous", display: "vehicle", binding: { kind: "value", semanticId: "identity.player-track-surface" } },
       slipRatio: { source: "unavailable", reason: "source-limitation" },
       slipAngle: { source: "unavailable", reason: "source-limitation" },
       lateralSlip: { source: "unavailable", reason: "source-limitation" },

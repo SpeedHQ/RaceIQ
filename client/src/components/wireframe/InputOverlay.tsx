@@ -2,13 +2,13 @@ import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import type * as THREE from "three";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { threeColor } from "../../lib/wireframe-utils";
+import { pedalInputColor, threeColor } from "../../lib/wireframe-utils";
 
 export function InputOverlay({ telemetry, packet }: { telemetry: SemanticAnalysisFrame[]; packet: SemanticAnalysisFrame }) {
   const data = useMemo(() => {
-    const throttleColor = threeColor("var(--ch-throttle)").clone().convertSRGBToLinear();
-    const brakeColor = threeColor("var(--ch-brake)").clone().convertSRGBToLinear();
-    const inactiveColor = threeColor("var(--app-bg)").clone().convertSRGBToLinear();
+    const throttleColor = threeColor("var(--ch-throttle)");
+    const brakeColor = threeColor("var(--ch-brake)");
+    const inactiveColor = threeColor("var(--app-bg)");
     const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
     const cz = (semanticNumber(packet, "motion.position-z") ?? 0);
     const yaw = (semanticNumber(packet, "motion.yaw") ?? 0);
@@ -88,7 +88,7 @@ export function InputOverlay({ telemetry, packet }: { telemetry: SemanticAnalysi
         if (p.throttle > EPS) {
           if (tBufP.length === 0) tStartIndex = p.sourceIndex;
           tBufP.push(tPos[i]);
-          tBufC.push(inactiveColor.clone().lerp(throttleColor, p.throttle));
+          tBufC.push(pedalInputColor(inactiveColor, throttleColor, p.throttle));
         } else if (tBufP.length > 0) {
           flush(throttleRuns, tStartIndex, tBufP, tBufC);
         }

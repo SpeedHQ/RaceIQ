@@ -99,12 +99,33 @@ describe("analysis telemetry capabilities", () => {
       display: "millimeters",
       binding: { kind: "value", semanticId: "suspension.suspension-travel-m" },
     });
+    const acEvo = resolveAnalysisTelemetry(getGame("ac-evo"));
+    expect(acEvo.balance.source).toBe("derived");
+    expect(acEvo.traction.source).toBe("derived");
+    expect(acEvo.tireTemperature.source).toBe("direct");
     expect(resolveAnalysisTelemetry(getGame("fm-2023")).slipRatio).toEqual({
       source: "direct",
       freshness: "continuous",
       display: "per-wheel",
       binding: { kind: "value", semanticId: "tires.tire-slip-ratio" },
     });
+  });
+
+  test("advertises every catalog-backed Analyse Data metric", () => {
+    const supported = {
+      "fm-2023": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "surface", "slipRatio", "lateralSlip", "wheelRotation", "tireHealth", "tireWearRate", "suspensionTravel", "suspensionCompressionBias"],
+      "f1-2025": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel"],
+      acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
+      "ac-evo": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
+      iracing: ["balance", "gForce", "tireTemperature", "surface", "tireHealth", "tirePressure", "suspensionTravel"],
+    } as const;
+
+    for (const [gameId, metrics] of Object.entries(supported)) {
+      const analysis = resolveAnalysisTelemetry(getGame(gameId as keyof typeof supported));
+      for (const metric of metrics) {
+        expect(analysis[metric].source, `${gameId}.${metric}`).not.toBe("unavailable");
+      }
+    }
   });
 });
 

@@ -78,7 +78,15 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "iracing-raw", path: "/iracing/raw", viewports: DESKTOP_ONLY },
 ];
 
-export const RESPONSIVE_INTERACTION_CASES = [
+interface ResponsiveInteractionCase {
+  name: string;
+  path: string;
+  kind: string;
+  mobileOnly: boolean;
+  viewports?: readonly ResponsiveViewportName[];
+}
+
+export const RESPONSIVE_INTERACTION_CASES: readonly ResponsiveInteractionCase[] = [
   {
     name: "nav-drawer-open",
     path: "/fm23",
@@ -96,6 +104,13 @@ export const RESPONSIVE_INTERACTION_CASES = [
     path: "/",
     kind: "settings-language",
     mobileOnly: false,
+  },
+  {
+    name: "analyse-data-panel-loaded",
+    path: "/f125/analyse",
+    kind: "analyse-data-panel-loaded",
+    mobileOnly: false,
+    viewports: DESKTOP_ONLY,
   },
   {
     name: "analyse-actions-menu",
@@ -124,4 +139,4 @@ export type ResponsiveDeviceCase = (typeof RESPONSIVE_DEVICE_CASES)[number];
 
 export const RESPONSIVE_SCREENSHOT_COUNT =
   RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_PAGES.filter((page) => !page.viewports || page.viewports.includes(viewport.name)).length, 0) +
-  RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_INTERACTION_CASES.filter((screenshotCase) => !screenshotCase.mobileOnly || viewport.width < 768).length, 0);
+  RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_INTERACTION_CASES.filter((screenshotCase) => (!screenshotCase.viewports || screenshotCase.viewports.includes(viewport.name)) && (!screenshotCase.mobileOnly || viewport.width < 768)).length, 0);

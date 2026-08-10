@@ -26,7 +26,7 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
   const fuel = number(frame, "fuel.fuel");
   const capacity = number(frame, "fuel.fuel-capacity") ?? undefined;
   const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, telemetry.fuel);
-  const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(Math.max(0, startFuel - fuel), capacity, telemetry.fuel) : null;
+  const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(startFuel - fuel, capacity, telemetry.fuel) : null;
   const value = (n: number | null) => n == null ? "—" : `${n.toFixed(0)}`;
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
@@ -34,11 +34,11 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
       <MetricRow label={m.dataguide_rpm()} value={value(rpm)} />
       <MetricRow label={m.dataguide_gear()} value={value(gear)} />
       <MetricRow label={m.dataguide_throttle()} value={accel == null ? "—" : `${((accel / 255) * 100).toFixed(0)}%`} color={accel != null && accel > 0 ? "var(--ch-throttle)" : undefined} />
-      <MetricRow label={m.dataguide_steer()} value={steer == null ? "—" : `${steer > 0 ? "+" : ""}${((steer / 127) * (getSteeringLock() / 2)).toFixed(0)}°`} />
       <MetricRow label={m.dataguide_brake()} value={brake == null ? "—" : `${((brake / 255) * 100).toFixed(0)}%`} color={brake != null && brake > 0 ? "var(--ch-brake)" : undefined} />
-      {telemetry.boost && boost != null && <MetricRow label={m.dataguide_boost()} value={`${boost.toFixed(1)} psi`} />}
-      {telemetry.power && power != null && <MetricRow label={m.dataguide_power()} value={`${(power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`} />}
-      {telemetry.torque && torque != null && <MetricRow label={m.dataguide_torque()} value={`${torque.toFixed(0)} Nm`} />}
+      <MetricRow label={m.dataguide_steer()} value={steer == null ? "—" : `${steer > 0 ? "+" : ""}${((steer / 127) * (getSteeringLock() / 2)).toFixed(0)}°`} />
+      {telemetry.boost && <MetricRow label={m.dataguide_boost()} value={boost == null ? "—" : `${boost.toFixed(1)} psi`} />}
+      {telemetry.power && <MetricRow label={m.dataguide_power()} value={power == null ? "—" : `${(power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`} />}
+      {telemetry.torque && <MetricRow label={m.dataguide_torque()} value={torque == null ? "—" : `${torque.toFixed(0)} Nm`} />}
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
         <span className="tabular-nums">
