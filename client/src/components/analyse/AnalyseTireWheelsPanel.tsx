@@ -1,5 +1,6 @@
 import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { resolveWheelMetric } from "../../../../shared/racing/analysis/metric-values";
 import type { GameId } from "../../../../shared/games/ids";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";
@@ -21,11 +22,11 @@ const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => 
 export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props) {
   const adapter = getGame(gameId);
   const analysis = resolveAnalysisTelemetry(adapter);
-  const temp = values(frame, "tire.temperature.average");
-  const health = values(frame, "tires.tire-wear");
-  const speed = values(frame, "tires.wheel-rotation-speed");
+  const temp = analysis.tireTemperature.binding ? resolveWheelMetric(frame, analysis.tireTemperature.binding) : [null, null, null, null];
+  const health = analysis.tireHealth.binding ? resolveWheelMetric(frame, analysis.tireHealth.binding) : [null, null, null, null];
+  const speed = analysis.wheelRotation.binding ? resolveWheelMetric(frame, analysis.wheelRotation.binding) : [null, null, null, null];
   const brake = values(frame, "brakes.brake-temp");
-  const pressure = values(frame, "tires.tire-pressure");
+  const pressure = analysis.tirePressure.binding ? resolveWheelMetric(frame, analysis.tirePressure.binding) : [null, null, null, null];
   const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
   const hThresholds = adapter.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
   const tempCell = (value: number | null) => value == null ? unavailable : <span style={{ color: tireTempColor(value, units.thresholds) }}>{`${convertTemp(value, units.temperatureUnit, "C").toFixed(0)}${units.tempLabel}`}</span>;

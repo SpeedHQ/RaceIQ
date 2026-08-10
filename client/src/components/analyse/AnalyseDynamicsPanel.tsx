@@ -1,6 +1,7 @@
 import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
-import { frictionCircleUtil, semanticWheelDynamics, steerBalanceFromSignals } from "../../../../shared/racing/analysis/laps/physics/vehicle";
+import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
+import { semanticWheelDynamics } from "../../../../shared/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
 import type { GameId } from "../../../../shared/games/ids";
 import type { useUnits } from "../../hooks/useUnits";
@@ -30,29 +31,29 @@ interface Props {
   gameId: GameId;
   units: ReturnType<typeof useUnits>;
 }
-
 export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const speed = number(frame, "motion.speed") ?? 0;
   const puddle = values(frame, "tires.wheel-in-puddle-depth");
   const accelerationX = number(frame, "motion.acceleration-x") ?? 0;
   const accelerationZ = number(frame, "motion.acceleration-z") ?? 0;
-  const slipAngles = values(frame, "tires.tire-slip-angle");
-  const slipRatios = values(frame, "tires.tire-slip-ratio");
-  const rotation = values(frame, "tires.wheel-rotation-speed");
-  const radius = values(frame, "tires.tire-radius");
-  const radiusM = radius.every((value) => value != null) ? radius.reduce((sum, value) => sum + (value ?? 0), 0) / 4 : 0.33;
-  const wheel = semanticWheelDynamics({ speedMps: speed, steer: number(frame, "inputs.steer") ?? 0, wheelRotationRadS: { fl: rotation[0] ?? 0, fr: rotation[1] ?? 0, rl: rotation[2] ?? 0, rr: rotation[3] ?? 0 }, wheelRadiusM: radiusM });
-  const grip = slipRatios.map((ratio, index) => ratio == null || slipAngles[index] == null ? null : frictionCircleUtil(ratio, slipAngles[index]!));
-  const balance = steerBalanceFromSignals({ speedMps: speed, accelerationX, yawRate: number(frame, "motion.angular-velocity-y") ?? 0, slipAngles: [slipAngles[0] ?? 0, slipAngles[1] ?? 0, slipAngles[2] ?? 0, slipAngles[3] ?? 0] });
-  const states = [wheel.fl, wheel.fr, wheel.rl, wheel.rr].map((state, index) => tireState(state.state, slipRatios[index] ?? 0, slipAngles[index] ?? 0));
-  const temps = values(frame, "tire.temperature.average");
+  const slipAngleMetric = analysis.slipAngle;
+  const slipRatioMetric = analysis.slipRatio;
+  const gripMetric = analysis.gripDemand;
+  const tractionMetric = analysis.traction;
+  const slipAngles = slipAngleMetric.binding ? resolveWheelMetric(frame, slipAngleMetric.binding) : [null, null, null, null];
+  const slipRatios = slipRatioMetric.binding ? resolveWheelMetric(frame, slipRatioMetric.binding) : [null, null, null, null];
+  const grip = resolveGripDemand(frame, gripMetric);
+  const balanceAvailable = resolveBalance(frame, analysis.balance);
+  const balance = balanceAvailable ?? { state: "neutral" as const, balance: 0, uSlip: 0, uYaw: 0, frontSlipDeg: 0, rearSlipDeg: 0, yawError: 0, yawRatePath: 0, signalsAgree: true };
+  const states = resolveWheelStates(frame, tractionMetric).map((state) => state == null ? { label: m.analyse_unavailable(), color: "var(--app-text-dim)" } : tireState(state.state, state.slipRatio, 0));
+  const temps = analysis.tireTemperature.binding ? resolveWheelMetric(frame, analysis.tireTemperature.binding) : [null, null, null, null];
   const C = (value: string, color: string) => <span style={{ color }}>{value}</span>;
   const surfaceValue = number(frame, "identity.player-track-surface");
   const vehicleSurface = surfaceValue === -1 ? m.analyse_surface_not_in_world() : surfaceValue === 0 ? m.analyse_surface_off_track() : surfaceValue === 1 ? m.analyse_surface_pit_stall() : surfaceValue === 2 ? m.analyse_surface_approaching_pits() : surfaceValue === 3 ? m.analyse_surface_on_track() : m.analyse_surface_unknown();
-  const balanceLabel = balance.state === "neutral" ? m.dynamics_neutral() : balance.state === "understeer" ? m.dynamics_under() : m.dynamics_over();
-  const balanceColor = balance.state === "neutral" ? "var(--balance-neutral)" : balance.state === "understeer" ? "var(--balance-positive)" : "var(--balance-negative)";
-  const sf = Math.max(0.3, Math.min(1, (speed * 2.23694) / 80));
+  const balanceLabel = balance == null ? m.analyse_unavailable() : balance.state === "neutral" ? m.dynamics_neutral() : balance.state === "understeer" ? m.dynamics_under() : m.dynamics_over();
+  const balanceForDisplay = balance ?? { state: "neutral" as const, balance: 0, uSlip: 0, uYaw: 0, frontSlipDeg: 0, rearSlipDeg: 0, yawError: 0, yawRatePath: 0, signalsAgree: true };
+  const balanceColor = balance == null ? "var(--app-text-dim)" : balance.state === "neutral" ? "var(--balance-neutral)" : balance.state === "understeer" ? "var(--balance-positive)" : "var(--balance-negative)";
   const angleColor = (value: number) => severityRangeColor(Math.abs(value * 180 / Math.PI), [4 / sf, 8 / sf, 14 / sf]);
   const brakeBias = number(frame, "brakes.brake-bias");
   const balanceBarX = (value: number, range = 1) => Math.max(2, Math.min(198, 100 + (Math.max(-range, Math.min(range, value)) / range) * 98));

@@ -1,5 +1,6 @@
 import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { resolveWheelMetric } from "../../../../shared/racing/analysis/metric-values";
 import { suspensionCompressionBias } from "../../../../shared/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
 import { operatingRangeColor } from "../../lib/colors";
@@ -17,8 +18,10 @@ const unavailable = <span className="text-app-text-dim">—</span>;
 
 export function AnalyseSuspensionPanel({ frame, gameId }: Props) {
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
-  const normalized = WHEELS.map((_, i) => wheel(frame, "suspension.norm-suspension-travel", i));
-  const millimeters = WHEELS.map((_, i) => { const value = wheel(frame, "suspension.suspension-travel-m", i); return value == null ? null : value * 1000; });
+  const normalizedValues = analysis.suspensionTravel.binding && analysis.suspensionTravel.display === "normalized" ? resolveWheelMetric(frame, analysis.suspensionTravel.binding) : [null, null, null, null];
+  const millimeterValues = analysis.suspensionTravel.binding && analysis.suspensionTravel.display === "millimeters" ? resolveWheelMetric(frame, analysis.suspensionTravel.binding).map((value) => value == null ? null : value * 1000) : [null, null, null, null];
+  const normalized = normalizedValues;
+  const millimeters = millimeterValues;
   const showMillimeters = analysis.suspensionTravel.display === "millimeters";
   const bias = normalized.every((value): value is number => value != null) ? suspensionCompressionBias([normalized[0], normalized[1], normalized[2], normalized[3]]) : null;
   const title = <span className="flex items-center gap-1 group relative">{m.dataguide_suspension()}<Info className="w-3 h-3 text-app-text-dim cursor-help inline" /><span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">{m.analyse_suspension_compression_tooltip()}</span></span>;

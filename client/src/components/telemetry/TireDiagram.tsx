@@ -1,5 +1,5 @@
 import { getGame } from "@shared/games/registry";
-import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
+import { resolveWheelStates, resolveWheelMetric } from "@shared/racing/analysis/metric-values";
 import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
@@ -30,6 +30,7 @@ const wheelState = (ratio: number, speed: number): { state: "grip" | "lockup" | 
 
 function SemanticTireDiagram({ frame }: { frame: SemanticAnalysisFrame }) {
   const units = useUnits();
+  const analysis = resolveAnalysisTelemetry(getGame(frame.gameId ?? "iracing"));
   const temps = numericWheels(frame, "tire.temperature.average");
   const wear = numericWheels(frame, "tires.tire-wear");
   const angles = numericWheels(frame, "tires.tire-slip-angle");
@@ -37,6 +38,7 @@ function SemanticTireDiagram({ frame }: { frame: SemanticAnalysisFrame }) {
   const rotation = numericWheels(frame, "tires.wheel-rotation-speed");
   const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
   const brakes = numericWheels(frame, "brakes.brake-temp");
+  const states = resolveWheelStates(frame, analysis.traction);
   const steering = numeric(frame, "inputs.steer");
   const temperatureAvailable = temps.some((value) => value != null);
   const healthAvailable = wear.some((value) => value != null);
@@ -46,6 +48,8 @@ function SemanticTireDiagram({ frame }: { frame: SemanticAnalysisFrame }) {
   const wheel = (index: number, outerSide: "left" | "right") => {
     const ratio = ratios[index] ?? 0;
     const speed = rotation[index] ?? 0;
+    const resolvedState = states[index];
+    const state = resolvedState ? { state: resolvedState.state, slipRatio: resolvedState.slipRatio } : wheelState(ratio, speed);
     return (
       <WheelCard
         label={WHEELS[index]}
@@ -53,7 +57,7 @@ function SemanticTireDiagram({ frame }: { frame: SemanticAnalysisFrame }) {
         wear={wear[index] ?? 0}
         slipAngle={(angles[index] ?? 0) * (180 / Math.PI)}
         outerSide={outerSide}
-        wheelState={wheelState(ratio, speed)}
+        wheelState={state}
         steerAngle={index < 2 ? steerAngle : 0}
         thresholds={units.thresholds}
         tempFn={(value) => convertTemp(value, "C", units.tempUnit)}

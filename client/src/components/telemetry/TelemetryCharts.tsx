@@ -1,9 +1,11 @@
 import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { resolveGripDemand, resolveWheelMetric } from "@shared/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { client } from "@/lib/rpc";
+import type { SemanticMetricFrame } from "../../../../shared/racing/analysis/metric-values";
 
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
 import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
@@ -94,15 +96,27 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
         t.rr.shift();
       }
     };
-    const tires = view?.tires;
+    const semanticFrame: SemanticMetricFrame | null = view ? {
+      values: {
+        "tires.tire-combined-slip": view.tires.combinedSlip,
+        "tire.temperature.average": view.tires.temperatureC,
+        "tires.tire-wear": view.tires.wear,
+        "tires.tire-slip-angle": view.tires.slipAngleRad,
+        "tires.tire-slip-ratio": view.tires.slipRatio,
+        "suspension.norm-suspension-travel": view.tires.suspensionNormalized,
+      },
+    } : null;
+    const metricBinding = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") => {
+      const metric = key === "combinedSlip" ? analysis.gripDemand : key === "temperatureC" ? analysis.tireTemperature : key === "wear" ? analysis.tireHealth : key === "slipAngleRad" ? analysis.slipAngle : key === "slipRatio" ? analysis.slipRatio : analysis.suspensionTravel;
+      if (!semanticFrame || metric.source === "unavailable") return null;
+      if (key === "combinedSlip") return resolveGripDemand(semanticFrame, metric);
+      return metric.binding?.kind === "value" ? resolveWheelMetric(semanticFrame, metric.binding) : null;
+    };
     const wheel = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") => {
-      if (tires?.[key]) return tires[key]!;
-      return {
-        fl: key === "combinedSlip" ? packet?.TireCombinedSlipFL ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempFL ?? 0 : key === "wear" ? packet?.TireWearFL ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleFL ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioFL ?? 0 : packet?.NormSuspensionTravelFL ?? 0,
-        fr: key === "combinedSlip" ? packet?.TireCombinedSlipFR ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempFR ?? 0 : key === "wear" ? packet?.TireWearFR ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleFR ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioFR ?? 0 : packet?.NormSuspensionTravelFR ?? 0,
-        rl: key === "combinedSlip" ? packet?.TireCombinedSlipRL ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempRL ?? 0 : key === "wear" ? packet?.TireWearRL ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleRL ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioRL ?? 0 : packet?.NormSuspensionTravelRL ?? 0,
-        rr: key === "combinedSlip" ? packet?.TireCombinedSlipRR ?? 0 : key === "temperatureC" ? packet?.DisplayTireTempRR ?? 0 : key === "wear" ? packet?.TireWearRR ?? 0 : key === "slipAngleRad" ? packet?.TireSlipAngleRR ?? 0 : key === "slipRatio" ? packet?.TireSlipRatioRR ?? 0 : packet?.NormSuspensionTravelRR ?? 0,
-      };
+      const resolved = metricBinding(key);
+      return resolved
+        ? { fl: resolved[0] ?? 0, fr: resolved[1] ?? 0, rl: resolved[2] ?? 0, rr: resolved[3] ?? 0 }
+        : { fl: 0, fr: 0, rl: 0, rr: 0 };
     };
     const grip = wheel("combinedSlip"), temp = wheel("temperatureC"), wear = wheel("wear"), angle = wheel("slipAngleRad"), ratio = wheel("slipRatio"), suspension = wheel("suspensionNormalized");
     push4(h.grip, Math.abs(grip.fl), Math.abs(grip.fr), Math.abs(grip.rl), Math.abs(grip.rr));
