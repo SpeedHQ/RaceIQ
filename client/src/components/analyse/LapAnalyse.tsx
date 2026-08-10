@@ -16,6 +16,7 @@ import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
 import { semanticNumber, type Point, type TrackMapHandle } from "./track-map/types";
+import { detectLapCapabilities } from "./analyse-capabilities";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 
@@ -228,6 +229,7 @@ function LapAnalyseInner() {
   }, []);
 
   const currentFrame = telemetry[cursorIdx] ?? null;
+  const lapCapabilities = useMemo(() => detectLapCapabilities(semanticFrames), [semanticFrames]);
   const wearRate = useMemo(() => {
     if (!currentFrame || telemetry.length < 2) return null;
     const previous = telemetry[Math.max(0, cursorIdx - 60)];
@@ -409,6 +411,7 @@ function LapAnalyseInner() {
             sidebarTab,
             onSidebarTabChange: setSidebarTab,
             currentFrame,
+            lapCapabilities,
             startFuel: semanticNumber(telemetry[0], "fuel.fuel") ?? undefined,
             gameId,
             units,

@@ -5,7 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "../../shared/games/init";
 import type { LivePitData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
+import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
 import { PitEstimate } from "../src/components/telemetry/PitEstimate";
 import { SurfaceConditions } from "../src/components/telemetry/SurfaceConditions";
@@ -13,6 +15,8 @@ import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
 import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
 import { fakeAccPacket, fakeF1Packet, fakeForzaPacket, fakePit } from "../src/stories/fakeData";
+
+const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 
 initGameAdapters();
 const units = {
@@ -91,6 +95,49 @@ function renderTireDiagram(value: TelemetryPacket): string {
 }
 
 describe("telemetry capability UI", () => {
+  test("renders both sections when lap exposes DRS and ERS", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalyseF1ErsPanel, {
+        frame: semanticFrame({ "aero.drs-active": true, "fuel.ers-store-energy": 2_000_000 }),
+        capabilities: { hasDrs: true, hasErs: true },
+      }),
+    );
+    expect(markup).toContain("DRS");
+    expect(markup).toContain("ERS");
+  });
+
+  test("renders only DRS when ERS is absent from lap", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalyseF1ErsPanel, {
+        frame: semanticFrame({ "aero.drs-active": true }),
+        capabilities: { hasDrs: true, hasErs: false },
+      }),
+    );
+    expect(markup).toContain("DRS");
+    expect(markup).not.toContain("ERS");
+  });
+
+  test("renders only ERS when DRS is absent from lap", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalyseF1ErsPanel, {
+        frame: semanticFrame({ "fuel.ers-store-energy": 2_000_000 }),
+        capabilities: { hasDrs: false, hasErs: true },
+      }),
+    );
+    expect(markup).not.toContain("DRS");
+    expect(markup).toContain("ERS");
+  });
+
+  test("renders neither section when lap exposes neither capability", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalyseF1ErsPanel, {
+        frame: semanticFrame({ "motion.speed": 40 }),
+        capabilities: { hasDrs: false, hasErs: false },
+      }),
+    );
+    expect(markup).toBe("");
+  });
+
   test("renders supported power and torque even when their values are zero", () => {
     const forzaMarkup = renderToStaticMarkup(
       createElement(PowerTorque, {
