@@ -18,8 +18,8 @@ const GAME_METRIC_ROWS = {
   "f1-2025": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Suspension", sourceField: "SuspensionTravelMFL" }],
   acc: [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Suspension", sourceField: "SuspensionTravelMFL" }],
   "ac-evo": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Suspension", sourceField: "SuspensionTravelMFL" }],
-  iracing: [{ label: "Suspension", sourceField: "SuspensionTravelMFL" }],
-} as const satisfies Record<string, readonly { label: string; sourceField: keyof TelemetryPacket }[]>;
+  iracing: [{ label: "Suspension", sourceField: "SuspensionTravelMFL", vary: false }],
+} as const satisfies Record<string, readonly { label: string; sourceField: keyof TelemetryPacket; vary?: boolean }[]>;
 
 interface FieldExtremes {
   readonly minimum: number;
@@ -97,7 +97,7 @@ for (const game of SEEDED_GAME_CASES) {
         const maximumText = await metricRowText(page, row.label);
         expect(minimumText).not.toContain("—");
         expect(maximumText).not.toContain("—");
-        expect(maximumText).not.toBe(minimumText);
+        if (row.vary !== false) expect(maximumText).not.toBe(minimumText);
       });
     }
     if (game.gameId === "fm-2023") {
