@@ -23,7 +23,7 @@ import { resolveTrack } from "../../tracks/info";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
-function semanticReplayIds(): readonly string[] {
+export function semanticReplayIds(): readonly string[] {
   return [...new Set([
     ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
     "engine.current-engine-rpm",
@@ -37,6 +37,7 @@ function semanticReplayIds(): readonly string[] {
     "motion.position-x",
     "motion.position-z",
     "motion.yaw",
+    "timing.current-lap",
     "timing.current-race-time",
     "timing.distance-traveled",
     "aero.drs-active",

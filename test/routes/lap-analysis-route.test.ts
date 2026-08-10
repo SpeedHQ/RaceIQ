@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import { lapRoutes } from "../../server/routes/laps";
+import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
+
+test("semantic replay requests lap-relative timing", () => {
+  expect(semanticReplayIds()).toContain("timing.current-lap");
+});
 
 describe("POST /api/laps/:id/analyse", () => {
   test("keeps missing-lap HTTP error before regenerate stream", async () => {
