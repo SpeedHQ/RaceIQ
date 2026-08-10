@@ -8,7 +8,6 @@ export interface SemanticMetricFrame {
   readonly values: Readonly<Record<string, unknown>>;
 }
 
-const WHEELS = ["fl", "fr", "rl", "rr"] as const;
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 function wheelValues(frame: SemanticMetricFrame, id: string): readonly [number | null, number | null, number | null, number | null] {
   const raw = frame.values[id];

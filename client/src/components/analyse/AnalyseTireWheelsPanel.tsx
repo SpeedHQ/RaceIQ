@@ -22,17 +22,18 @@ const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => 
 export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props) {
   const adapter = getGame(gameId);
   const analysis = resolveAnalysisTelemetry(adapter);
-  const temp = analysis.tireTemperature.binding ? resolveWheelMetric(frame, analysis.tireTemperature.binding) : [null, null, null, null];
-  const health = analysis.tireHealth.binding ? resolveWheelMetric(frame, analysis.tireHealth.binding) : [null, null, null, null];
-  const speed = analysis.wheelRotation.binding ? resolveWheelMetric(frame, analysis.wheelRotation.binding) : [null, null, null, null];
+  const binding = (metric: typeof analysis.tireTemperature) => metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined;
+  const temp = binding(analysis.tireTemperature) ? resolveWheelMetric(frame, binding(analysis.tireTemperature)!) : [null, null, null, null];
+  const health = binding(analysis.tireHealth) ? resolveWheelMetric(frame, binding(analysis.tireHealth)!) : [null, null, null, null];
+  const speed = binding(analysis.wheelRotation) ? resolveWheelMetric(frame, binding(analysis.wheelRotation)!) : [null, null, null, null];
   const brake = values(frame, "brakes.brake-temp");
-  const pressure = analysis.tirePressure.binding ? resolveWheelMetric(frame, analysis.tirePressure.binding) : [null, null, null, null];
+  const pressure = binding(analysis.tirePressure) ? resolveWheelMetric(frame, binding(analysis.tirePressure)!) : [null, null, null, null];
   const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
   const hThresholds = adapter.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
   const tempCell = (value: number | null) => value == null ? unavailable : <span style={{ color: tireTempColor(value, units.thresholds) }}>{`${convertTemp(value, units.temperatureUnit, "C").toFixed(0)}${units.tempLabel}`}</span>;
   const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
   const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
-  const coldPressure = analysis.tirePressure.display === "cold-pressure";
+  const coldPressure = analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure";
   const rows = [
     { label: m.analyse_wheels_rotation_s(), fl: speed[0]?.toFixed(1) ?? unavailable, fr: speed[1]?.toFixed(1) ?? unavailable, rl: speed[2]?.toFixed(1) ?? unavailable, rr: speed[3]?.toFixed(1) ?? unavailable },
     { label: pitTemperature ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp(), fl: tempCell(temp[0]), fr: tempCell(temp[1]), rl: tempCell(temp[2]), rr: tempCell(temp[3]) },

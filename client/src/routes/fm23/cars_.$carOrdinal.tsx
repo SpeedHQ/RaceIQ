@@ -15,7 +15,7 @@ function makeStaticFrame(carOrdinal: number): SemanticAnalysisFrame {
     "inputs.accel": 0, "inputs.brake": 0, "inputs.steer": 0, "inputs.gear": 0,
     "engine.current-engine-rpm": 800, "engine.engine-idle-rpm": 800, "engine.engine-max-rpm": 8000, "fuel.fuel": 1,
     "tire.temperature.average": [0, 0, 0, 0], "suspension.norm-suspension-travel": [0.5, 0.5, 0.5, 0.5],
-  }};
+  }, states: {}, freshness: {} };
 }
 
 function CarModelPage() {

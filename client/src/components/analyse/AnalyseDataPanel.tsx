@@ -61,7 +61,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
     const wear = wheels(currentFrame, "tires.tire-wear");
     const normalized = wheels(currentFrame, "suspension.norm-suspension-travel");
     const millimeters = wheels(currentFrame, "suspension.suspension-travel-m").map((value) => value == null ? null : value * 1000);
-    const useMm = game.telemetry.analysis?.suspensionTravel?.display === "millimeters";
+    const useMm = game.telemetry.analysis?.suspensionTravel?.source !== "unavailable" && game.telemetry.analysis?.suspensionTravel?.display === "millimeters";
     const lines = [
       `Speed: ${speed == null ? "Unavailable" : `${units.speed(speed).toFixed(0)} ${units.speedLabel}`}`,
       `RPM: ${display(number(currentFrame, "engine.current-engine-rpm"))}`,
@@ -75,8 +75,8 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
     if (game.telemetry.torque && number(currentFrame, "engine.torque") != null) lines.push(`Torque: ${number(currentFrame, "engine.torque")!.toFixed(0)} Nm`);
     lines.push(`Fuel: ${fuelDisplay == null ? "Unavailable" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`} left${fuelUsed == null ? "" : ` (${fuelUsed.amount.toFixed(1)}${fuelUsed.unit} used)`}`);
     lines.push("", "--- Dynamics ---", `G-Force Lat: ${display(number(currentFrame, "motion.acceleration-x") == null ? null : -number(currentFrame, "motion.acceleration-x")! / 9.81, 2)}g`, `G-Force Lon: ${display(number(currentFrame, "motion.acceleration-z") == null ? null : -number(currentFrame, "motion.acceleration-z")! / 9.81, 2)}g`);
-    const pitTemp = game.telemetry.analysis?.tireTemperature?.freshness === "pit-snapshot";
-    const pitHealth = game.telemetry.analysis?.tireHealth?.freshness === "pit-snapshot";
+    const pitTemp = game.telemetry.analysis?.tireTemperature?.source === "direct" && game.telemetry.analysis?.tireTemperature.freshness === "pit-snapshot";
+    const pitHealth = game.telemetry.analysis?.tireHealth?.source === "direct" && game.telemetry.analysis?.tireHealth.freshness === "pit-snapshot";
     lines.push("", `--- ${pitTemp ? "Last Pit Tire Temps" : "Tire Temps"} ---`, `FL: ${temp[0] == null ? "Unavailable" : `${convertTemp(temp[0], units.temperatureUnit, "C").toFixed(0)}${units.tempLabel}`}  FR: ${temp[1] == null ? "Unavailable" : `${convertTemp(temp[1], units.temperatureUnit, "C").toFixed(0)}${units.tempLabel}`}`, `RL: ${temp[2] == null ? "Unavailable" : `${convertTemp(temp[2], units.temperatureUnit, "C").toFixed(0)}${units.tempLabel}`}  RR: ${temp[3] == null ? "Unavailable" : `${convertTemp(temp[3], units.temperatureUnit, "C").toFixed(0)}${units.tempLabel}`}`);
     lines.push("", `--- ${pitHealth ? "Last Pit Tire Health" : "Tire Health"} ---`, `FL: ${wear[0] == null ? "Unavailable" : `${((1 - wear[0]) * 100).toFixed(1)}%`}  FR: ${wear[1] == null ? "Unavailable" : `${((1 - wear[1]) * 100).toFixed(1)}%`}`, `RL: ${wear[2] == null ? "Unavailable" : `${((1 - wear[2]) * 100).toFixed(1)}%`}  RR: ${wear[3] == null ? "Unavailable" : `${((1 - wear[3]) * 100).toFixed(1)}%`}`);
     lines.push("", "--- Suspension Travel ---", ...[0, 1, 2, 3].map((i) => `${["FL", "FR", "RL", "RR"][i]}: ${useMm ? (millimeters[i] == null ? "Unavailable" : `${millimeters[i]!.toFixed(0)}mm`) : (normalized[i] == null ? "Unavailable" : `${(normalized[i]! * 100).toFixed(0)}%`)}`));

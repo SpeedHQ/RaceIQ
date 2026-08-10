@@ -1,5 +1,6 @@
 import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { GameId } from "@shared/games/ids";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { useUnits } from "../../hooks/useUnits";
 import { GForceCircle } from "./GForceCircle";
 import { TireDiagram } from "./TireDiagram";

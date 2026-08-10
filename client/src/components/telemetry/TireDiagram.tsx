@@ -31,7 +31,6 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const wear = numericWheels(frame, "tires.tire-wear");
   const angles = numericWheels(frame, "tires.tire-slip-angle");
   const ratios = numericWheels(frame, "tires.tire-slip-ratio");
-  const rotation = numericWheels(frame, "tires.wheel-rotation-speed");
   const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
   const brakes = numericWheels(frame, "brakes.brake-temp");
   const states = resolveWheelStates(frame, analysis.traction);

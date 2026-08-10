@@ -12,6 +12,7 @@ export const accAdapter: GameAdapter = {
     tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
     pitStatus: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "race.pit-status" } },
     analysis: {
+      gripDemand: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["tires.tire-slip-ratio", "tires.tire-slip-angle"] } },
       slipAngle: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-angle" } },
       lateralSlip: { source: "unavailable", reason: "source-limitation" },
       suspensionTravel: { source: "direct", freshness: "continuous", display: "normalized", binding: { kind: "value", semanticId: "suspension.norm-suspension-travel" } },

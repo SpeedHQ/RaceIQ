@@ -5,15 +5,6 @@ import type {
   GameAdapter,
 } from "../../games/types";
 
-const directContinuous = {
-  source: "direct",
-  freshness: "continuous",
-} as const;
-const derivedHigh = {
-  source: "derived",
-  confidence: "high",
-} as const;
-
 export const DEFAULT_ANALYSIS_TELEMETRY: AnalysisTelemetryModel = {
   balance: { source: "unavailable", reason: "missing-model" },
   gForce: { source: "unavailable", reason: "missing-model" },

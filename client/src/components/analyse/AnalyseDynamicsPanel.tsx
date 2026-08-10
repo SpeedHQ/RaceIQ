@@ -41,7 +41,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const lateralSlipMetric = analysis.lateralSlip;
   const slipRatioMetric = analysis.slipRatio;
   const gripMetric = analysis.gripDemand;
-  const bindingOf = (metric: ReturnType<typeof resolveAnalysisTelemetry>[keyof ReturnType<typeof resolveAnalysisTelemetry>]) => "binding" in metric ? metric.binding : undefined;
+  const bindingOf = (metric: ReturnType<typeof resolveAnalysisTelemetry>[keyof ReturnType<typeof resolveAnalysisTelemetry>]) => metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined;
   const slipAngles = bindingOf(slipAngleMetric) ? resolveWheelMetric(frame, bindingOf(slipAngleMetric)!) : [null, null, null, null];
   const lateralSlips = bindingOf(lateralSlipMetric) ? resolveWheelMetric(frame, bindingOf(lateralSlipMetric)!) : [null, null, null, null];
   const slipRatios = bindingOf(slipRatioMetric) ? resolveWheelMetric(frame, bindingOf(slipRatioMetric)!) : [null, null, null, null];
@@ -111,23 +111,19 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
       ? C(`${m.analyse_dynamics_wet()} ${((puddle[index] ?? 0) * 100).toFixed(0)}%`, "var(--surface-wet)")
       : unavailable;
   return <div className="text-app-compact font-mono space-y-1.5 mb-3">
-    <div className="flex justify-between">
-      {analysis.balance.source === "unavailable" ? (
-        <span className="text-app-text-muted">{m.label_balance()}</span>
-      ) : (
-        <span className="group relative flex items-center gap-1 text-app-text-muted outline-none focus-visible:ring-2 focus-visible:ring-app-accent" tabIndex={0} aria-label={`${m.label_balance()}: ${m.dynamics_balance_tooltip_desc()}`}>
-          {m.label_balance()} <Info className="size-3 cursor-help text-app-text-dim" aria-hidden="true" />
-          {balanceTooltip}
-        </span>
-      )}
-      {analysis.balance.source === "unavailable" ? <span className="text-app-text-dim">{m.analyse_unavailable()}</span> : <span className="tabular-nums" style={{ color: balanceColor }}>{balanceLabel} ({balance.balance > 0 ? "+" : ""}{balance.balance.toFixed(2)})</span>}
-    </div>
+    {analysis.balance.source !== "unavailable" && <div className="flex justify-between">
+      <span className="group relative flex items-center gap-1 text-app-text-muted outline-none focus-visible:ring-2 focus-visible:ring-app-accent" tabIndex={0} aria-label={`${m.label_balance()}: ${m.dynamics_balance_tooltip_desc()}`}>
+        {m.label_balance()} <Info className="size-3 cursor-help text-app-text-dim" aria-hidden="true" />
+        {balanceTooltip}
+      </span>
+      <span className="tabular-nums" style={{ color: balanceColor }}>{balanceLabel} ({balance.balance > 0 ? "+" : ""}{balance.balance.toFixed(2)})</span>
+    </div>}
     <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_g_force()}</span><span className="tabular-nums text-app-text">Lat {(-accelerationX / 9.81) > 0 ? "+" : ""}{(-accelerationX / 9.81).toFixed(2)}g Lon {(-accelerationZ / 9.81) > 0 ? "+" : ""}{(-accelerationZ / 9.81).toFixed(2)}g</span></div>
     {brakeBias != null && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_brake_bias()}</span><span className="tabular-nums text-app-text">{(brakeBias * 100).toFixed(1)}%F</span></div>}
     <WheelTable rows={[
       { label: m.analyse_dynamics_traction(), fl: states[0] == null ? unavailable : C(states[0].state.toUpperCase(), tireTempLabel(0, units.thresholds).color), fr: states[1] == null ? unavailable : C(states[1].state.toUpperCase(), tireTempLabel(0, units.thresholds).color), rl: states[2] == null ? unavailable : C(states[2].state.toUpperCase(), tireTempLabel(0, units.thresholds).color), rr: states[3] == null ? unavailable : C(states[3].state.toUpperCase(), tireTempLabel(0, units.thresholds).color) },
       { label: m.analyse_dynamics_temp(), fl: temps[0] == null ? unavailable : C(tireTempLabel(temps[0], units.thresholds).label, tireTempLabel(temps[0], units.thresholds).color), fr: temps[1] == null ? unavailable : C(tireTempLabel(temps[1], units.thresholds).label, tireTempLabel(temps[1], units.thresholds).color), rl: temps[2] == null ? unavailable : C(tireTempLabel(temps[2], units.thresholds).label, tireTempLabel(temps[2], units.thresholds).color), rr: temps[3] == null ? unavailable : C(tireTempLabel(temps[3], units.thresholds).label, tireTempLabel(temps[3], units.thresholds).color) },
-      ...(analysis.surface.display === "per-wheel" ? [{ label: m.analyse_dynamics_surface(), fl: surfaceCell(0), fr: surfaceCell(1), rl: surfaceCell(2), rr: surfaceCell(3) }] : []),
+      ...(analysis.surface.source !== "unavailable" && analysis.surface.display === "per-wheel" ? [{ label: m.analyse_dynamics_surface(), fl: surfaceCell(0), fr: surfaceCell(1), rl: surfaceCell(2), rr: surfaceCell(3) }] : []),
     ]} />
     {gripMetric.source !== "unavailable" && <WheelTable title={m.analyse_dynamics_grip_ask()} borderTop rows={[{ label: m.analyse_dynamics_grip_ask(), fl: grip[0] == null ? unavailable : C(`${(grip[0] * 100).toFixed(0)}%`, frictionUtilColor(grip[0])), fr: grip[1] == null ? unavailable : C(`${(grip[1] * 100).toFixed(0)}%`, frictionUtilColor(grip[1])), rl: grip[2] == null ? unavailable : C(`${(grip[2] * 100).toFixed(0)}%`, frictionUtilColor(grip[2])), rr: grip[3] == null ? unavailable : C(`${(grip[3] * 100).toFixed(0)}%`, frictionUtilColor(grip[3])) }]} />}
     <WheelTable title={m.label_slip()} borderTop rows={[
@@ -135,6 +131,6 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
       ...((gameId === "fm-2023" || lateralSlipMetric.source !== "unavailable") ? [{ label: "Lateral slip", fl: lateralSlips[0] == null ? unavailable : C(lateralSlips[0].toFixed(3), severityRangeColor(Math.abs(lateralSlips[0]), [0.2, 0.5, 0.8])), fr: lateralSlips[1] == null ? unavailable : C(lateralSlips[1].toFixed(3), severityRangeColor(Math.abs(lateralSlips[1]), [0.2, 0.5, 0.8])), rl: lateralSlips[2] == null ? unavailable : C(lateralSlips[2].toFixed(3), severityRangeColor(Math.abs(lateralSlips[2]), [0.2, 0.5, 0.8])), rr: lateralSlips[3] == null ? unavailable : C(lateralSlips[3].toFixed(3), severityRangeColor(Math.abs(lateralSlips[3]), [0.2, 0.5, 0.8])) }] : []),
       ...(slipAngleMetric.source !== "unavailable" ? [{ label: m.analyse_dynamics_angle(), fl: slipAngles[0] == null ? unavailable : C(`${(slipAngles[0] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[0])), fr: slipAngles[1] == null ? unavailable : C(`${(slipAngles[1] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[1])), rl: slipAngles[2] == null ? unavailable : C(`${(slipAngles[2] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[2])), rr: slipAngles[3] == null ? unavailable : C(`${(slipAngles[3] * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[3])) }] : []),
     ]} />
-    {analysis.surface.display === "vehicle" && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span><span className="text-app-text">{vehicleSurface}</span></div>}
+    {analysis.surface.source !== "unavailable" && analysis.surface.display === "vehicle" && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span><span className="text-app-text">{vehicleSurface}</span></div>}
   </div>;
 }

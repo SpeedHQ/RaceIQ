@@ -20,7 +20,7 @@ function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
     "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
     "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
   };
-  return { values };
+  return { values, states: {}, freshness: {} };
 }
 function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));

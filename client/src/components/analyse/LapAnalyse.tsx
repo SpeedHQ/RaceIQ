@@ -397,6 +397,7 @@ function LapAnalyseInner() {
             onVisualFracChange: setVisualTimeFrac,
           }}
           chartsPanelProps={{
+            totalPackets: telemetry.length,
             displayTelemetry: semanticFrames,
             visualTimeFrac,
             onVisualFracChange: setVisualTimeFrac,

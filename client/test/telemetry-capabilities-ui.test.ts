@@ -18,7 +18,7 @@ import { fakeAccPacket, fakeF1Packet, fakeForzaPacket, fakePit } from "../src/st
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 
-initGameAdapters();
+initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 const units = {
   tempLabel: "°C",
   thresholds: { cold: 75, warm: 115, hot: 150 },

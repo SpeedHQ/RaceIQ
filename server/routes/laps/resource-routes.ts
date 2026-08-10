@@ -26,7 +26,12 @@ import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 function semanticReplayIds(): readonly string[] {
   return [...new Set([
     ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
-    "brakes.brake-bias",
+    "engine.current-engine-rpm",
+    "inputs.gear",
+    "inputs.accel",
+    "inputs.brake",
+    "inputs.steer",
+    "motion.speed",
     "motion.position-x",
     "motion.position-z",
     "motion.yaw",

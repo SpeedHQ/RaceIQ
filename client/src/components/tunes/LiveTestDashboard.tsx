@@ -20,7 +20,7 @@ function packetToSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
     "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.steer": packet.Steer, "inputs.gear": packet.Gear,
     "timing.distance-traveled": packet.DistanceTraveled, "timing.current-lap": packet.CurrentLap,
     "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
-  }};
+  }, states: {}, freshness: {} };
 }
 
 function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
@@ -31,7 +31,7 @@ function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
     "inputs.accel": view.inputs.throttle, "inputs.brake": view.inputs.brake, "inputs.steer": view.inputs.steer, "inputs.gear": view.inputs.gear,
     "timing.distance-traveled": view.motion.distanceM, "timing.current-lap": view.timing.currentLapS,
     "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
-  }};
+  }, states: {}, freshness: {} };
 }
 
 const MAX_LIVE_TRACE = 5000;

@@ -115,7 +115,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
-      focusTelemetry={focusTel?.envelopes.map((e) => ({ values: Object.fromEntries(e.values.map((v) => [v.semanticId, v.value])) })) ?? null}
+      focusTelemetry={focusTel?.envelopes.map((e) => ({ values: Object.fromEntries(e.values.map((v) => [v.semanticId, v.value])), states: {}, freshness: {} })) ?? null}
       focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorStarts ?? [] } : null}
       edges={edges}
       corners={corners ?? []}

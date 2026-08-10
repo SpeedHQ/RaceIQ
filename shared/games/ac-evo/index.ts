@@ -14,6 +14,8 @@ export const acEvoAdapter: GameAdapter = {
     pitStatus: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "race.pit-status" } },
     analysis: {
       slipAngle: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-angle" } },
+      slipRatio: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-ratio" } },
+      gripDemand: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["tires.tire-slip-ratio", "tires.tire-slip-angle"] } },
       lateralSlip: { source: "unavailable", reason: "source-limitation" },
       surface: { source: "unavailable", reason: "source-limitation" },
       suspensionTravel: { source: "direct", freshness: "continuous", display: "millimeters", binding: { kind: "value", semanticId: "suspension.suspension-travel-m" } },
