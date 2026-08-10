@@ -122,3 +122,46 @@ export function assertSemanticBinding(
     lookup(gameId, metric, semanticId, catalog);
   }
 }
+export function assertGameMetricContracts(
+  adapters: readonly import("./types").GameAdapter[],
+  catalog: TelemetryCatalogData,
+): void {
+  for (const adapter of adapters) {
+    const telemetry = adapter.telemetry;
+    for (const [metric, spec] of Object.entries(telemetry)) {
+      if (metric === "analysis" || !spec || typeof spec !== "object") continue;
+      if (!("binding" in spec) || !spec.binding) {
+        throw new Error(`${adapter.id}.${metric}: available metric missing binding`);
+      }
+      assertSemanticBinding(adapter.id, metric, spec.binding, catalog, "freshness" in spec ? { freshness: spec.freshness } : {});
+    }
+    for (const [metric, spec] of Object.entries(telemetry.analysis ?? {})) {
+      if (spec.source === "unavailable") continue;
+      if (!spec.binding) throw new Error(`${adapter.id}.${metric}: available metric missing binding`);
+      assertSemanticBinding(adapter.id, metric, spec.binding, catalog, {
+        display: spec.display === "per-wheel" || spec.display === "vehicle" ? spec.display : undefined,
+      });
+    }
+  }
+}
+
+export function requiredSemanticIds(
+  adapter: import("./types").GameAdapter,
+): readonly TelemetryVariableId[] {
+  const ids = new Set<TelemetryVariableId>();
+  const add = (binding: SemanticMetricBinding | undefined) => {
+    if (!binding) return;
+    if (binding.kind === "value") ids.add(binding.semanticId);
+    else if (binding.kind === "group") {
+      binding.required.forEach((id) => ids.add(id));
+      binding.optional?.forEach((id) => ids.add(id));
+    } else binding.requires.forEach((id) => ids.add(id));
+  };
+  for (const spec of Object.values(adapter.telemetry)) {
+    if (spec && typeof spec === "object" && "binding" in spec) add(spec.binding);
+  }
+  for (const spec of Object.values(adapter.telemetry.analysis ?? {})) {
+    if (spec.source !== "unavailable") add(spec.binding);
+  }
+  return [...ids];
+}

@@ -19,6 +19,11 @@ describe("analysis telemetry capabilities", () => {
     expect(analysis.gForce).toEqual({
       source: "derived",
       confidence: "exact",
+      binding: {
+        kind: "derived",
+        derivation: "g-force-v1",
+        requires: ["motion.acceleration-x", "motion.acceleration-z"],
+      },
     });
     expect(analysis.slipRatio).toEqual({
       source: "unavailable",
@@ -32,16 +37,19 @@ describe("analysis telemetry capabilities", () => {
       source: "direct",
       freshness: "pit-snapshot",
       display: "per-wheel",
+      binding: { kind: "value", semanticId: "tire.temperature.average" },
     });
     expect(analysis.tirePressure).toEqual({
       source: "direct",
       freshness: "static",
       display: "cold-pressure",
+      binding: { kind: "value", semanticId: "tires.tire-pressure" },
     });
     expect(analysis.suspensionTravel).toEqual({
       source: "direct",
       freshness: "continuous",
       display: "millimeters",
+      binding: { kind: "value", semanticId: "suspension.suspension-travel-m" },
     });
   });
 
@@ -89,10 +97,14 @@ describe("analysis telemetry capabilities", () => {
       source: "direct",
       freshness: "continuous",
       display: "millimeters",
+      binding: { kind: "value", semanticId: "suspension.suspension-travel-m" },
     });
-    expect(resolveAnalysisTelemetry(getGame("fm-2023")).slipRatio).toEqual(
-      DEFAULT_ANALYSIS_TELEMETRY.slipRatio,
-    );
+    expect(resolveAnalysisTelemetry(getGame("fm-2023")).slipRatio).toEqual({
+      source: "direct",
+      freshness: "continuous",
+      display: "per-wheel",
+      binding: { kind: "value", semanticId: "tires.tire-slip-ratio" },
+    });
   });
 });
 

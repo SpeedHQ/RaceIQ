@@ -40,73 +40,26 @@ export const iracingAdapter: GameAdapter = {
   shortName: "iRacing",
   routePrefix: "iracing",
   telemetry: {
-    fuel: { packetUnit: "litre" },
-    tireTemperature: { packetUnit: "celsius" },
-    tirePressure: { packetUnit: "psi" },
-    clutch: { source: "direct", freshness: "continuous" },
-    pitStatus: { source: "direct", freshness: "continuous" },
-    // The live SDK has no per-wheel rotation, slip-angle, or tire-force
-    // channels. Its four tire odometers are quantized in 100 m steps, so their
-    // derivatives cannot supply live wheel speed or slip either.
+    fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.fuel" } },
+    tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.average" } },
+    tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
+    clutch: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "inputs.clutch" } },
+    pitStatus: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "race.on-pit-road" } },
     analysis: {
-      balance: {
-        source: "unavailable",
-        reason: "missing-model",
-      },
-      gripDemand: {
-        source: "unavailable",
-        reason: "source-limitation",
-      },
-      traction: {
-        source: "unavailable",
-        reason: "source-limitation",
-      },
-      tireTemperature: {
-        source: "direct",
-        freshness: "pit-snapshot",
-        display: "per-wheel",
-      },
-      surface: {
-        source: "direct",
-        freshness: "continuous",
-        display: "vehicle",
-      },
-      slipRatio: {
-        source: "unavailable",
-        reason: "source-limitation",
-      },
-      slipAngle: {
-        source: "unavailable",
-        reason: "source-limitation",
-      },
-      wheelRotation: {
-        source: "unavailable",
-        reason: "source-limitation",
-      },
-      tireHealth: {
-        source: "direct",
-        freshness: "pit-snapshot",
-        display: "per-wheel",
-      },
-      tireWearRate: {
-        source: "unavailable",
-        reason: "source-limitation",
-      },
-      tirePressure: {
-        source: "direct",
-        freshness: "static",
-        display: "cold-pressure",
-      },
-      suspensionTravel: {
-        source: "direct",
-        freshness: "continuous",
-        display: "millimeters",
-      },
-      suspensionCompressionBias: {
-        source: "derived",
-        confidence: "exact",
-        display: "compression-bias",
-      },
+      balance: { source: "unavailable", reason: "missing-model" },
+      gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
+      gripDemand: { source: "unavailable", reason: "source-limitation" },
+      tireTemperature: { source: "direct", freshness: "pit-snapshot", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
+      surface: { source: "unavailable", reason: "source-limitation" },
+      slipRatio: { source: "unavailable", reason: "source-limitation" },
+      slipAngle: { source: "unavailable", reason: "source-limitation" },
+      lateralSlip: { source: "unavailable", reason: "source-limitation" },
+      wheelRotation: { source: "unavailable", reason: "source-limitation" },
+      tireHealth: { source: "direct", freshness: "pit-snapshot", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-wear" } },
+      tireWearRate: { source: "unavailable", reason: "source-limitation" },
+      tirePressure: { source: "direct", freshness: "static", display: "cold-pressure", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
+      suspensionTravel: { source: "direct", freshness: "continuous", display: "millimeters", binding: { kind: "value", semanticId: "suspension.suspension-travel-m" } },
+      suspensionCompressionBias: { source: "unavailable", reason: "source-limitation" },
     },
   },
   // iRacing's public telemetry exposes lap distance directly. It does not
