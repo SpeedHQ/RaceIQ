@@ -1,17 +1,18 @@
 import { memo, type RefObject, useEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 import { Button } from "../ui/button";
+
+const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
 
 interface SectorTimesData {
   times: number[];
   sectorCount: number;
   cursorSector: number;
 }
-
 interface TimelineScrubberProps {
-  displayTelemetry: TelemetryPacket[];
+  displayTelemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   totalPackets: number;
   currentTime: number;
@@ -58,20 +59,21 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   );
   const timelineData = useMemo(() => {
     if (displayTelemetry.length === 0) return null;
-    const startTime = displayTelemetry[0].CurrentLap;
-    // Use max CurrentLap as end time — last packet may have reset to next lap
+    const startTime = currentLap(displayTelemetry[0]);
+    // Use max current-lap as end time — last frame may have reset to next lap
     let maxTime = startTime;
-    for (const p of displayTelemetry) {
-      if (p.CurrentLap > maxTime) maxTime = p.CurrentLap;
+    for (const frame of displayTelemetry) {
+      const time = currentLap(frame);
+      if (time > maxTime) maxTime = time;
     }
     const lapDuration = maxTime - startTime || 1;
     let prevFrac = 0;
-    const timeFracs = displayTelemetry.map((p) => {
-      const frac = Math.max(prevFrac, (p.CurrentLap - startTime) / lapDuration);
+    const timeFracs = displayTelemetry.map((frame) => {
+      const frac = Math.max(prevFrac, (currentLap(frame) - startTime) / lapDuration);
       prevFrac = frac;
       return frac;
     });
-    const times = displayTelemetry.map((p) => p.CurrentLap);
+    const times = displayTelemetry.map(currentLap);
     return { timeFracs, times };
   }, [displayTelemetry]);
 

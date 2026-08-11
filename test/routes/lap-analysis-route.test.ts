@@ -1,6 +1,33 @@
 import { describe, expect, test } from "bun:test";
 
+import { initGameAdapters } from "../../shared/games/init";
+
 import { lapRoutes } from "../../server/routes/laps";
+import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
+
+initGameAdapters();
+
+test("semantic replay requests lap-relative timing", () => {
+  expect(semanticReplayIds()).toContain("timing.current-lap");
+});
+test("semantic replay requests every Analyse Data panel dependency", () => {
+  const ids = semanticReplayIds();
+  for (const id of [
+    "brakes.brake-bias",
+    "fuel.ers-deployed",
+    "fuel.ers-harvested",
+    "fuel.fuel-capacity",
+    "identity.car-ordinal",
+    "identity.player-track-surface",
+    "tires.wheel-in-puddle-depth",
+    "suspension.norm-suspension-travel",
+    "tires.normalized-tire-slip-angle",
+    "tires.tire-radius",
+    "tires.wheel-on-rumble-strip",
+  ]) {
+    expect(ids).toContain(id);
+  }
+});
 
 describe("POST /api/laps/:id/analyse", () => {
   test("keeps missing-lap HTTP error before regenerate stream", async () => {

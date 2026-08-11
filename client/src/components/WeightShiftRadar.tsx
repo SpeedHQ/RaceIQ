@@ -1,19 +1,27 @@
 import { useEffect, useRef } from "react";
 import { severityRangeColor } from "@/lib/colors";
+import { normalizeSuspensionTravel } from "@/lib/suspension";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
+import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-
 /**
  * WeightShiftRadar — Canvas-drawn weight transfer visualization.
  * Uses the 4 normalized suspension travel values (0-1) to compute
  * where weight is concentrated. More compression = more load on that corner.
  * Dot position is the weighted centroid of the four corners.
  */
-export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
+export function WeightShiftRadar({ packet, frame }: { packet?: TelemetryPacket; frame?: SemanticAnalysisFrame }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 85;
+
+  const suspension = frame?.values["suspension.norm-suspension-travel"];
+  const semanticLoads = Array.isArray(suspension)
+    ? suspension.map((value) => (typeof value === "number" && Number.isFinite(value) ? value : 0))
+    : frame?.values["suspension.suspension-travel-m"] && Array.isArray(frame.values["suspension.suspension-travel-m"])
+      ? normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"])
+      : null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -62,9 +70,8 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     ctx.lineTo(cx, cy + r * 0.6);
     ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 10%, transparent)";
     ctx.stroke();
-
+    const loads = semanticLoads ?? (packet ? [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR] : [0, 0, 0, 0]);
     // Suspension loads (0-1 normalized, higher = more compressed = more load)
-    const loads = [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR];
 
     const totalLoad = loads[0] + loads[1] + loads[2] + loads[3];
 
@@ -109,7 +116,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     ctx.fillStyle = dotColor;
     ctx.fill();
     ctx.globalAlpha = 1;
-  }, [packet]);
+  }, [packet, semanticLoads]);
 
   return (
     <div className="relative flex flex-col items-center">

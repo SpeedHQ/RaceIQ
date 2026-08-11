@@ -6,6 +6,7 @@ import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { LiveProjection } from "./live-projector";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
@@ -122,13 +123,20 @@ export interface SessionRecorderAdapter {
   stop(): Promise<void>;
 }
 
+export interface LiveTelemetryPublication {
+  packet: TelemetryPacket;
+  sectors?: LiveSectorData | null;
+  pit?: LivePitData | null;
+  liveIssues?: TuneIssue[];
+  projection?: LiveProjection;
+}
+
 export interface WsAdapter {
-  broadcast(
-    packet: TelemetryPacket,
-    sectors?: LiveSectorData | null,
-    pit?: LivePitData | null,
-    liveIssues?: TuneIssue[]
-  ): void;
+  /** Legacy packet capture hook retained for callers/tests. */
+  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void;
+  readonly wantsDevTelemetry?: boolean;
+  stageDevTelemetry(packet: TelemetryPacket): void;
+  publishTelemetry(publication: LiveTelemetryPublication): void;
   broadcastNotification(event: Record<string, unknown>): void;
   broadcastDevState(state: Record<string, unknown>): void;
 }
@@ -248,7 +256,10 @@ export class CapturingDbAdapter implements DbAdapter {
 
 /** No-op WebSocket adapter. Used in tests. */
 export class NullWsAdapter implements WsAdapter {
+  readonly wantsDevTelemetry = false;
   broadcast(_packet: TelemetryPacket, _sectors?: LiveSectorData | null, _pit?: LivePitData | null, _liveIssues?: TuneIssue[]): void {}
+  stageDevTelemetry(_packet: TelemetryPacket): void {}
+  publishTelemetry(_publication: LiveTelemetryPublication): void {}
   broadcastNotification(_event: Record<string, unknown>): void {}
   broadcastDevState(_state: Record<string, unknown>): void {}
 }
@@ -330,27 +341,22 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
   flush(): void {}
   async stop(): Promise<void> {}
 }
-
 /** Capturing WebSocket adapter that records all events. Used in tests. */
 export class CapturingWsAdapter implements WsAdapter {
   readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: TuneIssue[] }> = [];
   readonly broadcastedNotifications: Record<string, unknown>[] = [];
   readonly broadcastedDevStates: Record<string, unknown>[] = [];
+  readonly stagedDevTelemetry: TelemetryPacket[] = [];
   private readonly capturePackets: boolean;
-
-  constructor(capturePackets = true) {
-    this.capturePackets = capturePackets;
-  }
-
+  readonly wantsDevTelemetry = true;
+  constructor(capturePackets = true) { this.capturePackets = capturePackets; }
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
     if (this.capturePackets) this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });
   }
-
-  broadcastNotification(event: Record<string, unknown>): void {
-    this.broadcastedNotifications.push(event);
+  stageDevTelemetry(packet: TelemetryPacket): void { this.stagedDevTelemetry.push(packet); }
+  publishTelemetry(publication: LiveTelemetryPublication): void {
+    this.broadcast(publication.packet, publication.sectors, publication.pit, publication.liveIssues);
   }
-
-  broadcastDevState(state: Record<string, unknown>): void {
-    this.broadcastedDevStates.push(state);
-  }
+  broadcastNotification(event: Record<string, unknown>): void { this.broadcastedNotifications.push(event); }
+  broadcastDevState(state: Record<string, unknown>): void { this.broadcastedDevStates.push(state); }
 }

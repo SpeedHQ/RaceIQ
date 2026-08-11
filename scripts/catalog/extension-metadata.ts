@@ -72,8 +72,10 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.motionEx.rearRollAngle": "motion.rear-axle-roll-angle",
   "f1.motionEx.chassisYaw": "motion.yaw",
   "f1.motionEx.chassisPitch": "motion.pitch",
+  "acc.brakePadWear": "damage.brake-pad-wear",
+  "acc.tireRadius": "tires.tire-radius",
+  "acc.tireCamber": "tires.tire-camber",
   "acc.tireCoreTemp": "tire.temperature.carcass.average",
-  "acc.tireInnerTemp": "tire.temperature.surface.inner",
   "acc.tireMiddleTemp": "tire.temperature.surface.middle",
   "acc.tireOuterTemp": "tire.temperature.surface.outer",
   "acc.tireCompound": "tires.tire-compound-name",
@@ -134,6 +136,15 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
       },
     ]),
   ),
+  "acc.brakePadWear": {
+    unit: "mm",
+    description: "Brake pad wear in millimetres, FL/FR/RL/RR.",
+  },
+  "acc.tireRadius": {
+    unit: "m",
+    description: "Tire radius in metres, FL/FR/RL/RR.",
+    freshness: "static",
+  },
   "f1.currentLapInvalid": {
     unit: "boolean",
     description: "Whether F1 has invalidated current lap.",

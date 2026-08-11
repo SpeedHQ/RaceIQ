@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "../../../shared/games/ids";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { getLapById } from "../../db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
 import { getCorners, saveCorners } from "../../db/track-queries";
@@ -64,8 +65,32 @@ export const comparisonRoutes = new Hono()
         }
       }
     }
-
     const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+    const semanticIds = [
+      "motion.position-x",
+      "motion.position-z",
+      "motion.yaw",
+      "motion.speed",
+      "inputs.accel",
+      "inputs.brake",
+      "engine.current-engine-rpm",
+      "tires.tire-wear",
+      "timing.distance-traveled",
+      "timing.current-lap",
+    ] as const;
+    const [replayA, replayB] = await Promise.all([
+      queryLapTelemetryBySemanticId(id1, semanticIds),
+      queryLapTelemetryBySemanticId(id2, semanticIds),
+    ]);
+    if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
+      return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
+    }
+    const toSamples = (replay: typeof replayA) =>
+      replay.envelopes.map((envelope) => ({
+        sequence: envelope.sequence.toString(),
+        observedAtMs: envelope.observedAt.domain === "monotonic" ? Number(envelope.observedAt.nanoseconds) / 1_000_000 : envelope.observedAt.milliseconds,
+        values: Object.fromEntries(envelope.values.filter((entry) => entry.state === "ok").map((entry) => [entry.semanticId, entry.value])),
+      }));
 
     return c.json({
       lapA: {
@@ -97,8 +122,8 @@ export const comparisonRoutes = new Hono()
       },
       timeDelta: result.timeDelta,
       corners: result.cornerDeltas,
-      telemetryA: lapA.telemetry,
-      telemetryB: lapB.telemetry,
+      telemetryA: toSamples(replayA),
+      telemetryB: toSamples(replayB),
       gameId: lapA.gameId,
     });
   })

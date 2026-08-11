@@ -1,6 +1,11 @@
 import { memo, useMemo } from "react";
 import { m } from "@/paraglide/messages";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "./track-map/types";
+
+export type { SemanticAnalysisFrame } from "./track-map/types";
+
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 interface Segment {
   type: string;
@@ -10,31 +15,36 @@ interface Segment {
 }
 
 interface SegmentListProps {
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   segments: Segment[] | null;
   cursorIdx: number;
 }
 
-export function buildSegmentData(telemetry: TelemetryPacket[], segments: Segment[]) {
+export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[]) {
   if (segments.length === 0 || telemetry.length < 10) return null;
   const n = telemetry.length;
   const cumDist = new Array<number>(n);
   cumDist[0] = 0;
 
-  const firstDistance = telemetry[0].DistanceTraveled;
-  const lapDistance = telemetry[n - 1].DistanceTraveled - firstDistance;
-  if (Number.isFinite(lapDistance) && lapDistance > 0) {
+  const firstDistance = numeric(telemetry[0], "timing.distance-traveled");
+  const lastDistance = numeric(telemetry[n - 1], "timing.distance-traveled");
+  const lapDistance = firstDistance != null && lastDistance != null ? lastDistance - firstDistance : null;
+  if (lapDistance != null && lapDistance > 0) {
     for (let i = 1; i < n; i++) {
-      const distance = telemetry[i].DistanceTraveled - firstDistance;
-      cumDist[i] = Number.isFinite(distance) ? Math.max(cumDist[i - 1], distance) : cumDist[i - 1];
+      const distance = numeric(telemetry[i], "timing.distance-traveled");
+      const relative = distance != null && firstDistance != null ? distance - firstDistance : null;
+      cumDist[i] = relative != null ? Math.max(cumDist[i - 1], relative) : cumDist[i - 1];
     }
   } else {
     for (let i = 1; i < n; i++) {
-      const p = telemetry[i];
-      const previous = telemetry[i - 1];
-      const dx = p.PositionX - previous.PositionX;
-      const dz = p.PositionZ - previous.PositionZ;
-      cumDist[i] = cumDist[i - 1] + Math.hypot(dx, dz);
+      const x = numeric(telemetry[i], "motion.position-x");
+      const z = numeric(telemetry[i], "motion.position-z");
+      const previousX = numeric(telemetry[i - 1], "motion.position-x");
+      const previousZ = numeric(telemetry[i - 1], "motion.position-z");
+      cumDist[i] =
+        x != null && z != null && previousX != null && previousZ != null
+          ? cumDist[i - 1] + Math.hypot(x - previousX, z - previousZ)
+          : cumDist[i - 1];
     }
   }
 
@@ -65,7 +75,7 @@ export function buildSegmentData(telemetry: TelemetryPacket[], segments: Segment
     return {
       name: displayNames[index],
       type: segment.type,
-      time: (telemetry[endIdx]?.CurrentLap ?? 0) - (telemetry[startIdx]?.CurrentLap ?? 0),
+      time: (numeric(telemetry[endIdx], "timing.current-lap") ?? 0) - (numeric(telemetry[startIdx], "timing.current-lap") ?? 0),
       startFrac: segment.startFrac,
       endFrac: segment.endFrac,
     };

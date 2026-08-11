@@ -2,18 +2,16 @@ import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
-import { useLaps as useLapsQuery, useLapTelemetry } from "../../hooks/laps";
+import { useLaps as useLapsQuery, useLapSemanticTelemetry } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
-import { useConvertedTelemetry } from "../../hooks/useConvertedTelemetry";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
-import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapLabel } from "./track-map/types";
-
-const emptyTelemetry: TelemetryPacket[] = [];
+import { semanticValues, type Point, type SectorBoundaries, type SemanticAnalysisFrame, type TrackMapBoundaries, type TrackMapLabel } from "./track-map/types";
+import type { SemanticReplayFrame } from "../../hooks/laps";
+interface AnalyseSemanticFrame { sequence: number; observedAtMs: number; values: SemanticAnalysisFrame["values"]; states: Readonly<Record<string, string | undefined>>; freshness: Readonly<Record<string, string | undefined>>; }
 const emptyLaps: LapMeta[] = [];
 
 export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0]) {
@@ -22,15 +20,26 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
   const [selectedCar, setSelectedCar] = useState<number | null>(search.car ?? null);
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
-  const { data: lapData, isLoading: lapLoading, error: lapError } = useLapTelemetry(selectedLapId);
-  const parseError = (lapData as { parseError?: string } | undefined)?.parseError;
-  const telemetry = lapData?.telemetry ?? emptyTelemetry;
-  const displayTelemetry = useConvertedTelemetry(telemetry);
+  const { data: allLaps = emptyLaps } = useLapsQuery();
+  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
+  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(() => semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
+    sequence: envelope.sequence,
+    observedAtMs: envelope.observedAt.milliseconds,
+    values: semanticValues(envelope.values),
+    states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
+    freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
+  })) ?? [], [semanticReplay]);
+  const telemetry = semanticFrames;
+  const displayTelemetry = semanticFrames;
+  const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
+  const lapLoading = semanticLoading;
+  const parseError = null;
+  const lapError = semanticError;
   useEffect(() => {
-    if (selectedTrack == null && lapData?.trackOrdinal != null) setSelectedTrack(lapData.trackOrdinal);
-    if (selectedCar == null && lapData?.carOrdinal != null) setSelectedCar(lapData.carOrdinal);
-  }, [lapData, selectedTrack, selectedCar]);
-  const trackOrd = selectedTrack ?? lapData?.trackOrdinal ?? null;
+    if (selectedTrack == null && selectedLap?.trackOrdinal != null) setSelectedTrack(selectedLap.trackOrdinal);
+    if (selectedCar == null && selectedLap?.carOrdinal != null) setSelectedCar(selectedLap.carOrdinal);
+  }, [selectedLap, selectedTrack, selectedCar]);
+  const trackOrd = selectedTrack ?? selectedLap?.trackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
@@ -47,7 +56,17 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
   const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
-  const sectorData = lapData?.sectorTimes ?? null;
+  const sectorData = useMemo<{ sectorStarts: number[]; sectorCount: number; firstDist: number; lapDist: number; times: number[] } | null>(() => {
+    if (!semanticReplay || semanticFrames.length < 2) return null;
+    const distances = semanticFrames.map((frame) => frame.values["timing.distance-traveled"]).filter((value): value is number => typeof value === "number");
+    const firstDist = distances[0] ?? 0;
+    const lapDist = (distances.at(-1) ?? 0) - firstDist;
+    const rawSectors = sectorsRaw && typeof sectorsRaw === "object" ? (sectorsRaw as { s1End?: number; s2End?: number }) : null;
+    const starts = semanticReplay.sectorStarts ?? (rawSectors?.s1End != null && rawSectors.s2End != null ? [0, rawSectors.s1End, rawSectors.s2End] : null);
+    if (!starts?.length) return null;
+    const times = semanticReplay.sectorTimes ?? [];
+    return { sectorStarts: starts, sectorCount: starts.length, firstDist, lapDist, times };
+  }, [semanticReplay, semanticFrames, sectorsRaw]);
   const sectors = useMemo(() => {
     if (getGame(gameId).nativeSectors) return sectorData ? ({ sectorStarts: sectorData.sectorStarts, sectorCount: sectorData.sectorCount } satisfies SectorBoundaries) : null;
     if (!sectorsRaw || typeof sectorsRaw !== "object") return null;
@@ -75,7 +94,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [leftColWidth, setLeftColWidth] = useCookieState("analyse-leftCol", 150);
   const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
   const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
-  const { data: allLaps = emptyLaps } = useLapsQuery();
   useEffect(() => {
     setLaps(allLaps.filter((l) => l.lapTime > 0));
   }, [allLaps]);
@@ -141,12 +159,13 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   return {
     laps,
     setLaps,
-    lapData,
     lapLoading,
     lapError,
     parseError,
     telemetry,
     displayTelemetry,
+    semanticReplay,
+    semanticFrames,
     selectedTrack,
     setSelectedTrack,
     selectedCar,

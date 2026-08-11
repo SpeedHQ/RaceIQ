@@ -10,6 +10,19 @@ export function readPath(value: unknown, path: readonly string[]): unknown {
   }
   return value;
 }
+export function readCollectionPath(value: unknown, path: readonly string[]): unknown {
+  if (path.length === 0) return value;
+  const [key, ...rest] = path;
+  if (key.endsWith("[]")) {
+    const collectionKey = key.slice(0, -2);
+    if (value === null || typeof value !== "object") return undefined;
+    const collection = (value as NativeObject)[collectionKey];
+    if (!Array.isArray(collection)) return undefined;
+    return collection.map((item) => readCollectionPath(item, rest));
+  }
+  if (value === null || typeof value !== "object") return undefined;
+  return readCollectionPath((value as NativeObject)[key], rest);
+}
 export const INVALID_VALUE = Symbol("invalid telemetry value");
 export function packetField(frame: NativeObject, field: keyof TelemetryPacket): unknown {
   return frame[field] ??

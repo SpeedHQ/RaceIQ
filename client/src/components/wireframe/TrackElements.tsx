@@ -1,15 +1,15 @@
 import { Line } from "@react-three/drei";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry } from "../../lib/wireframe-utils";
 
-export function TrackOutline({ outline, packet, distAhead }: { outline: { x: number; z: number }[]; packet: TelemetryPacket; distAhead?: number }) {
+export function TrackOutline({ outline, packet, distAhead }: { outline: { x: number; z: number }[]; packet: SemanticAnalysisFrame; distAhead?: number }) {
   const ahead = distAhead ?? DIST_AHEAD;
   // One-time index build per outline — stable while the reference is stable
   // (React Query returns the same object until refetch).
   const index = useMemo(() => buildTrackIndex(outline), [outline]);
-  const segments = useMemo(() => filterByDistanceIndexed(index, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44, ahead), [index, packet.PositionX, packet.PositionZ, packet.Yaw, ahead]);
+  const segments = useMemo(() => filterByDistanceIndexed(index, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), -0.44, ahead), [index, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), ahead]);
 
   if (segments.length === 0) return null;
 
@@ -29,7 +29,7 @@ export function TrackBoundaryEdges({
   distAhead,
 }: {
   boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] };
-  packet: TelemetryPacket;
+  packet: SemanticAnalysisFrame;
   tireRadius?: number;
   distAhead?: number;
 }) {
@@ -59,12 +59,12 @@ export function TrackBoundaryEdges({
   // Filter by distance, then fill the pre-allocated buffers in place.
   // useLayoutEffect so geometry updates land before the next paint.
   const leftSegsGround = useMemo(
-    () => filterByDistanceIndexed(leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead),
-    [leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead],
+    () => filterByDistanceIndexed(leftIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead),
+    [leftIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead],
   );
   const rightSegsGround = useMemo(
-    () => filterByDistanceIndexed(rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead),
-    [rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead],
+    () => filterByDistanceIndexed(rightIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead),
+    [rightIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead],
   );
 
   useLayoutEffect(() => {

@@ -41,6 +41,7 @@
         "lighthouse": "^13.4.1",
         "pixelmatch": "^7.2.0",
         "portless": "^0.15.5",
+        "typescript": "^7.0.2",
       },
       "optionalDependencies": {
         "@libsql/darwin-arm64": "^0.5.29",

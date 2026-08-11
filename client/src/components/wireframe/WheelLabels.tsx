@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { severityRangeColor } from "../../lib/colors";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
@@ -125,7 +125,7 @@ export function WheelInfoCard({
     return { canvas, ctx, texture, material };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ctx) return;
     if (canvas.width !== CARD_W) canvas.width = CARD_W;
     if (canvas.height !== cardH) canvas.height = cardH;

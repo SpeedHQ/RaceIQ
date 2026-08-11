@@ -1,6 +1,10 @@
 import { afterAll, describe, test } from "bun:test";
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
+import { getGame } from "../../../shared/games/registry";
+import { initGameAdapters } from "../../../shared/games/init";
+import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
+initGameAdapters();
 
 const RECORDING = "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz";
 
@@ -44,6 +48,7 @@ describe("iRacing telemetry catalog coverage", () => {
       await assertRecordedCatalogCoverage({
         gameId: "iracing",
         recording: RECORDING,
+        requiredSemanticIds: requiredSemanticIds(getGame("iracing")),
         lapDynamics: [
           ...changingPacketFields(DYNAMIC_UI_FIELDS),
           { name: "lap distance percentage", read: (packet) => packet.iracing?.lapDistancePct },

@@ -100,13 +100,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
             <Row label={m.dataguide_g_force()} desc="Lateral (cornering) and longitudinal (braking/acceleration) g-forces." />
             <Row
               label={m.dataguide_grip_ask()}
-              desc={
-                <>
-                  Friction circle utilisation per tire, from physics signals: <span className="text-app-text">hypot(|slipRatio|/0.15, |slipAngle|/10°)</span>. Slip ratio is derived from wheel rotation
-                  vs ground speed (SAE J670, not the game's raw slip field). <span className="text-app-text">100%</span> = at peak grip · <span className="text-app-text">&gt;100%</span> = past peak.{" "}
-                  Universal across FM, F1, and ACC.
-                </>
-              }
+              desc="Grip Ask uses source-native combined slip where available; physical friction-circle utilisation requires physical slip angle. Forza lateral slip remains a dimensionless ratio, not degrees."
             />
             <Row
               label={m.dataguide_traction()}

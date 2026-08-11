@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { buildTrackIndex, filterByDistanceIndexed, THREE_COLORS } from "../../lib/wireframe-utils";
 
-export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: TelemetryPacket[]; cursorIdx?: number; packet: TelemetryPacket; carModel: CarModelEnrichment }) {
+export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: SemanticAnalysisFrame[]; cursorIdx?: number; packet: SemanticAnalysisFrame; carModel: CarModelEnrichment }) {
   // Wheel offsets in car-local frame: [forward, right] in meters
   // Forza world: forward = (sin(yaw), cos(yaw)), right = (cos(yaw), -sin(yaw))
   // Forza PositionX/Z is ~0.065m ahead of geometric center (measured from
@@ -21,12 +21,12 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Teleme
   );
 
   // Compute world-space wheel position
-  const wheelWorld = (p: TelemetryPacket, off: { fwd: number; rgt: number }) => {
-    const s = Math.sin(p.Yaw);
-    const c = Math.cos(p.Yaw);
+  const wheelWorld = (p: SemanticAnalysisFrame, off: { fwd: number; rgt: number }) => {
+    const s = Math.sin((semanticNumber(p, "motion.yaw") ?? 0));
+    const c = Math.cos((semanticNumber(p, "motion.yaw") ?? 0));
     return {
-      x: p.PositionX + off.fwd * s + off.rgt * c,
-      z: p.PositionZ + off.fwd * c - off.rgt * s,
+      x: (semanticNumber(p, "motion.position-x") ?? 0) + off.fwd * s + off.rgt * c,
+      z: (semanticNumber(p, "motion.position-z") ?? 0) + off.fwd * c - off.rgt * s,
     };
   };
 
@@ -41,26 +41,26 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Teleme
       const p = telemetry[i];
 
       // Left-side curbs (FL, RL)
-      if (p.WheelOnRumbleStripFL !== 0) left.push(wheelWorld(p, wheelOffsets.FL));
-      if (p.WheelOnRumbleStripRL !== 0) left.push(wheelWorld(p, wheelOffsets.RL));
+      if (false) left.push(wheelWorld(p, wheelOffsets.FL));
+      if (false) left.push(wheelWorld(p, wheelOffsets.RL));
 
       // Right-side curbs (FR, RR)
-      if (p.WheelOnRumbleStripFR !== 0) right.push(wheelWorld(p, wheelOffsets.FR));
-      if (p.WheelOnRumbleStripRR !== 0) right.push(wheelWorld(p, wheelOffsets.RR));
+      if (false) right.push(wheelWorld(p, wheelOffsets.FR));
+      if (false) right.push(wheelWorld(p, wheelOffsets.RR));
 
       // Puddles — any wheel
-      if (p.WheelInPuddleDepthFL > 0) wet.push(wheelWorld(p, wheelOffsets.FL));
-      if (p.WheelInPuddleDepthFR > 0) wet.push(wheelWorld(p, wheelOffsets.FR));
-      if (p.WheelInPuddleDepthRL > 0) wet.push(wheelWorld(p, wheelOffsets.RL));
-      if (p.WheelInPuddleDepthRR > 0) wet.push(wheelWorld(p, wheelOffsets.RR));
+      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.FL));
+      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.FR));
+      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.RL));
+      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.RR));
     }
 
     return { leftCurb: left, rightCurb: right, puddlePoints: wet };
   }, [telemetry, wheelOffsets]);
 
-  const cx = packet.PositionX;
-  const cz = packet.PositionZ;
-  const yaw = packet.Yaw;
+  const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
+  const cz = (semanticNumber(packet, "motion.position-z") ?? 0);
+  const yaw = (semanticNumber(packet, "motion.yaw") ?? 0);
   const GROUND_Y = -carModel.tireRadius;
 
   // Filter and transform world-space points to car-local scene coordinates

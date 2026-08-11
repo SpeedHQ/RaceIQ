@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
+import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import { useSettings } from "../../hooks/settings";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
 import type { AnalyseSearch } from "../../lib/game-routes";
-import { buildExportCsv } from "../../lib/lap-export";
 import { client } from "../../lib/rpc";
 import { useRequiredGameId } from "../../stores/game";
 import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
@@ -16,7 +15,7 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import type { Point, TrackMapHandle } from "./track-map/types";
+import { semanticNumber, type Point, type TrackMapHandle } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 
@@ -31,16 +30,15 @@ function LapAnalyseInner() {
   const units = useUnits();
   const gameId = useRequiredGameId();
   const queryClient = useQueryClient();
-  const { displaySettings } = useSettings();
   const {
     laps,
     setLaps,
-    lapData,
     lapLoading,
     lapError,
     parseError,
     telemetry,
-    displayTelemetry,
+    semanticFrames,
+    semanticReplay,
     selectedTrack,
     setSelectedTrack,
     selectedCar,
@@ -94,19 +92,22 @@ function LapAnalyseInner() {
   const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
-  const [showSetup, setShowSetup] = useState(false);
   const lapLine = useMemo(() => {
     if (telemetry.length < 2) return null;
     const pts: Point[] = [];
-    for (const p of telemetry) if (p.PositionX !== 0 || p.PositionZ !== 0) pts.push({ x: p.PositionX, z: p.PositionZ });
+    for (const p of telemetry) {
+      const x = semanticNumber(p, "motion.position-x");
+      const z = semanticNumber(p, "motion.position-z");
+      if (x != null || z != null) pts.push({ x: x ?? 0, z: z ?? 0 });
+    }
     return pts.length > 2 ? pts : null;
   }, [telemetry]);
   const playRef = useRef(false);
   const speedRef = useRef(1);
-  const displayTelemetryRef = useRef(displayTelemetry);
+  const displayTelemetryRef = useRef(semanticFrames);
   useEffect(() => {
-    displayTelemetryRef.current = displayTelemetry;
-  }, [displayTelemetry]);
+    displayTelemetryRef.current = semanticFrames;
+  }, [semanticFrames]);
   const seekRef = useRef(0);
   const trackMapRef = useRef<TrackMapHandle>(null);
   const lastStateUpdateRef = useRef(0);
@@ -171,9 +172,7 @@ function LapAnalyseInner() {
     };
     w.__pauseAnimation = () => setPlaying(false);
     w.__totalFrames = telemetry.length;
-    // Per-frame lap timestamps (seconds) so the recorder can offset the start
-    // by real seconds, not a guessed fraction.
-    w.__frameTimes = telemetry.map((p) => p.CurrentLap);
+    w.__frameTimes = telemetry.map((p) => semanticNumber(p, "timing.current-lap") ?? 0);
     return () => {
       w.__setFrame = undefined;
       w.__pauseAnimation = undefined;
@@ -201,16 +200,16 @@ function LapAnalyseInner() {
     setPlaying,
   });
 
-  // Derive cursor sector cheaply from precomputed server data
   const sectorTimes = useMemo(() => {
     if (!sectorData || !sectors) return null;
-    const cursorFrac = telemetry.length > 1 ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist : 0;
+    const cursorDistance = semanticNumber(telemetry[cursorIdx], "timing.distance-traveled") ?? 0;
+    const cursorFrac = telemetry.length > 1 ? (cursorDistance - sectorData.firstDist) / sectorData.lapDist : 0;
     let cursorSector = 0;
     for (let index = 1; index < sectors.sectorStarts.length; index++) {
       if (cursorFrac < sectors.sectorStarts[index]) break;
       cursorSector = index;
     }
-    return { ...sectorData, cursorSector };
+    return { ...sectorData, times: sectorData.times, cursorSector };
   }, [sectorData, sectors, telemetry, cursorIdx]);
 
   const handleChartClick = useCallback(
@@ -228,27 +227,25 @@ function LapAnalyseInner() {
     playRef.current = false;
   }, []);
 
-  const currentPacket = telemetry[cursorIdx] ?? null;
-  const currentDisplayPacket = displayTelemetry[cursorIdx] ?? null;
+  const currentFrame = telemetry[cursorIdx] ?? null;
   const wearRate = useMemo(() => {
-    if (!currentPacket || telemetry.length < 2) return null;
-    const windowIdx = Math.max(0, cursorIdx - 60);
-    const windowPacket = telemetry[windowIdx];
-    const dt = currentPacket.CurrentLap - windowPacket.CurrentLap;
-    if (dt <= 0.1) return null;
-    return {
-      FL: (currentPacket.TireWearFL - windowPacket.TireWearFL) / dt,
-      FR: (currentPacket.TireWearFR - windowPacket.TireWearFR) / dt,
-      RL: (currentPacket.TireWearRL - windowPacket.TireWearRL) / dt,
-      RR: (currentPacket.TireWearRR - windowPacket.TireWearRR) / dt,
-    };
-  }, [currentPacket, cursorIdx, telemetry]);
-  // Insights computed server-side, included in the initial lap fetch
-  const lapInsights = useMemo(() => lapData?.insights ?? [], [lapData]);
-
-  // Cursor state already publishes at 30 Hz during playback. Read interpolated
-  // time on those renders instead of driving a second 60 Hz parent render loop.
-  const currentTime = playing ? interpolatedTimeRef.current : currentPacket ? currentPacket.CurrentLap : 0;
+    if (!currentFrame || telemetry.length < 2) return null;
+    const previous = telemetry[Math.max(0, cursorIdx - 60)];
+    const currentTime = semanticNumber(currentFrame, "timing.current-lap");
+    const previousTime = semanticNumber(previous, "timing.current-lap");
+    const dt = (currentTime ?? 0) - (previousTime ?? 0);
+    const currentWear = currentFrame.values["tires.tire-wear"];
+    const previousWear = previous.values["tires.tire-wear"];
+    if (dt <= 0.1 || !Array.isArray(currentWear) || !Array.isArray(previousWear)) return null;
+    const values = [0, 1, 2, 3].map((index) => {
+      const current = currentWear[index];
+      const prior = previousWear[index];
+      return typeof current === "number" && typeof prior === "number" ? (current - prior) / dt : null;
+    });
+    return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
+  }, [currentFrame, cursorIdx, telemetry]);
+  const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
+  const currentTime = playing ? interpolatedTimeRef.current : semanticNumber(currentFrame, "timing.current-lap") ?? 0;
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const totalTime = selectedLap?.lapTime ?? 0;
 
@@ -298,13 +295,8 @@ function LapAnalyseInner() {
     deleteLapMutation.mutate(selectedLapId);
   }, [selectedLapId, filteredLaps, deleteLapMutation]);
 
-  // Export handler
-  const handleExport = useCallback(() => {
-    if (telemetry.length === 0) return;
-    buildExportCsv(telemetry, carName, trackName, selectedLap, selectedLapId, displaySettings.driverName);
-  }, [telemetry, selectedLapId, selectedLap, carName, trackName]);
 
-  const { exportingBin, importingBin, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
+  const { exportingBin, importingBin, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
     gameId,
     setSelectedTrack,
@@ -316,6 +308,8 @@ function LapAnalyseInner() {
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
+        onExport={() => undefined}
+        onExportBin={() => undefined}
         selectedTrack={selectedTrack}
         selectedCar={selectedCar}
         selectedLapId={selectedLapId}
@@ -326,7 +320,7 @@ function LapAnalyseInner() {
         carsForTrack={carsForTrack}
         filteredLaps={filteredLaps}
         hasTelemetry={telemetry.length > 0}
-        hasF1Setup={!!telemetry[0]?.f1?.setup}
+        hasF1Setup={false}
         availableTunes={availableTunes}
         tunePending={updateLapTune.isPending}
         loading={loading}
@@ -336,9 +330,7 @@ function LapAnalyseInner() {
         onLapChange={setSelectedLapId}
         onTuneChange={(tuneId) => updateLapTune.mutate(tuneId)}
         onViewTune={setViewingTuneId}
-        onShowSetup={() => setShowSetup(true)}
-        onExport={handleExport}
-        onExportBin={() => void handleExportBin(selectedLapId)}
+        onShowSetup={() => undefined}
         onImportBin={handleImportBin}
         exportingBin={exportingBin}
         importingBin={importingBin}
@@ -352,6 +344,7 @@ function LapAnalyseInner() {
       {telemetry.length > 0 && (
         <AnalyseWorkspacePanels
           topSectionProps={{
+            gameId,
             topHeight,
             leftColWidth,
             rightColWidth,
@@ -364,9 +357,8 @@ function LapAnalyseInner() {
             boundaries,
             sectors,
             segments,
-            currentPacket,
-            currentDisplayPacket,
-            displayTelemetry,
+            currentFrame,
+            displayTelemetry: semanticFrames,
             lapLine,
             units,
             aiPanelOpen,
@@ -385,7 +377,7 @@ function LapAnalyseInner() {
           }}
           resizeHandleProps={{ topHeight, onHeightChange: setTopHeight }}
           timelineScrubberProps={{
-            displayTelemetry,
+            displayTelemetry: semanticFrames,
             cursorIdx,
             totalPackets: telemetry.length,
             currentTime,
@@ -403,8 +395,8 @@ function LapAnalyseInner() {
             onVisualFracChange: setVisualTimeFrac,
           }}
           chartsPanelProps={{
-            displayTelemetry,
             totalPackets: telemetry.length,
+            displayTelemetry: semanticFrames,
             visualTimeFrac,
             onVisualFracChange: setVisualTimeFrac,
             onClickIndex: handleChartClick,
@@ -413,13 +405,12 @@ function LapAnalyseInner() {
             tempLabel: units.tempLabel,
           }}
           chartsPanelRef={chartsPanelRef}
-          displayTelemetryLength={displayTelemetry.length}
+          displayTelemetryLength={semanticFrames.length}
           dataPanelProps={{
             sidebarTab,
             onSidebarTabChange: setSidebarTab,
-            currentPacket,
-            currentDisplayPacket,
-            startFuel: telemetry[0]?.Fuel,
+            currentFrame,
+            startFuel: semanticNumber(telemetry[0], "fuel.fuel") ?? undefined,
             gameId,
             units,
             wearRate,
@@ -430,8 +421,8 @@ function LapAnalyseInner() {
             aiPanelOpen && selectedLapId
               ? {
                   lapId: selectedLapId,
-                  carName,
                   trackName,
+                  carName,
                   segments,
                   aiPanelRef,
                   onJumpToFrac: (frac) => {
@@ -446,9 +437,9 @@ function LapAnalyseInner() {
       <AnalyseWorkspaceModals
         viewingTuneId={viewingTuneId}
         onCloseTune={() => setViewingTuneId(null)}
-        setup={showSetup ? (telemetry[0]?.f1?.setup ?? null) : null}
-        onCloseSetup={() => setShowSetup(false)}
         ibtPreview={ibtPreview}
+        setup={null}
+        onCloseSetup={() => undefined}
         importingBin={importingBin}
         onCommitIbt={() => void handleCommitIbt()}
         onCancelIbt={handleCancelIbt}

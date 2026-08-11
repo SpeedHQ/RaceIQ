@@ -1,5 +1,5 @@
-import type { CanonicalTelemetryScalar } from "./contracts";
-
+import type { CanonicalTelemetryScalar, CanonicalTelemetryValue } from "./contracts";
+import type { ResolvedValue, SemanticSlot } from "../resolver/contracts";
 function cloneCanonicalTelemetryScalar(
   value: unknown,
   semanticId: string,
@@ -90,5 +90,26 @@ export function canonicalizeTelemetryScalar(
   semanticId: string,
 ): CanonicalTelemetryScalar {
   return cloneCanonicalTelemetryScalar(value, semanticId, new Set());
+}
+
+/** Build replay-safe value while retaining resolver slot identity for internal consumers. */
+export function canonicalTelemetryValue(
+  slot: SemanticSlot,
+  resolved: ResolvedValue<unknown>,
+): CanonicalTelemetryValue {
+  return {
+    semanticId: resolved.semanticId,
+    slot,
+    value: canonicalizeTelemetryScalar(resolved.value, resolved.semanticId),
+    unit: resolved.unit,
+    mappingStatus: resolved.mappingStatus,
+    state: resolved.state,
+    freshness: resolved.freshness,
+    confidence: resolved.confidence,
+    confidenceComponents: resolved.confidenceComponents,
+    provenance: resolved.provenance,
+    schemaVersion: resolved.schemaVersion,
+    limitations: resolved.limitations,
+  };
 }
 

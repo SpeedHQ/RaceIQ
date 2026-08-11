@@ -1,4 +1,5 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
+const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => { const value = sample.values[id]; return typeof value === "number" ? value : undefined; }
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -122,7 +123,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   }, []);
   const handleJumpToFrac = useCallback(
     (frac: number) => {
-      const distances = comparison?.traces?.distance;
+      const distances = comparison?.telemetryA.map((sample) => semanticNumber(sample, "timing.distance-traveled")).filter((value): value is number => value != null);
       if (!distances || distances.length === 0) return;
       const idx = Math.max(0, Math.min(distances.length - 1, Math.floor(frac * distances.length)));
       hoveredDistanceRef.current = distances[idx];
@@ -135,8 +136,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const appliedInitialCursor = useRef(false);
   useEffect(() => {
     if (appliedInitialCursor.current) return;
-    if (search.cursor != null && comparison?.traces?.distance) {
-      const distances = comparison.traces.distance;
+    if (search.cursor != null && comparison?.telemetryA) {
+      const distances = comparison.telemetryA.map((sample) => semanticNumber(sample, "timing.distance-traveled")).filter((value): value is number => value != null);
+      if (distances.length === 0) return;
       const idx = Math.min(search.cursor, distances.length - 1);
       hoveredDistanceRef.current = distances[idx];
       mapRedrawRef.current?.();
@@ -294,7 +296,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     const step = Math.max(1, Math.floor(tel.length / 400));
     const out: Point[] = [];
     for (let i = 0; i < tel.length; i += step) {
-      out.push({ x: tel[i].PositionX, z: tel[i].PositionZ });
+      const x = semanticNumber(tel[i], "motion.position-x");
+      const z = semanticNumber(tel[i], "motion.position-z");
+      if (x != null && z != null) out.push({ x, z });
     }
     return out;
   }, [comparison]);
@@ -318,8 +322,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         const n = tel.length;
         const startIdx = Math.round(seg.startFrac * (n - 1));
         const endIdx = Math.min(Math.round(seg.endFrac * (n - 1)), n - 1);
-        const startTime = tel[startIdx]?.CurrentLap ?? 0;
-        const endTime = tel[endIdx]?.CurrentLap ?? 0;
+        const startTime = semanticNumber(tel[startIdx], "timing.current-lap") ?? 0;
+        const endTime = semanticNumber(tel[endIdx], "timing.current-lap") ?? 0;
         return Math.round((endTime - startTime) * 1000) / 1000;
       };
 
@@ -364,7 +368,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_two_laps()}</div>
       ) : lapAId === lapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
-      ) : comparison?.traces?.distance ? (
+      ) : comparison?.telemetryA?.some((sample) => Number.isFinite(semanticNumber(sample, "timing.distance-traveled"))) &&
+        comparison.telemetryB?.some((sample) => Number.isFinite(semanticNumber(sample, "timing.distance-traveled"))) &&
+        comparison.telemetryA.some((sample) => Number.isFinite(semanticNumber(sample, "motion.position-x")) && Number.isFinite(semanticNumber(sample, "motion.position-z"))) &&
+        comparison.telemetryB.some((sample) => Number.isFinite(semanticNumber(sample, "motion.position-x")) && Number.isFinite(semanticNumber(sample, "motion.position-z"))) ? (
         <div
           ref={comparisonLayoutRef}
           className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden"
@@ -449,7 +456,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             />
           )}
         </div>
-      ) : null}
+      ) : comparison ? <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div> : null}
     </div>
   );
 }

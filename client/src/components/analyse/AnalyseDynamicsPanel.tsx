@@ -1,322 +1,97 @@
-import { tryGetGame } from "@shared/games/registry";
-import { allFrictionCircle, allWheelStates, steerBalance } from "@shared/racing/analysis/laps/physics/vehicle";
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
 import { Info } from "lucide-react";
+import type { ReactNode } from "react";
 import type { GameId } from "../../../../shared/games/ids";
-import { hasTireTemperatureData, resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { useUnits } from "../../hooks/useUnits";
 import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
-import { balanceColor, frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
+import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
+import type { SemanticAnalysisFrame } from "./track-map/types";
+
+const WHEELS = ["FL", "FR", "RL", "RR"] as const;
+const number = (frame: SemanticAnalysisFrame, id: string): number | null => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
+  const value = frame.values[id];
+  return WHEELS.map((_, index) => Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null);
+};
+const bool = (frame: SemanticAnalysisFrame, id: string, index: number): boolean => {
+  const value = frame.values[id];
+  return Array.isArray(value) ? value[index] === true || value[index] === 1 : false;
+};
 
 interface Props {
-  currentPacket: TelemetryPacket;
-  gameId: GameId | undefined;
+  frame: SemanticAnalysisFrame;
+  gameId: GameId;
   units: ReturnType<typeof useUnits>;
 }
-
-export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
-  const analysis = resolveAnalysisTelemetry(gameId ? tryGetGame(gameId) : undefined);
-  const ws = allWheelStates(currentPacket);
-  const fc = allFrictionCircle(currentPacket);
-  const bal = steerBalance(currentPacket);
-  const latG = -currentPacket.AccelerationX / 9.81;
-  const lonG = -currentPacket.AccelerationZ / 9.81;
-
-  const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
+export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
+  const analysis = resolveAnalysisTelemetry(getGame(gameId));
+  const speed = number(frame, "motion.speed") ?? 0;
+  const speedFactor = Math.max(0.3, Math.min(1, (speed * 2.23694) / 80));
+  const accelerationX = number(frame, "motion.acceleration-x");
+  const accelerationZ = number(frame, "motion.acceleration-z");
+  const bindingOf = (metric: ReturnType<typeof resolveAnalysisTelemetry>[keyof ReturnType<typeof resolveAnalysisTelemetry>]) =>
+    metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined;
+  const slipAngleMetric = analysis.slipAngle;
+  const slipRatioMetric = analysis.slipRatio;
+  const slipAngles = bindingOf(slipAngleMetric) ? resolveWheelMetric(frame, bindingOf(slipAngleMetric)!) : [null, null, null, null];
+  const states = resolveWheelStates(frame, analysis.traction);
+  const slipRatios = slipRatioMetric.source === "unavailable"
+    ? [null, null, null, null]
+    : states.map((state) => state?.slipRatio ?? null);
+  const grip = resolveGripDemand(frame, analysis.gripDemand);
+  const temps = bindingOf(analysis.tireTemperature) ? resolveWheelMetric(frame, bindingOf(analysis.tireTemperature)!) : [null, null, null, null];
+  const balance = resolveBalance(frame, analysis.balance);
+  const brakeBias = number(frame, "brakes.brake-bias");
+  const surfaceValue = number(frame, "identity.player-track-surface");
+  const puddle = values(frame, "tires.wheel-in-puddle-depth");
+  const surfaceBinding = analysis.surface.source !== "unavailable" ? analysis.surface.binding : undefined;
+  const lateralG = analysis.gForce.source !== "unavailable" && accelerationX != null ? -accelerationX / 9.81 : null;
+  const longitudinalG = analysis.gForce.source !== "unavailable" && accelerationZ != null ? -accelerationZ / 9.81 : null;
+  const balanceColor = balance?.state === "neutral" ? "var(--balance-neutral)" : balance?.state === "understeer" ? "var(--balance-positive)" : "var(--balance-negative)";
+  const angleColor = (value: number) => severityRangeColor(Math.abs(value * 180 / Math.PI), [4 / speedFactor, 8 / speedFactor, 14 / speedFactor]);
+  const C = (value: string, color: string) => <span style={{ color }}>{value}</span>;
   const unavailable = <span className="text-app-text-dim">—</span>;
-  const temperatureAvailable = hasTireTemperatureData(currentPacket, analysis.tireTemperature);
-  const vehicleSurface = (() => {
-    switch (currentPacket.iracing?.playerTrackSurface) {
-      case -1:
-        return m.analyse_surface_not_in_world();
-      case 0:
-        return m.analyse_surface_off_track();
-      case 1:
-        return m.analyse_surface_pit_stall();
-      case 2:
-        return m.analyse_surface_approaching_pits();
-      case 3:
-        return m.analyse_surface_on_track();
-      default:
-        return m.analyse_surface_unknown();
-    }
-  })();
-
-  const states = [
-    { l: "FL", ...tireState(ws.fl.state, ws.fl.slipRatio, currentPacket.TireSlipAngleFL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFL), units.thresholds) },
-    { l: "FR", ...tireState(ws.fr.state, ws.fr.slipRatio, currentPacket.TireSlipAngleFR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFR), units.thresholds) },
-    { l: "RL", ...tireState(ws.rl.state, ws.rl.slipRatio, currentPacket.TireSlipAngleRL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRL), units.thresholds) },
-    { l: "RR", ...tireState(ws.rr.state, ws.rr.slipRatio, currentPacket.TireSlipAngleRR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRR), units.thresholds) },
-  ];
-
-  const speedMph = currentPacket.Speed * 2.23694;
-  const angleColor = (rad: number) => {
-    const deg = Math.abs(rad * (180 / Math.PI));
-    const sf = Math.max(0.3, Math.min(1, speedMph / 80));
-    return severityRangeColor(deg, [4 / sf, 8 / sf, 14 / sf]);
-  };
-  const fmt = (rad: number) => (rad * (180 / Math.PI)).toFixed(1);
-
-  const slipTitle = (
-    <span className="flex items-center gap-1 group relative">
-      {m.label_slip()}
-      <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
-      <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
-        Ratio: wheel speed vs ground speed
-        <br />
-        Angle: direction vs travel (6-12° = peak grip)
-      </span>
+  const surfaceText = surfaceValue === -1 ? m.analyse_surface_not_in_world() : surfaceValue === 0 ? m.analyse_surface_off_track() : surfaceValue === 1 ? m.analyse_surface_pit_stall() : surfaceValue === 2 ? m.analyse_surface_approaching_pits() : surfaceValue === 3 ? m.analyse_surface_on_track() : m.analyse_surface_unknown();
+  const balanceBarX = (value: number, range = 1) => Math.max(2, Math.min(198, 100 + (Math.max(-range, Math.min(range, value)) / range) * 98));
+  const balanceTooltip = balance && (
+    <span className="pointer-events-none absolute top-full left-0 z-50 mt-2 hidden w-[min(320px,calc(100vw-2rem))] rounded border border-app-border-input bg-app-surface-alt px-2.5 py-2 text-app-caption text-app-text-secondary normal-case tracking-normal group-hover:block group-focus-within:block">
+      <span className="block mb-1">{balance.slipAvailable ? "Yaw rate vs path curvature + front/rear slip-angle delta." : "Yaw rate versus path curvature (tire slip angles unavailable for this game)."}</span>
+      <span className="block mb-2 text-app-text-dim">{balance.slipAvailable ? <>+ = understeer (front slip &gt; rear) | − = oversteer (body yawing past Ay/V)</> : <>+ = understeer (under-rotating) | − = oversteer (over-rotating)</>}<br />Gated by |latG| ≥ 0.25g — straight-line wheelspin ignored</span>
+      <svg viewBox="0 0 200 110" className="w-full h-auto" aria-hidden="true">
+        {[
+          { label: "Slip Δ", value: balance.uSlip, color: signedBalanceColor(balance.uSlip, 0.05), y: 16, desc: balance.slipAvailable ? `F ${balance.frontSlipDeg.toFixed(1)}° / R ${balance.rearSlipDeg.toFixed(1)}°` : "Unavailable", opacity: balance.slipAvailable ? 1 : 0.35 },
+          { label: "Yaw", value: balance.uYaw, color: signedBalanceColor(balance.uYaw, 0.05), y: 40, desc: `err ${balance.yawError > 0 ? "+" : ""}${balance.yawError.toFixed(2)} r/s (path ${balance.yawRatePath.toFixed(2)})`, opacity: Math.min(1, balance.yawRatePath / 0.15) },
+        ].map((signal) => {
+          const left = balanceBarX(-0.3);
+          const right = balanceBarX(0.3);
+          return <g key={signal.label} opacity={signal.opacity}><text x="0" y={signal.y - 4} fill="currentColor" opacity="0.5" fontSize="6.5">{signal.label}</text><rect x="0" y={signal.y} width="200" height="10" rx="1" fill="currentColor" opacity="0.06" /><rect x="0" y={signal.y} width={left} height="10" fill="var(--balance-negative)" opacity="0.12" /><rect x={left} y={signal.y} width={right - left} height="10" fill="var(--balance-neutral)" opacity="0.12" /><rect x={right} y={signal.y} width={200 - right} height="10" fill="var(--balance-positive)" opacity="0.12" /><line x1="100" y1={signal.y} x2="100" y2={signal.y + 10} stroke="currentColor" opacity="0.2" /><circle cx={balanceBarX(signal.value)} cy={signal.y + 5} r="4" fill={signal.color} stroke="var(--app-surface)" strokeWidth="1" /><text x="0" y={signal.y + 20} fill="currentColor" opacity="0.35" fontSize="6">{signal.desc}</text></g>;
+        })}
+        <text x="100" y="70" textAnchor="middle" fill={balance.slipAvailable ? (balance.signalsAgree ? "var(--status-success)" : "var(--status-warning)") : "var(--status-warning)"} fontSize="7" fontWeight="var(--font-weight-semibold)">{balance.slipAvailable ? (balance.signalsAgree ? "SIGNALS AGREE — blended 50/50" : "CONFLICT — slip angle used alone") : "YAW ONLY — curvature signal"}</text>
+        <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">Combined</text><rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" /><rect x="0" y="82" width={balanceBarX(-0.3)} height="10" fill="var(--balance-negative)" opacity="0.18" /><rect x={balanceBarX(-0.3)} y="82" width={balanceBarX(0.3) - balanceBarX(-0.3)} height="10" fill="var(--balance-neutral)" opacity="0.18" /><rect x={balanceBarX(0.3)} y="82" width={200 - balanceBarX(0.3)} height="10" fill="var(--balance-positive)" opacity="0.18" /><line x1="100" y1="82" x2="100" y2="92" stroke="currentColor" opacity="0.25" /><circle cx={balanceBarX(balance.balance)} cy="87" r="4" fill={balanceColor} stroke="var(--app-surface)" strokeWidth="1.2" /><text x="20" y="106" textAnchor="middle" fill="var(--balance-negative)" fontSize="7" fontWeight="var(--font-weight-semibold)">{m.dynamics_over()}</text><text x="100" y="106" textAnchor="middle" fill="var(--balance-neutral)" fontSize="7" fontWeight="var(--font-weight-semibold)">{m.dynamics_neutral()}</text><text x="180" y="106" textAnchor="middle" fill="var(--balance-positive)" fontSize="7" fontWeight="var(--font-weight-semibold)">{m.dynamics_under()}</text>
+      </svg>
     </span>
   );
-
-  // Balance chart: map combined balance ∈ [-1, +1] → x ∈ [0, 200].
-  // Threshold bands at ±0.3 (classify threshold in steerBalance).
-  const BAL_RANGE = 1.0;
-  const BAL_THR = 0.3;
-  const balX = (d: number) => Math.max(0, Math.min(200, 100 + (d / BAL_RANGE) * 100));
-  const thrLeftX = balX(-BAL_THR);
-  const thrRightX = balX(BAL_THR);
-  const currentX = balX(bal.balance);
-
-  return (
-    <div className="text-app-compact font-mono space-y-1.5 mb-3">
-      {/* Balance */}
-      <div className="flex justify-between">
-        <span className="flex items-center gap-1 group relative text-app-text-muted">
-          {m.label_balance()}
-          {analysis.balance.source === "unavailable" ? (
-            <span className="text-app-caption text-app-text-dim">{m.analyse_unavailable()}</span>
-          ) : (
-            <>
-              <Info className="w-3 h-3 text-app-text-dim cursor-help" />
-              <span className="pointer-events-none absolute top-full left-0 z-50 mt-2 hidden w-[min(300px,calc(100vw-2rem))] rounded border border-app-border-input bg-app-surface-alt px-2.5 py-2 text-app-caption text-app-text-secondary normal-case tracking-normal group-hover:block">
-                <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
-                <span className="block mb-2 text-app-text-dim">
-                  + = understeer (front slip &gt; rear) &nbsp;|&nbsp; − = oversteer (body yawing past Ay/V)
-                  <br />
-                  Gated by |latG| ≥ 0.25g — straight-line wheelspin ignored
-                </span>
-
-                {/* Signal breakdown */}
-                {(() => {
-                  const SIG_RANGE = 1.5;
-                  const sigX = (u: number) => Math.max(2, Math.min(198, 100 + (Math.max(-SIG_RANGE, Math.min(SIG_RANGE, u)) / SIG_RANGE) * 98));
-                  const slipX = sigX(bal.uSlip);
-                  const yawX = sigX(bal.uYaw);
-                  const slipColor = signedBalanceColor(bal.uSlip, 0.05);
-                  // Yaw signal becomes unreliable at high speed (yawRatePath → 0).
-                  // Fade it out proportionally so the user can see why it's discounted.
-                  const yawReliability = Math.min(1, bal.yawRatePath / 0.15);
-                  const yawColor = signedBalanceColor(bal.uYaw, 0.05);
-                  return (
-                    <svg viewBox="0 0 200 110" className="w-full h-auto mb-1">
-                      {/* ── Signal rows ── */}
-                      {[
-                        { label: "Slip Δ", x: slipX, color: slipColor, opacity: 1, y: 16, desc: `F ${bal.frontSlipDeg.toFixed(1)}° / R ${bal.rearSlipDeg.toFixed(1)}°` },
-                        {
-                          label: "Yaw",
-                          x: yawX,
-                          color: yawColor,
-                          opacity: yawReliability,
-                          y: 40,
-                          desc: `err ${bal.yawError > 0 ? "+" : ""}${bal.yawError.toFixed(2)} r/s (path ${bal.yawRatePath.toFixed(2)})`,
-                        },
-                      ].map(({ label, x, color, opacity, y, desc }) => (
-                        <g key={label} opacity={opacity}>
-                          <text x="0" y={y - 4} fill="currentColor" opacity="0.5" fontSize="6.5">
-                            {label}
-                          </text>
-                          <rect x="0" y={y} width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
-                          <rect x="0" y={y} width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.12" />
-                          <rect x={thrLeftX} y={y} width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.12" />
-                          <rect x={thrRightX} y={y} width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.12" />
-                          <line x1="100" y1={y} x2="100" y2={y + 10} stroke="currentColor" opacity="0.2" />
-                          <line x1={thrLeftX} y1={y} x2={thrLeftX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
-                          <line x1={thrRightX} y1={y} x2={thrRightX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
-                          <circle cx={x} cy={y + 5} r="4" fill={color} stroke="var(--app-surface)" strokeWidth="1" />
-                          <text x="0" y={y + 20} fill="currentColor" opacity="0.35" fontSize="6">
-                            {desc}
-                          </text>
-                        </g>
-                      ))}
-
-                      {/* Yaw low-reliability warning */}
-                      {yawReliability < 0.6 && (
-                        <text x="200" y="44" textAnchor="end" fill="var(--status-warning)" fontSize="6.5" opacity="0.8">
-                          {`↓ unreliable at ${(currentPacket.Speed * 3.6).toFixed(0)} km/h`}
-                        </text>
-                      )}
-
-                      {/* Conflict / agree badge */}
-                      {bal.signalsAgree ? (
-                        <text x="100" y="70" textAnchor="middle" fill="var(--status-success)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                          SIGNALS AGREE — blended 50/50
-                        </text>
-                      ) : (
-                        <text x="100" y="70" textAnchor="middle" fill="var(--status-warning)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                          CONFLICT — slip angle used alone
-                        </text>
-                      )}
-
-                      {/* Combined balance bar */}
-                      <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">
-                        {m.label_combined()}
-                      </text>
-                      <rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
-                      <rect x="0" y="82" width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.18" />
-                      <rect x={thrLeftX} y="82" width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.18" />
-                      <rect x={thrRightX} y="82" width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.18" />
-                      <line x1="100" y1="82" x2="100" y2="92" stroke="currentColor" opacity="0.25" />
-                      <line x1={thrLeftX} y1="78" x2={thrLeftX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
-                      <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
-                      <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="var(--app-surface)" strokeWidth="1.2" />
-                      <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="var(--balance-negative)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                        {m.dynamics_over()}
-                      </text>
-                      <text x="100" y="106" textAnchor="middle" fill="var(--balance-neutral)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                        {m.dynamics_neutral()}
-                      </text>
-                      <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="var(--balance-positive)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                        {m.dynamics_under()}
-                      </text>
-                    </svg>
-                  );
-                })()}
-              </span>
-            </>
-          )}
-        </span>
-        {analysis.balance.source === "unavailable" ? (
-          <span className="text-app-text-dim">{m.analyse_unavailable()}</span>
-        ) : (
-          <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
-            {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
-            <span className="text-app-text-dim ml-1">
-              ({bal.balance > 0 ? "+" : ""}
-              {bal.balance.toFixed(2)})
-            </span>
-          </span>
-        )}
-      </div>
-
-      {/* G-Force */}
-      <div className="flex justify-between">
-        <span className="text-app-text-muted">{m.analyse_g_force()}</span>
-        <span className="tabular-nums text-app-text">
-          Lat {latG > 0 ? "+" : ""}
-          {latG.toFixed(2)}g<span className="text-app-text-dim"> </span>
-          Lon {lonG > 0 ? "+" : ""}
-          {lonG.toFixed(2)}g
-        </span>
-      </div>
-
-      {/* Brake Bias (ACC) */}
-      {currentPacket.acc && (
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">{m.analyse_brake_bias()}</span>
-          <span className="tabular-nums text-app-text">{(currentPacket.acc.brakeBias * 100).toFixed(1)}%F</span>
-        </div>
-      )}
-
-      {/* Tire state */}
-      <WheelTable
-        rows={[
-          {
-            label: m.analyse_dynamics_grip_ask(),
-            fl: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)),
-            fr: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)),
-            rl: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)),
-            rr: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)),
-          },
-          {
-            label: m.analyse_dynamics_traction(),
-            fl: analysis.traction.source === "unavailable" ? unavailable : C(states[0].label, states[0].color),
-            fr: analysis.traction.source === "unavailable" ? unavailable : C(states[1].label, states[1].color),
-            rl: analysis.traction.source === "unavailable" ? unavailable : C(states[2].label, states[2].color),
-            rr: analysis.traction.source === "unavailable" ? unavailable : C(states[3].label, states[3].color),
-          },
-          {
-            label: analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_dynamics_temp(),
-            fl: temperatureAvailable ? C(states[0].temp.label, states[0].temp.color) : unavailable,
-            fr: temperatureAvailable ? C(states[1].temp.label, states[1].temp.color) : unavailable,
-            rl: temperatureAvailable ? C(states[2].temp.label, states[2].temp.color) : unavailable,
-            rr: temperatureAvailable ? C(states[3].temp.label, states[3].temp.color) : unavailable,
-          },
-          ...(analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle"
-            ? [
-                {
-                  label: m.analyse_dynamics_surface(),
-                  fl: (
-                    <span className="text-app-text-dim">
-                      {currentPacket.WheelOnRumbleStripFL !== 0
-                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
-                        : currentPacket.WheelInPuddleDepthFL > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFL * 100).toFixed(0)}%`, "var(--surface-wet)")
-                          : "—"}
-                    </span>
-                  ),
-                  fr: (
-                    <span className="text-app-text-dim">
-                      {currentPacket.WheelOnRumbleStripFR !== 0
-                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
-                        : currentPacket.WheelInPuddleDepthFR > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFR * 100).toFixed(0)}%`, "var(--surface-wet)")
-                          : "—"}
-                    </span>
-                  ),
-                  rl: (
-                    <span className="text-app-text-dim">
-                      {currentPacket.WheelOnRumbleStripRL !== 0
-                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
-                        : currentPacket.WheelInPuddleDepthRL > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRL * 100).toFixed(0)}%`, "var(--surface-wet)")
-                          : "—"}
-                    </span>
-                  ),
-                  rr: (
-                    <span className="text-app-text-dim">
-                      {currentPacket.WheelOnRumbleStripRR !== 0
-                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
-                        : currentPacket.WheelInPuddleDepthRR > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRR * 100).toFixed(0)}%`, "var(--surface-wet)")
-                          : "—"}
-                    </span>
-                  ),
-                },
-              ]
-            : []),
-        ]}
-      />
-      {analysis.surface.source !== "unavailable" && analysis.surface.display === "vehicle" && (
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span>
-          <span className="text-app-text">{vehicleSurface}</span>
-        </div>
-      )}
-
-      {/* Slip */}
-      <WheelTable
-        title={slipTitle}
-        borderTop
-        rows={[
-          {
-            label: m.analyse_dynamics_ratio(),
-            fl: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.fl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fl.slipRatio)),
-            fr: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.fr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fr.slipRatio)),
-            rl: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.rl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rl.slipRatio)),
-            rr: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.rr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rr.slipRatio)),
-          },
-          {
-            label: m.analyse_dynamics_angle(),
-            fl: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleFL)}°`, angleColor(currentPacket.TireSlipAngleFL)),
-            fr: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleFR)}°`, angleColor(currentPacket.TireSlipAngleFR)),
-            rl: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleRL)}°`, angleColor(currentPacket.TireSlipAngleRL)),
-            rr: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleRR)}°`, angleColor(currentPacket.TireSlipAngleRR)),
-          },
-        ]}
-      />
-    </div>
-  );
+  const surfaceCell = (index: number) => bool(frame, "tires.wheel-on-rumble-strip", index) ? C(m.analyse_dynamics_curb(), "var(--surface-curb)") : (puddle[index] ?? 0) > 0 ? C(`${m.analyse_dynamics_wet()} ${((puddle[index] ?? 0) * 100).toFixed(0)}%`, "var(--surface-wet)") : unavailable;
+  const tractionCell = (index: number) => {
+    const state = states[index];
+    const angle = slipAngles[index];
+    const ratio = state?.slipRatio ?? slipRatios[index];
+    return state && angle != null && ratio != null ? (() => { const result = tireState(state.state, ratio, angle); return C(result.label, result.color); })() : unavailable;
+  };
+  const wheelRow = (label: string, render: (index: number) => ReactNode) => ({ label, fl: render(0), fr: render(1), rl: render(2), rr: render(3) });
+  return <div className="text-app-compact font-mono space-y-1.5 mb-3">
+    <div className="flex justify-between"><span className="group relative flex items-center gap-1 text-app-text-muted outline-none focus-visible:ring-2 focus-visible:ring-app-accent" tabIndex={0} aria-label={`${m.label_balance()}: Balance tooltip`} >{m.label_balance()} {balance && <><Info className="size-3 cursor-help text-app-text-dim" aria-hidden="true" />{balanceTooltip}</>}</span><span className="tabular-nums text-app-text-dim">{balance ? <span style={{ color: balanceColor }}>{balance.state === "neutral" ? "Neutral" : balance.state === "understeer" ? "Understeer" : "Oversteer"}({balance.balance > 0 ? "+" : ""}{balance.balance.toFixed(2)})</span> : m.analyse_unavailable()}</span></div>
+    <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_g_force()}</span><span className="tabular-nums text-app-text">Lat {lateralG == null ? "—" : `${lateralG > 0 ? "+" : ""}${lateralG.toFixed(2)}g`} Lon {longitudinalG == null ? "—" : `${longitudinalG > 0 ? "+" : ""}${longitudinalG.toFixed(2)}g`}</span></div>
+    {(gameId === "acc" || gameId === "ac-evo") && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_brake_bias()}</span><span className="tabular-nums text-app-text">{brakeBias == null ? "—" : `${(brakeBias * 100).toFixed(1)}%F`}</span></div>}
+    <WheelTable rows={[wheelRow(m.analyse_dynamics_grip_ask(), (i) => grip[i] == null ? unavailable : C(`${(grip[i]! * 100).toFixed(0)}%`, frictionUtilColor(grip[i]!))), wheelRow(m.analyse_dynamics_traction(), tractionCell), wheelRow(analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_dynamics_temp(), (i) => temps[i] == null ? unavailable : C(tireTempLabel(units.toTempC(temps[i]!), units.thresholds).label, tireTempLabel(units.toTempC(temps[i]!), units.thresholds).color)), ...(surfaceBinding?.kind === "group" ? [wheelRow(m.analyse_dynamics_surface(), surfaceCell)] : [])]} />
+    {surfaceBinding?.kind === "value" && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span><span className="text-app-text">{surfaceText}</span></div>}
+    <WheelTable title={<span className="flex items-center gap-1 group relative">{m.label_slip()}<Info className="size-3 text-app-text-dim cursor-help" aria-hidden="true" /></span>} borderTop rows={[wheelRow(m.analyse_dynamics_ratio(), (i) => slipRatios[i] == null ? unavailable : C(`${(slipRatios[i]! * 100).toFixed(0)}%`, slipRatioColor(slipRatios[i]!))), wheelRow(m.analyse_dynamics_angle(), (i) => slipAngles[i] == null ? unavailable : C(`${(slipAngles[i]! * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[i]!)))]} />
+  </div>;
 }

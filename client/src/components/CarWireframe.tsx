@@ -5,7 +5,7 @@ import { flipBoundaries, needsTrackFlip } from "@shared/racing/tracks/coords";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, loadCarModelConfigs } from "../data/car-models";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -24,7 +24,7 @@ useGLTF.preload("/models/f1_2025_mclaren_mcl39.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,
-  packet,
+  frame,
   telemetry,
   cursorIdx,
   outline,
@@ -38,8 +38,8 @@ export const CarWireframe = React.memo(function CarWireframe({
   autoOrbit,
 }: {
   gameId?: GameId;
-  packet: TelemetryPacket;
-  telemetry: TelemetryPacket[];
+  frame: SemanticAnalysisFrame;
+  telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
   boundaries?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
@@ -47,7 +47,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   carModel?: CarModelEnrichment & { hasModel: boolean };
   tempLabel?: string;
   cursorRef?: React.RefObject<number>;
-  telemetryRef?: React.RefObject<TelemetryPacket[]>;
+  telemetryRef?: React.RefObject<SemanticAnalysisFrame[]>;
   showDimensions?: boolean;
   minimal?: boolean;
   hideControls?: boolean;
@@ -174,7 +174,7 @@ export const CarWireframe = React.memo(function CarWireframe({
       >
         <CarScene
           gameId={gameId}
-          packet={packet}
+          frame={frame}
           telemetry={telemetry}
           cursorIdx={cursorIdx}
           outline={outline}
@@ -188,10 +188,10 @@ export const CarWireframe = React.memo(function CarWireframe({
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
-            tireTempColor(units.toTempC(packet.TireTempFL), units.thresholds),
-            tireTempColor(units.toTempC(packet.TireTempFR), units.thresholds),
-            tireTempColor(units.toTempC(packet.TireTempRL), units.thresholds),
-            tireTempColor(units.toTempC(packet.TireTempRR), units.thresholds),
+            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[0] ?? 0), units.thresholds),
+            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[1] ?? 0), units.thresholds),
+            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[2] ?? 0), units.thresholds),
+            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[3] ?? 0), units.thresholds),
           ]}
         />
       </Canvas>

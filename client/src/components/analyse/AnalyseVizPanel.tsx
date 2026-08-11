@@ -1,30 +1,28 @@
 import type { RefObject } from "react";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import type { useUnits } from "../../hooks/useUnits";
-import type { DisplayPacket } from "../../lib/convert-packet";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import type { Point } from "./track-map/types";
-
+import type { Point, TrackMapBoundaries } from "./track-map/types";
+import type { GameId } from "@shared/games/ids";
 interface Props {
-  vizMode: "2d" | "3d";
   onVizModeChange: (mode: "2d" | "3d") => void;
-  currentPacket: TelemetryPacket | null;
-  currentDisplayPacket: DisplayPacket | null;
-  displayTelemetry: DisplayPacket[];
+  vizMode: "2d" | "3d";
+  currentFrame: SemanticAnalysisFrame | null;
+  displayTelemetry: SemanticAnalysisFrame[];
   cursorRef: RefObject<number>;
-  displayTelemetryRef: RefObject<DisplayPacket[]>;
+  displayTelemetryRef: RefObject<SemanticAnalysisFrame[]>;
   cursorIdx: number;
   lapLine: Point[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  boundaries: any;
+  boundaries: TrackMapBoundaries | null;
   units: ReturnType<typeof useUnits>;
+  gameId?: GameId;
 }
 
-export function AnalyseVizPanel({ vizMode, onVizModeChange, currentPacket, currentDisplayPacket, displayTelemetry, cursorRef, displayTelemetryRef, cursorIdx, lapLine, boundaries, units }: Props) {
+export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displayTelemetry, cursorRef, displayTelemetryRef, cursorIdx, lapLine, boundaries, units, gameId }: Props) {
   return (
     <Tabs
       value={vizMode}
@@ -43,32 +41,22 @@ export function AnalyseVizPanel({ vizMode, onVizModeChange, currentPacket, curre
       </TabsList>
 
       <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
-        <Vitals2D packet={currentPacket} />
+        <Vitals2D frame={currentFrame ?? undefined} gameId={gameId} />
       </TabsContent>
 
       <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
         <div className="relative min-h-0 w-full flex-1">
-          {currentDisplayPacket && (
-            <CarWireframe
-              packet={currentDisplayPacket}
-              telemetry={displayTelemetry}
-              cursorRef={cursorRef}
-              telemetryRef={displayTelemetryRef}
-              cursorIdx={cursorIdx}
-              outline={lapLine}
-              boundaries={boundaries}
-              carOrdinal={currentDisplayPacket.CarOrdinal}
-              tempLabel={units.tempLabel}
-            />
+          {currentFrame && (
+            <CarWireframe frame={currentFrame} telemetry={displayTelemetry} cursorRef={cursorRef} telemetryRef={displayTelemetryRef} cursorIdx={cursorIdx} outline={lapLine} boundaries={boundaries} tempLabel={units.tempLabel} />
           )}
-          {currentPacket && (
+          {currentFrame && (
             <div className="absolute bottom-1 left-1 opacity-80">
-              <BodyAttitude packet={currentPacket} />
+              <BodyAttitude frame={currentFrame} />
             </div>
           )}
-          {currentPacket && (
+          {currentFrame && (
             <div className="absolute bottom-1 left-1 opacity-90" style={{ bottom: "9rem" }}>
-              <GForceCircle packet={currentPacket} />
+              <GForceCircle frame={currentFrame} />
             </div>
           )}
         </div>

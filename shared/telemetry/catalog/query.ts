@@ -1,4 +1,5 @@
 import type { GameId } from "../../games/ids";
+import type { TelemetryVariableId } from "./generated/telemetry-catalog.types";
 import type {
   TelemetryCatalogGroup,
   TelemetrySourceVariable,
@@ -6,12 +7,20 @@ import type {
 } from "./contracts";
 import { TELEMETRY_CATALOG } from "./data";
 
+export type { TelemetryVariableId } from "./generated/telemetry-catalog.types";
+
 export const groupsById = new Map<string, TelemetryCatalogGroup>(
   TELEMETRY_CATALOG.groups.map((group) => [group.id, group]),
 );
 export const variablesById = new Map<string, TelemetryVariableDefinition>(
   TELEMETRY_CATALOG.variables.map((variable) => [variable.id, variable]),
 );
+
+export function isTelemetryVariableId(
+  value: string,
+): value is TelemetryVariableId {
+  return variablesById.has(value);
+}
 
 export function getTelemetryVariable(
   variableId: string,

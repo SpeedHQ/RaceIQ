@@ -1,16 +1,18 @@
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { LapTimeChart } from "../LapTimeChart";
 import { RecordedLaps } from "../RecordedLaps";
 import { DashShell } from "./dash-shell";
 
 interface ComboDash2Props {
-  rawPacket: TelemetryPacket | null;
+  rawPacket?: TelemetryPacket | null;
+  view?: LiveTelemetryView | null;
   sessionLaps: LapMeta[];
 }
 
-export function ComboDash2({ rawPacket, sessionLaps }: ComboDash2Props) {
-  const trackOrdinal = rawPacket?.TrackOrdinal;
+export function ComboDash2({ rawPacket, view, sessionLaps }: ComboDash2Props) {
+  const trackOrdinal = view?.identity.trackOrdinal ?? rawPacket?.TrackOrdinal;
 
   return (
     <DashShell>

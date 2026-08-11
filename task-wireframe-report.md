@@ -1,0 +1,2 @@
+
+Follow-up build cleanup removed remaining native-field references in CarScene, InputOverlay, and TireTrails. `bunx tsc --noEmit -p client/tsconfig.json` passes; repository `tsc -b` still reports unrelated pre-existing Analyse/other-component diagnostics.

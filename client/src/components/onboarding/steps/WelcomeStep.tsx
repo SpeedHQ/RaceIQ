@@ -1,5 +1,6 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
 import type { TelemetryPacket } from "@shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CarWireframe } from "@/components/CarWireframe";
@@ -11,6 +12,16 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "@/stores/telemetry";
 
+function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
+  const values: Record<string, unknown> = {
+    "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
+    "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
+    "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
+    "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
+    "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
+  };
+  return { values, states: {}, freshness: {} };
+}
 function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
   const rafIdRef = useRef<number>(0);
@@ -110,8 +121,8 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
         gameId="fm-2023"
-        packet={packet}
-        telemetry={telemetry}
+        frame={toSemanticFrame(packet)}
+        telemetry={telemetry.map(toSemanticFrame)}
         cursorIdx={cursorIdx}
         outline={lapLine}
         boundaries={boundaries ?? undefined}

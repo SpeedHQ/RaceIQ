@@ -45,7 +45,6 @@ import { Route as Fm23RawRouteImport } from './routes/fm23/raw'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
 import { Route as IracingLiveRouteImport } from './routes/iracing/live'
-import { Route as IracingRawRouteImport } from './routes/iracing/raw'
 import { Route as GameidExperimentsIndexRouteImport } from './routes/$gameid/experiments.index'
 import { Route as GameidExperimentsExperimentIdRouteImport } from './routes/$gameid/experiments.$experimentId'
 import { Route as GameidTracksIndexRouteImport } from './routes/$gameid/tracks.index'
@@ -252,11 +251,6 @@ const IracingLiveRoute = IracingLiveRouteImport.update({
   path: '/live',
   getParentRoute: () => IracingRoute,
 } as any)
-const IracingRawRoute = IracingRawRouteImport.update({
-  id: '/raw',
-  path: '/raw',
-  getParentRoute: () => IracingRoute,
-} as any)
 const GameidExperimentsIndexRoute = GameidExperimentsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -418,7 +412,6 @@ export interface FileRoutesByFullPath {
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
   '/iracing/live': typeof IracingLiveRouteWithChildren
-  '/iracing/raw': typeof IracingRawRoute
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/dash/': typeof DashIndexRoute
@@ -470,7 +463,6 @@ export interface FileRoutesByTo {
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
   '/iracing/live': typeof IracingLiveRouteWithChildren
-  '/iracing/raw': typeof IracingRawRoute
   '/ac-evo': typeof AcEvoIndexRoute
   '/acc': typeof AccIndexRoute
   '/dash': typeof DashIndexRoute
@@ -535,7 +527,6 @@ export interface FileRoutesById {
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
   '/iracing/live': typeof IracingLiveRouteWithChildren
-  '/iracing/raw': typeof IracingRawRoute
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/dash/': typeof DashIndexRoute
@@ -601,7 +592,6 @@ export interface FileRouteTypes {
     | '/fm23/raw'
     | '/fm23/setups'
     | '/iracing/live'
-    | '/iracing/raw'
     | '/ac-evo/'
     | '/acc/'
     | '/dash/'
@@ -653,7 +643,6 @@ export interface FileRouteTypes {
     | '/fm23/live'
     | '/fm23/raw'
     | '/iracing/live'
-    | '/iracing/raw'
     | '/ac-evo'
     | '/acc'
     | '/dash'
@@ -717,7 +706,6 @@ export interface FileRouteTypes {
     | '/fm23/raw'
     | '/fm23/setups'
     | '/iracing/live'
-    | '/iracing/raw'
     | '/ac-evo/'
     | '/acc/'
     | '/dash/'
@@ -1018,13 +1006,6 @@ declare module '@tanstack/react-router' {
       path: '/live'
       fullPath: '/iracing/live'
       preLoaderRoute: typeof IracingLiveRouteImport
-      parentRoute: typeof IracingRoute
-    }
-    '/iracing/raw': {
-      id: '/iracing/raw'
-      path: '/raw'
-      fullPath: '/iracing/raw'
-      preLoaderRoute: typeof IracingRawRouteImport
       parentRoute: typeof IracingRoute
     }
     '/$gameid/experiments/': {
@@ -1432,13 +1413,11 @@ const IracingLiveRouteWithChildren = IracingLiveRoute._addFileChildren(
 
 interface IracingRouteChildren {
   IracingLiveRoute: typeof IracingLiveRouteWithChildren
-  IracingRawRoute: typeof IracingRawRoute
   IracingIndexRoute: typeof IracingIndexRoute
 }
 
 const IracingRouteChildren: IracingRouteChildren = {
   IracingLiveRoute: IracingLiveRouteWithChildren,
-  IracingRawRoute: IracingRawRoute,
   IracingIndexRoute: IracingIndexRoute,
 }
 
