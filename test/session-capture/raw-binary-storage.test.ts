@@ -280,10 +280,14 @@ describe("countStaleSessions", () => {
     insertedIds.length = 0;
   });
 
-  async function insertSession(rawFile: string | null, lapDetectorVersion: string | null): Promise<number> {
+  async function insertSession(
+    rawFile: string | null,
+    lapDetectorVersion: string | null,
+    gameId = "fm-2023",
+  ): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion })
+      .values({ carOrdinal: 1, trackOrdinal: 1, gameId, rawFile, lapDetectorVersion })
       .returning({ id: sessions.id })
       .get();
     const id = row!.id;
@@ -292,28 +296,30 @@ describe("countStaleSessions", () => {
   }
 
   test("counts only raw sessions with stale detector versions", async () => {
-    const beforeCount = await countStaleSessions(detectorId);
+    const beforeCount = await countStaleSessions(detectorId, ["fm-2023"]);
 
     await insertSession("/some/path-old.bin", "lapdetector_v0");
     await insertSession("/some/path-null.bin", null);
     await insertSession("/some/path-current.bin", detectorId);
     await insertSession(null, null);
+    await insertSession("/some/path-unsupported.bin", "lapdetector_v0", "lmu");
 
-    const afterCount = await countStaleSessions(detectorId);
+    const afterCount = await countStaleSessions(detectorId, ["fm-2023"]);
 
     expect(afterCount - beforeCount).toBe(2);
   });
 
   test("getStaleSessions returns only raw sessions with stale detector versions", async () => {
-    const baselineIds = await getStaleSessions(detectorId);
+    const baselineIds = await getStaleSessions(detectorId, ["fm-2023"]);
     const baselineSet = new Set(baselineIds);
 
     const staleRawOldVersion = await insertSession("/some/path-old.bin", "lapdetector_v0");
     const staleRawNullVersion = await insertSession("/some/path-null.bin", null);
     const currentVersion = await insertSession("/some/path-current.bin", detectorId);
     const noRaw = await insertSession(null, null);
+    const unsupportedGame = await insertSession("/some/path-unsupported.bin", "lapdetector_v0", "lmu");
 
-    const allIds = await getStaleSessions(detectorId);
+    const allIds = await getStaleSessions(detectorId, ["fm-2023"]);
     const insertedIdsOnly = allIds.filter((id) => !baselineSet.has(id));
 
     expect(insertedIdsOnly).toHaveLength(2);
@@ -321,5 +327,6 @@ describe("countStaleSessions", () => {
     expect(insertedIdsOnly).toContain(staleRawNullVersion);
     expect(insertedIdsOnly).not.toContain(currentVersion);
     expect(insertedIdsOnly).not.toContain(noRaw);
+    expect(insertedIdsOnly).not.toContain(unsupportedGame);
   });
 });
