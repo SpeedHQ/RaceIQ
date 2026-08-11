@@ -32,31 +32,10 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Semant
 
   // Build world-space curb contact points per wheel from full telemetry
   const { leftCurb, rightCurb, puddlePoints } = useMemo(() => {
-    const left: { x: number; z: number }[] = [];
-    const right: { x: number; z: number }[] = [];
-    const wet: { x: number; z: number }[] = [];
-
-    // Scan full telemetry so curbs are visible ahead of car too
-    for (let i = 0; i < telemetry.length; i++) {
-      const p = telemetry[i];
-
-      // Left-side curbs (FL, RL)
-      if (false) left.push(wheelWorld(p, wheelOffsets.FL));
-      if (false) left.push(wheelWorld(p, wheelOffsets.RL));
-
-      // Right-side curbs (FR, RR)
-      if (false) right.push(wheelWorld(p, wheelOffsets.FR));
-      if (false) right.push(wheelWorld(p, wheelOffsets.RR));
-
-      // Puddles — any wheel
-      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.FL));
-      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.FR));
-      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.RL));
-      if (0 > 0) wet.push(wheelWorld(p, wheelOffsets.RR));
-    }
-
-    return { leftCurb: left, rightCurb: right, puddlePoints: wet };
-  }, [telemetry, wheelOffsets]);
+    void wheelOffsets;
+    void wheelWorld;
+    return { leftCurb: [], rightCurb: [], puddlePoints: [] };
+  }, [telemetry]);
 
   const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
   const cz = (semanticNumber(packet, "motion.position-z") ?? 0);

@@ -75,7 +75,7 @@ function GameIdSync({ game }: { game: Game }) {
   return null;
 }
 
-function render({ game, rpm, gear, unitSystem }: Args) {
+function render({ game, rpm: _rpm, gear: _gear, unitSystem }: Args) {
   const _fx = FIXTURES[game];
   return (
     <QueryClientProvider client={queryClient}>

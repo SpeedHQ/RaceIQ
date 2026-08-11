@@ -153,9 +153,17 @@ export function requiredSemanticIds(
     if (!binding) return;
     if (binding.kind === "value") ids.add(binding.semanticId);
     else if (binding.kind === "group") {
-      binding.required.forEach((id) => ids.add(id));
-      binding.optional?.forEach((id) => ids.add(id));
-    } else binding.requires.forEach((id) => ids.add(id));
+      binding.required.forEach((id) => {
+        ids.add(id);
+      });
+      binding.optional?.forEach((id) => {
+        ids.add(id);
+      });
+    } else {
+      binding.requires.forEach((id) => {
+        ids.add(id);
+      });
+    }
   };
   for (const spec of Object.values(adapter.telemetry)) {
     if (spec && typeof spec === "object" && "binding" in spec) add(spec.binding);
