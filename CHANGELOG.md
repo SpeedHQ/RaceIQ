@@ -57,6 +57,7 @@
 - Group rear setup controls with their populated mechanical-balance section
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
+- Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 
 ### Internal

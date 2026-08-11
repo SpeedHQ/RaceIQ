@@ -34,6 +34,8 @@ export function semanticReplayIds(): readonly string[] {
     "motion.speed",
     "motion.acceleration-x",
     "motion.angular-velocity-y",
+    "motion.pitch",
+    "motion.roll",
     "motion.position-x",
     "motion.position-z",
     "motion.yaw",

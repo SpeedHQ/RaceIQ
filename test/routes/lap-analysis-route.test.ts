@@ -10,7 +10,7 @@ initGameAdapters();
 test("semantic replay requests lap-relative timing", () => {
   expect(semanticReplayIds()).toContain("timing.current-lap");
 });
-test("semantic replay requests every Analyse Data panel dependency", () => {
+test("semantic replay requests every Analyse display dependency", () => {
   const ids = semanticReplayIds();
   for (const id of [
     "brakes.brake-bias",
@@ -18,6 +18,8 @@ test("semantic replay requests every Analyse Data panel dependency", () => {
     "fuel.ers-harvested",
     "fuel.fuel-capacity",
     "identity.car-ordinal",
+    "motion.pitch",
+    "motion.roll",
     "identity.player-track-surface",
     "tires.wheel-in-puddle-depth",
     "suspension.norm-suspension-travel",
