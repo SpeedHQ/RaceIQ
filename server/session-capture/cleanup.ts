@@ -54,8 +54,10 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
   return captureFiles;
 }
 
-export async function cleanupOrphanSessionFiles(sessionActive = false): Promise<number> {
-  if (sessionActive) {
+export async function cleanupOrphanSessionFiles(
+  sessionActive: () => boolean = () => false,
+): Promise<number> {
+  if (sessionActive()) {
     console.log("[Cleanup] Session active — skipping orphan sweep");
     return 0;
   }
@@ -66,8 +68,10 @@ export async function cleanupOrphanSessionFiles(sessionActive = false): Promise<
   const captureFiles = await listSessionCaptureFiles();
   let removed = 0;
   for (const filePath of captureFiles) {
+    if (sessionActive()) break;
     try {
       const { size } = await stat(filePath);
+      if (sessionActive()) break;
       const isTiny =
         filePath.endsWith(".bin") &&
         size <= TINY_ORPHAN_THRESHOLD_BYTES;

@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
+import { sessionRoutes } from "../../server/routes/session-routes";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -242,6 +243,21 @@ describe("reprocessSession", () => {
     await expect(reprocessSession(sessionId)).rejects.toThrow("raw file not found");
   });
 
+  test("returns 410 when reprocess capture is missing from disk", async () => {
+    const binPath = join(tmpDir, "does-not-exist.bin");
+    sessionId = await insertTestSession(binPath, "0.9.0");
+
+    const response = await sessionRoutes.request(
+      `/api/sessions/${sessionId}/reprocess`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(410);
+    expect(await response.json()).toEqual({
+      error: `Session ${sessionId} raw file not found: ${binPath}`,
+    });
+  });
+
   test("replace strategy preserves notes for matched lap numbers when new laps exceed old count", async () => {
     // Empty bin → 0 laps detected; we need a bin that actually produces laps.
     // Use emptyBin (0 detected) but pre-populate 2 laps with notes — replace
@@ -271,6 +287,11 @@ describe("reprocessSession", () => {
 describe("countStaleSessions", () => {
   const insertedIds: number[] = [];
   const detectorId = "lapdetector_v1";
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "raceiq-stale-sessions-"));
+  });
 
   afterEach(async () => {
     for (const id of insertedIds) {
@@ -278,6 +299,7 @@ describe("countStaleSessions", () => {
       await db.delete(sessions).where(eq(sessions.id, id)).run();
     }
     insertedIds.length = 0;
+    rmSync(tmpDir, { recursive: true, force: true });
   });
 
   async function insertSession(rawFile: string | null, lapDetectorVersion: string | null): Promise<number> {
@@ -291,12 +313,19 @@ describe("countStaleSessions", () => {
     return id;
   }
 
-  test("counts only raw sessions with stale detector versions", async () => {
+  test("counts only available raw sessions with stale detector versions", async () => {
     const beforeCount = await countStaleSessions(detectorId);
+    const staleOldPath = join(tmpDir, "stale-old.bin");
+    const staleNullPath = join(tmpDir, "stale-null.bin");
+    const currentPath = join(tmpDir, "current.bin");
+    writeFileSync(staleOldPath, Buffer.alloc(16));
+    writeFileSync(staleNullPath, Buffer.alloc(16));
+    writeFileSync(currentPath, Buffer.alloc(16));
 
-    await insertSession("/some/path-old.bin", "lapdetector_v0");
-    await insertSession("/some/path-null.bin", null);
-    await insertSession("/some/path-current.bin", detectorId);
+    await insertSession(staleOldPath, "lapdetector_v0");
+    await insertSession(staleNullPath, null);
+    await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
+    await insertSession(currentPath, detectorId);
     await insertSession(null, null);
 
     const afterCount = await countStaleSessions(detectorId);
@@ -304,13 +333,20 @@ describe("countStaleSessions", () => {
     expect(afterCount - beforeCount).toBe(2);
   });
 
-  test("getStaleSessions returns only raw sessions with stale detector versions", async () => {
+  test("getStaleSessions returns only available stale raw sessions", async () => {
     const baselineIds = await getStaleSessions(detectorId);
     const baselineSet = new Set(baselineIds);
+    const staleOldPath = join(tmpDir, "stale-old.bin");
+    const staleNullPath = join(tmpDir, "stale-null.bin");
+    const currentPath = join(tmpDir, "current.bin");
+    writeFileSync(staleOldPath, Buffer.alloc(16));
+    writeFileSync(staleNullPath, Buffer.alloc(16));
+    writeFileSync(currentPath, Buffer.alloc(16));
 
-    const staleRawOldVersion = await insertSession("/some/path-old.bin", "lapdetector_v0");
-    const staleRawNullVersion = await insertSession("/some/path-null.bin", null);
-    const currentVersion = await insertSession("/some/path-current.bin", detectorId);
+    const staleRawOldVersion = await insertSession(staleOldPath, "lapdetector_v0");
+    const staleRawNullVersion = await insertSession(staleNullPath, null);
+    const missingRaw = await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
+    const currentVersion = await insertSession(currentPath, detectorId);
     const noRaw = await insertSession(null, null);
 
     const allIds = await getStaleSessions(detectorId);
@@ -319,6 +355,7 @@ describe("countStaleSessions", () => {
     expect(insertedIdsOnly).toHaveLength(2);
     expect(insertedIdsOnly).toContain(staleRawOldVersion);
     expect(insertedIdsOnly).toContain(staleRawNullVersion);
+    expect(insertedIdsOnly).not.toContain(missingRaw);
     expect(insertedIdsOnly).not.toContain(currentVersion);
     expect(insertedIdsOnly).not.toContain(noRaw);
   });

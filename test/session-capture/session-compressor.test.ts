@@ -3,13 +3,15 @@
  * skipping of new files, and graceful handling of missing files.
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { db } from "../../server/db/index";
 import { sessions } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
-import { runCompressionNow } from "../../server/session-capture/compressor"
+import { runCompressionNow } from "../../server/session-capture/compressor";
+import { cleanupOrphanSessionFiles } from "../../server/session-capture/cleanup";
+import { resolveDataDir } from "../../server/runtime/config/data-dir";
 
 // Insert a minimal session row. createdAt accepts an ISO string so we can
 // back-date it to simulate files older than 24 hours.
@@ -112,5 +114,40 @@ describe("session-compressor", () => {
     // gzip magic bytes: 0x1f 0x8b
     expect(buf[0]).toBe(0x1f);
     expect(buf[1]).toBe(0x8b);
+  });
+});
+
+describe("session capture cleanup", () => {
+  let cleanupDir: string;
+
+  beforeEach(() => {
+    cleanupDir = join(
+      resolveDataDir(),
+      "sessions",
+      `cleanup-test-${crypto.randomUUID()}`,
+    );
+    mkdirSync(cleanupDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(cleanupDir, { recursive: true, force: true });
+  });
+
+  test("stops orphan sweep when a recording starts during enumeration", async () => {
+    const capturePath = join(cleanupDir, "active-session.bin");
+    writeFileSync(capturePath, Buffer.alloc(32));
+    let activityChecks = 0;
+
+    const removed = await cleanupOrphanSessionFiles(() => {
+      activityChecks++;
+      return activityChecks > 1;
+    });
+
+    expect(removed).toBe(0);
+    expect(activityChecks).toBeGreaterThan(1);
+    expect(existsSync(capturePath)).toBe(true);
+
+    await cleanupOrphanSessionFiles();
+    expect(existsSync(capturePath)).toBe(false);
   });
 });
