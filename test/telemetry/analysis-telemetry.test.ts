@@ -92,6 +92,14 @@ describe("analysis telemetry capabilities", () => {
       source: "unavailable",
       reason: "source-limitation",
     });
+    expect(resolveAnalysisTelemetry(getGame("acc")).tireHealth).toEqual({
+      source: "unavailable",
+      reason: "source-limitation",
+    });
+    expect(resolveAnalysisTelemetry(getGame("acc")).tireWearRate).toEqual({
+      source: "unavailable",
+      reason: "source-limitation",
+    });
     expect(resolveAnalysisTelemetry(getGame("ac-evo")).suspensionTravel).toEqual({
       source: "direct",
       freshness: "continuous",
@@ -114,7 +122,7 @@ describe("analysis telemetry capabilities", () => {
     const supported = {
       "fm-2023": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "surface", "slipRatio", "lateralSlip", "wheelRotation", "tireHealth", "tireWearRate", "suspensionTravel", "suspensionCompressionBias"],
       "f1-2025": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel"],
-      acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
+      acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
       "ac-evo": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
       iracing: ["balance", "gForce", "tireTemperature", "surface", "tireHealth", "tirePressure", "suspensionTravel"],
     } as const;

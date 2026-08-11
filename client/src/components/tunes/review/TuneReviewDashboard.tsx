@@ -82,6 +82,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const sectorCount = sectorTimes?.times.length ?? 3;
   const corners = useMemo(() => semanticTireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
+  const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tires.tire-wear", 0) != null);
 
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
   const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
@@ -366,6 +367,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                     tempThresholds={{ blue: 70, orange: 100, red: 110 }}
                     pressureOptimal={pressureOptimal}
                     brakeTempThresholds={game?.brakeTempThresholds}
+                    healthAvailable={tireHealthAvailable}
                   />
                 ) : (
                   <div className="p-3 text-xs text-app-text-dim">{loadingTel ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>

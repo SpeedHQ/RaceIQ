@@ -409,6 +409,12 @@ function packetGameLink(
   if (explicitlyUnavailable) {
     return unavailable("parser-placeholder", explicitlyUnavailable);
   }
+  if (gameId === "acc" && set.key === "TireWear") {
+    return unavailable(
+      "source-not-populated",
+      "ACC Shared Memory v1.8.12 reserves tyreWear[4] but explicitly marks it unused; live pages report zero.",
+    );
+  }
   if (
     (gameId === "acc" || gameId === "ac-evo") &&
     set.key === "CurrentRaceTime"

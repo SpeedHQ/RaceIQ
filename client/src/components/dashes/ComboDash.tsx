@@ -116,6 +116,7 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
                     rl={{ tempC: Math.round(tires.temperatureC?.rl ?? 0), wear: tires.wear?.rl ?? 0, brakeTemp: tires.brakeTemperatureC?.rl ?? 0, pressure: tires.pressurePsi?.rl ?? 0 }}
                     rr={{ tempC: Math.round(tires.temperatureC?.rr ?? 0), wear: tires.wear?.rr ?? 0, brakeTemp: tires.brakeTemperatureC?.rr ?? 0, pressure: tires.pressurePsi?.rr ?? 0 }}
                     healthThresholds={health} tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+                    healthAvailable={tires.wear !== undefined}
                   />
                 </div>
               </FitToViewport>

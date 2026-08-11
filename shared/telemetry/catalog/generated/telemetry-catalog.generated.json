@@ -6,10 +6,10 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+      "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
     },
     "generatedAt": "1970-01-01T00:00:00.000Z",
-    "contentHash": "1e98de699a81605917dbd1c337b0bb0aec13c1adcfb73d0f6b494a7b2d85fb12"
+    "contentHash": "63c8ec86ef4a0a9411c1458536914c3785ffcff7313f74f025e12045d7ab8129"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -1630,7 +1630,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -1808,7 +1808,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -2002,7 +2002,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -2147,7 +2147,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -2214,7 +2214,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -2281,7 +2281,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -2348,7 +2348,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -2415,7 +2415,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -7906,7 +7906,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": []
         },
@@ -7921,7 +7921,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": []
         },
@@ -8398,7 +8398,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -8472,7 +8472,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -8558,7 +8558,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -8621,7 +8621,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -8741,7 +8741,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -8804,7 +8804,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -8867,7 +8867,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -8941,7 +8941,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -9277,7 +9277,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -9412,7 +9412,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": []
         },
@@ -9585,7 +9585,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -9709,7 +9709,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -12056,7 +12056,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -12190,7 +12190,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -12445,7 +12445,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -12555,7 +12555,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -12987,7 +12987,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -13432,7 +13432,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -14356,7 +14356,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -15046,7 +15046,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -15190,7 +15190,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -15818,7 +15818,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -16576,7 +16576,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -17601,7 +17601,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -17722,7 +17722,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -17843,7 +17843,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -17975,7 +17975,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -18084,7 +18084,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -18205,7 +18205,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -18709,7 +18709,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -18876,7 +18876,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -18986,7 +18986,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -19096,7 +19096,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -19312,7 +19312,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -19479,7 +19479,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -19623,7 +19623,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -19790,7 +19790,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -19957,7 +19957,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -20208,7 +20208,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -25882,7 +25882,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -26066,7 +26066,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -27053,7 +27053,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -27628,7 +27628,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -32286,7 +32286,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32315,7 +32315,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32344,7 +32344,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32491,7 +32491,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32521,7 +32521,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32550,7 +32550,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32656,7 +32656,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32687,7 +32687,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32793,7 +32793,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32822,7 +32822,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32895,7 +32895,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32925,7 +32925,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32954,7 +32954,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33079,7 +33079,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33108,7 +33108,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33575,7 +33575,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33604,7 +33604,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33690,7 +33690,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33719,7 +33719,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33880,7 +33880,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33909,7 +33909,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33995,7 +33995,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34024,7 +34024,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34298,7 +34298,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34329,7 +34329,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35951,7 +35951,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35980,7 +35980,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36049,7 +36049,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36078,7 +36078,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36550,7 +36550,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36579,7 +36579,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36608,7 +36608,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36746,7 +36746,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37158,7 +37158,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37187,7 +37187,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37216,7 +37216,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37285,7 +37285,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37315,7 +37315,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37344,7 +37344,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37617,7 +37617,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37647,7 +37647,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37676,7 +37676,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -38715,7 +38715,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -38821,7 +38821,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -38939,7 +38939,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -39285,7 +39285,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -39387,7 +39387,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -39488,7 +39488,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -40711,7 +40711,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -40843,7 +40843,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -41336,7 +41336,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -42499,7 +42499,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -42686,7 +42686,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -43402,7 +43402,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -43429,7 +43429,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -43456,7 +43456,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -43483,7 +43483,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -43510,7 +43510,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44028,7 +44028,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44070,7 +44070,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -44087,7 +44087,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44162,7 +44162,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44204,7 +44204,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44231,7 +44231,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44258,7 +44258,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44303,7 +44303,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44345,7 +44345,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44372,7 +44372,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44399,7 +44399,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44444,7 +44444,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44471,7 +44471,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44498,7 +44498,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44525,7 +44525,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44552,7 +44552,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44599,7 +44599,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44661,7 +44661,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -44692,7 +44692,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44775,7 +44775,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -44837,7 +44837,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -44867,7 +44867,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45257,7 +45257,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45317,7 +45317,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -45344,7 +45344,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45371,7 +45371,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45416,7 +45416,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45458,7 +45458,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45485,7 +45485,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45512,7 +45512,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45557,7 +45557,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45599,7 +45599,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45626,7 +45626,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45653,7 +45653,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45698,7 +45698,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45740,7 +45740,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45767,7 +45767,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45794,7 +45794,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45840,7 +45840,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -45901,7 +45901,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": [],
           "execution": {
@@ -45931,7 +45931,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46014,7 +46014,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46041,7 +46041,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46068,7 +46068,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46095,7 +46095,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46159,7 +46159,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46186,7 +46186,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46213,7 +46213,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -46240,7 +46240,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [],
           "execution": {
@@ -47445,7 +47445,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -47509,7 +47509,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "execution": {
             "kind": "simplification",
@@ -47618,7 +47618,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -47682,7 +47682,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "execution": {
             "kind": "simplification",
@@ -48001,7 +48001,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -48078,7 +48078,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -48155,7 +48155,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -49778,7 +49778,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -49926,7 +49926,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -50078,7 +50078,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -50189,7 +50189,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50218,7 +50218,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50247,7 +50247,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50397,7 +50397,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -50460,7 +50460,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -50523,7 +50523,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -50720,7 +50720,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -50839,7 +50839,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -51164,7 +51164,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -51319,7 +51319,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -51472,30 +51472,9 @@
           }
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "fraction",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreWearFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreWearFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreWearRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreWearRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC Shared Memory v1.8.12 reserves tyreWear[4] but explicitly marks it unused; live pages report zero."
         },
         "ac-evo": {
           "kind": "direct",
@@ -52313,7 +52292,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "execution": {
             "kind": "simplification",
@@ -52356,7 +52335,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -52588,7 +52567,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -53837,7 +53816,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -54129,7 +54108,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "a04e0dd12a767c3a0cb949989b8b21aae7d891faa2cc03655cbf68b1f149613e"
           },
           "execution": {
             "kind": "simplification",
@@ -54277,7 +54256,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -54352,7 +54331,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0"
           },
           "limitations": []
         },
@@ -59852,7 +59831,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
+        "dataType": "[\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n  ]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",
@@ -62482,7 +62461,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
+        "dataType": "[\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n  ]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",

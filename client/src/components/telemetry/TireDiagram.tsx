@@ -93,7 +93,7 @@ export function TireDiagram({ packet, frame, view, gameId }: { packet?: DisplayP
   if (frame) return <SemanticTireDiagram frame={frame} gameId={view?.simulator ?? gameId ?? "ac-evo"} />;
   if (!packet && view) {
     const t = view.tires;
-    return <TireGrid fl={{ tempC: t.temperatureC?.fl ?? 0, wear: t.wear?.fl ?? 0 }} fr={{ tempC: t.temperatureC?.fr ?? 0, wear: t.wear?.fr ?? 0 }} rl={{ tempC: t.temperatureC?.rl ?? 0, wear: t.wear?.rl ?? 0 }} rr={{ tempC: t.temperatureC?.rr ?? 0, wear: t.wear?.rr ?? 0 }} healthThresholds={{ green: 0.7, yellow: 0.4 }} tempThresholds={{ blue: 60, orange: 85, red: 100 }} />;
+    return <TireGrid fl={{ tempC: t.temperatureC?.fl ?? 0, wear: t.wear?.fl ?? 0 }} fr={{ tempC: t.temperatureC?.fr ?? 0, wear: t.wear?.fr ?? 0 }} rl={{ tempC: t.temperatureC?.rl ?? 0, wear: t.wear?.rl ?? 0 }} rr={{ tempC: t.temperatureC?.rr ?? 0, wear: t.wear?.rr ?? 0 }} healthThresholds={{ green: 0.7, yellow: 0.4 }} tempThresholds={{ blue: 60, orange: 85, red: 100 }} healthAvailable={t.wear !== undefined} />;
   }
   if (!packet) return null;
   const adapter = getGame(view?.simulator ?? packet.gameId);

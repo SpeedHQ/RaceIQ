@@ -320,6 +320,10 @@ describe("semantic telemetry catalog contracts", () => {
         kind: "unavailable",
         reason: "source-not-provided",
       });
+    expect(getTelemetryVariable("tires.tire-wear").games.acc).toMatchObject({
+      kind: "unavailable",
+      reason: "source-not-populated",
+    });
     expect(
       getTelemetryVariable("tires.normalized-tire-slip-angle").games[
         "fm-2023"
