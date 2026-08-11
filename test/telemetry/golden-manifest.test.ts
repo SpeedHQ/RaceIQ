@@ -57,6 +57,21 @@ describe("golden recording manifests", () => {
         (role) => role.role === "abnormal_event_analysis",
       )?.enabled,
     ).toBe(true);
+    expect(
+      manifest.validation_roles.find(
+        (role) => role.role === "fuel_consumption_analysis",
+      )?.enabled,
+    ).toBe(true);
+    expect(
+      manifest.capability_limitations.map(({ capability }) => capability),
+    ).not.toEqual(
+      expect.arrayContaining(["fuel-remaining", "air-and-track-temperature"]),
+    );
+    expect(
+      manifest.capability_limitations.find(
+        ({ capability }) => capability === "tire-wear",
+      ),
+    ).toMatchObject({ state: "unpopulated" });
   });
 
   test(

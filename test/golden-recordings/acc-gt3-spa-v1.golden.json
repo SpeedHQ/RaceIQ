@@ -46,6 +46,7 @@
     "pit_transition_analysis",
     "damage_analysis",
     "assist_analysis",
+    "fuel_consumption_analysis",
     "abnormal_event_analysis"
   ],
   "conditions": {
@@ -59,7 +60,8 @@
       "ACC graphics session value remained practice.",
       "Static shared memory reported one car.",
       "Graphics reported dry compound and rainTyres=0 throughout.",
-      "ACC session clock covered approximately 09:00 through 09:38."
+      "ACC session clock covered approximately 09:00 through 09:38.",
+      "ACC physics air temperature rose from 27.039 C to 27.863 C and road temperature rose from 27.637 C to 30.098 C."
     ]
   },
   "protocol": {
@@ -122,12 +124,12 @@
       "kind": "pit_entry_then_return_to_garage",
       "source_current_lap": 10,
       "tires_changed": "unknown",
-      "fuel_added": "unknown",
+      "fuel_added": "yes",
       "service_observed": false,
       "notes": [
         "Driver entered pit lane after first stint but did not complete normal service.",
-        "Return to garage reset position and recorded damage before second stint.",
-        "Do not use this fixture as evidence of a normal tire or fuel service transition."
+        "Return to garage reset position and recorded damage before second stint; source fuel rose from approximately 21 to 62.",
+        "Fuel increase was a garage reset, not evidence of a normal pit service."
       ]
     },
     "lap_alignment": [
@@ -481,19 +483,9 @@
   },
   "capability_limitations": [
     {
-      "capability": "fuel-remaining",
-      "state": "unpopulated",
-      "description": "ACC physics fuel remained zero in this capture, so fuel-burn evolution cannot be validated."
-    },
-    {
       "capability": "tire-wear",
       "state": "unpopulated",
       "description": "ACC tire-wear values remained zero, so degradation by reported wear cannot be validated."
-    },
-    {
-      "capability": "air-and-track-temperature",
-      "state": "unpopulated",
-      "description": "ACC air and road temperature fields remained zero."
     },
     {
       "capability": "pit-service",
@@ -544,8 +536,9 @@
     },
     {
       "role": "fuel_consumption_analysis",
-      "enabled": false,
-      "limitation": "Fuel-remaining channel is unpopulated."
+      "enabled": true,
+      "scope": "ACC fuel remaining and fuel-per-lap evidence across uninterrupted full-coverage lap segments in both stints.",
+      "limitation": "Exclude gap-affected, partial, and return-to-garage reset transitions."
     },
     {
       "role": "pit_transition",
@@ -601,13 +594,16 @@
     "immutable_source": true,
     "basis": [
       "Recording owner supplied stint intent and post-session event observations.",
-      "ACC source counters, validity, assists, pit state, damage, and hashes were independently derived from retained source evidence.",
+      "ACC source counters, validity, assists, pit state, damage, fuel, environmental conditions, and hashes were independently derived from retained source evidence.",
       "Known gap, missing lap, short duration, and absent normal service are accepted as explicit v1 limitations rather than hidden assumptions."
     ]
   },
   "notes": [
     "Use source completed-lap numbering for deterministic comparisons; RaceIQ lap rows include two unmatched pit-cycle segments.",
     "Driver-reported lap numbers are approximate where pit-cycle rows and the missing source lap shift visible numbering.",
+    "ACC physics fuel declines through both stints and ACC fuel-per-lap remains populated; return to garage resets fuel.",
+    "ACC air and road temperatures remain populated and rise throughout the recording.",
+    "ACC tire-wear fields remain exactly zero even while pressure and temperature channels evolve.",
     "Accepted identity acc-gt3-spa-v1 must not be silently replaced; create v2 for materially different source evidence."
   ]
 }

@@ -66,7 +66,7 @@
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 
 ### Internal
-- Add immutable, hash-verified golden recording manifests and register ACC GT3 Spa v1 with source-backed stint, lap, assist, damage, and event observations
+- Add immutable, hash-verified golden recording manifests and register ACC GT3 Spa v1 with source-backed stint, lap, fuel, environmental, assist, damage, and event observations
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs
