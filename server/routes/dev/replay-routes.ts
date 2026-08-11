@@ -208,7 +208,7 @@ export const replayRoutes = new Hono()
     }
     const pitTracker = new PitTracker();
     const projector = new LiveTelemetryProjector();
-    let replaySessionId = 0;
+    const replaySessionId = 0;
 
     pitTracker.reset();
     pitTracker.setTireThresholds(getServerGame(gameId).tireHealthThresholds.yellow);

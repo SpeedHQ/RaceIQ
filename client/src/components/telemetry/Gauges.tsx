@@ -59,31 +59,25 @@ export function ArcGauge({ value, max, label, unit, color }: { value: number; ma
  * values (>100% per lap); litre sources retain their native burn amount.
  */
 export function FuelGauge({ packet, view }: { packet?: TelemetryPacket; view?: LiveTelemetryView }) {
-  if (!packet && view) {
-    const amount = view.fuel.amount ?? 0;
-    const capacity = view.fuel.capacity;
-    const fill = capacity && capacity > 0 ? (amount / capacity) * 100 : undefined;
-    return <div className="flex-1"><div className="flex justify-between text-app-caption mb-0.5"><span className="font-mono font-bold">Fuel {amount.toFixed(1)}</span></div><div className="h-2 rounded-full overflow-hidden">{fill !== undefined && <div className="h-full rounded-full" style={{ width: `${fill}%` }} />}</div></div>;
-  }
-  if (!packet) return null;
-  const fuelSpec = getGame(view?.simulator ?? packet.gameId).telemetry.fuel;
+  const gameId = view?.simulator ?? packet?.gameId;
+  const fuelSpec = getGame(gameId ?? "fm-2023").telemetry.fuel;
   const fuelRef = useRef<{
     lapStart: number;
     lastLap: number;
     history: number[]; // fuel used per lap (all recorded)
     avgPerLap: number | null;
   }>({
-    lapStart: packet.Fuel,
-    lastLap: packet.LapNumber,
+    lapStart: packet?.Fuel ?? 0,
+    lastLap: packet?.LapNumber ?? 0,
     history: [],
     avgPerLap: null,
   });
   const fetchedRef = useRef(false);
-  const [fuelStats, setFuelStats] = useState<{ avgPerLap: number | null; lapStart: number }>({ avgPerLap: null, lapStart: packet.Fuel });
+  const [fuelStats, setFuelStats] = useState<{ avgPerLap: number | null; lapStart: number }>({ avgPerLap: null, lapStart: packet?.Fuel ?? 0 });
 
   // Seed from server fuel history
   useEffect(() => {
-    if (fetchedRef.current) return;
+    if (!packet || fetchedRef.current) return;
     fetchedRef.current = true;
     client.api["fuel-history"]
       .$get()
@@ -100,10 +94,11 @@ export function FuelGauge({ packet, view }: { packet?: TelemetryPacket; view?: L
         }
       })
       .catch(() => {});
-  }, [fuelSpec.packetUnit]);
+  }, [fuelSpec.packetUnit, packet]);
 
   // Track fuel consumption per lap
   useEffect(() => {
+    if (!packet) return;
     const f = fuelRef.current;
     if (packet.LapNumber !== f.lastLap && packet.LapNumber > f.lastLap) {
       const used = f.lapStart - packet.Fuel;
@@ -117,7 +112,15 @@ export function FuelGauge({ packet, view }: { packet?: TelemetryPacket; view?: L
       setFuelStats({ avgPerLap: f.avgPerLap, lapStart: f.lapStart });
     }
     f.lastLap = packet.LapNumber;
-  }, [packet.LapNumber, packet.Fuel]);
+  }, [packet?.LapNumber, packet?.Fuel]);
+
+  if (!packet && view) {
+    const amount = view.fuel.amount ?? 0;
+    const capacity = view.fuel.capacity;
+    const fill = capacity && capacity > 0 ? (amount / capacity) * 100 : undefined;
+    return <div className="flex-1"><div className="flex justify-between text-app-caption mb-0.5"><span className="font-mono font-bold">Fuel {amount.toFixed(1)}</span></div><div className="h-2 rounded-full overflow-hidden">{fill !== undefined && <div className="h-full rounded-full" style={{ width: `${fill}%` }} />}</div></div>;
+  }
+  if (!packet) return null;
 
   const fuel = getFuelDisplay(packet, fuelSpec);
   const fillPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;

@@ -17,16 +17,14 @@ import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
 export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view?: LiveTelemetryView }) {
-  if (!packet && !view) return null;
   const gameId = view?.simulator ?? packet?.gameId;
-  if (!gameId) return null;
-  const analysis = resolveAnalysisTelemetry(getGame(gameId));
-  const showGrip = analysis.gripDemand.source !== "unavailable";
-  const showTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "continuous";
-  const showWear = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "continuous";
-  const showSlipAngle = analysis.slipAngle.source !== "unavailable";
-  const showSlipRatio = analysis.slipRatio.source !== "unavailable";
-  const showNormalizedSuspension = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display !== "millimeters";
+  const analysis = gameId ? resolveAnalysisTelemetry(getGame(gameId)) : null;
+  const showGrip = analysis?.gripDemand.source !== "unavailable";
+  const showTemperature = analysis?.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "continuous";
+  const showWear = analysis?.tireHealth.source === "direct" && analysis.tireHealth.freshness === "continuous";
+  const showSlipAngle = analysis?.slipAngle.source !== "unavailable";
+  const showSlipRatio = analysis?.slipRatio.source !== "unavailable";
+  const showNormalizedSuspension = analysis?.suspensionTravel.source !== "unavailable" && analysis?.suspensionTravel.display !== "millimeters";
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
     temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -53,6 +51,7 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
 
   // Seed from server
   useEffect(() => {
+    if (!gameId || !analysis) return;
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     client.api["telemetry-history"]
@@ -82,6 +81,8 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
   useEffect(() => {
     frameRef.current++;
     if (frameRef.current % 6 !== 0) return;
+    if (!gameId || !analysis) return;
+    const activeAnalysis = analysis;
 
     const h = histRef.current;
     const push4 = (t: { fl: number[]; fr: number[]; rl: number[]; rr: number[] }, fl: number, fr: number, rl: number, rr: number) => {
@@ -116,7 +117,7 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
       },
     } : null;
     const metricBinding = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") => {
-      const metric = key === "combinedSlip" ? analysis.gripDemand : key === "temperatureC" ? analysis.tireTemperature : key === "wear" ? analysis.tireHealth : key === "slipAngleRad" ? analysis.slipAngle : key === "slipRatio" ? analysis.slipRatio : analysis.suspensionTravel;
+      const metric = key === "combinedSlip" ? activeAnalysis.gripDemand : key === "temperatureC" ? activeAnalysis.tireTemperature : key === "wear" ? activeAnalysis.tireHealth : key === "slipAngleRad" ? activeAnalysis.slipAngle : key === "slipRatio" ? activeAnalysis.slipRatio : activeAnalysis.suspensionTravel;
       if (!semanticFrame || metric.source === "unavailable") return null;
       if (key === "combinedSlip") return resolveGripDemand(semanticFrame, metric);
       return metric.binding?.kind === "value" ? resolveWheelMetric(semanticFrame, metric.binding) : null;
@@ -144,6 +145,8 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
     }
     setChartData({ ...h });
   }, [packet, view?.sequence, view?.streamId]);
+
+  if (!gameId || !analysis) return null;
 
   return (
     <div className="grid gap-2">

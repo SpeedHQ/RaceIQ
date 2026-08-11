@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  DEFAULT_ANALYSIS_TELEMETRY,
   hasTireHealthData,
   hasTireTemperatureData,
   resolveAnalysisTelemetry,

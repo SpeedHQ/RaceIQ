@@ -55,7 +55,7 @@ function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft
 
 export function CarScene({
   gameId,
-  frame: frame,
+  frame,
   telemetry,
   cursorIdx,
   outline,
