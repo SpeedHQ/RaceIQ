@@ -17,7 +17,7 @@
  * Returns null when no game in the stint exposes any condition data, so callers
  * simply omit the section.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 export interface TrackConditions {
   frames: number;
@@ -37,7 +37,7 @@ export interface TrackConditions {
 }
 
 /** Mean rain fraction above which the lap is treated as wet. */
-export const WET_RAIN_FRACTION = 0.02;
+const WET_RAIN_FRACTION = 0.02;
 
 function firstFinite(...vals: (number | null | undefined)[]): number | null {
   for (const v of vals) if (v != null && Number.isFinite(v)) return v;

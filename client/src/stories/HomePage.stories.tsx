@@ -1,14 +1,14 @@
-import type { LapMeta, SessionMeta, SessionRecap } from "@shared/types";
-import type { DriverFingerprint, DriverTrend } from "../../../server/ai/driver-profile-aggregate";
-import type { DriverProfileRun } from "../hooks/queries";
-import hakoneClubCenterlineCsv from "../../../shared/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
-
+import type { LapMeta, SessionMeta, SessionRecap } from "@shared/racing/sessions/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
-import { HomePageContainer } from "../components/HomePageContainer";
-import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
+import { type ComponentType, type ReactNode, useEffect, useState } from "react";
+import { HomePageContainer } from "@/components/home/HomePageContainer";
+import type { DriverProfileRun } from "@/hooks/driver-profile";
+import { DEFAULT_DISPLAY_SETTINGS } from "@/stores/telemetry";
+import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
+import type { DriverTrend } from "../../../server/driver-profile/trend";
+import hakoneClubCenterlineCsv from "../../../shared/data/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
 import { GameStoryScope } from "./GameStoryScope";
 
 const GAME_ID = "fm-2023" as const;
@@ -101,10 +101,26 @@ const recap: SessionRecap = {
 };
 
 const DRIVER_TREND: DriverTrend = {
-  recent: { laps: laps.map((item) => ({ id: item.id, createdAt: item.createdAt, isValid: item.isValid, relativePacePct: item.isValid ? (item.lapTime / 95.844 - 1) * 100 : null })), total: 12, valid: 11, dirty: 1, cleanRate: 11 / 12, normalized: 11, consistency: 86, medianPacePct: 1.1, spreadPct: 2.4, contexts: 1 },
+  recent: {
+    laps: laps.map((item) => ({ id: item.id, createdAt: item.createdAt, isValid: item.isValid, relativePacePct: item.isValid ? (item.lapTime / 95.844 - 1) * 100 : null })),
+    total: 12,
+    valid: 11,
+    dirty: 1,
+    cleanRate: 11 / 12,
+    normalized: 11,
+    consistency: 86,
+    medianPacePct: 1.1,
+    spreadPct: 2.4,
+    contexts: 1,
+  },
   previous: { laps: [], total: 0, valid: 0, dirty: 0, cleanRate: null, normalized: 0, consistency: null, medianPacePct: null, spreadPct: null, contexts: 0 },
-  consistencyDelta: null, paceDeltaPct: null, spreadDeltaPct: null, cleanRateDelta: null,
-  consistencyDirection: "unavailable", paceDirection: "unavailable", validityDirection: "unavailable",
+  consistencyDelta: null,
+  paceDeltaPct: null,
+  spreadDeltaPct: null,
+  cleanRateDelta: null,
+  consistencyDirection: "unavailable",
+  paceDirection: "unavailable",
+  validityDirection: "unavailable",
   advice: [{ id: "build-baseline", tone: "neutral", title: "Build a comparable baseline", detail: "Keep recording comparable laps to make this trend reliable." }],
 };
 const DRIVER_FINGERPRINT: DriverFingerprint = {
@@ -179,12 +195,23 @@ function createQueryClient() {
   queryClient.setQueryData(["session-recap", SESSION_ID, GAME_ID], recap);
   queryClient.setQueryData(["driver-profile", GAME_ID], { fingerprint: DRIVER_FINGERPRINT, gameName: "Forza Motorsport 2023" });
   queryClient.setQueryData(["driver-profile-runs", GAME_ID], {
-    scope: { gameId: GAME_ID }, gameName: "Forza Motorsport 2023", state: "succeeded", enabled: true, configured: true, latest: PROFILE_RUN, runs: [PROFILE_RUN],
+    scope: { gameId: GAME_ID },
+    gameName: "Forza Motorsport 2023",
+    state: "succeeded",
+    enabled: true,
+    configured: true,
+    latest: PROFILE_RUN,
+    runs: [PROFILE_RUN],
   });
 
   for (const [gameId, totalLaps, totalTimeSec] of [
-    ["fm-2023", 128, 12_480], ["f1-2025", 74, 7_215], ["acc", 52, 5_086], ["ac-evo", 31, 3_042], ["iracing", 18, 1_764],
-  ] as const) queryClient.setQueryData(["stats", gameId], { totalLaps, totalTimeSec });
+    ["fm-2023", 128, 12_480],
+    ["f1-2025", 74, 7_215],
+    ["acc", 52, 5_086],
+    ["ac-evo", 31, 3_042],
+    ["iracing", 18, 1_764],
+  ] as const)
+    queryClient.setQueryData(["stats", gameId], { totalLaps, totalTimeSec });
   return queryClient;
 }
 
@@ -201,11 +228,7 @@ function jsonResponse(body: unknown): Promise<Response> {
   );
 }
 
-function mockHomeFetch(
-  input: RequestInfo | URL,
-  init: RequestInit | undefined,
-  fallbackFetch: typeof window.fetch = originalFetch,
-): Promise<Response> {
+function mockHomeFetch(input: RequestInfo | URL, init: RequestInit | undefined, fallbackFetch: typeof window.fetch = originalFetch): Promise<Response> {
   const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
   const parsedUrl = new URL(url, window.location.origin);
   const carMatch = parsedUrl.pathname.match(/\/api\/car-name\/(\d+)/);

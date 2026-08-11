@@ -1,11 +1,11 @@
-import { tryGetGame } from "@shared/games/registry";
-import type { F1ExtendedData } from "@shared/types";
 import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
-import { severityColor, severityRangeColor } from "@/lib/colors";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
+import { severityColor, severityRangeColor } from "@/lib/colors";
 import { m } from "@/paraglide/messages";
-import { useCarName, useTrackName } from "../../hooks/queries";
+import type { LiveF1Extension, LiveTelemetryView } from "../../lib/live-telemetry-view";
+import { useCarName } from "../../hooks/catalog-queries";
+import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
@@ -17,9 +17,7 @@ import { Button } from "../ui/button";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function fToC(f: number): number {
-  return (f - 32) / 1.8;
-}
+
 
 const WEATHER_LABELS: Record<number, string> = {
   0: m.f1live_weather_clear(),
@@ -47,26 +45,20 @@ function formatGap(gap: number): string {
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 
 export function F1LiveDashboard() {
-  const rawPacket = useTelemetryStore((s) => s.rawPacket);
-  const packet = useTelemetryStore((s) => s.packet);
-  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
+  const view = useTelemetryStore((s) => s.telemetryView);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
-  const hasF1Data = rawPacket?.gameId === "f1-2025" && rawPacket.f1;
-  const f1 = hasF1Data ? rawPacket.f1! : null;
-  const { data: trackName } = useTrackName(rawPacket?.TrackOrdinal);
-  const { data: carName } = useCarName(rawPacket?.CarOrdinal);
+  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
+  const f1 = (view?.simulator === "f1-2025" ? view.f1 : undefined) as Required<LiveF1Extension> | undefined;
+  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
+  const { data: carName } = useCarName(view?.identity.carOrdinal);
 
-  if (!f1) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <NoDataView />
-      </div>
-    );
+  if (!view || !f1) {
+    return <div className="flex-1 flex flex-col"><NoDataView /></div>;
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+    <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Core telemetry + pit info */}
       <div className="border-r border-app-border overflow-auto">
         {/* Weather | Electronics side-by-side */}
@@ -88,31 +80,23 @@ export function F1LiveDashboard() {
           </div>
           <div>
             <TireGrid
-              fl={{ tempC: Math.round(fToC(rawPacket!.TireTempFL)), wear: rawPacket!.TireWearFL, brakeTemp: rawPacket!.f1?.brakeTempFL ?? 0, pressure: rawPacket!.f1?.tyrePressureFL ?? 0 }}
-              fr={{ tempC: Math.round(fToC(rawPacket!.TireTempFR)), wear: rawPacket!.TireWearFR, brakeTemp: rawPacket!.f1?.brakeTempFR ?? 0, pressure: rawPacket!.f1?.tyrePressureFR ?? 0 }}
-              rl={{ tempC: Math.round(fToC(rawPacket!.TireTempRL)), wear: rawPacket!.TireWearRL, brakeTemp: rawPacket!.f1?.brakeTempRL ?? 0, pressure: rawPacket!.f1?.tyrePressureRL ?? 0 }}
-              rr={{ tempC: Math.round(fToC(rawPacket!.TireTempRR)), wear: rawPacket!.TireWearRR, brakeTemp: rawPacket!.f1?.brakeTempRR ?? 0, pressure: rawPacket!.f1?.tyrePressureRR ?? 0 }}
-              healthThresholds={tryGetGame("f1-2025")?.tireHealthThresholds ?? { green: 0.7, yellow: 0.5 }}
+              fl={{ tempC: Math.round(view.tires.temperatureC?.fl ?? 0), wear: view.tires.wear?.fl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fl ?? 0, pressure: view.tires.pressurePsi?.fl ?? 0 }}
+              fr={{ tempC: Math.round(view.tires.temperatureC?.fr ?? 0), wear: view.tires.wear?.fr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fr ?? 0, pressure: view.tires.pressurePsi?.fr ?? 0 }}
+              rr={{ tempC: Math.round(view.tires.temperatureC?.rr ?? 0), wear: view.tires.wear?.rr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rr ?? 0, pressure: view.tires.pressurePsi?.rr ?? 0 }}
+              healthThresholds={{ green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
-              compound={rawPacket!.f1?.tyreCompound ?? "unknown"}
+              compound={typeof view.tires.compound === "string" ? view.tires.compound : "unknown"}
             />
           </div>
-        </div>
-        {/* Pit Window */}
-        <div className="border-b border-app-border">
-          <div className="h-8 px-2 border-b border-app-border flex items-center">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_pit_window()}</h2>
-          </div>
           <div className="p-3">
-            <PitEstimate packet={rawPacket!} pit={pit} />
+            <PitEstimate view={view} pit={pit} />
           </div>
         </div>
-        <GridSection f1={f1} playerPosition={rawPacket!.RacePosition} />
+        <GridSection competitors={view.competitors} playerPosition={view.timing.racePosition ?? 0} />
       </div>
-
       {/* Right column: Race info + Charts + Recorded Laps */}
-      <div className="overflow-y-auto overflow-x-hidden flex flex-col">
-        <RaceInfo packet={packet!} sectors={sectors} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />
+      <div data-live-dashboard-race className="overflow-y-auto overflow-x-hidden flex flex-col">
+        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} totalLaps={typeof f1.totalLaps === "number" ? f1.totalLaps : undefined} sessionType={typeof f1.sessionType === "string" ? f1.sessionType : undefined} showTrackMap={false} showSectors={true} />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
         </div>
@@ -126,7 +110,7 @@ export function F1LiveDashboard() {
 
 // ── DRS Indicator ────────────────────────────────────────────────────────────
 
-function DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
+function DrsIndicator({ f1 }: { f1: Required<LiveF1Extension> }) {
   let stateClasses = "bg-app-surface-alt text-app-text-muted";
   let label = m.f1live_drs_closed();
 
@@ -147,7 +131,7 @@ function DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
 
 // ── Car Damage Section ──────────────────────────────────────────────────────
 
-function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
+function CarDamageSection({ f1 }: { f1: Required<LiveF1Extension> }) {
   const parts = [
     { label: m.f1live_damage_fl_wing(), value: f1.frontLeftWingDamage },
     { label: m.f1live_damage_fr_wing(), value: f1.frontRightWingDamage },
@@ -220,7 +204,7 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
 
 // ── ERS Section ──────────────────────────────────────────────────────────────
 
-function ErsSection({ f1 }: { f1: F1ExtendedData }) {
+function ErsSection({ f1 }: { f1: Required<LiveF1Extension> }) {
   const pct = Math.min(100, (f1.ersStoreEnergy / ERS_MAX_ENERGY) * 100);
   const mode = DEPLOY_MODES[f1.ersDeployMode] ?? DEPLOY_MODES[0];
   const deployedPct = Math.min(100, (f1.ersDeployedThisLap / ERS_MAX_ENERGY) * 100);
@@ -279,7 +263,7 @@ function WeatherIcon({ weather }: { weather: number }) {
   }
 }
 
-function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
+function WeatherWidget({ f1 }: { f1: Required<LiveF1Extension> }) {
   const label = WEATHER_LABELS[f1.weather] ?? "Unknown";
   const hasRain = f1.rainPercentage > 0;
 
@@ -321,8 +305,8 @@ function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
 
 // ── Grid Section (focused: leader + nearby drivers) ──────────────────────────
 
-function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPosition: number }) {
-  const sorted = [...f1.grid].sort((a, b) => a.position - b.position);
+function GridSection({ competitors, playerPosition }: { competitors: LiveTelemetryView["competitors"]; playerPosition: number }) {
+  const sorted = [...competitors].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const [expanded, setExpanded] = useState(false);
 
   // Show leader + 2 ahead + player + 2 behind
@@ -400,33 +384,33 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
                     {entry.name || `${m.label_car()} ${entry.position}`}
                   </TableCell>
                   <TableCell align="end" numeric>
-                    {entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}
+                    {entry.lastS1S && entry.lastS1S > 0 ? entry.lastS1S.toFixed(3) : "—"}
                   </TableCell>
                   <TableCell align="end" numeric>
-                    {entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}
+                    {entry.lastS2S && entry.lastS2S > 0 ? entry.lastS2S.toFixed(3) : "—"}
                   </TableCell>
                   <TableCell align="end" numeric>
-                    {entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}
+                    {entry.lastS3S && entry.lastS3S > 0 ? entry.lastS3S.toFixed(3) : "—"}
                   </TableCell>
                   <TableCell align="end" numeric tone="muted">
-                    {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}
+                    {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeaderS ?? 0)}
                   </TableCell>
                   <TableCell align="end" numeric tone="muted">
-                    {formatGap(entry.gapToCarAhead)}
+                    {formatGap(entry.gapToAheadS ?? 0)}
                   </TableCell>
                   <TableCell align="center">
-                    <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
+                    <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={String(entry.tireCompound ?? "unknown").toLowerCase()} />
                   </TableCell>
                   <TableCell align="end" numeric tone="muted">
-                    {entry.tyreAge}
+                    {entry.tireAge ?? 0}
                   </TableCell>
                   <TableCell align="center" tone="muted">
                     {entry.pitStatus === 1 ? (
                       <span className="text-status-warning font-bold">IN</span>
                     ) : entry.pitStatus === 2 ? (
                       <span className="text-status-warning">PIT</span>
-                    ) : entry.numPitStops > 0 ? (
-                      entry.numPitStops
+                    ) : (entry.pitStops ?? 0) > 0 ? (
+                      entry.pitStops
                     ) : (
                       ""
                     )}

@@ -4,7 +4,9 @@
  * Offsets match ACC v1.9 shared memory structs defined in structs.ts.
  */
 
-import type { TelemetryPacket, AccExtendedData } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { KunosExtendedData } from "../../../shared/telemetry/kunos";
+import type { GameId } from "../../../shared/games/ids";
 import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "./structs";
 import { readWString } from "./utils";
 
@@ -16,7 +18,7 @@ export function parseAccBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
   staticBuf: Buffer,
-  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: import("../../../shared/types").GameId; playerSlot?: number }
+  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: GameId; playerSlot?: number }
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
@@ -288,7 +290,7 @@ export function parseAccBuffers(
 
   const isRaceOn = status === 2 ? 1 : 0;
 
-  const acc: AccExtendedData = {
+  const acc: KunosExtendedData = {
     tireCompound: tireCompound || (rainTyres ? "wet_compound" : "dry_compound"),
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
@@ -395,6 +397,22 @@ export function parseAccBuffers(
     TireTempFR: tempFR,
     TireTempRL: tempRL,
     TireTempRR: tempRR,
+    TireCarcassTempFL: coreFL,
+    TireCarcassTempFR: coreFR,
+    TireCarcassTempRL: coreRL,
+    TireCarcassTempRR: coreRR,
+    TireSurfaceTempInnerFL: innerFL,
+    TireSurfaceTempInnerFR: innerFR,
+    TireSurfaceTempInnerRL: innerRL,
+    TireSurfaceTempInnerRR: innerRR,
+    TireSurfaceTempMiddleFL: middleFL,
+    TireSurfaceTempMiddleFR: middleFR,
+    TireSurfaceTempMiddleRL: middleRL,
+    TireSurfaceTempMiddleRR: middleRR,
+    TireSurfaceTempOuterFL: outerFL,
+    TireSurfaceTempOuterFR: outerFR,
+    TireSurfaceTempOuterRL: outerRL,
+    TireSurfaceTempOuterRR: outerRR,
 
     Boost: 0,
     Fuel: fuel,

@@ -1,34 +1,27 @@
-import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/experiment-focus";
 import { getGame } from "@shared/games/registry";
-import { isPitCycleLap } from "@shared/lap-filters";
-import type { LapMeta } from "@shared/types";
+import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/racing/experiments/focus";
+import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
+import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import {
-  type ExperimentGameId,
-  type ExperimentLapMetric,
-  type ExperimentVersion,
-  useAccCarName,
-  useExperiment,
-  useExperimentLapMetrics,
-  useExperimentVersions,
-  useLaps,
-  useResolveNames,
-} from "../../hooks/queries";
-import { formatLapTime } from "../../lib/format";
-import { client } from "../../lib/rpc";
-import { useTelemetryStore } from "../../stores/telemetry";
-import { Button } from "../ui/button";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { PanelSectionHeader } from "@/components/ui/panel-section-header";
+import { useAccCarName, useResolveNames } from "@/hooks/catalog-queries";
+import type { ExperimentGameId, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
+import { useExperiment, useExperimentLapMetrics, useExperimentVersions, useAddBase } from "@/hooks/experiments";
+import { useLaps } from "@/hooks/laps";
+import { formatLapTime } from "@/lib/format";
+import { client } from "@/lib/rpc";
+import { useTelemetryStore } from "@/stores/telemetry";
 import { AddBaseModal } from "./AddBaseModal";
 import { BackButton } from "./BackButton";
+import { VersionGraph } from "./experiment/VersionGraph";
 import { FocusSwitcher } from "./FocusSwitcher";
 import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
-import { PanelSectionHeader } from "../ui/panel-section-header";
-import { VersionGraph } from "./VersionGraph";
 
 /**
  * ExperimentWorkspace — the live-first workspace that opens *inside* a tuning
@@ -42,7 +35,7 @@ import { VersionGraph } from "./VersionGraph";
  * worst-tyre % worn per lap, from the game's tyre-wear channel. The spun flag is
  * omitted (parity Phase 2 spin detection). The right panel's setup chat
  * (TuneSetupChat) is a tool-using Setup Engineer agent
- * (docs/setup-engineer-tools-plan.md §3) — it reads the current setup and
+ * (docs/architecture/setup-engineer.md) — it reads the current setup and
  * symptoms itself via tools and calls apply_changes when the driver confirms,
  * so this component no longer drives a separate generate-from-chat mutation.
  */
@@ -51,19 +44,21 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const { data: session, isLoading: loadingSession } = useExperiment(experimentId);
-  const { data: tests = [] } = useExperimentVersions(experimentId);
+  const { data: session, isLoading: loadingSession, isError: sessionError } = useExperiment(experimentId);
+  const { data: tests = [], isError: versionsError, isLoading: loadingVersions } = useExperimentVersions(experimentId);
+  const addBase = useAddBase();
+  const baseSeededForSession = useRef<number | null>(null);
   /** Setup file the session is currently on: the head test's version, falling
    *  back to the session's base setup (before any test exists). */
   const { data: lapMetrics = [] } = useExperimentLapMetrics(experimentId);
   const accCarName = useAccCarName();
   const { data: allLaps = [] } = useLaps();
   const liveSessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const livePacket = useTelemetryStore((s) => s.packet);
+  const livePit = useTelemetryStore((s) => s.pit);
 
   // Mark this session active while the workspace is open so every lap the
   // driver records is stamped with this experiment_id at insert (server
-  // side). The active id lives in server memory (server/experiment-active.ts), so a
+  // side). The active id lives in server memory (server/experiments/active.ts), so a
   // dev-server hot reload or restart silently drops it and every lap after that
   // lands unstamped — modelled as a TanStack query with a refetchInterval so
   // activation is re-asserted on a heartbeat (plus on window focus/reconnect)
@@ -72,7 +67,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     queryKey: ["experiment-activate", experimentId],
     queryFn: async () => {
       const api = client.api as any;
-      const res = await api["experiments"][":id"].activate.$post({ param: { id: String(experimentId) } });
+      const res = await api.experiments[":id"].activate.$post({ param: { id: String(experimentId) } });
       return res.json() as Promise<{ active: number | null }>;
     },
     refetchInterval: 5000,
@@ -86,9 +81,22 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   // clobber a session the driver has since switched to.
   useEffect(() => {
     return () => {
-      (client.api as any)["experiments"][":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
+      (client.api as any).experiments[":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
     };
   }, [experimentId]);
+  // A setup-backed session must always expose its selected file as v1. Older
+  // sessions and interrupted creates can leave the session row ahead of its
+  // version row; repair that invariant before rendering an empty graph.
+  useEffect(() => {
+    if (loadingVersions || !session?.baseSetupPath || tests.length > 0 || baseSeededForSession.current === session.id) return;
+    baseSeededForSession.current = session.id;
+    addBase.mutate({
+      sessionId: session.id,
+      setupPath: session.baseSetupPath,
+      label: "v1",
+      setHead: true,
+    });
+  }, [addBase, loadingVersions, session, tests.length]);
 
   // Header car/track labels: setup-file-seeded sessions carry names directly;
   // ordinal-seeded ones resolve names from the ordinals.
@@ -107,7 +115,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     }
     for (const l of liveSessionLaps) {
       // Live lap objects from the telemetry pipeline never carry the exclusion
-      // fields (server/pipeline.ts builds them without them), so keep the
+      // fields (server/telemetry/live-pipeline.ts builds them without them), so keep the
       // persisted lap's flag AND its source when both exist — otherwise the
       // exclude toggle looks dead for laps of the current stint.
       // The source must survive: selectEvaluationLaps only reads a lap as
@@ -188,7 +196,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const liveAvg = liveValid.length ? liveValid.reduce((s, l) => s + l.lapTime, 0) / liveValid.length : null;
   // Both ACC and AC-Evo populate acc.fuelPerLap; live-only (per-lap fuel for
   // recorded laps is Phase C).
-  const liveFuelPerLap = livePacket?.acc?.fuelPerLap || null;
+  const liveFuelPerLap = livePit?.fuelPerLap ?? null;
   const lapsDone = liveSessionLaps.length;
   // Phase 5 — track-length-aware stint nudge, advisory only. Falls back to 3
   // (the old hardcoded target) until the session payload lands.
@@ -201,11 +209,13 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     navigate({ to: `/${routePrefix}/experiments` } as any);
 
-  if (loadingSession || !session) {
+  if (loadingSession || sessionError || !session) {
     return (
       <div className="flex-1 p-3">
         <BackButton onClick={clearSession} className="mb-3" />
-        <div className="text-sm text-app-text-dim mt-3">{loadingSession ? "Loading experiment…" : "Experiment not found."}</div>
+        <div role={sessionError ? "alert" : undefined} className={`text-sm mt-3 ${sessionError ? "text-status-danger" : "text-app-text-dim"}`}>
+          {loadingSession ? "Loading experiment…" : sessionError ? "Could not load experiment. Try again." : "Experiment not found."}
+        </div>
       </div>
     );
   }
@@ -237,7 +247,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
           panel (Recommend + chat) is permanent and full-height. */}
       {/* Chat column is hidden during a live test — the live dashboard gets the
           full width; chat returns on the review page / idle workspace. */}
-      <div className={`flex-1 min-h-0 grid grid-cols-1 gap-3 ${testPhase === "live" ? "" : "lg:grid-cols-[1fr_360px]"}`}>
+      <div className={`flex-1 min-h-0 grid grid-cols-1 gap-3 ${testPhase === "live" ? "" : "@5xl/workspace:grid-cols-[1fr_360px]"}`}>
         {/* Left: tune-tests table normally; the live dashboard takes over the
             panel while a test is running. Review moved to its own route
             (…/review) — no tab switcher. */}
@@ -247,7 +257,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
               <>
                 {/* Session overview — always rendered as placeholders ("—") so
                     the row layout doesn't jump once laps start landing. */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-2 border-b border-app-border">
+                <div className="grid grid-cols-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6 gap-2 p-2 border-b border-app-border">
                   <StatCard label="Laps" value={String(lapCount)} />
                   <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
                   <StatCard label="Best setup" value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
@@ -255,6 +265,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   <StatCard label="Drive time" value={driveTime > 0 ? formatDuration(driveTime) : "—"} />
                   <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />
                   {/* Tyre deg card omitted — ACC/AC-Evo expose no genuine tyre-wear channel. */}
+                  {versionsError && (
+                    <div role="alert" className="mx-2 mt-2 rounded border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">
+                      Could not load version history.
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between px-2 pt-2 flex-wrap gap-1">
                   <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Version tree</span>
@@ -336,7 +351,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                     </Button>
                   </div>
                 </div>
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 p-2">
                   <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
                 </div>
               </div>
@@ -350,13 +365,15 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
             Hidden during a live test — the live dashboard gets the full width. */}
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-            <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
-              <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
-                Dashboard
-              </Button>
-            </PanelSectionHeader>
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <TuneSetupChat sessionId={session.id} headVersionId={session.headVersionId} />
+            <div className="shrink-0 border-b border-app-border px-2 py-1.5">
+              <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
+                <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
+                  Dashboard
+                </Button>
+              </PanelSectionHeader>
+            </div>
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-2">
+              <TuneSetupChat sessionId={session.id} headVersionId={session?.headVersionId ?? null} />
             </div>
           </div>
         )}
@@ -384,8 +401,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-
-/** Compact inline stat for the horizontal "Current stint" strip. */
 function InlineStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-1.5">

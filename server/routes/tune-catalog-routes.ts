@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../shared/schemas";
-import { GameIdSchema } from "../../shared/types";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
+import { GameIdSchema } from "../../shared/games/ids";
 import { setTuneAssignment, getTuneAssignment, getTuneAssignments, deleteTuneAssignment, updateLapTune } from "../db/tune-queries";
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import { getCommunityTunes } from "../db/community-tune-queries";
-import { syncCommunityTunes } from "../community-tunes-sync";
-import { getLaptimes, syncLaptimes } from "../laptimes-sync";
+import { syncCommunityTunes } from "../tunes/community-sync";
+import { getLaptimes, syncLaptimes } from "../sync/laptimes";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
 
 

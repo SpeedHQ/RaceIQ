@@ -1,20 +1,21 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { existsSync, readdirSync } from "fs";
-import { resolve } from "path";
-import { PUBLIC_DIR, IS_COMPILED } from "../paths";
+import { existsSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { PUBLIC_DIR, IS_COMPILED } from "../runtime/config/paths";
 
-import { GameIdQuerySchema } from "../../shared/schemas";
-import { udpListener } from "../udp";
-import { wsManager } from "../ws";
-import { lapDetector } from "../pipeline";
-import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
-import { getSecret, setSecret } from "../keystore";
-import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../launch-on-login";
-import { getLapStats, setCacheMaxBytes } from "../db/queries";
+import { GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { udpListener } from "../runtime/udp-listener";
+import { wsManager } from "../runtime/websocket-manager";
+import { lapDetector } from "../telemetry/live-pipeline";
+import { loadSettings, saveSettings, PartialSettingsSchema } from "../runtime/config/settings";
+import { getSecret, setSecret } from "../runtime/platform/keystore";
+import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../runtime/platform/launch-on-login";
+import { getLapStats } from "../db/lap-read-queries";
+import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
 import { getRunningGame } from "../games/registry";
-import { getTrackLengthMeters } from "../../shared/track-data";
-import { withOnboardingOverride } from "../runtime-options";
+import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
+import { withOnboardingOverride } from "../runtime/options";
 
 import { getGeminiModelsDetailed, getLocalModelsDetailed, getOpenAiModels, getProviders } from "../ai/providers";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -145,11 +146,17 @@ export const settingsRoutes = new Hono()
         && cachedLocalEmpty
         && cachedLocalEmpty.endpoint === endpoint
         && (Date.now() - cachedLocalEmpty.at) < MODELS_EMPTY_RETRY_MS;
-      const fetchedLocal = localCacheHit && cachedLocalModels
-        ? (console.info("[AI] ai-models local cache hit"), { models: cachedLocalModels.models, error: null as string | null })
-        : localEmptyRecent
-          ? (console.info("[AI] ai-models local recent-empty cache hit"), { models: [] as { id: string; name: string; contextLength?: number }[], error: localError })
-          : (console.info("[AI] ai-models local cache miss"), await getLocalModelsDetailed(endpoint));
+      let fetchedLocal: Awaited<ReturnType<typeof getLocalModelsDetailed>>;
+      if (localCacheHit && cachedLocalModels) {
+        console.info("[AI] ai-models local cache hit");
+        fetchedLocal = { models: cachedLocalModels.models, error: null };
+      } else if (localEmptyRecent) {
+        console.info("[AI] ai-models local recent-empty cache hit");
+        fetchedLocal = { models: [], error: localError };
+      } else {
+        console.info("[AI] ai-models local cache miss");
+        fetchedLocal = await getLocalModelsDetailed(endpoint);
+      }
       localError = fetchedLocal.error;
       const fetchedLocalModels = fetchedLocal.models;
       localModels = fetchedLocalModels.length > 0

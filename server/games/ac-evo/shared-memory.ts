@@ -1,45 +1,47 @@
 /**
  * AC Evo Shared Memory Reader.
  *
- * Reuses ACC's BufferedAccMemoryReader + TripletAssembler + TripletPipeline
+ * Reuses Kunos BufferedKunosMemoryReader + TripletAssembler + TripletPipeline
  * infrastructure (same shared memory format). Key differences:
  *   - Uses acEvoProcessChecker (watches AssettoCorsaEVO.exe)
  *   - Uses AcEvoParsingProcessor which resolves car/track ordinals from
  *     STATIC display names via the AC Evo CSV lookups
  */
-import { BufferedAccMemoryReader } from "../acc/buffered-memory-reader";
-import { TripletAssembler } from "../acc/triplet-assembler";
-import { TripletPipeline, DumpToBinProcessor } from "../acc/triplet-pipeline";
-import type { TripletProcessor } from "../acc/triplet-pipeline";
-import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
-import type { AcEvoParserCache } from "./parser";
-import { processPacket } from "../../pipeline";
-import { acEvoRecorder } from "./recorder";
-import { packTriplet, ACEVO_PACKED_MAGIC } from "../shared/pack-triplet";
+
+import { processPacket } from "../../telemetry/live-pipeline";
+import { BufferedKunosMemoryReader } from "../kunos/buffered-memory-reader";
+import { ACEVO_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
+import { TripletAssembler } from "../kunos/triplet-assembler";
+import type { TripletProcessor } from "../kunos/triplet-pipeline";
+import { DumpToBinProcessor, TripletPipeline } from "../kunos/triplet-pipeline";
 import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
-import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "./structs";
+import type { AcEvoParserCache } from "./parser";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "./parser";
+import { acEvoRecorder } from "./recorder";
+import { GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "./structs";
 
 class AcEvoParsingProcessor implements TripletProcessor {
   private cache: AcEvoParserCache = createAcEvoParserCache();
 
-  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
+  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<undefined> {
     try {
       const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
       if (packet) {
         // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
         // car/track (Ferrari SF90 Stradale / Monza GP).
-        const rawBuf = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
-        await processPacket(packet, rawBuf);
+        const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
+        await processPacket(packet, sourceFrame);
       }
     } catch (err) {
       console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);
       throw err;
     }
+    return undefined;
   }
 }
 
 export class AcEvoSharedMemoryReader {
-  private _bufferedReader: BufferedAccMemoryReader;
+  private _bufferedReader: BufferedKunosMemoryReader;
   private _tripletAssembler: TripletAssembler;
   private _pipeline: TripletPipeline;
   private _running = false;
@@ -49,7 +51,7 @@ export class AcEvoSharedMemoryReader {
   private _holdsTimerResolution = false;
 
   constructor(recordingEnabled = false) {
-    this._bufferedReader = new BufferedAccMemoryReader({
+    this._bufferedReader = new BufferedKunosMemoryReader({
       // AC Evo v0.6 uses acevo_pmf_* names (confirmed via handle.exe against
       // AssettoCorsaEVO.exe — ACC's acpmf_* names are not owned by the game).
       physicsName: "Local\\acevo_pmf_physics",
@@ -92,7 +94,7 @@ export class AcEvoSharedMemoryReader {
     this._running = true;
     console.log("[AC Evo] Starting shared memory reader...");
 
-    // Process detection is handled by the central supervisor in server/index.ts.
+    // Process detection is handled by the central supervisor in server/runtime/native-sources.ts.
     this._onDetected();
   }
 
@@ -126,7 +128,7 @@ export class AcEvoSharedMemoryReader {
     // which silently collapses the reader's 300Hz/60Hz timers and the
     // assembler's 100Hz timer to ~63.5Hz. Held only for the capture's lifetime
     // because a raised resolution costs power.
-    // See docs/telemetry-fidelity.md section 1.
+    // See docs/research/telemetry-fidelity.md section 1.
     if (!this._holdsTimerResolution) {
       acquireHighResolutionTimer();
       this._holdsTimerResolution = true;
@@ -140,10 +142,7 @@ export class AcEvoSharedMemoryReader {
     // to be a legacy stub), so using it as a gate silences every real packet.
     // Always parse — let the UI show whatever the page has so we can diagnose.
     if (this._recordingEnabled) {
-      this._pipeline.register(
-        new DumpToBinProcessor(acEvoRecorder),
-        new AcEvoParsingProcessor(),
-      );
+      this._pipeline.register(new DumpToBinProcessor(acEvoRecorder), new AcEvoParsingProcessor());
       console.log("[AC Evo] Triplet pipeline: DumpToBinProcessor → AcEvoParsingProcessor");
     } else {
       this._pipeline.register(new AcEvoParsingProcessor());
@@ -154,5 +153,4 @@ export class AcEvoSharedMemoryReader {
 
     console.log("[AC Evo] Connected - buffers reading and pipeline active");
   }
-
 }

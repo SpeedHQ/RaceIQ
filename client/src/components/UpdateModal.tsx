@@ -35,7 +35,7 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, newReleases, onClose }: { version: string; newReleases: { version: string; notes: string; date: string }[]; onClose: () => void }) {
+export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }: { version: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
@@ -80,11 +80,19 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4" onClick={isUpdating ? undefined : onClose}>
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4">
+      {!isUpdating && <button type="button" aria-label={m.common_close()} className="absolute inset-0 cursor-default" onClick={onClose} />}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="update-modal-title"
+        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
-          <h2 className="text-sm font-semibold text-app-text">{stage === "complete" ? m.update_title_complete() : stage ? m.update_title_updating() : m.update_title_available()}</h2>
+          <h2 id="update-modal-title" className="text-sm font-semibold text-app-text">
+            {stage === "complete" ? m.update_title_complete() : stage ? m.update_title_updating() : m.update_title_available()}
+          </h2>
           {!isUpdating && (
             <Button variant="close-action" size="icon-sm" onClick={onClose} aria-label={m.common_close()}>
               <X className="size-4" />
@@ -100,7 +108,12 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               <p className="text-sm text-app-text-secondary">
                 RaceIQ <span className="font-mono text-app-accent">v{version}</span> {m.update_ready_suffix()}
               </p>
-              {newReleases.length > 0 &&
+              {fullReleaseNotes ? (
+                <div className="max-h-52 overflow-y-auto">
+                  <ReleaseNotes notes={fullReleaseNotes} />
+                </div>
+              ) : (
+                newReleases.length > 0 &&
                 (() => {
                   const [latest, ...older] = newReleases;
                   return (
@@ -131,7 +144,8 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                         ))}
                     </div>
                   );
-                })()}
+                })()
+              )}
               <div className="flex justify-end gap-3">
                 <Button variant="app-primary" size="app-md" onClick={handleInstall}>
                   {m.label_install_update()}

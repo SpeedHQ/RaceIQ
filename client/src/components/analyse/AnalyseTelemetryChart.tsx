@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { syncCanvasSize } from "../../lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 
 export interface ChartSeries {
@@ -9,7 +10,6 @@ export interface ChartSeries {
 
 export function TelemetryChart({
   series,
-  cursorIdx: _cursorIdx,
   totalPackets,
   onClickIndex,
   onScrubStart,
@@ -20,7 +20,6 @@ export function TelemetryChart({
   onVisualFracChange,
 }: {
   series: ChartSeries[];
-  cursorIdx: number;
   totalPackets: number;
   onClickIndex: (idx: number) => void;
   onScrubStart?: () => void;
@@ -32,7 +31,15 @@ export function TelemetryChart({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrubCleanupRef = useRef<(() => void) | null>(null);
 
+  useEffect(
+    () => () => {
+      scrubCleanupRef.current?.();
+      scrubCleanupRef.current = null;
+    },
+    [],
+  );
   // Draw static chart data — only when series/size changes, NOT on cursorIdx
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -43,12 +50,11 @@ export function TelemetryChart({
 
     const w = container.clientWidth;
     const h = height;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-    ctx.scale(dpr, dpr);
+    if (w <= 0 || h <= 0) return;
+    syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
+    const scaleX = canvas.width / w;
+    const scaleY = canvas.height / h;
+    ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
     const leftPad = 40;
@@ -176,6 +182,7 @@ export function TelemetryChart({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      scrubCleanupRef.current?.();
       onScrubStart?.();
       const idx = idxFromEvent(e.clientX);
       if (idx !== null) onClickIndex(idx);
@@ -190,7 +197,13 @@ export function TelemetryChart({
         onVisualFracChange?.(null);
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
+        scrubCleanupRef.current = null;
       };
+      const cleanup = () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+      scrubCleanupRef.current = cleanup;
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
@@ -198,6 +211,7 @@ export function TelemetryChart({
   );
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: canvas scrubbing uses pointer drag; keyboard navigation is provided by the timeline controls
     <div ref={containerRef} className="w-full relative" style={{ height }} onMouseDown={handleMouseDown}>
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair rounded bg-app-surface/40" />
     </div>

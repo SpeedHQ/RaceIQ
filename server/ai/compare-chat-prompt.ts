@@ -3,12 +3,12 @@
  * Provides comparison context; cached analyses are retrieved through the
  * visible get_lap_analysis tool call instead of being embedded here.
  */
-import type { GameId } from "../../shared/types";
-import type { ComparisonResult } from "../comparison";
-import type { UnitSystem, TemperatureUnit } from "../export";
+import type { GameId } from "../../shared/games/ids";
+import type { ComparisonResult } from "../lap-analysis/comparison";
+import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
 import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 import { buildSegmentTimingTable, type PromptSegment } from "./inputs-compare-prompt";
-import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
+import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 
 interface LapInfo {
   id: number;
@@ -57,7 +57,7 @@ function summarizeComparison(comp: ComparisonResult): string {
       out += `  ${c.label}: ${sign}${c.deltaSeconds.toFixed(3)}s (A=${c.timeA.toFixed(3)}s, B=${c.timeB.toFixed(3)}s)\n`;
     }
   }
-  return out + "\n";
+  return `${out}\n`;
 }
 
 export function buildCompareChatContext(
@@ -86,11 +86,47 @@ export function buildCompareChatSystemPrompt(
   lapA: LapInfo,
   lapB: LapInfo,
   comparison: ComparisonResult,
-  unit: UnitSystem = "metric",
-  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
-  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
-  language: string = "en",
+  unit?: UnitSystem,
+  temperatureUnit?: TemperatureUnit,
+  language?: string,
+): string;
+export function buildCompareChatSystemPrompt(
+  lapA: LapInfo,
+  lapB: LapInfo,
+  comparison: ComparisonResult,
+  analysisJsonA: string | null | undefined,
+  analysisJsonB: string | null | undefined,
+  unit?: UnitSystem,
+  temperatureUnit?: TemperatureUnit,
+  language?: string,
+  precomputedInsights?: string,
+): string;
+export function buildCompareChatSystemPrompt(
+  lapA: LapInfo,
+  lapB: LapInfo,
+  comparison: ComparisonResult,
+  unitOrAnalysisA: UnitSystem | string | null = "metric",
+  temperatureOrAnalysisB: TemperatureUnit | string | null = "C",
+  languageOrUnit: string | UnitSystem = "en",
+  legacyTemperature?: TemperatureUnit,
+  legacyLanguage = "en",
 ): string {
+  const isCurrent = unitOrAnalysisA === "metric" || unitOrAnalysisA === "imperial";
+  const unit: UnitSystem = isCurrent
+    ? unitOrAnalysisA
+    : languageOrUnit === "imperial"
+      ? "imperial"
+      : "metric";
+  const temperatureUnit: TemperatureUnit = isCurrent
+    ? temperatureOrAnalysisB === "F"
+      ? "F"
+      : "C"
+    : legacyTemperature ?? (unit === "metric" ? "C" : "F");
+  const language = isCurrent
+    ? typeof languageOrUnit === "string" && languageOrUnit !== "metric" && languageOrUnit !== "imperial"
+      ? languageOrUnit
+      : "en"
+    : legacyLanguage;
   const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
   const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
   const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);

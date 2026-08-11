@@ -27,7 +27,7 @@ export interface IRacingVariableDescriptor {
 function readCString(buf: Buffer, offset: number, length: number): string {
   const end = buf.indexOf(0, offset);
   const boundedEnd = end >= offset && end < offset + length ? end : offset + length;
-  return buf.toString("utf8", offset, boundedEnd).trim();
+  return buf.toString("utf8", offset, boundedEnd);
 }
 
 function elementSize(type: IRSDKVariableType): number {
@@ -48,6 +48,8 @@ function elementSize(type: IRSDKVariableType): number {
 
 export class IRacingVariableTable {
   private readonly descriptors = new Map<string, IRacingVariableDescriptor>();
+  private readonly orderedDescriptors: readonly IRacingVariableDescriptor[];
+  readonly names: readonly string[];
   private readonly rowLength: number;
 
   constructor(headerBytes: Buffer, rowLength: number) {
@@ -65,7 +67,7 @@ export class IRacingVariableTable {
       const valueOffset = headerBytes.readInt32LE(offset + 4);
       const count = headerBytes.readInt32LE(offset + 8);
       const size = elementSize(type);
-      const name = readCString(headerBytes, offset + 16, 32);
+      const name = readCString(headerBytes, offset + 16, 32).trim();
 
       if (
         !name ||
@@ -84,10 +86,15 @@ export class IRacingVariableTable {
         count,
         countAsTime: headerBytes.readUInt8(offset + 12) !== 0,
         name,
-        description: readCString(headerBytes, offset + 48, 64),
-        unit: readCString(headerBytes, offset + 112, 32),
+        description: readCString(headerBytes, offset + 48, 64).trim(),
+        unit: readCString(headerBytes, offset + 112, 32).trim(),
       });
     }
+
+    this.orderedDescriptors = Object.freeze([...this.descriptors.values()]);
+    this.names = Object.freeze(
+      this.orderedDescriptors.map((descriptor) => descriptor.name),
+    );
   }
 
   has(name: string): boolean {
@@ -101,35 +108,23 @@ export class IRacingVariableTable {
   read(row: Buffer, name: string): IRacingValue | undefined {
     const descriptor = this.descriptors.get(name);
     if (!descriptor || row.length < this.rowLength) return undefined;
+    return this.readDescriptor(row, descriptor);
+  }
 
-    if (descriptor.type === IRSDKVariableType.Char) {
-      return readCString(row, descriptor.offset, descriptor.count);
+  readAll(row: Buffer): Record<string, IRacingValue> {
+    const values: Record<string, IRacingValue> = {};
+    if (row.length < this.rowLength) return values;
+    for (const descriptor of this.orderedDescriptors) {
+      const value = this.readDescriptor(row, descriptor);
+      const hasNonFiniteNumber =
+        (typeof value === "number" && !Number.isFinite(value)) ||
+        (Array.isArray(value) &&
+          value.some(
+            (entry) => typeof entry === "number" && !Number.isFinite(entry),
+          ));
+      if (!hasNonFiniteNumber) values[descriptor.name] = value;
     }
-
-    const values: Array<number | boolean> = [];
-    const stride = elementSize(descriptor.type);
-    for (let index = 0; index < descriptor.count; index++) {
-      const offset = descriptor.offset + index * stride;
-      switch (descriptor.type) {
-        case IRSDKVariableType.Bool:
-          values.push(row.readUInt8(offset) !== 0);
-          break;
-        case IRSDKVariableType.Int:
-          values.push(row.readInt32LE(offset));
-          break;
-        case IRSDKVariableType.BitField:
-          values.push(row.readUInt32LE(offset));
-          break;
-        case IRSDKVariableType.Float:
-          values.push(row.readFloatLE(offset));
-          break;
-        case IRSDKVariableType.Double:
-          values.push(row.readDoubleLE(offset));
-          break;
-      }
-    }
-
-    return descriptor.count === 1 ? values[0] : values;
+    return values;
   }
 
   readSelected(row: Buffer, names: readonly string[]): Record<string, IRacingValue> {
@@ -139,9 +134,56 @@ export class IRacingVariableTable {
       const hasNonFiniteNumber =
         (typeof value === "number" && !Number.isFinite(value)) ||
         (Array.isArray(value) &&
-          value.some((entry) => typeof entry === "number" && !Number.isFinite(entry)));
+          value.some(
+            (entry) => typeof entry === "number" && !Number.isFinite(entry),
+          ));
       if (value !== undefined && !hasNonFiniteNumber) values[name] = value;
     }
     return values;
+  }
+
+  private readDescriptor(
+    row: Buffer,
+    descriptor: IRacingVariableDescriptor,
+  ): IRacingValue {
+    if (descriptor.type === IRSDKVariableType.Char) {
+      return readCString(row, descriptor.offset, descriptor.count);
+    }
+
+    if (descriptor.count === 1) {
+      return this.readElement(row, descriptor.type, descriptor.offset);
+    }
+
+    const values = new Array<number | boolean>(descriptor.count);
+    const stride = elementSize(descriptor.type);
+    for (let index = 0; index < descriptor.count; index++) {
+      values[index] = this.readElement(
+        row,
+        descriptor.type,
+        descriptor.offset + index * stride,
+      );
+    }
+    return values;
+  }
+
+  private readElement(
+    row: Buffer,
+    type: IRSDKVariableType,
+    offset: number,
+  ): number | boolean {
+    switch (type) {
+      case IRSDKVariableType.Bool:
+        return row.readUInt8(offset) !== 0;
+      case IRSDKVariableType.Int:
+        return row.readInt32LE(offset);
+      case IRSDKVariableType.BitField:
+        return row.readUInt32LE(offset);
+      case IRSDKVariableType.Float:
+        return row.readFloatLE(offset);
+      case IRSDKVariableType.Double:
+        return row.readDoubleLE(offset);
+      default:
+        throw new Error("Unsupported iRacing variable type");
+    }
   }
 }

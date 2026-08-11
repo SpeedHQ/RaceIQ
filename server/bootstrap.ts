@@ -3,9 +3,9 @@
  * logger is ready and writes them to a crash log next to the exe
  * (or in the current directory during development).
  */
-import { writeFileSync, mkdirSync } from "fs";
-import { dirname, join } from "path";
-import { homedir } from "os";
+import { writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 
 function crashLog(err: unknown): void {
   const detail = err instanceof Error ? err.stack ?? err.message : String(err);

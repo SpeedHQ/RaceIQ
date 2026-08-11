@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useSettings } from "../hooks/queries";
+import { useSettings } from "../hooks/settings";
 import { useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 
@@ -126,7 +126,7 @@ export function NoDataView() {
       </div>
 
       <div>
-        <Button variant="app-ghost" size="app-md" onClick={() => setExpanded(!expanded)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
+        <Button variant="app-ghost" size="app-md" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
           <svg className={`w-4 h-4 transition-transform ${expanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>

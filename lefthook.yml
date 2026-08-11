@@ -1,9 +1,8 @@
 pre-commit:
   parallel: true
   jobs:
-    - name: lint
-      root: "client/"
-      glob: "client/src/**/*.{ts,tsx}"
+    - name: check-staged
+      glob: "**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts,json,jsonc,css}"
       run: bunx biome check {staged_files}
 
     - name: typecheck

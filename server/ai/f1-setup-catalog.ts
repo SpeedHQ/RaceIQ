@@ -2,41 +2,41 @@
  * F1 25 setup catalog lookup + comparison.
  *
  * Picks the top-N fastest community setups for a given track (from
- * `shared/tunes/f1-25/f1laps/<track>/`) and optionally diffs them against
+ * `shared/data/tunes/f1-25/f1laps/<track>/`) and optionally diffs them against
  * a current lap's setup.
  *
  * Data is bundled via JSON imports (not `readFileSync`) so the module works
  * identically in the Bun server, the compiled `raceiq.exe`, and the Mastra
  * dev bundle — none of which share a working-directory layout.
  */
-import australia from "../../shared/tunes/f1-25/f1laps/australia/setups.json";
-import austria from "../../shared/tunes/f1-25/f1laps/austria/setups.json";
-import azerbaijan from "../../shared/tunes/f1-25/f1laps/azerbaijan/setups.json";
-import bahrain from "../../shared/tunes/f1-25/f1laps/bahrain/setups.json";
-import brazil from "../../shared/tunes/f1-25/f1laps/brazil/setups.json";
-import canada from "../../shared/tunes/f1-25/f1laps/canada/setups.json";
-import china from "../../shared/tunes/f1-25/f1laps/china/setups.json";
-import hungary from "../../shared/tunes/f1-25/f1laps/hungary/setups.json";
-import imola from "../../shared/tunes/f1-25/f1laps/imola/setups.json";
-import japan from "../../shared/tunes/f1-25/f1laps/japan/setups.json";
-import lasVegas from "../../shared/tunes/f1-25/f1laps/las_vegas/setups.json";
-import mexico from "../../shared/tunes/f1-25/f1laps/mexico/setups.json";
-import miami from "../../shared/tunes/f1-25/f1laps/miami/setups.json";
-import monaco from "../../shared/tunes/f1-25/f1laps/monaco/setups.json";
-import monza from "../../shared/tunes/f1-25/f1laps/monza/setups.json";
-import netherlands from "../../shared/tunes/f1-25/f1laps/netherlands/setups.json";
-import qatar from "../../shared/tunes/f1-25/f1laps/qatar/setups.json";
-import saudiArabia from "../../shared/tunes/f1-25/f1laps/saudi_arabia/setups.json";
-import silverstone from "../../shared/tunes/f1-25/f1laps/silverstone/setups.json";
-import singapore from "../../shared/tunes/f1-25/f1laps/singapore/setups.json";
-import spa from "../../shared/tunes/f1-25/f1laps/spa/setups.json";
-import spain from "../../shared/tunes/f1-25/f1laps/spain/setups.json";
-import abudhabi from "../../shared/tunes/f1-25/f1laps/abudhabi/setups.json";
-import usa from "../../shared/tunes/f1-25/f1laps/usa/setups.json";
+import australia from "../../shared/data/tunes/f1-25/f1laps/australia/setups.json";
+import austria from "../../shared/data/tunes/f1-25/f1laps/austria/setups.json";
+import azerbaijan from "../../shared/data/tunes/f1-25/f1laps/azerbaijan/setups.json";
+import bahrain from "../../shared/data/tunes/f1-25/f1laps/bahrain/setups.json";
+import brazil from "../../shared/data/tunes/f1-25/f1laps/brazil/setups.json";
+import canada from "../../shared/data/tunes/f1-25/f1laps/canada/setups.json";
+import china from "../../shared/data/tunes/f1-25/f1laps/china/setups.json";
+import hungary from "../../shared/data/tunes/f1-25/f1laps/hungary/setups.json";
+import imola from "../../shared/data/tunes/f1-25/f1laps/imola/setups.json";
+import japan from "../../shared/data/tunes/f1-25/f1laps/japan/setups.json";
+import lasVegas from "../../shared/data/tunes/f1-25/f1laps/las_vegas/setups.json";
+import mexico from "../../shared/data/tunes/f1-25/f1laps/mexico/setups.json";
+import miami from "../../shared/data/tunes/f1-25/f1laps/miami/setups.json";
+import monaco from "../../shared/data/tunes/f1-25/f1laps/monaco/setups.json";
+import monza from "../../shared/data/tunes/f1-25/f1laps/monza/setups.json";
+import netherlands from "../../shared/data/tunes/f1-25/f1laps/netherlands/setups.json";
+import qatar from "../../shared/data/tunes/f1-25/f1laps/qatar/setups.json";
+import saudiArabia from "../../shared/data/tunes/f1-25/f1laps/saudi_arabia/setups.json";
+import silverstone from "../../shared/data/tunes/f1-25/f1laps/silverstone/setups.json";
+import singapore from "../../shared/data/tunes/f1-25/f1laps/singapore/setups.json";
+import spa from "../../shared/data/tunes/f1-25/f1laps/spa/setups.json";
+import spain from "../../shared/data/tunes/f1-25/f1laps/spain/setups.json";
+import abudhabi from "../../shared/data/tunes/f1-25/f1laps/abudhabi/setups.json";
+import usa from "../../shared/data/tunes/f1-25/f1laps/usa/setups.json";
 
 export type F1Setup = Record<string, number>;
 
-export interface CatalogEntry {
+interface CatalogEntry {
   team: string;
   author: string;
   lapTime: string;
@@ -49,7 +49,7 @@ export interface CatalogEntry {
   provider?: string;
 }
 
-export interface CatalogReference extends CatalogEntry {
+interface CatalogReference extends CatalogEntry {
   rank: number;
   /** Only fields that differ from `currentSetup`, in `reference - current` form. */
   delta?: Partial<F1Setup>;
@@ -129,7 +129,7 @@ export function parseLapTime(raw: string): number {
   return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
 }
 
-export function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
+function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
   const meta = TRACK_CATALOG[trackOrdinal];
   if (!meta) return [];
   const raw = meta.raw as Array<Omit<CatalogEntry, "lapTimeSeconds">>;
@@ -152,7 +152,7 @@ export function topCatalogReferences(
   }));
 }
 
-export function diffSetups(reference: F1Setup, current: F1Setup): Partial<F1Setup> {
+function diffSetups(reference: F1Setup, current: F1Setup): Partial<F1Setup> {
   const out: Partial<F1Setup> = {};
   for (const key of Object.keys(reference)) {
     const r = reference[key];

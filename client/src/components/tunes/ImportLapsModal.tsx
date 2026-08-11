@@ -1,6 +1,7 @@
-import type { GameId } from "@shared/types";
 import { useMemo, useState } from "react";
-import { type ExperimentVersion, type ImportableLap, useImportableLaps, useImportLaps } from "../../hooks/queries";
+import type { GameId } from "../../../../shared/games/ids";
+import type { ExperimentVersion, ImportableLap } from "../../hooks/experiments";
+import { useImportableLaps, useImportLaps } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
@@ -32,7 +33,7 @@ const UNKNOWN_SETUP_KEY = "__unknown__";
  */
 export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId: GameId; sessionId: number; tests: ExperimentVersion[]; onClose: () => void }) {
   const isF1 = gameId === "f1-2025";
-  const { data: importable, isLoading } = useImportableLaps(sessionId);
+  const { data: importable, isLoading, isError: importableError } = useImportableLaps(sessionId);
   const importLaps = useImportLaps();
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [targetTestId, setTargetTestId] = useState<string>("");
@@ -72,8 +73,15 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
     const allSelected = ids.every((id) => selected.has(id));
     setSelected((prev) => {
       const next = new Set(prev);
-      if (allSelected) ids.forEach((id) => next.delete(id));
-      else ids.forEach((id) => next.add(id));
+      if (allSelected) {
+        ids.forEach((id) => {
+          next.delete(id);
+        });
+      } else {
+        ids.forEach((id) => {
+          next.add(id);
+        });
+      }
       return next;
     });
   };
@@ -88,8 +96,8 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
         experimentVersionId: isF1 ? null : targetTestId ? Number(targetTestId) : null,
       });
       onClose();
-    } catch (err: any) {
-      setError(err?.message ?? "Could not import laps");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not import laps");
     }
   };
 
@@ -156,8 +164,13 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
 
         <div className="flex-1 min-h-[120px] overflow-y-auto border border-app-border rounded divide-y divide-app-border">
           {isLoading && <div className="text-xs text-app-text-dim p-3">Loading…</div>}
-          {!isLoading && laps.length === 0 && <div className="text-xs text-app-text-dim p-3">No unattached laps match this session's car and track.</div>}
-          {!isLoading && isF1 && groupBySetup && groups
+          {importableError && (
+            <div role="alert" className="text-xs text-status-danger p-3">
+              Could not load importable laps.
+            </div>
+          )}
+          {!isLoading && !importableError && laps.length === 0 && <div className="text-xs text-app-text-dim p-3">No unattached laps match this session's car and track.</div>}
+          {!isLoading && !importableError && isF1 && groupBySetup && groups
             ? groups.map((g) => {
                 const groupSelected = g.laps.every((l) => selected.has(l.id));
                 return (

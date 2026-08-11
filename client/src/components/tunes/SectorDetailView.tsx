@@ -1,6 +1,7 @@
-import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { Button } from "../ui/button";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
@@ -55,9 +56,9 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
   const sectorTime = sectorTimes && sectorTimes.times[sectorIndex] > 0 ? sectorTimes.times[sectorIndex].toFixed(3) : "—";
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2">
+    <div className="grid grid-cols-1 @5xl/workspace:grid-cols-2">
       {/* Map + issues */}
-      <div className="lg:border-r border-app-border">
+      <div className="border-app-border @5xl/workspace:border-r">
         <div className="flex items-center justify-between px-4 py-2 border-b border-app-border">
           <div className="flex items-center gap-2">
             <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[sectorIndex % SECTOR_COLOR_VARS.length] }} />

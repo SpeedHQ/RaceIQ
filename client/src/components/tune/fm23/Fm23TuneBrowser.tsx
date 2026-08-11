@@ -1,12 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { withDefaults } from "@/components/TuneForm";
 import { buildRows, type RawUserTune } from "@/components/tune/browser/buildRows";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
+import { withDefaults } from "@/components/tune/form/TuneForm";
 import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
 import type { CatalogTune, TuneSettings } from "@/data/tune-catalog";
-import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useDuplicateTune, useRefreshCommunityTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
+import { useResolveNames } from "@/hooks/catalog-queries";
+import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useDuplicateTune, useRefreshCommunityTunes, useUserTunes } from "@/hooks/tunes";
 import { m } from "@/paraglide/messages";
 
 const REQUIRED_SECTIONS = ["tires", "gearing", "alignment", "antiRollBars", "springs", "damping", "aero", "differential", "brakes"] as const;
@@ -30,7 +31,6 @@ export function Fm23TuneBrowser() {
   // Import a tune from a JSON file (same shape the tune editor exports).
   const handleImportFile = async (file: File) => {
     try {
-      // biome-ignore lint/suspicious/noExplicitAny: importing arbitrary user-provided tune JSON
       const parsed: any = JSON.parse(await file.text());
       const s = parsed.settings ?? parsed;
       for (const key of REQUIRED_SECTIONS) {
@@ -50,7 +50,6 @@ export function Fm23TuneBrowser() {
         description: parsed.description || m.tune_source_imported_from_json(),
         settings: withDefaults(normalizedSettings),
         unitSystem: parsed.unitSystem === "imperial" ? "imperial" : "metric",
-        // biome-ignore lint/suspicious/noExplicitAny: create-tune mutation accepts a loose payload
       } as any);
     } catch (err) {
       console.error("[TuneImport] failed:", err);

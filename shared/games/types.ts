@@ -1,15 +1,20 @@
-import type { GameId, TelemetryPacket } from "../types";
+import type { GameId } from "./ids";
+import type { TelemetryPacket } from "../telemetry/types";
+
+import type { SemanticMetricBinding } from "./metric-contracts";
 
 export type AnalysisTelemetryMetric =
   | {
       source: "direct";
       freshness: "continuous" | "pit-snapshot" | "static";
       display?: "per-wheel" | "vehicle" | "normalized" | "millimeters" | "cold-pressure";
+      binding?: SemanticMetricBinding;
     }
   | {
       source: "derived";
       confidence: "exact" | "high";
       display?: "per-wheel" | "compression-bias";
+      binding?: SemanticMetricBinding;
     }
   | {
       source: "unavailable";
@@ -25,6 +30,7 @@ export interface AnalysisTelemetryModel {
   surface: AnalysisTelemetryMetric;
   slipRatio: AnalysisTelemetryMetric;
   slipAngle: AnalysisTelemetryMetric;
+  lateralSlip: AnalysisTelemetryMetric;
   wheelRotation: AnalysisTelemetryMetric;
   tireHealth: AnalysisTelemetryMetric;
   tireWearRate: AnalysisTelemetryMetric;
@@ -41,22 +47,34 @@ export type PacketUnit =
   | "psi"
   | "watt"
   | "newton-metre";
-
 export interface ScalarTelemetrySpec<
   Unit extends PacketUnit = PacketUnit,
 > {
   packetUnit: Unit;
+  binding?: SemanticMetricBinding;
 }
+
+/** Presence declares a channel whose values originate in the game source. */
+export interface TelemetryChannelSpec {
+  source: "direct";
+  freshness: "continuous" | "pit-snapshot" | "static";
+  binding?: SemanticMetricBinding;
+}
+
 
 export interface TelemetryModel {
   fuel: ScalarTelemetrySpec<"fraction" | "litre">;
   tireTemperature: ScalarTelemetrySpec<"celsius" | "fahrenheit">;
   boost?: ScalarTelemetrySpec<"psi">;
   power?: ScalarTelemetrySpec<"watt">;
+  ers?: TelemetryChannelSpec;
   torque?: ScalarTelemetrySpec<"newton-metre">;
   brakeTemperature?: ScalarTelemetrySpec<"celsius" | "fahrenheit">;
   tirePressure?: ScalarTelemetrySpec<"psi">;
-  ers?: true;
+  clutch?: TelemetryChannelSpec;
+  handBrake?: TelemetryChannelSpec;
+  weather?: TelemetryChannelSpec;
+  pitStatus?: TelemetryChannelSpec;
 
   /**
    * Analysis-panel semantics. Omitted fields inherit the current cross-game

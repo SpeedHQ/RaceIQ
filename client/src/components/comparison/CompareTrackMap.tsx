@@ -1,13 +1,15 @@
-import type { GameId, TelemetryPacket } from "@shared/types";
+import type { GameId } from "@shared/games/ids";
+import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
+const value = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
+const numberValue = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=value(p,id); return typeof x === "number" ? x : undefined; }
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { deltaColor } from "../../lib/colors";
-import { type BoundaryData, COLOR_A, COLOR_B, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, formatSectionTime, type Point } from "../../lib/comparison-utils";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
-import { client } from "../../lib/rpc";
-import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
-import { m } from "../../paraglide/messages";
-import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, type Point } from "@/lib/comparison-utils";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
+import { CompareSegmentTable } from "./CompareSegmentTable";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -19,8 +21,8 @@ export interface SegmentTiming {
 
 interface CompareTrackMapProps {
   outline: Point[];
-  telemetryA: TelemetryPacket[];
-  telemetryB: TelemetryPacket[];
+  telemetryA: SemanticTelemetrySample[];
+  telemetryB: SemanticTelemetrySample[];
   labelA: string;
   labelB: string;
   lapTimeA: string;
@@ -30,9 +32,6 @@ interface CompareTrackMapProps {
   redrawRef: React.MutableRefObject<(() => void) | null>;
   trackOrdinal?: number | null;
   gameId?: GameId | null;
-}
-export function compareSegmentKey(name: string, startFrac: number, endFrac: number): string {
-  return `${name}:${startFrac}:${endFrac}`;
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
@@ -99,7 +98,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     // Extract telemetry positions from lap A
     const telPts: Point[] = [];
     for (const p of telemetryA) {
-      if (p.PositionX !== 0 || p.PositionZ !== 0) telPts.push({ x: p.PositionX, z: p.PositionZ });
+      if ((numberValue(p, "motion.position-x") ?? 0) !== 0 || (numberValue(p, "motion.position-z") ?? 0) !== 0) telPts.push({ x: (numberValue(p, "motion.position-x") ?? 0), z: (numberValue(p, "motion.position-z") ?? 0) });
     }
     if (telPts.length < 20 || outline.length < 10) {
       return { alignedOutline: outline, alignedBoundaries: boundaries, telXFn: identity, trackRange: computeRange(outline) };
@@ -286,7 +285,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
                 .map((s) => {
                   const idx = Math.round(s.startFrac * (telemetryA.length - 1));
                   const p = telemetryA[idx];
-                  return { x: telXFn(p.PositionX), z: p.PositionZ, type: s.type, label: s.name };
+                  return { x: telXFn((numberValue(p, "motion.position-x") ?? 0)), z: (numberValue(p, "motion.position-z") ?? 0), type: s.type, label: s.name };
                 })
                 .filter((sp) => sp.x !== 0 || sp.z !== 0)
             : undefined;
@@ -307,7 +306,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       const ctx = getSemanticCanvasContext(zc);
       if (ctx) {
         ctx.scale(dpr, dpr);
-        const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn) : null;
+        const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn, alignedOutline) : null;
         drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true);
 
         // Draw input HUDs when zoomed
@@ -322,7 +321,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     if (segmentTableRef.current && segments.length > 0) {
       let activeIdx = -1;
       if (hd != null && telemetryA.length >= 2) {
-        const totalDist = telemetryA[telemetryA.length - 1].DistanceTraveled - telemetryA[0].DistanceTraveled;
+        const totalDist = (numberValue(telemetryA[telemetryA.length - 1], "timing.distance-traveled") ?? 0) - (numberValue(telemetryA[0], "timing.distance-traveled") ?? 0);
         if (totalDist > 0) {
           const frac = hd / totalDist;
           activeIdx = segments.findIndex((s) => frac >= s.startFrac && frac < s.endFrac);
@@ -359,9 +358,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
   }, [drawBoth]);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden text-app-body text-app-text">
+    <div className="flex h-full flex-col overflow-y-auto border border-app-border text-app-body text-app-text">
       {/* Overview — full track, static */}
-      <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
+      <div ref={overviewContainerRef} className="relative min-h-32 basis-56 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
@@ -370,7 +369,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
         )}
       </div>
       {/* Zoomed — follows cursor position */}
-      <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
+      <div ref={zoomContainerRef} className="relative min-h-40 basis-80 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
         <Button
           onClick={() => {
@@ -379,9 +378,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             setFollowCar(next);
             drawBoth();
           }}
-          className={`absolute top-2 right-2 z-10 px-2 py-1 text-app-caption rounded border transition-colors ${
-            followCar ? "bg-status-info/20 border-status-info/50 text-status-info" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-          }`}
+          variant={followCar ? "selected-toggle" : "app-outline"}
+          size="app-sm"
+          className="absolute top-2 right-2 z-10"
         >
           {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
         </Button>
@@ -391,49 +390,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
           <canvas ref={zoomCanvasRef} className="absolute inset-0" />
         )}
       </div>
-      {/* Segment Times Table */}
-      {segments.length > 0 ? (
-        <div className="overflow-auto flex-1 min-h-0">
-          <Table density="compact" fit variant="embedded">
-            <THead>
-              <TH>{m.compare_segment()}</TH>
-              <TH align="end">
-                <span style={{ color: COLOR_A }}>A</span>
-              </TH>
-              <TH align="end">
-                <span style={{ color: COLOR_B }}>B</span>
-              </TH>
-              <TH align="end">+/-</TH>
-            </THead>
-            <TBody ref={segmentTableRef}>
-              {segments.map((s, index) => {
-                const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
-                const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
-                const delta = s.timeA - s.timeB;
-                const isNeutral = Math.abs(delta) < 0.005;
-                const segmentDeltaColor = isNeutral ? "var(--app-text-secondary)" : deltaColor(delta);
-                const sign = delta > 0 ? "+" : "";
-                return (
-                  <TRow key={compareSegmentKey(s.name, s.startFrac, s.endFrac) || index}>
-                    <TD nowrap numeric tone="primary">
-                      {s.name}
-                    </TD>
-                    <TD align="end" numeric tone={fasterA ? "success" : "default"}>
-                      {formatSectionTime(s.timeA)}
-                    </TD>
-                    <TD align="end" numeric tone={fasterB ? "success" : "default"}>
-                      {formatSectionTime(s.timeB)}
-                    </TD>
-                    <TD align="end" numeric>
-                      <span style={{ color: segmentDeltaColor }}>{s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}</span>
-                    </TD>
-                  </TRow>
-                );
-              })}
-            </TBody>
-          </Table>
-        </div>
-      ) : null}
+      <CompareSegmentTable segments={segments} tableRef={segmentTableRef} />
     </div>
   );
 }

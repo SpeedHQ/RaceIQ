@@ -1,7 +1,9 @@
+import { Sparkles } from "lucide-react";
 import type { RefObject } from "react";
+import { AiPanel, type AiPanelHandle } from "@/components/ai/AiPanel";
+import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import { m } from "../../paraglide/messages";
-import { AiPanel, type AiPanelHandle, type AnalysisHighlight } from "../AiPanel";
-import { PanelSectionHeader } from "../ui/panel-section-header";
+import { AiPanelMenu } from "./AiPanelMenu";
 
 interface AnalyseAiSidebarProps {
   lapId: number;
@@ -15,9 +17,13 @@ interface AnalyseAiSidebarProps {
 
 export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelRef, onJumpToFrac, onHighlightsChange }: AnalyseAiSidebarProps) {
   return (
-    <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
-      <div className="shrink-0 px-3 py-2">
-        <PanelSectionHeader title={m.analyse_ai_analysis()} />
+    <div className="flex h-[36rem] w-full shrink-0 flex-col overflow-hidden border-t border-app-border bg-app-surface/50 shadow-2xl @5xl/workspace:absolute @5xl/workspace:inset-y-0 @5xl/workspace:right-0 @5xl/workspace:z-30 @5xl/workspace:h-full @5xl/workspace:w-[22rem] @5xl/workspace:border-t-0 @5xl/workspace:border-l @7xl/workspace:relative @7xl/workspace:inset-auto @7xl/workspace:z-auto @7xl/workspace:shadow-none">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="size-3 text-ai-accent" />
+          <span className="text-app-caption uppercase tracking-wider font-semibold text-app-text">{m.analyse_ai_analysis()}</span>
+        </div>
+        <AiPanelMenu onClearChat={() => aiPanelRef.current?.clearChat()} onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()} onClearAll={() => aiPanelRef.current?.clearAll()} />
       </div>
       <AiPanel ref={aiPanelRef} lapId={lapId} carName={carName} trackName={trackName} segments={segments} panelOpen={true} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} />
     </div>

@@ -1,6 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
-import { useSettings } from "../hooks/queries";
+import { useSettings } from "../hooks/settings";
 import { useTelemetryStore } from "../stores/telemetry";
 import { deriveConnectionStatusView } from "./connection-status-logic";
 

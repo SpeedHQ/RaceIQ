@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
-import { carMap, getCarName, getCarSpecs, getTrackName } from "../../shared/car-data";
-import { getAllIRacingCars } from "../../shared/iracing-car-data";
-import { GameIdSchema } from "../../shared/types";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { fmCarCatalog, getFmCarSpecs } from "../../shared/racing/cars/fm";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { getAllIRacingCars } from "../../shared/racing/cars/iracing";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { GameIdSchema } from "../../shared/games/ids";
 import {
   getDiscoveredCarName,
   listDiscoveredCars,
@@ -16,9 +18,9 @@ import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────
 
-import { USER_DATA_DIR, SHARED_DIR } from "../paths";
+import { GAMES_DIR, USER_DATA_DIR } from "../runtime/config/paths";
 const CAR_MODEL_CONFIGS_PATH = resolve(USER_DATA_DIR, "car-model-configs.json");
-const CAR_DIMENSIONS_PATH = resolve(SHARED_DIR, "games/fm-2023/car-dimensions.csv");
+const CAR_DIMENSIONS_PATH = resolve(GAMES_DIR, "fm-2023", "car-dimensions.csv");
 
 // ─── Car dimensions (loaded at module init) ─────────────────────────────────────
 
@@ -96,10 +98,10 @@ export const carRoutes = new Hono()
       return c.json([]);
     }
 
-    const cars = Array.from(carMap.entries()).map(([ordinal, car]) => ({
+    const cars = Array.from(fmCarCatalog.entries()).map(([ordinal, car]) => ({
       ordinal,
       name: `${car.year} ${car.make} ${car.model}`,
-      specs: getCarSpecs(ordinal),
+      specs: getFmCarSpecs(ordinal),
     }));
     cars.sort((a, b) => a.name.localeCompare(b.name));
     return c.json(cars);
@@ -130,13 +132,13 @@ export const carRoutes = new Hono()
       return c.json({ error: "Car not found" }, 404);
     }
 
-    const car = carMap.get(ordinal);
+    const car = fmCarCatalog.get(ordinal);
     if (!car) return c.json({ error: "Car not found" }, 404);
     return c.json({
       ordinal,
       ...car,
       name: `${car.year} ${car.make} ${car.model}`,
-      specs: getCarSpecs(ordinal),
+      specs: getFmCarSpecs(ordinal),
     });
   })
 
@@ -146,17 +148,9 @@ export const carRoutes = new Hono()
     const gameId = c.req.query("gameId");
     const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
     if (serverAdapter) return c.text(serverAdapter.getCarName(ordinal));
-    return c.text(getCarName(ordinal, gameId));
+    return c.text(resolveCarName(ordinal, gameId));
   })
 
-  // GET /api/track-name/:ordinal — plain text track name
-  .get("/api/track-name/:ordinal", zValidator("param", OrdinalParamSchema), zValidator("query", GameIdQuerySchema), (c) => {
-    const { ordinal } = c.req.valid("param");
-    const gameId = c.req.query("gameId");
-    const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
-    if (serverAdapter) return c.text(serverAdapter.getTrackName(ordinal));
-    return c.text(getTrackName(ordinal, gameId));
-  })
 
   // GET /api/resolve-names — batch resolve track + car ordinals to names
   .get("/api/resolve-names",
@@ -174,7 +168,7 @@ export const carRoutes = new Hono()
         for (const ord of tracks.split(",")) {
           const n = Number(ord);
           if (!Number.isNaN(n)) {
-            trackNames[ord] = adapter ? adapter.getTrackName(n) : getTrackName(n, gameId);
+            trackNames[ord] = adapter ? adapter.getTrackName(n) : resolveTrackName(n, gameId);
           }
         }
       }
@@ -182,7 +176,7 @@ export const carRoutes = new Hono()
         for (const ord of cars.split(",")) {
           const n = Number(ord);
           if (!Number.isNaN(n)) {
-            carNames[ord] = adapter ? adapter.getCarName(n) : getCarName(n, gameId);
+            carNames[ord] = adapter ? adapter.getCarName(n) : resolveCarName(n, gameId);
           }
         }
       }

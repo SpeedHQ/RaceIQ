@@ -1,7 +1,10 @@
-import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useSessionRecap, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
+import type { GameId } from "../../../shared/games/ids";
+import type { SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
+import { useSessionRecap } from "../hooks/session-queries";
+import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";
 import { drawTrack } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
@@ -154,7 +157,7 @@ function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
       <title>{m.recap_pace()}</title>
       <path d={path} fill="none" stroke="currentColor" className="text-app-accent/50" strokeWidth={1.5} />
       {points.map((p) => (
-        <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-status-danger"} />
+        <circle key={p.lap.lapId} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-status-danger"} />
       ))}
     </svg>
   );
@@ -258,14 +261,25 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
 }
 
 export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = false }: { sessionId: number; gameId?: GameId | null; linkToAnalyse?: boolean }) {
+  const navigate = useNavigate();
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);
   const { data: outlineData } = useTrackOutline(recap?.trackOrdinal, recap?.gameId ?? gameId);
   const { data: bounds } = useTrackSectorBoundaries(recap?.trackOrdinal, recap?.gameId ?? gameId);
   const [copied, setCopied] = useState(false);
-  if (isLoading) return <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>;
-  if (isError || !recap) return <div className="p-6 text-center text-status-danger">{m.common_error()}</div>;
+  if (isLoading)
+    return (
+      <div role="status" className="p-6 text-center text-app-text-dim">
+        {m.common_loading()}
+      </div>
+    );
+  if (isError || !recap)
+    return (
+      <div role="alert" className="p-6 text-center text-status-danger">
+        {m.common_error()}
+      </div>
+    );
   const copy = () => {
     navigator.clipboard.writeText(buildRecapText(recap)).then(() => {
       setCopied(true);
@@ -274,7 +288,10 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   };
   const analyse = () => {
     if (recap.bestLapId == null) return;
-    window.location.href = `${getGameRoute(recap.gameId)}/analyse?track=${recap.trackOrdinal}&car=${recap.carOrdinal}&lap=${recap.bestLapId}`;
+    void navigate({
+      to: `${getGameRoute(recap.gameId)}/analyse` as never,
+      search: { track: recap.trackOrdinal, car: recap.carOrdinal, lap: recap.bestLapId } as never,
+    });
   };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;
 }

@@ -1,7 +1,15 @@
-import type { GameId, TelemetryPacket } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type {
+  RaceResultClaimEvidence,
+  RaceResultEvidence,
+  RaceResultOutcomeStatus,
+  RaceResultProvenance,
+  RaceResultStatus,
+} from "../../shared/racing/results/types";
 
 export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "unknown";
-export type ResultClassification = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
+export type ResultClassification = RaceResultStatus;
 export type PitService = "tyres" | "fuel" | "combined" | "unknown";
 export type PitLinkage = "linked" | "unlinked" | "unknown";
 export type RaceEventType = "pit" | "position-change";
@@ -39,11 +47,13 @@ export interface RaceSourceObservation {
   isFastestLap?: boolean | null;
   fastestLapSource?: string | null;
   packets: TelemetryPacket[];
+  claims?: RaceResultClaimEvidence[];
   pitEvents?: PitEvent[];
   positionChanges?: PositionChangeEvent[];
   tyreStrategy?: unknown;
   fuelStrategy?: unknown;
-  provenance: Record<string, string>;
+  provenance: RaceResultProvenance;
+  evidence: RaceResultEvidence;
   reasons: string[];
 }
 
@@ -58,6 +68,8 @@ export interface DerivedRaceResult {
   events: PitEvent[];
   tyreStrategy: unknown;
   fuelStrategy: unknown;
-  provenance: Record<string, string>;
+  provenance: RaceResultProvenance;
+  outcomeStatus: RaceResultOutcomeStatus;
+  evidence: RaceResultEvidence;
   reasons: string[];
 }

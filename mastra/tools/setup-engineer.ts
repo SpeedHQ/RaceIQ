@@ -1,5 +1,5 @@
 /**
- * Setup Engineer tools (docs/setup-engineer-tools-plan.md §3, Phase 2).
+ * Setup Engineer tools (docs/architecture/setup-engineer.md).
  *
  * `preview_change` / `apply_changes` run the SAME deterministic `applyIntents`
  * the old rules-based autotune used, so the number the agent states is always
@@ -20,7 +20,7 @@ import { z } from "zod";
 import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "../../server/ai/chat-message-context";
 
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
-import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
+import { applyIntents, describeKnobs } from "../../server/setups/rules/engine";
 import {
   createExperimentVersion,
   deleteTestSubtree,
@@ -34,28 +34,31 @@ import {
 import { setSessionHead } from "../../server/db/experiment-queries";
 import { changeSlug, computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
-import { wsManager } from "../../server/ws";
+import { wsManager } from "../../server/runtime/websocket-manager";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
+import { buildAppliedChangesMarkdown } from "../../server/setups/applied-change-markdown";
 import {
-  buildAppliedChangesMarkdown,
   computeSessionSymptoms,
   computeSessionTrackConditions,
-  formatTrackConditions,
+} from "../../server/experiments/representative-lap";
+import { formatTrackConditions } from "../../server/ai/track-conditions";
+import {
   gameHasSetupFile,
   loadActiveExperimentContext,
-} from "../../server/ai/setup-engineer-context";
-import { readActiveSetup, writeAppliedSetup } from "../../server/ai/setup-io";
+} from "../../server/experiments/setup-lineage";
+import { readActiveSetup, writeAppliedSetup } from "../../server/setups/io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
-import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
-import { setLapExperimentExcluded, getLapById, getLapsForExperiment } from "../../server/db/queries";
+import { loadCleanLapAggregate } from "../../server/experiments/lap-evidence/aggregate";
+import { setLapExperimentExcluded, getLapsForExperiment } from "../../server/db/experiment-lap-queries";
+import { getLapById } from "../../server/db/lap-read-queries";
 import { recordAction } from "../../server/db/experiment-action-queries";
-import { undoLastAction } from "../../server/experiment-undo";
-import { detectCorners } from "../../server/corner-detection";
+import { undoLastAction } from "../../server/experiments/undo"
+import { detectCorners } from "../../server/lap-analysis/corners";
 import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../server/ai/tune-issues";
-import { compareLaps } from "../../server/comparison";
-import type { TelemetryPacket } from "../../shared/types";
+import { compareLaps } from "../../server/lap-analysis/comparison";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
@@ -445,7 +448,7 @@ export function buildSetupEngineerTools() {
       const descriptive = slug ? `${label}-${slug}` : label;
       const stem = gameHasSetupFile(ctx.gameId) ? `${ctx.session.name}-${descriptive}` : descriptive;
 
-      let written;
+      let written: ReturnType<typeof writeAppliedSetup>;
       try {
         written = writeAppliedSetup(ctx.gameId, { baseDir, realPath: baseRealPath, setup, stem });
       } catch (err: any) {
@@ -471,7 +474,7 @@ export function buildSetupEngineerTools() {
       // parent: with `target` set, the new arm branches off some other version
       // while the head sits elsewhere, and undo must restore where the driver
       // actually was. Matches every other recordAction call site
-      // (`server/routes/experiment-routes.ts`).
+      // (`server/routes/experiments/version-routes.ts`).
       const prevHeadTestId = ctx.session.headVersionId ?? parent?.id ?? null;
       try {
         await setSessionHead(sessionId, newTestId);

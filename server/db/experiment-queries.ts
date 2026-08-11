@@ -2,9 +2,9 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
 import { experimentFocusEvents, experiments } from "./schema";
 import { tryGetServerGame } from "../games/registry";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/racing/experiments/focus";
 
-export interface CreateExperimentData {
+interface CreateExperimentData {
   gameId: string;
   name: string;
   carOrdinal?: number | null;

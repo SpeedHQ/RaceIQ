@@ -12,14 +12,14 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { GameIdSchema } from "../../shared/types";
-import { loadDriverProfile } from "../ai/driver-profile-aggregate";
+import { GameIdSchema } from "../../shared/games/ids";
+import { loadDriverProfile } from "../driver-profile/load";
 import {
   getDriverProfileRunStatus,
   resolveDriverProfileScopeNames,
   runDriverProfile,
   type DriverProfileScope,
-} from "../ai/driver-profile-runner";
+} from "../driver-profile/runner";
 
 const ProfileQuerySchema = z.object({});
 const RunsQuerySchema = z.object({

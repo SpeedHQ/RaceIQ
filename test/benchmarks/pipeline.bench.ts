@@ -22,7 +22,8 @@ type BInternal = {
   const baseline = !!(this.flags & 0x1);
   const style = { highlight: this._highlight, compact: !!(this.flags & 0x2) };
   if (isStatic) {
-    let stats, error;
+    let stats: Awaited<ReturnType<typeof measure>> | undefined;
+    let error: unknown;
     try { stats = await measure(this.f as Parameters<typeof measure>[0], tune as unknown as Parameters<typeof measure>[1]); }
     catch (err) { error = err; if (thrw) throw err; }
     return { kind: "static", args: this._args, alias: this._name, group: this._group, baseline,
@@ -33,15 +34,15 @@ type BInternal = {
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
-import { Pipeline, stopMaintenanceTasks } from "../../server/pipeline";
-import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/pipeline-adapters";
-import { readUdpDump } from "../helpers/recording";
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
+import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
+import { readUdpDump } from "../support/recordings/udp";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
-import { readAccFrames } from "../../server/games/acc/frame-reader";
-import { getAccCarByModel } from "../../shared/acc-car-data";
-import { getAccTrackByName } from "../../shared/acc-track-data";
+import { readKunosFrames } from "../../server/games/kunos/frame-reader";
+import { getAccCarByModel } from "../../shared/racing/cars/acc"
+import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 
 const t0 = performance.now();
@@ -85,7 +86,7 @@ console.log(`[bench] f1 loaded  — ${f1Packets.length} packets (${f1Buffers.len
 
 // --- Load and extract ACC data ---
 const ACC_DUMP = "test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz";
-const accFrames = readAccFrames(ACC_DUMP, N_FRAMES);
+const accFrames = readKunosFrames(ACC_DUMP, N_FRAMES);
 if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
 const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
 const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.track.size);
@@ -100,7 +101,7 @@ console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?
 
 // --- Load and extract AC Evo data (same recorder format as ACC) ---
 const ACEVO_DUMP = "test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
-const acEvoFrames = readAccFrames(ACEVO_DUMP, N_FRAMES);
+const acEvoFrames = readKunosFrames(ACEVO_DUMP, N_FRAMES);
 if (acEvoFrames.length === 0) throw new Error("No AC Evo frames found in dump");
 const acEvoCache = createAcEvoParserCache();
 const acEvoPackets = acEvoFrames
@@ -110,10 +111,10 @@ console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed(
 
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
 const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() };
-const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
-const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
-const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
-const acEvoPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const fmPipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const f1Pipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const accPipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const acEvoPipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 await fmPipeline.processPacket(fmPackets[0]!);
 await f1Pipeline.processPacket(f1Packets[0]!);
 await accPipeline.processPacket(accPackets[0]!);
@@ -124,7 +125,7 @@ console.log(`[bench] pipelines warm ${elapsed()}`);
 stopMaintenanceTasks();
 
 // --- Benchmarks (all synchronous — avoids async event-loop hangs) ---
-// Pipeline benches fire-and-forget: measures sync dispatch cost up to the first await.
+// Telemetry pipeline benches fire-and-forget: measures sync dispatch cost up to the first await.
 // Parse benches are fully synchronous and measure raw decode throughput.
 
 group("fm", () => {

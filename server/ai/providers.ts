@@ -36,7 +36,6 @@ export type ModelListResult = {
 
 
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
-/** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
 export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelListResult> {
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
@@ -467,7 +466,7 @@ async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, 
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
 export async function getLocalModelsDetailed(endpoint: string): Promise<ModelListResult> {
   try {
-    const url = endpoint.replace(/\/+$/, "") + "/models";
+    const url = `${endpoint.replace(/\/+$/, "")}/models`;
     console.info(`[AI] GET ${url}`);
     const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
     console.info(`[AI] ${res.status} ${res.statusText} ${url}`);

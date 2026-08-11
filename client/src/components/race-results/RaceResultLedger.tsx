@@ -1,6 +1,7 @@
-import type { RaceResult } from "@shared/race-results";
-import type { GameId } from "@shared/types";
-import { useSessionResult } from "../../hooks/queries";
+import type { GameId } from "@shared/games/ids";
+import type { RaceResult } from "@shared/racing/results/types";
+import { useSessionResult } from "@/hooks/session-queries";
+import { cn } from "@/lib/utils";
 
 type RaceResultTimelineNode =
   | { kind: "start"; position: number | null }
@@ -26,6 +27,44 @@ type RaceResultTimelineNode =
       finishingPosition: number | null;
       qualifyingPosition: number | null;
     };
+
+const RESULT_PRESENTATION: Record<RaceResult["classification"], { label: string; surfaceClassName: string; accentClassName: string }> = {
+  finished: {
+    label: "Finish",
+    surfaceClassName: "border-status-success/50 bg-status-success/10",
+    accentClassName: "text-status-success",
+  },
+  dnf: {
+    label: "DNF",
+    surfaceClassName: "border-status-danger/50 bg-status-danger/10",
+    accentClassName: "text-status-danger",
+  },
+  retired: {
+    label: "Retired",
+    surfaceClassName: "border-status-danger/50 bg-status-danger/10",
+    accentClassName: "text-status-danger",
+  },
+  disqualified: {
+    label: "Disqualified",
+    surfaceClassName: "border-status-danger/50 bg-status-danger/10",
+    accentClassName: "text-status-danger",
+  },
+  "not-classified": {
+    label: "Not classified",
+    surfaceClassName: "border-status-warning/50 bg-status-warning/10",
+    accentClassName: "text-status-warning",
+  },
+  qualifying: {
+    label: "Qualifying",
+    surfaceClassName: "border-status-info/50 bg-status-info/10",
+    accentClassName: "text-status-info",
+  },
+  unknown: {
+    label: "Result unavailable",
+    surfaceClassName: "border-app-border bg-app-surface-alt",
+    accentClassName: "text-app-text-muted",
+  },
+};
 
 export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineNode[] {
   let currentPosition = result.qualifyingPosition;
@@ -67,8 +106,8 @@ export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineN
   ];
 }
 
-function formatService(service: RaceResult["events"][number]["service"]): string {
-  return service === "unknown" ? "Service" : service[0].toUpperCase() + service.slice(1);
+export function formatService(service: RaceResult["events"][number]["service"]): string {
+  return service === "unknown" ? "Pit" : service[0].toUpperCase() + service.slice(1);
 }
 
 function tyreChangeLabel(value: unknown): string | null {
@@ -79,9 +118,9 @@ function tyreChangeLabel(value: unknown): string | null {
   return null;
 }
 
-function FinishFlag() {
+function ResultFlag({ className }: { className: string }) {
   return (
-    <svg aria-label="Finish flag" className="h-5 w-5 text-status-success" viewBox="0 0 24 24" fill="none" role="img">
+    <svg aria-label="Result flag" className={cn("size-5", className)} viewBox="0 0 24 24" fill="none" role="img">
       <path d="M6 21V4m0 1h11l-2 3 2 3H6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M8 5h2v2H8zm4 0h2v2h-2zM8 9h2v2H8zm4 0h2v2h-2z" fill="currentColor" />
     </svg>
@@ -119,15 +158,15 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   }
 
   if (node.kind === "finish") {
-    const position = node.finishingPosition ?? node.qualifyingPosition;
+    const presentation = RESULT_PRESENTATION[node.classification];
     return (
-      <div className="min-w-36 rounded-xl border border-status-success/50 bg-status-success/10 px-4 py-3 shadow-sm shadow-app-bg/20">
+      <div className={cn("min-w-36 rounded-xl border px-4 py-3 shadow-sm shadow-app-bg/20", presentation.surfaceClassName)}>
         <div className="flex items-center gap-2">
-          <FinishFlag />
-          <div className="text-app-caption font-semibold uppercase tracking-app-label text-status-success">Finish</div>
+          <ResultFlag className={presentation.accentClassName} />
+          <div className={cn("text-app-caption font-semibold uppercase tracking-app-label", presentation.accentClassName)}>{presentation.label}</div>
         </div>
-        <div className="mt-1 text-sm font-semibold text-app-text">{node.classification[0].toUpperCase() + node.classification.slice(1)}</div>
-        {position != null && <div className="text-xs text-app-text/70">P{position}</div>}
+        {node.classification !== "qualifying" && node.finishingPosition != null && <div className="mt-1 text-xs text-app-text/70">Finish P{node.finishingPosition}</div>}
+        {node.qualifyingPosition != null && <div className="mt-1 text-xs text-app-text/70">Qualified P{node.qualifyingPosition}</div>}
       </div>
     );
   }

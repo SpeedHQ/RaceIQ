@@ -1,10 +1,18 @@
-import { selectEvaluationLaps } from "@shared/review-laps";
-import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
+import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
+import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMemo, useState } from "react";
-import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, useLineSpread, useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/queries";
+import type { LapMeta } from "../../../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { SemanticAnalysisFrame } from "../../analyse/track-map/types";
+import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
+import type { LineSpreadTrace } from "../../../hooks/experiments";
+import { useLineSpread } from "../../../hooks/experiments";
+import type { TrackCorner } from "../../../hooks/track-queries";
+import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/track-queries";
+import { useLapIssues } from "../../../hooks/tunes";
+import { useLapSemanticTelemetry } from "../../../hooks/laps";
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
-import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
 import { Button } from "../../ui/button";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { BalanceLanes } from "./BalanceLanes";
@@ -48,7 +56,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // the same pool. Matches the server /line-spread pool.
   // Fastest valid, non-excluded laps — matches the server /line-spread clean
   // pool. Routed through the shared selector so the traces rendered here are
-  // exactly the laps the UI badges as "Eval" (see shared/review-laps.ts);
+  // exactly the laps the UI badges as "Eval" (see shared/racing/laps/review-selection.ts);
   // the old local fastestLaps() trim could disagree when auto-exclude had
   // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.
@@ -70,7 +78,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const setFocusLapId = controlledOnFocusLap ?? setLocalFocusId;
   const effectiveFocusId = focusLapId ?? bestLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
 
-  const { data: focusTel } = useLapTelemetry(effectiveFocusId);
+  const { data: focusTel } = useLapSemanticTelemetry(effectiveFocusId);
   const { data: issues } = useLapIssues(effectiveFocusId);
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
   const { data: corners } = useTrackCorners(trackOrdinal, gameId);
@@ -107,8 +115,8 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
-      focusTelemetry={focusTel?.telemetry ?? null}
-      focusSectorTimes={focusTel?.sectorTimes ?? null}
+      focusTelemetry={focusTel?.envelopes.map((e) => ({ values: Object.fromEntries(e.values.map((v) => [v.semanticId, v.value])), states: {}, freshness: {} })) ?? null}
+      focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorStarts ?? [] } : null}
       edges={edges}
       corners={corners ?? []}
       issues={issues ?? []}
@@ -127,7 +135,7 @@ export interface TrackFocusViewInnerProps {
   bestLapId: number | null;
   focusLapId: number | null;
   onFocusLap: (lapId: number) => void;
-  focusTelemetry: TelemetryPacket[] | null;
+  focusTelemetry: SemanticAnalysisFrame[] | null;
   focusSectorTimes: SectorTimesLite | null;
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
@@ -224,7 +232,7 @@ export function TrackFocusViewInner({
   return (
     <div className="flex flex-col h-full min-h-0 p-4 gap-4">
       {/* Stat strip */}
-      <div className="flex-none grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid flex-none grid-cols-2 gap-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
         <StatCell label="Consistency" value={stats.consistency != null ? stats.consistency.toFixed(0) : "—"} unit={stats.consistency != null ? "%" : undefined} />
         <StatCell label="Std dev" value={stats.sdS != null ? stats.sdS.toFixed(3) : "—"} unit={stats.sdS != null ? "s" : undefined} />
         <StatCell label="Best" value={stats.bestS != null ? stats.bestS.toFixed(3) : "—"} unit={stats.bestS != null ? "s" : undefined} />
@@ -243,7 +251,7 @@ export function TrackFocusViewInner({
         </p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[460px_minmax(0,1fr)] gap-4 flex-1 min-h-0 min-w-0">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         {/* Left column: track map (static) + issues list (own scroll). */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none">
@@ -251,8 +259,8 @@ export function TrackFocusViewInner({
               <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
             ) : (
               <TrackFocusMap
-                telemetry={focusTelemetry}
-                sectorTimes={focusSectorTimes}
+                telemetry={focusTelemetry as unknown as TelemetryPacket[]}
+                sectorTimes={focusSectorTimes as unknown as SectorTimesLite}
                 edges={edges}
                 corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}

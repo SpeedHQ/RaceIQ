@@ -1,5 +1,5 @@
 /**
- * Setup Engineer agent (docs/setup-engineer-tools-plan.md §3, Phase 2).
+ * Setup Engineer agent (docs/architecture/setup-engineer.md).
  *
  * Static singleton — registered in `mastra/index.ts` so it appears in the
  * Mastra dev Studio playground alongside the other agents. It is NOT bound to
@@ -12,14 +12,14 @@
  */
 import { Agent } from "@mastra/core/agent";
 
-import { aiLanguageInstruction } from "../../shared/locales";
-import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
+import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
+import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/settings";
+import { loadSettings } from "../../server/runtime/config/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/racing/experiments/focus";
 
 export interface SetupEngineerSessionContext {
   sessionId: number;

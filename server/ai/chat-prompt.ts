@@ -3,15 +3,18 @@
  * Includes the same telemetry context as the analysis prompt,
  * plus the original analysis as reference.
  */
-import type { TelemetryPacket, GameId } from "../../shared/types";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { Tune } from "../../shared/racing/tuning/types";
+import type { GameId } from "../../shared/games/ids";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/lib/lap-insights";
+import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-
+import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;
@@ -45,6 +48,8 @@ export function buildChatSystemPrompt(
   corners: CornerDef[],
   unit: UnitSystem = "metric",
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
+  tune?: Tune,
+  analysisJson?: string,
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
@@ -53,15 +58,9 @@ export function buildChatSystemPrompt(
   const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
   const trackOrdinal = lap.trackOrdinal ?? packets[0]?.TrackOrdinal ?? 0;
   const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
-  const carName = getPromptCarName(carOrdinal, gameId);
-  const trackName = getPromptTrackName(trackOrdinal, gameId);
-  const identityText = `--- SESSION IDENTITY ---
-Game: ${gameName}
-Game ID: ${gameId ?? "unknown"}
-Car: ${carName}
-Car ID: ${carOrdinal}
-Track: ${trackName}
-Track ID: ${trackOrdinal}`;
+  const carName = resolveCarName(carOrdinal, gameId);
+  const trackName = resolveTrackName(trackOrdinal, gameId);
+
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
@@ -79,6 +78,38 @@ Track ID: ${trackOrdinal}`;
     }
   }
 
+  let tuneText = "";
+  if (tune) {
+    tuneText =
+      "\n" +
+      formatTuneForPrompt({
+        name: tune.name,
+        author: tune.author,
+        category: tune.category,
+        settings: tune.settings,
+      }) +
+      "\n";
+  }
+
+  let analysisContext = "";
+  if (analysisJson) {
+    try {
+      const parsed = JSON.parse(analysisJson);
+      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict}\n`;
+      if (parsed.corners?.length) {
+        analysisContext += `Problem corners: ${parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ")}\n`;
+      }
+      if (parsed.technique?.length) {
+        analysisContext += `Technique tips: ${parsed.technique.map((t: any) => t.tip).join("; ")}\n`;
+      }
+      if (parsed.setup?.length) {
+        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.change}: ${s.fix}`).join("; ")}\n`;
+      }
+    } catch {
+      // If analysis JSON is invalid, include raw
+      analysisContext = `\n--- PREVIOUS ANALYSIS ---\n${analysisJson}\n`;
+    }
+  }
 
 
   // Game-specific extended context
@@ -87,9 +118,24 @@ Track ID: ${trackOrdinal}`;
     extendedContext = serverAdapter.buildAiContext(packets);
   }
 
+  // Game-specific system prompt override (use chat version, not analysis JSON version)
+  const gameSystemNote = serverAdapter?.aiSystemPrompt ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n` : "";
+
   return `${chatSystemPrompt(unit, temperatureUnit, language)}
-${identityText}
+${gameSystemNote}
+--- SESSION IDENTITY ---
+Game: ${gameName}
+Game ID: ${gameId ?? "unknown"}
+Car: ${carName}
+Car ID: ${carOrdinal}
+Track: ${trackName}
+Track ID: ${trackOrdinal}
 ${formatLapChatIdentity(lap)}
+--- LAP CONTEXT ---
+Car: ${carName}
+Track: ${trackName}
+Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s${lap.isValid ? "" : " (INVALID)"}
+${tuneText}${analysisContext}
 --- TELEMETRY DATA ---
 ${exportText}
 ${cornerData}

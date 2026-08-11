@@ -1,12 +1,12 @@
-import type { ResolvedTrackGuide } from "@shared/track-guide-types";
-import type { GameId } from "@shared/types";
+import type { ResolvedTrackGuide } from "@shared/racing/tracks/guide/types";
+import { segmentDisplayNames, turnNumbers } from "@shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
-import { segmentDisplayNames, turnNumbers } from "@/lib/segment-label";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../../shared/games/ids";
 import type { TrackInfo as TrackInfoType, TrackSectors } from "./types";
 
 /**
@@ -123,7 +123,7 @@ export function TrackInfoPanel({
           <div className="text-app-label text-app-text-muted">{m.trackdetail_sector_boundaries()}</div>
         </div>
         {sectorBounds ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 @3xl/workspace:grid-cols-3">
             {([1, 2, 3] as const).map((n) => {
               const from = n === 1 ? 0 : n === 2 ? sectorBounds.s1End : sectorBounds.s2End;
               const to = n === 1 ? sectorBounds.s1End : n === 2 ? sectorBounds.s2End : 1;
@@ -154,7 +154,7 @@ export function TrackInfoPanel({
             <div className="text-app-subtext text-app-text-secondary">{guide.character}</div>
           </div>
           {guide.corners.length > 0 && (
-            <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
+            <div className="mt-2 grid grid-cols-1 gap-2 @5xl/workspace:grid-cols-2">
               {guide.corners.map((c) => (
                 <div key={c.label} className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
                   <div className="flex items-baseline gap-2 flex-wrap">
@@ -195,7 +195,7 @@ export function TrackInfoPanel({
             </THead>
             <TBody>
               {segments.map((s, i) => (
-                <TRow key={`${s.name}-${s.startFrac}-${i}`}>
+                <TRow key={`${s.name}-${s.startFrac}-${s.endFrac}`}>
                   <TD>
                     <span className={s.type === "corner" ? "text-app-text" : "text-app-text-muted"}>
                       {s.type === "corner" ? "🔶" : "🔷"} {labels[i]}

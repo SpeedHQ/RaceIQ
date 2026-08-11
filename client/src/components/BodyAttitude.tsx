@@ -1,6 +1,9 @@
-import type { TelemetryPacket } from "@shared/types";
+import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 
 const toDeg = 180 / Math.PI;
+
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 /**
  * BodyAttitude — Three SVG mini-views showing car orientation:
@@ -8,11 +11,13 @@ const toDeg = 180 / Math.PI;
  * 2. Side view: car body rotates with pitch angle (braking/acceleration dive)
  * 3. Compass: arrow rotates with yaw heading
  */
-export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
-  const roll = packet.Roll * toDeg;
-  const pitch = packet.Pitch * toDeg;
-  const yaw = packet.Yaw * toDeg;
-  const clampRoll = Math.max(-25, Math.min(25, roll));
+export function BodyAttitude({ frame }: { frame: SemanticAnalysisFrame }) {
+  const roll = (numeric(frame, "motion.roll") ?? 0) * toDeg;
+  const pitch = (numeric(frame, "motion.pitch") ?? 0) * toDeg;
+  const yaw = (numeric(frame, "motion.yaw") ?? 0) * toDeg;
+  const clampedVehicleRoll = Math.max(-25, Math.min(25, roll));
+  // Fixed vehicle reference, moving horizon: scenery rotates opposite vehicle roll.
+  const horizonRoll = -clampedVehicleRoll;
   const clampPitch = Math.max(-15, Math.min(15, pitch));
 
   return (
@@ -26,25 +31,11 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
             </clipPath>
           </defs>
           <g clipPath="url(#ati-clip)">
-            <g transform={`rotate(${clampRoll}, 25, 22)`}>
+            <g transform={`rotate(${horizonRoll}, 25, 22)`}>
               {/* Sky */}
-              <rect
-                x={-10}
-                y={-30}
-                width={70}
-                height={52 + clampPitch * 1.2}
-                fill="var(--attitude-sky)"
-                fillOpacity={0.35}
-              />
+              <rect x={-10} y={-30} width={70} height={52 + clampPitch * 1.2} fill="var(--attitude-sky)" fillOpacity={0.35} />
               {/* Ground */}
-              <rect
-                x={-10}
-                y={22 + clampPitch * 1.2}
-                width={70}
-                height={60}
-                fill="var(--attitude-ground)"
-                fillOpacity={0.35}
-              />
+              <rect x={-10} y={22 + clampPitch * 1.2} width={70} height={60} fill="var(--attitude-ground)" fillOpacity={0.35} />
               {/* Horizon line */}
               <line x1={-10} y1={22 + clampPitch * 1.2} x2={60} y2={22 + clampPitch * 1.2} stroke="var(--app-text)" strokeOpacity={0.6} strokeWidth={0.5} />
               {/* Pitch ladder lines — every 2.5° */}

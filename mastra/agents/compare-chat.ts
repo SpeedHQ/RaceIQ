@@ -9,18 +9,14 @@ import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
 import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/settings";
+import { getModel } from "../../server/ai/model-provider";
+import { loadSettings } from "../../server/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
-import {
-  getLapAnalysisTool,
-  generateLapAnalysisTool,
-} from "../tools/lap-analysis";
+import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { getCompareAnalysisTool } from "../tools/compare-analysis";
-import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
-
+import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 export const compareChatAgent = new Agent({
   id: "compare-chat",
   name: "Compare Chat",
@@ -35,15 +31,12 @@ export const compareChatAgent = new Agent({
       (context ? `\n\n${context}` : "")
     );
   },
-  model: () => {
-    const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
-  },
+  model: ({ requestContext }) => getModel("chat", requestContext),
   tools: {
-    getTrackGuideTool,
-    listTrackGuidesTool,
-    compareF1SetupToCatalogTool,
-    getCornerMetricsTool,
+    get_track_guide: getTrackGuideTool,
+    list_track_guides: listTrackGuidesTool,
+    compare_f1_setup_to_catalog: compareF1SetupToCatalogTool,
+    get_corner_metrics: getCornerMetricsTool,
     get_lap_analysis: getLapAnalysisTool,
     get_compare_analysis: getCompareAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,

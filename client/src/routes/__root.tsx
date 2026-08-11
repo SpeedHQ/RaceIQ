@@ -1,21 +1,21 @@
 import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { Menu, RefreshCw, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { Settings } from "@/components/settings/Settings";
+import { useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
 import { AppSidebar } from "../components/AppSidebar";
-import { OnboardingModal } from "../components/Onboarding";
 import { RaceResultStatus } from "../components/RaceResultStatus";
-import { Settings } from "../components/Settings";
+import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
+import { StaleLapReprocessing } from "../components/StaleLapReprocessing";
 import { UpdateModal } from "../components/UpdateModal";
 import { Button } from "../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { useSettings } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-import { isNarrowViewport } from "../hooks/useNarrowViewport";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -31,143 +31,6 @@ function getGamePrefixes() {
 
 function useUpdateCheck() {
   return useTelemetryStore((s) => s.versionInfo);
-}
-
-function ReprocessProgressModal({ total, done, onClose }: { total: number; done: number; onClose: () => void }) {
-  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
-  const complete = done >= total;
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && complete && onClose()}>
-      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60" className="w-96">
-        <DialogHeader className="mb-4 flex flex-row items-center gap-3">
-          <RefreshCw className={`size-5 text-status-info ${complete ? "" : "animate-spin"}`} />
-          <DialogTitle className="flex-1 text-sm font-semibold text-app-text">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</DialogTitle>
-          {complete && (
-            <Button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text-secondary transition-colors" aria-label="Close">
-              <X className="size-4" />
-            </Button>
-          )}
-        </DialogHeader>
-        <div className="mb-3 h-2 w-full rounded-full bg-app-text/10 overflow-hidden">
-          <div className="h-full rounded-full bg-status-info transition-all duration-300" style={{ width: `${percent}%` }} />
-        </div>
-        <div className="flex justify-between text-xs text-app-text-dim">
-          <span>
-            {done} / {total} sessions
-          </span>
-          <span>{percent}%</span>
-        </div>
-        {complete && <p className="mt-3 text-xs text-status-success text-center">{m.root_all_sessions_updated()}</p>}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function StaleLapButton() {
-  const staleLapDetection = useTelemetryStore((s) => s.staleLapDetection);
-  const setStaleLapDetection = useTelemetryStore((s) => s.setStaleLapDetection);
-  const reprocessProgress = useTelemetryStore((s) => s.reprocessProgress);
-  const setReprocessProgress = useTelemetryStore((s) => s.setReprocessProgress);
-
-  if (!staleLapDetection && !reprocessProgress) return null;
-
-  const handleReprocess = async () => {
-    const total = staleLapDetection!.sessionCount;
-    setReprocessProgress({ done: 0, total });
-    setStaleLapDetection(null);
-    try {
-      await fetch("/api/sessions/reprocess-stale", { method: "POST" });
-    } finally {
-      // Modal auto-closes via useEffect when done >= total
-    }
-  };
-
-  const handleDismissModal = () => setReprocessProgress(null);
-
-  return (
-    <>
-      {staleLapDetection && (
-        <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg bg-app-surface border border-status-info/30 shadow-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <RefreshCw className="size-4 text-status-info shrink-0" />
-            <span className="text-sm font-semibold text-app-text">{m.root_lap_detection_updated()}</span>
-          </div>
-          <p className="text-xs text-app-text-muted mb-3">
-            {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing
-            accuracy.
-          </p>
-          <Button
-            type="button"
-            onClick={handleReprocess}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-status-info/20 hover:bg-status-info/30 border border-status-info/30 text-status-info transition-colors"
-          >
-            <RefreshCw className="size-3" />
-            Reparse {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""}
-          </Button>
-        </div>
-      )}
-      {reprocessProgress && <ReprocessProgressModal total={reprocessProgress.total} done={reprocessProgress.done} onClose={handleDismissModal} />}
-    </>
-  );
-}
-
-export function MobileNotSupported({ feature = m.root_this_view() }: { feature?: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-8 text-center">
-      <div className="max-w-sm flex flex-col items-center gap-3">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-app-accent">
-          <rect x="3" y="4" width="18" height="14" rx="2" />
-          <path d="M8 20h8" />
-        </svg>
-        <div className="text-base font-semibold text-app-text">{m.root_desktop_required()}</div>
-        <div className="text-sm text-app-text-muted">
-          {feature} {m.root_mobile_not_supported()}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function RotatePrompt() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const check = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      // Prompt only when portrait width cannot support desktop-only views.
-      setShow(h > w && isNarrowViewport(w));
-    };
-    check();
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
-  }, []);
-
-  const [dismissed, setDismissed] = useState(false);
-  if (!show || dismissed) return null;
-
-  return (
-    <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6 pointer-events-none">
-      <div className="relative w-full max-w-sm rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl text-center pointer-events-auto">
-        <Button type="button" onClick={() => setDismissed(true)} className="absolute top-2 right-2 p-1 text-app-text-muted hover:text-app-text" aria-label="Dismiss">
-          <X className="size-4" />
-        </Button>
-        <div className="flex flex-col items-center gap-3">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-app-accent animate-pulse">
-            <rect x="5" y="2" width="14" height="20" rx="2" />
-            <path d="M12 18h.01" />
-            <path d="M3 12 L8 9 L8 15 Z" fill="currentColor" />
-          </svg>
-          <div className="text-base font-semibold text-app-text">{m.root_rotate_device()}</div>
-          <div className="text-sm text-app-text-muted">{m.root_rotate_landscape()}</div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function AppShell() {
@@ -190,6 +53,7 @@ function AppShell() {
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const updateState = useUpdateCheck();
+  const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -228,15 +92,17 @@ function AppShell() {
   if (isDash) {
     return (
       <div className="h-screen bg-app-bg text-app-text">
-        <Outlet key={uiLocale} />
+        <ResponsiveWorkspace className="overflow-hidden">
+          <Outlet key={uiLocale} />
+        </ResponsiveWorkspace>
       </div>
     );
   }
 
   return (
     <>
-      <div className="flex h-screen min-h-0 bg-app-bg text-app-text">
-        <aside className="hidden h-full shrink-0 md:block">
+      <div className="@container/shell flex h-screen min-h-0 bg-app-bg text-app-text">
+        <aside className="hidden h-full shrink-0 @3xl/shell:block">
           <AppSidebar
             collapsed={sidebarCollapsed}
             connected={connected}
@@ -254,7 +120,7 @@ function AppShell() {
         </aside>
 
         <div className="flex min-w-0 min-h-0 flex-1 flex-col">
-          <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 md:hidden">
+          <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 @3xl/shell:hidden">
             <Link to="/" className="text-sm font-semibold text-app-text transition-colors hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
               RaceIQ
             </Link>
@@ -262,13 +128,15 @@ function AppShell() {
               <Menu className="size-6" />
             </Button>
           </header>
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <Outlet key={uiLocale} />
+          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            <ResponsiveWorkspace>
+              <Outlet key={uiLocale} />
+            </ResponsiveWorkspace>
           </main>
         </div>
 
         {mobileNavOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end md:hidden">
+          <div className="fixed inset-0 z-50 flex justify-end @3xl/shell:hidden">
             <Button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
             <div className="relative h-full">
               <AppSidebar
@@ -290,12 +158,12 @@ function AppShell() {
         )}
 
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-stretch justify-center md:items-start md:pb-12 md:pt-12">
-            <Button type="button" size="content" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
-            <div className="relative h-full w-full overflow-hidden bg-app-bg md:max-w-2xl md:rounded-lg md:border md:border-app-border">
+          <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
+            <Button type="button" variant="app-ghost" size="content" aria-label="Dismiss settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
+            <div className="relative h-full w-full overflow-hidden bg-app-bg @3xl/shell:max-w-4xl @3xl/shell:rounded-lg @3xl/shell:border @3xl/shell:border-app-border">
               <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
                 <h1 className="text-app-heading font-semibold text-app-text">{m.nav_settings()}</h1>
-                <Button type="button" onClick={closeSettings} className="text-app-heading leading-none text-app-text-muted hover:text-app-text">
+                <Button type="button" aria-label="Close settings" onClick={closeSettings} className="text-app-heading leading-none text-app-text-muted hover:text-app-text">
                   &times;
                 </Button>
               </div>
@@ -306,10 +174,10 @@ function AppShell() {
           </div>
         )}
 
-        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? "?"} newReleases={updateState?.newReleases ?? []} onClose={() => setShowUpdateModal(false)} />}
+        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
-      <StaleLapButton />
+      <StaleLapReprocessing />
       <RaceResultStatus compact />
     </>
   );

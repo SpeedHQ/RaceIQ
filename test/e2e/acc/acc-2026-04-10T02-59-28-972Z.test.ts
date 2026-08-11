@@ -1,10 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import { existsSync } from "fs";
-import { join } from "path";
-import { parseDump } from "../../helpers/parse-dump";
-import { generateRecordingVisualizations } from "../../helpers/lap-viz";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../../helpers/lap-assertions";
-import type { LapSavedNotification } from "../../../server/lap-detector";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { parseDump } from "../../support/recordings/parse-dump";
+import { generateRecordingVisualizations } from "../../support/laps/visualizations";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../../support/laps/assertions";
+import type { LapSavedNotification } from "../../../server/lap-detection/types"
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 
 const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin.gz";
@@ -48,8 +48,11 @@ describe(recordingFile, () => {
     expect(laps[3].lapTime).toBeCloseTo(89.277, 0);
 
     assertValidLapHasSectors(laps[1]);
+    expect(laps[1].sectors).toHaveLength(3);
     assertValidLapHasSectors(laps[2]);
+    expect(laps[2].sectors).toHaveLength(3);
     assertValidLapHasSectors(laps[3]);
+    expect(laps[3].sectors).toHaveLength(3);
     assertBrandHatchSectorBounds(laps[1]);
     assertBrandHatchSectorBounds(laps[2]);
     assertBrandHatchSectorBounds(laps[3]);
@@ -74,5 +77,5 @@ describe(recordingFile, () => {
     expect(lapSaved[2].isValid).toBe(true);
     expect(lapSaved[3].lapNumber).toBe(4);
     expect(lapSaved[3].isValid).toBe(true);
-  }, 120_000); // replays a full recorded UDP session through the pipeline; slow on CI
+  }, 300_000); // replays a full recorded UDP session; full-suite CPU contention can exceed 120s
 });

@@ -1,5 +1,5 @@
-import { EXPERIMENT_FOCUS_LABELS } from "@shared/experiment-focus";
-import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/queries";
+import { EXPERIMENT_FOCUS_LABELS } from "@shared/racing/experiments/focus";
+import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/experiments";
 
 /**
  * The experiment's focus ledger, oldest first — what the driver was working on,
@@ -39,7 +39,7 @@ export function FocusTimeline({ experimentId, versions = [] }: { experimentId: n
           <li key={e.id} className="flex items-start gap-2 text-app-compact">
             <span
               className={`mt-px rounded-full px-1.5 py-px text-app-caption font-medium shrink-0 ${
-              e.focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"
+                e.focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"
               }`}
             >
               {EXPERIMENT_FOCUS_LABELS[e.focus]}

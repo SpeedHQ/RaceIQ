@@ -1,6 +1,6 @@
 import * as THREE from "three";
+import { operatingRangeColor } from "./colors";
 import { resolveCssColor } from "./rendering/css-values";
-import { operatingRangeColor, severityRangeColor } from "./colors";
 import { tireState } from "./vehicle-dynamics";
 
 // ── Geometry ──────────────────────────────────────────────────────────
@@ -16,6 +16,16 @@ export function makeWheelGeometries(radius: number, width: number) {
   const rim = new THREE.CylinderGeometry(rimRadius, rimRadius, width * 0.8, 8, 1, true);
   rim.rotateX(Math.PI / 2);
   return { tire, rim };
+}
+
+/** Convert signed int8 steering input to a bounded front-wheel angle. */
+export function steeringAngleRadians(steerInput: number): number {
+  return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
+}
+
+/** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
+export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
+  return inactive.clone().lerp(active, rawInput / 255);
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────
@@ -77,22 +87,6 @@ export const THREE_COLORS = {
   },
 } as const;
 
-const _brakeTemp = new THREE.Color();
-
-export function brakeColor(brake: number): THREE.Color {
-  // Smooth lerp between the theme's warm and hot brake endpoints.
-  const t = Math.min(1, Math.max(0, (brake - 10) / 245));
-  return _brakeTemp.copy(threeColor("var(--brake-warm)")).lerp(threeColor("var(--brake-hot)"), t).clone();
-}
-
-export function trailColorObj(slip: number, brake: number, isSmallScale?: boolean): THREE.Color {
-  // Braking overrides slip color with brake trail
-  if (brake > 10) return brakeColor(brake);
-  const warn = isSmallScale ? 0.03 : 0.3;
-  const crit = isSmallScale ? 0.08 : 0.8;
-  return threeColor(severityRangeColor(slip, [warn, crit]));
-}
-
 /** Returns a cached THREE.Color driven by tireState() — single source of truth. */
 export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {
   return threeColor(tireState(wheelStateLabel, slipRatio, slipAngleRad).color);
@@ -150,6 +144,11 @@ export function filterByDistance(
   return segments;
 }
 
+export interface FilteredTrackSegment {
+  sourceStartIndex: number;
+  points: [number, number, number][];
+}
+
 // ── Pre-allocated wall geometry ──────────────────────────────────────
 // Used by TrackBoundaryEdges to avoid creating a new BufferGeometry +
 // Float32Array every cursor move. Allocate once per wall with a
@@ -181,7 +180,7 @@ export function createWallGeometry(): THREE.BufferGeometry {
  * list of ground-plane segments. Each segment is extruded upward by
  * `wallHeight`. Marks the buffers dirty and updates the draw range.
  */
-export function updateWallGeometry(geom: THREE.BufferGeometry, segments: [number, number, number][][], wallHeight: number): void {
+export function updateWallGeometry(geom: THREE.BufferGeometry, segments: ReadonlyArray<FilteredTrackSegment>, wallHeight: number): void {
   const positions = geom.attributes.position.array as Float32Array;
   const indexAttr = geom.index;
   if (!indexAttr) return;
@@ -191,7 +190,7 @@ export function updateWallGeometry(geom: THREE.BufferGeometry, segments: [number
   let iPtr = 0;
   let vertexOffset = 0;
 
-  for (const seg of segments) {
+  for (const { points: seg } of segments) {
     if (seg.length < 2) continue;
     // Ensure we don't overflow the pre-allocated buffers. If a track
     // ever has more wall geometry in the window than we planned for,
@@ -301,7 +300,7 @@ export function filterByDistanceIndexed(
   ahead = DIST_AHEAD,
   behind = DIST_BEHIND,
   lateral = DIST_LATERAL,
-): [number, number, number][][] {
+): FilteredTrackSegment[] {
   const pts = index.pts;
   if (!Array.isArray(pts) || pts.length === 0) return [];
 
@@ -316,8 +315,9 @@ export function filterByDistanceIndexed(
   const s = Math.sin(yaw);
   const c = Math.cos(yaw);
   const maxDist = ahead * ahead;
-  const segments: [number, number, number][][] = [];
+  const segments: FilteredTrackSegment[] = [];
   let current: [number, number, number][] = [];
+  let currentStartIndex = -1;
 
   for (const chunk of index.chunks) {
     // Skip entire chunk if its AABB doesn't overlap the query window.
@@ -325,8 +325,9 @@ export function filterByDistanceIndexed(
     // any open segment must be closed here (mirroring the per-point
     // "else" branches below).
     if (chunk.maxX < qMinX || chunk.minX > qMaxX || chunk.maxZ < qMinZ || chunk.minZ > qMaxZ) {
-      if (current.length > 1) segments.push(current);
+      if (current.length > 1) segments.push({ sourceStartIndex: currentStartIndex, points: current });
       current = [];
+      currentStartIndex = -1;
       continue;
     }
 
@@ -339,16 +340,19 @@ export function filterByDistanceIndexed(
       const dist2 = dx * dx + dz * dz;
       const inRange = dist2 <= maxDist && localFwd >= -behind && localFwd <= ahead && Math.abs(localLat) <= lateral;
       if (inRange) {
+        if (current.length === 0) currentStartIndex = i;
         current.push([localFwd, y, localLat]);
       } else if (current.length > 1) {
-        segments.push(current);
+        segments.push({ sourceStartIndex: currentStartIndex, points: current });
         current = [];
+        currentStartIndex = -1;
       } else {
         current = [];
+        currentStartIndex = -1;
       }
     }
   }
-  if (current.length > 1) segments.push(current);
+  if (current.length > 1) segments.push({ sourceStartIndex: currentStartIndex, points: current });
   return segments;
 }
 

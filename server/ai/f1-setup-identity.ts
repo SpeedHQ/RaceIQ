@@ -1,8 +1,9 @@
-import type { F1CarSetup, TelemetryPacket } from "../../shared/types";
+import type { F1CarSetup } from "../../shared/telemetry/f1-2025";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 /**
  * Setup-identity helpers for F1 2025 "Add laps from history" auto-sort
- * (docs/setup-engineer-flow-design.md §Phase 6 follow-up): each F1 lap
+ * (docs/architecture/setup-engineer.md): each F1 lap
  * carries its own in-car setup, so instead of a manual target the import
  * groups laps by a canonical fingerprint of that setup — laps that only
  * differ by fuel load or tyre-pressure noise are treated as the same setup.
@@ -19,7 +20,7 @@ function safeParseF1Setup(raw: string): F1CarSetup | null {
 }
 
 /** Scan telemetry packets for the first `f1.setup` object. */
-export function firstPacketF1Setup(packets: TelemetryPacket[]): F1CarSetup | null {
+function firstPacketF1Setup(packets: TelemetryPacket[]): F1CarSetup | null {
   for (const p of packets) {
     const s = p.f1?.setup;
     if (s && typeof s === "object") return s as unknown as F1CarSetup;

@@ -31,13 +31,16 @@ const buttonVariants = cva(
         "full-width-action": "w-full",
         "form-section-toggle": "w-full !justify-between !py-2 text-left",
         "analysis-summary": "w-full !justify-start !gap-2 bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15",
-        "settings-nav": "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-text-muted hover:text-app-text hover:bg-app-surface-hover",
-        "settings-nav-selected": "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-accent bg-app-accent/10 border-0",
-        "focus-option": "!w-full !h-auto !min-h-16 !flex-col !items-start !justify-start !border !px-3 !py-3 text-left transition-colors border-app-border hover:border-app-accent/50",
-        "focus-option-selected": "!w-full !h-auto !min-h-16 !flex-col !items-start !justify-start !border !px-3 !py-3 text-left transition-colors border-app-accent bg-app-accent/10",
+        "settings-nav":
+          "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-text-muted hover:text-app-text hover:bg-app-surface-hover",
+        "settings-nav-selected":
+          "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-accent bg-app-accent/10",
+        "focus-option": "!h-auto !min-h-16 !w-full !flex-col !items-start !justify-start !border !px-3 !py-3 w-full min-w-0 whitespace-normal break-words text-left transition-colors border-app-border hover:border-app-accent/50",
+        "focus-option-selected": "!h-auto !min-h-16 !w-full !flex-col !items-start !justify-start !border !px-3 !py-3 w-full min-w-0 whitespace-normal break-words text-left transition-colors border-app-accent bg-app-accent/10",
         "search-select-trigger":
-          "border border-app-border-input px-3 py-2 text-app-subtext text-app-text-secondary outline-none transition-colors hover:text-app-text focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 md:px-2 md:py-0.5 md:text-app-compact",
-        "search-select-clear": "px-2 py-2 text-app-subtext text-app-text-dim outline-none transition-colors hover:text-app-text focus-visible:text-app-text md:px-1 md:py-0.5 md:text-app-compact",
+          "border border-app-border-input px-3 py-2 text-app-subtext text-app-text-secondary outline-none transition-colors hover:text-app-text focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 @3xl/workspace:px-2 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
+        "search-select-clear":
+          "px-2 py-2 text-app-subtext text-app-text-dim outline-none transition-colors hover:text-app-text focus-visible:text-app-text @3xl/workspace:px-1 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
         "focus-toggle": "text-app-label transition-colors text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30",
         "focus-toggle-driver": "text-app-label transition-colors bg-(--focus-driver)/20 text-(--focus-driver) font-semibold",
         "focus-toggle-setup": "text-app-label transition-colors bg-(--focus-setup)/20 text-(--focus-setup) font-semibold",

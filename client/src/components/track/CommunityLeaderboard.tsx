@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
-import { useLaptimes } from "@/hooks/queries";
+import { useLaptimes } from "@/hooks/tunes";
 import { tracksMatch } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
 
@@ -26,7 +26,14 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
 
   const rows = useMemo(() => {
     const matched = laptimes.filter((e) => tracksMatch(e.track, trackName, trackVariant));
-    return [...matched].sort((a, b) => lapSeconds(a.laptime) - lapSeconds(b.laptime));
+    const ranked = [...matched].sort((a, b) => lapSeconds(a.laptime) - lapSeconds(b.laptime));
+    const seen = new Map<string, number>();
+    return ranked.map((entry) => {
+      const rowSeed = `${entry.track}|${entry.car}|${entry.driver || ""}|${entry.carClass}|${entry.laptime}`;
+      const dup = seen.get(rowSeed) ?? 0;
+      seen.set(rowSeed, dup + 1);
+      return { ...entry, rowKey: `${rowSeed}#${dup}` };
+    });
   }, [laptimes, trackName, trackVariant]);
 
   if (rows.length === 0) {
@@ -49,8 +56,8 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
             <TH align="end">{m.communityleaderboard_time()}</TH>
           </THead>
           <TBody>
-            {rows.map((e, i) => (
-              <TRow key={`${e.car}-${e.driver}-${e.laptime}-${i}`}>
+            {rows.map((e) => (
+              <TRow key={e.rowKey}>
                 <TD emphasis tone="primary">
                   {e.car}
                 </TD>

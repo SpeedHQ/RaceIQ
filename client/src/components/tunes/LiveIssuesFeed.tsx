@@ -1,4 +1,4 @@
-import type { TuneIssue } from "@shared/types";
+import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
 import { useTelemetryStore } from "../../stores/telemetry";
 
 const SEVERITY_DOT: Record<TuneIssue["severity"], string> = {
@@ -28,8 +28,8 @@ export function LiveIssuesFeed() {
           <div className="p-3 text-xs text-app-text-dim">No issues detected yet this test.</div>
         ) : (
           <ul className="divide-y divide-app-border/50">
-            {rows.map(({ lapNumber, issue }, i) => (
-              <li key={`${lapNumber}-${issue.kind}-${issue.corner ?? ""}-${i}`} className="flex items-start gap-2 px-3 py-1.5">
+            {rows.map(({ lapNumber, issue }) => (
+              <li key={`${lapNumber}-${issue.kind}-${issue.corner ?? "lap"}-${issue.distanceFrac ?? "global"}-${issue.detail}`} className="flex items-start gap-2 px-3 py-1.5">
                 <span className={`mt-1 size-2 shrink-0 rounded-full ${SEVERITY_DOT[issue.severity]}`} />
                 <span className="shrink-0 text-app-caption font-mono text-app-text-muted tabular-nums w-8">L{lapNumber}</span>
                 {issue.corner && <span className="shrink-0 text-app-caption font-mono text-app-text-secondary w-8">{issue.corner}</span>}

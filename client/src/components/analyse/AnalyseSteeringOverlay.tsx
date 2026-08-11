@@ -1,14 +1,24 @@
-import type { TelemetryPacket } from "@shared/types";
-import { getSteeringLock } from "../Settings";
+import { getSteeringLock } from "@/lib/settings-storage";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { brakeBarColor } from "./AnalyseMetricsPanel";
 
 interface Props {
-  packet: TelemetryPacket;
+  frame: SemanticAnalysisFrame;
 }
 
-export function AnalyseSteeringOverlay({ packet }: Props) {
+const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+
+export function AnalyseSteeringOverlay({ frame }: Props) {
+  const steer = number(frame, "inputs.steer");
+  const brake = number(frame, "inputs.brake");
+  const throttle = number(frame, "inputs.accel");
   const halfLock = getSteeringLock() / 2;
-  const steerDeg = (packet.Steer / 127) * halfLock;
+  const steerDeg = steer == null ? null : (steer / 127) * halfLock;
+  const steerValue = steer ?? 0;
   return (
     <div className="absolute bottom-2 right-2 flex flex-col items-center gap-1">
       <svg width="44" height="44" viewBox="-22 -22 44 44" style={{ transform: `rotate(${steerDeg}deg)` }}>
@@ -27,33 +37,33 @@ export function AnalyseSteeringOverlay({ packet }: Props) {
             backgroundColor: "var(--ch-steer)",
             borderColor: "var(--app-accent-hover)",
             boxShadow: "0 1px 2px color-mix(in srgb, var(--ch-steer) 50%, transparent)",
-            left: `${50 + (packet.Steer / 127) * 50}%`,
+            left: `${50 + (steerValue / 127) * 50}%`,
             transform: "translate(-50%, -50%)",
           }}
         />
       </div>
       <span className="text-app-micro font-mono text-app-text-secondary tabular-nums">
-        {packet.Steer > 0 ? "R" : packet.Steer < 0 ? "L" : ""} {Math.abs(steerDeg).toFixed(0)}&deg;
+        {steerValue > 0 ? "R" : steerValue < 0 ? "L" : ""} {steerDeg == null ? "—" : `${Math.abs(steerDeg).toFixed(0)}°`}
       </span>
       <div className="flex gap-1 items-end" style={{ height: 60 }}>
         <div className="flex flex-col items-center gap-0.5">
-          <span className="text-app-micro font-mono font-bold tabular-nums" style={{ color: brakeBarColor(packet.Brake) }}>
-            {((packet.Brake / 255) * 100).toFixed(0)}
+          <span className="text-app-micro font-mono font-bold tabular-nums" style={{ color: brakeBarColor(brake ?? 0) }}>
+            {brake == null ? "—" : `${brake.toFixed(0)}`}
           </span>
           <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
             <div
               className="absolute bottom-0 w-full rounded-sm transition-all"
-              style={{ height: `${(packet.Brake / 255) * 100}%`, background: `linear-gradient(to top, var(--brake-warm), ${brakeBarColor(packet.Brake)})` }}
+              style={{ height: `${brake ?? 0}%`, background: `linear-gradient(to top, var(--brake-warm), ${brakeBarColor(brake ?? 0)})` }}
             />
           </div>
           <span className="text-app-glyph text-app-text-muted">B</span>
         </div>
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-app-micro font-mono font-bold tabular-nums" style={{ color: "var(--ch-throttle)" }}>
-            {((packet.Accel / 255) * 100).toFixed(0)}
+            {throttle == null ? "—" : `${throttle.toFixed(0)}`}
           </span>
           <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
-            <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ backgroundColor: "var(--ch-throttle)", height: `${(packet.Accel / 255) * 100}%` }} />
+            <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ backgroundColor: "var(--ch-throttle)", height: `${throttle ?? 0}%` }} />
           </div>
           <span className="text-app-glyph text-app-text-muted">T</span>
         </div>

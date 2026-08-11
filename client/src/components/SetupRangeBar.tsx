@@ -44,6 +44,7 @@ export function SetupRangeBar({
   const sorted = values;
   const q1 = sorted[Math.floor(sorted.length * 0.25)];
   const q3 = sorted[Math.ceil(sorted.length * 0.75) - 1];
+  const markerValues = [...new Set(values)].filter((value) => value !== min && value !== max);
 
   const barWidth = maxPct - minPct;
   const rel = (v: number) => (barWidth > 0 ? ((pct(v) - minPct) / barWidth) * 100 : 50);
@@ -65,13 +66,11 @@ export function SetupRangeBar({
         }}
       />
       {/* Individual setup dots — skip if at min or max */}
-      {values.map((v, i) =>
-        v === min || v === max ? null : (
-          <div key={i} className="absolute top-[7px] -translate-x-1/2" style={{ left: `${pct(v)}%` }}>
-            <div className="w-1 h-1 rounded-full bg-app-text/40" />
-          </div>
-        ),
-      )}
+      {markerValues.map((value) => (
+        <div key={value} className="absolute top-[7px] -translate-x-1/2" style={{ left: `${pct(value)}%` }}>
+          <div className="w-1 h-1 rounded-full bg-app-text/40" />
+        </div>
+      ))}
       {/* Min marker — vertical line */}
       <div className="absolute top-0.5 -translate-x-1/2 w-[2px] h-3 rounded-full" style={{ backgroundColor: "var(--setup-range-limit)", left: `${minPct}%` }} />
       {/* Max marker — vertical line */}
@@ -89,10 +88,7 @@ export function SetupRangeBar({
       {/* Selected setup — arrow pointing up + value label beneath the bar */}
       {selected != null && (
         <div className="absolute top-[16px] -translate-x-1/2 z-10 flex flex-col items-center" style={{ left: `${pct(selected)}%` }}>
-          <div
-            className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent"
-            style={{ borderBottomColor: "var(--setup-range-selected)" }}
-          />
+          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent" style={{ borderBottomColor: "var(--setup-range-selected)" }} />
           <span className="text-app-compact font-mono font-bold leading-none mt-0.5 whitespace-nowrap" style={{ color: "var(--setup-range-selected)" }}>
             {selected}
             {unit ?? ""}

@@ -1,12 +1,13 @@
-import type { RaceResult } from "../../shared/race-results";
-import { and, desc, eq, sql } from "drizzle-orm";
-import type { GameId } from "../../shared/types";
-import type { RaceResultAggregate } from "../../shared/race-results";
+import { getRecentSessionResults } from "../db/session-result-queries";
+import type { RaceResult } from "../../shared/racing/results/types";
+import { and, eq, sql } from "drizzle-orm";
+import type { GameId } from "../../shared/games/ids";
+import type { RaceResultAggregate } from "../../shared/racing/results/types";
 import { db } from "../db";
 import { pitEvents, sessionResults, sessions } from "../db/schema";
-import { getSessionResult } from "../db/queries";
 
-
+// Results are materialized when a session completes or through explicit
+// backfill. Read endpoints never derive incomplete live sessions.
 export interface ResultAggregateScope {
   gameId: GameId;
   carOrdinal?: number;
@@ -20,13 +21,18 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
   const [row] = await db
     .select({
       sessions: sql<number>`count(${sessionResults.id})`,
-      finished: sql<number>`sum(case when ${sessionResults.classification} = 'finished' then 1 else 0 end)`,
-      dnf: sql<number>`sum(case when ${sessionResults.classification} = 'dnf' then 1 else 0 end)`,
-      retired: sql<number>`sum(case when ${sessionResults.classification} = 'retired' then 1 else 0 end)`,
-      qualifying: sql<number>`sum(case when ${sessionResults.classification} = 'qualifying' then 1 else 0 end)`,
+      finished: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.classification} = 'finished' then 1 else 0 end)`,
+      dnf: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.classification} = 'dnf' then 1 else 0 end)`,
+      retired: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.classification} = 'retired' then 1 else 0 end)`,
+      disqualified: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.classification} = 'disqualified' then 1 else 0 end)`,
+      notClassified: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.classification} = 'not-classified' then 1 else 0 end)`,
+      qualifying: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.classification} = 'qualifying' then 1 else 0 end)`,
       unknown: sql<number>`sum(case when ${sessionResults.classification} = 'unknown' then 1 else 0 end)`,
-      podiums: sql<number>`sum(case when ${sessionResults.isPodium} = 1 then 1 else 0 end)`,
-      fastestLaps: sql<number>`sum(case when ${sessionResults.isFastestLap} = 1 then 1 else 0 end)`,
+      confirmed: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' then 1 else 0 end)`,
+      provisional: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'provisional' then 1 else 0 end)`,
+      unavailable: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'unavailable' then 1 else 0 end)`,
+      podiums: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.isPodium} = 1 then 1 else 0 end)`,
+      fastestLaps: sql<number>`sum(case when ${sessionResults.outcomeStatus} = 'confirmed' and ${sessionResults.isFastestLap} = 1 then 1 else 0 end)`,
       tyreAvailable: sql<number>`sum(case when ${sessionResults.tyreStrategy} is not null then 1 else 0 end)`,
       fuelAvailable: sql<number>`sum(case when ${sessionResults.fuelStrategy} is not null then 1 else 0 end)`,
       pitStops: sql<number>`coalesce(sum(${sessionResults.pitCount}), 0)`,
@@ -49,8 +55,13 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
     finished: value(row?.finished),
     dnf: value(row?.dnf),
     retired: value(row?.retired),
+    disqualified: value(row?.disqualified),
+    notClassified: value(row?.notClassified),
     qualifying: value(row?.qualifying),
     unknown: value(row?.unknown),
+    confirmed: value(row?.confirmed),
+    provisional: value(row?.provisional),
+    unavailable: value(row?.unavailable),
     podiums: value(row?.podiums),
     fastestLaps: value(row?.fastestLaps),
     pitStops: value(row?.pitStops),
@@ -63,18 +74,5 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
 
 export async function getRecentRaceResults(gameId: GameId, limit = 10): Promise<RaceResult[]> {
   const boundedLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
-  const rows = await db
-    .select({ sessionId: sessionResults.sessionId })
-    .from(sessionResults)
-    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
-    .where(eq(sessions.gameId, gameId))
-    .orderBy(desc(sessions.id))
-    .limit(boundedLimit)
-    .all();
-  const results: RaceResult[] = [];
-  for (const row of rows) {
-    const result = await getSessionResult(row.sessionId, gameId);
-    if (result) results.push(result as RaceResult);
-  }
-  return results;
+  return await getRecentSessionResults(gameId, boundedLimit) as RaceResult[];
 }

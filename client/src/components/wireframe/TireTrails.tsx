@@ -1,8 +1,7 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { allWheelStates } from "../../lib/vehicle-dynamics";
 import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
 import { useGameId } from "../../stores/game";
 
@@ -20,7 +19,7 @@ const MAX_TRAIL_SAMPLES = 64;
 // MAX_TRAIL_SAMPLES × 4 wheels = 256 worst case.
 const MAX_TRAIL_INSTANCES = 256;
 
-export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: TelemetryPacket[]; cursorIdx: number; carModel: CarModelEnrichment }) {
+export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: SemanticAnalysisFrame[]; cursorIdx: number; carModel: CarModelEnrichment }) {
   const gameId = useGameId();
   const trailLengthM = gameId === "acc" ? TRAIL_LENGTH_M_ACC : TRAIL_LENGTH_M_DEFAULT;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
@@ -29,7 +28,7 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Tele
   // allWheelStates (rot-speed-derived SAE ratio, not the game's raw
   // TireSlipRatio field which uses per-game scaling).
   const angleFns = useMemo(
-    () => [(p: TelemetryPacket) => p.TireSlipAngleFL, (p: TelemetryPacket) => p.TireSlipAngleFR, (p: TelemetryPacket) => p.TireSlipAngleRL, (p: TelemetryPacket) => p.TireSlipAngleRR],
+    () => [(p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][0]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][1]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][2]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][3]) || 0 : 0)],
     [],
   );
   const wheelKeys = useMemo(() => ["fl", "fr", "rl", "rr"] as const, []);
@@ -50,7 +49,7 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Tele
     while (startIdx > 0 && cursorIdx - startIdx < MAX_TRAIL_SAMPLES) {
       const a = telemetry[startIdx];
       const b = telemetry[startIdx - 1];
-      lastSegLen = Math.hypot(a.PositionX - b.PositionX, a.PositionZ - b.PositionZ);
+      lastSegLen = Math.hypot((semanticNumber(a, "motion.position-x") ?? 0) - (semanticNumber(b, "motion.position-x") ?? 0), (semanticNumber(a, "motion.position-z") ?? 0) - (semanticNumber(b, "motion.position-z") ?? 0));
       acc += lastSegLen;
       startIdx--;
       if (acc >= trailLengthM) break;
@@ -64,10 +63,10 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Tele
     const overshoot = acc - trailLengthM;
     const tailFrac = overshoot > 0 && lastSegLen > 1e-6 ? overshoot / lastSegLen : 0;
 
-    const cx = cur.PositionX,
-      cz = cur.PositionZ;
-    const s = Math.sin(cur.Yaw),
-      c = Math.cos(cur.Yaw);
+    const cx = (semanticNumber(cur, "motion.position-x") ?? 0),
+      cz = (semanticNumber(cur, "motion.position-z") ?? 0);
+    const s = Math.sin(semanticNumber(cur, "motion.yaw") ?? 0),
+      c = Math.cos(semanticNumber(cur, "motion.yaw") ?? 0);
 
     return WHEEL_OFFSETS.map((off, w) => {
       const pts = new Float32Array((cursorIdx - startIdx + 1) * 3);
@@ -76,21 +75,21 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Tele
         const p = telemetry[i];
         // For the oldest sample, lerp toward the next sample by tailFrac so
         // the rear endpoint lands at exactly trailLengthM (kills tail jitter).
-        let px = p.PositionX;
-        let pz = p.PositionZ;
+        let px = (semanticNumber(p, "motion.position-x") ?? 0);
+        let pz = (semanticNumber(p, "motion.position-z") ?? 0);
         if (i === startIdx && tailFrac > 0) {
           const next = telemetry[startIdx + 1];
-          px += (next.PositionX - px) * tailFrac;
-          pz += (next.PositionZ - pz) * tailFrac;
+          px += ((semanticNumber(next, "motion.position-x") ?? 0) - px) * tailFrac;
+          pz += ((semanticNumber(next, "motion.position-z") ?? 0) - pz) * tailFrac;
         }
         const dx = px - cx,
           dz = pz - cz;
         pts[j * 3] = dx * s + dz * c + off[0];
         pts[j * 3 + 1] = -0.42;
         pts[j * 3 + 2] = dx * c - dz * s + off[1];
-        const ws = allWheelStates(p);
-        const wsWheel = ws[wheelKeys[w]];
-        cols.push(trailColorFromState(wsWheel.state, wsWheel.slipRatio, angleFns[w](p)));
+        const slipValue = p.values["tires.tire-slip-ratio"];
+        const slipRatio = Array.isArray(slipValue) && typeof slipValue[w] === "number" ? slipValue[w] : 0;
+        cols.push(trailColorFromState("nominal", slipRatio, angleFns[w](p)));
       }
       return { pts, cols };
     });

@@ -95,11 +95,7 @@ export function AccCars() {
       {/* Filters & Sort */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
-          <Button
-            variant={filterClass ? "app-ghost" : "selected-toggle"}
-            size="app-sm"
-            onClick={() => setFilterClass(null)}
-          >
+          <Button variant={filterClass ? "app-ghost" : "selected-toggle"} size="app-sm" aria-pressed={filterClass === null} onClick={() => setFilterClass(null)}>
             {m.acccars_all_classes()}
           </Button>
           {classes.map((cls) => {
@@ -110,6 +106,7 @@ export function AccCars() {
                 variant={filterClass === cls ? "selected-toggle" : "app-ghost"}
                 size="app-sm"
                 data-catalog-category={cls}
+                aria-pressed={filterClass === cls}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
@@ -131,7 +128,7 @@ export function AccCars() {
                 {classCars.length} {m.acccars_car_count_label()}
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3">
               {classCars.map((car) => {
                 const brand = getManufacturer(car.name);
                 const specs = car.specs;

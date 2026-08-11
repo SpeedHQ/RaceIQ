@@ -13,7 +13,7 @@
  * of them collapses to ~63.5Hz. Measured on a real session artifact, poll
  * spacing was 15.8ms against a sim publishing physics at 336Hz — we were
  * discarding 81% of available physics frames to a platform default.
- * See docs/telemetry-fidelity.md section 1.
+ * See docs/research/telemetry-fidelity.md section 1.
  *
  * Note this is NOT fixable with a drift-compensated scheduler. Recomputing the
  * next deadline from an absolute origin removes accumulated *drift*; it cannot
@@ -121,9 +121,7 @@ export function acquireHighResolutionTimer(): number | null {
 
   activePeriodMs = period;
   refCount = 1;
-  console.log(
-    `[TimerResolution] Raised to ${period}ms (default tick is 15.625ms) — sub-tick intervals now honoured`,
-  );
+  console.log(`[TimerResolution] Raised to ${period}ms (default tick is 15.625ms) — sub-tick intervals now honoured`);
   return period;
 }
 

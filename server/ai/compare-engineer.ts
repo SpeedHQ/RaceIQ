@@ -11,20 +11,18 @@
  * judge an absolute lap. This module owns that persona so both compare-chat
  * and inputs-compare-analysis stay consistent.
  */
-import type { UnitSystem, TemperatureUnit } from "../export";
-import { tryGetServerGame } from "../games/registry";
-import { getCarName, getTrackName } from "../../shared/car-data";
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-
+import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 export function getPromptCarName(ordinal: number, gameId?: string): string {
-  return tryGetServerGame(gameId)?.getCarName(ordinal) ?? getCarName(ordinal, gameId);
+  return resolveCarName(ordinal, gameId);
 }
 
 export function getPromptTrackName(ordinal: number, gameId?: string): string {
-  return tryGetServerGame(gameId)?.getTrackName(ordinal) ?? getTrackName(ordinal, gameId);
+  return resolveTrackName(ordinal, gameId);
 }
-
 /**
  * The base persona used for every compare flow. Plain text — no JSON shape.
  *

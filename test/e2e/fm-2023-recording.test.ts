@@ -1,31 +1,20 @@
 import { describe, test, expect } from "bun:test";
-import type { LapSavedNotification } from "../../server/lap-detector";
-import { parseDump } from "../helpers/parse-dump";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../helpers/lap-assertions";
-import { generateRecordingVisualizations } from "../helpers/lap-viz";
-import { existsSync } from "fs";
-import { join } from "path";
-
-const RECORDINGS_DIR = "test/artifacts/sessions";
-
-function getRecording(filename: string): string | null {
-  const recordingPath = join(RECORDINGS_DIR, filename);
-  return existsSync(recordingPath) ? recordingPath : null;
-}
+import type { LapSavedNotification } from "../../server/lap-detection/types"
+import { parseDump } from "../support/recordings/parse-dump";
+import { assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
+import { generateRecordingVisualizations } from "../support/laps/visualizations";
+import { getRecordingFixture } from "../support/recordings/fixtures";
 
 describe("FM-2023 recording", () => {
   describe("fm-2023-2026-04-09T21-53-00-102Z", () => {
-    const recordingFile = "fm-2023-2026-04-09T21-53-00-102Z.bin";
+    const recordingFile = "fm-2023-2026-04-09T21-53-00-102Z.bin.gz";
 
-    test("detects laps correctly", async () => {
-      const recording = getRecording(recordingFile);
-      if (!recording) {
-        console.log(`Recording not found: ${recordingFile}`);
-        return;
-      }
+    test("replays telemetry without inventing a completed lap", async () => {
+      const recording = getRecordingFixture(recordingFile);
+      if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);
-      const { laps, sessions, carModel, trackName, wsNotifications } = await parseDump("fm-2023", recording);
+      const { laps, carModel, trackName, wsNotifications, rawPackets } = await parseDump("fm-2023", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);
@@ -42,14 +31,14 @@ describe("FM-2023 recording", () => {
       // (they're always null in parseDump for non-ACC games)
       console.log(`Car: ${carModel}, Track: ${trackName}`);
 
-      // At least one lap should be detected (may have incomplete/invalid laps)
-      expect(laps.length).toBeGreaterThanOrEqual(0);
+      expect(rawPackets.length).toBeGreaterThan(0);
+      expect(laps).toHaveLength(0);
 
       // Check WebSocket notifications exist for completed laps
       const lapSavedNotifications = wsNotifications.filter(
         (n): n is LapSavedNotification => n.type === "lap-saved"
       );
-      console.log(`Received ${lapSavedNotifications.length} lap-saved notification(s)`);
+      expect(lapSavedNotifications).toHaveLength(0);
 
       // Verify all laps have valid session IDs
       for (const lap of laps) {
@@ -61,10 +50,9 @@ describe("FM-2023 recording", () => {
       // Verify packets exist for each lap
       for (const lap of laps) {
         expect(lap.packets.length).toBeGreaterThan(0);
-        // Only check lap times for valid laps (skip incomplete/invalid ones)
         if (lap.isValid) {
-          assertLapTimesProper(lap.packets, lap.lapTime);
           assertValidLapHasSectors(lap);
+          expect(lap.sectors).toHaveLength(3);
         }
       }
 
@@ -112,17 +100,14 @@ describe("FM-2023 recording", () => {
   });
 
   describe("fm-2023-2026-04-09T21-55-03-186Z", () => {
-    const recordingFile = "fm-2023-2026-04-09T21-55-03-186Z.bin";
+    const recordingFile = "fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
 
     test("detects laps correctly", async () => {
-      const recording = getRecording(recordingFile);
-      if (!recording) {
-        console.log(`Recording not found: ${recordingFile}`);
-        return;
-      }
+      const recording = getRecordingFixture(recordingFile);
+      if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);
-      const { laps, sessions, carModel, trackName, wsNotifications } = await parseDump("fm-2023", recording);
+      const { laps, carModel, trackName, wsNotifications } = await parseDump("fm-2023", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);
@@ -139,8 +124,8 @@ describe("FM-2023 recording", () => {
       // (they're always null in parseDump for non-ACC games)
       console.log(`Car: ${carModel}, Track: ${trackName}`);
 
-      // At least one lap should be detected (may have incomplete/invalid laps)
-      expect(laps.length).toBeGreaterThanOrEqual(0);
+      // Committed fixture must produce at least one lap; zero laps is a failed pipeline.
+      expect(laps.length).toBeGreaterThan(0);
 
       // Check WebSocket notifications exist for completed laps
       const lapSavedNotifications = wsNotifications.filter(
@@ -158,10 +143,10 @@ describe("FM-2023 recording", () => {
       // Verify packets exist for each lap
       for (const lap of laps) {
         expect(lap.packets.length).toBeGreaterThan(0);
-        // Only check lap times for valid laps (skip incomplete/invalid ones)
         if (lap.isValid) {
           assertLapTimesProper(lap.packets, lap.lapTime);
           assertValidLapHasSectors(lap);
+          expect(lap.sectors).toHaveLength(3);
         }
       }
 

@@ -1,4 +1,4 @@
-import type { StyleAxes } from "../../../../server/ai/driver-profile-aggregate";
+import type { StyleAxes } from "../../../../server/driver-profile/detectors";
 
 interface CompactGaugeProps {
   label: string;

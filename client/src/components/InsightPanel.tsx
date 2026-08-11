@@ -1,6 +1,7 @@
+import type { InsightCategory, LapInsight } from "@shared/racing/analysis/laps/insights/types";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { InsightCategory, LapInsight } from "../lib/lap-insights";
 import { Button } from "./ui/button";
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -14,44 +15,48 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
   const hasMultiple = insight.frameIndices.length > 1;
 
   return (
-    <div className="w-full rounded hover:bg-app-surface-hover/60 transition-colors group">
-      <Button type="button" variant="plain" size="content" onClick={() => onJump(insight.frameIndices[eventIdx])} className={`block w-full text-left px-2 ${hasMultiple ? "pt-1.5" : "py-1.5"}`}>
+    <div className="group flex w-full items-stretch rounded border border-app-border bg-app-surface-alt transition-colors hover:bg-app-surface-hover">
+      <Button type="button" variant="plain" size="content" onClick={() => onJump(insight.frameIndices[eventIdx])} className="min-w-0 flex-1 rounded-none px-2 py-1.5 text-left">
         <div className="flex items-start gap-1.5">
-          <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SEVERITY_COLOR[insight.severity] }} />
+          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: SEVERITY_COLOR[insight.severity] }} />
           <div className="min-w-0 flex-1">
-            <div className="text-app-compact font-mono text-app-text group-hover:text-app-text">{insight.label}</div>
+            <div className="text-app-compact font-mono text-app-text">{insight.label}</div>
             <div className="text-app-caption text-app-text-muted">{insight.detail}</div>
           </div>
         </div>
       </Button>
       {hasMultiple && (
-        <div className="flex items-center gap-1 mt-1 ml-5 pb-1.5">
+        <div className="flex shrink-0 items-center gap-0.5 pr-1.5">
           <Button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
+            variant="app-ghost"
+            size="icon-xs"
+            aria-label={`Previous ${insight.label} event`}
+            title="Previous event"
+            onClick={() => {
               const prev = (eventIdx - 1 + insight.frameIndices.length) % insight.frameIndices.length;
               setEventIdx(prev);
               onJump(insight.frameIndices[prev]);
             }}
-            className="text-app-micro text-app-text-muted hover:text-app-text px-1"
           >
-            ‹
+            <ChevronLeft />
           </Button>
-          <span className="text-app-micro text-app-text-dim tabular-nums">
+          <span className="min-w-7 text-center text-app-micro text-app-text-dim tabular-nums">
             {eventIdx + 1}/{insight.frameIndices.length}
           </span>
           <Button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
+            variant="app-ghost"
+            size="icon-xs"
+            aria-label={`Next ${insight.label} event`}
+            title="Next event"
+            onClick={() => {
               const next = (eventIdx + 1) % insight.frameIndices.length;
               setEventIdx(next);
               onJump(insight.frameIndices[next]);
             }}
-            className="text-app-micro text-app-text-muted hover:text-app-text px-1"
           >
-            ›
+            <ChevronRight />
           </Button>
         </div>
       )}
@@ -67,7 +72,7 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
     { key: "mechanical", icon: "⚙️", label: m.insight_category_mechanical() },
   ];
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {categories.map(({ key, icon, label }) => {
         const items = insights.filter((i) => i.category === key);
         return (
@@ -80,7 +85,7 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
             {items.length === 0 ? (
               <div className="text-app-caption text-app-text-dim pl-5">✓ No issues detected</div>
             ) : (
-              <div className="space-y-0.5">
+              <div className="flex flex-col gap-2">
                 {items.map((insight) => (
                   <InsightRow key={insight.id} insight={insight} onJump={onJumpToFrame} />
                 ))}

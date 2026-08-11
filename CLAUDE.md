@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RaceIQ is a full-stack racing telemetry analysis app supporting multiple racing games (currently Forza Motorsport, F1 2025, and Assetto Corsa Competizione). It receives real-time UDP telemetry packets from games at 60 Hz, stores lap data in SQLite, and provides a React dashboard with live visualizations, lap comparison, AI-powered analysis, and 3D car attitude rendering.
+RaceIQ is a full-stack racing telemetry analysis app for Forza Motorsport 2023, F1 25, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing. UDP and native Windows telemetry sources feed a Bun server, SQLite storage, and a React dashboard. See [architecture overview](docs/architecture/overview.md).
 
 ## Commands
 
@@ -63,7 +63,7 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `3117` | HTTP/WebSocket server port |
-| `UDP_PORT` | `5300` | Game telemetry UDP listen port |
+| `UDP_PORT` | `5301` | Game telemetry UDP listen port |
 | `DATA_DIR` | `./data` | Database and settings directory |
 
 ## Architecture
@@ -71,23 +71,22 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 ### Three-layer monorepo: `server/`, `client/`, `shared/`
 
 **Server (Bun + Hono)**
-- `server/index.ts` — Entry point: Bun.serve with HTTP + WebSocket upgrade on port 3117
-- `server/udp.ts` — UDP socket listening for game telemetry packets
-- `server/parsers/` — Game-specific binary packet parsers (dispatched via game adapter registry)
-- `server/games/` — Server game adapters (parser binding, AI prompts) — see [Adding a New Game](#adding-a-new-game)
-- `server/routes.ts` — Hono app composition; individual route files live in `server/routes/` (laps, sessions, settings, cars, tracks, tunes, ACC, F1 2025, misc)
-- `server/ws.ts` — WebSocket manager, 30Hz throttled broadcast to all connected clients
-- `server/pipeline.ts` — Telemetry processing pipeline (normalize → suspension fill → lap detect → sector track → pit track → track calibration → broadcast)
-- `server/lap-detector.ts` — Detects lap boundaries from telemetry stream (per-game factory via adapter)
-- `server/sector-tracker.ts` — Server-side sector timing (distance-fraction splits, estimated lap time vs reference)
-- `server/corner-detection.ts` — Identifies racing corners from telemetry data (game-aware steering)
+- `server/index.ts` — Thin executable entry; `server/runtime/boot.ts` owns ordered startup
+- `server/runtime/udp-listener.ts` — UDP socket listening for game telemetry packets
+- `server/games/` — Game-owned parsers/adapters plus generic packet dispatch — see [Adding a New Game](#adding-a-new-game)
+- `server/routes/index.ts` — Hono app composition; bounded route groups live in `server/routes/`
+- `server/runtime/websocket-manager.ts` — WebSocket manager, 30Hz throttled broadcast to all connected clients
+- `server/telemetry/live-pipeline.ts` — Telemetry processing pipeline (normalize → suspension fill → lap detect → sector track → pit track → track calibration → broadcast)
+- `server/lap-detection/detector.ts` — Detects lap boundaries from telemetry stream (per-game factory via adapter)
+- `server/live-strategy/` — Live sector timing and pit/fuel/tire estimates
+- `server/lap-analysis/corners.ts` — Game-aware racing-corner identification
 - `server/ai/` — AI analysis system (see [AI Analysis System](#ai-analysis-system))
 - `server/db/schema.ts` — Drizzle ORM schema (profiles, sessions, laps, corners, lapAnalyses, compareAnalyses, trackOutlines)
-- `server/db/queries.ts` — Database query helpers
+- `server/db/*-queries.ts` — Responsibility-scoped database query modules
 - `server/db/migrations.ts` — Hand-rolled migration list (SQL array, version-tracked)
 - `server/db/index.ts` — Runs migrations on startup via custom runner
-- `server/tray.ts` — System tray integration (Windows)
-- `server/update-check.ts` — Auto-update checker
+- `server/runtime/platform/tray.ts` — System tray integration (Windows)
+- `server/runtime/update/check.ts` — Auto-update checker
 
 ### Database migration approach
 
@@ -101,7 +100,7 @@ Drizzle is used **only as a query builder and type-safe schema reference** — N
 ### Pipeline dependency injection
 
 The pipeline uses `DbAdapter` and `WsAdapter` interfaces for testability:
-- Production: `RealDbAdapter` (SQLite), `RealWsAdapter` (Bun WebSocket)
+- Production: `RealDbAdapter` (SQLite), plus a module-level `WsAdapter` delegating to `wsManager`
 - Tests: `NullDbAdapter`/`NullWsAdapter` (no-op) or `CapturingDbAdapter`/`CapturingWsAdapter` (record calls)
 
 ### AI Analysis System
@@ -125,7 +124,7 @@ flipping focus. See [Experiment focus](#experiment-focus).
 
 **Prompt files** (`server/ai/`): `analyst-prompt.ts`, `chat-prompt.ts`, `compare-engineer.ts`, `compare-chat-prompt.ts`, `inputs-compare-prompt.ts`, `corner-data.ts`, `format-tune.ts`
 
-**Mastra directory** (`mastra/`): Agent definitions + the `mastra` instance (LibSQL default store + DuckDB observability). In dev it is mounted **in-process** onto the RaceIQ Hono app under `/studio-api` (see `server/dev-studio.ts`), so the server is the sole DuckDB writer and `bun run mastra:studio` reads its real traces over HTTP — no second `mastra dev` process, no DuckDB file lock. Excluded from the prod binary via `NODE_ENV` gating.
+**Mastra directory** (`mastra/`): Agent definitions + the `mastra` instance (LibSQL default store + DuckDB observability). In dev it is mounted **in-process** onto the RaceIQ Hono app under `/studio-api` (see `server/runtime/dev-studio.ts`), so the server is the sole DuckDB writer and `bun run mastra:studio` reads its real traces over HTTP — no second `mastra dev` process, no DuckDB file lock. Excluded from the prod binary via `NODE_ENV` gating.
 
 ### Experiment focus
 
@@ -185,15 +184,15 @@ ran v39 before the `car`/`driver` rename.
 - `shared/types.ts` — Telemetry packet types, enums, shared interfaces
 - `shared/games/` — Game adapter registry and per-game adapters — see [Adding a New Game](#adding-a-new-game)
 - `shared/car-data.ts` — Car model ID-to-name mapping (dispatches via game adapter)
-- `shared/track-outlines/` — Track geometry data (JSON coords, sector definitions, named segments)
+- `shared/tracks/` — Track metadata, geometry, guides, and verification data
 - `shared/tunes/` — Vehicle setup data (JSON)
 
 ### Data Flow
 
-1. Game sends UDP packets → `server/udp.ts` receives and buffers
-2. `server/parsers/index.ts` auto-detects game via `canHandle()`, decodes binary → typed telemetry object
-3. `server/lap-detector.ts` tracks lap boundaries, saves completed laps to SQLite
-4. `server/ws.ts` broadcasts live packet to all WebSocket clients
+1. Game sends UDP packets → `server/runtime/udp-listener.ts` receives and buffers
+2. `server/games/packet-dispatch.ts` auto-detects game via `canHandle()`, then its game-owned parser decodes binary → typed telemetry object
+3. `server/lap-detection/detector.ts` tracks lap boundaries, saves completed laps to SQLite
+4. `server/runtime/websocket-manager.ts` broadcasts live packet to all WebSocket clients
 5. Client `telemetry.ts` Zustand store receives via WebSocket → React components re-render
 6. Historical data fetched via REST API (`/api/laps`, `/api/sessions`, etc.)
 
@@ -201,7 +200,7 @@ ran v39 before the `car`/`driver` rename.
 
 - Path aliases: `@shared/*` → `./shared/*` (server/test), `@/*` → `./src/*` (client only)
 - Client proxies `/api` and `/ws` requests to `localhost:3117` via Vite dev server config
-- **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes.ts`) — do not use raw `fetch` for API routes
+- **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes/index.ts`) — do not use raw `fetch` for API routes
 - **gameId travels via `X-Game-Id` header** — not query params or effect-populated stores
 - Database file: `data/forza-telemetry.db` (SQLite)
 - Settings persisted to: `data/settings.json`
@@ -260,23 +259,15 @@ The app uses a registry-based adapter pattern to support multiple racing games. 
 - `server/games/registry.ts` — `registerServerGame()`, `getServerGame()`, `getAllServerGames()`
 
 **Current adapters:**
-- `shared/games/fm-2023/` + `server/games/fm-2023/` — Forza Motorsport 2023 (stateless parser, size-based packet detection)
-- `shared/games/f1-2025/` + `server/games/f1-2025/` — F1 2025 (stateful multi-packet accumulator, magic bytes detection)
-- `shared/games/acc/` + `server/games/acc/` — Assetto Corsa Competizione (shared memory reader on Windows)
+- `shared/games/fm-2023/` + `server/games/fm-2023/` — Forza Motorsport 2023
+- `shared/games/f1-2025/` + `server/games/f1-2025/` — F1 25
+- `shared/games/acc/` + `server/games/acc/` — Assetto Corsa Competizione
+- `shared/games/ac-evo/` + `server/games/ac-evo/` — Assetto Corsa Evo
+- `shared/games/iracing/` + `server/games/iracing/` — iRacing
 
 ### Adding a New Game
 
-To add support for a new racing game (e.g. Gran Turismo):
-
-1. **Add game ID** — Add `"gt7"` to `KNOWN_GAME_IDS` in `shared/types.ts`
-2. **Create shared adapter** — `shared/games/gt7/index.ts` implementing `GameAdapter` (identity, car/track resolution, steering config, coord system)
-3. **Create server adapter** — `server/games/gt7/index.ts` implementing `ServerGameAdapter` (`canHandle()`, `tryParse()`, `createParserState()`, AI prompts)
-4. **Create UDP parser** — `server/parsers/gt7.ts` with binary parsing logic
-5. **Register adapters** — Import and call `registerGame()` in `shared/games/init.ts`, `registerServerGame()` in `server/games/init.ts`
-6. **Create client routes** — `client/src/routes/gt7.tsx` (layout with `<GameProvider gameId="gt7">`) and sub-routes in `client/src/routes/gt7/`
-7. **Add game data** — Car/track CSVs in `shared/`, track outlines in `shared/track-outlines/gt7/`
-
-See existing adapters (`fm-2023`, `f1-2025`, `acc`) for reference. Everything else (navigation tabs, car/track name resolution, corner detection, AI prompts, parser dispatch) is handled automatically by the registry.
+Follow the registry and boundary model in [architecture overview](docs/architecture/overview.md). Implement shared and server adapters, register both, then add game-specific parsing, routes, data, and focused tests. Never introduce an implicit fallback game.
 
 ### Track Segments: curated geometry is the source of truth
 
@@ -294,7 +285,7 @@ The hierarchy:
 
 The sanctioned-gap ledgers in `test/helpers/track-known-gaps.ts` (`KNOWN_ALIGNMENT_GAPS`, `KNOWN_FUZZY_ALIGNMENTS`, `KNOWN_TURN_GAPS`) exist to record these accepted misses. They are **shrink-only**: each entry is asserted to still be broken, so a fix forces its deletion. Adding an entry is legitimate when the miss is genuinely a centerline-quality problem (each entry needs a reason comment); it is not a way to silence a real regression in curated data.
 
-Known centerline-quality classes, already understood — don't re-litigate them: ACC tracks whose "centerline" is still the fastlane racing line (issue #98, fixed per-track by `scripts/acc-centerline-from-boundaries.ts`), ac-evo centerlines that under-detect individual corners, and Forza's Nordschleife/Watkins Glen digitised at a different corner granularity than the shared name list.
+Known centerline-quality classes, already understood — don't re-litigate them: ACC tracks whose "centerline" is still the fastlane racing line (issue #98, fixed per-track by `scripts/games/acc/centerline-from-boundaries.ts`), ac-evo centerlines that under-detect individual corners, and Forza's Nordschleife/Watkins Glen digitised at a different corner granularity than the shared name list.
 
 #### Curation coverage
 
@@ -306,13 +297,13 @@ Three separate claims, weakest to strongest — **curated is not the same as cor
 | **Meta human-verified** | A person checked that roster against a real turn-by-turn guide and signed it off. |
 | **Segments human-verified** | A person checked that game's rendered geometry (`shared/tracks/<gameId>/<slug>-segments.json`, easiest via the committed `test/e2e/output/track-segments/<slug>-<gameId>.svg`) and signed it off. Kept separate from meta because a correct roster says nothing about whether the corners landed in the right *place* — f1-2025 segments in particular are known to be inaccurate. |
 
-**Counts live in `docs/track-curation.md`, not here.** That doc owns the generated per-game summary and the per-track breakdown of who signed off what. No coverage numbers in CLAUDE.md — they go stale and nobody notices.
+**Counts live in `docs/contributing/track-curation.md`, not here.** That document owns the generated per-game summary and per-track verification breakdown.
 
 ⚠️ **When you curate a track (or add a game's centerlines), refresh the stats:**
 
 ```bash
 bun run tracks:coverage            # print the table
-bun run tracks:coverage --write    # rewrite the generated blocks in docs/track-curation.md
+bun run tracks:coverage --write    # rewrite generated blocks in docs/contributing/track-curation.md
 ```
 
 **Signing off verification** — only after actually comparing against a real source, never as a side effect of generating or regenerating anything:
@@ -327,7 +318,7 @@ Signatures live in `shared/tracks/verified.json` and pin a hash of the file sign
 
 `test/track-coverage.test.ts` fails if the committed table drifts from the repo, so this cannot silently rot. Source of truth: `shared/track-coverage.ts` + `shared/track-verified.ts`.
 
-📖 Full write-up — layer hierarchy, why the detector is a fallback, sanctioned gaps, verification rules: **[docs/track-curation.md](docs/track-curation.md)**.
+📖 Full write-up — layer hierarchy, detector fallback, sanctioned gaps, and verification rules: **[track curation](docs/contributing/track-curation.md)**.
 
 ### Pre-commit Hooks (Lefthook)
 
@@ -385,7 +376,7 @@ initServerGameAdapters();
 
 Project memory is stored in `.claude/memory/` in the repo root (not the default `~/.claude/projects/` path). This is version-controlled so all contributors share context. Read and write memory files there.
 
-### Architecture Diagrams
+### Documentation
 
-See `ARCHITECTURE.md` for detailed Mermaid diagrams covering: system overview, telemetry data flow, ingest pipeline detail, game adapter class diagram, AI analysis system, database schema (ER diagram), client architecture, server route modules, startup sequence, parser dispatch strategy, and comparison engine.
+Use [docs landing page](docs/README.md) for maintained documentation and [architecture overview](docs/architecture/overview.md) for current service, adapter, and data-flow boundaries.
 

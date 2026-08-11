@@ -1,18 +1,23 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { AccLiveDashboard } from "../components/acc/AccLiveDashboard";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { fakeAccDisplayPacket, fakeAccPacket, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { fakeAccDisplayPacket, fakeAccPacket, fakeAccSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "acc"], fakeSessionLaps);
 
-function StoryDecorator({ children }: { children: React.ReactNode }) {
+function StoryDecorator({ story }: { story: React.ComponentType }) {
+  const { schema, frame, view } = fakeAccSemanticFixture;
   useTelemetryStore.setState({
     connected: true,
+    telemetrySchema: schema,
+    telemetryFrame: frame,
+    telemetryView: view,
     rawPacket: fakeAccPacket,
     packet: fakeAccDisplayPacket,
     sectors: fakeSectors,
@@ -33,23 +38,13 @@ function StoryDecorator({ children }: { children: React.ReactNode }) {
 
   useGameStore.setState({ gameId: "acc" });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>{children}</div>
-    </QueryClientProvider>
-  );
+  return <LiveDashboardStoryFrame queryClient={queryClient} story={story} />;
 }
 
 const meta: Meta<typeof AccLiveDashboard> = {
   title: "Dashboards/AccLiveDashboard",
   component: AccLiveDashboard,
-  decorators: [
-    (Story) => (
-      <StoryDecorator>
-        <Story />
-      </StoryDecorator>
-    ),
-  ],
+  decorators: [(Story) => <StoryDecorator story={Story} />],
   parameters: {
     layout: "fullscreen",
   },

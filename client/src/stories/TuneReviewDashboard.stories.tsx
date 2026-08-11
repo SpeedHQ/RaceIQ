@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { TuneReviewDashboard } from "../components/tunes/TuneReviewDashboard";
+import { TuneReviewDashboard } from "@/components/tunes/review/TuneReviewDashboard";
 import { fakeSessionLaps } from "./fakeData";
 import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 

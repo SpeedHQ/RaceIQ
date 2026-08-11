@@ -1,5 +1,5 @@
-import { makeTrackProjection } from "@shared/track-projection";
-import type { TelemetryPacket } from "@shared/types";
+import { makeTrackProjection } from "@shared/racing/tracks/projection";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 export interface Pt {
   x: number;
@@ -89,7 +89,7 @@ export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorT
   const line: { p: Pt; idx: number }[] = [];
   for (let i = 0; i < telemetry.length; i += step) line.push({ p: { x: telemetry[i].PositionX, z: telemetry[i].PositionZ }, idx: i });
 
-  // Orientation lives in @shared/track-projection so the e2e segment renderer
+  // Orientation lives in @shared/racing/tracks/projection so the e2e segment renderer
   // draws the same track the same way up. Do not reintroduce local axis math.
   const boundsPts: Pt[] = line.map((l) => l.p);
   if (edges) {

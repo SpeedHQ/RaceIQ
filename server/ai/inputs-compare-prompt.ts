@@ -4,13 +4,13 @@
  * from `compareLaps` plus a list of named segments (corners + straights).
  */
 import { z } from "zod";
-import type { ComparisonResult } from "../comparison";
+import type { ComparisonResult } from "../lap-analysis/comparison";
 import { getPromptCarName, getPromptTrackName, compareLapHeader } from "./compare-engineer";
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import { buildTrackGuideContext } from "./track-guides";
-import { resolveTrack } from "../track-info";
-import { segmentPromptNames } from "../../shared/segment-label";
-import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-metrics";
+import { resolveTrack } from "../tracks/info";
+import { segmentPromptNames } from "../../shared/racing/tracks/segment-label";
+import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -70,7 +70,7 @@ export interface PromptSegment {
 }
 
 function pct(n: number) {
-  return (n * 100).toFixed(1) + "%";
+  return `${(n * 100).toFixed(1)}%`;
 }
 
 function mOrDash(v: number | null): string {

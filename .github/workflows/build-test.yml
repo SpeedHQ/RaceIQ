@@ -7,6 +7,10 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
+concurrency:
+  group: build-test-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   build-test:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
@@ -21,11 +25,33 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Lint server, shared, scripts, tests, and client
+        run: bun run lint
+
+      - name: Type-check server, shared, scripts, and tests
+        run: bun run typecheck
+
       - name: Check changelog
         if: github.event_name == 'pull_request'
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          bun scripts/check-changelog.ts
+          bun scripts/release/check-changelog.ts
+
+      - name: Check generated telemetry catalog
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+            baseline="$RUNNER_TEMP/telemetry-catalog-baseline.json"
+            if git show "origin/${{ github.base_ref }}:shared/telemetry/catalog/generated/telemetry-catalog.generated.json" > "$baseline" 2>/dev/null \
+              || git show "origin/${{ github.base_ref }}:shared/telemetry-catalog.generated.json" > "$baseline" 2>/dev/null; then
+              bun run telemetry:catalog:check --baseline "$baseline"
+            else
+              echo "Base branch has no telemetry catalog; checking current artifacts without a compatibility baseline."
+              bun run telemetry:catalog:check
+            fi
+          else
+            bun run telemetry:catalog:check
+          fi
 
       - name: Build client
         run: cd client && bun install && bun run build

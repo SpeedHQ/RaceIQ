@@ -1,10 +1,41 @@
-import type { GameId } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../../shared/games/ids";
 import type { Point, TrackInfo } from "./types";
+
+const trackCardVisibilityCallbacks = new WeakMap<Element, () => void>();
+let trackCardVisibilityObserver: IntersectionObserver | null = null;
+
+function observeTrackCardVisibility(element: Element, onVisible: () => void): (() => void) | undefined {
+  if (typeof IntersectionObserver === "undefined") {
+    onVisible();
+    return undefined;
+  }
+  if (!trackCardVisibilityObserver) {
+    trackCardVisibilityObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const callback = trackCardVisibilityCallbacks.get(entry.target);
+          if (!callback) continue;
+          trackCardVisibilityObserver?.unobserve(entry.target);
+          trackCardVisibilityCallbacks.delete(entry.target);
+          callback();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+  }
+  trackCardVisibilityCallbacks.set(element, onVisible);
+  trackCardVisibilityObserver.observe(element);
+  return () => {
+    trackCardVisibilityObserver?.unobserve(element);
+    trackCardVisibilityCallbacks.delete(element);
+  };
+}
 
 /** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
 export function TrackCard({
@@ -21,11 +52,18 @@ export function TrackCard({
   guideCount?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const [outlineVisible, setOutlineVisible] = useState(false);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
-    if (!track.hasOutline) return;
+    if (!track.hasOutline || !cardRef.current) return;
+    return observeTrackCardVisibility(cardRef.current, () => setOutlineVisible(true));
+  }, [track.hasOutline]);
+
+  useEffect(() => {
+    if (!track.hasOutline || !outlineVisible) return;
     client.api["track-outline"][":ordinal"]
       .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
@@ -40,7 +78,7 @@ export function TrackCard({
         }
       })
       .catch(() => {});
-  }, [track.ordinal, track.hasOutline, gameId]);
+  }, [track.ordinal, track.hasOutline, gameId, outlineVisible]);
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
@@ -48,8 +86,11 @@ export function TrackCard({
   }, [outline, flipX]);
 
   return (
-    <div
-      className="border border-app-border rounded-lg overflow-hidden cursor-pointer transition-all bg-app-surface/50 hover:border-app-border-hover hover:bg-app-surface-hover/50"
+    <button
+      type="button"
+      ref={cardRef}
+      data-testid={`track-card-${track.ordinal}`}
+      className="w-full text-left border border-app-border rounded-lg overflow-hidden cursor-pointer transition-all bg-app-surface/50 hover:border-app-border-hover hover:bg-app-surface-hover/50"
       onClick={() => onSelect(track)}
     >
       <div className="p-3">
@@ -68,13 +109,7 @@ export function TrackCard({
         {outline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : track.mapUrl ? (
-          <img
-            src={track.mapUrl}
-            alt={`${track.name} ${track.variant} map`}
-            className="w-full h-full object-contain p-3"
-            loading="lazy"
-            decoding="async"
-          />
+          <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
         ) : (
           <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackcard_no_outline()}</div>
         )}
@@ -101,6 +136,6 @@ export function TrackCard({
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }

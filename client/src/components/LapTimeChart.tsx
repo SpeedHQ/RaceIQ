@@ -1,7 +1,8 @@
-import type { LapMeta } from "@shared/types";
+import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { lapPaceColor } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
 import { m } from "../paraglide/messages";
 import { formatLapTime } from "./LiveTelemetry";
 
@@ -30,7 +31,7 @@ export function LapTimeChart({
 }) {
   const laps = useMemo(() => {
     return [...sessionLaps]
-      .filter((l) => l.lapTime > 0)
+      .filter((lap) => lap.lapTime > 0 && !isPitCycleLap(lap))
       .sort((a, b) => a.id - b.id)
       .slice(-maxLaps)
       .map((l) => ({ lap: l.lapNumber, time: l.lapTime }));

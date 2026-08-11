@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../types";
+import type { TelemetryPacket } from "../telemetry/types";
 import type { TelemetryModel } from "./types";
 
 export const WATTS_PER_HORSEPOWER = 745.7;
@@ -46,6 +46,14 @@ export function getFuelDisplay(
     };
   }
   return display;
+}
+
+export function getFuelDisplaySemantic(
+  fuel: number,
+  capacity: number | undefined,
+  spec: TelemetryModel["fuel"],
+): FuelDisplay {
+  return getFuelDisplay({ Fuel: fuel, FuelCapacity: capacity }, spec);
 }
 
 export function getTireTemperatureSourceUnit(

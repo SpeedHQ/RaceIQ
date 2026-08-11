@@ -1,5 +1,5 @@
-import type { TuneCategory } from "@shared/types";
 import type React from "react";
+import type { TuneCategory } from "../../../../shared/racing/tuning/types";
 
 export const CONDITION_COLORS: Record<string, string> = {
   Dry: "bg-(--tune-condition-dry)/20 text-(--tune-condition-dry)",

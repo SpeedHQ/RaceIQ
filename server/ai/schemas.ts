@@ -105,7 +105,7 @@ export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutpu
 
   try {
     return AnalystOutputSchema.safeParse(JSON.parse(jsonSlice));
-  } catch (e) {
+  } catch (_e) {
     return AnalystOutputSchema.safeParse(raw);
   }
 }
@@ -123,7 +123,7 @@ const TuneMagnitudeEnum = z.enum(["small", "medium", "large"]);
 
 /**
  * One high-level change the tuner wants. `component` must be one of the
- * keys the rules table (`server/ai/tune-rules.ts`) knows how to apply; the
+ * keys the setup rule catalog knows how to apply; the
  * rules layer clamps unknown/out-of-range components to a no-op.
  */
 const TuneIntentSchema = z.object({

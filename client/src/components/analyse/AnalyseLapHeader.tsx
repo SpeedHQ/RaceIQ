@@ -1,7 +1,7 @@
-import type { LapMeta } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
@@ -92,7 +92,7 @@ export function AnalyseLapHeader({
           onChange={(v) => onTrackChange(v ? Number(v) : null)}
           options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
           placeholder={m.analyse_search_tracks_placeholder()}
-          className="min-w-[200px]"
+          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
         />
 
@@ -103,7 +103,7 @@ export function AnalyseLapHeader({
           options={carsForTrack.map(([ord, count]) => ({ value: String(ord), label: `${carNames[ord] || `Car ${ord}`} (${count})` }))}
           placeholder={m.analyse_search_cars_placeholder()}
           disabled={selectedTrack == null}
-          className="min-w-[200px]"
+          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
         />
 
@@ -123,6 +123,7 @@ export function AnalyseLapHeader({
           })}
           placeholder={m.analyse_search_laps_placeholder()}
           disabled={selectedCar == null}
+          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
         />
 
@@ -144,6 +145,7 @@ export function AnalyseLapHeader({
                   onChange={(value) => onTuneChange(value ? Number.parseInt(value, 10) : null)}
                   options={availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []}
                   placeholder={m.analyse_no_tune()}
+                  ariaLabel={m.analyse_tune_label()}
                   disabled={tunePending}
                   className="min-w-[160px]"
                 />
@@ -168,7 +170,7 @@ export function AnalyseLapHeader({
             onClose={() => setNoteOpen(false)}
           />
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 @3xl/workspace:ml-auto @3xl/workspace:w-auto">
           {selectedLapId != null && (
             <Button
               variant="app-outline"

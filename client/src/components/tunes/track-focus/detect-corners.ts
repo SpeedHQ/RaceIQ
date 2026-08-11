@@ -1,4 +1,4 @@
-import type { TrackCorner } from "../../../hooks/queries";
+import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 
 /** Half-width (in lap-distance fraction) of the window around a corner's apex

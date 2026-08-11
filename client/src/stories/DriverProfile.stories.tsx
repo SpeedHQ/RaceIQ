@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { DriverFingerprint, DriverTrend, DriverTrendLap, DriverTrendWindow, RankedWeakness, StyleAxes } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileSummary } from "../../../server/ai/schemas";
+import type { RankedWeakness, StyleAxes } from "../../../server/driver-profile/detectors";
+import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
+import type { DriverTrend, DriverTrendLap, DriverTrendWindow } from "../../../server/driver-profile/trend";
 import { DriverProfileView } from "../components/driver/DriverProfileView";
-import type { DriverProfileRun, DriverProfileState } from "../hooks/queries";
 import { Button } from "../components/ui/button";
+import type { DriverProfileRun, DriverProfileState } from "../hooks/driver-profile";
 
 const GAME_ID = "fm-2023" as const;
 

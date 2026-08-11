@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { ExperimentWorkspace } from "../components/tunes/ExperimentWorkspace";
-import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "../hooks/queries";
+import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
+import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import { fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({
@@ -67,12 +67,12 @@ const fakeTests: ExperimentVersion[] = [
 // telemetry anomalies, each tagged with its source. Covers every
 // invalidReason value the pipeline produces.
 const statusExampleLapsBase = [
-  { id: 201, lapNumber: 11, invalidReason: "outlap" }, // acc-lap-rules.ts: left pit, ended on track
+  { id: 201, lapNumber: 11, invalidReason: "outlap" }, // kunos/lap-rules.ts: left pit, ended on track
   { id: 202, lapNumber: 12, invalidReason: null },
   { id: 203, lapNumber: 13, invalidReason: null },
   { id: 204, lapNumber: 14, invalidReason: null },
-  { id: 205, lapNumber: 15, invalidReason: "inlap" }, // acc-lap-rules.ts: started on track, boxed
-  { id: 206, lapNumber: 16, invalidReason: "pit lap" }, // acc-lap-rules.ts: both ends in pit
+  { id: 205, lapNumber: 15, invalidReason: "inlap" }, // kunos/lap-rules.ts: started on track, boxed
+  { id: 206, lapNumber: 16, invalidReason: "pit lap" }, // kunos/lap-rules.ts: both ends in pit
   { id: 207, lapNumber: 17, invalidReason: "outlap" }, // back out after the stop
   { id: 208, lapNumber: 18, invalidReason: null },
   { id: 209, lapNumber: 19, invalidReason: "telemetry lap time mismatch" }, // lap-quality.ts
@@ -80,9 +80,9 @@ const statusExampleLapsBase = [
   { id: 211, lapNumber: 21, invalidReason: "telemetry distance too short" }, // lap-quality.ts
   { id: 212, lapNumber: 22, invalidReason: "start/end positions too far apart" }, // lap-quality.ts
   { id: 213, lapNumber: 1, invalidReason: "starting lap" }, // lap-quality.ts: first lap of session, no valid start line crossing
-  { id: 214, lapNumber: 23, invalidReason: "rewind" }, // lap-detector.ts: mid-lap timestamp rewind
-  { id: 215, lapNumber: 24, invalidReason: "incomplete" }, // lap-detector.ts: session ended mid-lap
-  { id: 216, lapNumber: 25, invalidReason: "lap skip (25 → 27)" }, // lap-detection.ts: dropped packets, lap counter jumped
+  { id: 214, lapNumber: 23, invalidReason: "rewind" }, // server/lap-detection/detector.ts: mid-lap timestamp rewind
+  { id: 215, lapNumber: 24, invalidReason: "incomplete" }, // server/lap-detection/detector.ts: session ended mid-lap
+  { id: 216, lapNumber: 25, invalidReason: "lap skip (25 → 27)" }, // server/lap-detection/boundaries.ts: dropped packets, lap counter jumped
 ];
 const statusLapCount = statusExampleLapsBase.length;
 const statusExampleLaps = statusExampleLapsBase.map((l, i) => ({

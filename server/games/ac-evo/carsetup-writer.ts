@@ -1,20 +1,20 @@
 /**
  * AC EVO `.carsetup` byte-patch encoder.
  *
- * `carsetup.ts` decodes the wire format generically but has no schema — field
- * numbers are heuristic guesses (see its GUESS tables). A full re-encode from
- * a structured object is too risky (a wrong guess would corrupt a save the
- * game must load). Instead this module *patches* only the bytes of the
- * fields being edited and copies every other byte verbatim from the source
- * file, using the tag/value byte spans `parseMessage` now records.
+ * `carsetup-wire.ts` decodes the schema-free wire tree and records byte spans;
+ * `carsetup.ts` assigns heuristic semantic labels. A full re-encode from a
+ * structured object is too risky because a wrong field guess would corrupt a
+ * save the game must load. Instead this module patches only edited field bytes
+ * and copies every other byte verbatim from the source.
  *
- * Only knobs exposed as tunable by `server/ai/tune-rules.ts`'s "ac-evo" rule
- * table are writable here — the same set `describeKnobs`/`getAllKnobStates`
+ * Only knobs exposed by `server/setups/rules/catalog.ts`'s "ac-evo" table
+ * are writable here — the same set `describeKnobs`/`getAllKnobStates`
  * expose to the Setup Engineer. Anything else throws (never a silent skip).
  *
- * See docs/superpowers/specs/2026-07-23-carsetup-encoder-design.md.
+ * See docs/contributing/setup-range-data.md.
  */
-import { ARB_CLICK_BY_KNM, carSetupToKnobValues, parseCarSetup, type CarSetupFile, type WireField } from "./carsetup";
+import { ARB_CLICK_BY_KNM, carSetupToKnobValues } from "./carsetup";
+import { parseCarSetup, type WireField } from "./carsetup-wire";
 
 export interface CarSetupEdit {
   knob: string;
@@ -47,7 +47,7 @@ function knmFromArbClick(click: number): number {
 
 /**
  * Knob -> field resolution, mirroring `carSetupToKnobValues`'s reverse
- * direction. Deliberately covers only the knobs `tune-rules.ts`'s "ac-evo"
+ * direction. Deliberately covers only knobs setup rule catalog's "ac-evo"
  * table exposes (Front/Rear ARB, Brake Bias, Front/Rear Wing) — every other
  * decoded value (ride height, dampers, tyre pressures, TC/ABS, ...) has no
  * verified in-game slider mapping for writing yet and stays read-only.
@@ -225,7 +225,7 @@ export function patchCarSetup(buf: Buffer, edits: CarSetupEdit[]): Buffer {
     const floats = field.floats.slice();
     for (const [idx, v] of byIndex) floats[idx] = v;
     const b = Buffer.alloc(floats.length * 4);
-    floats.forEach((v, i) => b.writeFloatLE(v, i * 4));
+    for (let i = 0; i < floats.length; i++) b.writeFloatLE(floats[i], i * 4);
     encoded.set(field, b);
   }
 
@@ -256,5 +256,3 @@ export function patchCarSetup(buf: Buffer, edits: CarSetupEdit[]): Buffer {
 
   return patched;
 }
-
-export type { CarSetupFile };

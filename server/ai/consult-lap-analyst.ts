@@ -12,21 +12,21 @@
  * Analyst's own `aiProvider`/`aiModel`, which are distinct from the chat
  * provider the engineer runs on).
  */
-import type { GameId } from "../../shared/types";
-import { getCorners } from "../db/queries";
-import { detectCorners } from "../corner-detection";
-import { getSecret } from "../keystore";
-import { loadSettings } from "../settings";
+import type { GameId } from "../../shared/games/ids";
+import { getCorners } from "../db/track-queries";
+import { detectCorners } from "../lap-analysis/corners"
+import { getSecret } from "../runtime/platform/keystore";
+import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt } from "./analyst-prompt";
-import { resolveTrack } from "../track-info";
+import { resolveTrack } from "../tracks/info";
 // Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
 // cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
 // has no such back-edge. We lose the dev-only observability wrapper here, which
 // the setup-engineer consult doesn't need.
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
-import { loadRepresentativeLap } from "./setup-engineer-context";
+import { loadRepresentativeLap } from "../experiments/representative-lap";
 
-export interface LapAnalystConsult {
+interface LapAnalystConsult {
   available: boolean;
   summary: string;
 }

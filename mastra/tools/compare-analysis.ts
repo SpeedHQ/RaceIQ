@@ -2,7 +2,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { InputsCompareSchema } from "../../server/ai/inputs-compare-prompt";
-import { getCompareAnalysis } from "../../server/db/queries";
+import { getCompareAnalysis } from "../../server/db/analysis-queries";
 
 const CompareAnalysisInput = z.object({
   lapAId: z.number().int().positive(),

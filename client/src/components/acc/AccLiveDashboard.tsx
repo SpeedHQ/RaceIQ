@@ -1,7 +1,8 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { GameId } from "@shared/types";
 import { m } from "@/paraglide/messages";
-import { useCarName, useTirePressureOptimal, useTrackName } from "../../hooks/queries";
+import type { GameId } from "../../../../shared/games/ids";
+import { useCarName, useTirePressureOptimal } from "../../hooks/catalog-queries";
+import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
@@ -13,15 +14,15 @@ import { TireGrid } from "../telemetry/TireGrid";
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
-  const packet = useTelemetryStore((s) => s.packet);
+  const view = useTelemetryStore((s) => s.telemetryView);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
-  const { data: trackName } = useTrackName(packet?.TrackOrdinal);
-  const { data: carName } = useCarName(packet?.CarOrdinal);
-  const pressureOptimal = useTirePressureOptimal(gameId, packet?.CarOrdinal);
+  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
+  const { data: carName } = useCarName(view?.identity.carOrdinal);
+  const pressureOptimal = useTirePressureOptimal(gameId, view?.identity.carOrdinal);
 
-  if (!packet || packet.gameId !== gameId) {
+  if (!view || view.simulator !== gameId) {
     return (
       <div className="flex-1 flex flex-col">
         <NoDataView />
@@ -30,27 +31,21 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+    <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Tires + Pit Window */}
       <div className="border-r border-app-border overflow-auto">
         {/* Tires */}
-        <div className="border-b border-app-border">
+        <div className="p-3">
           <TireGrid
-            fl={{ tempC: packet.TireTempFL, wear: packet.TireWearFL, brakeTemp: packet.BrakeTempFrontLeft ?? 0, brakePadMm: packet.acc?.brakePadWear[0], pressure: packet.TirePressureFrontLeft ?? 0 }}
-            fr={{
-              tempC: packet.TireTempFR,
-              wear: packet.TireWearFR,
-              brakeTemp: packet.BrakeTempFrontRight ?? 0,
-              brakePadMm: packet.acc?.brakePadWear[1],
-              pressure: packet.TirePressureFrontRight ?? 0,
-            }}
-            rl={{ tempC: packet.TireTempRL, wear: packet.TireWearRL, brakeTemp: packet.BrakeTempRearLeft ?? 0, brakePadMm: packet.acc?.brakePadWear[2], pressure: packet.TirePressureRearLeft ?? 0 }}
-            rr={{ tempC: packet.TireTempRR, wear: packet.TireWearRR, brakeTemp: packet.BrakeTempRearRight ?? 0, brakePadMm: packet.acc?.brakePadWear[3], pressure: packet.TirePressureRearRight ?? 0 }}
+            fl={{ tempC: view.tires.temperatureC?.fl ?? 0, wear: view.tires.wear?.fl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fl, brakePadMm: view.tires.brakePadRemainingMm?.fl, pressure: view.tires.pressurePsi?.fl }}
+            fr={{ tempC: view.tires.temperatureC?.fr ?? 0, wear: view.tires.wear?.fr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fr, brakePadMm: view.tires.brakePadRemainingMm?.fr, pressure: view.tires.pressurePsi?.fr }}
+            rl={{ tempC: view.tires.temperatureC?.rl ?? 0, wear: view.tires.wear?.rl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rl, brakePadMm: view.tires.brakePadRemainingMm?.rl, pressure: view.tires.pressurePsi?.rl }}
+            rr={{ tempC: view.tires.temperatureC?.rr ?? 0, wear: view.tires.wear?.rr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rr, brakePadMm: view.tires.brakePadRemainingMm?.rr, pressure: view.tires.pressurePsi?.rr }}
             healthThresholds={tryGetGame(gameId)?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
             tempThresholds={{ blue: 70, orange: 100, red: 110 }}
             pressureOptimal={pressureOptimal}
             brakeTempThresholds={tryGetGame(gameId)?.brakeTempThresholds}
-            compound={packet.acc?.tireCompound}
+            compound={typeof view.tires.compound === "string" ? view.tires.compound : undefined}
           />
         </div>
 
@@ -60,14 +55,14 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_pit_window()}</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} pit={pit} />
+            <PitEstimate view={view} pit={pit} />
           </div>
         </div>
       </div>
 
       {/* Right column: Race (with sectors) + Charts + Recorded Laps */}
-      <div className="overflow-auto flex flex-col">
-        <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+      <div data-live-dashboard-race className="overflow-auto flex flex-col">
+        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
 
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />

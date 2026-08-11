@@ -1,6 +1,11 @@
-import type { TelemetryPacket } from "@shared/types";
 import { memo, useMemo } from "react";
 import { m } from "@/paraglide/messages";
+import type { SemanticAnalysisFrame } from "./track-map/types";
+
+export type { SemanticAnalysisFrame } from "./track-map/types";
+
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
+return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 interface Segment {
   type: string;
@@ -10,63 +15,83 @@ interface Segment {
 }
 
 interface SegmentListProps {
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   segments: Segment[] | null;
   cursorIdx: number;
 }
 
-export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, segments, cursorIdx }: SegmentListProps) {
-  // Precompute static segment data (expensive) — cumDist, times, names
-  const segmentData = useMemo(() => {
-    if (!segments || segments.length === 0 || telemetry.length < 10) return null;
-    const n = telemetry.length;
-    const cumDist = [0];
+export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[]) {
+  if (segments.length === 0 || telemetry.length < 10) return null;
+  const n = telemetry.length;
+  const cumDist = new Array<number>(n);
+  cumDist[0] = 0;
+
+  const firstDistance = numeric(telemetry[0], "timing.distance-traveled");
+  const lastDistance = numeric(telemetry[n - 1], "timing.distance-traveled");
+  const lapDistance = firstDistance != null && lastDistance != null ? lastDistance - firstDistance : null;
+  if (lapDistance != null && lapDistance > 0) {
     for (let i = 1; i < n; i++) {
-      const p = telemetry[i],
-        pp = telemetry[i - 1];
-      const dx = p.PositionX - pp.PositionX;
-      const dz = p.PositionZ - pp.PositionZ;
-      cumDist.push(cumDist[i - 1] + Math.sqrt(dx * dx + dz * dz));
+      const distance = numeric(telemetry[i], "timing.distance-traveled");
+      const relative = distance != null && firstDistance != null ? distance - firstDistance : null;
+      cumDist[i] = relative != null ? Math.max(cumDist[i - 1], relative) : cumDist[i - 1];
     }
-    const totalDist = cumDist[n - 1] || 1;
-    function fracToIdx(frac: number): number {
-      const targetDist = frac * totalDist;
-      let lo = 0,
-        hi = n - 1;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (cumDist[mid] < targetDist) lo = mid + 1;
-        else hi = mid;
-      }
-      return lo;
+  } else {
+    for (let i = 1; i < n; i++) {
+      const x = numeric(telemetry[i], "motion.position-x");
+      const z = numeric(telemetry[i], "motion.position-z");
+      const previousX = numeric(telemetry[i - 1], "motion.position-x");
+      const previousZ = numeric(telemetry[i - 1], "motion.position-z");
+      cumDist[i] =
+        x != null && z != null && previousX != null && previousZ != null
+          ? cumDist[i - 1] + Math.hypot(x - previousX, z - previousZ)
+          : cumDist[i - 1];
     }
-    let sNum = 1;
-    const displayNames = segments.map((s) => {
-      if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) return `S${sNum++}`;
-      if (s.type === "straight") sNum++;
-      return s.name;
-    });
-    const staticSegments: { name: string; type: string; time: number; startFrac: number; endFrac: number }[] = [];
-    for (let si = 0; si < segments.length; si++) {
-      const seg = segments[si];
-      const startIdx = fracToIdx(seg.startFrac);
-      const endIdx = Math.min(fracToIdx(seg.endFrac), n - 1);
-      staticSegments.push({
-        name: displayNames[si],
-        type: seg.type,
-        time: (telemetry[endIdx]?.CurrentLap ?? 0) - (telemetry[startIdx]?.CurrentLap ?? 0),
-        startFrac: seg.startFrac,
-        endFrac: seg.endFrac,
-      });
+  }
+
+  const totalDist = cumDist[n - 1];
+  if (!(totalDist > 0)) return null;
+
+  function fracToIdx(frac: number): number {
+    const targetDist = frac * totalDist;
+    let lo = 0;
+    let hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cumDist[mid] < targetDist) lo = mid + 1;
+      else hi = mid;
     }
-    return { cumDist, totalDist, staticSegments };
-  }, [segments, telemetry]);
+    return lo;
+  }
+
+  let straightNumber = 1;
+  const displayNames = segments.map((segment) => {
+    if (segment.type === "straight" && (!segment.name || /^S[\d?]*$/.test(segment.name))) return `S${straightNumber++}`;
+    if (segment.type === "straight") straightNumber++;
+    return segment.name;
+  });
+  const staticSegments = segments.map((segment, index) => {
+    const startIdx = fracToIdx(segment.startFrac);
+    const endIdx = Math.min(fracToIdx(segment.endFrac), n - 1);
+    return {
+      name: displayNames[index],
+      type: segment.type,
+      time: (numeric(telemetry[endIdx], "timing.current-lap") ?? 0) - (numeric(telemetry[startIdx], "timing.current-lap") ?? 0),
+      startFrac: segment.startFrac,
+      endFrac: segment.endFrac,
+    };
+  });
+  return { cumDist, totalDist, staticSegments };
+}
+
+export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, segments, cursorIdx }: SegmentListProps) {
+  const segmentData = useMemo(() => (segments ? buildSegmentData(telemetry, segments) : null), [segments, telemetry]);
 
   // Derive cursor-dependent active/completed state cheaply
   const segmentTimes = useMemo(() => {
     if (!segmentData) return null;
     const cursorDistFrac = segmentData.cumDist[cursorIdx] / segmentData.totalDist;
     return segmentData.staticSegments.map((seg) => ({
+      key: `${seg.type}-${seg.name}-${seg.startFrac}-${seg.endFrac}`,
       name: seg.name,
       type: seg.type,
       time: seg.time,
@@ -81,13 +106,13 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
 
   return (
     <div className="space-y-0.5">
-      {segmentTimes.map((seg, i) => (
-        <div key={i} className={`flex items-center justify-between px-1.5 py-1 rounded text-app-compact font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}>
+      {segmentTimes.map((seg) => (
+        <div key={seg.key} className={`flex items-center justify-between px-1.5 py-1 rounded text-app-compact font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)" }} />
             <span className={seg.active ? "text-app-text" : "text-app-text-secondary"}>{seg.name}</span>
           </div>
-          <span className={seg.active ? "text-app-text" : "text-app-text-muted"}>{seg.time > 0 ? seg.time.toFixed(3) + "s" : "-"}</span>
+          <span className={seg.active ? "text-app-text" : "text-app-text-muted"}>{seg.time > 0 ? `${seg.time.toFixed(3)}s` : "-"}</span>
         </div>
       ))}
     </div>

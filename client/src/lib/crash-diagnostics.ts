@@ -1,24 +1,20 @@
 /**
- * Crash diagnostics — leaves breadcrumbs in localStorage so the next page
- * load can surface what happened before an "Aw Snap" crash.
+ * Crash diagnostics — persists one bounded breadcrumb record for the current
+ * document. A later load reports it only when the previous document never
+ * reached a clean page lifecycle boundary.
  *
  * Captures:
  * - Unhandled errors and promise rejections via window events. These are also
  *   forwarded to the server log so they appear in the diagnostics export.
- * - Periodic heap-pressure samples (Chrome-only performance.memory). If
- *   the JS heap climbs past 85% of its limit we log a warning AND write
- *   the last heap sample to localStorage — so if the tab dies moments
- *   later, the next load has a "this is what the heap looked like before
- *   you died" record to compare against.
+ * - Periodic Chromium heap samples and the latest Three.js GPU snapshot.
  */
 
 import { installClientErrorReporting, reportClientError } from "./report-error";
 
-const LAST_ERROR_KEY = "raceiq.crash.last_error";
-const LAST_REJECTION_KEY = "raceiq.crash.last_rejection";
-const LAST_HEAP_KEY = "raceiq.crash.last_heap";
-const LAST_GPU_KEY = "raceiq.crash.last_gpu";
-const LOAD_COUNT_KEY = "raceiq.crash.load_count";
+const CURRENT_SESSION_KEY = "raceiq.crash.current_session";
+const SESSION_RECORD_PREFIX = "raceiq.crash.session.";
+const LEGACY_KEYS = ["raceiq.crash.last_error", "raceiq.crash.last_rejection", "raceiq.crash.last_heap", "raceiq.crash.last_gpu"] as const;
+const RECORD_VERSION = 1;
 
 /** Latest GPU snapshot, populated by CarWireframe when the 3D scene is mounted. */
 interface GpuSnapshot {
@@ -60,6 +56,31 @@ interface PerformanceWithMemory extends Performance {
   memory?: PerformanceMemory;
 }
 
+interface HeapSnapshot {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+  ts: number;
+  url: string;
+}
+
+type LifecycleState = "active" | "clean" | "suspended";
+
+interface CrashSessionRecord {
+  version: typeof RECORD_VERSION;
+  sessionId: string;
+  state: LifecycleState;
+  startedAt: number;
+  endedAt?: number;
+  url: string;
+  lastError?: unknown;
+  lastRejection?: unknown;
+  lastHeap?: HeapSnapshot;
+  lastGpu?: GpuSnapshot;
+}
+
+let currentSession: CrashSessionRecord | null = null;
+
 function safeStringify(value: unknown): string {
   try {
     return JSON.stringify(value);
@@ -68,37 +89,111 @@ function safeStringify(value: unknown): string {
   }
 }
 
-function persist(key: string, value: unknown): void {
+function sessionRecordKey(sessionId: string): string {
+  return `${SESSION_RECORD_PREFIX}${sessionId}`;
+}
+
+function writeSession(record: CrashSessionRecord): void {
   try {
-    localStorage.setItem(key, safeStringify(value));
+    localStorage.setItem(sessionRecordKey(record.sessionId), safeStringify(record));
   } catch {
-    // localStorage may be full or disabled — nothing we can do here.
+    // Storage may be full or disabled. Diagnostics remain best effort.
   }
 }
 
-function reportPreviousCrash(): void {
+function readSession(sessionId: string): CrashSessionRecord | null {
   try {
-    const err = localStorage.getItem(LAST_ERROR_KEY);
-    const rej = localStorage.getItem(LAST_REJECTION_KEY);
-    const heap = localStorage.getItem(LAST_HEAP_KEY);
-    const gpu = localStorage.getItem(LAST_GPU_KEY);
-    if (err || rej || heap || gpu) {
-      console.group("[RaceIQ] Crash diagnostics from previous session");
-      if (err) console.warn("last error:", JSON.parse(err));
-      if (rej) console.warn("last rejection:", JSON.parse(rej));
-      if (heap) console.warn("last heap sample (before tab died):", JSON.parse(heap));
-      if (gpu) console.warn("last GPU sample (before tab died):", JSON.parse(gpu));
-      console.groupEnd();
-    }
-    // Clear so each new load starts fresh — we only want *the most recent*
-    // crash to surface, not stale data from weeks ago.
-    localStorage.removeItem(LAST_ERROR_KEY);
-    localStorage.removeItem(LAST_REJECTION_KEY);
-    localStorage.removeItem(LAST_HEAP_KEY);
-    localStorage.removeItem(LAST_GPU_KEY);
+    const raw = localStorage.getItem(sessionRecordKey(sessionId));
+    if (!raw) return null;
+    const record = JSON.parse(raw) as CrashSessionRecord;
+    if (record.version !== RECORD_VERSION || record.sessionId !== sessionId) return null;
+    if (record.state !== "active" && record.state !== "clean" && record.state !== "suspended") return null;
+    return record;
+  } catch {
+    return null;
+  }
+}
+
+function updateCurrentSession(update: Partial<CrashSessionRecord>): void {
+  if (!currentSession) return;
+  currentSession = { ...currentSession, ...update };
+  writeSession(currentSession);
+}
+
+function clearLegacyBreadcrumbs(): void {
+  try {
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key);
   } catch {
     // ignore
   }
+}
+
+function reportUnexpectedPreviousSession(): void {
+  try {
+    const previousSessionId = sessionStorage.getItem(CURRENT_SESSION_KEY);
+    const previous = previousSessionId ? readSession(previousSessionId) : null;
+    if (previousSessionId) localStorage.removeItem(sessionRecordKey(previousSessionId));
+    clearLegacyBreadcrumbs();
+
+    if (previous?.state !== "active") return;
+
+    console.group("[RaceIQ] Diagnostics from unexpectedly ended page session");
+    console.warn("previous page session ended unexpectedly:", {
+      startedAt: previous.startedAt,
+      url: previous.url,
+    });
+    if (previous.lastError) console.warn("last error:", previous.lastError);
+    if (previous.lastRejection) console.warn("last rejection:", previous.lastRejection);
+    if (previous.lastHeap) console.warn("last heap sample before unexpected termination:", previous.lastHeap);
+    if (previous.lastGpu) console.warn("last GPU sample before unexpected termination:", previous.lastGpu);
+    console.groupEnd();
+  } catch {
+    clearLegacyBreadcrumbs();
+  }
+}
+
+function beginSession(): void {
+  const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  currentSession = {
+    version: RECORD_VERSION,
+    sessionId,
+    state: "active",
+    startedAt: Date.now(),
+    url: location.href,
+  };
+  writeSession(currentSession);
+  try {
+    sessionStorage.setItem(CURRENT_SESSION_KEY, sessionId);
+  } catch {
+    // ignore
+  }
+}
+
+function installLifecycleHandlers(): void {
+  window.addEventListener("pagehide", (event) => {
+    if (event.persisted) {
+      updateCurrentSession({ state: "suspended", endedAt: Date.now(), url: location.href });
+      return;
+    }
+
+    updateCurrentSession({ state: "clean", endedAt: Date.now(), url: location.href });
+    if (!currentSession) return;
+    try {
+      localStorage.removeItem(sessionRecordKey(currentSession.sessionId));
+    } catch {
+      // ignore
+    }
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    if (!event.persisted || !currentSession) return;
+    updateCurrentSession({ state: "active", endedAt: undefined, url: location.href });
+    try {
+      sessionStorage.setItem(CURRENT_SESSION_KEY, currentSession.sessionId);
+    } catch {
+      // ignore
+    }
+  });
 }
 
 function installGlobalErrorHandlers(): void {
@@ -112,7 +207,7 @@ function installGlobalErrorHandlers(): void {
       ts: Date.now(),
       url: location.href,
     };
-    persist(LAST_ERROR_KEY, record);
+    updateCurrentSession({ lastError: record });
     reportClientError("window.onerror", ev.message || "Uncaught error", record);
   });
 
@@ -124,7 +219,7 @@ function installGlobalErrorHandlers(): void {
       ts: Date.now(),
       url: location.href,
     };
-    persist(LAST_REJECTION_KEY, record);
+    updateCurrentSession({ lastRejection: record });
     reportClientError("unhandledrejection", record.reason, record);
   });
 }
@@ -140,13 +235,8 @@ function startHeapMonitor(): void {
     const mem = perf.memory;
     if (!mem) return;
     const { usedJSHeapSize, totalJSHeapSize, jsHeapSizeLimit } = mem;
-    const sample = { usedJSHeapSize, totalJSHeapSize, jsHeapSizeLimit, ts: Date.now(), url: location.href };
-    // Always persist the most recent sample so a crash leaves a useful
-    // "last known heap state" breadcrumb regardless of where in the curve
-    // we died.
-    persist(LAST_HEAP_KEY, sample);
-    // Also persist the most recent GPU snapshot if the 3D scene is mounted.
-    if (lastGpuSnapshot) persist(LAST_GPU_KEY, lastGpuSnapshot);
+    const sample: HeapSnapshot = { usedJSHeapSize, totalJSHeapSize, jsHeapSizeLimit, ts: Date.now(), url: location.href };
+    updateCurrentSession(lastGpuSnapshot ? { lastHeap: sample, lastGpu: lastGpuSnapshot } : { lastHeap: sample });
 
     const ratio = usedJSHeapSize / jsHeapSizeLimit;
     if (ratio > WARN_RATIO && !warned) {
@@ -161,18 +251,11 @@ function startHeapMonitor(): void {
 }
 
 export function installCrashDiagnostics(): void {
-  // Patch the console first so the previous session's breadcrumbs below are
-  // themselves forwarded to the server log.
+  // Patch console first so unexpected-session breadcrumbs reach the server log.
   installClientErrorReporting();
-  reportPreviousCrash();
+  reportUnexpectedPreviousSession();
+  beginSession();
   installGlobalErrorHandlers();
+  installLifecycleHandlers();
   startHeapMonitor();
-
-  // Track load count so we can tell "crash loop vs one-off" at a glance.
-  try {
-    const n = Number(localStorage.getItem(LOAD_COUNT_KEY) ?? "0") + 1;
-    localStorage.setItem(LOAD_COUNT_KEY, String(n));
-  } catch {
-    // ignore
-  }
 }

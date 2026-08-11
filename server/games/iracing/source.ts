@@ -1,11 +1,11 @@
-import { parsePacket } from "../../parsers";
-import { processPacket } from "../../pipeline";
+import { parsePacket } from "../packet-dispatch";
+import { processPacket } from "../../telemetry/live-pipeline";
 import { IRacingSdkReader, type IRacingSdkSnapshot } from "./sdk-reader";
 import { parseIRacingSessionInfo } from "./session-info";
 import {
   IRacingSourceFrameEncoder,
   type IRacingSessionSnapshot,
-  type IRacingSourceFrameV2,
+  type IRacingSourceFrameV3,
   type IRacingValue,
 } from "./source-frame";
 import { iracingRecorder, type IRacingRecorder } from "./recorder";
@@ -64,6 +64,7 @@ export class IRacingTelemetrySource {
   private polling = false;
   private lastErrorLogAt = 0;
   private cachedSessionInfoUpdate: number | null = null;
+  private cachedSessionInfo: string | null = null;
   private cachedSessionNum: number | null = null;
   private cachedSession: IRacingSessionSnapshot | null = null;
 
@@ -106,6 +107,7 @@ export class IRacingTelemetrySource {
         await this.recorder.stop();
       }
       this.cachedSessionInfoUpdate = null;
+      this.cachedSessionInfo = null;
       this.cachedSessionNum = null;
       this.cachedSession = null;
       this.frameEncoder.reset();
@@ -124,6 +126,7 @@ export class IRacingTelemetrySource {
       if (
         !this.cachedSession ||
         this.cachedSessionInfoUpdate !== snapshot.sessionInfoUpdate ||
+        this.cachedSessionInfo !== snapshot.sessionInfo ||
         this.cachedSessionNum !== sessionNum
       ) {
         const session = parseIRacingSessionInfo(
@@ -132,13 +135,16 @@ export class IRacingTelemetrySource {
         );
         await this.registerIdentity?.(session);
         this.cachedSessionInfoUpdate = snapshot.sessionInfoUpdate;
+        this.cachedSessionInfo = snapshot.sessionInfo;
         this.cachedSessionNum = sessionNum;
         this.cachedSession = session;
       }
-      const frame: IRacingSourceFrameV2 = {
-        schemaVersion: 2,
+      const frame: IRacingSourceFrameV3 = {
+        schemaVersion: 3,
         session: this.cachedSession,
         values: snapshot.values,
+        sessionInfo: snapshot.sessionInfo,
+        sessionInfoUpdate: snapshot.sessionInfoUpdate,
       };
       const rawFrame = this.frameEncoder.encode(frame);
       await this.framePipeline.process(rawFrame);

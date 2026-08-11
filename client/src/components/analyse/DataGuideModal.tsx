@@ -19,8 +19,8 @@ function Section({ title, children }: SectionProps) {
 
 function Row({ label, desc }: { label: string; desc: React.ReactNode }) {
   return (
-    <div className="flex gap-3">
-      <span className="text-app-text w-24 shrink-0">{label}</span>
+    <div className="flex flex-col gap-1 @sm/data-guide:flex-row @sm/data-guide:gap-3">
+      <span className="w-full shrink-0 text-app-text @sm/data-guide:w-24">{label}</span>
       <span className="text-app-text-muted leading-relaxed">{desc}</span>
     </div>
   );
@@ -52,17 +52,20 @@ function BrakeTemperatureDot({ state }: { state: "cold" | "working" | "hot" }) {
 
 export function DataGuideModal({ onClose }: { onClose: () => void }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col">
+    <div className="@container/data-guide fixed inset-0 z-50 flex items-center justify-center p-3">
+      <button type="button" aria-label={m.common_close()} className="absolute inset-0 bg-app-bg/60" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="analyse-data-guide-title"
+        className="relative flex max-h-[85vh] w-full max-w-[560px] flex-col rounded-xl border border-app-border bg-app-surface shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border shrink-0">
-          <h2 className="text-sm font-semibold text-app-text">{m.analyse_data_guide_title()}</h2>
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+          <h2 id="analyse-data-guide-title" className="text-sm font-semibold text-app-text">
+            {m.analyse_data_guide_title()}
+          </h2>
+          <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -97,13 +100,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
             <Row label={m.dataguide_g_force()} desc="Lateral (cornering) and longitudinal (braking/acceleration) g-forces." />
             <Row
               label={m.dataguide_grip_ask()}
-              desc={
-                <>
-                  Friction circle utilisation per tire, from physics signals: <span className="text-app-text">hypot(|slipRatio|/0.15, |slipAngle|/10°)</span>. Slip ratio is derived from wheel rotation
-                  vs ground speed (SAE J670, not the game's raw slip field). <span className="text-app-text">100%</span> = at peak grip · <span className="text-app-text">&gt;100%</span> = past peak.{" "}
-                  Universal across FM, F1, and ACC.
-                </>
-              }
+              desc="Grip Ask uses source-native combined slip where available; physical friction-circle utilisation requires physical slip angle. Forza lateral slip remains a dimensionless ratio, not degrees."
             />
             <Row
               label={m.dataguide_traction()}

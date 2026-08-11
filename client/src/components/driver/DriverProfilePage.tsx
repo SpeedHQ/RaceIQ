@@ -1,7 +1,7 @@
 import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import { parseDriverProfileSummary } from "../../../../server/ai/schemas";
-import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/queries";
-import { useRequiredGameId } from "../../stores/game";
+import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/driver-profile";
+import { getGameRoute, useRequiredGameId } from "../../stores/game";
 import { Button } from "../ui/button";
 import { DriverProfileView } from "./DriverProfileView";
 
@@ -11,6 +11,7 @@ import { DriverProfileView } from "./DriverProfileView";
  */
 export function DriverProfilePage() {
   const gameId = useRequiredGameId();
+  const gameRoute = getGameRoute(gameId);
   const profileQuery = useDriverProfile({ gameId });
   const runsQuery = useDriverProfileRuns({ gameId });
   const runMutation = useRunDriverProfile();
@@ -47,7 +48,7 @@ export function DriverProfilePage() {
           <p className="text-app-subtext text-app-text-muted">How your driving is changing</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" className="rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-label text-app-text">
+          <Button type="button" onClick={() => window.location.assign(`${gameRoute}/sessions`)}>
             All {profileQuery.data?.gameName ?? "Forza Motorsport"} laps
           </Button>
           <Button

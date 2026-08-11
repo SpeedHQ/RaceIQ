@@ -1,28 +1,34 @@
-import { useState } from "react";
+import { canStartReprocess, isReprocessPending, submitStaleSessionReprocess } from "@/lib/reprocess-state";
+import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useTelemetryStore } from "../stores/telemetry";
+import { useTelemetryStore } from "@/stores/telemetry";
 import { RaceResultStatus } from "./RaceResultStatus";
 import { Button } from "./ui/button";
 
 export function LapDetectorStatus() {
-  const stale = useTelemetryStore((s) => s.staleLapDetection);
-  const progress = useTelemetryStore((s) => s.reprocessProgress);
-  const [error, setError] = useState(false);
-  const running = progress != null && progress.done < progress.total;
+  const stale = useTelemetryStore((state) => state.staleLapDetection);
+  const reprocessState = useTelemetryStore((state) => state.reprocessState);
+  const running = isReprocessPending(reprocessState);
 
   async function reparse() {
-    if (!stale || running) return;
-    setError(false);
-    useTelemetryStore.getState().setReprocessProgress({ done: 0, total: stale.sessionCount });
+    const store = useTelemetryStore.getState();
+    if (!canStartReprocess(store.reprocessState)) return;
+
+    const total = store.reprocessState.status === "error" ? store.reprocessState.total : store.staleLapDetection?.sessionCount;
+    if (!total) return;
+
+    store.beginReprocess(total);
     try {
-      const response = await fetch("/api/sessions/reprocess-stale", { method: "POST" });
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
+      await submitStaleSessionReprocess(() => client.api.sessions["reprocess-stale"].$post());
+      const currentStore = useTelemetryStore.getState();
+      currentStore.setStaleLapDetection(null);
+      currentStore.completeReprocess();
     } catch {
-      useTelemetryStore.getState().setReprocessProgress(null);
-      setError(true);
+      useTelemetryStore.getState().failReprocess(m.root_reprocessing_failed_description());
     }
   }
 
+  const progress = reprocessState.status === "idle" ? null : reprocessState;
   const percent = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   return (
     <section className="space-y-3 rounded-lg border border-app-border bg-app-surface-alt/50 p-4">
@@ -40,7 +46,7 @@ export function LapDetectorStatus() {
           <p className="text-xs text-app-text-muted">{m.diag_lap_detection_progress({ done: progress.done, total: progress.total })}</p>
         </div>
       )}
-      {error && <p className="text-xs text-status-danger">{m.diag_lap_detection_error()}</p>}
+      {reprocessState.status === "error" && <p className="text-xs text-status-danger">{m.diag_lap_detection_error()}</p>}
       {stale && (
         <Button type="button" disabled={running} onClick={reparse}>
           {running ? m.root_reprocessing() : m.diag_lap_detection_reparse()}

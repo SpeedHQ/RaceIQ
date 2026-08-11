@@ -1,18 +1,17 @@
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { TelemetryPacket } from "@shared/types";
 import { useRef } from "react";
-// @ts-expect-error — three-stdlib types not always resolved
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { VIEW_PRESETS, type ViewPreset } from "../../lib/wireframe-data";
 
-export function AutoChaseCamera({ packet }: { packet: TelemetryPacket }) {
+export function AutoChaseCamera({ packet }: { packet: SemanticAnalysisFrame }) {
   const { camera } = useThree();
-  const smoothYaw = useRef(packet.Yaw);
+  const smoothYaw = useRef((semanticNumber(packet, "motion.yaw") ?? 0));
 
   useFrame(() => {
     // Smooth the yaw to avoid jerky camera
-    let diff = packet.Yaw - smoothYaw.current;
+    let diff = (semanticNumber(packet, "motion.yaw") ?? 0) - smoothYaw.current;
     while (diff > Math.PI) diff -= 2 * Math.PI;
     while (diff < -Math.PI) diff += 2 * Math.PI;
     smoothYaw.current += diff * 0.04;

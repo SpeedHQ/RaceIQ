@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
-import { useSaveSettings, useSettings } from "../../hooks/queries";
+import { useSaveSettings, useSettings } from "../../hooks/settings";
 
 interface CacheStatus {
   bytesUsed: number;
@@ -152,9 +152,13 @@ function CacheSection() {
     setDraftMB(String(displaySettings.cacheMaxMB ?? 256));
   }, [displaySettings.cacheMaxMB]);
 
-  const { data: cache } = useQuery<CacheStatus>({
+  const { data: cache, isError: cacheError } = useQuery<CacheStatus>({
     queryKey: ["cache", "status"],
-    queryFn: () => fetch("/api/cache/status").then((r) => r.json()),
+    queryFn: async () => {
+      const response = await fetch("/api/cache/status");
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json() as Promise<CacheStatus>;
+    },
     refetchInterval: 5_000,
   });
 
@@ -192,6 +196,11 @@ function CacheSection() {
         {m.storage_cache_title()}
       </h3>
       <p className="text-xs text-app-text-dim mb-4">{m.storage_cache_desc()}</p>
+      {cacheError && (
+        <p className="text-sm text-status-danger" role="alert">
+          {m.storage_load_failed()}
+        </p>
+      )}
 
       {cache && (
         <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 py-3 mb-4 space-y-3">
@@ -211,11 +220,12 @@ function CacheSection() {
           </div>
         </div>
       )}
-
       <div className="max-w-xs">
-        <Label className="text-app-text-secondary">{m.storage_cache_size_limit()}</Label>
+        <Label htmlFor="cache-size-limit" className="text-app-text-secondary">
+          {m.storage_cache_size_limit()}
+        </Label>
         <div className="mt-1.5 flex items-center gap-2">
-          <Input type="number" min={16} max={2048} value={draftMB} onChange={(e) => setDraftMB(e.target.value)} className="bg-app-surface border border-app-border-input" />
+          <Input id="cache-size-limit" type="number" min={16} max={2048} value={draftMB} onChange={(e) => setDraftMB(e.target.value)} className="bg-app-surface border border-app-border-input" />
           <Button onClick={onSave} disabled={status === "saving" || draftMB === String(displaySettings.cacheMaxMB)} size="sm">
             {status === "saving" ? m.common_saving() : m.common_save()}
           </Button>
@@ -231,12 +241,20 @@ function CacheSection() {
 export function StorageSection() {
   const { data, isLoading, isError, refetch } = useQuery<SessionStorageStats>({
     queryKey: ["storage", "sessions"],
-    queryFn: () => fetch("/api/storage/sessions").then((r) => r.json()),
+    queryFn: async () => {
+      const response = await fetch("/api/storage/sessions");
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json() as Promise<SessionStorageStats>;
+    },
     refetchInterval: 30_000,
   });
 
   const compress = useMutation({
-    mutationFn: () => fetch("/api/storage/compress", { method: "POST" }).then((r) => r.json()),
+    mutationFn: async () => {
+      const response = await fetch("/api/storage/compress", { method: "POST" });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json();
+    },
     onSuccess: () => void refetch(),
   });
 
@@ -254,7 +272,11 @@ export function StorageSection() {
           {m.storage_recording_files_desc_prefix()} <code className="font-mono">data/sessions/</code>. {m.storage_recording_files_desc_suffix()}
         </p>
         {isLoading && <p className="text-sm text-app-text-dim">{m.common_loading()}</p>}
-        {isError && <p className="text-sm text-status-danger">{m.storage_load_failed()}</p>}
+        {isError && (
+          <p className="text-sm text-status-danger" role="alert">
+            {m.storage_load_failed()}
+          </p>
+        )}
         {data && data.total > 0 && (
           <div className="mb-5">
             <DonutChart binCount={data.binCount} gzCount={data.gzCount} />

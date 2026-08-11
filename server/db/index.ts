@@ -2,15 +2,16 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
-import { mkdirSync, existsSync } from "fs";
-import { resolveDataDir } from "../data-dir";
+import { mkdirSync, existsSync } from "node:fs";
+import { resolveDataDir } from "../runtime/config/data-dir";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
-// here with DATA_DIR unset (see server/data-dir.ts), and sibling state such as
+// here with DATA_DIR unset (see server/runtime/config/data-dir.ts), and sibling state such as
 // settings.json still lives on disk.
 const DB_DIR = resolveDataDir();
-const DB_PATH = `${DB_DIR}/forza-telemetry.db`;
+const DB_FILENAME = process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "forza-telemetry.db";
+const DB_PATH = `${DB_DIR}/${DB_FILENAME}`;
 
 /**
  * Opt-in only: set DB_IN_MEMORY=1. Tests deliberately do NOT default to this.
@@ -45,7 +46,7 @@ let initPromise: Promise<void> | null = null;
 /**
  * Idempotent async DB setup. Must be awaited once by every entry point before
  * queries run: the server (server/index.ts), the test preload
- * (test/setup-data-dir.ts), and standalone scripts.
+ * (test/support/setup-data-dir.ts), and standalone scripts.
  *
  * Previously this ran as top-level await in module scope. That made every
  * importer of `db` wait on the module graph, so a SQLite/WAL lock here wedged

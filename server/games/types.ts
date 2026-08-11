@@ -1,9 +1,37 @@
 import type { GameAdapter } from "../../shared/games/types";
-import type { TelemetryPacket } from "../../shared/types";
-import type { LapDetectorFactory } from "../lap-detector-interface";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LapDetectorFactory } from "../lap-detection/types";
+
+/** Server-only runtime behavior owned by each game implementation. */
+export interface ServerGameRuntimePolicy {
+  /** Pit strategy behavior and history seeding strategy. */
+  pit: {
+    /** Seed fuel history from prior sessions for this game. */
+    seedFuelFromHistory: boolean;
+    /** Seed tire-wear history from prior sessions for this game. */
+    seedTireWearFromHistory: boolean;
+    /** Use distance-based tire-wear curves when enough completed laps exist. */
+    useDistanceBasedWearCurves: boolean;
+  };
+
+  /** Override packet BestLap from session detector state when native field is weak. */
+  bestLapFromSession: boolean;
+
+  /** Collect source positions for track-outline coordinate calibration. */
+  requiresTrackCalibration: boolean;
+
+  /** Millimeter travel range for derived suspension normalization fallback. */
+  normSuspensionTravelMm: {
+    min: number;
+    max: number;
+  };
+}
 
 /** Server-only extensions for game adapters — parsing, AI prompts. */
 export interface ServerGameAdapter extends GameAdapter {
+  /** Runtime policy knobs for server-side packet processors. */
+  runtime: ServerGameRuntimePolicy;
+
   /** Quick check: does this buffer belong to this game? */
   canHandle(buf: Buffer): boolean;
 

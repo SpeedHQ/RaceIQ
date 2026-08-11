@@ -1,8 +1,8 @@
-import type { TelemetryPacket } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import {
   createIRacingSourceDecoderState,
   type IRacingSourceDecoderState,
-  type IRacingSourceFrameV2,
+  type IRacingSourceFrame,
   type IRacingValue,
 } from "./source-frame";
 import {
@@ -63,18 +63,34 @@ function canonicalGear(value: number): number {
   return nativeGear;
 }
 
-function tireTemperature(
+interface TireCarcassTemperature {
+  left?: number;
+  middle?: number;
+  right?: number;
+  average?: number;
+}
+
+function tireCarcassTemperature(
   values: Record<string, IRacingValue>,
   corner: "LF" | "RF" | "LR" | "RR",
-): number {
-  const samples = [
-    scalar(values, `${corner}tempCL`, Number.NaN),
-    scalar(values, `${corner}tempCM`, Number.NaN),
-    scalar(values, `${corner}tempCR`, Number.NaN),
-  ].filter(Number.isFinite);
-  return samples.length > 0
-    ? samples.reduce((sum, value) => sum + value, 0) / samples.length
-    : 0;
+): TireCarcassTemperature {
+  const raw = {
+    left: scalar(values, `${corner}tempCL`, Number.NaN),
+    middle: scalar(values, `${corner}tempCM`, Number.NaN),
+    right: scalar(values, `${corner}tempCR`, Number.NaN),
+  };
+  const result: TireCarcassTemperature = {};
+  const samples: number[] = [];
+  for (const [band, value] of Object.entries(raw)) {
+    if (!Number.isFinite(value)) continue;
+    result[band as keyof typeof raw] = value;
+    samples.push(value);
+  }
+  if (samples.length > 0) {
+    result.average =
+      samples.reduce((sum, value) => sum + value, 0) / samples.length;
+  }
+  return result;
 }
 
 /**
@@ -125,7 +141,7 @@ function normalizeSectorStarts(
 }
 
 export function normalizeIRacingFrame(
-  frame: IRacingSourceFrameV2,
+  frame: IRacingSourceFrame,
   state?: IRacingParserState | null,
 ): TelemetryPacket {
   const { session, values } = frame;
@@ -158,14 +174,31 @@ export function normalizeIRacingFrame(
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
+  // Canonical Steer is negative-left/positive-right. Captured iRacing
+  // controller angles use the opposite sign.
   const steer = steeringMax > 0
-    ? Math.round(clamp(steeringAngle / steeringMax, -1, 1) * 127)
+    ? Math.round(clamp(-steeringAngle / steeringMax, -1, 1) * 127)
     : 0;
   const trackLengthM = Math.max(0, session.trackLengthM);
   const distanceTraveled =
     trackLengthM > 0 ? rawLap * trackLengthM + lapDistanceM : lapDistanceM;
   const onTrack = bool(values, "IsOnTrack");
   const wetness = clamp(scalar(values, "TrackWetness", 0), 0, 7);
+  const tireTemps = {
+    LF: tireCarcassTemperature(values, "LF"),
+    RF: tireCarcassTemperature(values, "RF"),
+    LR: tireCarcassTemperature(values, "LR"),
+    RR: tireCarcassTemperature(values, "RR"),
+  };
+  const pitTireTemperatureAvailable = Object.values(tireTemps).every(
+    (temperature) => temperature.average !== undefined,
+  );
+  const pitTireWearAvailable = (["LF", "RF", "LR", "RR"] as const).every(
+    (corner) =>
+      ["wearL", "wearM", "wearR"].every((band) =>
+        Number.isFinite(scalar(values, `${corner}${band}`, Number.NaN)),
+      ),
+  );
 
   return {
     gameId: "iracing",
@@ -182,6 +215,8 @@ export function normalizeIRacingFrame(
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
       trackWetness: Math.trunc(wetness),
+      pitTireTemperatureAvailable,
+      pitTireWearAvailable,
       carName: session.carName,
       carClassName: session.carClassName,
       trackName: session.trackName,
@@ -205,10 +240,12 @@ export function normalizeIRacingFrame(
     VelocityY: scalar(values, "VelocityY", 0),
     VelocityZ: scalar(values, "VelocityZ", 0),
     AngularVelocityX: scalar(values, "PitchRate", 0),
-    AngularVelocityY: scalar(values, "YawRate", 0),
+    // iRacing yaw increases through left turns. RaceIQ's canonical heading
+    // increases through right turns, matching its mirrored canvas coordinates.
+    AngularVelocityY: -scalar(values, "YawRate", 0),
     AngularVelocityZ: scalar(values, "RollRate", 0),
 
-    Yaw: scalar(values, "Yaw", 0),
+    Yaw: -scalar(values, "Yaw", 0),
     Pitch: scalar(values, "Pitch", 0),
     Roll: scalar(values, "Roll", 0),
 
@@ -239,10 +276,26 @@ export function normalizeIRacingFrame(
     SurfaceRumbleRR_2: 0,
     TireSlipCombinedFL_2: 0,
 
-    TireTempFL: tireTemperature(values, "LF"),
-    TireTempFR: tireTemperature(values, "RF"),
-    TireTempRL: tireTemperature(values, "LR"),
-    TireTempRR: tireTemperature(values, "RR"),
+    TireTempFL: tireTemps.LF.average ?? 0,
+    TireTempFR: tireTemps.RF.average ?? 0,
+    TireTempRL: tireTemps.LR.average ?? 0,
+    TireTempRR: tireTemps.RR.average ?? 0,
+    TireCarcassTempFL: tireTemps.LF.average,
+    TireCarcassTempFR: tireTemps.RF.average,
+    TireCarcassTempRL: tireTemps.LR.average,
+    TireCarcassTempRR: tireTemps.RR.average,
+    TireCarcassTempLeftFL: tireTemps.LF.left,
+    TireCarcassTempLeftFR: tireTemps.RF.left,
+    TireCarcassTempLeftRL: tireTemps.LR.left,
+    TireCarcassTempLeftRR: tireTemps.RR.left,
+    TireCarcassTempMiddleFL: tireTemps.LF.middle,
+    TireCarcassTempMiddleFR: tireTemps.RF.middle,
+    TireCarcassTempMiddleRL: tireTemps.LR.middle,
+    TireCarcassTempMiddleRR: tireTemps.RR.middle,
+    TireCarcassTempRightFL: tireTemps.LF.right,
+    TireCarcassTempRightFR: tireTemps.RF.right,
+    TireCarcassTempRightRL: tireTemps.LR.right,
+    TireCarcassTempRightRR: tireTemps.RR.right,
 
     Boost: 0,
     Fuel: Math.max(0, scalar(values, "FuelLevel", 0)),

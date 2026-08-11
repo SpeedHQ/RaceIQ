@@ -9,7 +9,11 @@
  *   - driver:    GRAPHICS_EVO.driver_name / driver_surname
  */
 
-import type { TelemetryPacket, AccExtendedData, AcEvoExtendedData, GameId } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { KunosExtendedData, AcEvoExtendedData } from "../../../shared/telemetry/kunos";
+import type { GameId } from "../../../shared/games/ids";
+import { createAcEvoDistanceState, integrateDistance, type AcEvoDistanceState } from "./distance";
+import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from "./player-slot";
 import {
   PHYSICS,
   GRAPHICS_EVO,
@@ -24,54 +28,16 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "./structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "../../../shared/ac-evo-car-data";
-import { getAcEvoTrackByName } from "../../../shared/ac-evo-track-data";
-
-const SLOT_CALIBRATION_FRAMES = 60;
-const SPEED_THRESHOLD_KMH = 20;
-
-// --- Physics-rate DistanceTraveled derivation (integrateDistance) ---
-// GRAPHICS current_km is authoritative track distance but updates at only 60Hz,
-// while telemetry is stored at ~100Hz — so ~40% of frames would share a
-// duplicate distance and stack on distance-keyed charts. We fill the gaps
-// between current_km ticks by integrating speed against the physics `packetId`
-// (which ticks every physics step, far faster than 100Hz), then re-anchor to
-// current_km on each tick so integration error never accumulates. The unknown
-// seconds-per-physics-step constant `k` is self-calibrated from the ratio of
-// each current_km delta to the speed·packetId integral over that interval — no
-// hardcoded physics rate. Must be reproducible from raw buffers alone (runs on
-// replay), so it depends only on packetId/speed/current_km, never a wall clock.
-const DIST_K_FALLBACK = 1 / 333; // seconds per physics step, pre-calibration only
-const DIST_K_MIN = 1 / 1000;
-const DIST_K_MAX = 1 / 100;
-const DIST_K_EMA = 0.2; // smoothing for calibrated-k updates
-const DIST_LAP_RESET_M = 50; // current_km drop beyond this (m) ⇒ new lap
-const DIST_CALIB_MIN_M = 5; // require ≥5 m true travel before trusting a k sample
-const DIST_PACKETID_MAX_JUMP = 10000; // ΔpacketId above this ⇒ discontinuity, skip
+import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
+import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
 
 export interface AcEvoParserCache {
   carOrdinal: number;
   trackOrdinal: number;
   lastCarModel: string;
   lastTrack: string;
-  /** Locked player slot (-1 = not yet identified) */
-  playerSlot: number;
-  /** Per-slot cosine score accumulators */
-  _slotScores: Float32Array;
-  _scoredFrames: number;
-  /** Previous coords per slot [slot*3 + xyz] */
-  _prevCoords: Float32Array;
-
-  // Physics-rate DistanceTraveled integration state (see integrateDistance).
-  _distPrevPacketId: number; // last physics packetId (-1 = none)
-  _distPrevSpeedMps: number; // last speed m/s (trapezoidal integration)
-  _distPrevCurrentKm: number; // last current_km (-1 = none)
-  _distAnchorM: number; // ground-truth distance (m) at last current_km tick
-  _distIntegralUnit: number; // Σ 0.5*(v+vPrev)*ΔpacketId since last anchor
-  _distCalibIntegralUnit: number; // same, over the current calibration window
-  _distCalibTrueM: number; // Σ true metres (current_km deltas) over that window
-  _distK: number; // seconds per physics step (calibrated); 0 = uncalibrated
-  _distOut: number; // last emitted DistanceTraveled (m), monotonic clamp
+  playerSlotState: PlayerSlotState;
+  distanceState: AcEvoDistanceState;
 }
 
 export function createAcEvoParserCache(): AcEvoParserCache {
@@ -84,85 +50,10 @@ export function createAcEvoParserCache(): AcEvoParserCache {
     trackOrdinal: -1,
     lastCarModel: "",
     lastTrack: "",
-    playerSlot: -1,
-    _slotScores: new Float32Array(60),
-    _scoredFrames: 0,
-    _prevCoords: new Float32Array(60 * 3),
-    _distPrevPacketId: -1,
-    _distPrevSpeedMps: 0,
-    _distPrevCurrentKm: -1,
-    _distAnchorM: 0,
-    _distIntegralUnit: 0,
-    _distCalibIntegralUnit: 0,
-    _distCalibTrueM: 0,
-    _distK: 0,
-    _distOut: 0,
+    playerSlotState: createPlayerSlotState(),
+    distanceState: createAcEvoDistanceState(),
   };
 }
-
-/**
- * Derive a physics-rate, monotonic, per-lap DistanceTraveled (metres) from the
- * 60Hz `current_km` anchor plus speed integrated against the physics `packetId`
- * clock. See the DIST_* constants above for the rationale. Pure w.r.t. the raw
- * inputs (packetId/speedMps/currentKm) so it reproduces identically on replay.
- */
-function integrateDistance(
-  cache: AcEvoParserCache,
-  packetId: number,
-  speedMps: number,
-  currentKm: number,
-): number {
-  const prevKm = cache._distPrevCurrentKm;
-  const dCurrentKm = prevKm < 0 ? 0 : currentKm - prevKm;
-
-  // Lap reset: current_km resets to ~0 at each new lap. Snap to the fresh
-  // anchor and clear accumulators, but keep the calibrated k across laps.
-  if (prevKm >= 0 && dCurrentKm < -(DIST_LAP_RESET_M / 1000)) {
-    cache._distAnchorM = currentKm * 1000;
-    cache._distIntegralUnit = 0;
-    cache._distCalibIntegralUnit = 0;
-    cache._distCalibTrueM = 0;
-    cache._distOut = cache._distAnchorM;
-    cache._distPrevPacketId = packetId;
-    cache._distPrevSpeedMps = speedMps;
-    cache._distPrevCurrentKm = currentKm;
-    return cache._distOut;
-  }
-
-  // Integrate speed against packetId ticks (guard duplicate/backward/wrapped).
-  const dP = cache._distPrevPacketId < 0 ? 0 : packetId - cache._distPrevPacketId;
-  if (dP > 0 && dP <= DIST_PACKETID_MAX_JUMP) {
-    const seg = 0.5 * (speedMps + cache._distPrevSpeedMps) * dP;
-    cache._distIntegralUnit += seg;
-    cache._distCalibIntegralUnit += seg;
-  }
-
-  // A graphics tick landed: re-anchor to ground-truth current_km every tick so
-  // integration error can't accumulate. Calibration accumulates ACROSS ticks —
-  // a single 60Hz interval is under a metre, far below the noise floor, so k is
-  // only updated once the window has covered DIST_CALIB_MIN_M of real travel.
-  if (dCurrentKm > 0) {
-    cache._distCalibTrueM += dCurrentKm * 1000;
-    if (cache._distCalibIntegralUnit > 0 && cache._distCalibTrueM >= DIST_CALIB_MIN_M) {
-      const kSample = Math.min(DIST_K_MAX, Math.max(DIST_K_MIN, cache._distCalibTrueM / cache._distCalibIntegralUnit));
-      cache._distK = cache._distK === 0 ? kSample : (1 - DIST_K_EMA) * cache._distK + DIST_K_EMA * kSample;
-      cache._distCalibTrueM = 0;
-      cache._distCalibIntegralUnit = 0;
-    }
-    cache._distAnchorM = currentKm * 1000;
-    cache._distIntegralUnit = 0;
-  }
-
-  const k = cache._distK > 0 ? cache._distK : DIST_K_FALLBACK;
-  const candidate = prevKm < 0 ? currentKm * 1000 : cache._distAnchorM + k * cache._distIntegralUnit;
-  // Monotonic non-decreasing within a lap (a re-anchor may nudge backward).
-  cache._distOut = Math.max(cache._distOut, candidate);
-  cache._distPrevPacketId = packetId;
-  cache._distPrevSpeedMps = speedMps;
-  cache._distPrevCurrentKm = currentKm;
-  return cache._distOut;
-}
-
 export function parseAcEvoBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
@@ -382,10 +273,10 @@ export function parseAcEvoBuffers(
   const fuelPerLap = graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_per_lap.offset);
 
   // Player slot calibration (same velocity-correlation technique)
-  if (cache.playerSlot === -1) {
-    calibratePlayerSlot(physicsBuf, graphicsBuf, cache, activeCars);
+  if (cache.playerSlotState.slot === -1) {
+    calibratePlayerSlot(physicsBuf, graphicsBuf, cache.playerSlotState, activeCars);
   }
-  const playerSlot = cache.playerSlot === -1 ? 0 : cache.playerSlot;
+  const playerSlot = cache.playerSlotState.slot === -1 ? 0 : cache.playerSlotState.slot;
   const coordBase = GRAPHICS_EVO.car_coordinates_base.offset;
   const carX = graphicsBuf.readFloatLE(coordBase + playerSlot * 12);
   const carY = graphicsBuf.readFloatLE(coordBase + playerSlot * 12 + 4);
@@ -496,7 +387,7 @@ export function parseAcEvoBuffers(
   const bestLap = iBestTime > 0 && iBestTime !== INV ? iBestTime / 1000 : 0;
   // Physics-rate distance (see integrateDistance) — fills the 60Hz current_km
   // gaps so distance-keyed charts advance once per ~100Hz frame, not per tick.
-  const distanceTraveled = integrateDistance(cache, physPacketId, speed, currentKm);
+  const distanceTraveled = integrateDistance(cache.distanceState, physPacketId, speed, currentKm);
 
   const flagStatus = ACEVO_FLAG_NAMES[flagRaw] ?? "none";
 
@@ -513,7 +404,7 @@ export function parseAcEvoBuffers(
 
   const isRaceOn = status === ACEVO_STATUS.AC_LIVE ? 1 : 0;
 
-  const acc: AccExtendedData = {
+  const acc: KunosExtendedData = {
     tireCompound: tyreCompound || "dry_compound",
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
@@ -637,6 +528,22 @@ export function parseAcEvoBuffers(
     TireTempFR: tempFR,
     TireTempRL: tempRL,
     TireTempRR: tempRR,
+    TireCarcassTempFL: coreFL,
+    TireCarcassTempFR: coreFR,
+    TireCarcassTempRL: coreRL,
+    TireCarcassTempRR: coreRR,
+    TireSurfaceTempInnerFL: innerFL > 0 ? innerFL : undefined,
+    TireSurfaceTempInnerFR: innerFR > 0 ? innerFR : undefined,
+    TireSurfaceTempInnerRL: innerRL > 0 ? innerRL : undefined,
+    TireSurfaceTempInnerRR: innerRR > 0 ? innerRR : undefined,
+    TireSurfaceTempMiddleFL: middleFL > 0 ? middleFL : undefined,
+    TireSurfaceTempMiddleFR: middleFR > 0 ? middleFR : undefined,
+    TireSurfaceTempMiddleRL: middleRL > 0 ? middleRL : undefined,
+    TireSurfaceTempMiddleRR: middleRR > 0 ? middleRR : undefined,
+    TireSurfaceTempOuterFL: outerFL > 0 ? outerFL : undefined,
+    TireSurfaceTempOuterFR: outerFR > 0 ? outerFR : undefined,
+    TireSurfaceTempOuterRL: outerRL > 0 ? outerRL : undefined,
+    TireSurfaceTempOuterRR: outerRR > 0 ? outerRR : undefined,
 
     Boost: 0,
     Fuel: fuel,
@@ -719,61 +626,4 @@ export function parseAcEvoBuffers(
   };
 
   return packet;
-}
-
-/**
- * Correlate physics velocity direction with per-slot coordinate deltas to
- * identify which car slot is the player's. v0.6 doesn't expose a per-slot
- * car ID array, so we have to infer.
- */
-function calibratePlayerSlot(
-  physicsBuf: Buffer,
-  graphicsBuf: Buffer,
-  cache: AcEvoParserCache,
-  activeCars: number,
-): void {
-  const speedKmh = physicsBuf.readFloatLE(PHYSICS.speedKmh.offset);
-  if (speedKmh < SPEED_THRESHOLD_KMH) return;
-
-  const velX = physicsBuf.readFloatLE(PHYSICS.velocityX.offset);
-  const velZ = physicsBuf.readFloatLE(PHYSICS.velocityZ.offset);
-  const velMag = Math.sqrt(velX * velX + velZ * velZ);
-  if (velMag < 0.1) return;
-
-  const coordBase = GRAPHICS_EVO.car_coordinates_base.offset;
-  const slotCount = Math.min(activeCars || 1, 60);
-
-  for (let i = 0; i < slotCount; i++) {
-    const x = graphicsBuf.readFloatLE(coordBase + i * 12);
-    const z = graphicsBuf.readFloatLE(coordBase + i * 12 + 8);
-    const prevX = cache._prevCoords[i * 3];
-    const prevZ = cache._prevCoords[i * 3 + 2];
-
-    const dx = x - prevX;
-    const dz = z - prevZ;
-    const dMag = Math.sqrt(dx * dx + dz * dz);
-
-    if (dMag > 0.01) {
-      const cosine = (velX * dx + velZ * dz) / (velMag * dMag);
-      cache._slotScores[i] += cosine;
-    }
-
-    cache._prevCoords[i * 3] = x;
-    cache._prevCoords[i * 3 + 2] = z;
-  }
-
-  cache._scoredFrames++;
-
-  if (cache._scoredFrames >= SLOT_CALIBRATION_FRAMES) {
-    let bestSlot = 0;
-    let bestScore = -Infinity;
-    for (let i = 0; i < 60; i++) {
-      if (cache._slotScores[i] > bestScore) {
-        bestScore = cache._slotScores[i];
-        bestSlot = i;
-      }
-    }
-    cache.playerSlot = bestSlot;
-    console.log(`[AC Evo Parser] Player slot locked: ${bestSlot} (score ${bestScore.toFixed(1)} after ${cache._scoredFrames} frames)`);
-  }
 }

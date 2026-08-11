@@ -1,19 +1,15 @@
-import type { TelemetryPacket } from "@shared/types";
-import type { RefObject } from "react";
-import type { DisplayPacket } from "../../lib/convert-packet";
+import type { GameId } from "../../../../shared/games/ids";
+import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
+import type { AnalysisHighlight } from "@/components/ai/analysis-types";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
 import { m } from "../../paraglide/messages";
-import type { AnalysisHighlight } from "../AiPanel";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
-import type {
-  Point,
-  SectorBoundaries,
-  TrackMapLabel,
-  TrackMapHandle,
-} from "./AnalyseTrackMap";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
 interface AnalyseTopSectionProps {
+  gameId?: GameId;
   // Layout
   topHeight: number;
   leftColWidth: number;
@@ -22,7 +18,7 @@ interface AnalyseTopSectionProps {
   onRightResize: (width: number) => void;
 
   // Data
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
@@ -30,9 +26,8 @@ interface AnalyseTopSectionProps {
   boundaries: any;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
-  currentPacket: TelemetryPacket | null;
-  currentDisplayPacket: DisplayPacket | null;
-  displayTelemetry: DisplayPacket[];
+  currentFrame: SemanticAnalysisFrame | null;
+  displayTelemetry: SemanticAnalysisFrame[];
   lapLine: Point[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   units: any;
@@ -56,10 +51,11 @@ interface AnalyseTopSectionProps {
   // Refs
   trackMapRef: RefObject<TrackMapHandle | null>;
   cursorRef: RefObject<number>;
-  displayTelemetryRef: RefObject<DisplayPacket[]>;
+  displayTelemetryRef: RefObject<SemanticAnalysisFrame[]>;
 }
 
 export function AnalyseTopSection({
+  gameId,
   topHeight,
   leftColWidth,
   rightColWidth,
@@ -72,8 +68,6 @@ export function AnalyseTopSection({
   boundaries,
   sectors,
   segments,
-  currentPacket,
-  currentDisplayPacket,
   displayTelemetry,
   lapLine,
   units,
@@ -91,18 +85,33 @@ export function AnalyseTopSection({
   cursorRef,
   displayTelemetryRef,
 }: AnalyseTopSectionProps) {
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      resizeCleanupRef.current?.();
+      resizeCleanupRef.current = null;
+    },
+    [],
+  );
+  const responsiveSizeVars = {
+    "--analyse-top-height": `min(${topHeight}px, max(15.625rem, calc(100dvh - 18rem)))`,
+    "--analyse-left-width": `clamp(3.75rem, ${leftColWidth}px, min(12rem, calc(100cqw - 29.25rem)))`,
+    "--analyse-right-width": `clamp(12.5rem, ${rightColWidth}px, calc(100cqw - var(--analyse-left-width) - 16.75rem))`,
+  } as CSSProperties;
+
   return (
-    <div className="flex shrink-0 overflow-hidden" style={{ height: topHeight }}>
+    <div className="flex shrink-0 flex-col overflow-visible @5xl/workspace:h-(--analyse-top-height) @5xl/workspace:flex-row @5xl/workspace:overflow-hidden" style={responsiveSizeVars}>
       {/* Segment table + legend */}
-      <div className="border-r border-app-border overflow-y-auto p-2 shrink-0" style={{ height: "100%", width: leftColWidth }}>
+      <div className="h-48 w-full shrink-0 overflow-y-auto border-b border-app-border p-2 @5xl/workspace:h-full @5xl/workspace:w-(--analyse-left-width) @5xl/workspace:border-r @5xl/workspace:border-b-0">
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
           <div className="flex items-center gap-1">
-              <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-deployed)" />
+            <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-deployed)" />
             <span className="text-app-micro text-app-text-muted">{m.label_corner()}</span>
           </div>
           <div className="flex items-center gap-1">
-              <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-store)" />
+            <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-store)" />
             <span className="text-app-micro text-app-text-muted">{m.analyse_straight()}</span>
           </div>
         </div>
@@ -111,10 +120,20 @@ export function AnalyseTopSection({
       </div>
 
       {/* Left resize handle */}
-      <div
-        className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
+      <button
+        type="button"
+        aria-label="Resize segment panel"
+        className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            const delta = event.key === "ArrowLeft" ? -16 : 16;
+            onLeftResize(Math.max(60, Math.min(800, leftColWidth + delta)));
+          }
+        }}
         onMouseDown={(e) => {
           e.preventDefault();
+          resizeCleanupRef.current?.();
           const startX = e.clientX;
           const startW = leftColWidth;
           const onMove = (ev: MouseEvent) => {
@@ -123,15 +142,22 @@ export function AnalyseTopSection({
           const onUp = () => {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
+            resizeCleanupRef.current = null;
           };
+          const cleanup = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+          };
+          resizeCleanupRef.current = cleanup;
           window.addEventListener("mousemove", onMove);
           window.addEventListener("mouseup", onUp);
         }}
       />
 
       {/* Track map */}
-      <div className="border-r border-app-border flex-1 min-w-0" style={{ height: "100%" }}>
+      <div className="h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:border-r @5xl/workspace:border-b-0">
         <AnalyseTrackPanel
+          gameId={gameId}
           telemetry={telemetry}
           cursorIdx={cursorIdx}
           outline={outline}
@@ -139,8 +165,7 @@ export function AnalyseTopSection({
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}
-          currentPacket={currentPacket}
-          containerHeight={topHeight}
+          currentFrame={telemetry[cursorIdx] ?? null}
           aiPanelOpen={aiPanelOpen}
           aiHighlights={aiHighlights}
           rotateWithCar={rotateWithCar}
@@ -154,10 +179,20 @@ export function AnalyseTopSection({
       </div>
 
       {/* Right resize handle */}
-      <div
-        className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
+      <button
+        type="button"
+        aria-label="Resize visualization panel"
+        className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            const delta = event.key === "ArrowLeft" ? 16 : -16;
+            onRightResize(Math.max(200, rightColWidth + delta));
+          }
+        }}
         onMouseDown={(e) => {
           e.preventDefault();
+          resizeCleanupRef.current?.();
           const startX = e.clientX;
           const startW = rightColWidth;
           const onMove = (ev: MouseEvent) => {
@@ -166,7 +201,13 @@ export function AnalyseTopSection({
           const onUp = () => {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
+            resizeCleanupRef.current = null;
           };
+          const cleanup = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+          };
+          resizeCleanupRef.current = cleanup;
           window.addEventListener("mousemove", onMove);
           window.addEventListener("mouseup", onUp);
         }}
@@ -176,15 +217,14 @@ export function AnalyseTopSection({
       <AnalyseVizPanel
         vizMode={vizMode}
         onVizModeChange={onVizModeChange}
-        width={rightColWidth}
-        currentPacket={currentPacket}
-        currentDisplayPacket={currentDisplayPacket}
+        currentFrame={telemetry[cursorIdx] ?? null}
         displayTelemetry={displayTelemetry}
         cursorRef={cursorRef}
         displayTelemetryRef={displayTelemetryRef}
         cursorIdx={cursorIdx}
         lapLine={lapLine}
         boundaries={boundaries}
+        gameId={gameId}
         units={units}
       />
     </div>

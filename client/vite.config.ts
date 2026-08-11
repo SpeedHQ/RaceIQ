@@ -1,8 +1,8 @@
+import path from "node:path";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import react from "@vitejs/plugin-react";
-import path from "path";
 import { createLogger, defineConfig } from "vite";
 
 const configuredServerTarget = process.env.PROXY_TARGET;
@@ -47,6 +47,8 @@ export default defineConfig({
     paraglideVitePlugin({
       project: "./project.inlang",
       outdir: "./src/paraglide",
+      emitTsDeclarations: true,
+      outputStructure: "message-modules",
       // Locale is driven by the server-persisted `language` setting; the client
       // bootstraps it via setLocale() on load (see __root.tsx). localStorage is
       // the runtime cache; baseLocale ("en") is the fallback.
@@ -74,7 +76,7 @@ export default defineConfig({
         target: serverTarget,
         changeOrigin: true,
       },
-      // Dev-only Mastra Studio API (server/dev-studio.ts) — Studio reads it
+      // Dev-only Mastra Studio API (server/runtime/dev-studio.ts) — Studio reads it
       // through the portless hostname, so Vite must forward it to the server.
       "/studio-api": {
         target: serverTarget,

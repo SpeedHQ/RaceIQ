@@ -1,5 +1,5 @@
-import { getSecret } from "../keystore";
-import { loadSettings, type AppSettings } from "../settings";
+import { getSecret } from "../runtime/platform/keystore";
+import { loadSettings, type AppSettings } from "../runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "./ai-features";
 import {
   AiProviderError,

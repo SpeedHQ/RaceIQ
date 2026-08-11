@@ -1,5 +1,5 @@
-import type { LivePitData } from "@shared/types";
 import { m } from "@/paraglide/messages";
+import type { LivePitData } from "../../../../shared/racing/live/types";
 
 interface PitWindowProps {
   pit: LivePitData | null;
@@ -13,10 +13,10 @@ export function PitWindow({ pit }: PitWindowProps) {
   const fuelColor =
     pit?.fuelLapsRemaining != null
       ? pit.fuelLapsRemaining < 5
-      ? "text-(--severity-critical)"
+        ? "text-(--severity-critical)"
         : pit.fuelLapsRemaining < 15
-        ? "text-(--severity-caution)"
-        : "text-(--severity-nominal)"
+          ? "text-(--severity-caution)"
+          : "text-(--severity-nominal)"
       : "text-app-text-dim";
 
   const pitIn = pit?.pitInLaps ?? null;

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
-import type { TrackCorner } from "../../../hooks/queries";
+import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";

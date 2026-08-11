@@ -63,27 +63,20 @@ export function AnalysisResultCard({
         <span className="text-app-compact font-semibold text-app-text truncate flex-1">{title}</span>
         {hasResult && (
           <>
-            <button
-              type="button"
-              onClick={onRegenerate}
-              disabled={actionsDisabled}
-              className="text-app-text-muted hover:text-app-text disabled:opacity-40"
-              title={m.label_regenerate()}
-              aria-label={m.label_regenerate()}
-            >
-              <RefreshCw className="size-3" />
-            </button>
-            <button type="button" onClick={onDelete} disabled={actionsDisabled} className="text-app-text-muted hover:text-status-danger disabled:opacity-40" title={deleteLabel} aria-label={deleteLabel}>
-              <Trash2 className="size-3" />
-            </button>
+            <Button type="button" variant="app-ghost" size="icon-sm" onClick={onRegenerate} disabled={actionsDisabled} title={m.label_regenerate()} aria-label={m.label_regenerate()}>
+              <RefreshCw />
+            </Button>
+            <Button type="button" variant="destructive-outline" size="icon-sm" onClick={onDelete} disabled={actionsDisabled} title={deleteLabel} aria-label={deleteLabel}>
+              <Trash2 />
+            </Button>
           </>
         )}
       </div>
       {!hasResult && !loading && !error && (
-        <button type="button" onClick={onRun} className="w-full flex items-center justify-center gap-1.5 text-app-compact px-2 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors">
-          <Sparkles className="size-3" />
+        <Button type="button" variant="app-primary" size="app-md" onClick={onRun} className="w-full">
+          <Sparkles data-icon="inline-start" />
           {runLabel}
-        </button>
+        </Button>
       )}
       {loading && (
         <div className="flex items-center gap-2 text-app-caption text-app-text-muted py-1">

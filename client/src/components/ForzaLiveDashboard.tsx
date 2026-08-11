@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
-import { useCarName, useTrackName } from "../hooks/queries";
+import { useCarName } from "../hooks/catalog-queries";
+import { useTrackName } from "../hooks/track-queries";
 import { useDemoMode } from "../hooks/useDemoMode";
 import { useGameId, useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -25,6 +26,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/driver` as any
           }
+          aria-current={dashMode === "driver" ? "page" : undefined}
           className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           {m.label_driver()}
@@ -34,6 +36,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/pit` as any
           }
+          aria-current={dashMode === "pitcrew" ? "page" : undefined}
           className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           {m.label_pit_crew()}
@@ -61,17 +64,17 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
 }
 
 export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }) {
-  const packet = useTelemetryStore((s) => s.packet);
+  const view = useTelemetryStore((s) => s.telemetryView);
   const serverStatus = useTelemetryStore((s) => s.serverStatus);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
-  const trackOrd = packet?.TrackOrdinal ?? serverStatus?.currentSession?.trackOrdinal;
-  const carOrd = packet?.CarOrdinal;
+  const trackOrd = view?.identity.trackOrdinal ?? serverStatus?.currentSession?.trackOrdinal;
+  const carOrd = view?.identity.carOrdinal;
   const { data: trackName } = useTrackName(trackOrd);
   const { data: carName } = useCarName(carOrd);
   const demo = useDemoMode();
 
-  if (!packet) {
+  if (!view) {
     return (
       <div className="flex-1 flex flex-col">
         <PageHeader dashMode={mode} demo={demo} />
@@ -82,16 +85,16 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
   if (mode === "driver") {
     return (
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+      <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
         {/* Left column: Tire Health + Pit Window */}
-        <div className="border-r border-app-border overflow-auto">
+        <div className="min-w-0 border-r border-app-border overflow-auto">
           <PageHeader dashMode={mode} demo={demo} />
-          <LiveTelemetry packet={packet} mode={mode} />
+          <LiveTelemetry view={view} mode={mode} />
         </div>
 
         {/* Right column: Race (with sectors) + Lap Chart + Recorded Laps */}
-        <div className="overflow-y-auto overflow-x-hidden flex flex-col">
-          <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+        <div data-live-dashboard-race className="min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
+          <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
           <div className="shrink-0 h-[240px]">
             <LapTimeChart sessionLaps={sessionLaps} />
           </div>
@@ -105,16 +108,16 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
   // ── PIT CREW MODE ─────────────────────────────────────────────
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+    <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Full telemetry */}
-      <div className="border-r border-app-border overflow-auto">
+      <div className="min-w-0 border-r border-app-border overflow-auto">
         <PageHeader dashMode={mode} demo={demo} />
-        <LiveTelemetry packet={packet} mode={mode} />
+        <LiveTelemetry view={view} mode={mode} />
       </div>
 
       {/* Right column: Race HUD + laps */}
-      <div className="overflow-auto flex flex-col">
-        <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+      <div data-live-dashboard-race className="min-w-0 overflow-auto flex flex-col">
+        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
         </div>

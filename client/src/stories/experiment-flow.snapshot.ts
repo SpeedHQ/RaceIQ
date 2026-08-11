@@ -32,7 +32,7 @@ const stories: StoryCase[] = [
     name: "list (both variants)",
     id: "dashboards-experiments-flow--list-both-variants",
     expectText: "Spa — rear stability on entry",
-    forbidText: ["No experiments yet"],
+    forbidText: ["No experiments yet", "Varying"],
   },
   {
     name: "list (empty)",
@@ -115,7 +115,17 @@ for (const story of stories) {
 
     const expected = Array.isArray(story.expectText) ? story.expectText : [story.expectText];
     for (const text of expected) {
-      await expect(page.getByText(text, { exact: false }).first()).toBeVisible();
+      await expect
+        .poll(async () =>
+          page.getByText(text, { exact: false }).evaluateAll((elements) =>
+            elements.some((element) => {
+              const style = getComputedStyle(element);
+              const rect = element.getBoundingClientRect();
+              return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
+            }),
+          ),
+        )
+        .toBe(true);
     }
     for (const forbidden of story.forbidText ?? []) {
       await expect(page.getByText(forbidden, { exact: false })).toHaveCount(0);

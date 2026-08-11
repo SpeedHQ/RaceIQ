@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { GameIdSchema } from "../../shared/types";
+import { GameIdSchema } from "../../shared/games/ids";
 import { z } from "zod";
-import { getLapById } from "../db/queries";
+import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,
@@ -13,7 +14,7 @@ import {
   truncateChatAfterUserMessage,
   deleteChatLineage,
 } from "../ai/chat-agent";
-import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread-runner";
+import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
@@ -57,13 +58,16 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
     isValid: lap.isValid,
-    carName: getCarName(lap.carOrdinal ?? 0, lap.gameId),
-    trackName: getTrackName(lap.trackOrdinal ?? 0, lap.gameId),
+    carName: resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
+    trackName: resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
     gameId: lap.gameId ?? "",
   };
 }
 
-export const chatsRoutes = new Hono()
+export function createChatsRoutes(
+  compactThread: typeof forkThreadWithSummary = forkThreadWithSummary,
+) {
+  return new Hono()
   // ── List chat sessions for a game ─────────────────────────
   .get(
     "/api/chats",
@@ -114,8 +118,8 @@ export const chatsRoutes = new Hono()
             if (!Number.isFinite(sessionId)) continue;
             const session = await getExperiment(sessionId);
             if (!session || session.gameId !== gameId) continue;
-            const carName = session.carName ?? getCarName(session.carOrdinal ?? 0, session.gameId);
-            const trackName = session.trackName ?? getTrackName(session.trackOrdinal ?? 0, session.gameId);
+            const carName = session.carName ?? resolveCarName(session.carOrdinal ?? 0, session.gameId);
+            const trackName = session.trackName ?? resolveTrackName(session.trackOrdinal ?? 0, session.gameId);
             rows.push({
               threadId: id,
               type: "tune",
@@ -196,7 +200,7 @@ export const chatsRoutes = new Hono()
     async (c) => {
       const threadId = c.req.param("threadId");
       try {
-        const result = await forkThreadWithSummary(threadId);
+        const result = await compactThread(threadId);
         return c.json(result);
       } catch (err: any) {
         if (err instanceof NothingToCompactError) {
@@ -229,3 +233,6 @@ export const chatsRoutes = new Hono()
       }
     },
   );
+}
+
+export const chatsRoutes = createChatsRoutes();

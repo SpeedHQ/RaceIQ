@@ -10,7 +10,7 @@ AI insight feature overhauled (2026-04-07, branch `claude/add-chat-to-insights-G
 - **Mastra AI framework**: `@mastra/core` Agent, `@mastra/memory` Memory with LibSQLStore at `data/chat-memory.db`, lastMessages: 50. Chat agent in `server/ai/chat-agent.ts`, prompt builder in `server/ai/chat-prompt.ts`.
 - **Separate providers**: Settings has `aiProvider`/`aiModel` (for analysis) and `chatProvider`/`chatModel` (for chat). Both support Gemini, OpenAI, and Local (LM Studio/Ollama).
 - **Claude CLI removed**: Only Gemini and OpenAI for structured analysis (use JSON schema enforcement). Legacy `claude-cli` setting migrated to `gemini` on load.
-- **API key storage**: `server/keystore.ts` uses macOS Keychain (`security` CLI) and Windows Credential Manager (PowerShell). Keys: `gemini-api-key`, `openai-api-key`, `anthropic-api-key`.
+- **API key storage**: `server/runtime/platform/keystore.ts` uses macOS Keychain (`security` CLI) and Windows Credential Manager (PowerShell). Keys: `gemini-api-key`, `openai-api-key`, `anthropic-api-key`.
 - **Mastra Studio**: `mastra/index.ts` entry point, `bun run mastra:dev` → port 4111.
 - **TrackCard click → highlights**: Clicking analysis cards highlights track zones (good/warning/critical colors) on AnalyseTrackMap.
 

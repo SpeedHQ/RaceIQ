@@ -26,11 +26,11 @@
  * AccelerationX/Y (present on every game) but leaves the load-derived fields
  * null, and callers omit the LLTD context.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
-export type BalanceLean = "front" | "rear" | "even";
+type BalanceLean = "front" | "rear" | "even";
 
-export interface CornerLoad {
+interface CornerLoad {
   /** Front share of lateral load transfer during the corner (0..1); null when
    *  the wheelLoad channel is absent. >0.5 = front-biased → understeer-prone. */
   lltdFront: number | null;
@@ -38,7 +38,7 @@ export interface CornerLoad {
   peakLatG: number;
 }
 
-export interface WeightTransferSymptoms {
+interface WeightTransferSymptoms {
   /** Mean front share of lateral load transfer across loaded frames (0..1);
    *  null when wheelLoad is absent. >0.5 = front roll stiffness bias. */
   lltdFront: number | null;
@@ -60,13 +60,13 @@ export interface WeightTransferSymptoms {
 
 // Lateral g above which a frame is "cornering" and its lateral transfer counts
 // toward the LLTD. Below this the inner/outer split is sensor noise.
-export const CORNER_LAT_G = 0.4;
+const CORNER_LAT_G = 0.4;
 // Longitudinal g magnitude above which a frame is braking / accelerating.
-export const LONG_G = 0.3;
+const LONG_G = 0.3;
 // |LLTD − 0.5| beyond which the balance is called front/rear rather than even.
-export const LLTD_LEAN_BAND = 0.04;
+const LLTD_LEAN_BAND = 0.04;
 // Lateral + longitudinal g both under this ⇒ load is ~static (baseline).
-export const STATIC_G = 0.15;
+const STATIC_G = 0.15;
 // Minimum frames before a read is trusted.
 const MIN_FRAMES = 30;
 // gravity, m/s² — AccelerationX/Y are m/s²; convert to g for readable output.
@@ -94,7 +94,7 @@ function longG(p: TelemetryPacket): number {
  * inner/outer load gap on the front axle, likewise the rear; the front share is
  * meanFront / (meanFront + meanRear).
  */
-export function lltdFrontOf(frames: TelemetryPacket[]): number | null {
+function lltdFrontOf(frames: TelemetryPacket[]): number | null {
   const loaded = frames.filter((p) => p.acc?.wheelLoad != null && latG(p) > CORNER_LAT_G);
   if (loaded.length < 3) return null;
   const frontTransfer = mean(loaded.map((p) => Math.abs(p.acc!.wheelLoad![0] - p.acc!.wheelLoad![1])));

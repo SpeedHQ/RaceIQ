@@ -1,7 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { getAnalysis } from "../../server/db/queries";
+import { getAnalysis } from "../../server/db/analysis-queries";
 import { AnalystOutputSchema } from "../../server/ai/schemas";
 import type {
   AnalysisUsage,

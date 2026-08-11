@@ -1,9 +1,12 @@
-import type { LiveSectorData, TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
+import type { LiveSectorData } from "../../../../shared/racing/live/types";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 interface LapTimesProps {
-  packet: TelemetryPacket;
+  view?: LiveTelemetryView;
+  packet?: TelemetryPacket;
   sectors?: LiveSectorData | null;
 }
 
@@ -11,11 +14,15 @@ interface LapTimesProps {
  * LapTimes — Reusable lap timing display showing current, last, best, and delta.
  * Works with any game - uses packet telemetry data.
  */
-export function LapTimes({ packet, sectors }: LapTimesProps) {
-  // Use sectors delta if available (estimated lap), fallback to packet delta
+export function LapTimes({ view, packet, sectors }: LapTimesProps) {
+  // Use semantic timing when available; historical packet fallback remains supported.
+  const timing = view?.timing;
   let deltaToBest = sectors?.deltaToBest ?? 0;
-  if (packet.LastLap > 0 && packet.BestLap > 0 && deltaToBest === 0) {
-    deltaToBest = packet.LastLap - packet.BestLap;
+  const lastLap = timing?.lastLapS ?? packet?.LastLap ?? 0;
+  const bestLap = timing?.bestLapS ?? packet?.BestLap ?? 0;
+  const currentLap = timing?.currentLapS ?? packet?.CurrentLap ?? 0;
+  if (lastLap > 0 && bestLap > 0 && deltaToBest === 0) {
+    deltaToBest = lastLap - bestLap;
   }
 
   const deltaColor = deltaToBest <= 0 ? "text-(--delta-gain)" : deltaToBest < 1 ? "text-(--delta-focus)" : "text-(--delta-loss)";
@@ -25,7 +32,7 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
       <div className="flex gap-3">
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_current()}</div>
-          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(packet.CurrentLap)}</div>
+          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(currentLap)}</div>
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>
@@ -41,11 +48,11 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
       <div className="flex gap-3">
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_last()}</div>
-          <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(packet.LastLap)}</div>
+          <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(lastLap)}</div>
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_best()}</div>
-        <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{formatLapTime(packet.BestLap)}</div>
+          <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{formatLapTime(bestLap)}</div>
         </div>
       </div>
     </div>

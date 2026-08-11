@@ -1,10 +1,10 @@
-import type { TuneSettings, TuneCategory } from "../../shared/types";
+import type { TuneSettings } from "../../shared/racing/tuning/types";
 
 interface TuneForPrompt {
 	name: string;
 	author: string;
-	category: TuneCategory;
-	settings: TuneSettings;
+	category: string;
+	settings: unknown;
 }
 
 function isStructuredTuneSettings(value: unknown): value is TuneSettings {

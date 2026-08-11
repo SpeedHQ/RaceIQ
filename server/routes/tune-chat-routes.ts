@@ -1,15 +1,15 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../shared/schemas";
-import type { GameId } from "../../shared/types";
-import { getLapById } from "../db/queries";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
+import type { GameId } from "../../shared/games/ids";
+import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
-import { detectCorners } from "../corner-detection";
+import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";
-import { setLiveIssuesEnabled } from "../pipeline";
-import { loadSettings } from "../settings";
+import { setLiveIssuesEnabled } from "../telemetry/live-pipeline";
+import { loadSettings } from "../runtime/config/settings";
 import {
   getChatMemory,
   tuneSessionThreadId,
@@ -29,10 +29,10 @@ import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessa
 import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/racing/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
-import { getSecret } from "../keystore";
+import { getSecret } from "../runtime/platform/keystore";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 
 
@@ -263,7 +263,7 @@ export const tuneChatRoutes = new Hono()
       // one is in flight), `isNew` is false and we skip starting a second
       // agent call entirely, just attaching to the existing run's stream.
       if (isNew) {
-        let stream;
+        let stream: Awaited<ReturnType<typeof agent.stream>>;
         try {
           stream = await agent.stream(messages, {
             ...chatMemoryOptions(threadId),

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
 interface FitToViewportProps {
   children: ReactNode;
@@ -56,20 +56,6 @@ export function FitToViewport({ children, padding = 8, maxScale = 3, alignX = "c
     ro.observe(outer);
     ro.observe(inner);
     return () => ro.disconnect();
-  }, [padding, maxScale]);
-
-  useEffect(() => {
-    const onResize = () => {
-      const outer = outerRef.current;
-      const inner = innerRef.current;
-      if (!outer || !inner) return;
-      const availW = Math.max(0, outer.clientWidth - padding * 2);
-      const availH = Math.max(0, outer.clientHeight - padding * 2);
-      const s = Math.min(availW / inner.scrollWidth, availH / inner.scrollHeight, maxScale);
-      setScale(s > 0 ? s : 1);
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
   }, [padding, maxScale]);
 
   return (

@@ -3,8 +3,8 @@
  *
  * The LLM-free counterpart to `requestTuneIntents` (tune-intent.ts). Given the
  * same `TuneSymptoms` report, it emits the same `{component, direction,
- * magnitude, reason}` intents that `applyIntents` consumes — so tune-rules.ts
- * and tune-writer.ts are untouched, and the whole one-button flow works with no
+ * magnitude, reason}` intents that `applyIntents` consumes, so rule engine and
+ * setup writer remain deterministic and the whole one-button flow works with no
  * network call or local model (the user's local model 400s).
  *
  * Approach: walk every corner/phase symptom, map each to a component nudge with
@@ -14,14 +14,14 @@
  * bump an agreeing telemetry symptom or add a single small, flagged intent, but
  * never override the physics.
  *
- * Every component string here must exist in tune-rules.ts's `knownComponents`
+ * Every component string here must exist in setup rule catalog's `knownComponents`
  * for the game, or `applyIntents` clamps it to a safe no-op.
  */
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import type { TuneIntent, TuneMagnitude } from "./schemas";
 import type { Balance, Phase, SpeedBand, TuneSymptoms } from "./tune-symptoms";
 
-export interface RecommendOptions {
+interface RecommendOptions {
   /** Free-text driver feel ("loose on entry", "understeer in slow hairpins").
    *  Biases scores; never overrides telemetry. Max ~500 chars upstream. */
   driverNotes?: string;
@@ -212,7 +212,7 @@ function applyDriverNotes(
   notes: string | undefined,
   telemetryBalances: Set<Balance>,
 ): void {
-  if (!notes || !notes.trim()) return;
+  if (!notes?.trim()) return;
   for (const hint of parseDriverNotes(notes)) {
     const confirmed = telemetryBalances.has(hint.balance);
     // Agreeing hint bumps the telemetry symptom one step; a lone (unconfirmed)

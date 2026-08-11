@@ -10,17 +10,19 @@
  *   - Static may be empty in solo/time-attack sessions — session=-1 (AC_UNKNOWN)
  */
 import { describe, test, expect, beforeAll } from "bun:test";
-import { existsSync } from "fs";
-import type { TelemetryPacket } from "../../../shared/types";
-import type { CapturedLap } from "../../../server/pipeline-adapters";
+import { existsSync } from "node:fs";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { CapturedLap } from "../../../server/telemetry/pipeline-ports"
 import {
 	readAcEvoPackets,
 	parseDump,
 	ensureInit,
-} from "../../helpers/parse-dump";
-import { generateRecordingVisualizations } from "../../helpers/lap-viz";
-import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
-import { getTrackSectorsByOrdinal } from "../../../shared/track-data";
+} from "../../support/recordings/parse-dump";
+import { generateRecordingVisualizations } from "../../support/laps/visualizations";
+import { assertValidLapHasSectors } from "../../support/laps/assertions";
+import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
+
+type CapturedLapWithPackets = CapturedLap & { packets: TelemetryPacket[] };
 
 const AC_EVO_RECORDING =
 	"test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
@@ -29,7 +31,7 @@ const recording = existsSync(AC_EVO_RECORDING) ? AC_EVO_RECORDING : null;
 let packets: TelemetryPacket[] = [];
 let carModel: string | null = null;
 let trackName: string | null = null;
-let laps: CapturedLap[] = [];
+let laps: CapturedLapWithPackets[] = [];
 
 beforeAll(async () => {
 	if (!recording) return;
@@ -40,7 +42,10 @@ beforeAll(async () => {
 	trackName = result.trackName;
 	// Also run through the full pipeline so we get lap detection + outlap/inlap classification
 	const dump = await parseDump("ac-evo", recording);
-	laps = dump.laps;
+	if (dump.laps.some((lap) => lap.packets === undefined)) {
+		throw new Error("parseDump returned a lap without test packets");
+	}
+	laps = dump.laps as CapturedLapWithPackets[];
 });
 
 describe("AC Evo v0.6 recording", () => {
@@ -84,6 +89,10 @@ describe("AC Evo v0.6 recording", () => {
 		expect(movingPacket!.TirePressureFrontLeft).toBeGreaterThan(15);
 		expect(movingPacket!.TirePressureFrontLeft).toBeLessThan(50);
 		expect(movingPacket!.TireTempFL).toBeGreaterThan(20);
+		expect(movingPacket!.TireCarcassTempFL).toBeGreaterThan(20);
+		expect(movingPacket!.TireSurfaceTempInnerFL).toBeUndefined();
+		expect(movingPacket!.TireSurfaceTempMiddleFL).toBeUndefined();
+		expect(movingPacket!.TireSurfaceTempOuterFL).toBeUndefined();
 	});
 
 	test("lap timing: current_lap_time_ms ticks up during a lap", () => {
@@ -162,6 +171,7 @@ describe("AC Evo v0.6 recording", () => {
 			expect(l.lapTime).toBeGreaterThan(60);
 			expect(l.lapTime).toBeLessThan(180);
 			assertValidLapHasSectors(l);
+			expect(l.sectors).toHaveLength(3);
 		}
 
 		// Final lap: recording stopped mid-lap

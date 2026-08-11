@@ -4,7 +4,7 @@ import { f1Adapter } from "./f1-2025";
 import { accAdapter } from "./acc";
 import { acEvoAdapter } from "./ac-evo";
 import { iracingAdapter } from "./iracing";
-import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../release-feature-flags";
+import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../platform/runtime/release-feature-flags";
 
 export function gameAdaptersForFeatures(
   flags: ReleaseFeatureFlags = releaseFeatureFlags({

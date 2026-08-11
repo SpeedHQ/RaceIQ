@@ -1,9 +1,10 @@
 import type { ServerGameAdapter } from "../types";
 import { forzaAdapter } from "../../../shared/games/fm-2023";
-import { parseForzaPacket } from "../../parsers/forza";
-import { carMap, trackMap } from "../../../shared/car-data";
-import { getForzaSharedOutline } from "../../../shared/track-data";
-import { LapDetector } from "../../lap-detector";
+import { parseForzaPacket } from "./parser";
+import { fmCarCatalog } from "../../../shared/racing/cars/fm";
+import { fmTrackCatalog } from "../../../shared/racing/tracks/catalogs/fm";
+import { getForzaSharedOutline } from "../../../shared/racing/tracks/geometry/outlines";
+import { LapDetector } from "../../lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
@@ -34,16 +35,27 @@ RULES:
 export const forzaServerAdapter: ServerGameAdapter = {
 	...forzaAdapter,
 
+	runtime: {
+		pit: {
+			seedFuelFromHistory: true,
+			seedTireWearFromHistory: false,
+			useDistanceBasedWearCurves: false,
+		},
+		bestLapFromSession: false,
+		requiresTrackCalibration: true,
+		normSuspensionTravelMm: { min: 20, max: 80 },
+	},
+
 	processNames: ["ForzaMotorsport.exe", "forza_steamworks_release_final"],
 
 	getCarName(ordinal) {
-		const car = carMap.get(ordinal);
+		const car = fmCarCatalog.get(ordinal);
 		if (!car) return `Car #${ordinal}`;
 		return `${car.year} ${car.make} ${car.model}`;
 	},
 
 	getTrackName(ordinal) {
-		const track = trackMap.get(ordinal);
+		const track = fmTrackCatalog.get(ordinal);
 		if (!track) return `Track #${ordinal}`;
 		return `${track.name} - ${track.variant}`;
 	},

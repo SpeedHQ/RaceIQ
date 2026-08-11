@@ -5,7 +5,7 @@ import { f1ServerAdapter } from "./f1-2025";
 import { accServerAdapter } from "./acc";
 import { acEvoServerAdapter } from "./ac-evo";
 import { iracingServerAdapter } from "./iracing";
-import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../../shared/release-feature-flags";
+import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 export function nativeTelemetryGameIds(
   flags = releaseFeatureFlags({

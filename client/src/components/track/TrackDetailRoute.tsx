@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { useTracks } from "@/hooks/queries";
+import { useTracks } from "@/hooks/catalog-queries";
 import { trackRoutePath, tracksIndexPath } from "@/lib/track-routes";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
@@ -39,9 +39,5 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
   if (isLoading) return <div className="p-4 text-app-text-dim">{m.trackviewer_loading()}</div>;
   if (!track) return <div className="p-4 text-app-text-dim">{m.trackdetailroute_not_found()}</div>;
 
-  return (
-    <>
-      <TrackDetail track={track} onBack={onBack} tab={tab} onTabChange={onTabChange} />
-    </>
-  );
+  return <TrackDetail track={track} onBack={onBack} tab={tab} onTabChange={onTabChange} />;
 }

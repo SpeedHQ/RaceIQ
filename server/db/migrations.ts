@@ -1151,4 +1151,94 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
     ],
   },
+  // v51: Materialize catalog-derived pit transitions as non-pace laps.
+  {
+    version: 51,
+    name: "exclude pit transitions from lap metrics",
+    sql: [
+      `UPDATE laps
+       SET is_valid = 0, invalid_reason = 'inlap'
+       WHERE is_valid = 1
+         AND EXISTS (
+           SELECT 1
+           FROM session_results
+           JOIN pit_events ON pit_events.result_id = session_results.id
+           WHERE session_results.session_id = laps.session_id
+             AND pit_events.linkage = 'linked'
+             AND pit_events.lap_number = laps.lap_number
+         )`,
+      `UPDATE laps
+       SET is_valid = 0, invalid_reason = 'outlap'
+       WHERE is_valid = 1
+         AND EXISTS (
+           SELECT 1
+           FROM session_results
+           JOIN pit_events ON pit_events.result_id = session_results.id
+           WHERE session_results.session_id = laps.session_id
+             AND pit_events.linkage = 'linked'
+             AND pit_events.lap_number + 1 = laps.lap_number
+         )`,
+    ],
+  },
+  // v52: Version normalized race-result derivation for future reconciliation.
+  {
+    version: 52,
+    name: "version race result processor",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`,
+    ],
+  },
+  // v53: Persist race timeline event types and position transitions.
+  {
+    version: 53,
+    name: "persist race timeline positions",
+    sql: [
+      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
+      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
+      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
+    ],
+  },
+  // v54: Persist telemetry catalog and resolver identity on sessions.
+  {
+    version: 54,
+    name: "persist telemetry version identity",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN catalog_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN catalog_hash TEXT`,
+      `ALTER TABLE sessions ADD COLUMN catalog_schema_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN parser_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN resolver_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN derivation_version TEXT`,
+    ],
+  },
+  // v55: Persist telemetry version identity on laps.
+  {
+    version: 55,
+    name: "persist lap telemetry version identity",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN catalog_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN catalog_hash TEXT`,
+      `ALTER TABLE laps ADD COLUMN catalog_schema_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN parser_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN resolver_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN derivation_version TEXT`,
+    ],
+  },
+  // v56: Persist race result outcome status.
+  {
+    version: 56,
+    name: "persist race result outcome status",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`,
+    ],
+  },
+  // v57: Persist structured race-result evidence.
+  {
+    version: 57,
+    name: "persist race result evidence",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN evidence TEXT`,
+    ],
+  },
 ];
+

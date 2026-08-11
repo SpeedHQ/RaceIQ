@@ -11,7 +11,7 @@
  * static — the gathered context is injected as data, so the model only has to
  * reason and act.
  *
- * Phase 3 (docs/setup-engineer-flow-design.md): the symptom/track-conditions
+ * See docs/architecture/setup-engineer.md:: the symptom/track-conditions
  * single-lap reads are replaced by ONE `loadCleanLapAggregate` call, which
  * reduces the session/branch's laps to a statistically clean pool (spread,
  * confidence, per-corner consistency) instead of trusting the fastest lap in
@@ -27,12 +27,16 @@
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 
-import { describeKnobs } from "../../server/ai/tune-rules";
+import { describeKnobs } from "../../server/setups/rules/engine";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
-import { formatTrackConditions, loadActiveExperimentContext } from "../../server/ai/setup-engineer-context";
-import { loadCleanLapAggregate, baselineFallbackNote } from "../../server/ai/clean-lap-aggregate";
+import { formatTrackConditions } from "../../server/ai/track-conditions";
+import { loadActiveExperimentContext } from "../../server/experiments/setup-lineage";
+import {
+  loadCleanLapAggregate,
+  baselineFallbackNote,
+} from "../../server/experiments/lap-evidence/aggregate";
 import { formatLapObservations } from "../../server/ai/lap-observations";
-import { getOrComputeLapMetricsBatch } from "../../server/lap-metrics";
+import { getOrComputeLapMetricsBatch } from "../../server/lap-analysis/metrics-store";
 import { listExperimentVersions } from "../../server/db/experiment-version-queries";
 
 const InputSchema = z.object({
@@ -152,7 +156,7 @@ const gatherPrereqs = createStep({
     // `lap_metrics`, so a week-long experiment does not re-decode every .bin.
     const metricsByLap = await getOrComputeLapMetricsBatch(agg.lapIds);
     sections.push(
-      "--- DRIVING OBSERVATIONS (raw measurements) ---\n" + formatLapObservations([...metricsByLap.values()]),
+      `--- DRIVING OBSERVATIONS (raw measurements) ---\n${formatLapObservations([...metricsByLap.values()])}`,
     );
 
     sections.push(

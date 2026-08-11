@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
 import { useAccCars } from "../../../components/setup-tune/use-game-cars";
-import { useUpdateTune } from "../../../hooks/queries";
+import { useUpdateTune } from "../../../hooks/tunes";
 import { client } from "../../../lib/rpc";
 
 interface TuneRow {
@@ -45,7 +45,7 @@ function EditAccTunePage() {
             settings: tune.settings,
           }}
           onCancel={() => navigate({ to: "/acc/setups" })}
-          onSubmit={(data) => updateTune.mutate({ id: parseInt(tuneId), ...data }, { onSuccess: () => navigate({ to: "/acc/setups" }) })}
+          onSubmit={(data) => updateTune.mutate({ id: parseInt(tuneId, 10), ...data }, { onSuccess: () => navigate({ to: "/acc/setups" }) })}
           isSubmitting={updateTune.isPending}
         />
       </div>

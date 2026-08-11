@@ -1,10 +1,10 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { spawn, type ChildProcess } from "child_process";
-import dgram from "dgram";
-import { mkdtempSync, rmSync, readdirSync, unlinkSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join, resolve } from "path";
-import { readUdpDump } from "../helpers/recording";
+import { spawn, type ChildProcess } from "node:child_process";
+import dgram from "node:dgram";
+import { mkdtempSync, rmSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { readUdpDump } from "../support/recordings/udp";
 
 const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 

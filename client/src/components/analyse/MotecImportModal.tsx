@@ -1,6 +1,7 @@
-import type { GameId } from "@shared/types";
 import { useMemo, useRef, useState } from "react";
-import { useCarsFromEndpoint, useMotecTargets, useTracksForGame, useUserTunes } from "../../hooks/queries";
+import type { GameId } from "../../../../shared/games/ids";
+import { useCarsFromEndpoint, useMotecTargets, useTracksForGame } from "../../hooks/catalog-queries";
+import { useUserTunes } from "../../hooks/tunes";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
@@ -136,8 +137,8 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
                 </li>
               ))}
             </ul>
-          <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
-            <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
+            <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
+              <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
               <ul className="list-disc space-y-1 pl-4">
                 {result.limitations.map((l) => (
                   <li key={l}>{l}</li>
@@ -216,7 +217,7 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
               </p>
             </div>
 
-          {error && <div className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
+            {error && <div className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
 
             <div className="flex justify-end gap-2">
               <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>

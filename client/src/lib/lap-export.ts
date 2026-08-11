@@ -3,7 +3,8 @@
  * Lap Analyse. Exports go through the Hono RPC client; the response is a
  * binary body, so we hand it to the browser as a download.
  */
-import type { LapMeta, TelemetryPacket } from "@shared/types";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { formatLapTime } from "./format";
 import { client } from "./rpc";
 

@@ -1,6 +1,6 @@
+import type { GameId } from "@shared/games/ids";
 import { getAllGames, tryGetGame } from "@shared/games/registry";
-import type { ReleaseFeatureFlags } from "@shared/release-feature-flags";
-import type { GameId } from "@shared/types";
+import type { ReleaseFeatureFlags } from "@shared/platform/runtime/release-feature-flags";
 import { clientReleaseFeatures } from "./release-features";
 
 export type AnalyseSearch = {
@@ -9,6 +9,16 @@ export type AnalyseSearch = {
   lap?: number;
   cursor?: number;
   viz?: string;
+  ai?: number;
+};
+export type CompareSearch = {
+  track?: number;
+  carA?: number;
+  carB?: number;
+  lapA?: number;
+  lapB?: number;
+  cursor?: number;
+  ai?: number;
 };
 
 export type SessionsTab = "recorded" | "imported";
@@ -30,6 +40,7 @@ export type TuneReviewSearch = {
 
 export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
+export type LiveDashboard = "forza" | "f1" | "acc";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
@@ -39,6 +50,21 @@ const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
 
 export function gameIdForRoutePrefix(prefix: string): GameId | undefined {
   return getAllGames().find((game) => game.routePrefix === prefix)?.id;
+}
+
+/** Select the existing dashboard implementation for a registered game. */
+export function liveDashboardForGame(gameId: GameId): LiveDashboard {
+  switch (gameId) {
+    case "fm-2023":
+      return "forza";
+    case "f1-2025":
+      return "f1";
+    case "acc":
+    case "ac-evo":
+      return "acc";
+    default:
+      throw new Error(`Unsupported live dashboard game: ${gameId}`);
+  }
 }
 
 export function routePrefixForGameId(gameId: string): string | undefined {
@@ -59,6 +85,19 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
     lap: parseOptionalNumber(search.lap),
     cursor: parseOptionalNumber(search.cursor),
     viz: typeof search.viz === "string" ? search.viz : undefined,
+    ai: parseOptionalNumber(search.ai),
+  };
+}
+
+export function validateCompareSearch(search: Record<string, unknown>): CompareSearch {
+  return {
+    track: parseOptionalNumber(search.track),
+    carA: parseOptionalNumber(search.carA),
+    carB: parseOptionalNumber(search.carB),
+    lapA: parseOptionalNumber(search.lapA),
+    lapB: parseOptionalNumber(search.lapB),
+    cursor: parseOptionalNumber(search.cursor),
+    ai: parseOptionalNumber(search.ai),
   };
 }
 

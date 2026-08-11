@@ -1,17 +1,20 @@
-import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
-import { carSpecsMap } from "../../shared/car-data";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
-import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { Tune } from "../../shared/racing/tuning/types";
+import type { GameId } from "../../shared/games/ids";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/lib/lap-insights";
+import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { resolveTrack } from "../track-info";
+import { resolveTrack } from "../tracks/info";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
-import { segmentPromptLabels } from "../../shared/segment-label";
-import { aiLanguageInstruction } from "../../shared/locales";
-
+import { segmentPromptLabels } from "../../shared/racing/tracks/segment-label";
+import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;
@@ -39,8 +42,6 @@ export interface PromptSegment {
   group?: string;
   direction?: "left" | "right";
 }
-
-/** A lap's sector times, seconds. */
 export interface PromptSectors {
   times: number[];
   sectorStarts: number[];
@@ -75,7 +76,7 @@ function collectCornerLabels(corners: CornerDef[], segments?: PromptSegment[], g
   return out;
 }
 
-const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
+const GENERIC_ANALYST_SYSTEM_PROMPT = `You are a simulator-neutral racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback without assuming which simulator produced it.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
 
@@ -98,6 +99,9 @@ Your response MUST be valid JSON matching this exact schema. Output ONLY the JSO
   ],
   "coaching": [
     { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
+  ],
+  "setup": [
+    { "component": "setup component explicitly present in provided data", "symptom": "what the telemetry shows", "fix": "evidence-backed adjustment and why", "current": "provided current value with unit", "target": "supported target value with unit", "direction": "increase|decrease|adjust" }
   ]
 }
 
@@ -108,15 +112,16 @@ CATEGORY GUIDELINES:
 - "braking": Per-corner braking analysis for every corner in the corner data. Use corner label names exactly. "good" = no issues. If detail describes a problem, MUST be "warning" or "critical".
 - "throttle": Per-corner throttle analysis for every corner. Use corner label names exactly. "good" = clean application. If detail describes a problem, MUST be "warning" or "critical".
 - "coaching": 3-5 actionable driving tips. Reference specific telemetry values.
+- "setup": 0-8 evidence-backed adjustments. Include a component only when tune data or supplied game context explicitly establishes that it is adjustable. If no such setup data is provided, return an empty array.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
 - Use the driver's preferred units: {{UNITS}}
 - Be specific and actionable, not generic
 - Address the driver as "you"
-- When tune settings are provided, correlate telemetry symptoms (e.g., understeer, tire temps, suspension bottoming) with specific setup values and recommend concrete adjustments with target numbers
-- Reference the actual tune values when suggesting changes (e.g., "Front springs at 750 lb/in are too stiff for this track — try 650-680 lb/in")
-- For Forza-style tune recommendations, adjustable tune values are front/rear axle settings only. Never recommend individual FL/FR/RL/RR tire pressure, damping, spring, anti-roll bar, ride-height, aero, or alignment changes. If per-tire telemetry differs, translate it into a front/rear axle adjustment or a driving/coaching note.
+- When tune settings are provided, correlate telemetry symptoms with those actual setup values
+- Never invent game-specific setup options, current values, target values, units, adjustment granularity, valid ranges, or tuning rules
+- Do not assume simulator-specific setup semantics; omit unsupported setup claims instead
 - Output ONLY valid JSON, nothing else
 - Escape any special characters in string values (quotes, newlines)
 - Do not include trailing commas in arrays or objects`;
@@ -125,8 +130,8 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
   const speedDistanceWeight = unit === "metric" ? "km/h, meters, kg, bar" : "mph, feet, lb, psi";
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
-  const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${aiLanguageInstruction(language, { json: true })}`;
+  const base = adapter ? adapter.aiSystemPrompt : GENERIC_ANALYST_SYSTEM_PROMPT;
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(
@@ -152,12 +157,13 @@ export function buildAnalystPrompt(
   /** This lap's sector times, with the boundaries they were split on. */
   sectors?: PromptSectors,
 ): string {
-  const carName = getPromptCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
-  const trackName = getPromptTrackName(lap.trackOrdinal ?? 0, lap.gameId);
+  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
+  const trackName = resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId);
 
-  // F1 uses the adapter's compact game context; the generic export is a
-  // Forza-specific block and needlessly pushes local F1 prompts over 8k.
-  const exportText = lap.gameId === "f1-2025" ? "" : generateExport(lap, packets, unit, temperatureUnit);
+  // F1 uses adapter-specific compact context; generic export is Forza-specific.
+  const exportText = lap.gameId === "f1-2025"
+    ? ""
+    : generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
@@ -208,33 +214,38 @@ export function buildAnalystPrompt(
     segmentsList += "\n";
   }
 
-  // Sector times, split on this game's curated or native boundaries.
+  // Sector times, split on this game's curated boundaries. Without the
+  // boundaries the model can't tell which corners a slow sector covers.
   let sectorsText = "";
   if (sectors) {
     const { times, sectorStarts } = sectors;
     const all = segments ?? [];
     const sectorLabels = segmentPromptLabels(all);
-    const inSector = (n: number) =>
+    const inSector = (index: number) =>
       all
         .map((s, i) => ({ s, label: sectorLabels[i] }))
         .filter(({ s, label }) => {
           if (s.type !== "corner" || !label) return false;
           const mid = (s.startFrac + s.endFrac) / 2;
-          const start = sectorStarts[n - 1] ?? 0;
-          const end = sectorStarts[n] ?? 1;
+          const start = sectorStarts[index];
+          const end = sectorStarts[index + 1] ?? 1;
           return mid >= start && mid < end;
         })
         .map(({ label }) => label)
         .join(", ");
     sectorsText = "\n--- Sector Times ---\n";
-    times.forEach((t, index) => {
+    for (let index = 0; index < times.length; index++) {
       const n = index + 1;
-      const covers = inSector(n);
+      const t = times[index];
+      const covers = inSector(index);
       sectorsText += `S${n}: ${t.toFixed(3)}s${covers ? ` — covers ${covers}` : ""}\n`;
-    });
-    const boundaries = sectorStarts.slice(1).map(
-      (start, index) => `S${index + 1} ends at ${(start * 100).toFixed(1)}%`,
-    );
+    }
+    const boundaries = sectorStarts
+      .slice(1)
+      .map(
+        (start, index) =>
+          `S${index + 1} ends at ${(start * 100).toFixed(1)}%`,
+      );
     sectorsText += `Boundaries: ${boundaries.join(", ")} of the lap.\n`;
   }
 
@@ -255,7 +266,7 @@ export function buildAnalystPrompt(
 
   // Get car specs for additional context
   const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const specs = carSpecsMap.get(carOrdinal);
+  const specs = fmCarSpecsCatalog.get(carOrdinal);
   let carDetailsText = `Car: ${carName}`;
   if (specs) {
     carDetailsText += `\nClass: ${specs.division}`;

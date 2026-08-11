@@ -1,6 +1,6 @@
 import { getAllGames } from "@shared/games/registry";
 import { m } from "@/paraglide/messages";
-import { useSaveSettings, useSettings } from "../../hooks/queries";
+import { useSaveSettings, useSettings } from "../../hooks/settings";
 import { Button } from "../ui/button";
 
 export function GamesSection() {

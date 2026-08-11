@@ -6,7 +6,8 @@
  * both reuse the exact constants from `tune-symptoms.ts` so the feed and the
  * live alerts never disagree about what counts as "locked" or "bottomed".
  */
-import type { TelemetryPacket, TuneIssue } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import type { TuneSymptoms } from "./tune-symptoms";
 import {
   BALANCE_THRESHOLD,
@@ -93,7 +94,7 @@ function mean(xs: number[]): number {
 
 /**
  * Stateless, per-packet live issue detector. Called at packet rate (gated by
- * `Pipeline.liveIssuesEnabled`) so it must stay cheap and side-effect-free —
+ * `LiveTelemetryPipeline.liveIssuesEnabled`) so it must stay cheap and side-effect-free —
  * no history, no smoothing across calls. Transients are deliberately noisy;
  * the client debounces/expires them rather than this function.
  *

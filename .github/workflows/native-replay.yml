@@ -1,0 +1,62 @@
+name: Native telemetry replay (manual)
+
+# GitHub-hosted Windows runners cannot launch or attach to installed games,
+# UDP providers, shared-memory providers, or wheel/permission surfaces. This
+# lane therefore proves committed native recordings only; it never fabricates
+# a live-capture pass.
+on:
+  workflow_dispatch:
+    inputs:
+      game:
+        description: "Committed replay catalog to run"
+        required: true
+        type: choice
+        options:
+          - fm-2023
+          - f1-2025
+          - acc
+          - ac-evo
+          - iracing
+
+concurrency:
+  group: native-replay-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: blacksmith-4vcpu-windows-2025
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Replay committed native recording
+        run: bun test test/telemetry/catalog/telemetry-catalog-${{ inputs.game }}-e2e.test.ts
+
+      - name: Record capture blocker in run summary
+        if: always()
+        shell: pwsh
+        run: |
+          @"
+          ## Native capture status
+
+          Committed replay lane ran for `${{ inputs.game }}`.
+
+          Physical blocker: GitHub-hosted Windows runner has no installed game process, UDP/shared-memory telemetry provider, wheel hardware, or provider permissions. True unattended ACC, AC Evo, and iRacing capture (plus F1/FM UDP capture) cannot run here; this lane intentionally replays committed `.bin`/`.bin.gz` recordings only.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Upload replay artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-replay-${{ inputs.game }}
+          path: |
+            test-results/
+            test/artifacts/sessions/
+          if-no-files-found: ignore
+          retention-days: 7

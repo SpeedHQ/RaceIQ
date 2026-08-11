@@ -1,8 +1,8 @@
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { severityRangeColor } from "../../lib/colors";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { brakeTempColor, tirePressureColor } from "../../lib/vehicle-dynamics";
 
 const _tmpVec = new THREE.Vector3();
@@ -92,7 +92,7 @@ export function WheelInfoCard({
   side: "left" | "right";
   isRear: boolean;
 }) {
-  const { texture, cardH } = useMemo(() => {
+  const { rows, cardH } = useMemo(() => {
     const health = 1 - wear;
     const pct = (health * 100).toFixed(0);
     const healthColor = severityRangeColor(1 - health, [0.3, 0.6]);
@@ -107,16 +107,33 @@ export function WheelInfoCard({
     if (brakeTemp > 0) rows.push({ kind: "brake", text: `${brakeTemp.toFixed(0)}°C`, color: brakeCol });
     if (wearRate > 0.0001) rows.push({ kind: "wear", text: `-${(wearRate * 100).toFixed(2)}%/s` });
 
-    const h = PAD_Y * 2 + rows.length * ROW_H;
+    return { rows, cardH: PAD_Y * 2 + rows.length * ROW_H };
+  }, [displayTemp, tempColor, wear, wearRate, brakeTemp, isRear, pressurePsi, pressureOptimal]);
+
+  const { canvas, ctx, texture, material } = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = CARD_W;
-    canvas.height = h;
-    const ctx = getSemanticCanvasContext(canvas)!;
-    ctx.clearRect(0, 0, CARD_W, h);
+    canvas.height = PAD_Y * 2 + 2 * ROW_H;
+    const ctx = getSemanticCanvasContext(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    });
+    return { canvas, ctx, texture, material };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!ctx) return;
+    if (canvas.width !== CARD_W) canvas.width = CARD_W;
+    if (canvas.height !== cardH) canvas.height = cardH;
+    ctx.clearRect(0, 0, CARD_W, cardH);
 
     // Background card — subtle, high-contrast, rounded
-    drawRoundedRect(ctx, 4, 4, CARD_W - 8, h - 8, 16);
-    ctx.fillStyle = "color-mix(in srgb, var(--app-surface) 78%, transparent)";
+    drawRoundedRect(ctx, 4, 4, CARD_W - 8, cardH - 8, 16);
+    ctx.fillStyle = "color-mix(in srgb, var(--app-bg) 78%, transparent)";
     ctx.fill();
     ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 18%, transparent)";
     ctx.lineWidth = 2;
@@ -165,10 +182,16 @@ export function WheelInfoCard({
       }
     });
 
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    return { texture: tex, cardH: h };
-  }, [displayTemp, tempColor, wear, wearRate, brakeTemp, isRear, pressurePsi, pressureOptimal]);
+    texture.needsUpdate = true;
+  }, [canvas, cardH, ctx, rows, texture]);
+
+  useEffect(
+    () => () => {
+      material.dispose();
+      texture.dispose();
+    },
+    [material, texture],
+  );
 
   const scaleY = BASE_SCALE * (cardH / CARD_W);
   const spriteRef = useRef<THREE.Sprite>(null);
@@ -186,9 +209,5 @@ export function WheelInfoCard({
   // Rear cards sit ~0.6m lower so they don't stack on top of the front cards
   // in screen space when the camera is directly behind (or in front of) the car.
   const cardY = isRear ? 0.65 : 1.25;
-  return (
-    <sprite ref={spriteRef} position={[0, cardY, side === "left" ? -0.95 : 0.95]} scale={[BASE_SCALE, scaleY, 1]} renderOrder={999}>
-      <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} />
-    </sprite>
-  );
+  return <sprite ref={spriteRef} material={material} position={[0, cardY, side === "left" ? -0.95 : 0.95]} scale={[BASE_SCALE, scaleY, 1]} renderOrder={999} dispose={null} />;
 }

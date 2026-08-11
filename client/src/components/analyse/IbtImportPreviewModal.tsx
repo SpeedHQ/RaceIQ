@@ -83,7 +83,9 @@ export function IbtImportPreviewModal({ token, preview, importing, onImport, onC
 
         {preview.missingRaceIQVariables.length > 0 && preview.missingRequiredVariables.length === 0 && <IbtTelemetryWarning missingVariables={preview.missingRaceIQVariables} />}
 
-        {!preview.canImport && <p className="rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">{preview.reason ?? "This recording cannot be imported."}</p>}
+        {!preview.canImport && (
+          <p className="rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">{preview.reason ?? "This recording cannot be imported."}</p>
+        )}
 
         <p className="text-xs text-app-text-muted">Import creates a normal RaceIQ iRacing session and canonical .bin capture. The original .ibt file is not copied into session storage.</p>
 

@@ -1,0 +1,137 @@
+import { test } from "bun:test";
+import { getGame } from "../../../shared/games/registry";
+import { initGameAdapters } from "../../../shared/games/init";
+import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
+import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
+initGameAdapters();
+
+const FIXTURE = "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
+
+const DYNAMIC_UI_FIELDS = [
+  "CurrentEngineRpm",
+  "Speed",
+  "Power",
+  "Fuel",
+  "DistanceTraveled",
+  "CurrentLap",
+  "CurrentRaceTime",
+  "Accel",
+  "Brake",
+  "Gear",
+  "Steer",
+  "AccelerationX",
+  "AccelerationZ",
+  "Yaw",
+  "Pitch",
+  "Roll",
+  "PositionX",
+  "PositionZ",
+  "TireTempFL",
+  "TireTempFR",
+  "TireTempRL",
+  "TireTempRR",
+  "TireWearFL",
+  "TireWearFR",
+  "TireWearRL",
+  "TireWearRR",
+  "NormSuspensionTravelFL",
+  "NormSuspensionTravelFR",
+  "NormSuspensionTravelRL",
+  "NormSuspensionTravelRR",
+  "SuspensionTravelMFL",
+  "SuspensionTravelMFR",
+  "SuspensionTravelMRL",
+  "SuspensionTravelMRR",
+  "TireSlipRatioFL",
+  "TireSlipRatioFR",
+  "TireSlipRatioRL",
+  "TireSlipRatioRR",
+  "TireSlipAngleFL",
+  "TireSlipAngleFR",
+  "TireSlipAngleRL",
+  "TireSlipAngleRR",
+  "TireCombinedSlipFL",
+  "TireCombinedSlipFR",
+  "TireCombinedSlipRL",
+  "TireCombinedSlipRR",
+  "WheelRotationSpeedFL",
+  "WheelRotationSpeedFR",
+  "WheelRotationSpeedRL",
+  "WheelRotationSpeedRR",
+  "BrakeTempFrontLeft",
+  "BrakeTempFrontRight",
+  "BrakeTempRearLeft",
+  "BrakeTempRearRight",
+] as const;
+
+test(
+  "F1 2025 recording resolves end-to-end parser and catalog values",
+  async () => {
+    await assertRecordedCatalogCoverage({
+      gameId: "f1-2025",
+      recording: FIXTURE,
+      requiredSemanticIds: requiredSemanticIds(getGame("f1-2025")),
+      lapDynamics: [
+        ...changingPacketFields(DYNAMIC_UI_FIELDS),
+        {
+          name: "DRS",
+          read: (packet) => packet.f1 ? Number(packet.f1.drsActivated) : undefined,
+        },
+        { name: "ERS store", read: (packet) => packet.f1?.ersStoreEnergy },
+        { name: "ERS mode", read: (packet) => packet.f1?.ersDeployMode },
+        { name: "ERS deployed", read: (packet) => packet.f1?.ersDeployedThisLap },
+        { name: "ERS harvested", read: (packet) => packet.f1?.ersHarvestedThisLap },
+      ],
+      expectations: [
+        {
+          semanticId: "motion.speed",
+          mappingStatus: "normalized",
+          unit: "m/s",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 1 && value < 150,
+          minimumRange: 1,
+        },
+        {
+          semanticId: "inputs.accel",
+          mappingStatus: "normalized",
+          unit: "0–255",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 255,
+          minimumRange: 1,
+        },
+        {
+          semanticId: "inputs.brake",
+          mappingStatus: "normalized",
+          unit: "0–255",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 255,
+          minimumRange: 1,
+        },
+        {
+          semanticId: "timing.current-race-time",
+          mappingStatus: "direct",
+          unit: "s",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value < 100_000,
+          minimumRange: 1,
+        },
+        {
+          semanticId: "timing.lap-number",
+          mappingStatus: "direct",
+          unit: "count",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value < 100,
+        },
+        {
+          semanticId: "timing.track-length",
+          mappingStatus: "direct",
+          unit: "m",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 100 && value < 20_000,
+        },
+        {
+          semanticId: "timing.lap-fraction",
+          mappingStatus: "derived",
+          unit: "fraction",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value < 1,
+          minimumRange: 0.1,
+        },
+      ],
+    });
+  },
+  { timeout: 120_000 },
+);

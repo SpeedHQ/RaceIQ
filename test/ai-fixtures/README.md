@@ -1,8 +1,9 @@
 # AI Eval Fixtures
 
-Curated lap fixtures for `test/ai-quality.test.ts`. Each fixture JSON
-describes a real lap (or lap pair) plus the _expected signals_ the scorers
-check against.
+Curated lap fixtures for `test/ai/evals/ai-quality.ai-eval.ts`. Each fixture
+JSON describes a real lap (or lap pair) plus the _expected signals_ the scorers
+check against. This directory is committed AI-eval input; generated reports and
+recordings belong under `test/artifacts/`, not here.
 
 ## Structure
 
@@ -10,7 +11,7 @@ check against.
 laps/                         solo-lap fixtures → Lap Analyst + Lap Chat evals
 compare-pairs/                paired-lap fixtures → Compare Engineer + Compare Chat evals
 packets/                      zip files produced via `bun run laps:export`
-baselines/                    per-SHA score snapshots (see scripts/ai-baseline.ts)
+baselines/                    per-SHA score snapshots (see scripts/quality/ai-baseline.ts)
 ```
 
 ## Adding a fixture

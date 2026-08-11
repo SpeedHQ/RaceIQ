@@ -17,8 +17,8 @@
  *       +0xF0  int64      fileSize
  *       +0xF8  int64      fileOffset (absolute, from archive start)
  */
-import { openSync, readSync, closeSync, fstatSync, existsSync } from "fs";
-import { join } from "path";
+import { openSync, readSync, closeSync, fstatSync, existsSync } from "node:fs";
+import { join } from "node:path";
 
 /** Candidate Steam library roots checked by findContentKspkg(). */
 const STEAM_ROOTS = [

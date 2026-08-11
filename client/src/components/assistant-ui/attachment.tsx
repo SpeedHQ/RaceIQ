@@ -72,7 +72,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         className="aui-attachment-preview-trigger hover:bg-accent/50 cursor-pointer transition-colors"
         render={isValidElement(children) ? children : <button type="button" />}
       />
-      <DialogContent className="aui-attachment-preview-dialog-content [&>button]:bg-foreground/60 [&_svg]:text-background [&>button]:hover:[&_svg]:text-destructive p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!">
+      <DialogContent className="aui-attachment-preview-dialog-content max-w-3xl p-2 [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0! [&>button]:hover:[&_svg]:text-destructive [&_svg]:text-background">
         <DialogTitle className="aui-sr-only sr-only">Image Attachment Preview</DialogTitle>
         <div className="aui-attachment-preview bg-background relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
@@ -129,13 +129,12 @@ const AttachmentUI: FC = () => {
           <AttachmentPreviewDialog>
             <TooltipTrigger
               render={
-                <div
+                <button
+                  type="button"
                   className={cn(
                     "aui-attachment-tile bg-muted relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border transition-opacity hover:opacity-75",
                     isError && "border-destructive",
                   )}
-                  role="button"
-                  tabIndex={0}
                   aria-label={`${typeLabel} attachment${isError ? ", upload failed" : isUploading ? ", uploading" : ""}`}
                 />
               }

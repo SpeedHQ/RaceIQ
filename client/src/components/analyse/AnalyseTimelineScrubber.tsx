@@ -1,17 +1,18 @@
-import type { TelemetryPacket } from "@shared/types";
-import { memo, type RefObject, useMemo } from "react";
+import { memo, type RefObject, useEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
+import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 import { Button } from "../ui/button";
+
+const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
 
 interface SectorTimesData {
   times: number[];
   sectorCount: number;
   cursorSector: number;
 }
-
 interface TimelineScrubberProps {
-  displayTelemetry: TelemetryPacket[];
+  displayTelemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   totalPackets: number;
   currentTime: number;
@@ -47,22 +48,32 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   onSeek,
   onVisualFracChange,
 }: TimelineScrubberProps) {
+  const scrubCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      scrubCleanupRef.current?.();
+      scrubCleanupRef.current = null;
+    },
+    [],
+  );
   const timelineData = useMemo(() => {
     if (displayTelemetry.length === 0) return null;
-    const startTime = displayTelemetry[0].CurrentLap;
-    // Use max CurrentLap as end time — last packet may have reset to next lap
+    const startTime = currentLap(displayTelemetry[0]);
+    // Use max current-lap as end time — last frame may have reset to next lap
     let maxTime = startTime;
-    for (const p of displayTelemetry) {
-      if (p.CurrentLap > maxTime) maxTime = p.CurrentLap;
+    for (const frame of displayTelemetry) {
+      const time = currentLap(frame);
+      if (time > maxTime) maxTime = time;
     }
     const lapDuration = maxTime - startTime || 1;
     let prevFrac = 0;
-    const timeFracs = displayTelemetry.map((p) => {
-      const frac = Math.max(prevFrac, (p.CurrentLap - startTime) / lapDuration);
+    const timeFracs = displayTelemetry.map((frame) => {
+      const frac = Math.max(prevFrac, (currentLap(frame) - startTime) / lapDuration);
       prevFrac = frac;
       return frac;
     });
-    const times = displayTelemetry.map((p) => p.CurrentLap);
+    const times = displayTelemetry.map(currentLap);
     return { timeFracs, times };
   }, [displayTelemetry]);
 
@@ -71,7 +82,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
 
   return (
     <div className="px-3 py-2 border-b border-app-border bg-app-surface/50 shrink-0">
-      <div className="flex items-center gap-3 mb-2">
+      <div className="mb-2 flex flex-wrap items-center gap-3">
         <span className="text-app-caption text-app-text-muted">Lap {lapNumber}</span>
         <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{formatLapTime(currentTime)}</span>
         <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
@@ -90,11 +101,11 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
               </div>
             );
           })}
-        <span className="text-app-caption font-mono text-app-text-dim ml-auto">
+        <span className="ml-auto text-app-caption font-mono text-app-text-dim">
           Packet {cursorIdx + 1}/{totalPackets}
         </span>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
           onClick={onTogglePlay}
@@ -103,11 +114,12 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         >
           {playing ? "\u275A\u275A" : "\u25B6"}
         </Button>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {[0.1, 0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
             <Button
               type="button"
               key={s}
+              aria-pressed={playbackSpeed === s}
               onClick={() => onSpeedChange(s)}
               className={`px-1.5 py-0.5 text-app-caption font-mono rounded transition-colors ${
                 playbackSpeed === s ? "bg-app-accent text-app-on-filled" : "bg-app-surface-alt text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
@@ -124,7 +136,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
           aria-valuemin={0}
           aria-valuemax={Math.max(0, totalPackets - 1)}
           aria-valuenow={cursorIdx}
-          className="flex-1 relative h-4 flex items-center group cursor-pointer"
+          className="group relative flex h-4 basis-full cursor-pointer items-center @3xl/workspace:basis-auto @3xl/workspace:flex-1"
           onKeyDown={(event) => {
             if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
               event.preventDefault();
@@ -133,6 +145,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
             }
           }}
           onMouseDown={(e) => {
+            scrubCleanupRef.current?.();
             const bar = e.currentTarget;
             const seek = (clientX: number) => {
               const rect = bar.getBoundingClientRect();
@@ -159,7 +172,13 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
               onVisualFracChange(null);
               window.removeEventListener("mousemove", onMove);
               window.removeEventListener("mouseup", onUp);
+              scrubCleanupRef.current = null;
             };
+            const cleanup = () => {
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+            };
+            scrubCleanupRef.current = cleanup;
             window.addEventListener("mousemove", onMove);
             window.addEventListener("mouseup", onUp);
           }}

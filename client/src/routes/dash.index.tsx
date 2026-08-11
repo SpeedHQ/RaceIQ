@@ -1,31 +1,14 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
-import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, generateFakeSessionLaps } from "../stories/fakeData";
-import { RotatePrompt } from "./__root";
+import { fakeF1SemanticFixture, fakePit, fakeSectors, generateFakeSessionLaps } from "../stories/fakeData";
 
 const PREVIEW_LAPS = generateFakeSessionLaps(10);
 
-const PREVIEW_RAW_PACKET = {
-  ...fakeForzaPacket,
-  BrakeTempFrontLeft: 380,
-  BrakeTempFrontRight: 375,
-  BrakeTempRearLeft: 240,
-  BrakeTempRearRight: 238,
-  TirePressureFrontLeft: 27.8,
-  TirePressureFrontRight: 27.7,
-  TirePressureRearLeft: 26.5,
-  TirePressureRearRight: 26.4,
-  f1: { ...(fakeForzaPacket.f1 ?? {}), totalLaps: 57 },
-} as TelemetryPacket;
-
-// Forza stores tire temps in °F — convert to °C.
-const fToC = (f: number) => ((f - 32) * 5) / 9;
 
 interface DashMeta {
   slug: "combo-1" | "combo-2";
@@ -41,23 +24,6 @@ const DASH_META: DashMeta[] = [
 const dashTitle = (slug: DashMeta["slug"]) => (slug === "combo-1" ? m.dash_race_hud() : m.dash_lap_pace());
 const dashDesc = (slug: DashMeta["slug"]) => (slug === "combo-1" ? m.dash_combo1_desc() : m.dash_combo2_desc());
 
-function useViewportSize() {
-  const [size, setSize] = useState(() => ({
-    w: typeof window !== "undefined" ? window.innerWidth : 844,
-    h: typeof window !== "undefined" ? window.innerHeight : 390,
-  }));
-  useEffect(() => {
-    const onResize = () => setSize({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-    };
-  }, []);
-  return size;
-}
-
 function useNetworkInfo() {
   return useQuery<{ lanIps: string[]; port: number }>({
     queryKey: ["network-info"],
@@ -72,53 +38,43 @@ function useNetworkInfo() {
 }
 
 function DashCatalogue() {
-  const { data } = useNetworkInfo();
+  const { data, isPending, isError } = useNetworkInfo();
   const lanIp = data?.lanIps?.[0];
   const port = typeof window !== "undefined" ? window.location.port || data?.port : data?.port;
-  const vp = useViewportSize();
-  const SCALE = 0.6;
-  const maxW = Math.floor(vp.w * SCALE);
-  const maxH = Math.floor(vp.h * SCALE);
-  const previewWidth = `min(100%, ${maxW}px, ${Math.floor((maxH * vp.w) / vp.h)}px)`;
-  const previewAspect = `${vp.w} / ${vp.h}`;
+
+  const networkStatusKind = isPending ? "loading" : isError ? "error" : !lanIp || !port ? "no-data" : null;
+  const networkStatus = isPending || isError || !lanIp || !port ? (isPending ? m.common_loading() : m.dash_lan_unavailable()) : null;
 
   const previewFor = (slug: DashMeta["slug"]): ReactNode => {
     if (slug === "combo-1") {
-      return <ComboDash rawPacket={PREVIEW_RAW_PACKET} packet={fakeForzaDisplayPacket} sectors={fakeSectors} pit={fakePit} unitSystem="metric" toTempC={fToC} />;
+      return <ComboDash view={fakeF1SemanticFixture.view} sectors={fakeSectors} pit={fakePit} unitSystem="metric" />;
     }
-    return <ComboDash2 rawPacket={PREVIEW_RAW_PACKET} sessionLaps={PREVIEW_LAPS} />;
+    return <ComboDash2 rawPacket={null} sessionLaps={PREVIEW_LAPS} />;
   };
 
   return (
-    <div className="min-h-screen bg-app-bg text-app-text p-8">
-      <RotatePrompt />
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-full bg-app-bg p-4 text-app-text @3xl/workspace:p-8">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight">{m.dash_page_title()}</h1>
-          <p className="mt-2 text-app-text/60 text-sm">{m.dash_page_intro()}</p>
-          {lanIp && port ? (
-            <p className="mt-2 text-xs text-app-text/40 font-mono">
-              {m.dash_serving_at()} http://{lanIp}:{port}
+          {networkStatus ? (
+            <p className="mt-2 text-xs text-status-danger/70 font-mono" role="status" aria-live="polite" data-network-state={networkStatusKind}>
+              {networkStatus}
             </p>
           ) : (
-            <p className="mt-2 text-xs text-status-danger/70 font-mono">{m.dash_lan_unavailable()}</p>
+            <p className="mt-2 text-xs text-app-text/40 font-mono" role="status" aria-live="polite" data-network-state="ready">
+              {m.dash_serving_at()} http://{lanIp}:{port}
+            </p>
           )}
         </div>
 
-        <ul className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ul className="grid grid-cols-1 gap-6 @5xl/workspace:grid-cols-2">
           {DASH_META.map((d) => {
             const url = lanIp && port ? `http://${lanIp}:${port}${d.href}` : null;
             return (
               <li key={d.slug} className="rounded-lg border border-app-text/10 bg-app-text/[0.03] overflow-hidden">
                 <Link to={d.href} className="block group">
-                  <div
-                    className="relative bg-app-bg border-b border-app-text/10 overflow-hidden mx-auto"
-                    style={{
-                      aspectRatio: previewAspect,
-                      width: previewWidth,
-                      transform: "translateZ(0)",
-                    }}
-                  >
+                  <div className="relative mx-auto aspect-video w-full overflow-hidden border-b border-app-text/10 bg-app-bg [transform:translateZ(0)]">
                     <div className="absolute inset-0 pointer-events-none">{previewFor(d.slug)}</div>
                     <div className="absolute inset-0 transition-colors group-hover:bg-app-surface-hover/50" />
                   </div>
@@ -132,7 +88,7 @@ function DashCatalogue() {
                     <div className="mt-3 text-xs font-mono tracking-wider text-app-text/40 break-all">{url ?? d.href}</div>
                   </div>
                   {url && (
-                    <div className="shrink-0 rounded bg-app-text p-2 hidden lg:block">
+                    <div className="hidden shrink-0 rounded bg-app-text p-2 @5xl/workspace:block">
                       <QRCodeSVG value={url} size={96} />
                     </div>
                   )}

@@ -1,6 +1,6 @@
-import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/experiment-focus";
+import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useEffect, useRef, useState } from "react";
-import { useSetExperimentFocus } from "../../hooks/queries";
+import { useSetExperimentFocus } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 
 /**
@@ -76,7 +76,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
       </div>
 
       {pending && (
-        <div className="absolute right-0 z-20 mt-2 w-[320px] rounded-lg border border-app-border bg-app-surface p-3 shadow-xl">
+        <div className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg border border-app-border bg-app-surface p-3 shadow-xl">
           <p className="text-xs text-app-text">
             Switch to <span className="font-semibold">{EXPERIMENT_FOCUS_LABELS[pending]}</span>
           </p>

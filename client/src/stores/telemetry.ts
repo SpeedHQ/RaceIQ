@@ -1,7 +1,11 @@
-import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket, TuneIssue } from "@shared/types";
 import { create } from "zustand";
-import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
-
+import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
+import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../shared/racing/tuning/issues";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
+import type { LiveTelemetryView } from "../lib/live-telemetry-view";
+import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 export interface DisplaySettings {
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
@@ -70,6 +74,7 @@ export interface VersionInfo {
   latest: string | null;
   updateAvailable: boolean;
   newReleases: ReleaseInfo[];
+  fullReleaseNotes: string | null;
   currentReleaseNotes: string | null;
   currentReleaseDate: string | null;
   lastChecked: string | null;
@@ -91,10 +96,9 @@ export interface ServerStatus {
 
 interface TelemetryState {
   connected: boolean;
-  /** Raw packet from WebSocket (unchanged, for calculations) */
-  rawPacket: TelemetryPacket | null;
-  /** Display-converted packet (speed/temp in user units) */
-  packet: DisplayPacket | null;
+  telemetrySchema: LiveTelemetrySchemaMessageV1 | null;
+  telemetryFrame: LiveTelemetryFrameMessageV1 | null;
+  telemetryView: LiveTelemetryView | null;
   packetsPerSec: number;
   /** Full server status pushed via WebSocket */
   serverStatus: ServerStatus | null;
@@ -130,20 +134,21 @@ interface TelemetryState {
   /** Race-result reconciliation error, if the latest attempt failed */
   raceResultReprocessError: string | null;
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
-  /** Active reprocess progress — null when not reprocessing */
-  reprocessProgress: { done: number; total: number } | null;
+  /** Stale-session reprocessing request and dialog state */
+  reprocessState: ReprocessState;
   /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
   liveIssues: TuneIssue[];
   /** Live Tuning Dashboard: per-lap issue feed, most recent lap first. */
   lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[] }[];
   setConnected: (connected: boolean) => void;
-  setPacket: (packet: TelemetryPacket) => void;
+  setTelemetrySchema: (schema: LiveTelemetrySchemaMessageV1) => void;
+  setTelemetryFrame: (frame: LiveTelemetryFrameMessageV1) => void;
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
   setLiveIssues: (issues: TuneIssue[]) => void;
   addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[] }) => void;
-  clearPacket: () => void;
+  clearTelemetry: () => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
   setSessionLaps: (laps: LapMeta[]) => void;
@@ -154,7 +159,10 @@ interface TelemetryState {
   setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
   setRaceResultReprocessError: (error: string | null) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
-  setReprocessProgress: (progress: { done: number; total: number } | null) => void;
+  beginReprocess: (total: number) => void;
+  completeReprocess: () => void;
+  failReprocess: (message: string) => void;
+  dismissReprocess: () => void;
   incrementReprocessProgress: () => void;
   devState: unknown | null;
   devStatePaused: boolean;
@@ -164,14 +172,11 @@ interface TelemetryState {
   setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
 }
 
-function speedUnit(u: "metric" | "imperial") {
-  return u === "metric" ? ("kmh" as const) : ("mph" as const);
-}
-
 export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   connected: false,
-  rawPacket: null,
-  packet: null,
+  telemetrySchema: null,
+  telemetryFrame: null,
+  telemetryView: null,
   sectors: null,
   pit: null,
   packetsPerSec: 0,
@@ -189,7 +194,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   raceResultReprocessProgress: null,
   raceResultReprocessError: null,
   staleLapDetection: null,
-  reprocessProgress: null,
+  reprocessState: initialReprocessState,
   liveIssues: [],
   lapIssuesFeed: [],
   devState: null,
@@ -215,14 +220,10 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
       // Most-recent-first, capped so a long practice session doesn't grow unbounded.
       lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20),
     })),
-  setPacket: (raw) => {
-    const { unitSystem, temperatureUnit } = get();
-    set({
-      rawPacket: raw,
-      packet: convertPacket(raw, speedUnit(unitSystem), temperatureUnit),
-    });
-  },
-  clearPacket: () => set({ rawPacket: null, packet: null }),
+  setTelemetrySchema: (telemetrySchema) => set({ telemetrySchema, telemetryFrame: null, telemetryView: null }),
+  setTelemetryFrame: (telemetryFrame) =>
+    set((prev) => ({ telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
+  clearTelemetry: () => set({ telemetryFrame: null, telemetryView: null, telemetrySchema: null }),
   setPacketsPerSec: (packetsPerSec) => set({ packetsPerSec }),
   setServerStatus: (status: ServerStatus | null) =>
     set(
@@ -246,17 +247,14 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     set((prev) => (prev.raceResultReprocessProgress ? { raceResultReprocessProgress: { ...prev.raceResultReprocessProgress, done: prev.raceResultReprocessProgress.done + 1 } } : {})),
   setRaceResultReprocessError: (error) => set({ raceResultReprocessError: error }),
   setStaleLapDetection: (data) => set({ staleLapDetection: data }),
-  setReprocessProgress: (progress) => set({ reprocessProgress: progress }),
+  beginReprocess: (total) => set((prev) => ({ reprocessState: beginReprocess(prev.reprocessState, total) })),
+  completeReprocess: () => set((prev) => ({ reprocessState: completeReprocess(prev.reprocessState) })),
+  failReprocess: (message) => set((prev) => ({ reprocessState: failReprocess(prev.reprocessState, message) })),
+  dismissReprocess: () => set((prev) => ({ reprocessState: dismissReprocess(prev.reprocessState) })),
   incrementReprocessProgress: () =>
-    set((prev) => {
-      if (!prev.reprocessProgress) return {};
-      return {
-        reprocessProgress: {
-          ...prev.reprocessProgress,
-          done: prev.reprocessProgress.done + 1,
-        },
-      };
-    }),
+    set((prev) => ({
+      reprocessState: advanceReprocess(prev.reprocessState),
+    })),
   setUpdateProgress: (progress) => set({ updateProgress: progress }),
   setVersionInfo: (info) => set({ versionInfo: info }),
   setDevState: (state) => {
@@ -264,12 +262,5 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     set({ devState: state });
   },
   toggleDevStatePause: () => set((prev) => ({ devStatePaused: !prev.devStatePaused })),
-  setDisplayUnits: (unit, temperatureUnit) => {
-    const { rawPacket } = get();
-    set({
-      unitSystem: unit,
-      temperatureUnit,
-      packet: rawPacket ? convertPacket(rawPacket, speedUnit(unit), temperatureUnit) : null,
-    });
-  },
+  setDisplayUnits: (unit, temperatureUnit) => set({ unitSystem: unit, temperatureUnit }),
 }));

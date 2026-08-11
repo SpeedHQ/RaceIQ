@@ -9,6 +9,7 @@ import {
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -92,6 +93,14 @@ export const sessions = sqliteTable("sessions", {
 	notes: text("notes"),
 	rawFile: text("raw_file"),
 	lapDetectorVersion: text("lap_detector_version"),
+	// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
+	// Null for rows inserted before that migration.
+	catalogVersion: text("catalog_version"),
+	catalogHash: text("catalog_hash"),
+	catalogSchemaVersion: text("catalog_schema_version"),
+	parserVersion: text("parser_version"),
+	resolverVersion: text("resolver_version"),
+	derivationVersion: text("derivation_version"),
 	// How this session's telemetry was obtained (migration v43). NULL = recorded
 	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
 	// racing line is dead-reckoned rather than logged — see server/motec/.
@@ -105,9 +114,10 @@ export const sessionResults = sqliteTable(
 		sessionId: integer("session_id")
 			.notNull()
 			.references(() => sessions.id, { onDelete: "cascade" }),
-		processorVersion: text("processor_version").notNull().default("race-result-v1"),
+		processorVersion: text("processor_version").notNull().default("race-result-v2"),
 		sessionType: text("session_type").notNull().default("unknown"),
 		classification: text("classification").notNull().default("unknown"),
+		outcomeStatus: text("outcome_status").$type<RaceResultOutcomeStatus>().notNull().default("unavailable"),
 		finishingPosition: integer("finishing_position"),
 		qualifyingPosition: integer("qualifying_position"),
 		isPodium: integer("is_podium", { mode: "boolean" }),
@@ -115,8 +125,9 @@ export const sessionResults = sqliteTable(
 		pitCount: integer("pit_count").notNull().default(0),
 		tyreStrategy: text("tyre_strategy", { mode: "json" }).$type<unknown>(),
 		fuelStrategy: text("fuel_strategy", { mode: "json" }).$type<unknown>(),
-		provenance: text("provenance", { mode: "json" }).$type<unknown>(),
+		provenance: text("provenance", { mode: "json" }).$type<RaceResultProvenance>(),
 		reasons: text("reasons", { mode: "json" }).$type<string[]>(),
+		evidence: text("evidence", { mode: "json" }).$type<RaceResultEvidence>(),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
@@ -145,7 +156,7 @@ export const pitEvents = sqliteTable(
 		fuelAdded: real("fuel_added"),
 		fuelBefore: real("fuel_before"),
 		fuelAfter: real("fuel_after"),
-		linkage: text("linkage").notNull().default("linked"),
+		linkage: text("linkage").notNull().default("unknown"),
 		source: text("source", { mode: "json" }).$type<unknown>(),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
@@ -179,8 +190,14 @@ export const laps = sqliteTable(
 		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
+		catalogVersion: text("catalog_version"),
+		catalogHash: text("catalog_hash"),
+		catalogSchemaVersion: text("catalog_schema_version"),
+		parserVersion: text("parser_version"),
+		resolverVersion: text("resolver_version"),
+		derivationVersion: text("derivation_version"),
 		// Explicit experiment link (migration v25). Stamped at insert from the
-		// in-memory active tuning session (server/experiment-active.ts) so a tuning
+		// in-memory active tuning session (server/experiments/active.ts) so a tuning
 		// session can span many race sessions. The `.references()` here is
 		// type-level intent only — migration v25 adds a plain nullable column with
 		// NO runtime FK (SQLite can't ALTER-ADD a column with inline REFERENCES),
@@ -195,7 +212,7 @@ export const laps = sqliteTable(
 		experimentExcluded: integer("experiment_excluded"),
 		// Source of the exclusion decision (migration v34): 'auto' | 'manual' | NULL.
 		// 'manual' pins the lap so the auto-exclude reconciliation pass
-		// (server/experiment-auto-exclude.ts) never touches it; 'auto' means the
+		// (server/experiments/auto-exclude.ts) never touches it; 'auto' means the
 		// fastest-5 rule owns the state pair and may flip it on a later lap save.
 		experimentExcludedSource: text("experiment_excluded_source"),
 		// Persisted per-lap metrics (migration v32), derived once from the lap's
@@ -306,7 +323,7 @@ export const lineSpreadCache = sqliteTable(
 
 /**
  * Community tunes synced from the SpeedHQ CDN (Cloudflare Pages).
- * Populated by a replace-all sync per game_id — see server/community-tunes-sync.ts.
+ * Populated by a replace-all sync per game_id — see server/tunes/community-sync.ts.
  * The catalog endpoint merges these rows with the built-in JSON catalog.
  * strengths/weaknesses/bestTracks/strategies are intentionally not persisted;
  * community cards render from name/author/category/description/settings only.
@@ -368,7 +385,7 @@ export const experiments = sqliteTable(
 		//
 		// Values intentionally differ from experimentVersions.kind
 		// ('setup'|'drill') — mode and arm are different levels and must not
-		// share a vocabulary. See shared/experiment-focus.ts.
+		// share a vocabulary. See shared/racing/experiments/focus.ts.
 		focus: text("focus").notNull().default("car"), // 'car' | 'driver'
 		notes: text("notes"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
@@ -419,7 +436,7 @@ export const experimentFocusEvents = sqliteTable(
  * session's baseSetupPath on session create, and each Save & recommend appends
  * v(N+1) with the applied diff + the newly written setup file.
  *
- * `appliedChanges` is a JSON blob of `TestChange[]` (shared/types.ts) — a
+ * `appliedChanges` is a JSON blob of `TestChange[]` (shared/racing/experiments/types.ts) — a
  * discriminated union on `kind`, either a setup knob edit from the autotune
  * engine or a driving drill. `parentVersionId` links a version to the one it was
  * derived from (self-referential; not a hard FK so a parent can be archived
@@ -483,7 +500,7 @@ export const experimentVersions = sqliteTable(
 
 /**
  * Tuning actions — append-only action log backing session-scoped undo
- * (migration v30, docs/setup-engineer-flow-design.md §Phase 9). Every mutating
+ * (migration v30; see docs/architecture/setup-engineer.md). Every mutating
  * op (apply/branch/add-base/import/set-head/delete/restore/rename/exclude)
  * records its inverse here. `inversePayload` holds only small JSON refs (created
  * versionId, prior head, prior lap stamps) — no blobs — so full-session depth is
@@ -571,7 +588,7 @@ export const driverProfiles = sqliteTable(
 		carOrdinal: integer("car_ordinal"),
 		trackOrdinal: integer("track_ordinal"),
 		poolKey: text("pool_key").notNull(),
-		/** JSON — DriverFingerprint from server/ai/driver-profile-aggregate.ts. */
+		/** JSON — DriverFingerprint from server/driver-profile/fingerprint.ts. */
 		fingerprint: text("fingerprint").notNull(),
 		/** JSON — DriverProfileSummary snapshot from the Driver Profiler agent. */
 		plan: text("plan").notNull(),

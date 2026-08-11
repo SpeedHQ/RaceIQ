@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/types";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../shared/games/ids";
 import { SessionRecap } from "./SessionRecap";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 

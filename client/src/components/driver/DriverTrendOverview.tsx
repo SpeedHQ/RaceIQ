@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
-import type { DriverTrend, DriverTrendLap, DriverTrendWindow, TrendDirection } from "../../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileSummary } from "../../../../server/ai/schemas";
-import type { DriverProfileState } from "../../hooks/queries";
+import type { DriverTrend, DriverTrendLap, DriverTrendWindow, TrendDirection } from "../../../../server/driver-profile/trend";
+import type { DriverProfileState } from "../../hooks/driver-profile";
 
 interface DriverTrendOverviewProps {
   trend: DriverTrend;
@@ -171,7 +171,7 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
               : "Current";
   return (
     <>
-      <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr]">
+      <div className="grid gap-3 @5xl/workspace:grid-cols-[1.15fr_1fr]">
         <article className="rounded-xl border border-app-border bg-app-surface p-4">
           <div className="text-app-caption font-medium uppercase tracking-app-label text-app-text-muted">
             Latest {recent.total} laps vs previous {previous.total} · dirty laps count
@@ -188,7 +188,7 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
         </article>
         <article className="rounded-xl border border-app-border bg-app-surface p-4">
           <div className="text-app-caption font-medium uppercase tracking-app-label text-app-text-muted">General movement</div>
-          <div className="mt-2 grid gap-1.5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          <div className="mt-2 grid gap-1.5 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-1 @7xl/workspace:grid-cols-3">
             <div className="rounded-lg border border-app-border bg-app-surface-alt/40 p-2">
               <span className="block text-app-caption text-app-text-muted">Relative pace</span>
               <b className={`text-sm ${directionTone(trend.paceDirection)}`}>{paceMovement(trend.paceDeltaPct)}</b>
@@ -217,7 +217,7 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
         Global normalization never averages raw times from different tracks. Each car + track is reduced to relative pace and consistency first; latest {recent.total} global results are then compared
         with preceding {previous.total}.
       </p>
-      <div className="mt-3 grid gap-3 lg:grid-cols-1 xl:grid-cols-2">
+      <div className="mt-3 grid gap-3 @5xl/workspace:grid-cols-1 @7xl/workspace:grid-cols-2">
         <article className="rounded-xl border border-app-border bg-app-surface p-4">
           <div className="text-app-caption font-medium uppercase tracking-app-label text-app-text-muted">Immediate measured advice</div>
           <div className="mt-2 space-y-3">

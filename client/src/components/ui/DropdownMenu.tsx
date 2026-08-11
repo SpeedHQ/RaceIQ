@@ -16,7 +16,8 @@ interface DropdownMenuProps {
 }
 
 const OVERLAY_SURFACE_CLASS = "min-w-[180px] rounded-lg border border-app-border-input bg-app-surface-alt py-1 text-app-text shadow-lg";
-const OVERLAY_ITEM_CLASS = "flex w-full cursor-default items-center gap-2 px-3 py-1.5 text-left text-sm outline-none transition-colors data-highlighted:bg-app-accent/10 data-disabled:pointer-events-none data-disabled:opacity-50";
+const OVERLAY_ITEM_CLASS =
+  "flex w-full cursor-default items-center gap-2 px-3 py-1.5 text-left text-sm outline-none transition-colors data-highlighted:bg-app-accent/10 data-disabled:pointer-events-none data-disabled:opacity-50";
 
 export function DropdownMenu({ trigger, items, align = "right" }: DropdownMenuProps) {
   return (

@@ -1,7 +1,8 @@
-import type { TuneIssue } from "@shared/types";
 import { useMemo } from "react";
+import type { LineSpreadTrace } from "@/hooks/experiments";
+import type { TrackCorner } from "@/hooks/track-queries";
 import { severityRangeColor } from "@/lib/colors";
-import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import { consistencyAt, type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";
@@ -23,7 +24,7 @@ interface ConsistencyLanesProps {
   onZoomHover?: (active: boolean) => void;
 }
 
-// Same threshold as server/lap-consistency.ts LINE_SPREAD_THRESHOLD_M.
+// Same threshold as server/lap-analysis/consistency.ts LINE_SPREAD_THRESHOLD_M.
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
 function spreadColor(spreadM: number): string {
@@ -327,7 +328,8 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                 <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
                 <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                   <div>
-                    Δ worst: <span style={{ color: worst != null && worst > 0 ? "var(--delta-loss)" : "var(--delta-gain)" }}>{worst != null ? `${worst >= 0 ? "+" : ""}${worst.toFixed(3)}s` : "—"}</span>
+                    Δ worst:{" "}
+                    <span style={{ color: worst != null && worst > 0 ? "var(--delta-loss)" : "var(--delta-gain)" }}>{worst != null ? `${worst >= 0 ? "+" : ""}${worst.toFixed(3)}s` : "—"}</span>
                   </div>
                   <div>
                     Δ avg: <span style={{ color: avg > 0 ? "var(--delta-loss)" : "var(--delta-gain)" }}>{`${avg >= 0 ? "+" : ""}${avg.toFixed(3)}s`}</span>
@@ -403,16 +405,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           >
             {({ x, y }) => (
               <>
-                <line
-                  x1={x(0)}
-                  x2={x(1)}
-                  y1={y(LINE_SPREAD_THRESHOLD_M)}
-                  y2={y(LINE_SPREAD_THRESHOLD_M)}
-                  stroke="var(--delta-focus)"
-                  strokeWidth={1}
-                  opacity={0.5}
-                  strokeDasharray="4 3"
-                />
+                <line x1={x(0)} x2={x(1)} y1={y(LINE_SPREAD_THRESHOLD_M)} y2={y(LINE_SPREAD_THRESHOLD_M)} stroke="var(--delta-focus)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
                 <polyline points={spreadPolyline(lineSpread!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={0.9} />
               </>
             )}

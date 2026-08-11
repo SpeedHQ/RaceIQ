@@ -15,10 +15,10 @@
  * Kept separate from `chat-prompt.ts` (the lap-analysis chat) on purpose: that
  * prompt is telemetry+corner-analysis-scoped; this one is setup+symptom-scoped.
  */
-import type { GameId } from "../../shared/types";
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-import { parseTestChanges } from "../../shared/test-changes";
+import type { GameId } from "../../shared/games/ids";
+import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { parseTestChanges } from "../../shared/racing/experiments/test-changes";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";
@@ -35,13 +35,13 @@ export interface TuneChatTest {
 }
 
 /** The subset of a tuning session the prompt needs for car/track identity. */
-export interface TuneChatSession {
+interface TuneChatSession {
   name: string;
   carName: string | null;
   trackName: string | null;
 }
 
-export interface TuneChatPromptInput {
+interface TuneChatPromptInput {
   gameId: GameId;
   session: TuneChatSession;
   /** Setup versions under evaluation, oldest-first (v1 base → latest). */

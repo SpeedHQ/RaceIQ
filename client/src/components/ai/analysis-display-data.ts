@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AnalysisData } from "./analysis-display";
+import type { AnalysisData } from "./analysis-types";
 
 const Assessment = z.enum(["good", "warning", "critical"]);
 const MetricItem = z.object({
@@ -55,6 +55,6 @@ export function parseLapAnalysisForDisplay(text: string): AnalysisData | null {
     braking: [],
     throttle: [],
     coaching: parsed.data.technique,
-    ...(parsed.data.setup === undefined ? {} : { setup: parsed.data.setup }),
+    setup: parsed.data.setup ?? [],
   };
 }

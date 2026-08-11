@@ -1,12 +1,12 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useMemo } from "react";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
 
 /**
- * CurrentLapTireStrip — compact horizontal row of the same per-corner range
- * bars LiveTireBars renders, tighter spacing, for the live dashboard's bottom
- * strip. Live dashboard replacement for the sector-by-sector breakdown, which
- * reviews a completed lap rather than what the car is doing right now.
+ * CurrentLapTireStrip — compact horizontal row of per-corner range bars,
+ * with tighter spacing, for live dashboard's bottom strip. Live dashboard
+ * replacement for sector-by-sector breakdown, which reviews completed lap
+ * rather than what car is doing right now.
  */
 export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const models = useMemo(() => METRICS.map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })), [telemetry]);

@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import type { CapturedLap } from "../../../server/pipeline-adapters";
+import type { CapturedLap } from "../../../server/telemetry/pipeline-ports"
 
 export function assertBrandHatchSectorBounds(lap: CapturedLap): void {
   if (!lap.sectors) return;

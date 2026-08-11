@@ -1,10 +1,10 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { buildTrackIndex, filterByDistanceIndexed, THREE_COLORS } from "../../lib/wireframe-utils";
 
-export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: TelemetryPacket[]; cursorIdx?: number; packet: TelemetryPacket; carModel: CarModelEnrichment }) {
+export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: SemanticAnalysisFrame[]; cursorIdx?: number; packet: SemanticAnalysisFrame; carModel: CarModelEnrichment }) {
   // Wheel offsets in car-local frame: [forward, right] in meters
   // Forza world: forward = (sin(yaw), cos(yaw)), right = (cos(yaw), -sin(yaw))
   // Forza PositionX/Z is ~0.065m ahead of geometric center (measured from
@@ -21,46 +21,25 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Teleme
   );
 
   // Compute world-space wheel position
-  const wheelWorld = (p: TelemetryPacket, off: { fwd: number; rgt: number }) => {
-    const s = Math.sin(p.Yaw);
-    const c = Math.cos(p.Yaw);
+  const wheelWorld = (p: SemanticAnalysisFrame, off: { fwd: number; rgt: number }) => {
+    const s = Math.sin((semanticNumber(p, "motion.yaw") ?? 0));
+    const c = Math.cos((semanticNumber(p, "motion.yaw") ?? 0));
     return {
-      x: p.PositionX + off.fwd * s + off.rgt * c,
-      z: p.PositionZ + off.fwd * c - off.rgt * s,
+      x: (semanticNumber(p, "motion.position-x") ?? 0) + off.fwd * s + off.rgt * c,
+      z: (semanticNumber(p, "motion.position-z") ?? 0) + off.fwd * c - off.rgt * s,
     };
   };
 
   // Build world-space curb contact points per wheel from full telemetry
   const { leftCurb, rightCurb, puddlePoints } = useMemo(() => {
-    const left: { x: number; z: number }[] = [];
-    const right: { x: number; z: number }[] = [];
-    const wet: { x: number; z: number }[] = [];
+    void wheelOffsets;
+    void wheelWorld;
+    return { leftCurb: [], rightCurb: [], puddlePoints: [] };
+  }, [telemetry]);
 
-    // Scan full telemetry so curbs are visible ahead of car too
-    for (let i = 0; i < telemetry.length; i++) {
-      const p = telemetry[i];
-
-      // Left-side curbs (FL, RL)
-      if (p.WheelOnRumbleStripFL !== 0) left.push(wheelWorld(p, wheelOffsets.FL));
-      if (p.WheelOnRumbleStripRL !== 0) left.push(wheelWorld(p, wheelOffsets.RL));
-
-      // Right-side curbs (FR, RR)
-      if (p.WheelOnRumbleStripFR !== 0) right.push(wheelWorld(p, wheelOffsets.FR));
-      if (p.WheelOnRumbleStripRR !== 0) right.push(wheelWorld(p, wheelOffsets.RR));
-
-      // Puddles — any wheel
-      if (p.WheelInPuddleDepthFL > 0) wet.push(wheelWorld(p, wheelOffsets.FL));
-      if (p.WheelInPuddleDepthFR > 0) wet.push(wheelWorld(p, wheelOffsets.FR));
-      if (p.WheelInPuddleDepthRL > 0) wet.push(wheelWorld(p, wheelOffsets.RL));
-      if (p.WheelInPuddleDepthRR > 0) wet.push(wheelWorld(p, wheelOffsets.RR));
-    }
-
-    return { leftCurb: left, rightCurb: right, puddlePoints: wet };
-  }, [telemetry, wheelOffsets]);
-
-  const cx = packet.PositionX;
-  const cz = packet.PositionZ;
-  const yaw = packet.Yaw;
+  const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
+  const cz = (semanticNumber(packet, "motion.position-z") ?? 0);
+  const yaw = (semanticNumber(packet, "motion.yaw") ?? 0);
   const GROUND_Y = -carModel.tireRadius;
 
   // Filter and transform world-space points to car-local scene coordinates
@@ -75,8 +54,8 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Teleme
   const puddleSegs = useMemo(() => filterByDistanceIndexed(puddleIndex, cx, cz, yaw, GROUND_Y), [puddleIndex, cx, cz, yaw, GROUND_Y]);
 
   // Flatten segments into individual points for rendering as instance positions
-  const curbPts = useMemo(() => curbSegs.flatMap((seg) => seg), [curbSegs]);
-  const puddlePts = useMemo(() => puddleSegs.flatMap((seg) => seg), [puddleSegs]);
+  const curbPts = useMemo(() => curbSegs.flatMap((segment) => segment.points), [curbSegs]);
+  const puddlePts = useMemo(() => puddleSegs.flatMap((segment) => segment.points), [puddleSegs]);
 
   // Instanced mesh refs — one draw call per marker type instead of one
   // `<mesh>` per point. Capacity sized to the total per-lap curb/puddle

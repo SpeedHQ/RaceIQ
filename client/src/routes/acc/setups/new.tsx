@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
 import { useAccCars } from "../../../components/setup-tune/use-game-cars";
-import { useCreateTune } from "../../../hooks/queries";
+import { useCreateTune } from "../../../hooks/tunes";
 
 function NewAccTunePage() {
   const navigate = useNavigate();

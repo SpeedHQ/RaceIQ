@@ -30,10 +30,11 @@ type TRowProps = LockedStyleProps<ComponentPropsWithRef<"tr">> & {
 type CellAlign = "start" | "center" | "end";
 type CellTone = "default" | "primary" | "muted" | "dim" | "accent" | "success" | "warning" | "danger" | "best";
 type TruncateWidth = "narrow" | "wide";
+type TableShowFrom = "sm" | "workspace-sm" | "workspace-md" | "workspace-lg" | "workspace-xl";
 type THProps = Omit<LockedStyleProps<ComponentPropsWithRef<"th">>, "align"> & {
   align?: CellAlign;
   nowrap?: boolean;
-  showFrom?: "sm";
+  showFrom?: TableShowFrom;
   sticky?: "start";
   visuallyHidden?: boolean;
 };
@@ -47,7 +48,7 @@ type TDProps = Omit<LockedStyleProps<ComponentPropsWithRef<"td">>, "align"> & {
   emphasis?: boolean;
   numeric?: boolean;
   nowrap?: boolean;
-  showFrom?: "sm";
+  showFrom?: TableShowFrom;
   sticky?: "start";
   tone?: CellTone;
   truncate?: TruncateWidth;
@@ -69,6 +70,14 @@ const toneClasses: Record<CellTone, string> = {
   warning: "text-status-warning",
   danger: "text-status-danger",
   best: "text-(--lap-pace-best)",
+};
+
+const showFromClasses: Record<TableShowFrom, string> = {
+  sm: "hidden sm:table-cell",
+  "workspace-sm": "hidden @sm/workspace:table-cell",
+  "workspace-md": "hidden @3xl/workspace:table-cell",
+  "workspace-lg": "hidden @5xl/workspace:table-cell",
+  "workspace-xl": "hidden @7xl/workspace:table-cell",
 };
 
 export function Table(inputProps: TableProps) {
@@ -107,7 +116,7 @@ export function Table(inputProps: TableProps) {
         data-variant={variant}
         className={cn(
           "w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40",
-          fit ? "min-w-0" : "min-w-max md:min-w-0",
+          fit ? "min-w-0" : "min-w-max @3xl/workspace:min-w-0",
           layout === "fixed" && "table-fixed",
           densityClasses[density],
         )}
@@ -195,7 +204,7 @@ export function TH(inputProps: THProps) {
       className={cn(
         "px-3 py-2",
         alignClasses[align],
-        showFrom === "sm" && "hidden sm:table-cell",
+        showFrom && showFromClasses[showFrom],
         nowrap && "whitespace-nowrap",
         visuallyHidden && "sr-only",
         sticky === "start" && "sticky left-0 z-20 bg-app-surface",
@@ -255,7 +264,7 @@ export function TD(inputProps: TDProps) {
         alignClasses[align],
         toneClasses[tone],
         emphasis && "font-semibold",
-        showFrom === "sm" && "hidden sm:table-cell",
+        showFrom && showFromClasses[showFrom],
         numeric && "font-mono tabular-nums",
         nowrap && "whitespace-nowrap",
         sticky === "start" && "sticky left-0 z-10 bg-inherit",

@@ -1,4 +1,4 @@
-import { releaseFeatureFlags } from "@shared/release-feature-flags";
+import { releaseFeatureFlags } from "@shared/platform/runtime/release-feature-flags";
 
 export const clientReleaseFeatures = releaseFeatureFlags({
   RACEIQ_FEATURE_F1_EXPERIMENTS: import.meta.env.RACEIQ_FEATURE_F1_EXPERIMENTS,

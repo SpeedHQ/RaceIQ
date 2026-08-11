@@ -1,11 +1,13 @@
-import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS, severityColor, severityRangeColor } from "@/lib/colors";
-import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
+import type { LineSpreadTrace } from "../../../hooks/experiments";
+import type { TrackCorner } from "../../../hooks/track-queries";
 import { buildGeometry, buildStartMarker, type Pt, projectPoint, type SectorTimesLite, VIEW } from "../track-map-geometry";
 import { nearestCornerLabel } from "./detect-corners";
 
-// Same threshold server-side (server/lap-consistency.ts LINE_SPREAD_THRESHOLD_M).
+// Same threshold server-side (server/lap-analysis/consistency.ts LINE_SPREAD_THRESHOLD_M).
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
 function spreadColor(spreadM: number): string {
@@ -222,7 +224,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
           {geometry?.leftEdge && <polyline points={geometry.leftEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
           {geometry?.rightEdge && <polyline points={geometry.rightEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
           {heatSegments
-            ? heatSegments.map((s, i) => <line key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />)
+            ? heatSegments.map((s) => <line key={`${s.x1}-${s.y1}-${s.x2}-${s.y2}`} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />)
             : (["s1", "s2", "s3"] as const).map((segKey, i) => (
                 <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={SECTOR_COLOR_VARS[i]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
               ))}
@@ -254,7 +256,15 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
               return (
                 <g key={c.index}>
                   <circle cx={pt.x} cy={pt.y} r={isActive ? 3.5 : 2.5} fill={color} stroke="var(--app-bg)" strokeWidth={0.75} />
-                  <text x={pt.x + ox} y={pt.y + oy} textAnchor="middle" fontFamily="var(--font-mono)" fontSize={isActive ? 8.5 : 7.5} fontWeight={isActive ? "var(--font-weight-bold)" : "var(--font-weight-normal)"} fill={color}>
+                  <text
+                    x={pt.x + ox}
+                    y={pt.y + oy}
+                    textAnchor="middle"
+                    fontFamily="var(--font-mono)"
+                    fontSize={isActive ? 8.5 : 7.5}
+                    fontWeight={isActive ? "var(--font-weight-bold)" : "var(--font-weight-normal)"}
+                    fill={color}
+                  >
                     {c.label}
                   </text>
                 </g>
@@ -273,40 +283,40 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
                 </g>
               );
             })}
-          {overlayPoints?.brake.map((f, i) => {
+          {overlayPoints?.brake.map((f) => {
             const tk = fracToTick(f);
             if (!tk) return null;
-            return <line key={`ob-${i}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-brake)" strokeWidth={1.5} strokeLinecap="round" />;
+            return <line key={`ob-${f}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-brake)" strokeWidth={1.5} strokeLinecap="round" />;
           })}
-          {overlayPoints?.throttle.map((f, i) => {
+          {overlayPoints?.throttle.map((f) => {
             const tk = fracToTick(f);
             if (!tk) return null;
-            return <line key={`ot-${i}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-throttle)" strokeWidth={1.5} strokeLinecap="round" />;
+            return <line key={`ot-${f}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-throttle)" strokeWidth={1.5} strokeLinecap="round" />;
           })}
           {cursorPt && <circle cx={cursorPt.x} cy={cursorPt.y} r={4} fill="var(--app-accent)" stroke="var(--app-bg)" strokeWidth={1.2} />}
         </svg>
-        {cursorFrac != null && cursorPt ? (
-          (() => {
-            const leftPct = (cursorPt.x / VIEW) * 100;
-            const topPct = (cursorPt.y / VIEW) * 100;
-            const flipX = leftPct > 60;
-            const flipY = topPct > 70;
-            const speed = readoutFrame ? `${(readoutFrame.Speed * 3.6).toFixed(0)} km/h` : null;
-            return (
-              <div
-                className="absolute pointer-events-none text-app-caption font-mono tabular-nums bg-app-surface-alt/95 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted whitespace-nowrap shadow"
-                style={{
-                  left: `${leftPct}%`,
-                  top: `${topPct}%`,
-                  transform: `translate(${flipX ? "-110%" : "10px"}, ${flipY ? "calc(-100% - 10px)" : "10px"})`,
-                }}
-              >
-                {hoveredCornerLabel && <span className="text-app-accent font-semibold">{hoveredCornerLabel} · </span>}
-                {(cursorFrac * 100).toFixed(0)}%{speed ? ` · ${speed}` : ""}
-              </div>
-            );
-          })()
-        ) : null}
+        {cursorFrac != null && cursorPt
+          ? (() => {
+              const leftPct = (cursorPt.x / VIEW) * 100;
+              const topPct = (cursorPt.y / VIEW) * 100;
+              const flipX = leftPct > 60;
+              const flipY = topPct > 70;
+              const speed = readoutFrame ? `${(readoutFrame.Speed * 3.6).toFixed(0)} km/h` : null;
+              return (
+                <div
+                  className="absolute pointer-events-none text-app-caption font-mono tabular-nums bg-app-surface-alt/95 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted whitespace-nowrap shadow"
+                  style={{
+                    left: `${leftPct}%`,
+                    top: `${topPct}%`,
+                    transform: `translate(${flipX ? "-110%" : "10px"}, ${flipY ? "calc(-100% - 10px)" : "10px"})`,
+                  }}
+                >
+                  {hoveredCornerLabel && <span className="text-app-accent font-semibold">{hoveredCornerLabel} · </span>}
+                  {(cursorFrac * 100).toFixed(0)}%{speed ? ` · ${speed}` : ""}
+                </div>
+              );
+            })()
+          : null}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-app-caption text-app-text-dim">
         {heatSegments ? (

@@ -1,19 +1,14 @@
-import type { Tune, GameId } from "../../shared/types";
-import {
-  getLapById,
-  getCorners,
-  getAnalysis,
-  saveAnalysis,
-} from "../db/queries";
+import type { Tune } from "../../shared/racing/tuning/types";
+import type { GameId } from "../../shared/games/ids";
+import { getLapById } from "../db/lap-read-queries";
+import { getCorners } from "../db/track-queries";
+import { getAnalysis, saveAnalysis } from "../db/analysis-queries";
 import { getTuneById as getDbTune } from "../db/tune-queries";
-import { detectCorners, type Corner } from "../corner-detection";
-import { loadSettings } from "../settings";
+import { detectCorners, type Corner } from "../lap-analysis/corners";
+import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt, type PromptSectors } from "./analyst-prompt";
-import { resolveTrack } from "../track-info";
-import {
-  computeNativeSectorTimeline,
-  computeLapSectors,
-} from "../compute-lap-sectors";
+import { resolveTrack } from "../tracks/info";
+import { computeNativeSectorTimeline, computeLapSectors } from "../lap-analysis/sectors";
 import { getGame } from "../../shared/games/registry";
 import { lapAnalystAgent } from "./agents";
 import { getAnalystJsonSchema, AnalystOutputSchema } from "./schemas";
@@ -210,7 +205,7 @@ export async function generateLapAnalysis(
     // Sector times are optional context.
   }
 
-  let prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
+  const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
     lap.telemetry,
     corners,
@@ -310,4 +305,3 @@ export async function generateLapAnalysis(
     };
   }
 }
-

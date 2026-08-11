@@ -1,14 +1,20 @@
+import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "../scripts/visual-diff-config";
+import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "../scripts/ui/visual-diff-config";
+
+const STORYBOOK_PORT = process.env.RACEIQ_STORYBOOK_PORT ?? "6006";
+const STORYBOOK_ROOT = process.env.RACEIQ_STORYBOOK_ROOT ? resolve(process.env.RACEIQ_STORYBOOK_ROOT) : undefined;
+const SNAPSHOT_DIR = process.env.RACEIQ_SNAPSHOT_DIR ? resolve(process.env.RACEIQ_SNAPSHOT_DIR) : "./src/stories/__snapshots__";
+const RESULTS_DIR = process.env.RACEIQ_SNAPSHOT_RESULTS_DIR ? resolve(process.env.RACEIQ_SNAPSHOT_RESULTS_DIR) : "./src/stories/__snapshots__/results";
 
 export default defineConfig({
-  // Snapshot files warm Storybook's shared preview compiler concurrently when
-  // workers run in parallel. Serialize them so cold compilation is predictable.
-  workers: 1,
   testDir: "./src/stories",
   testMatch: "**/*.snapshot.ts",
-  outputDir: "./src/stories/__snapshots__/results",
-  snapshotDir: "./src/stories/__snapshots__",
+  // Snapshot specs share one cold-compiling Storybook server. Serial workers
+  // prevent competing beforeAll warmups from timing out or closing contexts.
+  workers: 1,
+  outputDir: RESULTS_DIR,
+  snapshotDir: SNAPSHOT_DIR,
   snapshotPathTemplate: "{snapshotDir}/{testName}.png",
   // Tolerate sub-pixel antialiasing / font-rendering noise so only real UI
   // changes trip the diff. `threshold` is per-pixel colour distance (0–1);
@@ -20,7 +26,7 @@ export default defineConfig({
     },
   },
   use: {
-    baseURL: "http://localhost:6006",
+    baseURL: `http://localhost:${STORYBOOK_PORT}`,
     ...devices["Desktop Chrome"],
     viewport: { width: 1920, height: 1080 },
     screenshot: "on",
@@ -29,8 +35,9 @@ export default defineConfig({
     reducedMotion: "reduce",
   },
   webServer: {
-    command: "bun run storybook -- --ci --no-open --exact-port",
-    url: "http://localhost:6006/index.json",
+    command: `bunx storybook dev -p ${STORYBOOK_PORT} --ci --no-open --exact-port`,
+    cwd: STORYBOOK_ROOT,
+    url: `http://localhost:${STORYBOOK_PORT}/index.json`,
     reuseExistingServer: false,
     timeout: 120_000,
   },

@@ -3,6 +3,7 @@ import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import type { VersionInfo } from "@/stores/telemetry";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { ProcessingMaintenance } from "../ProcessingMaintenance";
 export function UpdatesSection() {
@@ -10,26 +11,34 @@ export function UpdatesSection() {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const versionInfo = useTelemetryStore((s) => s.versionInfo);
   const [checking, setChecking] = useState(false);
+  const [error, setError] = useState(false);
 
   const handleCheck = async () => {
     setChecking(true);
+    setError(false);
     try {
-      await client.api.update.check.$post();
+      const checkResponse = await client.api.update.check.$post();
+      if (!checkResponse.ok) throw new Error(`update check failed: ${checkResponse.status}`);
       // Refetch version info into Zustand
       const res = await client.api.version.$get();
+      if (!res.ok) throw new Error(`version request failed: ${res.status}`);
       const data = await res.json();
-      useTelemetryStore.getState().setVersionInfo(data as unknown as import("@/stores/telemetry").VersionInfo);
+      useTelemetryStore.getState().setVersionInfo(data as VersionInfo);
     } catch {
+      setError(true);
     } finally {
       setChecking(false);
     }
   };
 
   const handleInstall = async () => {
+    setError(false);
     useTelemetryStore.getState().setUpdateProgress({ stage: "downloading", percent: 0 });
     try {
-      await client.api.update.apply.$post();
+      const response = await client.api.update.apply.$post();
+      if (!response.ok) throw new Error(`update apply failed: ${response.status}`);
     } catch {
+      setError(true);
       useTelemetryStore.getState().setUpdateProgress(null);
     }
   };
@@ -48,6 +57,11 @@ export function UpdatesSection() {
           <Button onClick={handleCheck} disabled={checking} variant="outline" size="sm">
             {checking ? m.label_checking() : m.updates_check_button()}
           </Button>
+        )}
+        {error && (
+          <p className="text-sm text-status-danger mb-4" role="alert">
+            {m.update_failed()}
+          </p>
         )}
       </div>
       <div className="text-sm text-app-text-muted mb-4 space-y-0.5">

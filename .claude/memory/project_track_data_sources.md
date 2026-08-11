@@ -16,7 +16,7 @@ Track data extraction from Forza Motorsport 2023 game files completed 2026-03-28
 **Removed:** OSM/Overpass track outlines (removed 2026-03-27, low quality).
 
 **Key files:**
-- `server/track-calibration.ts` — LZX decompressor, extraction logic, boundary computation
+- `server/tracks/calibration.ts` — LZX decompressor, extraction logic, boundary computation
 - `shared/track-outlines/index.ts` — track lookup by name/ordinal, manages all sources
 - `shared/track-outlines/boundaries/` — left/right edge + pit lane JSONs
 

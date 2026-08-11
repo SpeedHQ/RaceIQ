@@ -23,14 +23,14 @@
  * they're absent (older games / legacy laps) {@link tireTempSymptoms} returns
  * null and callers simply omit tyre-temp context.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 export type TireCorner = "FL" | "FR" | "RL" | "RR";
-export type CamberBias = "excess_negative" | "insufficient_negative" | "balanced";
-export type PressureBias = "over" | "under" | "balanced";
-export type ThermalState = "cold" | "optimal" | "hot";
+type CamberBias = "excess_negative" | "insufficient_negative" | "balanced";
+type PressureBias = "over" | "under" | "balanced";
+type ThermalState = "cold" | "optimal" | "hot";
 
-export interface TireCornerTemp {
+interface TireCornerTemp {
   corner: TireCorner;
   /** Mean core (carcass) temp over loaded frames, °C. */
   coreTempC: number;
@@ -47,7 +47,7 @@ export interface TireCornerTemp {
   thermal: ThermalState;
 }
 
-export interface TireTempSymptoms {
+interface TireTempSymptoms {
   corners: TireCornerTemp[];
   /** Mean core temp front axle − rear axle, °C. +ve = fronts hotter. */
   frontMinusRearC: number;
@@ -59,14 +59,15 @@ export interface TireTempSymptoms {
 
 // Inner/outer spread (°C) beyond which camber is called rather than "balanced".
 // Below this the difference is within sensor + stint-variance noise.
-export const CAMBER_SPREAD_C = 5;
+const CAMBER_SPREAD_C = 5;
 // Crown-vs-shoulder spread (°C) beyond which pressure bias is called.
-export const PRESSURE_SPREAD_C = 4;
+const PRESSURE_SPREAD_C = 4;
 // Optimal core-temp window (°C). Coarse, compound-agnostic slick heuristic —
 // GT3/GTE dry slicks live roughly here; used only for a cold/hot flag, never a
 // numeric target. Tighten per-compound later if a lookup lands.
-export const CORE_TEMP_COLD_C = 65;
-export const CORE_TEMP_HOT_C = 100;
+const CORE_TEMP_COLD_C = 65;
+const CORE_TEMP_HOT_C = 100;
+
 // Minimum loaded frames before a corner's temps are trusted.
 const MIN_FRAMES = 30;
 

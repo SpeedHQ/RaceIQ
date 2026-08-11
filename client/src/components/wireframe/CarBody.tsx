@@ -3,10 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
-import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
-
-// Re-export so existing importers don't break.
-export { classifyMesh, DEFAULT_HIDDEN_MESHES };
+import { classifyMesh } from "./classify-mesh";
 
 export function CarBody({
   solid,
@@ -21,35 +18,41 @@ export function CarBody({
 }) {
   const { scene } = useGLTF(carModel.modelPath);
 
-  const model = useMemo(() => {
+  const { model, modelMaterial } = useMemo(() => {
     const clone = scene.clone(true);
     const toRemove: THREE.Object3D[] = [];
-    clone.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        const action = classifyMesh(mesh.name, solid, !!hideModelWheels, carModel.solidHiddenMeshes);
+    const modelMaterial =
+      solid === "hidden"
+        ? null
+        : solid === "solid"
+          ? new THREE.MeshStandardMaterial({
+              color: THREE_COLORS.appTextDim,
+              metalness: 0.7,
+              roughness: 0.25,
+              side: THREE.DoubleSide,
+            })
+          : new THREE.MeshBasicMaterial({
+              color: THREE_COLORS.wireframeStructure,
+              wireframe: true,
+              transparent: true,
+              opacity: 0.03,
+            });
 
-        if (action === "remove") {
-          toRemove.push(mesh);
-        } else if (action === "solid") {
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: THREE_COLORS.appTextDim,
-            metalness: 0.7,
-            roughness: 0.25,
-            side: THREE.DoubleSide,
-          });
-        } else {
-          mesh.material = new THREE.MeshBasicMaterial({
-            color: THREE_COLORS.wireframeStructure,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.03,
-          });
-        }
+    clone.traverse((child) => {
+      if (!(child as THREE.Mesh).isMesh) return;
+
+      const mesh = child as THREE.Mesh;
+      const action = classifyMesh(mesh.name, solid, !!hideModelWheels, carModel.solidHiddenMeshes);
+      if (action === "remove") {
+        toRemove.push(mesh);
+      } else if (modelMaterial) {
+        mesh.material = modelMaterial;
       }
     });
-    toRemove.forEach((obj) => obj.parent?.remove(obj));
-    return clone;
+    toRemove.forEach((obj) => {
+      obj.parent?.remove(obj);
+    });
+    return { model: clone, modelMaterial };
   }, [scene, solid, hideModelWheels, carModel]);
 
   // Scale GLB to match our coordinate system.
@@ -98,22 +101,51 @@ export function CarBody({
     [highlightedMesh],
   );
 
-  // Apply highlight overlay
+  // Apply one temporary highlight material, then restore clone-owned materials.
   useEffect(() => {
+    if (!highlightedMesh) return;
+
+    const meshes: THREE.Mesh[] = [];
     model.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        if (mesh.name === highlightedMesh) {
-          mesh.material = new THREE.MeshBasicMaterial({ color: THREE_COLORS.wireframeAlert, wireframe: false, transparent: true, opacity: 0.6 });
-        }
+      if ((child as THREE.Mesh).isMesh && child.name === highlightedMesh) {
+        meshes.push(child as THREE.Mesh);
       }
     });
+    if (meshes.length === 0) return;
+
+    const originals = meshes.map((mesh) => mesh.material);
+    const highlightMaterial = new THREE.MeshBasicMaterial({
+      color: THREE_COLORS.wireframeAlert,
+      wireframe: false,
+      transparent: true,
+      opacity: 0.6,
+    });
+    meshes.forEach((mesh) => {
+      mesh.material = highlightMaterial;
+    });
+
+    return () => {
+      meshes.forEach((mesh, index) => {
+        if (mesh.material === highlightMaterial) {
+          mesh.material = originals[index];
+        }
+      });
+      highlightMaterial.dispose();
+    };
   }, [highlightedMesh, model]);
+
+  useEffect(
+    () => () => {
+      modelMaterial?.dispose();
+    },
+    [modelMaterial],
+  );
 
   return (
     <group rotation={[0, carModel.glbRotationY ?? 0, 0]}>
       <group scale={autoScale} position={[offset.x, offset.y + 0.25 + (carModel.glbOffsetY ?? 0), offset.z + (carModel.glbOffsetZ ?? 0)]}>
-        <primitive object={model} onDoubleClick={handleDoubleClick} />
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: react-three primitive handles scene interaction rather than DOM interaction */}
+        <primitive object={model} onDoubleClick={handleDoubleClick} dispose={null} />
       </group>
     </group>
   );

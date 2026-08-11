@@ -1,18 +1,25 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
+import { handleWebSocketMessage } from "../lib/websocket-messages";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
+import { useDevTelemetryStore } from "../stores/dev-telemetry";
+import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
-function fetchVersionInfo() {
-  client.api.version
-    .$get()
+const VERSION_REQUEST_TIMEOUT_MS = 10_000;
+const RACE_RESULT_REPROCESS_ERROR = "One or more race results could not be reconciled.";
+
+function fetchVersionInfo(signal: AbortSignal) {
+  return client.api.version
+    .$get(undefined, { init: { signal } })
     .then((r) => r.json())
-    .then((d) => useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo))
+    .then((d) => {
+      if (!signal.aborted) useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo);
+    })
     .catch(() => {});
 }
 
@@ -20,9 +27,40 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const packetCountRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const versionRequestControllerRef = useRef<AbortController | null>(null);
+  const versionRequestTimeoutRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    const abortVersionRequest = () => {
+      if (versionRequestTimeoutRef.current !== undefined) {
+        window.clearTimeout(versionRequestTimeoutRef.current);
+        versionRequestTimeoutRef.current = undefined;
+      }
+      versionRequestControllerRef.current?.abort();
+      versionRequestControllerRef.current = null;
+    };
+
+    const startVersionRequest = () => {
+      abortVersionRequest();
+
+      const controller = new AbortController();
+      versionRequestControllerRef.current = controller;
+      const timeout = window.setTimeout(() => controller.abort(), VERSION_REQUEST_TIMEOUT_MS);
+      versionRequestTimeoutRef.current = timeout;
+
+      fetchVersionInfo(controller.signal).finally(() => {
+        if (versionRequestControllerRef.current === controller) {
+          versionRequestControllerRef.current = null;
+        }
+        if (versionRequestTimeoutRef.current === timeout) {
+          window.clearTimeout(timeout);
+          versionRequestTimeoutRef.current = undefined;
+        }
+      });
+    };
+
     function connect() {
+      abortVersionRequest();
       // Close any existing connection before opening a new one
       if (wsRef.current) {
         wsRef.current.onclose = null; // prevent reconnect loop
@@ -38,9 +76,11 @@ export function useWebSocket() {
       const store = useTelemetryStore.getState();
 
       ws.onopen = () => {
-        // setConnected handles reconnecting → complete transition internally
         store.setConnected(true);
-        fetchVersionInfo();
+        startVersionRequest();
+        if (useDevTelemetryStore.getState().subscriptionWanted) {
+          ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
+        }
       };
 
       ws.onmessage = (event) => {
@@ -51,7 +91,7 @@ export function useWebSocket() {
             useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
-            fetchVersionInfo();
+            startVersionRequest();
           } else if (data.type === "update-progress") {
             useTelemetryStore.getState().setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
           } else if (data.type === "onboarding_complete") {
@@ -68,12 +108,21 @@ export function useWebSocket() {
             useTelemetryStore.getState().setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           } else if (data.type === "race-result-reconciled") {
             const store = useTelemetryStore.getState();
-            store.setRaceResultReprocessProgress({ done: data.done as number, total: data.total as number });
-            if (data.done === data.total && data.status !== "error") {
-              store.setStaleRaceResults(null);
+            const done = data.done as number;
+            const total = data.total as number;
+            const failedNow = data.status === "error";
+            const failedEarlier = done > 1 && store.raceResultReprocessError != null;
+            if (done === 1) store.setRaceResultReprocessError(null);
+            store.setRaceResultReprocessProgress({ done, total });
+            if (failedNow) store.setRaceResultReprocessError(RACE_RESULT_REPROCESS_ERROR);
+            if (done === total) {
+              if (!failedEarlier && !failedNow) store.setStaleRaceResults(null);
+              store.setRaceResultReprocessProgress(null);
             }
-            queryClient.invalidateQueries({ queryKey: ["sessions"] });
-            queryClient.invalidateQueries({ queryKey: ["race-results"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessionResults });
+            queryClient.invalidateQueries({ queryKey: queryKeys.raceResultSummaries });
+            queryClient.invalidateQueries({ queryKey: queryKeys.raceResultRecents });
           } else if (data.type === "lap-reprocessed") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
@@ -89,13 +138,7 @@ export function useWebSocket() {
               issues: data.issues,
             });
           } else {
-            const { _sectors, _pit, _liveIssues, ...packet } = data;
-            const s = useTelemetryStore.getState();
-            s.setPacket(packet as TelemetryPacket);
-            if (_sectors) s.setSectors(_sectors);
-            if (_pit) s.setPit(_pit);
-            if (_liveIssues) s.setLiveIssues(_liveIssues);
-            packetCountRef.current++;
+            if (handleWebSocketMessage(data)) packetCountRef.current++;
           }
         } catch {
           // ignore malformed messages
@@ -103,9 +146,11 @@ export function useWebSocket() {
       };
 
       ws.onclose = () => {
+        abortVersionRequest();
         const s = useTelemetryStore.getState();
         s.setConnected(false);
         s.setServerStatus(null);
+        useDevTelemetryStore.getState().clear();
         // If update was in progress, transition to reconnecting stage
         // Covers both "installing" and "downloading" (race: server may exit before WS "installing" message arrives)
         const stage = s.updateProgress?.stage;
@@ -121,6 +166,14 @@ export function useWebSocket() {
       };
     }
 
+    const unsubscribeDev = useDevTelemetryStore.subscribe((state, previous) => {
+      if (state.subscriptionWanted === previous.subscriptionWanted) return;
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
+      }
+    });
+
     connect();
 
     const interval = setInterval(() => {
@@ -129,10 +182,13 @@ export function useWebSocket() {
     }, 1000);
 
     return () => {
+      unsubscribeDev();
       clearInterval(interval);
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      clearTimeout(reconnectTimeoutRef.current);
+      abortVersionRequest();
+      useDevTelemetryStore.getState().clear();
       if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect on cleanup
+        wsRef.current.onclose = null;
         wsRef.current.close();
         wsRef.current = null;
       }

@@ -1,9 +1,9 @@
 /**
- * AC EVO `.carsetup` file parser.
+ * AC EVO `.carsetup` semantic mapping.
  *
- * Files are protobuf wire format (no schema shipped with the game). This
- * module decodes the raw wire structure generically, then maps the known
- * field numbers observed in real files to a structured setup object.
+ * Files are protobuf wire format with no shipped schema. `carsetup-wire.ts`
+ * decodes the raw tree and spans; this module maps known field numbers to
+ * human-readable labels, summaries, and setup knob values.
  *
  * Observed layout (Audi R8 LMS GT3 Evo II, Brands Hatch):
  *   #1      msg   fuel/strategy block (fuel load, pit strategy?)
@@ -19,161 +19,8 @@
  * Field-number → meaning mapping is provisional; keep the generic tree in
  * `raw` so callers (and the AI setup engineer) can inspect everything.
  */
-import { readFile } from "fs/promises";
-
-/**
- * Byte spans (absolute offsets into the top-level file buffer) recorded
- * during decode so `carsetup-writer.ts` can surgically patch a field's
- * bytes without re-encoding fields it doesn't touch. `tagStart` is where the
- * field's tag varint begins; `valueStart`/`valueEnd` bound the value itself
- * (for scalars) or the length-delimited payload (for message/string/bytes).
- * Length-delimited fields additionally record `lenStart`/`lenEnd`, the span
- * of their own length-prefix varint (`lenEnd === valueStart`). All spans are
- * optional so this stays purely additive — existing decode-only callers that
- * construct/consume `WireField` values without spans are unaffected.
- */
-interface Span {
-  tagStart?: number;
-  valueStart?: number;
-  valueEnd?: number;
-}
-interface LenSpan extends Span {
-  lenStart?: number;
-  lenEnd?: number;
-}
-
-export type WireField =
-  | ({ no: number; type: "varint"; value: string } & Span)
-  | ({ no: number; type: "fixed64"; double: number } & Span)
-  | ({ no: number; type: "float"; value: number } & Span)
-  | ({ no: number; type: "message"; fields: WireField[] } & LenSpan)
-  | ({ no: number; type: "string"; value: string } & LenSpan)
-  | ({ no: number; type: "bytes"; hex: string; floats: number[] | null } & LenSpan);
-
-export interface CarSetupFile {
-  /** Preset identifier string if present (field #9). */
-  presetId: string | null;
-  /** Full decoded wire tree for inspection / prompting. */
-  raw: WireField[];
-}
-
-function readVarint(buf: Buffer, pos: number): [bigint, number] | null {
-  let result = 0n;
-  let shift = 0n;
-  while (pos < buf.length) {
-    const b = buf[pos]!;
-    result |= BigInt(b & 0x7f) << shift;
-    pos++;
-    if ((b & 0x80) === 0) return [result, pos];
-    shift += 7n;
-    if (shift > 63n) return null;
-  }
-  return null;
-}
-
-/** Decode a length-delimited payload of N*4 bytes as packed floats, if plausible. */
-function tryFloats(bytes: Buffer): number[] | null {
-  if (bytes.length === 0 || bytes.length % 4 !== 0) return null;
-  const out: number[] = [];
-  for (let i = 0; i < bytes.length; i += 4) {
-    const f = bytes.readFloatLE(i);
-    if (!Number.isFinite(f) || (f !== 0 && (Math.abs(f) < 1e-20 || Math.abs(f) > 1e12))) return null;
-    out.push(f);
-  }
-  return out;
-}
-
-function parseMessage(buf: Buffer, depth = 0, absOffset = 0): WireField[] | null {
-  if (depth > 16) return null;
-  const fields: WireField[] = [];
-  let pos = 0;
-  while (pos < buf.length) {
-    const tagStart = pos;
-    const tag = readVarint(buf, pos);
-    if (!tag) return null;
-    const no = Number(tag[0] >> 3n);
-    const wire = Number(tag[0] & 7n);
-    if (no === 0 || no > 10000) return null;
-    pos = tag[1];
-    if (wire === 0) {
-      const valueStart = pos;
-      const v = readVarint(buf, pos);
-      if (!v) return null;
-      pos = v[1];
-      fields.push({
-        no,
-        type: "varint",
-        value: v[0].toString(),
-        tagStart: absOffset + tagStart,
-        valueStart: absOffset + valueStart,
-        valueEnd: absOffset + pos,
-      });
-    } else if (wire === 1) {
-      if (pos + 8 > buf.length) return null;
-      fields.push({
-        no,
-        type: "fixed64",
-        double: buf.readDoubleLE(pos),
-        tagStart: absOffset + tagStart,
-        valueStart: absOffset + pos,
-        valueEnd: absOffset + pos + 8,
-      });
-      pos += 8;
-    } else if (wire === 5) {
-      if (pos + 4 > buf.length) return null;
-      fields.push({
-        no,
-        type: "float",
-        value: buf.readFloatLE(pos),
-        tagStart: absOffset + tagStart,
-        valueStart: absOffset + pos,
-        valueEnd: absOffset + pos + 4,
-      });
-      pos += 4;
-    } else if (wire === 2) {
-      const lenStart = pos;
-      const len = readVarint(buf, pos);
-      if (!len) return null;
-      const n = Number(len[0]);
-      pos = len[1];
-      const lenEnd = pos;
-      if (pos + n > buf.length) return null;
-      const bytes = buf.subarray(pos, pos + n);
-      const valueStart = pos;
-      pos += n;
-      const valueEnd = pos;
-      const span: LenSpan = {
-        tagStart: absOffset + tagStart,
-        lenStart: absOffset + lenStart,
-        lenEnd: absOffset + lenEnd,
-        valueStart: absOffset + valueStart,
-        valueEnd: absOffset + valueEnd,
-      };
-      const msg = n > 0 ? parseMessage(bytes, depth + 1, absOffset + valueStart) : [];
-      if (msg) {
-        fields.push({ no, type: "message", fields: msg, ...span });
-      } else {
-        const s = bytes.toString("utf8");
-        if (/^[\x20-\x7e\r\n\t]+$/.test(s)) {
-          fields.push({ no, type: "string", value: s, ...span });
-        } else {
-          fields.push({ no, type: "bytes", hex: bytes.toString("hex"), floats: tryFloats(Buffer.from(bytes)), ...span });
-        }
-      }
-    } else {
-      return null; // groups (3/4) unused
-    }
-  }
-  return fields;
-}
-
-/** Parse a `.carsetup` buffer. Returns null if it isn't valid wire format. */
-export function parseCarSetup(data: Buffer): CarSetupFile | null {
-  const raw = parseMessage(data);
-  if (!raw) return null;
-  const preset = raw.find((f): f is Extract<WireField, { type: "string" }> => f.no === 9 && f.type === "string");
-  return { presetId: preset?.value ?? null, raw };
-}
+import { readFile } from "node:fs/promises";
+import { parseCarSetup, type CarSetupFile, type WireField } from "./carsetup-wire";
 
 /**
  * The car slug embedded in a preset id, or null.
@@ -212,7 +59,7 @@ export function formatCarSetup(setup: CarSetupFile, fields = setup.raw, indent =
   for (const f of fields) {
     if (f.type === "message") {
       lines.push(`${indent}#${f.no} {`);
-      lines.push(formatCarSetup(setup, f.fields, indent + "  "));
+      lines.push(formatCarSetup(setup, f.fields, `${indent}  `));
       lines.push(`${indent}}`);
     } else if (f.type === "float") {
       lines.push(`${indent}#${f.no} = ${+f.value.toFixed(4)}`);
@@ -556,9 +403,9 @@ export function summarizeCarSetup(
 
 /**
  * Flatten a decoded `.carsetup` into a plain object keyed by the knob path
- * names `server/ai/tune-rules.ts` and `shared/games/ac-evo/setup-ranges.json`
+ * names `server/setups/rules/catalog.ts` and `shared/games/ac-evo/setup-ranges.json`
  * use (`frontARB`, `brakeBias`, `frontLeftTyrePressure`, ...), so
- * `getKnobState`/`describeKnobs` return real current values instead of "?".
+ * `getAllKnobStates`/`describeKnobs` return real current values instead of "?".
  *
  * Only fields whose meaning is verified (see summarizeCarSetup) are emitted.
  * ARB stiffness values (N/m) are converted to click numbers via

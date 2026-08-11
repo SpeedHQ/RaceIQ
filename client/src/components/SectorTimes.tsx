@@ -1,9 +1,9 @@
-import type { LiveSectorData } from "@shared/types";
 import { useEffect, useRef } from "react";
 import { lapPaceColor, SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
+import { getSoundEnabled, getSoundType, getSoundUrl, getSoundVolume } from "@/lib/settings-storage";
 import { m } from "@/paraglide/messages";
-import { getSoundEnabled, getSoundType, getSoundUrl, getSoundVolume } from "./Settings";
+import type { LiveSectorData } from "../../../shared/racing/live/types";
 
 /** Shared AudioContext — reused across all blips to avoid browser throttling. */
 let sharedAudioCtx: AudioContext | null = null;
@@ -18,36 +18,73 @@ function getAudioContext(): AudioContext {
   return sharedAudioCtx;
 }
 
-/** Cache fetched audio buffers by URL to avoid re-downloading. */
+/** Cache fetched audio buffers by URL with bounded LRU eviction. */
+const MAX_AUDIO_BUFFER_CACHE_SIZE = 8;
 const audioBufferCache = new Map<string, AudioBuffer>();
-const loadingUrls = new Set<string>();
+const loadingAudioBuffers = new Map<string, Promise<AudioBuffer | null>>();
+const invalidatedLoadingUrls = new Set<string>();
+
+function getCachedAudioBuffer(url: string): AudioBuffer | null {
+  const cached = audioBufferCache.get(url);
+  if (!cached) return null;
+  audioBufferCache.delete(url);
+  audioBufferCache.set(url, cached);
+  return cached;
+}
+
+function enforceAudioBufferLimit(): void {
+  while (audioBufferCache.size > MAX_AUDIO_BUFFER_CACHE_SIZE) {
+    const oldestUrl = audioBufferCache.keys().next().value;
+    if (!oldestUrl) break;
+    audioBufferCache.delete(oldestUrl);
+  }
+}
+
+export function removeCachedSound(url: string): void {
+  if (!url) return;
+  audioBufferCache.delete(url);
+  if (loadingAudioBuffers.has(url)) invalidatedLoadingUrls.add(url);
+}
 
 async function loadAudioBuffer(url: string): Promise<AudioBuffer | null> {
-  if (audioBufferCache.has(url)) return audioBufferCache.get(url)!;
-  if (loadingUrls.has(url)) return null;
-  loadingUrls.add(url);
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const arrayBuf = await res.arrayBuffer();
-    const ctx = getAudioContext();
-    const audioBuf = await ctx.decodeAudioData(arrayBuf);
-    audioBufferCache.set(url, audioBuf);
-    return audioBuf;
-  } catch {
-    return null;
-  } finally {
-    loadingUrls.delete(url);
-  }
+  invalidatedLoadingUrls.delete(url);
+  const cached = getCachedAudioBuffer(url);
+  if (cached) return cached;
+
+  const inFlight = loadingAudioBuffers.get(url);
+  if (inFlight) return inFlight;
+
+  const loadPromise = Promise.resolve().then(async () => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const arrayBuf = await res.arrayBuffer();
+      const ctx = getAudioContext();
+      const audioBuf = await ctx.decodeAudioData(arrayBuf);
+      if (!invalidatedLoadingUrls.has(url)) {
+        audioBufferCache.set(url, audioBuf);
+        enforceAudioBufferLimit();
+      }
+      return audioBuf;
+    } catch {
+      return null;
+    } finally {
+      loadingAudioBuffers.delete(url);
+      invalidatedLoadingUrls.delete(url);
+    }
+  });
+  loadingAudioBuffers.set(url, loadPromise);
+  return loadPromise;
 }
 
 /** Preload a URL sound into cache. Call from settings when URL changes. */
 export function preloadSound(url: string) {
-  if (url && !audioBufferCache.has(url)) loadAudioBuffer(url);
+  if (!url) return;
+  void loadAudioBuffer(url);
 }
 
 function playSample(url: string, pitch = 1) {
-  const buf = audioBufferCache.get(url);
+  const buf = getCachedAudioBuffer(url);
   if (!buf) {
     loadAudioBuffer(url).then((b) => {
       if (b) playBuffer(b, pitch);
@@ -145,7 +182,11 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
           }
 
           return (
-            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? ({ "--tw-ring-color": SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] } as React.CSSProperties) : {}}>
+            <div
+              key={name}
+              className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`}
+              style={isActive ? ({ "--tw-ring-color": SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] } as React.CSSProperties) : {}}
+            >
               <div className="flex items-center gap-1.5 mb-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>
@@ -164,8 +205,12 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
                 <span className="text-sm font-mono font-bold text-app-text-secondary tabular-nums">{last > 0 ? formatLapTime(last) : "-"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-app-caption" style={{ color: "var(--lap-record)" }}>{m.label_best()}</span>
-                <span className="text-sm font-mono font-bold tabular-nums" style={{ color: "var(--lap-record)" }}>{best > 0 ? formatLapTime(best) : "-"}</span>
+                <span className="text-app-caption" style={{ color: "var(--lap-record)" }}>
+                  {m.label_best()}
+                </span>
+                <span className="text-sm font-mono font-bold tabular-nums" style={{ color: "var(--lap-record)" }}>
+                  {best > 0 ? formatLapTime(best) : "-"}
+                </span>
               </div>
             </div>
           );

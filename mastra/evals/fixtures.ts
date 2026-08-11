@@ -12,11 +12,12 @@
  * for packets via `loadLapPackets()`, so the file listing step stays fast
  * and can run without the zip present.
  */
-import { readdirSync, readFileSync, existsSync } from "fs";
-import { resolve, dirname, join } from "path";
+import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
 import { unzipSync } from "fflate";
-import type { TelemetryPacket, GameId } from "../../shared/types";
-import { decompressTelemetry } from "../../server/db/queries";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
+import { decompressTelemetry } from "../../server/db/telemetry-codec";
 
 const FIXTURES_ROOT = resolve(import.meta.dir, "../../test/ai-fixtures");
 

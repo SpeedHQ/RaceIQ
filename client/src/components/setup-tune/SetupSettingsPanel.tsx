@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/types";
-import { arityLabels, getByPath, getSchemaForGame } from "./setup-schema";
+import { getSchemaForGame, readSetupField } from "@shared/racing/setups/schema";
+import type { GameId } from "../../../../shared/games/ids";
 
 /** Read-only summary of an ACC / AC-EVO setup JSON, grouped by the same
  *  sections FillForm edits. Skips fields absent from the settings object —
@@ -8,14 +8,14 @@ export function SetupSettingsPanel({ gameId, settings }: { gameId: GameId; setti
   const sections = getSchemaForGame(gameId);
 
   return (
-    <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">
+    <div className="w-full columns-1 gap-3 @3xl/workspace:columns-2 @7xl/workspace:columns-3">
       {sections.map((section) => {
         const rows: [string, string][] = [];
         for (const field of section.fields) {
-          const value = getByPath(settings, field.path);
+          const value = readSetupField(settings, field);
           if (value == null) continue;
           if (Array.isArray(value)) {
-            const labels = arityLabels(field.arity);
+            const labels = field.cardinality.kind === "fixed" ? field.cardinality.ordering : [];
             value.forEach((v, i) => {
               if (v == null) return;
               rows.push([labels[i] ? `${field.label} (${labels[i]})` : field.label, String(v)]);

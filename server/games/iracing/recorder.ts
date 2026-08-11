@@ -1,7 +1,7 @@
 /**
  * iRacing dump-mode recorder.
  *
- * This is intentionally separate from AcRecorder: iRacing emits one
+ * This is intentionally separate from KunosRecorder: iRacing emits one
  * packed source frame per SDK tick, not an ACC-style shared-memory triplet,
  * and its files must be identifiable without relying on filenames.
  *
@@ -12,17 +12,17 @@
  *   Frames: [type(1 byte)] [size(4 bytes)] [data(N bytes)]
  *           type: 0=packed iRacing session/value-delta source frame
  */
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { resolve } from "path";
-import { gunzipSync } from "zlib";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { gunzipSync } from "node:zlib";
 
+import { IRACING_MAX_SOURCE_FRAME_SIZE } from "./source-frame";
 export const IRACING_DUMP_MAGIC = Buffer.from("IRIQDMP\0", "ascii");
 export const IRACING_DUMP_VERSION = 2;
 
 const HEADER_SIZE = 16;
 const FRAME_HEADER_SIZE = 5;
 const SOURCE_FRAME_TYPE = 0;
-const MAX_FRAME_SIZE = 512 * 1024;
 
 function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");
@@ -79,7 +79,7 @@ export class IRacingRecorder {
       console.warn("[iRacing Recorder] _file is null, cannot write");
       return;
     }
-    if (frame.length > MAX_FRAME_SIZE) {
+    if (frame.length > IRACING_MAX_SOURCE_FRAME_SIZE) {
       throw new Error(`iRacing dump frame is too large (${frame.length} bytes)`);
     }
 
@@ -157,7 +157,7 @@ export function readIRacingFrames(filePath: string, limit?: number): Buffer[] {
     if (
       frameType !== SOURCE_FRAME_TYPE ||
       frameSize === 0 ||
-      frameSize > MAX_FRAME_SIZE ||
+      frameSize > IRACING_MAX_SOURCE_FRAME_SIZE ||
       offset + frameSize > data.length
     ) {
       break;

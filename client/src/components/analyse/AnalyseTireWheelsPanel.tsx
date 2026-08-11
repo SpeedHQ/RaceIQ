@@ -1,140 +1,45 @@
-import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
-import { tryGetGame } from "@shared/games/registry";
-import type { GameId, TelemetryPacket } from "@shared/types";
-import { useTirePressureOptimal } from "../../hooks/queries";
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { resolveWheelMetric } from "../../../../shared/racing/analysis/metric-values";
+import type { GameId } from "../../../../shared/games/ids";
+import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";
-import type { DisplayPacket } from "../../lib/convert-packet";
 import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
+import type { SemanticAnalysisFrame } from "./track-map/types";
 
-interface WearRate {
-  FL: number;
-  FR: number;
-  RL: number;
-  RR: number;
-}
+interface WearRate { FL: number; FR: number; RL: number; RR: number; }
+interface Props { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits>; wearRate: WearRate | null; }
+const WHEELS = ["FL", "FR", "RL", "RR"] as const;
+const unavailable = <span className="text-app-text-dim">—</span>;
+const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
+  const value = frame.values[id];
+  return WHEELS.map((_, index) => Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null);
+};
 
-interface Props {
-  currentPacket: TelemetryPacket;
-  currentDisplayPacket: DisplayPacket | null;
-  gameId: GameId;
-  units: ReturnType<typeof useUnits>;
-  wearRate: WearRate | null;
-}
-
-export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, gameId, units, wearRate }: Props) {
-  const fl = currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL;
-  const fr = currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR;
-  const rl = currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL;
-  const rr = currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR;
-  const healths = [currentPacket.TireWearFL, currentPacket.TireWearFR, currentPacket.TireWearRL, currentPacket.TireWearRR];
-  const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
-  const wearRates = (["FL", "FR", "RL", "RR"] as const).map((w) => (wearRate ? wearRate[w] * 100 : null));
-  const adapter = tryGetGame(gameId);
+export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props) {
+  const adapter = getGame(gameId);
   const analysis = resolveAnalysisTelemetry(adapter);
-  const hThresh = adapter?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
-  const pressureOptimal = useTirePressureOptimal(gameId, currentPacket.CarOrdinal);
-
-  const brakeFL = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
-  const brakeFR = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
-  const brakeRL = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
-  const brakeRR = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
-  const hasBrakes = brakeFL > 0 || brakeFR > 0;
-
-  const pressFL = currentPacket.TirePressureFrontLeft ?? currentPacket.f1?.tyrePressureFL ?? 0;
-  const pressFR = currentPacket.TirePressureFrontRight ?? currentPacket.f1?.tyrePressureFR ?? 0;
-  const pressRL = currentPacket.TirePressureRearLeft ?? currentPacket.f1?.tyrePressureRL ?? 0;
-  const pressRR = currentPacket.TirePressureRearRight ?? currentPacket.f1?.tyrePressureRR ?? 0;
-  const hasPressure = pressFL > 0 || pressFR > 0;
-
-  // Camber row intentionally omitted: ACC declares camberRAD[4] in its shared
-  // memory struct but Kunos has never populated it — the field ships as 0 on
-  // every release, in pit/track/replay. Re-enable once ACC (or AC Evo) starts
-  // writing real values.
-
-  const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-  const unavailable = <span className="text-app-text-dim">—</span>;
-  const pitTemperature =
-    analysis.tireTemperature.source === "direct" &&
-    analysis.tireTemperature.freshness === "pit-snapshot";
-  const pitHealth =
-    analysis.tireHealth.source === "direct" &&
-    analysis.tireHealth.freshness === "pit-snapshot";
-  const coldPressure =
-    analysis.tirePressure.source !== "unavailable" &&
-    analysis.tirePressure.display === "cold-pressure";
-  const pressureColor = (pressure: number) =>
-    coldPressure
-      ? "var(--app-text)"
-      : tirePressureColor(pressure, pressureOptimal);
-
+  const binding = (metric: typeof analysis.tireTemperature) => metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined;
+  const temp = binding(analysis.tireTemperature) ? resolveWheelMetric(frame, binding(analysis.tireTemperature)!) : [null, null, null, null];
+  const health = binding(analysis.tireHealth) ? resolveWheelMetric(frame, binding(analysis.tireHealth)!) : [null, null, null, null];
+  const speed = binding(analysis.wheelRotation) ? resolveWheelMetric(frame, binding(analysis.wheelRotation)!) : [null, null, null, null];
+  const brake = values(frame, "brakes.brake-temp");
+  const pressure = binding(analysis.tirePressure) ? resolveWheelMetric(frame, binding(analysis.tirePressure)!) : [null, null, null, null];
+  const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
+  const hThresholds = adapter.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
+  const tempCell = (value: number | null) => value == null ? unavailable : <span style={{ color: tireTempColor(units.toTempC(value), units.thresholds) }}>{`${units.temp(value).toFixed(0)}${units.tempLabel}`}</span>;
+  const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
+  const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
+  const coldPressure = analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure";
   const rows = [
-    {
-      label: m.analyse_wheels_rotation_s(),
-      fl: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[0].toFixed(1),
-      fr: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[1].toFixed(1),
-      rl: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[2].toFixed(1),
-      rr: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[3].toFixed(1),
-    },
-    {
-      label: pitTemperature
-        ? m.analyse_wheels_pit_temp()
-        : m.analyse_wheels_temp(),
-      fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)),
-      fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)),
-      rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)),
-      rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)),
-    },
-    {
-      label: pitHealth
-        ? m.analyse_wheels_pit_health()
-        : m.analyse_wheels_health(),
-      fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)),
-      fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)),
-      rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)),
-      rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)),
-    },
-    ...(analysis.tireWearRate.source !== "unavailable"
-      ? [
-          {
-            label: m.analyse_wheels_wear_s(),
-            fl: C(wearRates[0] != null ? `${wearRates[0].toFixed(3)}%` : "—", wearRateColor(wearRates[0])),
-            fr: C(wearRates[1] != null ? `${wearRates[1].toFixed(3)}%` : "—", wearRateColor(wearRates[1])),
-            rl: C(wearRates[2] != null ? `${wearRates[2].toFixed(3)}%` : "—", wearRateColor(wearRates[2])),
-            rr: C(wearRates[3] != null ? `${wearRates[3].toFixed(3)}%` : "—", wearRateColor(wearRates[3])),
-          },
-        ]
-      : []),
-    ...(hasBrakes
-      ? [
-          {
-            label: m.analyse_wheels_brake(),
-            fl: C(`${brakeFL.toFixed(0)}°C`, brakeTempColor(brakeFL, false)),
-            fr: C(`${brakeFR.toFixed(0)}°C`, brakeTempColor(brakeFR, false)),
-            rl: C(`${brakeRL.toFixed(0)}°C`, brakeTempColor(brakeRL, true)),
-            rr: C(`${brakeRR.toFixed(0)}°C`, brakeTempColor(brakeRR, true)),
-          },
-        ]
-      : []),
-    ...(hasPressure && analysis.tirePressure.source !== "unavailable"
-      ? [
-          {
-            label: coldPressure
-              ? m.analyse_wheels_cold_pressure()
-              : m.analyse_wheels_pressure(),
-            fl: C(`${pressFL.toFixed(1)} psi`, pressureColor(pressFL)),
-            fr: C(`${pressFR.toFixed(1)} psi`, pressureColor(pressFR)),
-            rl: C(`${pressRL.toFixed(1)} psi`, pressureColor(pressRL)),
-            rr: C(`${pressRR.toFixed(1)} psi`, pressureColor(pressRR)),
-          },
-        ]
-      : []),
+    { label: m.analyse_wheels_rotation_s(), fl: speed[0]?.toFixed(1) ?? unavailable, fr: speed[1]?.toFixed(1) ?? unavailable, rl: speed[2]?.toFixed(1) ?? unavailable, rr: speed[3]?.toFixed(1) ?? unavailable },
+    { label: pitTemperature ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp(), fl: tempCell(temp[0]), fr: tempCell(temp[1]), rl: tempCell(temp[2]), rr: tempCell(temp[3]) },
+    { label: pitHealth ? m.analyse_wheels_pit_health() : m.analyse_wheels_health(), fl: health[0] == null ? unavailable : <span style={{ color: tireHealthColor(health[0], hThresholds) }}>{`${((1 - health[0]) * 100).toFixed(1)}%`}</span>, fr: health[1] == null ? unavailable : <span style={{ color: tireHealthColor(health[1], hThresholds) }}>{`${((1 - health[1]) * 100).toFixed(1)}%`}</span>, rl: health[2] == null ? unavailable : <span style={{ color: tireHealthColor(health[2], hThresholds) }}>{`${((1 - health[2]) * 100).toFixed(1)}%`}</span>, rr: health[3] == null ? unavailable : <span style={{ color: tireHealthColor(health[3], hThresholds) }}>{`${((1 - health[3]) * 100).toFixed(1)}%`}</span> },
+    ...(analysis.tireWearRate.source !== "unavailable" ? [{ label: m.analyse_wheels_wear_s(), fl: <span style={{ color: wearRateColor(wearRate ? wearRate.FL * 100 : null) }}>{wearRate ? `${(wearRate.FL * 100).toFixed(3)}%` : "—"}</span>, fr: <span style={{ color: wearRateColor(wearRate ? wearRate.FR * 100 : null) }}>{wearRate ? `${(wearRate.FR * 100).toFixed(3)}%` : "—"}</span>, rl: <span style={{ color: wearRateColor(wearRate ? wearRate.RL * 100 : null) }}>{wearRate ? `${(wearRate.RL * 100).toFixed(3)}%` : "—"}</span>, rr: <span style={{ color: wearRateColor(wearRate ? wearRate.RR * 100 : null) }}>{wearRate ? `${(wearRate.RR * 100).toFixed(3)}%` : "—"}</span> }] : []),
+    ...((brake[0] ?? 0) > 0 || (brake[1] ?? 0) > 0 ? [{ label: m.analyse_wheels_brake(), fl: brake[0] == null ? unavailable : <span style={{ color: brakeTempColor(brake[0], false) }}>{`${brake[0].toFixed(0)}°C`}</span>, fr: brake[1] == null ? unavailable : <span style={{ color: brakeTempColor(brake[1], false) }}>{`${brake[1].toFixed(0)}°C`}</span>, rl: brake[2] == null ? unavailable : <span style={{ color: brakeTempColor(brake[2], true) }}>{`${brake[2].toFixed(0)}°C`}</span>, rr: brake[3] == null ? unavailable : <span style={{ color: brakeTempColor(brake[3], true) }}>{`${brake[3].toFixed(0)}°C`}</span> }] : []),
+    ...((pressure[0] ?? 0) > 0 || (pressure[1] ?? 0) > 0 ? [{ label: coldPressure ? m.analyse_wheels_cold_pressure() : m.analyse_wheels_pressure(), fl: pressure[0] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[0], optimal) }}>{`${pressure[0].toFixed(1)} psi`}</span>, fr: pressure[1] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[1], optimal) }}>{`${pressure[1].toFixed(1)} psi`}</span>, rl: pressure[2] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[2], optimal) }}>{`${pressure[2].toFixed(1)} psi`}</span>, rr: pressure[3] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[3], optimal) }}>{`${pressure[3].toFixed(1)} psi`}</span> }] : []),
   ];
-
-  return (
-    <div className="text-app-compact font-mono">
-      <WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows} />
-    </div>
-  );
+  return <div className="text-app-compact font-mono"><WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows as never} /></div>;
 }

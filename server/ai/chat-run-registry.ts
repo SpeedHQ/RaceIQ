@@ -45,11 +45,12 @@ export function getRun(threadId: string): ChatRun | undefined {
   return runs.get(threadId);
 }
 
-/** Look up only an active run for a thread. */
+/** Look up an active run for a thread, if any. */
 export function getActiveRun(threadId: string): ChatRun | undefined {
   const run = runs.get(threadId);
   return run?.status === "active" ? run : undefined;
 }
+
 
 /**
  * Reserve a run slot for a turn about to start. If a run is already active

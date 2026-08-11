@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { useGameId } from "@/stores/game";
 import type { TrackBoundaries, TrackCurb } from "../types";
-import { Button } from "@/components/ui/button";
 
 /**
  * CurbDebugSection — Curb data display with extract/recalibrate controls.

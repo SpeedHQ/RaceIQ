@@ -1,10 +1,10 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
-import { m } from "@/paraglide/messages";
-import { SearchSelect } from "@/components/ui/SearchSelect";
-import { TuneBrowserRow } from "./TuneBrowserRow";
-import type { SourceTab, TuneRow } from "./types";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
+import { SearchSelect } from "@/components/ui/SearchSelect";
+import { m } from "@/paraglide/messages";
+import { TuneBrowserRow } from "./TuneBrowserRow";
+import type { SourceTab, TuneRow } from "./types";
 
 export interface SetupBrowserProps {
   rows: TuneRow[];
@@ -95,8 +95,8 @@ export function SetupBrowser(props: SetupBrowserProps) {
   };
 
   return (
-    <div className="w-full p-4 pb-20 text-app-text">
-      <div className="flex items-center gap-2 flex-wrap pb-4">
+    <div className="w-full min-w-0 p-3 pb-20 text-app-text @3xl/workspace:p-4">
+      <div className="flex flex-wrap items-center gap-2 pb-4">
         {sources.map((s) => (
           <Button
             type="button"
@@ -153,24 +153,24 @@ export function SetupBrowser(props: SetupBrowserProps) {
             {m.setup_new_tune()}
           </Button>
         )}
-        <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <SearchSelect className="w-full sm:w-48" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
-          <SearchSelect className="w-full sm:w-48" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
+        <div className="ml-auto flex w-full flex-wrap items-center gap-2 @3xl/workspace:w-auto">
+          <SearchSelect className="w-full @3xl/workspace:w-48" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
+          <SearchSelect className="w-full @3xl/workspace:w-48" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
         </div>
       </div>
 
-      <Table>
+      <Table fit layout="fixed">
         <THead>
           <TH>{m.setup_table_rank()}</TH>
           <TH>{m.setup_table_tune()}</TH>
-          <TH showFrom="sm">{m.label_car()}</TH>
-          <TH showFrom="sm">{m.label_track()}</TH>
-          <TH showFrom="sm">{m.label_category()}</TH>
-          <TH showFrom="sm">{m.label_author()}</TH>
+          <TH showFrom="workspace-md">{m.label_car()}</TH>
+          <TH showFrom="workspace-md">{m.label_track()}</TH>
+          <TH showFrom="workspace-md">{m.label_category()}</TH>
+          <TH showFrom="workspace-md">{m.label_author()}</TH>
           <SortableTH align="end" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
             {m.label_lap()}
           </SortableTH>
-          <TH showFrom="sm" visuallyHidden>
+          <TH showFrom="workspace-md" visuallyHidden>
             {m.label_actions()}
           </TH>
         </THead>

@@ -1,0 +1,1 @@
+export { serializeComparison } from "./compare";

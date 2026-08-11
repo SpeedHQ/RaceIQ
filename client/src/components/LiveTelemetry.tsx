@@ -1,11 +1,11 @@
 import { getGame, tryGetGame } from "@shared/games/registry";
 import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
-import { useEffect, useRef, useState } from "react";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useUnits } from "../hooks/useUnits";
-import type { DisplayPacket } from "../lib/convert-packet";
+import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { client } from "../lib/rpc";
-import { useGameId } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
@@ -23,42 +23,58 @@ export { formatLapTime } from "../lib/format";
 export type DashboardMode = "driver" | "pitcrew";
 
 interface Props {
-  packet: DisplayPacket | null;
+  view: LiveTelemetryView | null;
   mode?: DashboardMode;
 }
 
-export function LiveTelemetry({ packet, mode = "driver" }: Props) {
-  const gameId = useGameId();
+export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const pit = useTelemetryStore((s) => s.pit);
   const [carName, setCarName] = useState<string>("");
-  const lastCarOrdRef = useRef<number | null>(null);
+  const gameId = view?.simulator ?? null;
+  const carOrdinal = view?.identity.carOrdinal;
 
   useEffect(() => {
-    if (!packet) return;
-    const ord = packet.CarOrdinal;
-    if (ord === lastCarOrdRef.current) return;
-    lastCarOrdRef.current = ord;
-
+    if (gameId == null || carOrdinal == null) return;
+    let active = true;
     client.api["car-name"][":ordinal"]
-      .$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
-      .then((r) => (r.ok ? r.text() : `Car #${ord}`))
-      .then((name) => setCarName(name))
-      .catch(() => setCarName(`Car #${ord}`));
-  }, [packet, gameId]);
+      .$get({ param: { ordinal: String(carOrdinal) }, query: { gameId } })
+      .then((response) => (response.ok ? response.text() : `Car #${carOrdinal}`))
+      .then((name) => { if (active) setCarName(name); })
+      .catch(() => { if (active) setCarName(`Car #${carOrdinal}`); });
+    return () => { active = false; };
+  }, [carOrdinal, gameId]);
 
   const units = useUnits();
-
-  if (!packet) {
+  if (!view) {
     return <div className="flex items-center justify-center h-full text-app-text-dim">{m.live_waiting_data()}</div>;
   }
 
-  const speed = packet.DisplaySpeed;
-  const throttlePct = (packet.Accel / 255) * 100;
-  const brakePct = (packet.Brake / 255) * 100;
-  const rpmPct = packet.EngineMaxRpm > 0 ? (packet.CurrentEngineRpm / packet.EngineMaxRpm) * 100 : 0;
-  const telemetryModel = getGame(packet.gameId).telemetry;
-  const hp = packet.Power / WATTS_PER_HORSEPOWER;
-  const boostVal = packet.Boost;
+  const speed = units.speed(view.motion.speedMps ?? 0);
+  const throttlePct = (view.inputs.throttle ?? 0) * 100;
+  const brakePct = (view.inputs.brake ?? 0) * 100;
+  const currentRpm = view.engine.rpm ?? 0;
+  const idleRpm = view.engine.idleRpm ?? 0;
+  const maxRpm = view.engine.maxRpm ?? 0;
+  const rpmPct = maxRpm > 0 ? (currentRpm / maxRpm) * 100 : 0;
+  const adapter = getGame(view.simulator);
+  const telemetryModel = adapter.telemetry;
+  const analysis = resolveAnalysisTelemetry(adapter);
+  const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
+  const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
+  const temperatureAvailable = view.tires.temperatureC !== undefined;
+  const healthAvailable = view.tires.wear !== undefined;
+  const tireFreshnessNote =
+    pitTemperature && pitHealth
+      ? `${m.analyse_wheels_pit_temp()} · ${m.analyse_wheels_pit_health()}`
+      : pitTemperature
+        ? m.analyse_wheels_pit_temp()
+        : pitHealth
+          ? m.analyse_wheels_pit_health()
+          : undefined;
+  const showPerWheelSurface = analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle";
+  const hp = (view.engine.powerW ?? 0) / WATTS_PER_HORSEPOWER;
+  const boostVal = view.engine.boost ?? 0;
+
 
   // ── Shared hero: Speed + Gear + RPM ──────────────────────────
   const heroSection = (
@@ -67,10 +83,10 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-app-text truncate">{carName}</span>
           <span className="text-app-caption font-mono font-semibold px-1.5 py-px rounded text-app-accent shrink-0">
-            {(gameId && tryGetGame(gameId)?.carClassNames?.[packet.CarClass]) ?? "?"}
-            {packet.CarPerformanceIndex}
+            {(gameId && tryGetGame(gameId)?.carClassNames?.[view.identity.carClass ?? 0]) ?? "?"}
+            {view.identity.performanceIndex ?? 0}
           </span>
-          <span className="text-app-caption text-app-text-dim shrink-0">{(gameId && tryGetGame(gameId)?.drivetrainNames?.[packet.DrivetrainType]) ?? "?"}</span>
+          <span className="text-app-caption text-app-text-dim shrink-0">{(gameId && tryGetGame(gameId)?.drivetrainNames?.[view.identity.drivetrainType ?? 0]) ?? "?"}</span>
         </div>
       )}
       <div className="flex items-end justify-between mb-1">
@@ -81,7 +97,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
         <div className="flex items-baseline gap-2">
           {telemetryModel.power && <span className="text-app-caption text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>}
           <span className="text-5xl font-mono font-black tabular-nums leading-none tracking-tighter" style={{ color: rpmPct > 90 ? "var(--rev-limit)" : "var(--app-accent)" }}>
-            {packet.Gear === 0 ? "R" : packet.Gear === 11 ? "N" : packet.Gear}
+            {view.inputs.gear === 0 ? "R" : view.inputs.gear === 11 ? "N" : (view.inputs.gear ?? 0)}
           </span>
         </div>
       </div>
@@ -90,19 +106,13 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           const segPct = ((i + 1) / 30) * 100;
           const lit = rpmPct >= segPct;
           const color = segPct <= 60 ? "var(--rev-normal)" : segPct <= 80 ? "var(--rev-high)" : "var(--rev-limit)";
-          return (
-            <div
-              key={i}
-              className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`}
-              style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }}
-            />
-          );
+          return <div key={segPct} className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`} style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }} />;
         })}
       </div>
       <div className="flex justify-between text-app-micro text-app-text-dim font-mono tabular-nums">
-        <span>{packet.EngineIdleRpm.toFixed(0)}</span>
-        <span>{packet.CurrentEngineRpm.toFixed(0)} rpm</span>
-        <span>{packet.EngineMaxRpm.toFixed(0)}</span>
+        <span>{idleRpm.toFixed(0)}</span>
+        <span>{currentRpm.toFixed(0)} rpm</span>
+        <span>{maxRpm.toFixed(0)}</span>
       </div>
     </div>
   );
@@ -111,26 +121,22 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
   if (mode === "driver") {
     return (
       <div className="grid gap-0 p-0">
-        {/* Tire Health */}
         <div className="border-b border-app-border">
           <TireGrid
-            fl={{ tempC: units.toTempC(packet.TireTempFL), wear: packet.TireWearFL }}
-            fr={{ tempC: units.toTempC(packet.TireTempFR), wear: packet.TireWearFR }}
-            rl={{ tempC: units.toTempC(packet.TireTempRL), wear: packet.TireWearRL }}
-            rr={{ tempC: units.toTempC(packet.TireTempRR), wear: packet.TireWearRR }}
+            fl={{ tempC: units.toTempC(view.tires.temperatureC?.fl ?? 0), wear: view.tires.wear?.fl ?? 0 }}
+            fr={{ tempC: units.toTempC(view.tires.temperatureC?.fr ?? 0), wear: view.tires.wear?.fr ?? 0 }}
+            rl={{ tempC: units.toTempC(view.tires.temperatureC?.rl ?? 0), wear: view.tires.wear?.rl ?? 0 }}
+            rr={{ tempC: units.toTempC(view.tires.temperatureC?.rr ?? 0), wear: view.tires.wear?.rr ?? 0 }}
             healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
             tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+            freshnessNote={tireFreshnessNote}
+            temperatureAvailable={temperatureAvailable}
+            healthAvailable={healthAvailable}
           />
         </div>
-
-        {/* Pit Window */}
         <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
-          </div>
-          <div className="p-3">
-            <PitEstimate packet={packet} pit={pit} />
-          </div>
+          <div className="p-2 border-b border-app-border"><h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2></div>
+          <div className="p-3"><PitEstimate view={view} pit={pit} /></div>
         </div>
       </div>
     );
@@ -164,7 +170,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           </div>
           {(telemetryModel.power || telemetryModel.torque || telemetryModel.boost) && (
             <div className="flex gap-1 shrink-0">
-              <PowerTorque packet={packet} />
+              <PowerTorque view={view} />
               {telemetryModel.boost && <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="var(--app-accent)" />}
             </div>
           )}
@@ -174,10 +180,10 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       {/* G-Force + Steering + Fuel */}
       <div className="px-3 py-2 border-b border-app-border/50">
         <div className="flex items-center gap-3">
-          <GForceCircle packet={packet} />
-          <SteeringWheel steer={packet.Steer} />
+          <GForceCircle view={view} />
+          <SteeringWheel steer={view.inputs.steer ?? 0} />
           <div className="flex-1">
-            <FuelGauge packet={packet} />
+            <FuelGauge view={view} />
           </div>
         </div>
       </div>
@@ -185,24 +191,28 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       {/* Full tire diagram with suspension */}
       <div className="px-3 py-2 border-b border-app-border/50">
         <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
-        <TireDiagram packet={packet} />
+        <TireDiagram view={view} />
       </div>
 
       {/* Surface conditions */}
-      <div className="px-3 py-2 border-b border-app-border/50">
-        <SurfaceConditions packet={packet} />
-      </div>
+      {showPerWheelSurface && (
+        <div className="px-3 py-2 border-b border-app-border/50">
+          <SurfaceConditions view={view} />
+        </div>
+      )}
 
       {/* Grip history */}
-      <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
-        <GripHistory packet={packet} />
-      </div>
+      {analysis.gripDemand.source !== "unavailable" && (
+        <div className="px-3 py-2 border-b border-app-border/50">
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
+          <GripHistory view={view} />
+        </div>
+      )}
 
       {/* Telemetry charts */}
       <div className="px-3 py-2">
         <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_telemetry()} (60s)</div>
-        <TelemetryCharts packet={packet} />
+        <TelemetryCharts view={view} />
       </div>
     </div>
   );

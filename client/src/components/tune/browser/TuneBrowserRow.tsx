@@ -1,9 +1,9 @@
 import { type KeyboardEvent, type ReactNode, useState } from "react";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
+import { TD, TRow } from "@/components/ui/AppTable";
+import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import type { TuneRow } from "./types";
-import { Button } from "@/components/ui/button";
-import { TD, TRow } from "@/components/ui/AppTable";
 
 // Resolve at render time — calling m.*() at module scope would freeze the locale.
 const SOURCE_LABEL: Record<TuneRow["source"], () => string> = {
@@ -51,40 +51,42 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
             <span className="block text-app-caption text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
           </span>
         </TD>
-        <TD showFrom="sm" truncate="wide">
+        <TD showFrom="workspace-md" truncate="wide">
           {carName}
         </TD>
-        <TD showFrom="sm" tone={trackName ? "default" : "dim"} truncate="wide">
+        <TD showFrom="workspace-md" tone={trackName ? "default" : "dim"} truncate="wide">
           {trackName ?? "—"}
         </TD>
-        <TD showFrom="sm">
+        <TD showFrom="workspace-md">
           {row.category && (
             <span className={`inline-block text-app-caption font-semibold uppercase px-1.5 py-0.5 rounded truncate ${CATEGORY_COLORS[row.category] ?? "bg-app-surface-alt text-app-text-muted"}`}>
               {catLabel}
             </span>
           )}
         </TD>
-        <TD showFrom="sm" truncate="wide">
+        <TD showFrom="workspace-md" truncate="wide">
           {row.author}
         </TD>
         <TD align="end" numeric tone={hasTime ? "primary" : "dim"}>
           <span className={hasTime ? "text-(--lap-pace-average)" : undefined}>
             {hasTime ? row.lapTimeRaw : "—"}
-            <span className="hidden sm:block text-app-nano uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}</span>
+            <span className="mt-0.5 hidden text-app-nano uppercase tracking-wide text-app-text-dim @3xl/workspace:block">
+              {hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}
+            </span>
           </span>
         </TD>
-        <TD align="center" showFrom="sm" tone={isOpen ? "accent" : "dim"}>
+        <TD align="center" showFrom="workspace-md" tone={isOpen ? "accent" : "dim"}>
           <span className={`inline-block transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span>
         </TD>
       </TRow>
       {isOpen && (
         <TRow variant="static">
           <TD colSpan={8} tone="primary">
-            <div className="px-1 sm:px-8 pb-2 pt-1">
+            <div className="px-1 pb-2 pt-1 @3xl/workspace:px-8">
               {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
               {renderSettings(row)}
               {!readOnly && (
-                <div className="flex gap-2 mt-3.5">
+                <div className="mt-3.5 flex flex-wrap gap-2">
                   {isUser ? (
                     <>
                       <Button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onEdit?.(row)}>

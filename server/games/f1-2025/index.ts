@@ -1,10 +1,11 @@
 import type { ServerGameAdapter } from "../types";
-import type { TelemetryPacket } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { f1Adapter } from "../../../shared/games/f1-2025";
-import { F1StateAccumulator, parseF1Header } from "../../parsers/f1-state";
-import { getF1CarName } from "../../../shared/f1-car-data";
-import { getF1TrackName, getF1TrackInfo } from "../../../shared/f1-track-data";
-import { LapDetector } from "../../lap-detector";
+import { F1StateAccumulator } from "./f1-state";
+import { parseF1Header } from "./f1-wire";
+import { getF1CarName } from "../../../shared/racing/cars/f1"
+import { getF1TrackName, getF1TrackInfo } from "../../../shared/racing/tracks/catalogs/f1"
+import { LapDetector } from "../../lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const F1_SYSTEM_PROMPT = `You are an expert Formula 1 racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
@@ -46,6 +47,17 @@ DRS:
 
 export const f1ServerAdapter: ServerGameAdapter = {
   ...f1Adapter,
+
+  runtime: {
+    pit: {
+      seedFuelFromHistory: false,
+      seedTireWearFromHistory: true,
+      useDistanceBasedWearCurves: false,
+    },
+    bestLapFromSession: false,
+    requiresTrackCalibration: true,
+    normSuspensionTravelMm: { min: 20, max: 80 },
+  },
 
   processNames: ["F1_25.exe", "F1_2025.exe"],
 
