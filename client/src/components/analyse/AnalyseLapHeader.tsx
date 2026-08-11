@@ -136,7 +136,7 @@ export function AnalyseLapHeader({
             fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
           {selectedLapId != null && (
-            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-app-text-muted" aria-label={selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}>
+            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted" aria-label={selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}>
               {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
             </span>
           )}
