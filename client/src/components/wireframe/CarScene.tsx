@@ -5,6 +5,7 @@ import type * as THREE from "three";
 import type { GameId } from "../../../../shared/games/ids";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
+import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
 import { steeringAngleRadians, THREE_COLORS } from "../../lib/wireframe-utils";
@@ -25,6 +26,15 @@ import { Wheel } from "./Wheel";
 // corner edge only when that corner is at 100% compression AND the others
 // are at the baseline.
 const wheel = (f: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], i: number) => { const v = f.values[id]; return Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? v[i] as number : 0; }
+
+function normalizedSuspension(frame: SemanticAnalysisFrame, range?: { min: number; max: number }): [number, number, number, number] {
+  const normalized = frame.values["suspension.norm-suspension-travel"];
+  if (Array.isArray(normalized) && normalized.length >= 4 && normalized.slice(0, 4).every((value) => typeof value === "number" && Number.isFinite(value))) {
+    return normalized.slice(0, 4) as [number, number, number, number];
+  }
+  return normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"] as unknown[], range);
+}
+
 
 function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft: number, rt: number): { x: number; z: number } | null {
   const base = Math.min(susp[0], susp[1], susp[2], susp[3]);
@@ -80,6 +90,9 @@ export function CarScene({
   const pressureOptimal = useTirePressureOptimal(gameId, 0);
   const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f)=>semanticNumber(f,"motion.position-x")!=null && semanticNumber(f,"motion.position-z")!=null), [telemetry]);
 
+  const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
+  const [suspFL, suspFR, suspRL, suspRR] = normalizedSuspension(frame, suspensionRange);
+
   // Keep packet in a ref so useFrame reads latest without triggering re-render
   const packetRef = useRef(frame);
   useEffect(() => {
@@ -92,10 +105,6 @@ export function CarScene({
 
   // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
   // Higher suspension travel = more compressed on that corner
-  const suspFL = wheel(frame, "suspension.suspension-travel-m", 0);
-  const suspFR = wheel(frame, "suspension.suspension-travel-m", 1);
-  const suspRL = wheel(frame, "suspension.suspension-travel-m", 2);
-  const suspRR = wheel(frame, "suspension.suspension-travel-m", 3);
 
   // Body drops when suspension compresses (wheels stay on ground).
   // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
@@ -192,7 +201,7 @@ export function CarScene({
       pos: [wb, 0, -ft] as [number, number, number],
       steer: steerFL,
       camber: cambFL,
-      susp: wheel(frame, "suspension.suspension-travel-m", 0),
+      susp: suspFL,
       drop: dropFL,
       traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.tire-slip-angle", 0)).color,
       rimColor: colorFL,
@@ -211,7 +220,7 @@ export function CarScene({
       pos: [wb, 0, ft] as [number, number, number],
       steer: steerFR,
       camber: cambFR,
-      susp: wheel(frame, "suspension.suspension-travel-m", 1),
+      susp: suspFR,
       drop: dropFR,
       traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.tire-slip-angle", 1)).color,
       rimColor: colorFR,
@@ -230,7 +239,7 @@ export function CarScene({
       pos: [-wb, 0, -rt] as [number, number, number],
       steer: steerRL,
       camber: cambRL,
-      susp: wheel(frame, "suspension.suspension-travel-m", 2),
+      susp: suspRL,
       drop: dropRL,
       traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.tire-slip-angle", 2)).color,
       rimColor: colorRL,
@@ -249,7 +258,7 @@ export function CarScene({
       pos: [-wb, 0, rt] as [number, number, number],
       steer: steerRR,
       camber: cambRR,
-      susp: wheel(frame, "suspension.suspension-travel-m", 3),
+      susp: suspRR,
       drop: dropRR,
       traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.tire-slip-angle", 3)).color,
       rimColor: colorRR,
@@ -264,21 +273,12 @@ export function CarScene({
       tireWidth: rTireW,
     },
   ];
-
-  // Load distribution — weighted centroid of excess-compression per corner.
-  // Dot reaches a corner iff that corner is at max compression (susp=1) while
-  // the others are at/below static (susp≤0.5).
   const loadDot = (() => {
     const xz = computeLoadDotXZ([suspFL, suspFR, suspRL, suspRR], wb, ft, rt);
     if (!xz) return null;
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
     return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
-
-  // Derive load-dot trail from the last 1s of lap time walked back from
-  // cursorIdx. Uses frame.CurrentLap (lap-time seconds) so the window is
-  // scoped to the current lap and resets cleanly at the lap boundary.
-  // Pure derivation — persists on pause, reconstructs correctly on scrub.
   const loadTrail = useMemo(() => {
     const cur = telemetry[cursorIdx];
     if (!cur) return [];
@@ -287,22 +287,14 @@ export function CarScene({
     for (let i = cursorIdx; i >= 0; i--) {
       const p = telemetry[i];
       if (!p) break;
-      // Stop at lap boundary: previous lap has a *larger* current-lap value.
       const lap = semanticNumber(p, "timing.current-lap") ?? 0;
-      if (lap > endLap) break;
-      if (endLap - lap > 1) break;
-      const suspension = p.values["suspension.suspension-travel-m"];
-      const xz = computeLoadDotXZ(
-        [0, 1, 2, 3].map((i) => (Array.isArray(suspension) && typeof suspension[i] === "number" ? suspension[i] : 0)) as [number, number, number, number],
-        wb,
-        ft,
-        rt,
-      );
+      if (lap > endLap || endLap - lap > 1) break;
+      const suspension = normalizedSuspension(p, suspensionRange ?? undefined);
+      const xz = computeLoadDotXZ(suspension, wb, ft, rt);
       if (xz) pts.push([xz.x, xz.z]);
     }
-    // Oldest first → newest last, matching the drawing direction of the Line.
     return pts.reverse();
-  }, [telemetry, cursorIdx, wb, ft, rt]);
+  }, [telemetry, cursorIdx, wb, ft, rt, suspensionRange]);
 
   return (
     <>

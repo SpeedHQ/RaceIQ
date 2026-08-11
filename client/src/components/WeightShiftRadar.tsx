@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { severityRangeColor } from "@/lib/colors";
+import { normalizeSuspensionTravel } from "@/lib/suspension";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
@@ -16,7 +17,11 @@ export function WeightShiftRadar({ packet, frame }: { packet?: TelemetryPacket; 
   const size = 85;
 
   const suspension = frame?.values["suspension.norm-suspension-travel"];
-  const semanticLoads = Array.isArray(suspension) ? suspension.map((value) => (typeof value === "number" && Number.isFinite(value) ? value : 0)) : null;
+  const semanticLoads = Array.isArray(suspension)
+    ? suspension.map((value) => (typeof value === "number" && Number.isFinite(value) ? value : 0))
+    : frame?.values["suspension.suspension-travel-m"] && Array.isArray(frame.values["suspension.suspension-travel-m"])
+      ? normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"])
+      : null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
