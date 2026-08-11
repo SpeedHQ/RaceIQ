@@ -23,13 +23,15 @@ export interface StartupJobDependencies {
   startLaptimesSync?: () => void;
   startSessionCompressor?: () => void;
   startUpdateCheckSchedule?: () => void;
+  countStaleSessions?: typeof countStaleSessions;
+  countStaleRaceResults?: typeof countStaleRaceResults;
 }
 
 export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
   (dependencies.startLaptimesSync ?? startLaptimesSync)();
 
-  countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
+  (dependencies.countStaleSessions ?? countStaleSessions)(ALL_DETECTOR_IDS).then((count) => {
     if (count > 0) {
       console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
       wsManager.setStaleSessionsNotification({
@@ -42,7 +44,7 @@ export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencie
     console.error("[Server] Failed to check stale sessions:", err);
   });
 
-  countStaleRaceResults(RACE_RESULT_PROCESSOR_ID).then((count) => {
+  (dependencies.countStaleRaceResults ?? countStaleRaceResults)(RACE_RESULT_PROCESSOR_ID).then((count) => {
     if (count > 0) {
       console.log(`[Server] ${count} session result(s) use an older processor — will prompt user to recalculate`);
       wsManager.setStaleRaceResultsNotification({
