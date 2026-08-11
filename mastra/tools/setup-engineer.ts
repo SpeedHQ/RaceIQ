@@ -52,6 +52,7 @@ import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst
 import { loadCleanLapAggregate } from "../../server/experiments/lap-evidence/aggregate";
 import { setLapExperimentExcluded, getLapsForExperiment } from "../../server/db/experiment-lap-queries";
 import { getLapById } from "../../server/db/lap-read-queries";
+import { resolveTrack } from "../../server/tracks/info";
 import { recordAction } from "../../server/db/experiment-action-queries";
 import { undoLastAction } from "../../server/experiments/undo"
 import { detectCorners } from "../../server/lap-analysis/corners";
@@ -938,9 +939,13 @@ export function buildSetupEngineerTools() {
       if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) {
         return { ok: false, error: "One or both laps have no telemetry data." };
       }
-
       const corners = detectCorners(lapA.telemetry);
-      const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+      const track = resolveTrack(lapA.gameId, lapA.trackOrdinal);
+      const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, {
+        lapAIsValid: lapA.isValid,
+        lapBIsValid: lapB.isValid,
+        trackLengthMeters: track.lengthMeters,
+      });
       const timeDeltaSec = result.timeDelta.length > 0 ? result.timeDelta[result.timeDelta.length - 1]! : 0;
 
       return {

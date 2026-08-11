@@ -3,6 +3,8 @@ import type { LapMeta } from "../sessions/types";
 
 export interface AlignedTrace {
   distance: number[];
+  sourceIndicesA: number[];
+  sourceIndicesB: number[];
   speedA: number[];
   speedB: number[];
   throttleA: number[];

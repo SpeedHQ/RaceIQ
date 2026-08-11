@@ -45,7 +45,7 @@
 - Highlight the active sector-blip setting with a cyan border
 - Keep analysis and comparison pages usable on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
-- Keep the iRacing analysis car indicator aligned with track direction in fixed and follow map views
+- Keep Compare map markers, telemetry inputs, and deltas aligned by track position after crashes, spins, shortcuts, and off-track detours
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
 - Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
 - Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
