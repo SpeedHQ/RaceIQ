@@ -44,6 +44,26 @@ export function resolveCssColor(color: string): string {
   probe.remove();
 
   if (resolved) {
+    // Three.Color does not parse every CSS Color 4 format (for example oklch
+    // returned by Tailwind variables). Rasterize through the browser's CSS
+    // engine, then hand Three.js an rgb/rgba string it can parse.
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d");
+    if (context) {
+      context.fillStyle = "rgb(1, 2, 3)";
+      const sentinel = context.fillStyle;
+      context.fillStyle = resolved;
+      if (context.fillStyle !== sentinel && typeof context.getImageData === "function") {
+        context.clearRect(0, 0, 1, 1);
+        context.fillRect(0, 0, 1, 1);
+        const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+        const normalized = alpha === 255 ? `rgb(${red}, ${green}, ${blue})` : `rgba(${red}, ${green}, ${blue}, ${alpha / 255})`;
+        resolvedColorCache.set(color, normalized);
+        return normalized;
+      }
+    }
     resolvedColorCache.set(color, resolved);
     return resolved;
   }
