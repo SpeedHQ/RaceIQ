@@ -7,8 +7,9 @@ import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
 
 initGameAdapters();
 
-test("semantic replay requests lap-relative timing", () => {
+test("semantic replay requests lap-relative timing and position", () => {
   expect(semanticReplayIds()).toContain("timing.current-lap");
+  expect(semanticReplayIds()).toContain("timing.lap-fraction");
 });
 test("semantic replay requests every Analyse display dependency", () => {
   const ids = semanticReplayIds();
