@@ -23,6 +23,13 @@ export function steeringAngleRadians(steerInput: number): number {
   return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
 }
 
+/** Use measured wheel speed when available; otherwise derive visual rolling from v = ωr. */
+export function visualWheelRotationSpeed(measuredRadS: unknown, speedMps: number, radiusM: number): number {
+  if (typeof measuredRadS === "number" && Number.isFinite(measuredRadS)) return measuredRadS;
+  if (!Number.isFinite(speedMps) || !Number.isFinite(radiusM) || radiusM <= 0) return 0;
+  return speedMps / radiusM;
+}
+
 /** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
 export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
   return inactive.clone().lerp(active, rawInput / 255);

@@ -17,6 +17,7 @@
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
+- Roll iRacing wireframe wheels in Analyse when per-wheel rotation telemetry is unavailable
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps
 - Restore the moving car pointer on iRacing Analyse track maps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved

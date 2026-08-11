@@ -4,6 +4,7 @@ import {
   filterByDistance,
   filterByDistanceIndexed,
   type FilteredTrackSegment,
+  visualWheelRotationSpeed,
 } from "../../client/src/lib/wireframe-utils";
 
 // Deep-equal helper — bun:test's toEqual already does structural compare,
@@ -26,6 +27,21 @@ function segmentsMatch(
     }
   }
 }
+
+describe("visualWheelRotationSpeed", () => {
+  test("preserves measured wheel speed, including a lockup zero", () => {
+    expect(visualWheelRotationSpeed(42, 66, 0.33)).toBe(42);
+    expect(visualWheelRotationSpeed(0, 66, 0.33)).toBe(0);
+  });
+
+  test("derives rolling speed from vehicle speed when measurement is unavailable", () => {
+    expect(visualWheelRotationSpeed(undefined, 66, 0.33)).toBeCloseTo(200);
+  });
+
+  test("does not derive rolling speed without a valid tire radius", () => {
+    expect(visualWheelRotationSpeed(undefined, 66, 0)).toBe(0);
+  });
+});
 
 // Generate a dense S-curve outline so segment breaks happen mid-chunk
 // for at least some query positions.
