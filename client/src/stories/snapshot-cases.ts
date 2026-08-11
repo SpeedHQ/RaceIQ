@@ -6,6 +6,7 @@ export interface StorybookSnapshotCase {
   readyText?: string;
   hoverLabel?: string;
   clickLabel?: string;
+  clickRole?: "button" | "combobox";
   readyRole?: "dialog" | "listbox" | "menu";
   readyName?: string;
 }
@@ -104,6 +105,8 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     id: "ui-reusable-primitives--search-select-menu",
     outputName: "snapshot-ReusableSearchSelect.png",
     viewport: { width: 900, height: 650 },
+    clickRole: "combobox",
+    clickLabel: "Search tracks...",
     readyRole: "listbox",
     readyName: "Search tracks...",
   },

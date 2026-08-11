@@ -117,7 +117,7 @@ export const TabsUncontrolled: Story = {
     const canvas = within(canvasElement);
     const overview = canvas.getByRole("tab", { name: "Overview" });
     const setup = canvas.getByRole("tab", { name: "Setup" });
-    await expect(canvas.getByRole("tab", { name: "Archived" })).toBeDisabled();
+    await expect(canvas.getByRole("tab", { name: "Archived" })).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(overview);
     await userEvent.keyboard("{ArrowRight}");
     await expect(setup).toHaveFocus();
@@ -324,7 +324,7 @@ export const DialogSizes: Story = {
     const body = within(document.body);
     await expect(body.getByRole("dialog")).toBeVisible();
     await userEvent.click(body.getByRole("button", { name: "Close" }));
-    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+    await expect(body.getByRole("dialog")).toHaveAttribute("data-closed", "");
   },
 };
 
@@ -428,7 +428,9 @@ export const SearchSelectMenu: Story = {
     const body = within(document.body);
     await expect(body.getByRole("listbox", { name: "Search tracks..." })).toBeVisible();
     await userEvent.click(body.getByRole("option", { name: "Brands Hatch" }));
-    await expect(body.queryByRole("listbox", { name: "Search tracks..." })).not.toBeInTheDocument();
+    await expect(body.getByRole("listbox", { name: "Search tracks..." })).toHaveCount(0);
+    await userEvent.click(canvas.getByRole("combobox"));
+    await expect(body.getByRole("listbox", { name: "Search tracks..." })).toBeVisible();
   },
 };
 

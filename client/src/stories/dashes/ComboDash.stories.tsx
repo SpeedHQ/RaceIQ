@@ -6,7 +6,19 @@ import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { ComboDash } from "../../components/dashes/ComboDash";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { useGameStore } from "../../stores/game";
-import { fakePit, fakeSectors, fakeF1SemanticFixture } from "../fakeData";
+import {
+  fakeAcEvoDisplayPacket,
+  fakeAcEvoPacket,
+  fakeAccDisplayPacket,
+  fakeAccPacket,
+  fakeF1DisplayPacket,
+  fakeF1Packet,
+  fakeForzaDisplayPacket,
+  fakeForzaPacket,
+  fakePit,
+  fakeSectors,
+  fakeF1SemanticFixture,
+} from "../fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

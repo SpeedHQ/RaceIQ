@@ -21,7 +21,7 @@ for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
     await openStoryForSnapshot(page, `/iframe.html?id=${story.id}&viewMode=story`);
 
     if (story.clickLabel) {
-      await page.getByRole("button", { name: story.clickLabel }).click();
+      await page.getByRole(story.clickRole ?? "button", { name: story.clickLabel }).click();
     }
     if (story.readyRole) {
       await expect(

@@ -403,6 +403,7 @@ function makeSemanticFixture(raw: TelemetryPacket) {
 
 export const fakeF1SemanticFixture = makeSemanticFixture(fakeF1Packet);
 
+
 // ── Forza Motorsport Fake Packet ─────────────────────────────────────────────
 
 export const fakeForzaPacket: TelemetryPacket = {
@@ -547,6 +548,9 @@ export const fakeF1DisplayPacket: DisplayPacket = makeDisplayPacket(fakeF1Packet
 export const fakeForzaDisplayPacket: DisplayPacket = makeDisplayPacket(fakeForzaPacket);
 export const fakeAccDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAccPacket);
 export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvoPacket);
+export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
+export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
+
 
 // ── Sector Data ──────────────────────────────────────────────────────────────
 // We are on lap 5, partway through S2.
