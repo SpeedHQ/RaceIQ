@@ -21,6 +21,7 @@
  * so V2 bins parse fine — tail fields just return null on V2 buffers.
  */
 import { existsSync, mkdirSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 
 // Header: magic(8) + version(4) + frameCount(4) = 16 bytes (same layout v2 and v3)
@@ -51,7 +52,9 @@ export class KunosRecorder {
 
   /** Start recording to a new file. Returns the file path. */
   start(dir?: string, prefix = "acc"): string {
-    if (this._file) this.stop();
+    if (this._file) {
+      throw new Error("ACC recorder is already recording");
+    }
 
     const outDir = dir ?? defaultRecordingDir();
     if (!existsSync(outDir)) {
@@ -104,25 +107,35 @@ export class KunosRecorder {
 
   /** Stop recording and flush to disk */
   async stop(): Promise<void> {
-    if (!this._file) return;
+    const sink = this._file;
+    const path = this._path;
+    const frameCount = this._frameCount;
+    if (!sink || !path) return;
 
-    await this._file.end();
-
-    // Update frameCount in header and get final file size
-    if (this._path) {
-      const file = Bun.file(this._path);
-      const data = await file.arrayBuffer();
-      const buf = Buffer.from(data);
-      buf.writeUInt32LE(this._frameCount, 12);
-      await Bun.write(this._path, buf);
-
-      const fileSizeKb = (buf.length / 1024).toFixed(2);
-      const filename = this._path.split(/[\\/]/).pop();
-      console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
-    }
-
+    // Detach before awaiting I/O so a restarted telemetry source can safely
+    // begin a new recording while this file finishes flushing.
     this._file = null;
     this._lastStatic = null;
+
+    await sink.end();
+
+    // Patch only the frame-count field. Reading and rewriting the full capture
+    // made long-session shutdown slow and allowed source restarts to race with
+    // finalization through the recorder's mutable path/file state.
+    const frameCountBuffer = Buffer.allocUnsafe(4);
+    frameCountBuffer.writeUInt32LE(frameCount, 0);
+    const file = await open(path, "r+");
+    let fileSize: number;
+    try {
+      await file.write(frameCountBuffer, 0, frameCountBuffer.length, 12);
+      fileSize = (await file.stat()).size;
+    } finally {
+      await file.close();
+    }
+
+    const fileSizeKb = (fileSize / 1024).toFixed(2);
+    const filename = path.split(/[\\/]/).pop();
+    console.log(`[ACC Recorder] Stopped. ${frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
   }
 
   private _writeBufferFrame(type: number, buffer: Buffer): void {

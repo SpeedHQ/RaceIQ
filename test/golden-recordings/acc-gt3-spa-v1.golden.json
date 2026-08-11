@@ -1,0 +1,613 @@
+{
+  "manifest_schema_version": 1,
+  "id": "acc-gt3-spa-v1",
+  "recording_version": 1,
+  "status": "accepted",
+  "artifact": {
+    "path": "test/artifacts/sessions/acc-gt3-spa-v1.bin.gz",
+    "format": "raceiq-session-capture",
+    "format_version": 1,
+    "compression": "gzip",
+    "byte_length": 85468118,
+    "sha256": "sha256:38dad481216366de6a4bc539f70f85fbae1a3a1e7dfff8a9a565c4bbd4ac46f5",
+    "uncompressed_byte_length": 610631308,
+    "uncompressed_sha256": "sha256:8a21a7a33943db13b5dadf7a5a28c8e786968ad5bef95b86e8156df4e7ad49b4",
+    "record_count": 196724,
+    "started_at": "2026-08-11T17:11:00.610Z",
+    "ended_at": "2026-08-11T17:49:27.566Z",
+    "duration_ms": 2306956
+  },
+  "simulator": {
+    "game_id": "acc",
+    "name": "Assetto Corsa Competizione",
+    "version": "1.7",
+    "shared_memory_version": "1.9",
+    "source_adapter": "acc-shared-memory@1.9"
+  },
+  "vehicle": {
+    "car": "Porsche 911 II GT3 R 2019",
+    "source_model": "porsche_991ii_gt3_r",
+    "class": "GT3",
+    "catalog_ordinal": 23
+  },
+  "circuit": {
+    "track": "Circuit de Spa-Francorchamps",
+    "layout": "Grand Prix",
+    "source_name": "Spa",
+    "catalog_ordinal": 6
+  },
+  "purpose": [
+    "canonical_telemetry_reference",
+    "parser_regression",
+    "live_replay_parity",
+    "archive_rebuild_parity",
+    "lap_analysis",
+    "stint_analysis",
+    "pit_transition_analysis",
+    "damage_analysis",
+    "assist_analysis",
+    "abnormal_event_analysis"
+  ],
+  "conditions": {
+    "session_type": "practice",
+    "weather": "dry",
+    "track_condition": "dry",
+    "time_of_day": "day",
+    "traffic": "none",
+    "participant_count": 1,
+    "evidence": [
+      "ACC graphics session value remained practice.",
+      "Static shared memory reported one car.",
+      "Graphics reported dry compound and rainTyres=0 throughout.",
+      "ACC session clock covered approximately 09:00 through 09:38."
+    ]
+  },
+  "protocol": {
+    "stints": [
+      {
+        "id": "stint-1",
+        "role": "clean_reference",
+        "approximate_laps": 9,
+        "intent": "Drive consistently to establish baseline pace, then document genuine late-stint mistakes rather than restarting the capture."
+      },
+      {
+        "id": "stint-2",
+        "role": "varied_eventful",
+        "approximate_laps": 4,
+        "intent": "Reduce TC and ABS, push harder, deliberately provoke brake lock and wheelspin, and retain resulting spins and recovery behavior."
+      }
+    ],
+    "transition": {
+      "intent": "normal_pit_service",
+      "tires_expected": "changed",
+      "fuel_expected": "added"
+    },
+    "finish_intent": "End after intentionally running without TC produced a final partial lap with multiple spins."
+  },
+  "observations": {
+    "actual_completed_laps": {
+      "value": 13,
+      "basis": "source_observed",
+      "source_counter_start": 0,
+      "source_counter_end": 13
+    },
+    "raceiq_lap_rows": {
+      "complete": 14,
+      "incomplete": 1,
+      "matched_source_completions": 12
+    },
+    "stints": [
+      {
+        "id": "stint-1",
+        "assessment": "generally_clean",
+        "source_completed_lap_range": [1, 9],
+        "notes": [
+          "Early laps provide the primary clean baseline.",
+          "Driver reported a late-stint spin followed by nose damage.",
+          "Source current lap 9 became invalid near the reported Eau Rouge and Kemmel event."
+        ]
+      },
+      {
+        "id": "stint-2",
+        "assessment": "intentionally_varied",
+        "source_completed_lap_range": [11, 13],
+        "notes": [
+          "TC and ABS were reduced after return to garage.",
+          "ABS was disabled during source current lap 13 for deliberate lockups.",
+          "TC was disabled for final incomplete source current lap 14."
+        ]
+      }
+    ],
+    "transition": {
+      "kind": "pit_entry_then_return_to_garage",
+      "source_current_lap": 10,
+      "tires_changed": "unknown",
+      "fuel_added": "unknown",
+      "service_observed": false,
+      "notes": [
+        "Driver entered pit lane after first stint but did not complete normal service.",
+        "Return to garage reset position and recorded damage before second stint.",
+        "Do not use this fixture as evidence of a normal tire or fuel service transition."
+      ]
+    },
+    "lap_alignment": [
+      {
+        "source_completed_lap": 1,
+        "source_lap_time_seconds": 149.27,
+        "raceiq_lap_row": 2,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 2,
+        "source_lap_time_seconds": 148.175,
+        "raceiq_lap_row": 3,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 3,
+        "source_lap_time_seconds": 147.027,
+        "raceiq_lap_row": 4,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 4,
+        "source_lap_time_seconds": 147.822,
+        "raceiq_lap_row": null,
+        "coverage": "missing",
+        "note": "ACC counter and last-lap time survived, but telemetry samples for this lap did not."
+      },
+      {
+        "source_completed_lap": 5,
+        "source_lap_time_seconds": 147.292,
+        "raceiq_lap_row": 5,
+        "coverage": "partial",
+        "note": "First 18.515 seconds are absent after the capture gap."
+      },
+      {
+        "source_completed_lap": 6,
+        "source_lap_time_seconds": 147.482,
+        "raceiq_lap_row": 6,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 7,
+        "source_lap_time_seconds": 146.192,
+        "raceiq_lap_row": 7,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 8,
+        "source_lap_time_seconds": 146.382,
+        "raceiq_lap_row": 8,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 9,
+        "source_lap_time_seconds": 160.177,
+        "raceiq_lap_row": 9,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 10,
+        "source_lap_time_seconds": 166.225,
+        "raceiq_lap_row": 10,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 11,
+        "source_lap_time_seconds": 145.397,
+        "raceiq_lap_row": 12,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 12,
+        "source_lap_time_seconds": 145.287,
+        "raceiq_lap_row": 13,
+        "coverage": "full"
+      },
+      {
+        "source_completed_lap": 13,
+        "source_lap_time_seconds": 151.102,
+        "raceiq_lap_row": 14,
+        "coverage": "full"
+      }
+    ],
+    "unmatched_raceiq_rows": [
+      {
+        "raceiq_lap_row": 1,
+        "phase": "in",
+        "lap_time_seconds": 178.631,
+        "interpretation": "Pit-cycle timer segment with no matching ACC completedLaps transition."
+      },
+      {
+        "raceiq_lap_row": 11,
+        "phase": "out",
+        "lap_time_seconds": 193.122,
+        "interpretation": "Return-to-garage and out-lap timer segment with no matching ACC completedLaps transition."
+      }
+    ],
+    "events": [
+      {
+        "id": "stint-1-spin",
+        "type": "spin",
+        "stint_id": "stint-1",
+        "approximate_corner": "Les Combes",
+        "lap_reference": {
+          "driver_reported_lap": 8,
+          "source_current_lap": 9,
+          "raceiq_lap_row": 9,
+          "note": "Driver and source numbering differ because RaceIQ retained pit-cycle rows and missed source lap 4."
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver reported spinning in the esses after Eau Rouge and Kemmel Straight."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "Damage and lap-validity state changed during source current lap 9 near the reported location."
+          }
+        ]
+      },
+      {
+        "id": "stint-1-damage",
+        "type": "damage",
+        "stint_id": "stint-1",
+        "approximate_corner": "Les Combes",
+        "lap_reference": {
+          "driver_reported_lap": 8,
+          "source_current_lap": 9,
+          "raceiq_lap_row": 9
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver reported light nose damage after the spin."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "ACC carDamage rose from zero to front=24.502, rear=5.597, centre=30.099 and reset after return to garage."
+          }
+        ]
+      },
+      {
+        "id": "stint-1-eau-rouge-cut",
+        "type": "off_track",
+        "stint_id": "stint-1",
+        "approximate_corner": "Eau Rouge and Raidillon",
+        "lap_reference": {
+          "driver_reported_lap": 9,
+          "source_current_lap": 9,
+          "raceiq_lap_row": 9
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver reported severely cutting Eau Rouge after damage made the car difficult to drive."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "ACC isValidLap became false on source current lap 9 at 47.625 seconds and remained invalid for that lap."
+          }
+        ]
+      },
+      {
+        "id": "pit-entry",
+        "type": "pit_entry",
+        "stint_id": null,
+        "approximate_corner": "Pit entry",
+        "lap_reference": {
+          "source_current_lap": 10,
+          "raceiq_lap_row": 10
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver entered pits after the first stint."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "ACC isInPitLane changed to 1 during source current lap 10."
+          }
+        ]
+      },
+      {
+        "id": "return-to-garage",
+        "type": "return_to_garage",
+        "stint_id": null,
+        "approximate_corner": null,
+        "lap_reference": {
+          "source_current_lap": 11,
+          "raceiq_lap_row": 11
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver used return to garage instead of completing practice pit service."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "ACC status briefly changed from live to pause, distance reset, and damage returned to zero."
+          }
+        ]
+      },
+      {
+        "id": "stint-2-assists-reduced",
+        "type": "assist_change",
+        "stint_id": "stint-2",
+        "approximate_corner": null,
+        "lap_reference": {
+          "source_current_lap": 11,
+          "raceiq_lap_row": 12
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver reduced TC and ABS, then pushed harder with a faster but more mobile car."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "ACC graphics settings changed from TC 5 and ABS 6 to TC 2 and ABS 2 after return to garage."
+          }
+        ]
+      },
+      {
+        "id": "stint-2-abs-off-lockups",
+        "type": "wheel_lock",
+        "stint_id": "stint-2",
+        "approximate_corner": null,
+        "lap_reference": {
+          "source_current_lap": 13,
+          "source_completed_lap": 13,
+          "raceiq_lap_row": 14
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver disabled ABS and deliberately locked brakes in several places."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "ACC ABS setting reached 0 during source current lap 13."
+          }
+        ]
+      },
+      {
+        "id": "final-lap-tc-off",
+        "type": "assist_change",
+        "stint_id": "stint-2",
+        "approximate_corner": null,
+        "lap_reference": {
+          "source_current_lap": 14,
+          "raceiq_lap_row": 15
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver disabled TC for the final incomplete lap."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "ACC TC setting changed to 0 on source current lap 14."
+          }
+        ]
+      },
+      {
+        "id": "final-lap-turn-1-spin",
+        "type": "spin",
+        "stint_id": "stint-2",
+        "approximate_corner": "La Source",
+        "lap_reference": {
+          "source_current_lap": 14,
+          "raceiq_lap_row": 15
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver spun on throttle after Turn 1 and reversed to recover."
+          }
+        ]
+      },
+      {
+        "id": "final-lap-les-combes-spin",
+        "type": "spin",
+        "stint_id": "stint-2",
+        "approximate_corner": "Les Combes",
+        "lap_reference": {
+          "source_current_lap": 14,
+          "raceiq_lap_row": 15
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver spun again, more severely, at the earlier first-stint spin location."
+          }
+        ]
+      },
+      {
+        "id": "session-ended-after-spin",
+        "type": "session_end",
+        "stint_id": "stint-2",
+        "approximate_corner": "Les Combes",
+        "lap_reference": {
+          "source_current_lap": 14,
+          "raceiq_lap_row": 15
+        },
+        "evidence": [
+          {
+            "kind": "driver_reported",
+            "detail": "Driver ended the session after the second final-lap spin."
+          },
+          {
+            "kind": "source_observed",
+            "detail": "RaceIQ retained the final 5.750-second segment as incomplete."
+          }
+        ]
+      }
+    ],
+    "known_recording_issues": [
+      {
+        "type": "telemetry_gap",
+        "severity": "degraded",
+        "evidence_kind": "source_observed",
+        "description": "One event-loop capture gap occurred between source completed laps 3 and 4.",
+        "duration_ms": 165713,
+        "missing_records": 33688,
+        "missing_fraction": 0.14620766279534053,
+        "affected_source_laps": [4, 5]
+      },
+      {
+        "type": "missing_lap_telemetry",
+        "severity": "degraded",
+        "evidence_kind": "machine_derived",
+        "description": "Source completed lap 4 has ACC counter and 147.822-second last-lap evidence but no retained lap telemetry row.",
+        "affected_source_laps": [4]
+      },
+      {
+        "type": "partial_lap_telemetry",
+        "severity": "warning",
+        "evidence_kind": "machine_derived",
+        "description": "Source completed lap 5 resumes 18.515 seconds into the lap after the capture gap.",
+        "affected_source_laps": [5]
+      },
+      {
+        "type": "protocol_deviation",
+        "severity": "warning",
+        "evidence_kind": "driver_reported",
+        "description": "Capture contains 13 completed laps rather than the 20-25 target and uses return to garage instead of a normal serviced pit stop."
+      }
+    ],
+    "recording_quality": "accepted_with_known_limitations"
+  },
+  "capability_limitations": [
+    {
+      "capability": "fuel-remaining",
+      "state": "unpopulated",
+      "description": "ACC physics fuel remained zero in this capture, so fuel-burn evolution cannot be validated."
+    },
+    {
+      "capability": "tire-wear",
+      "state": "unpopulated",
+      "description": "ACC tire-wear values remained zero, so degradation by reported wear cannot be validated."
+    },
+    {
+      "capability": "air-and-track-temperature",
+      "state": "unpopulated",
+      "description": "ACC air and road temperature fields remained zero."
+    },
+    {
+      "capability": "pit-service",
+      "state": "limited",
+      "description": "Return to garage reset car state; no normal tire or fuel service was observed."
+    },
+    {
+      "capability": "invalidity-cause",
+      "state": "limited",
+      "description": "ACC exposes current lap validity but not a structured invalidity reason."
+    }
+  ],
+  "validation_roles": [
+    {
+      "role": "clean_baseline",
+      "enabled": true,
+      "scope": "Source completed laps 1-3 and 6-7.",
+      "limitation": "Exclude gap-affected laps 4-5 and late-stint abnormal laps 8-9."
+    },
+    {
+      "role": "parser_regression",
+      "enabled": true
+    },
+    {
+      "role": "live_replay_parity",
+      "enabled": true
+    },
+    {
+      "role": "archive_rebuild_parity",
+      "enabled": true,
+      "limitation": "Expected gap and partial-lap evidence must remain explicit after rebuild."
+    },
+    {
+      "role": "lap_analysis",
+      "enabled": true,
+      "limitation": "Source lap 4 is missing and source lap 5 has partial telemetry."
+    },
+    {
+      "role": "stint_analysis",
+      "enabled": true,
+      "scope": "Baseline first run versus post-garage varied second run.",
+      "limitation": "Boundary is return to garage, not normal pit service."
+    },
+    {
+      "role": "tire_degradation_analysis",
+      "enabled": false,
+      "limitation": "Tire-wear channel is unpopulated and second stint is short."
+    },
+    {
+      "role": "fuel_consumption_analysis",
+      "enabled": false,
+      "limitation": "Fuel-remaining channel is unpopulated."
+    },
+    {
+      "role": "pit_transition",
+      "enabled": true,
+      "scope": "Pit entry, pit lane, return-to-garage reset, and second departure."
+    },
+    {
+      "role": "pit_service",
+      "enabled": false,
+      "limitation": "No normal service completed."
+    },
+    {
+      "role": "damage_analysis",
+      "enabled": true,
+      "scope": "Damage onset during source current lap 9 and reset at return to garage."
+    },
+    {
+      "role": "assist_analysis",
+      "enabled": true,
+      "scope": "TC and ABS reductions, ABS-off lap, and final TC-off partial lap."
+    },
+    {
+      "role": "abnormal_event_analysis",
+      "enabled": true,
+      "scope": "Driver-reported spins, off-track, lockups, wheelspin, damage, and recoveries."
+    },
+    {
+      "role": "opponent_analysis",
+      "enabled": false,
+      "limitation": "Single participant and no traffic."
+    },
+    {
+      "role": "caution_analysis",
+      "enabled": false,
+      "limitation": "Practice capture contains no caution scenario."
+    }
+  ],
+  "provenance": {
+    "parser_version": "acc-shared-memory@1.9",
+    "lap_detector_version": "acc_lapdetector_v3",
+    "catalog_version": "0.13.0",
+    "catalog_hash": "sha256:569f71649acc717ac85c6dec9055c558ad5be532e6e82cd2e877c23694fd556c",
+    "catalog_schema_version": "v6",
+    "resolver_version": "1.0.0",
+    "derivation_version": "1.0.0",
+    "quality_schema_version": "1",
+    "quality_policy_version": "1",
+    "quality_config_version": "1"
+  },
+  "acceptance": {
+    "accepted_at": "2026-08-11T18:00:00.000Z",
+    "accepted_by": "recording-owner",
+    "immutable_source": true,
+    "basis": [
+      "Recording owner supplied stint intent and post-session event observations.",
+      "ACC source counters, validity, assists, pit state, damage, and hashes were independently derived from retained source evidence.",
+      "Known gap, missing lap, short duration, and absent normal service are accepted as explicit v1 limitations rather than hidden assumptions."
+    ]
+  },
+  "notes": [
+    "Use source completed-lap numbering for deterministic comparisons; RaceIQ lap rows include two unmatched pit-cycle segments.",
+    "Driver-reported lap numbers are approximate where pit-cycle rows and the missing source lap shift visible numbering.",
+    "Accepted identity acc-gt3-spa-v1 must not be silently replaced; create v2 for materially different source evidence."
+  ]
+}

@@ -8,6 +8,7 @@
 - Show telemetry quality, evidence limits, and analysis suitability per lap, with safe rebuild actions when source recordings remain available
 
 ### Fixes
+- Preserve long ACC recordings across quick game restarts without corrupting the next capture or flooding recorder warnings
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
 - Clear stale degraded lap-quality states after a clean recording rebuild
@@ -65,6 +66,7 @@
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 
 ### Internal
+- Add immutable, hash-verified golden recording manifests and register ACC GT3 Spa v1 with source-backed stint, lap, assist, damage, and event observations
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs

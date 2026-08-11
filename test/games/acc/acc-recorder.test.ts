@@ -119,4 +119,47 @@ describe("readKunosFrames", () => {
       rmSync(dir, { recursive: true });
     }
   });
+  test("finalizes a stopped file without clobbering a restarted recorder", async () => {
+    const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
+    try {
+      const recorder = new KunosRecorder();
+      const firstPath = recorder.start(join(dir, "first"));
+      const firstPhysics = Buffer.alloc(PHYSICS.SIZE, 0x11);
+      const firstGraphics = Buffer.alloc(GRAPHICS.SIZE, 0x12);
+      const firstStatic = Buffer.alloc(STATIC.SIZE, 0x13);
+      recorder.writePhysics(firstPhysics);
+      recorder.writeGraphics(firstGraphics);
+      recorder.writeStatic(firstStatic);
+
+      const firstStop = recorder.stop();
+      const secondPath = recorder.start(join(dir, "second"));
+      const secondPhysics = Buffer.alloc(PHYSICS.SIZE, 0x21);
+      const secondGraphics = Buffer.alloc(GRAPHICS.SIZE, 0x22);
+      const secondStatic = Buffer.alloc(STATIC.SIZE, 0x23);
+      recorder.writePhysics(secondPhysics);
+      recorder.writeGraphics(secondGraphics);
+      recorder.writeStatic(secondStatic);
+
+      await firstStop;
+      expect(recorder.recording).toBe(true);
+      expect(recorder.path).toBe(secondPath);
+      expect(recorder.frameCount).toBe(3);
+      await recorder.stop();
+
+      const firstFrames = readKunosFrames(firstPath);
+      expect(firstFrames).toHaveLength(1);
+      expect(firstFrames[0].physics).toEqual(firstPhysics);
+      expect(firstFrames[0].graphics).toEqual(firstGraphics);
+      expect(firstFrames[0].staticData).toEqual(firstStatic);
+
+      const secondFrames = readKunosFrames(secondPath);
+      expect(secondFrames).toHaveLength(1);
+      expect(secondFrames[0].physics).toEqual(secondPhysics);
+      expect(secondFrames[0].graphics).toEqual(secondGraphics);
+      expect(secondFrames[0].staticData).toEqual(secondStatic);
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
 });
