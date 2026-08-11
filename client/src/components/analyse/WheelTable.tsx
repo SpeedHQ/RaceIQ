@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/AppTable";
 
@@ -23,28 +23,8 @@ interface WheelTableProps {
   rows: WheelTableRow[];
 }
 
-function nodeSignature(value: ReactNode): string {
-  if (value == null) return "";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (Array.isArray(value)) return value.map(nodeSignature).join("|");
-  const element = value as ReactElement & { props?: { children?: ReactNode } };
-  const type = typeof element.type === "string" ? element.type : typeof element.type === "function" ? element.type.name || "component" : "node";
-  const childText = element.props?.children ? nodeSignature(element.props.children) : "";
-  return `${type}:${childText}`;
-}
-
-function getRowKey(row: WheelTableRow, seen: Map<string, number>): string {
-  const stableBase = row.id ?? [nodeSignature(row.label), row.span2 ? "span2" : "span4"].join("|");
-  const count = seen.get(stableBase) ?? 0;
-  seen.set(stableBase, count + 1);
-  return `${stableBase}#${count}`;
-}
-
 export function WheelTable({ title, showHeaders = true, borderTop = false, rows }: WheelTableProps) {
   const headerContentClass = borderTop ? "block pt-2 border-t border-app-border" : undefined;
-  const rowKeyState = new Map<string, number>();
   return (
     <Table density="telemetry" fit variant="embedded">
       <colgroup>
@@ -74,10 +54,9 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
         </TableHeader>
       )}
       <TableBody>
-        {rows.map((row) => {
-          const key = getRowKey(row, rowKeyState);
+        {rows.map((row, index) => {
           return (
-            <TableRow key={key}>
+            <TableRow key={row.id ?? index}>
               <TableCell tone="muted">{row.label}</TableCell>
               {row.span2 ? (
                 <>
