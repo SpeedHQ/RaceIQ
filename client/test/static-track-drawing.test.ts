@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { drawStaticTrack } from "../src/components/analyse/track-map/static-drawing";
+import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
 
 test("returns no transform when replay has no drawable track points", () => {
   const previousWindow = globalThis.window;
@@ -28,6 +29,34 @@ test("returns no transform when replay has no drawable track points", () => {
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }
+});
+test("projects telemetry without world coordinates onto the track outline", () => {
+  const frame = (fraction: number) => ({
+    values: { "motion.position-x": null, "motion.position-z": null, "timing.lap-fraction": fraction },
+    states: {},
+    freshness: {},
+  });
+  const outline = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }];
+
+  expect(resolveTrackPositions([frame(0), frame(0.25), frame(0.75), frame(1)], outline)).toEqual([
+    { x: 0, z: 0 },
+    { x: 50, z: 0 },
+    { x: 100, z: 50 },
+    { x: 100, z: 100 },
+  ]);
+});
+
+test("prefers recorded world coordinates over lap-fraction projection", () => {
+  const frame = (x: number, z: number, fraction: number) => ({
+    values: { "motion.position-x": x, "motion.position-z": z, "timing.lap-fraction": fraction },
+    states: {},
+    freshness: {},
+  });
+
+  expect(resolveTrackPositions(
+    [frame(20, 30, 0), frame(40, 50, 1)],
+    [{ x: 0, z: 0 }, { x: 100, z: 0 }],
+  )).toEqual([{ x: 20, z: 30 }, { x: 40, z: 50 }]);
 });
 
 test("draws throttle input traces in the throttle channel color", () => {

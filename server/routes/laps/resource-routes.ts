@@ -40,6 +40,7 @@ export function semanticReplayIds(): readonly string[] {
     "timing.current-lap",
     "timing.current-race-time",
     "timing.distance-traveled",
+    "timing.lap-fraction",
     "aero.drs-active",
     "weather.air-temp",
     "fuel.ers-store-energy",
