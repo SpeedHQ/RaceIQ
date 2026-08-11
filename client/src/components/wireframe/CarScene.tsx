@@ -35,7 +35,6 @@ function normalizedSuspension(frame: SemanticAnalysisFrame, range?: { min: numbe
   return normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"] as unknown[], range);
 }
 
-
 function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft: number, rt: number): { x: number; z: number } | null {
   const base = Math.min(susp[0], susp[1], susp[2], susp[3]);
   const maxC = Math.max(susp[0], susp[1], susp[2], susp[3]);
@@ -105,6 +104,7 @@ export function CarScene({
 
   // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
   // Higher suspension travel = more compressed on that corner
+
 
   // Body drops when suspension compresses (wheels stay on ground).
   // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
@@ -279,6 +279,11 @@ export function CarScene({
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
     return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
+
+  // Derive load-dot trail from the last 1s of lap time walked back from
+  // cursorIdx. Uses frame.CurrentLap (lap-time seconds) so the window is
+  // scoped to the current lap and resets cleanly at the lap boundary.
+  // Pure derivation — persists on pause, reconstructs correctly on scrub.
   const loadTrail = useMemo(() => {
     const cur = telemetry[cursorIdx];
     if (!cur) return [];

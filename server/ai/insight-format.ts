@@ -1,15 +1,16 @@
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import type { LapQualitySummary } from "../../shared/racing/quality/contracts";
 
 /**
  * Format one lap's precomputed insights as a prompt block for the compare
  * flows. Mirrors the analyst prompt's insight section: severity, category,
  * label, approximate lap distance, and detail per line.
  */
-export function buildCompareInsightsBlock(label: string, packets: TelemetryPacket[], gameId: GameId | undefined): string {
+export function buildCompareInsightsBlock(label: string, packets: TelemetryPacket[], gameId: GameId | undefined, quality: LapQualitySummary | null | undefined): string {
   if (!gameId || packets.length === 0) return "";
-  const insights = analyzeLap(packets, gameId);
+  const insights = analyzeLap(packets, gameId, quality);
   if (insights.length === 0) return "";
   let out = `\n--- ${label} Precomputed Insights (unverified — automated detections, may contain false positives; use as hints) ---\n`;
   for (const insight of insights) {

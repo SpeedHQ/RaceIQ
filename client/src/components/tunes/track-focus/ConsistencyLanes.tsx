@@ -91,8 +91,8 @@ function tracePolyline2(trace: LapTrace, values: Float32Array | number[], x: (f:
 
 /**
  * Input-consistency lanes (steer/brake/throttle) — every lap drawn dim, the
- * stint's best (fastest, scored) lap in accent. Invalid laps are excluded
- * upstream (TrackFocusView filters them out). Issue
+ * stint's best (fastest, scored) lap in accent. Invalid and classified
+ * non-pace laps are excluded upstream by TrackFocusView.
  * ticks appear along the top edge of the matching channel's lane. Hovering
  * anywhere reports a point consistency score + gap-vs-best for that channel.
  */
@@ -411,7 +411,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             )}
           </Lane>
         ) : (
-          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">Need 3+ valid laps</div>
+          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">Need 3+ pace laps</div>
         )}
       </div>
     </div>

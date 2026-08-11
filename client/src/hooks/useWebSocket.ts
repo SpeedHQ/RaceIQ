@@ -136,6 +136,7 @@ export function useWebSocket() {
               lapId: data.lapId as number,
               lapNumber: data.lapNumber as number,
               issues: data.issues,
+              eligibility: data.eligibility,
             });
           } else {
             if (handleWebSocketMessage(data)) packetCountRef.current++;

@@ -1,19 +1,13 @@
 import { eq, desc, and, inArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { toLapMeta } from "./lap-meta";
+import { lapMetaProjection, toLapMeta } from "./lap-meta";
 import { sessions, laps, tunes } from "./schema";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 
-export async function setLapExperimentExcluded(
-  lapId: number,
-  excluded: boolean,
-): Promise<{ ok: boolean; prev: boolean; experimentId: number | null }> {
-  const row = await db
-    .select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
-    .from(laps)
-    .where(eq(laps.id, lapId))
-    .get();
+export async function setLapExperimentExcluded(lapId: number, excluded: boolean): Promise<{ ok: boolean; prev: boolean; experimentId: number | null }> {
+  const row = await db.select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId }).from(laps).where(eq(laps.id, lapId)).get();
   if (!row) return { ok: false, prev: false, experimentId: null };
   const prev = Boolean(row.experimentExcluded);
   await db
@@ -34,13 +28,30 @@ export async function getLapsForExclusionScope(
   experimentId: number,
   tuneId: number,
 ): Promise<
-  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
+  {
+    id: number;
+    lapTime: number;
+    isValid: boolean;
+    phase: LapMeta["phase"];
+    conditions: LapMeta["conditions"];
+    paceEligibility: LapMeta["paceEligibility"];
+    quality: LapQualitySummary | null;
+    eligibility: EligibilityDecisionSet | null;
+    invalidReason: string | null;
+    experimentExcluded: boolean;
+    experimentExcludedSource: "auto" | "manual" | null;
+  }[]
 > {
   const rows = await db
     .select({
       id: laps.id,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
       invalidReason: laps.invalidReason,
       experimentExcluded: laps.experimentExcluded,
       experimentExcludedSource: laps.experimentExcludedSource,
@@ -52,6 +63,11 @@ export async function getLapsForExclusionScope(
     id: r.id,
     lapTime: r.lapTime,
     isValid: Boolean(r.isValid),
+    phase: r.phase,
+    conditions: r.conditions,
+    paceEligibility: r.paceEligibility,
+    quality: r.quality,
+    eligibility: r.eligibility,
     invalidReason: r.invalidReason,
     experimentExcluded: Boolean(r.experimentExcluded),
     experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
@@ -79,14 +95,8 @@ export async function setLapAutoExclusion(lapId: number, excluded: boolean): Pro
  * docs/architecture/setup-engineer.md §Trigger).
  */
 
-export async function getLapExperimentScope(
-  lapId: number,
-): Promise<{ experimentId: number | null; tuneId: number | null }> {
-  const row = await db
-    .select({ experimentId: laps.experimentId, tuneId: laps.tuneId })
-    .from(laps)
-    .where(eq(laps.id, lapId))
-    .get();
+export async function getLapExperimentScope(lapId: number): Promise<{ experimentId: number | null; tuneId: number | null }> {
+  const row = await db.select({ experimentId: laps.experimentId, tuneId: laps.tuneId }).from(laps).where(eq(laps.id, lapId)).get();
   return { experimentId: row?.experimentId ?? null, tuneId: row?.tuneId ?? null };
 }
 
@@ -96,31 +106,7 @@ export async function getLapExperimentScope(
 
 export async function getLapsForExperiment(experimentId: number): Promise<LapMeta[]> {
   const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-    })
+    .select(lapMetaProjection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -140,34 +126,7 @@ export async function getLapsForExperiment(experimentId: number): Promise<LapMet
 
 export async function getLapMetaForExperimentVersion(experimentVersionId: number): Promise<LapMeta[]> {
   const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-      // Frame count only — never the frames. Lets the arm-comparison loader size
-      // its decode budget from metadata (server/experiments/comparison/stream.ts).
-      rawFrameCount: laps.rawFrameCount,
-    })
+    .select(lapMetaProjection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -188,41 +147,13 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
  * rather than excluding everything. Newest-first, same shape as getLapsForExperiment.
  */
 
-export async function getImportableLapsForExperiment(
-  gameId: GameId,
-  carOrdinal: number | null,
-  trackOrdinal: number | null,
-): Promise<LapMeta[]> {
+export async function getImportableLapsForExperiment(gameId: GameId, carOrdinal: number | null, trackOrdinal: number | null): Promise<LapMeta[]> {
   const conds = [eq(sessions.gameId, gameId), isNull(laps.experimentId)];
   if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
   if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
 
   const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-    })
+    .select(lapMetaProjection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -241,11 +172,7 @@ export async function getImportableLapsForExperiment(
  * actually updated.
  */
 
-export async function importLapsToExperiment(
-  experimentId: number,
-  lapIds: number[],
-  experimentVersionId: number | null,
-): Promise<number[]> {
+export async function importLapsToExperiment(experimentId: number, lapIds: number[], experimentVersionId: number | null): Promise<number[]> {
   if (lapIds.length === 0) return [];
   const result = await db
     .update(laps)

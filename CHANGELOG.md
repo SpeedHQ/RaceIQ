@@ -3,10 +3,15 @@
 ### Features
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
+- Classify flying, out, in, pit, and grid-start phases independently from caution, slow-zone, and formation conditions so overlapping lap states stay visible and out of pace analysis
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Show telemetry quality, evidence limits, and analysis suitability per lap, with safe rebuild actions when source recordings remain available
 
 ### Fixes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
+- Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
+- Clear stale degraded lap-quality states after a clean recording rebuild
+- Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
 - Show actionable, neutral guidance when AI provider, credentials, or model configuration is incomplete

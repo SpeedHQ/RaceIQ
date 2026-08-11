@@ -22,7 +22,7 @@ Dependency flow is:
 ## Extending lap utilities
 
 - Change review eligibility only in `review-selection.ts`; callers must not reimplement its precedence or cap.
-- Add persisted pit reasons to `PIT_CYCLE_REASONS` and update their producer in the game-specific lap rules together.
+- Add normalized non-pace signals in `classification.ts`, and keep validity independent from classification.
 - Preserve missing-channel semantics in traces: unavailable channels are `null`, not zero-filled data.
 - Keep trace DTO changes symmetric across `types.ts`, `build.ts`, and `codec.ts`.
 - Import explicit leaf modules such as `shared/racing/laps/review-selection`; do not add a barrel.

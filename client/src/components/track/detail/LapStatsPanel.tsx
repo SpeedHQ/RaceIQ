@@ -1,3 +1,4 @@
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -47,8 +48,8 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
       : showSessionFilter && lapFilter === "quali"
         ? laps.filter((l) => l.sessionId == null || (sessionCounts.get(l.sessionId) ?? 0) === 1)
         : laps;
-  // All stats use the most recent 100 valid laps (chronological)
-  const chronoLaps = [...filteredLaps.filter((l) => l.isValid !== false)].sort((a, b) => a.lapId - b.lapId).slice(-100);
+  // All stats use most recent 100 pace-eligible laps.
+  const chronoLaps = [...filteredLaps.filter((lap) => isTimedLapEligibilityUsable(lap))].sort((a, b) => a.lapId - b.lapId).slice(-100);
   const times = [...chronoLaps.map((l) => l.lapTime)].sort((a, b) => a - b);
   const minT = times[0];
   const maxT = times[times.length - 1];

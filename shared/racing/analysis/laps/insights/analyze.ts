@@ -1,91 +1,166 @@
 import { getGame } from "../../../../games/registry";
 import type { GameId } from "../../../../games/ids";
 import type { TelemetryPacket } from "../../../../telemetry/types";
+import type { EligibilityPolicyId, LapQualitySummary, QualityDistanceRange } from "../../../../racing/quality/contracts";
+import { evaluateEligibility, isEligibilityUsable } from "../../../../racing/quality/policies";
 import { frameDt } from "../frame-time";
 import { buildAccelReference } from "../time-loss";
 import { detectSuspensionOverload, detectSuspensionImbalance } from "./suspension";
 import { detectFuelConsumption, detectPeakPower, detectBoostAnomaly } from "./mechanical";
 import { detectTireOverheat, detectLockups, detectWheelspin, detectWearImbalance, detectTireTempSplit, detectInnerOuterTempSpread } from "./tires";
-import { detectBrakeTractionLoss, detectRevLimiter, detectCoasting, detectTrailBraking, detectCounterSteer, detectEarlyBraking, detectOverSlowing, detectThrottleTractionLoss, detectEarlyThrottle, detectBinaryThrottle } from "./driving-core";
+import {
+  detectBrakeTractionLoss,
+  detectRevLimiter,
+  detectCoasting,
+  detectTrailBraking,
+  detectCounterSteer,
+  detectEarlyBraking,
+  detectOverSlowing,
+  detectThrottleTractionLoss,
+  detectEarlyThrottle,
+  detectBinaryThrottle,
+} from "./driving-core";
 import { detectBrakeDrag, detectDownshiftOverRev, detectLateBrakingOvershoot, detectUndersteerScrub, detectSteeringSawing, detectThrottleMicroLifts, detectKerbRiding } from "./driving-advanced";
 import type { LapInsight, TimeLossCtx } from "./types";
 
+function mergeInsights(target: LapInsight[], additions: LapInsight[], sourceIndices: readonly number[]): void {
+  for (const addition of additions) {
+    const remapped = addition.frameIndices.map((index) => sourceIndices[index]).filter((index): index is number => index != null);
+    if (remapped.length === 0) continue;
+    const existing = target.find((insight) => insight.id === addition.id);
+    if (!existing) {
+      target.push({ ...addition, frameIndices: remapped });
+      continue;
+    }
+    existing.frameIndices = [...new Set([...existing.frameIndices, ...remapped])].sort((left, right) => left - right);
+    if (addition.timeLossS != null) existing.timeLossS = (existing.timeLossS ?? 0) + addition.timeLossS;
+  }
+}
 
-export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
-  if (telemetry.length < 10) return [];
+function eligibleSegments(telemetry: readonly TelemetryPacket[], quality: LapQualitySummary, policyId: EligibilityPolicyId): Array<{ packets: TelemetryPacket[]; indices: number[] }> {
+  const wholeLap = evaluateEligibility(policyId, quality);
+  if (isEligibilityUsable(wholeLap)) {
+    return [{ packets: [...telemetry], indices: telemetry.map((_, index) => index) }];
+  }
+  const boundaries = new Set<number>([0, 1]);
+  for (const fact of quality.facts) {
+    if (!fact.distanceRange) continue;
+    boundaries.add(fact.distanceRange.startFraction);
+    boundaries.add(fact.distanceRange.endFraction);
+  }
+  for (const channel of quality.channelQuality) {
+    for (const issue of channel.issueIntervals) {
+      if (!issue.distanceRange) continue;
+      boundaries.add(issue.distanceRange.startFraction);
+      boundaries.add(issue.distanceRange.endFraction);
+    }
+  }
+  const sorted = [...boundaries].filter(Number.isFinite).sort((left, right) => left - right);
+  const usableRanges: QualityDistanceRange[] = [];
+  for (let index = 1; index < sorted.length; index++) {
+    const startFraction = sorted[index - 1]!;
+    const endFraction = sorted[index]!;
+    const midpoint = (startFraction + endFraction) / 2;
+    const pointRange = { startFraction: midpoint, endFraction: midpoint };
+    if (
+      isEligibilityUsable(
+        evaluateEligibility(policyId, quality, {
+          range: pointRange,
+        }),
+      )
+    ) {
+      usableRanges.push({ startFraction, endFraction });
+    }
+  }
+  if (usableRanges.length === 0) return [];
+
+  const firstDistance = telemetry[0]?.DistanceTraveled;
+  const lastDistance = telemetry[telemetry.length - 1]?.DistanceTraveled;
+  const span = (lastDistance ?? 0) - (firstDistance ?? 0);
+  if (!Number.isFinite(span) || span <= 0) return [];
+  const segments: Array<{ packets: TelemetryPacket[]; indices: number[] }> = [];
+  let current: { packets: TelemetryPacket[]; indices: number[] } | null = null;
+  for (let index = 0; index < telemetry.length; index++) {
+    const packet = telemetry[index]!;
+    const fraction = Math.max(0, Math.min(1, (packet.DistanceTraveled - firstDistance!) / span));
+    const usable = usableRanges.some((range) => fraction >= range.startFraction && fraction <= range.endFraction);
+    if (!usable) {
+      if (current && current.packets.length >= 10) segments.push(current);
+      current = null;
+      continue;
+    }
+    if (!current) current = { packets: [], indices: [] };
+    current.packets.push(packet);
+    current.indices.push(index);
+  }
+  if (current && current.packets.length >= 10) segments.push(current);
+  return segments;
+}
+
+export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, quality?: LapQualitySummary | null): LapInsight[] {
+  if (telemetry.length < 10 || !quality) return [];
   const game = getGame(gameId);
   const tireTemperatureUnit = game.telemetry.tireTemperature.packetUnit;
   const supportsWheelStateAnalysis = game.telemetry.analysis?.wheelRotation?.source !== "unavailable";
-
   const insights: LapInsight[] = [];
+  const fullIndices = telemetry.map((_, index) => index);
+  const cornerUsable = isEligibilityUsable(evaluateEligibility("corner-trace", quality));
+  const tireUsable = isEligibilityUsable(evaluateEligibility("tire-analysis", quality));
+  const fuelUsable = isEligibilityUsable(evaluateEligibility("fuel-burn", quality));
+  const comparisonUsable = isEligibilityUsable(evaluateEligibility("lap-comparison", quality));
 
-  // Built once: frameDt walks the lap and the acceleration reference bins every
-  // clean full-throttle frame, so rebuilding it per detector would be wasteful
-  // and — worse — let two detectors disagree about the same counterfactual.
-  const dt = frameDt(telemetry);
-  const ctx: TimeLossCtx = { dt, ref: buildAccelReference(telemetry, dt) };
-
-  // Suspension
-  insights.push(...detectSuspensionOverload(telemetry));
-  const imbalance = detectSuspensionImbalance(telemetry);
-  if (imbalance) insights.push(imbalance);
-
-  // Tires
-  insights.push(...detectTireOverheat(telemetry, tireTemperatureUnit));
-  if (supportsWheelStateAnalysis) insights.push(...detectLockups(telemetry));
-  insights.push(...detectWheelspin(telemetry));
-  const wearImb = detectWearImbalance(telemetry);
-  if (wearImb) insights.push(wearImb);
-  const tempSplit = detectTireTempSplit(telemetry, tireTemperatureUnit);
-  if (tempSplit) insights.push(tempSplit);
-  insights.push(...detectInnerOuterTempSpread(telemetry));
-
-  // Driving
-  if (supportsWheelStateAnalysis) {
-    const brakeLoss = detectBrakeTractionLoss(telemetry);
-    if (brakeLoss) insights.push(brakeLoss);
+  if (tireUsable) {
+    mergeInsights(insights, detectTireOverheat(telemetry, tireTemperatureUnit), fullIndices);
+    const wear = detectWearImbalance(telemetry);
+    if (wear) mergeInsights(insights, [wear], fullIndices);
+    const split = detectTireTempSplit(telemetry, tireTemperatureUnit);
+    if (split) mergeInsights(insights, [split], fullIndices);
+    mergeInsights(insights, detectInnerOuterTempSpread(telemetry), fullIndices);
   }
-  const rev = detectRevLimiter(telemetry, ctx);
-  if (rev) insights.push(rev);
-  const coast = detectCoasting(telemetry, ctx);
-  if (coast) insights.push(coast);
-  const trail = detectTrailBraking(telemetry);
-  if (trail) insights.push(trail);
-  const counterSteer = detectCounterSteer(telemetry);
-  if (counterSteer) insights.push(counterSteer);
-  const earlyBrake = detectEarlyBraking(telemetry, ctx);
-  if (earlyBrake) insights.push(earlyBrake);
-  const overSlow = detectOverSlowing(telemetry, ctx);
-  if (overSlow) insights.push(overSlow);
-  const throttleLoss = detectThrottleTractionLoss(telemetry);
-  if (throttleLoss) insights.push(throttleLoss);
-  const earlyThrottle = detectEarlyThrottle(telemetry);
-  if (earlyThrottle) insights.push(earlyThrottle);
-  const binary = detectBinaryThrottle(telemetry);
-  if (binary) insights.push(binary);
 
-  const brakeDrag = detectBrakeDrag(telemetry);
-  if (brakeDrag) insights.push(brakeDrag);
-  const downshift = detectDownshiftOverRev(telemetry);
-  if (downshift) insights.push(downshift);
-  const overshoot = detectLateBrakingOvershoot(telemetry);
-  if (overshoot) insights.push(overshoot);
-  const scrub = detectUndersteerScrub(telemetry);
-  if (scrub) insights.push(scrub);
-  const sawing = detectSteeringSawing(telemetry);
-  if (sawing) insights.push(sawing);
-  const microLifts = detectThrottleMicroLifts(telemetry, ctx);
-  if (microLifts) insights.push(microLifts);
-  const kerbs = detectKerbRiding(telemetry);
-  if (kerbs) insights.push(kerbs);
+  if (cornerUsable) {
+    const dt = frameDt(telemetry);
+    const ctx: TimeLossCtx = { dt, ref: buildAccelReference(telemetry, dt) };
+    const imbalance = detectSuspensionImbalance(telemetry);
+    if (imbalance) mergeInsights(insights, [imbalance], fullIndices);
+    const detectors = [
+      detectRevLimiter(telemetry, ctx),
+      detectCoasting(telemetry, ctx),
+      detectTrailBraking(telemetry),
+      detectEarlyBraking(telemetry, ctx),
+      detectOverSlowing(telemetry, ctx),
+      detectEarlyThrottle(telemetry),
+      detectBinaryThrottle(telemetry),
+      detectBrakeDrag(telemetry),
+      detectDownshiftOverRev(telemetry),
+      detectLateBrakingOvershoot(telemetry),
+      detectUndersteerScrub(telemetry),
+      detectThrottleMicroLifts(telemetry, ctx),
+    ].filter((insight): insight is LapInsight => insight != null);
+    mergeInsights(insights, detectors, fullIndices);
+  }
 
-  // Mechanical
-  const fuel = detectFuelConsumption(telemetry, game.telemetry.fuel.packetUnit);
-  if (fuel) insights.push(fuel);
-  const power = detectPeakPower(telemetry);
-  if (power) insights.push(power);
-  const boost = detectBoostAnomaly(telemetry);
-  if (boost) insights.push(boost);
+  for (const segment of eligibleSegments(telemetry, quality, "transient-event")) {
+    mergeInsights(insights, detectSuspensionOverload(segment.packets), segment.indices);
+    if (supportsWheelStateAnalysis) {
+      mergeInsights(insights, detectLockups(segment.packets), segment.indices);
+      const brakeLoss = detectBrakeTractionLoss(segment.packets);
+      if (brakeLoss) mergeInsights(insights, [brakeLoss], segment.indices);
+    }
+    mergeInsights(insights, detectWheelspin(segment.packets), segment.indices);
+    for (const detector of [detectCounterSteer(segment.packets), detectThrottleTractionLoss(segment.packets), detectSteeringSawing(segment.packets), detectKerbRiding(segment.packets)]) {
+      if (detector) mergeInsights(insights, [detector], segment.indices);
+    }
+  }
 
+  if (fuelUsable) {
+    const fuel = detectFuelConsumption(telemetry, game.telemetry.fuel.packetUnit);
+    if (fuel) mergeInsights(insights, [fuel], fullIndices);
+  }
+  if (comparisonUsable) {
+    for (const detector of [detectPeakPower(telemetry), detectBoostAnomaly(telemetry)]) {
+      if (detector) mergeInsights(insights, [detector], fullIndices);
+    }
+  }
   return insights;
 }

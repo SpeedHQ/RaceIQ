@@ -1,4 +1,5 @@
 import { repeatabilityStats } from "../../shared/racing/laps/stint-stats";
+import { isTimedLapEligibilityUsable } from "../../shared/racing/quality/policies";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import { median, round4 } from "./math";
 
@@ -60,17 +61,16 @@ function direction(delta: number | null, improveAt: number, declineAt: number): 
 function trendWindow(laps: readonly LapMeta[], benchmarks: ReadonlyMap<string, number>): DriverTrendWindow {
   let valid = 0;
   const comparableContexts = new Set<string>();
-  const chartLaps = laps.map((lap) => {
-    if (lap.isValid) valid++;
-    const context = trendContextKey(lap);
-    const benchmark = benchmarks.get(context);
-    if (benchmark !== undefined) comparableContexts.add(context);
-    const relativePacePct =
-      benchmark !== undefined && Number.isFinite(lap.lapTime) && lap.lapTime > 0
-        ? Math.max(0, (lap.lapTime / benchmark - 1) * 100)
-        : null;
-    return { id: lap.id, createdAt: lap.createdAt, isValid: lap.isValid, relativePacePct };
-  }).reverse();
+  const chartLaps = laps
+    .map((lap) => {
+      if (lap.isValid) valid++;
+      const context = trendContextKey(lap);
+      const benchmark = benchmarks.get(context);
+      if (benchmark !== undefined) comparableContexts.add(context);
+      const relativePacePct = benchmark !== undefined && Number.isFinite(lap.lapTime) && lap.lapTime > 0 ? Math.max(0, (lap.lapTime / benchmark - 1) * 100) : null;
+      return { id: lap.id, createdAt: lap.createdAt, isValid: lap.isValid, relativePacePct };
+    })
+    .reverse();
   const paceValues = chartLaps.flatMap((lap) => (lap.relativePacePct === null ? [] : [lap.relativePacePct]));
   const repeatability = repeatabilityStats(paceValues.map((pace) => 1 + pace / 100));
   return {
@@ -87,24 +87,19 @@ function trendWindow(laps: readonly LapMeta[], benchmarks: ReadonlyMap<string, n
   };
 }
 
-function adviceFor(
-  recent: DriverTrendWindow,
-  previous: DriverTrendWindow,
-  paceDirection: TrendDirection,
-  consistencyDirection: TrendDirection,
-): DriverTrendAdvice[] {
+function adviceFor(recent: DriverTrendWindow, previous: DriverTrendWindow, paceDirection: TrendDirection, consistencyDirection: TrendDirection): DriverTrendAdvice[] {
   const missingMetric =
-    recent.normalized < 2 ||
-    previous.normalized < 2 ||
-    recent.consistency === null ||
-    previous.consistency === null ||
-    recent.medianPacePct === null ||
-    previous.medianPacePct === null;
+    recent.normalized < 2 || previous.normalized < 2 || recent.consistency === null || previous.consistency === null || recent.medianPacePct === null || previous.medianPacePct === null;
   let primary: DriverTrendAdvice;
   if (missingMetric) {
     primary = { id: "build-baseline", tone: "neutral", title: "Keep building the baseline", detail: "A trend needs both recent and previous windows to contain comparable pace data." };
   } else if (paceDirection === "improving" && consistencyDirection === "improving") {
-    primary = { id: "keep-approach", tone: "positive", title: "Your improvement looks repeatable", detail: "Pace and consistency moved together. Keep the approach stable instead of chasing a larger change." };
+    primary = {
+      id: "keep-approach",
+      tone: "positive",
+      title: "Your improvement looks repeatable",
+      detail: "Pace and consistency moved together. Keep the approach stable instead of chasing a larger change.",
+    };
   } else if (paceDirection === "improving" && consistencyDirection === "declining") {
     primary = { id: "stabilize-pace", tone: "caution", title: "Consolidate the new speed", detail: "Pace improved while repeatability fell. Hold the current pace until consistency returns." };
   } else if (consistencyDirection === "improving" && (paceDirection === "steady" || paceDirection === "declining")) {
@@ -112,25 +107,36 @@ function adviceFor(
   } else if (consistencyDirection === "declining" && paceDirection !== "improving") {
     primary = { id: "reset-baseline", tone: "caution", title: "Reset to a repeatable baseline", detail: "Pace and repeatability are not moving together. Reduce variation before pushing again." };
   } else {
-    primary = { id: "hold-steady", tone: "neutral", title: "Performance is stable", detail: "Neither pace nor consistency moved enough to call a trend. Change one thing at a time and keep building evidence." };
+    primary = {
+      id: "hold-steady",
+      tone: "neutral",
+      title: "Performance is stable",
+      detail: "Neither pace nor consistency moved enough to call a trend. Change one thing at a time and keep building evidence.",
+    };
   }
   const advice = [primary];
   if (recent.cleanRate !== null && previous.cleanRate !== null && recent.cleanRate - previous.cleanRate <= -0.05) {
-    advice.push({ id: "protect-validity", tone: "caution", title: "Protect validity before pushing harder", detail: "Dirty-lap rate worsened. Keep the current pace inside the valid-lap envelope before adding more risk." });
+    advice.push({
+      id: "protect-validity",
+      tone: "caution",
+      title: "Protect validity before pushing harder",
+      detail: "Dirty-lap rate worsened. Keep the current pace inside the valid-lap envelope before adding more risk.",
+    });
   }
   return advice;
 }
 
 export function buildDriverTrend(candidatesNewestFirst: readonly LapMeta[]): DriverTrend {
+  const trendLaps = candidatesNewestFirst.filter((lap) => Number.isFinite(lap.lapTime) && lap.lapTime > 0);
+  const benchmarkCandidates = trendLaps.filter((lap) => isTimedLapEligibilityUsable(lap));
   const benchmarks = new Map<string, number>();
-  for (const lap of candidatesNewestFirst) {
-    if (!lap.isValid || !Number.isFinite(lap.lapTime) || lap.lapTime <= 0) continue;
+  for (const lap of benchmarkCandidates) {
     const key = trendContextKey(lap);
     const current = benchmarks.get(key);
     if (current === undefined || lap.lapTime < current) benchmarks.set(key, lap.lapTime);
   }
-  const recent = trendWindow(candidatesNewestFirst.slice(0, DRIVER_TREND_WINDOW_LAPS), benchmarks);
-  const previous = trendWindow(candidatesNewestFirst.slice(DRIVER_TREND_WINDOW_LAPS, DRIVER_TREND_WINDOW_LAPS * 2), benchmarks);
+  const recent = trendWindow(trendLaps.slice(0, DRIVER_TREND_WINDOW_LAPS), benchmarks);
+  const previous = trendWindow(trendLaps.slice(DRIVER_TREND_WINDOW_LAPS, DRIVER_TREND_WINDOW_LAPS * 2), benchmarks);
   const consistencyDelta = recent.consistency !== null && previous.consistency !== null ? round4(recent.consistency - previous.consistency) : null;
   const paceDeltaPct = recent.medianPacePct !== null && previous.medianPacePct !== null ? round4(recent.medianPacePct - previous.medianPacePct) : null;
   const spreadDeltaPct = recent.spreadPct !== null && previous.spreadPct !== null ? round4(recent.spreadPct - previous.spreadPct) : null;

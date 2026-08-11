@@ -1,5 +1,6 @@
-import { fastestLaps, REVIEW_LAP_CAP } from "../../shared/racing/laps/review-selection";
-import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "../../shared/racing/laps/review-selection";
+import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 
 /**
  * Tuning auto-exclude: fastest-5 lap curation
@@ -15,9 +16,14 @@ export interface ExclusionScopeLap {
   id: number;
   lapTime: number;
   isValid: boolean;
+  phase: LapPhase;
+  conditions: LapCondition[];
+  paceEligibility: PaceEligibility;
   invalidReason: string | null;
   experimentExcluded: boolean;
   experimentExcludedSource: "auto" | "manual" | null;
+  quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
 }
 
 /** Minimal DB surface `reconcileAutoExclusions` needs. */
@@ -45,40 +51,23 @@ function targetState(lap: ExclusionScopeLap, excluded: boolean): boolean {
  *
  *   1. Manual laps (`source = 'manual'`) are never read for ranking purposes
  *      and never written — they don't occupy a fastest-5 slot.
- *   2. Invalid or pit-cycle laps are ineligible — always `(1, 'auto')`.
- *   3. Remaining candidates are ranked via `fastestLaps()` — the same
- *      fastest-N definition the review path uses. Keepers → `(NULL, 'auto')`,
- *      the rest → `(1, 'auto')`.
+ *   2. Remaining laps route through `selectEvaluationLaps`, which consumes
+ *      persisted policy decisions and the shared setup-analysis group policy.
+ *   3. Selected fastest-N laps become `(NULL, 'auto')`; all other auto-owned
+ *      laps become `(1, 'auto')`.
  *   4. Only rows whose state pair actually changed are written.
  */
-export async function reconcileAutoExclusions(
-  db: LapExclusionWriter,
-  experimentId: number,
-  tuneId: number,
-): Promise<void> {
+export async function reconcileAutoExclusions(db: LapExclusionWriter, experimentId: number, tuneId: number): Promise<void> {
   const scopeLaps = await db.getLapsForExclusionScope(experimentId, tuneId);
 
-  const candidates: ExclusionScopeLap[] = [];
-  const ineligible: ExclusionScopeLap[] = [];
+  const autoOwned = scopeLaps.filter((lap) => lap.experimentExcludedSource !== "manual");
+  const selection = selectEvaluationLaps(autoOwned, REVIEW_LAP_CAP);
 
-  for (const lap of scopeLaps) {
-    if (lap.experimentExcludedSource === "manual") continue; // never read, never written
-    if (!lap.isValid || isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
-      ineligible.push(lap);
-    } else {
-      candidates.push(lap);
+  for (const lap of autoOwned) {
+    const shouldExclude = !selection.chosenIds.has(lap.id);
+    if (!targetState(lap, shouldExclude)) {
+      await db.setLapAutoExclusion(lap.id, shouldExclude);
     }
-  }
-
-  const keepers = new Set(fastestLaps(candidates, REVIEW_LAP_CAP).map((l) => l.id));
-
-  for (const lap of ineligible) {
-    if (!targetState(lap, true)) await db.setLapAutoExclusion(lap.id, true);
-  }
-
-  for (const lap of candidates) {
-    const shouldExclude = !keepers.has(lap.id);
-    if (!targetState(lap, shouldExclude)) await db.setLapAutoExclusion(lap.id, shouldExclude);
   }
 }
 
@@ -88,10 +77,7 @@ export async function reconcileAutoExclusions(
  * skipping entirely when either is null (lap recorded outside a tuning
  * session, or with no tune assigned) — see the design doc's "Trigger" section.
  */
-export async function reconcileAutoExclusionsForLap(
-  db: LapExclusionWriter & LapExperimentScopeReader,
-  lapId: number,
-): Promise<void> {
+export async function reconcileAutoExclusionsForLap(db: LapExclusionWriter & LapExperimentScopeReader, lapId: number): Promise<void> {
   const { experimentId, tuneId } = await db.getLapExperimentScope(lapId);
   if (experimentId == null || tuneId == null) return;
   await reconcileAutoExclusions(db, experimentId, tuneId);

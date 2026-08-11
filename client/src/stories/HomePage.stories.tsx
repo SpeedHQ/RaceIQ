@@ -1,3 +1,4 @@
+import { DEFAULT_LAP_CLASSIFICATION } from "@shared/racing/laps/classification";
 import type { LapMeta, SessionMeta, SessionRecap } from "@shared/racing/sessions/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -34,6 +35,7 @@ function makeLap(id: number, day: number, lapNumber: number, lapTime: number, is
     lapNumber,
     lapTime,
     isValid,
+    ...DEFAULT_LAP_CLASSIFICATION,
     createdAt: `2026-07-${String(day).padStart(2, "0")}T18:2${lapNumber}:00.000Z`,
     gameId: GAME_ID,
     carOrdinal: 201,
@@ -83,7 +85,15 @@ const recap: SessionRecap = {
   bestLapId: 920,
   timeOnTrackSec: 1068.419,
   distanceM: 11_880,
-  sparkline: laps.map((lap) => ({ lapNumber: lap.lapNumber, lapTimeSec: lap.lapTime, isValid: lap.isValid })),
+  sparkline: laps.map((lap) => ({
+    lapId: lap.id,
+    lapNumber: lap.lapNumber,
+    lapTimeSec: lap.lapTime,
+    isValid: lap.isValid,
+    phase: lap.phase,
+    conditions: lap.conditions,
+    paceEligibility: lap.paceEligibility,
+  })),
   theoretical: {
     bestSectorTimes: [31.781, 32.044, 31.812],
     sumSec: 95.637,

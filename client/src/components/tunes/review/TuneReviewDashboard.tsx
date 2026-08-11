@@ -1,10 +1,12 @@
 import { tryGetGame } from "@shared/games/registry";
+import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";
+import { LapQualityBadge } from "@/components/LapQualityBadge";
 import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
 import { bandColor, buildSemanticSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "@/components/tunes/SectorRangeBreakdown";
@@ -54,7 +56,7 @@ type ReviewView = "overview" | "track" | SectorView;
  * telemetry — no live stream.
  */
 export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
-  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
+  const validLaps = useMemo(() => selectEvaluationLaps(laps).chosen.sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();
@@ -210,6 +212,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
               ✓
             </span>
           )}
+          {!(view === "track" && trackFocusId == null) && <LapQualityBadge lap={focusLap} policyId="corner-trace" />}
           <div className="flex gap-1">
             {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"] as ReviewView[]).map((v) => (
               <Button
@@ -310,7 +313,13 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         {view === "track" ? (
           <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
         ) : sectorIndex != null ? (
-          <SectorDetailView telemetry={telemetry as unknown as TelemetryPacket[]} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+          <SectorDetailView
+            telemetry={telemetry as unknown as TelemetryPacket[]}
+            sectorTimes={sectorTimes}
+            sectorIndex={sectorIndex}
+            trackOrdinal={focusLap.trackOrdinal}
+            issues={issueGroups.bySector[sectorIndex]}
+          />
         ) : (
           <>
             {/* Detected issues, laid out per sector */}

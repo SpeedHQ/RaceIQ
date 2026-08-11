@@ -35,12 +35,13 @@ export function AnalysisResultCard({
   onRun,
   onRetry,
   actionsDisabled = false,
+  disabledReason,
   onRegenerate,
   onDelete,
   deleteLabel,
   children,
 }: {
-  title: string;
+  title: ReactNode;
   dotClass: string;
   hasResult: boolean;
   loading: boolean;
@@ -51,6 +52,7 @@ export function AnalysisResultCard({
   onRun: () => void;
   onRetry: () => void;
   actionsDisabled?: boolean;
+  disabledReason?: string;
   onRegenerate: () => void;
   onDelete: () => void;
   deleteLabel: string;
@@ -60,10 +62,10 @@ export function AnalysisResultCard({
     <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-        <span className="text-app-compact font-semibold text-app-text truncate flex-1">{title}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-app-compact font-semibold text-app-text">{title}</div>
         {hasResult && (
           <>
-            <Button type="button" variant="app-ghost" size="icon-sm" onClick={onRegenerate} disabled={actionsDisabled} title={m.label_regenerate()} aria-label={m.label_regenerate()}>
+            <Button type="button" variant="app-ghost" size="icon-sm" onClick={onRegenerate} disabled={actionsDisabled} title={disabledReason ?? m.label_regenerate()} aria-label={m.label_regenerate()}>
               <RefreshCw />
             </Button>
             <Button type="button" variant="destructive-outline" size="icon-sm" onClick={onDelete} disabled={actionsDisabled} title={deleteLabel} aria-label={deleteLabel}>
@@ -73,7 +75,7 @@ export function AnalysisResultCard({
         )}
       </div>
       {!hasResult && !loading && !error && (
-        <Button type="button" variant="app-primary" size="app-md" onClick={onRun} className="w-full">
+        <Button type="button" variant="app-primary" size="app-md" onClick={onRun} className="w-full" disabled={actionsDisabled} title={disabledReason}>
           <Sparkles data-icon="inline-start" />
           {runLabel}
         </Button>
@@ -87,7 +89,7 @@ export function AnalysisResultCard({
       {error && (
         <div className="text-app-caption text-status-danger mb-1">
           {error}
-          <Button variant="app-outline" size="app-sm" onClick={onRetry} className="ml-2">
+          <Button variant="app-outline" size="app-sm" onClick={onRetry} className="ml-2" disabled={actionsDisabled} title={disabledReason}>
             {retryLabel}
           </Button>
         </div>

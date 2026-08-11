@@ -2,6 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../../shared/racing/quality/policies";
+import { LapStatus, lapStatusLabel } from "@/components/LapStatus";
+import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
@@ -82,6 +85,8 @@ export function AnalyseLapHeader({
   const [motecOpen, setMotecOpen] = useState(false);
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
+  const analysisDecision = selectedLap ? resolveEligibilityDecision(selectedLap, "corner-trace") : undefined;
+  const analysisUsable = isEligibilityUsable(analysisDecision);
   const importInputRef = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -117,7 +122,7 @@ export function AnalyseLapHeader({
             const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
             return {
               value: String(lap.id),
-              label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)}${!lap.isValid ? " ✕" : ""}`,
+              label: [`Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)}`, lapStatusLabel(lap, "issues")].filter(Boolean).join(" · "),
               group: sessionLabel,
             };
           })}
@@ -171,6 +176,12 @@ export function AnalyseLapHeader({
           />
         )}
         <div className="flex w-full flex-wrap items-center gap-2 @3xl/workspace:ml-auto @3xl/workspace:w-auto">
+          {selectedLap && (
+            <>
+              <LapStatus lap={selectedLap} presentation="badge" />
+              <LapQualityBadge lap={selectedLap} policyId="corner-trace" />
+            </>
+          )}
           {selectedLapId != null && (
             <Button
               variant="app-outline"
@@ -250,7 +261,13 @@ export function AnalyseLapHeader({
             ]}
           />
           {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
+            <Button
+              variant={aiPanelOpen ? "selected-toggle" : "app-outline"}
+              size="app-lg"
+              onClick={onToggleAi}
+              disabled={!analysisUsable}
+              title={!analysisUsable ? localizedEligibilityDecisionText(analysisDecision) : undefined}
+            >
               <Sparkles className="size-3.5" />
               {m.label_ai_analysis()}
             </Button>

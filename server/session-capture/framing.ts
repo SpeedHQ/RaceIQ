@@ -27,18 +27,14 @@ export function encodeFrameLength(length: number): Buffer {
 /** Offset after an optional declared-length meta frame. */
 export function readFrameStreamStart(bytes: Uint8Array): number {
   if (bytes.length < 8) return 0;
-  const view = Buffer.isBuffer(bytes)
-    ? bytes
-    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const view = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.readUInt32LE(0) !== META_FRAME_MAGIC) return 0;
   return 8 + view.readUInt32LE(4);
 }
 
 /** Legacy importer behavior: recorder magic always reserves the fixed 12-byte header. */
 function readRecorderFrameStreamStart(bytes: Buffer): number {
-  return bytes.length >= 4 && bytes.readUInt32LE(0) === META_FRAME_MAGIC
-    ? META_FRAME_BYTES
-    : 0;
+  return bytes.length >= 4 && bytes.readUInt32LE(0) === META_FRAME_MAGIC ? META_FRAME_BYTES : 0;
 }
 
 interface SessionFrameRecord {
@@ -49,31 +45,43 @@ interface SessionFrameRecord {
 interface SessionFrameIterationOptions {
   skipMetaFrames?: boolean;
   allowEmptyFrames?: boolean;
+  strict?: boolean;
 }
-
+export class InvalidSessionFrameError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidSessionFrameError";
+  }
+}
 
 /**
  * Iterate complete length-prefixed records, stopping at a truncated tail.
  * Options retain reprocessor behavior; normal imports use strict framing.
  */
-export function* iterateSessionFrameRecords(
-  bytes: Buffer,
-  offset = readRecorderFrameStreamStart(bytes),
-  options?: SessionFrameIterationOptions,
-): Generator<SessionFrameRecord> {
+export function* iterateSessionFrameRecords(bytes: Buffer, offset = readRecorderFrameStreamStart(bytes), options?: SessionFrameIterationOptions): Generator<SessionFrameRecord> {
   while (offset + 4 <= bytes.length) {
     const frameOffset = offset;
     const length = bytes.readUInt32LE(offset);
     if (options?.skipMetaFrames && length === META_FRAME_MAGIC) {
-      if (offset + 8 > bytes.length) break;
-      offset += 8 + bytes.readUInt32LE(offset + 4);
+      if (offset + 8 > bytes.length) {
+        if (options.strict) throw new InvalidSessionFrameError(`Truncated meta frame at byte ${offset}`);
+        break;
+      }
+      const payloadLength = bytes.readUInt32LE(offset + 4);
+      if (offset + 8 + payloadLength > bytes.length) {
+        if (options.strict) throw new InvalidSessionFrameError(`Truncated meta payload at byte ${offset}`);
+        break;
+      }
+      offset += 8 + payloadLength;
       continue;
     }
     offset += 4;
-    if (
-      (!options?.allowEmptyFrames && length === 0) ||
-      offset + length > bytes.length
-    ) {
+    if (!options?.allowEmptyFrames && length === 0) {
+      if (options?.strict) throw new InvalidSessionFrameError(`Empty frame at byte ${frameOffset}`);
+      break;
+    }
+    if (offset + length > bytes.length) {
+      if (options?.strict) throw new InvalidSessionFrameError(`Truncated frame payload at byte ${frameOffset}`);
       break;
     }
     yield {
@@ -82,18 +90,26 @@ export function* iterateSessionFrameRecords(
     };
     offset += length;
   }
+  if (options?.strict && offset !== bytes.length) {
+    throw new InvalidSessionFrameError(`Truncated frame length at byte ${offset}`);
+  }
 }
 
-/** Iterate complete length-prefixed telemetry frames, stopping at truncated tail. */
-export function* iterateSessionFrames(
-  bytes: Buffer,
-  offset = readRecorderFrameStreamStart(bytes),
-): Generator<Buffer> {
-  while (true) {
-    const frame = sessionFrameAt(bytes, offset);
-    if (!frame) break;
-    yield frame;
-    offset += 4 + frame.length;
+/** Iterate strict length-prefixed telemetry frames. Truncated or empty records are invalid. */
+export function* iterateSessionFrames(bytes: Buffer, offset = readRecorderFrameStreamStart(bytes)): Generator<Buffer> {
+  while (offset < bytes.length) {
+    if (offset + 4 > bytes.length) {
+      throw new InvalidSessionFrameError(`Truncated frame length at byte ${offset}`);
+    }
+    const length = bytes.readUInt32LE(offset);
+    if (length === 0) {
+      throw new InvalidSessionFrameError(`Empty frame at byte ${offset}`);
+    }
+    if (offset + 4 + length > bytes.length) {
+      throw new InvalidSessionFrameError(`Truncated frame payload at byte ${offset}`);
+    }
+    yield bytes.subarray(offset + 4, offset + 4 + length);
+    offset += 4 + length;
   }
 }
 
@@ -104,11 +120,7 @@ export function sessionFrameAt(bytes: Buffer, offset: number): Buffer | null {
   return bytes.subarray(offset + 4, offset + 4 + length);
 }
 
-export function advanceSessionFrames(
-  bytes: Buffer,
-  offset: number,
-  count: number,
-): number {
+export function advanceSessionFrames(bytes: Buffer, offset: number, count: number): number {
   let at = offset;
   for (let i = 0; i < count; i++) {
     const frame = sessionFrameAt(bytes, at);
@@ -141,4 +153,3 @@ export async function gunzipBuffer(bytes: Buffer): Promise<Buffer> {
 export function decompressIfGzipSync(bytes: Buffer): Buffer {
   return isGzip(bytes) ? gunzipBufferSync(bytes) : bytes;
 }
-

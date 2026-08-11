@@ -1,3 +1,8 @@
+import type { SourceChannelProfile } from "../../shared/racing/quality/contracts";
+
+export const MOTEC_SYNTH_SOURCE_VERSION = "motec" as const;
+export const MOTEC_SYNTH_HZ = 60;
+
 export interface MotecCarTrack {
   carOrdinal: number;
   trackOrdinal: number;
@@ -23,4 +28,6 @@ export interface SynthesizeResult {
   missingChannels: string[];
   /** True when the path was reconstructed from lateral G because `ROTY` was absent. */
   yawFromLateralG: boolean;
+  /** Versioned fidelity overrides for canonical fields occupied by synthesized data. */
+  sourceChannelProfile: SourceChannelProfile;
 }

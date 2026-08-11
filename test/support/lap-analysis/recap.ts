@@ -1,4 +1,5 @@
 import { computeRecap, type RecapLapInput, type RecapSessionInput } from "../../../server/lap-analysis/recap";
+import type { EligibilityDecisionSet, EligibilityStatus } from "../../../shared/racing/quality/contracts";
 
 export const baseSession: RecapSessionInput = {
   id: 1,
@@ -8,11 +9,31 @@ export const baseSession: RecapSessionInput = {
   createdAt: "2026-07-15T12:00:00.000Z",
 };
 
+export function normalPaceEligibility(status: EligibilityStatus): EligibilityDecisionSet {
+  return {
+    "normal-pace": {
+      policyId: "normal-pace",
+      policyVersion: "1",
+      status,
+      confidence: { level: status === "unknown" ? "unknown" : "high", score: status === "unknown" ? null : 1 },
+      reasons: [],
+      evidenceIds: [],
+    },
+  } as unknown as EligibilityDecisionSet;
+}
+
 export function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
+  const isValid = overrides.isValid ?? true;
+  const paceEligibility = overrides.paceEligibility ?? "eligible";
+  const eligibility = overrides.eligibility ?? normalPaceEligibility(isValid && paceEligibility === "eligible" ? "eligible" : "ineligible");
   const merged = {
     lapNumber: 1,
     lapTime: 100,
-    isValid: true,
+    isValid,
+    phase: "flying" as const,
+    conditions: [],
+    paceEligibility,
+    eligibility,
     sectorTimes: null,
     ...overrides,
   };

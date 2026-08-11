@@ -18,13 +18,9 @@ export function parseAccBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
   staticBuf: Buffer,
-  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: GameId; playerSlot?: number }
+  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: GameId; playerSlot?: number },
 ): TelemetryPacket | null {
-  if (
-    physicsBuf.length < PHYSICS.SIZE ||
-    graphicsBuf.length < GRAPHICS.MIN_SIZE ||
-    staticBuf.length < STATIC.SIZE
-  ) {
+  if (physicsBuf.length < PHYSICS.SIZE || graphicsBuf.length < GRAPHICS.MIN_SIZE || staticBuf.length < STATIC.SIZE) {
     return null;
   }
 
@@ -105,43 +101,16 @@ export function parseAccBuffers(
   // Ambient air / track surface temp (°C) — base-struct fields (airTemp @288,
   // roadTemp @292) from the official SharedFileOut.h. Guard on buffer length so
   // truncated legacy bins yield null rather than reading past the end.
-  const airTempC =
-    physicsBuf.length >= PHYSICS.airTemp.offset + 4
-      ? physicsBuf.readFloatLE(PHYSICS.airTemp.offset)
-      : null;
-  const roadTempC =
-    physicsBuf.length >= PHYSICS.roadTemp.offset + 4
-      ? physicsBuf.readFloatLE(PHYSICS.roadTemp.offset)
-      : null;
+  const airTempC = physicsBuf.length >= PHYSICS.airTemp.offset + 4 ? physicsBuf.readFloatLE(PHYSICS.airTemp.offset) : null;
+  const roadTempC = physicsBuf.length >= PHYSICS.roadTemp.offset + 4 ? physicsBuf.readFloatLE(PHYSICS.roadTemp.offset) : null;
 
   // Per-tire contact heading (unit vec, world space, forward-rolling dir)
   const chBase = PHYSICS.contactHeadingBase.offset;
-  const contactHeading: [
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-  ] = [
-    [
-      physicsBuf.readFloatLE(chBase),
-      physicsBuf.readFloatLE(chBase + 4),
-      physicsBuf.readFloatLE(chBase + 8),
-    ],
-    [
-      physicsBuf.readFloatLE(chBase + 12),
-      physicsBuf.readFloatLE(chBase + 16),
-      physicsBuf.readFloatLE(chBase + 20),
-    ],
-    [
-      physicsBuf.readFloatLE(chBase + 24),
-      physicsBuf.readFloatLE(chBase + 28),
-      physicsBuf.readFloatLE(chBase + 32),
-    ],
-    [
-      physicsBuf.readFloatLE(chBase + 36),
-      physicsBuf.readFloatLE(chBase + 40),
-      physicsBuf.readFloatLE(chBase + 44),
-    ],
+  const contactHeading: [[number, number, number], [number, number, number], [number, number, number], [number, number, number]] = [
+    [physicsBuf.readFloatLE(chBase), physicsBuf.readFloatLE(chBase + 4), physicsBuf.readFloatLE(chBase + 8)],
+    [physicsBuf.readFloatLE(chBase + 12), physicsBuf.readFloatLE(chBase + 16), physicsBuf.readFloatLE(chBase + 20)],
+    [physicsBuf.readFloatLE(chBase + 24), physicsBuf.readFloatLE(chBase + 28), physicsBuf.readFloatLE(chBase + 32)],
+    [physicsBuf.readFloatLE(chBase + 36), physicsBuf.readFloatLE(chBase + 40), physicsBuf.readFloatLE(chBase + 44)],
   ];
 
   // Tire wear (0..1, higher = more worn)
@@ -251,9 +220,7 @@ export function parseAccBuffers(
   const rainTyres = graphicsBuf.readInt32LE(GRAPHICS.rainTyres.offset);
 
   // V3-only tail fields (absent in legacy 1320-byte recordings). Null on V2.
-  const isValidLap = graphicsBuf.length >= GRAPHICS.isValidLap.offset + 4
-    ? graphicsBuf.readInt32LE(GRAPHICS.isValidLap.offset) === 1
-    : null;
+  const isValidLap = graphicsBuf.length >= GRAPHICS.isValidLap.offset + 4 ? graphicsBuf.readInt32LE(GRAPHICS.isValidLap.offset) === 1 : null;
 
   const tireCompound = readWString(graphicsBuf, GRAPHICS.currentTyreCompound.offset, GRAPHICS.currentTyreCompound.size);
 
@@ -291,6 +258,8 @@ export function parseAccBuffers(
   const isRaceOn = status === 2 ? 1 : 0;
 
   const acc: KunosExtendedData = {
+    physicsPacketId: physicsBuf.readInt32LE(PHYSICS.packetId.offset),
+    graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS.packetId.offset),
     tireCompound: tireCompound || (rainTyres ? "wet_compound" : "dry_compound"),
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
@@ -416,8 +385,7 @@ export function parseAccBuffers(
 
     Boost: 0,
     Fuel: fuel,
-    FuelCapacity:
-      Number.isFinite(maxFuel) && maxFuel > 0 ? maxFuel : undefined,
+    FuelCapacity: Number.isFinite(maxFuel) && maxFuel > 0 ? maxFuel : undefined,
     DistanceTraveled: distanceTraveled,
     BestLap: bestLap,
     LastLap: lastLap,
@@ -474,7 +442,7 @@ export function parseAccBuffers(
     CarOrdinal: overrides?.carOrdinal ?? 0,
     CarClass: 0,
     CarPerformanceIndex: 0,
-    DrivetrainType: 1,  // most GT3 are RWD
+    DrivetrainType: 1, // most GT3 are RWD
     NumCylinders: 0,
 
     PositionX: carX,

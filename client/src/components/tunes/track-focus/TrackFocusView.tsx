@@ -14,6 +14,7 @@ import { useLapSemanticTelemetry } from "../../../hooks/laps";
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
+import { localizedEligibilityDecisionText } from "../../LapQualityBadge";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
@@ -48,27 +49,15 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
 export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId }: TrackFocusViewProps) {
-  // Invalid laps are excluded from the whole Track Focus view —
-  // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
-  const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
-  // Per-frame telemetry (traces, consistency lanes, tyres) runs on the fastest
-  // N clean laps — bounds decode + payload on long tracks. Header stats read
-  // the same pool. Matches the server /line-spread pool.
-  // Fastest valid, non-excluded laps — matches the server /line-spread clean
-  // pool. Routed through the shared selector so the traces rendered here are
-  // exactly the laps the UI badges as "Eval" (see shared/racing/laps/review-selection.ts);
-  // the old local fastestLaps() trim could disagree when auto-exclude had
-  // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
-  // applies the valid/legacy/pit rules itself and reports why each lap fell out.
-  const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
+  const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen.sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
+  const stintLaps = reviewLaps;
   const { traces } = useStintTraces(reviewLaps);
   const { data: lineSpread } = useLineSpread(experimentId);
 
   const bestLapId = useMemo(() => {
     let best: LapMeta | null = null;
-    for (const l of stintLaps) {
-      if (!l.isValid || l.experimentExcluded) continue;
-      if (best == null || l.lapTime < best.lapTime) best = l;
+    for (const lap of stintLaps) {
+      if (best == null || lap.lapTime < best.lapTime) best = lap;
     }
     return best?.id ?? null;
   }, [stintLaps]);
@@ -106,7 +95,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // the full stintLaps here made the header disagree with everything under it
   // (out-laps and scrappy laps dragged the averages/degradation around while
   // the line + consistency views only ever showed the chosen laps).
-  const stats = useMemo(() => stintStats(reviewLaps, { dropOutLap: false }), [reviewLaps]);
+  const stats = useMemo(() => stintStats(reviewLaps), [reviewLaps]);
 
   return (
     <TrackFocusViewInner
@@ -241,6 +230,7 @@ export function TrackFocusViewInner({
           label="Degradation"
           value={stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—"}
           unit={stats.degSlopeSPerLap != null ? "s/lap" : undefined}
+          description={stats.degSlopeSPerLap == null ? localizedEligibilityDecisionText(stats.falloffEligibility) : undefined}
         />
         <StatCell label="Issues" value={String(issues.length)} />
       </div>
@@ -357,14 +347,15 @@ export function TrackFocusViewInner({
   );
 }
 
-function StatCell({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function StatCell({ label, value, unit, description }: { label: string; value: string; unit?: string; description?: string }) {
   return (
-    <div className="rounded bg-app-surface border border-app-border px-3 py-2">
+    <div className="rounded bg-app-surface border border-app-border px-3 py-2" title={description}>
       <div className="text-app-caption uppercase tracking-wider text-app-text-dim">{label}</div>
       <div className="text-base font-mono tabular-nums text-app-text">
         {value}
         {unit && <span className="text-app-caption text-app-text-dim ml-1">{unit}</span>}
       </div>
+      {description && <div className="truncate text-app-caption text-app-text-dim">{description}</div>}
     </div>
   );
 }

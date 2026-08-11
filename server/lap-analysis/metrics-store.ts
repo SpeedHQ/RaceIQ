@@ -6,14 +6,7 @@ import { db } from "../db";
 import { lapMetrics } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
 import { resolveTrack } from "../tracks/info";
-import {
-  computeLapMetrics,
-  deriveFuelPerLap,
-  deriveTyreWear,
-  LAP_METRICS_ALGO_VERSION,
-  type LapMetrics,
-  type SegmentStat,
-} from "./metrics";
+import { computeLapMetrics, deriveFuelPerLap, deriveTyreWear, LAP_METRICS_ALGO_VERSION, type LapMetrics, type SegmentStat } from "./metrics";
 
 /** Minimal DB surface persistLapMetrics needs (DbAdapter satisfies it). */
 interface LapMetricsWriter {
@@ -21,11 +14,7 @@ interface LapMetricsWriter {
 }
 
 /** Derive fuel + tyre metrics from in-memory frames and persist them on the lap row. */
-export async function persistLapMetrics(
-  writer: LapMetricsWriter,
-  lapId: number,
-  packets: TelemetryPacket[],
-): Promise<void> {
+export async function persistLapMetrics(writer: LapMetricsWriter, lapId: number, packets: TelemetryPacket[]): Promise<void> {
   const fuelPerLap = deriveFuelPerLap(packets) ?? null;
   const tyreWear = deriveTyreWear(packets) ?? null;
   if (fuelPerLap == null && tyreWear == null) return;
@@ -89,7 +78,7 @@ export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics 
   if (!lap || lap.telemetry.length === 0 || !lap.gameId) return null;
 
   const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
-  const metrics = computeLapMetrics(lapId, lap.telemetry, lap.gameId as GameId, segments);
+  const metrics = computeLapMetrics(lapId, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
   await persist(metrics);
   return metrics;
 }
@@ -112,7 +101,7 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   for (const lap of laps) {
     if (lap.telemetry.length === 0 || !lap.gameId) continue;
     const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
-    const metrics = computeLapMetrics(lap.id, lap.telemetry, lap.gameId as GameId, segments);
+    const metrics = computeLapMetrics(lap.id, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
     await persist(metrics);
     output.set(lap.id, metrics);
   }

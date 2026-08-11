@@ -52,14 +52,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
               onAnalysisChange={setHasB}
               onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
             />
-            <InputsSection
-              lapAId={lapA.id}
-              lapBId={lapB.id}
-              panelOpen={panelOpen}
-              aiConfigured={aiConfigured}
-              configureAi={configureAi}
-              onView={(analysis) => setViewing({ kind: "inputs", analysis })}
-            />
+            <InputsSection lapA={lapA} lapB={lapB} panelOpen={panelOpen} aiConfigured={aiConfigured} configureAi={configureAi} onView={(analysis) => setViewing({ kind: "inputs", analysis })} />
             {!bothReady && <div className="rounded border border-dashed border-app-border-input/40 py-2 text-center text-app-caption text-app-text-muted">{m.compare_analyse_both_laps()}</div>}
           </>
         )}

@@ -1,9 +1,10 @@
 import type { UIMessage } from "ai";
 import type { AnalysisData } from "@/components/ai/analysis-types";
+import type { LapMeta } from "@shared/racing/sessions/types";
 
 export type ParsedAnalysis = Partial<AnalysisData>;
 
-export interface LapHeader {
+export interface LapHeader extends Pick<LapMeta, "sessionId" | "quality" | "eligibility" | "qualityGeneration" | "source"> {
   id: number;
   label: string;
   lapTime: number;

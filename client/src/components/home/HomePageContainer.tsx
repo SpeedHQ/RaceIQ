@@ -1,4 +1,5 @@
 import { tryGetGame } from "@shared/games/registry";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -83,7 +84,7 @@ export function HomePageContainer() {
 
   const periodStats: PeriodStats = useMemo(() => {
     function computePeriod(laps: LapMeta[]) {
-      const valid = laps.filter((l) => l.isValid && l.lapTime > 0);
+      const valid = laps.filter((lap) => isTimedLapEligibilityUsable(lap));
       const best = valid.length > 0 ? Math.min(...valid.map((l) => l.lapTime)) : 0;
       const avgTime = valid.length > 0 ? valid.reduce((s, l) => s + l.lapTime, 0) / valid.length : 0;
       const totalTime = laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);

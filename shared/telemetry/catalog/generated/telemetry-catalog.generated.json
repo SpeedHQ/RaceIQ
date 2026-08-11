@@ -9,7 +9,7 @@
       "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
     },
     "generatedAt": "1970-01-01T00:00:00.000Z",
-    "contentHash": "1e98de699a81605917dbd1c337b0bb0aec13c1adcfb73d0f6b494a7b2d85fb12"
+    "contentHash": "569f71649acc717ac85c6dec9055c558ad5be532e6e82cd2e877c23694fd556c"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -675,6 +675,8 @@
         "session.maximum-drivers",
         "session.minimum-drivers",
         "session.official",
+        "session.overall-frame-identifier",
+        "session.packet-id",
         "session.physics-packet-id",
         "session.qualifier-must-start-race",
         "session.race-week",
@@ -1269,12 +1271,12 @@
             "f1.drsActivated"
           ],
           "freshness": "continuous",
-          "normalization": "(cs?.drsAllowed && f1.drsActivated) ? 1 : 0",
+          "normalization": "cs?.drsAllowed && f1.drsActivated ? 1 : 0",
           "description": "f1-2025 maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -1288,7 +1290,7 @@
               "f1.drsActivated"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "48d6004dcf37d76e33b5fe28604434b7274e2be511adb48294cd02c23c358104"
+            "codeHash": "4c441c2530de89b50858140cc9a54d545c12f53507932ee63bc9cbfaed9350a9"
           }
         },
         "acc": {
@@ -1307,7 +1309,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -1350,7 +1352,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -1403,7 +1405,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -1456,7 +1458,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -1509,7 +1511,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -1615,7 +1617,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -1630,7 +1632,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -1645,7 +1647,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -1782,7 +1784,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -1808,7 +1810,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -1834,7 +1836,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -1950,7 +1952,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -2002,7 +2004,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -2017,7 +2019,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -2078,7 +2080,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2147,7 +2149,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -2162,7 +2164,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -2214,7 +2216,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -2229,7 +2231,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -2281,7 +2283,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -2296,7 +2298,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -2348,7 +2350,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -2363,7 +2365,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -2415,7 +2417,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -2430,7 +2432,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -2477,7 +2479,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2534,7 +2536,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2587,7 +2589,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2644,7 +2646,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2701,7 +2703,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2758,7 +2760,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2815,7 +2817,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2872,7 +2874,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2929,7 +2931,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -2986,7 +2988,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -3039,7 +3041,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -3096,7 +3098,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -3153,7 +3155,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -3210,7 +3212,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -3267,7 +3269,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -3335,7 +3337,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -4326,7 +4328,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -4503,7 +4505,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -4768,7 +4770,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -4917,7 +4919,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -5090,7 +5092,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -5408,7 +5410,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -7308,7 +7310,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -7361,7 +7363,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -7530,7 +7532,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -7700,7 +7702,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -7880,7 +7882,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -7911,19 +7913,35 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "ms",
           "sources": [
-            "RaceIQ.SystemClock"
+            "AC-Evo.Static.ac_evo_version",
+            "AC-Evo.Static.ac_evo_version.size",
+            "AC-Evo.Physics.packetId"
           ],
           "freshness": "continuous",
-          "description": "ac-evo maps 1 native source channel into this value.",
+          "normalization": "acEvoVersion === MOTEC_SYNTH_SOURCE_VERSION ? Math.round((Math.max(0, physPacketId) * 1_000) / MOTEC_SYNTH_HZ) : Date.now()",
+          "description": "ac-evo maps 3 native source channels into this value.",
           "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts",
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:diagnostics.timestamp-ms:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Static.ac_evo_version",
+              "AC-Evo.Static.ac_evo_version.size",
+              "AC-Evo.Physics.packetId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "a6f224c1dfcff1f998dd1c9624b9b09a9f640041134f70a35fe7796df1e0742b"
+          }
         },
         "iracing": {
           "kind": "normalized",
@@ -8128,7 +8146,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -8234,7 +8252,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -8398,7 +8416,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -8413,7 +8431,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -8456,7 +8474,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -8472,7 +8490,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -8499,7 +8517,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -8558,7 +8576,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -8573,7 +8591,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -8621,7 +8639,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -8636,7 +8654,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -8683,7 +8701,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -8741,7 +8759,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -8756,7 +8774,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -8804,7 +8822,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -8819,7 +8837,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -8867,7 +8885,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -8882,7 +8900,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -8925,7 +8943,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -8941,7 +8959,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -8968,7 +8986,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -9184,7 +9202,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -9262,7 +9280,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -9277,7 +9295,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -9292,7 +9310,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -9356,7 +9374,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -9503,7 +9521,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -9585,7 +9603,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -9613,7 +9631,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -9682,7 +9700,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -9709,7 +9727,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -9724,7 +9742,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -9779,7 +9797,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -9834,7 +9852,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -9889,7 +9907,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -10071,7 +10089,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -10350,7 +10368,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -10415,7 +10433,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -10816,7 +10834,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -11279,7 +11297,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -11713,7 +11731,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -11790,7 +11808,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -11862,7 +11880,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -11934,7 +11952,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -12028,7 +12046,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -12056,7 +12074,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -12083,7 +12101,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -12163,7 +12181,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -12190,7 +12208,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -12217,7 +12235,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -12291,7 +12309,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -12344,7 +12362,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -12387,7 +12405,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -12445,7 +12463,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -12461,7 +12479,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -12527,7 +12545,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -12555,7 +12573,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -12584,7 +12602,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -12783,7 +12801,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -12826,7 +12844,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -12846,7 +12864,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -12960,7 +12978,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -12987,7 +13005,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -13002,7 +13020,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -13405,7 +13423,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -13432,7 +13450,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -13459,7 +13477,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -14204,7 +14222,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -14329,7 +14347,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -14356,7 +14374,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -14384,7 +14402,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -15019,7 +15037,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -15046,7 +15064,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -15073,7 +15091,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -15163,7 +15181,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -15190,7 +15208,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -15217,7 +15235,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -15364,7 +15382,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -15460,7 +15478,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -15724,7 +15742,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -15791,7 +15809,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -15818,7 +15836,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -15845,7 +15863,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -15921,7 +15939,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -16147,7 +16165,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -16549,7 +16567,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -16576,7 +16594,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -16603,7 +16621,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -17450,7 +17468,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -17574,7 +17592,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -17601,7 +17619,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -17628,7 +17646,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -17706,7 +17724,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -17722,7 +17740,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -17749,7 +17767,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -17827,7 +17845,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -17843,7 +17861,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -17870,7 +17888,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -17949,7 +17967,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -17975,7 +17993,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -17990,7 +18008,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -18058,7 +18076,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -18084,7 +18102,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -18099,7 +18117,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -18179,7 +18197,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -18205,7 +18223,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -18220,7 +18238,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -18433,7 +18451,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -18566,7 +18584,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -18694,7 +18712,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -18709,7 +18727,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -18724,7 +18742,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -18849,7 +18867,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -18876,7 +18894,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -18903,7 +18921,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -18970,7 +18988,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -18986,7 +19004,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -19013,7 +19031,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -19080,7 +19098,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -19096,7 +19114,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -19123,7 +19141,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -19177,7 +19195,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -19297,7 +19315,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -19312,7 +19330,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -19327,7 +19345,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -19452,7 +19470,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -19479,7 +19497,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -19506,7 +19524,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -19597,7 +19615,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -19623,7 +19641,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -19638,7 +19656,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -19775,7 +19793,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -19790,7 +19808,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -19805,7 +19823,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -19942,7 +19960,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -19957,7 +19975,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -19972,7 +19990,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -20181,7 +20199,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -20208,7 +20226,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -20223,7 +20241,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -22413,7 +22431,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -22663,7 +22681,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -24126,7 +24144,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -24207,7 +24225,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -24320,7 +24338,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -24400,7 +24418,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -25224,7 +25242,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -25824,7 +25842,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -25882,7 +25900,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -25897,7 +25915,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -26004,7 +26022,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -26066,7 +26084,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -26093,7 +26111,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -26179,7 +26197,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -26232,7 +26250,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -26382,7 +26400,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -26435,7 +26453,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -26915,7 +26933,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -27053,7 +27071,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -27068,7 +27086,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -27602,7 +27620,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -27628,7 +27646,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -27643,7 +27661,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -27708,7 +27726,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -27761,7 +27779,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -29692,7 +29710,7 @@
     {
       "id": "session.graphics-packet-id",
       "label": "Graphics Packet Id",
-      "description": "Graphics Packet Id source value reported by ac-evo in count.",
+      "description": "Native graphics-page sequence when exposed by ACC or AC Evo.",
       "parentId": "session",
       "canonicalUnit": "count",
       "shape": "scalar",
@@ -29708,14 +29726,25 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.graphicsPacketId"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts",
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
+          },
+          "limitations": []
         },
         "ac-evo": {
           "kind": "direct",
           "nativeUnit": "count",
           "sources": [
+            "acc.graphicsPacketId",
             "acc.acEvo.graphicsPacketId"
           ],
           "freshness": "continuous",
@@ -29723,7 +29752,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -30128,9 +30157,115 @@
       "limitations": []
     },
     {
+      "id": "session.overall-frame-identifier",
+      "label": "Overall Frame Identifier",
+      "description": "Native cross-family frame identity from the F1 packet header.",
+      "parentId": "session",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.overallFrameIdentifier"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts",
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "session.packet-id",
+      "label": "Packet Id",
+      "description": "Native F1 packet family identifier.",
+      "parentId": "session",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.packetId"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts",
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "session.physics-packet-id",
       "label": "Physics Packet Id",
-      "description": "Frame identity / staleness — packet IDs increment each shm write.",
+      "description": "Native physics-page sequence when exposed by ACC or AC Evo.",
       "parentId": "session",
       "canonicalUnit": "count",
       "shape": "scalar",
@@ -30146,14 +30281,25 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.physicsPacketId"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts",
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
+          },
+          "limitations": []
         },
         "ac-evo": {
           "kind": "direct",
           "nativeUnit": "count",
           "sources": [
+            "acc.physicsPacketId",
             "acc.acEvo.physicsPacketId"
           ],
           "freshness": "continuous",
@@ -30161,7 +30307,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -31344,7 +31490,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -31548,7 +31694,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -31568,7 +31714,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -31636,7 +31782,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -32098,7 +32244,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -33063,7 +33209,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -33368,7 +33514,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -34414,7 +34560,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -34598,7 +34744,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -34655,7 +34801,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -35805,7 +35951,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -38187,7 +38333,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -38700,7 +38846,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -38715,7 +38861,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -38730,7 +38876,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -38821,7 +38967,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -38866,7 +39012,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -38939,7 +39085,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -39245,7 +39391,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -39285,7 +39431,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -39311,7 +39457,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -39387,7 +39533,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -39402,7 +39548,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -39461,7 +39607,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -39488,7 +39634,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -39515,7 +39661,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -39832,7 +39978,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -40085,7 +40231,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -40245,7 +40391,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -40325,7 +40471,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -40511,7 +40657,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -40695,7 +40841,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -40711,7 +40857,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -40738,7 +40884,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -40817,7 +40963,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -40843,7 +40989,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -40859,7 +41005,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -40915,7 +41061,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -41000,7 +41146,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -41053,7 +41199,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -41106,7 +41252,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -41321,7 +41467,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -41336,7 +41482,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -41354,7 +41500,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -41438,7 +41584,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -41501,7 +41647,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -41554,7 +41700,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -41597,7 +41743,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -41661,7 +41807,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -42353,7 +42499,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -42387,7 +42533,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -42483,7 +42629,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -42499,7 +42645,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -42527,7 +42673,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -42670,7 +42816,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -42686,7 +42832,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -42713,7 +42859,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -43066,7 +43212,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43119,7 +43265,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43172,7 +43318,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43289,7 +43435,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -43563,7 +43709,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43641,7 +43787,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43719,7 +43865,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43797,7 +43943,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43875,7 +44021,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -43953,7 +44099,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -44055,7 +44201,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -44070,7 +44216,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -44188,7 +44334,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -44329,7 +44475,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -44630,7 +44776,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -44661,7 +44807,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -44806,7 +44952,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -44837,7 +44983,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -44949,7 +45095,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -45027,7 +45173,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -45105,7 +45251,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -45183,7 +45329,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -45287,7 +45433,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -45317,7 +45463,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -45442,7 +45588,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -45583,7 +45729,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -45724,7 +45870,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -45870,7 +46016,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -45901,7 +46047,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": [],
           "execution": {
@@ -46712,7 +46858,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -46914,7 +47060,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -46978,7 +47124,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -47031,7 +47177,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -47084,7 +47230,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -47137,7 +47283,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -47180,7 +47326,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -47200,7 +47346,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -47267,7 +47413,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -47288,7 +47434,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": [],
           "execution": {
@@ -47419,7 +47565,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -47445,7 +47591,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -47471,7 +47617,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -47592,7 +47738,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -47618,7 +47764,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -47644,7 +47790,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -48001,7 +48147,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -48078,7 +48224,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -48155,7 +48301,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -48210,7 +48356,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -48263,7 +48409,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -48343,7 +48489,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -49778,7 +49924,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -49793,7 +49939,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -49926,7 +50072,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -49941,7 +50087,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -50034,7 +50180,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -50078,7 +50224,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -50104,7 +50250,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -50162,7 +50308,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -50307,7 +50453,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -50371,7 +50517,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -50397,7 +50543,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -50412,7 +50558,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -50460,7 +50606,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -50475,7 +50621,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -50523,7 +50669,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -50694,7 +50840,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -50720,7 +50866,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -50746,7 +50892,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -50839,7 +50985,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -51124,7 +51270,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -51164,7 +51310,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -51190,7 +51336,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -51279,7 +51425,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -51319,7 +51465,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -51345,7 +51491,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -51453,7 +51599,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -51493,7 +51639,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -51519,7 +51665,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -51625,7 +51771,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -51678,7 +51824,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -51731,7 +51877,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -51784,7 +51930,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -51837,7 +51983,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -51901,7 +52047,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -51974,7 +52120,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -52047,7 +52193,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": []
         },
@@ -52305,7 +52451,7 @@
             ]
           },
           "freshness": "continuous",
-          "normalization": "mx ? mx.wheelSpeedFL / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedFR / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedRL / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedRR / 0.36 : (ct.speed / 3.6) / 0.36",
+          "normalization": "mx ? mx.wheelSpeedFL / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedFR / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedRL / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedRR / 0.36 : ct.speed / 3.6 / 0.36",
           "description": "Estimates wheel angular speed using an assumed 0.36 m radius and falls back to vehicle speed when per-wheel motion is unavailable.",
           "limitations": [
             "Assumed wheel radius and vehicle-speed fallback cannot preserve actual per-wheel rotation."
@@ -52331,7 +52477,7 @@
               "F1.CarTelemetry.speed"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "5eaba3f44026f54c68e9471d4029d56d19f6fb4d2f7c7d079f5c57bf5d48fb1a"
+            "codeHash": "e98854f5f27f3d96a51fd755cec55a1aa4726bc86e4628159068c13c7904a8eb"
           }
         },
         "acc": {
@@ -52356,7 +52502,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -52382,7 +52528,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -52561,7 +52707,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -52588,7 +52734,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -52605,7 +52751,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -53246,7 +53392,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -53337,7 +53483,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -53588,7 +53734,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -53810,7 +53956,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -53837,7 +53983,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -53854,7 +54000,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts",
-            "commit": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d"
+            "commit": "9300ea826857bb591ff2b8fffcabd5cbe45f5dab4b229586ec056650e79a9e4a"
           },
           "limitations": []
         },
@@ -54098,7 +54244,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68"
+            "commit": "61535578698da1e3244ae8428050066f565ce371e56a309cd120c948f0379e07"
           },
           "limitations": [],
           "execution": {
@@ -54277,7 +54423,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -54352,7 +54498,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/acc/parser.ts",
-            "commit": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd"
+            "commit": "ba232599e766bf95df79b9655fbfdcc54f4a890475a2fd8d0ead7134c269a831"
           },
           "limitations": []
         },
@@ -56746,6 +56892,30 @@
         "count": 1,
         "description": "F1 per-wheel vertical force.",
         "semanticId": "tires.wheel-force.vertical",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.overallFrameIdentifier",
+        "label": "Overall Frame Identifier",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native cross-family frame identity from the F1 packet header.",
+        "semanticId": "session.overall-frame-identifier",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.packetId",
+        "label": "Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native F1 packet family identifier.",
+        "semanticId": "session.packet-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -59297,6 +59467,18 @@
         "retention": "exact"
       },
       {
+        "path": "acc.graphicsPacketId",
+        "label": "Graphics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native graphics-page sequence when exposed by ACC or AC Evo.",
+        "semanticId": "session.graphics-packet-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.isValidLap",
         "label": "Is Valid Lap",
         "unit": "boolean",
@@ -59316,6 +59498,18 @@
         "count": 1,
         "description": "ACC native time for most recently completed sector.",
         "semanticId": "timing.sector.last-completed-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.physicsPacketId",
+        "label": "Physics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native physics-page sequence when exposed by ACC or AC Evo.",
+        "semanticId": "session.physics-packet-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -59852,7 +60046,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
+        "dataType": "[[number, number, number], [number, number, number], [number, number, number], [number, number, number]]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",
@@ -62323,6 +62517,18 @@
         "retention": "exact"
       },
       {
+        "path": "acc.graphicsPacketId",
+        "label": "Graphics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native graphics-page sequence when exposed by ACC or AC Evo.",
+        "semanticId": "session.graphics-packet-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.isValidLap",
         "label": "Is Valid Lap",
         "unit": "boolean",
@@ -62342,6 +62548,18 @@
         "count": 1,
         "description": "AC Evo v0.6 parser emits 0; native sector time is not populated.",
         "semanticId": "timing.sector.last-completed-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.physicsPacketId",
+        "label": "Physics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native physics-page sequence when exposed by ACC or AC Evo.",
+        "semanticId": "session.physics-packet-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -62482,7 +62700,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
+        "dataType": "[[number, number, number], [number, number, number], [number, number, number], [number, number, number]]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",
@@ -75875,7 +76093,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 735,
+    "semanticVariables": 737,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -75887,31 +76105,31 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 288,
+        "total": 290,
         "packet": 119,
-        "extension": 169,
+        "extension": 171,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 288
+        "recorded": 290
       },
       "acc": {
-        "total": 200,
+        "total": 202,
         "packet": 124,
-        "extension": 43,
+        "extension": 45,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 167
+        "recorded": 169
       },
       "ac-evo": {
-        "total": 255,
+        "total": 257,
         "packet": 124,
-        "extension": 95,
+        "extension": 97,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 219
+        "recorded": 221
       },
       "iracing": {
         "total": 955,

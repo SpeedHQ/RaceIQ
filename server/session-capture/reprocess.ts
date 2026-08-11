@@ -5,16 +5,17 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "../../shared/games/ids";
-import {
-  gunzipBuffer,
-  iterateSessionFrameRecords,
-  readFrameStreamStart,
-} from "./framing";
+import { gunzipBuffer, iterateSessionFrameRecords, readFrameStreamStart } from "./framing";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
-import { updateSessionRawFile } from "../db/session-queries";
+import { updateSessionQuality, updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { LOCAL_PLAYER_EVIDENCE, type EvidenceSourceKind } from "../../shared/racing/quality/contracts";
+import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
+import { sha256ContentHash } from "./identity";
+import { linkSessionQualityEvents } from "../db/quality-event-queries";
+import { mergeReprocessedRecordingQuality } from "./reprocess-quality";
 
 interface ReprocessResult {
   sessionId: number;
@@ -29,7 +30,13 @@ interface ReprocessResult {
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
   const session = await db
-    .select({ rawFile: sessions.rawFile, gameId: sessions.gameId })
+    .select({
+      rawFile: sessions.rawFile,
+      gameId: sessions.gameId,
+      source: sessions.source,
+      recordingQuality: sessions.recordingQuality,
+      sourceChannelProfile: sessions.sourceChannelProfile,
+    })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .get();
@@ -41,6 +48,8 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const gameId = session.gameId as GameId;
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
+  const sourceKind = (session.source as EvidenceSourceKind | null) ?? "unknown";
+  const recordingQuality = new RecordingQualityAccumulator(sourceKind, LOCAL_PLAYER_EVIDENCE, versionIdentity);
 
   // Read the raw session file
   const rawFileHandle = Bun.file(session.rawFile);
@@ -49,9 +58,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   }
   const rawBuffer = Buffer.from(await rawFileHandle.arrayBuffer());
   // Decompress if file is gzipped
-  const buf = session.rawFile.endsWith(".gz")
-    ? await gunzipBuffer(rawBuffer)
-    : rawBuffer;
+  const buf = session.rawFile.endsWith(".gz") ? await gunzipBuffer(rawBuffer) : rawBuffer;
 
   const frameStreamStart = readFrameStreamStart(buf);
 
@@ -60,16 +67,16 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const detector = serverGame.createLapDetector({
     db: capturingDb,
     bypassPacketRateFilter: true,
+    sourceKind,
+    sourceChannelProfile: session.sourceChannelProfile ?? undefined,
+    versionIdentity,
   });
   const parserState = serverGame.createParserState?.() ?? null;
 
-  for (const { offset, frame } of iterateSessionFrameRecords(
-    buf,
-    frameStreamStart,
-    { skipMetaFrames: true, allowEmptyFrames: true },
-  )) {
+  for (const { offset, frame } of iterateSessionFrameRecords(buf, frameStreamStart, { skipMetaFrames: true, allowEmptyFrames: false, strict: true })) {
     const packet = serverGame.tryParse(frame, parserState);
     if (packet) {
+      recordingQuality.observe(packet);
       await detector.feed(packet, offset);
     }
   }
@@ -85,21 +92,28 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   if (detectedLaps.length === existingLaps.length) {
     // Same count — update frame indexes and metadata in-place, matched by lap number
     strategy = "in-place";
-    const existingByLapNum = new Map(existingLaps.map(l => [l.lapNumber, l]));
+    const existingByLapNum = new Map(existingLaps.map((l) => [l.lapNumber, l]));
     for (const detected of detectedLaps) {
       const existing = existingByLapNum.get(detected.lapNumber);
       if (!existing) continue;
       const sectors = detected.sectors ? [...detected.sectors] : null;
-      await updateLapRawIndex(
-        existing.id,
-        detected.rawByteOffset,
-        detected.rawFrameCount,
-        detected.lapTime,
-        detected.isValid,
-        detected.invalidReason,
+      await updateLapRawIndex({
+        lapId: existing.id,
+        rawByteOffset: detected.rawByteOffset,
+        rawFrameCount: detected.rawFrameCount,
+        lapTime: detected.lapTime,
+        isValid: detected.isValid,
+        invalidReason: detected.invalidReason,
         sectors,
+        classification: {
+          phase: detected.phase,
+          conditions: detected.conditions,
+          paceEligibility: detected.paceEligibility,
+        },
+        quality: detected.quality!,
+        eligibility: detected.eligibility!,
         versionIdentity,
-      );
+      });
       lapsUpdated++;
     }
   } else {
@@ -107,10 +121,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     // raw offset so notes and tune links survive on detected replacements.
     // Existing rows without a detected replacement are removed.
     strategy = "replace";
-    const candidatesByLapNumber = new Map<
-      number,
-      (typeof existingLaps)[number][]
-    >();
+    const candidatesByLapNumber = new Map<number, (typeof existingLaps)[number][]>();
     for (const existing of existingLaps) {
       const candidates = candidatesByLapNumber.get(existing.lapNumber);
       if (candidates) candidates.push(existing);
@@ -118,44 +129,46 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     }
     const replacements = detectedLaps.map((detected) => {
       const candidates = candidatesByLapNumber.get(detected.lapNumber) ?? [];
-      const exactIndex = candidates.findIndex(
-        (candidate) =>
-          candidate.rawByteOffset === detected.rawByteOffset,
-      );
+      const exactIndex = candidates.findIndex((candidate) => candidate.rawByteOffset === detected.rawByteOffset);
       const candidateIndex = exactIndex >= 0 ? exactIndex : 0;
-      const preserved =
-        candidates.length > 0
-          ? candidates.splice(candidateIndex, 1)[0]
-          : undefined;
+      const preserved = candidates.length > 0 ? candidates.splice(candidateIndex, 1)[0] : undefined;
       return { detected, preserved };
     });
     await deleteLapsForSession(sessionId);
     for (const { detected, preserved } of replacements) {
       const sectors = detected.sectors ? [...detected.sectors] : null;
-      await insertReprocessedLap(
+      await insertReprocessedLap({
         sessionId,
-        detected.lapNumber,
-        detected.lapTime,
-        detected.isValid,
-        detected.rawByteOffset,
-        detected.rawFrameCount,
-        preserved?.tuneId ?? null,
-        preserved?.notes ?? null,
-        detected.invalidReason,
+        lapNumber: detected.lapNumber,
+        lapTime: detected.lapTime,
+        isValid: detected.isValid,
+        rawByteOffset: detected.rawByteOffset,
+        rawFrameCount: detected.rawFrameCount,
+        tuneId: preserved?.tuneId ?? null,
+        notes: preserved?.notes ?? null,
+        invalidReason: detected.invalidReason,
         sectors,
+        classification: {
+          phase: detected.phase,
+          conditions: detected.conditions,
+          paceEligibility: detected.paceEligibility,
+        },
+        quality: detected.quality!,
+        eligibility: detected.eligibility!,
         versionIdentity,
-      );
+      });
       lapsUpdated++;
     }
   }
 
   // Update session lap detector version
-  await updateSessionRawFile(
-    sessionId,
-    session.rawFile,
-    detector.detectorId,
-    versionIdentity,
-  );
+  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
+  const recomputedQuality = recordingQuality.finalize("reprocessed", {
+    state: "verified",
+    sourceGeneration: sha256ContentHash(buf.subarray(frameStreamStart)),
+  });
+  await updateSessionQuality(sessionId, mergeReprocessedRecordingQuality(session.recordingQuality, recomputedQuality));
+  await linkSessionQualityEvents(sessionId);
 
   return {
     sessionId,

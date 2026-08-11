@@ -3,10 +3,11 @@ import type { RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { CompareAiPanel, type CompareAiPanelHandle } from "./CompareAiPanel";
+import type { LapHeader } from "./compare-ai-types";
 
 interface CompareAiSidebarProps {
-  lapA: { id: number; label: string; lapTime: number };
-  lapB: { id: number; label: string; lapTime: number };
+  lapA: LapHeader;
+  lapB: LapHeader;
   panelRef: RefObject<CompareAiPanelHandle | null>;
   onClose: () => void;
   /** Named track segments (startFrac/endFrac) for AI-segment click resolution. */

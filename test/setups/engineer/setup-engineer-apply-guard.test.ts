@@ -26,16 +26,15 @@ import * as RealTestQueries from "../../../server/db/experiment-version-queries"
 import * as RealSessionQueries from "../../../server/db/experiment-queries";
 import * as RealChatAgent from "../../../server/ai/chat-agent";
 import * as RealAppliedMarkdown from "../../../server/setups/applied-change-markdown";
-import * as RealRepresentativeLap from "../../../server/experiments/representative-lap";
 import * as RealTrackConditions from "../../../server/ai/track-conditions";
 import * as RealSetupLineage from "../../../server/experiments/setup-lineage";
 import * as RealLapReadQueries from "../../../server/db/lap-read-queries";
 import * as RealExperimentLapQueries from "../../../server/db/experiment-lap-queries";
 import * as RealActionQueries from "../../../server/db/experiment-action-queries";
-import * as RealUndo from "../../../server/experiments/undo"
+import * as RealUndo from "../../../server/experiments/undo";
 import * as RealConsult from "../../../server/ai/consult-lap-analyst";
 import * as RealCleanLap from "../../../server/experiments/lap-evidence/aggregate";
-import * as RealComparison from "../../../server/lap-analysis/comparison"
+import * as RealComparison from "../../../server/lap-analysis/comparison";
 import * as RealSettings from "../../../server/runtime/config/settings";
 import * as RealMastraModel from "../../../mastra/model";
 
@@ -93,12 +92,27 @@ mock.module("../../../server/setups/io", () => ({
 mock.module("../../../server/db/experiment-version-queries", () => ({
   ...RealTestQueries,
   createExperimentVersion: gate(RealTestQueries.createExperimentVersion, createExperimentVersion),
-  deleteTestSubtree: gate(RealTestQueries.deleteTestSubtree, mock(async () => {})),
-  getExperimentVersion: gate(RealTestQueries.getExperimentVersion, mock(async () => ({ id: 1, version: 1 }))),
-  getExperimentVersionsByLabel: gate(RealTestQueries.getExperimentVersionsByLabel, mock(async () => null)),
-  resolveActiveTestId: gate(RealTestQueries.resolveActiveTestId, mock(async () => 1)),
+  deleteTestSubtree: gate(
+    RealTestQueries.deleteTestSubtree,
+    mock(async () => {}),
+  ),
+  getExperimentVersion: gate(
+    RealTestQueries.getExperimentVersion,
+    mock(async () => ({ id: 1, version: 1 })),
+  ),
+  getExperimentVersionsByLabel: gate(
+    RealTestQueries.getExperimentVersionsByLabel,
+    mock(async () => null),
+  ),
+  resolveActiveTestId: gate(
+    RealTestQueries.resolveActiveTestId,
+    mock(async () => 1),
+  ),
   setExperimentVersionNote: gate(RealTestQueries.setExperimentVersionNote, setExperimentVersionNote),
-  setExperimentVersionNotes: gate(RealTestQueries.setExperimentVersionNotes, mock(async () => {})),
+  setExperimentVersionNotes: gate(
+    RealTestQueries.setExperimentVersionNotes,
+    mock(async () => {}),
+  ),
 }));
 mock.module("../../../server/db/experiment-queries", () => ({
   ...RealSessionQueries,
@@ -106,34 +120,53 @@ mock.module("../../../server/db/experiment-queries", () => ({
 }));
 mock.module("../../../server/ai/chat-agent", () => ({
   ...RealChatAgent,
-  saveAssistantChatMessage: gate(RealChatAgent.saveAssistantChatMessage, mock(async () => {})),
-  getChatMemory: gate(RealChatAgent.getChatMemory, mock(() => null)),
+  saveAssistantChatMessage: gate(
+    RealChatAgent.saveAssistantChatMessage,
+    mock(async () => {}),
+  ),
+  getChatMemory: gate(
+    RealChatAgent.getChatMemory,
+    mock(() => null),
+  ),
 }));
 mock.module("../../../server/setups/applied-change-markdown", () => ({
   ...RealAppliedMarkdown,
-  buildAppliedChangesMarkdown: gate(RealAppliedMarkdown.buildAppliedChangesMarkdown, mock(() => "")),
-}));
-mock.module("../../../server/experiments/representative-lap", () => ({
-  ...RealRepresentativeLap,
-  computeSessionSymptoms: gate(RealRepresentativeLap.computeSessionSymptoms, mock(async () => [])),
-  computeSessionTrackConditions: gate(RealRepresentativeLap.computeSessionTrackConditions, mock(async () => null)),
+  buildAppliedChangesMarkdown: gate(
+    RealAppliedMarkdown.buildAppliedChangesMarkdown,
+    mock(() => ""),
+  ),
 }));
 mock.module("../../../server/ai/track-conditions", () => ({
   ...RealTrackConditions,
-  formatTrackConditions: gate(RealTrackConditions.formatTrackConditions, mock(() => "")),
+  formatTrackConditions: gate(
+    RealTrackConditions.formatTrackConditions,
+    mock(() => ""),
+  ),
 }));
 mock.module("../../../server/experiments/setup-lineage", () => ({
   ...RealSetupLineage,
-  loadActiveExperimentContext: gate(RealSetupLineage.loadActiveExperimentContext, mock(async () => fakeCtx)),
+  loadActiveExperimentContext: gate(
+    RealSetupLineage.loadActiveExperimentContext,
+    mock(async () => fakeCtx),
+  ),
 }));
 mock.module("../../../server/db/lap-read-queries", () => ({
   ...RealLapReadQueries,
-  getLapById: gate(RealLapReadQueries.getLapById, mock(async () => null)),
+  getLapById: gate(
+    RealLapReadQueries.getLapById,
+    mock(async () => null),
+  ),
 }));
 mock.module("../../../server/db/experiment-lap-queries", () => ({
   ...RealExperimentLapQueries,
-  setLapExperimentExcluded: gate(RealExperimentLapQueries.setLapExperimentExcluded, mock(async () => {})),
-  getLapsForExperiment: gate(RealExperimentLapQueries.getLapsForExperiment, mock(async () => [])),
+  setLapExperimentExcluded: gate(
+    RealExperimentLapQueries.setLapExperimentExcluded,
+    mock(async () => {}),
+  ),
+  getLapsForExperiment: gate(
+    RealExperimentLapQueries.getLapsForExperiment,
+    mock(async () => []),
+  ),
 }));
 mock.module("../../../server/db/experiment-action-queries", () => ({
   ...RealActionQueries,
@@ -141,32 +174,50 @@ mock.module("../../../server/db/experiment-action-queries", () => ({
 }));
 mock.module("../../../server/experiments/undo", () => ({
   ...RealUndo,
-  undoLastAction: gate(RealUndo.undoLastAction, mock(async () => ({ ok: true }))),
+  undoLastAction: gate(
+    RealUndo.undoLastAction,
+    mock(async () => ({ ok: true })),
+  ),
 }));
 mock.module("../../../server/ai/consult-lap-analyst", () => ({
   ...RealConsult,
-  consultLapAnalystForSession: gate(RealConsult.consultLapAnalystForSession, mock(async () => ({ ok: true, text: "" }))),
+  consultLapAnalystForSession: gate(
+    RealConsult.consultLapAnalystForSession,
+    mock(async () => ({ ok: true, text: "" })),
+  ),
 }));
 mock.module("../../../server/experiments/lap-evidence/aggregate", () => ({
   ...RealCleanLap,
-  loadCleanLapAggregate: gate(RealCleanLap.loadCleanLapAggregate, mock(async () => null)),
+  loadCleanLapAggregate: gate(
+    RealCleanLap.loadCleanLapAggregate,
+    mock(async () => null),
+  ),
 }));
 mock.module("../../../server/lap-analysis/comparison", () => ({
   ...RealComparison,
-  compareLaps: gate(RealComparison.compareLaps, mock(() => ({}))),
+  compareLaps: gate(
+    RealComparison.compareLaps,
+    mock(() => ({})),
+  ),
 }));
 mock.module("../../../server/runtime/config/settings", () => ({
   ...RealSettings,
-  loadSettings: gate(RealSettings.loadSettings, mock(() => ({ ai: {} }))),
+  loadSettings: gate(
+    RealSettings.loadSettings,
+    mock(() => ({ ai: {} })),
+  ),
 }));
 mock.module("../../../mastra/model", () => ({
   ...RealMastraModel,
-  getMastraModelId: gate(RealMastraModel.getMastraModelId, mock(() => "fake/model")),
+  getMastraModelId: gate(
+    RealMastraModel.getMastraModelId,
+    mock(() => "fake/model"),
+  ),
 }));
 
 const { setupEngineerTools } = await import("../../../mastra/tools/setup-engineer");
 
-const requestContext = { get: (k: string) => ({ gameId: "acc", sessionId: 61 } as any)[k] };
+const requestContext = { get: (k: string) => (({ gameId: "acc", sessionId: 61 }) as any)[k] };
 
 describe("apply_changes — no-op guard when every change is skipped", () => {
   test("returns ok:false with skipped reasons and creates NO version", async () => {
@@ -203,10 +254,7 @@ describe("record_driver_notes — driver confirmation guard", () => {
   test("refuses to write the driver note without driverConfirmed", async () => {
     setExperimentVersionNote.mockClear();
 
-    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
-      { note: "understeer on entry into T1", driverConfirmed: false },
-      { requestContext } as any,
-    );
+    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!({ note: "understeer on entry into T1", driverConfirmed: false }, { requestContext } as any);
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/confirm|approve/i);
@@ -216,10 +264,7 @@ describe("record_driver_notes — driver confirmation guard", () => {
   test("writes the note once the driver has confirmed it", async () => {
     setExperimentVersionNote.mockClear();
 
-    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
-      { note: "understeer on entry into T1", driverConfirmed: true },
-      { requestContext } as any,
-    );
+    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!({ note: "understeer on entry into T1", driverConfirmed: true }, { requestContext } as any);
 
     expect(result.ok).toBe(true);
     expect(setExperimentVersionNote).toHaveBeenCalledTimes(1);

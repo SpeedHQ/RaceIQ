@@ -19,20 +19,11 @@ import { zipSync, unzipSync } from "fflate";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import {
-  detectGameIdFromBuffer,
-  detectGameIdFromFilename,
-  importSessionBin,
-} from "../session-capture/import-capture";
+import { detectGameIdFromBuffer, detectGameIdFromFilename, importSessionBin } from "../session-capture/import-capture";
 import type { ImportedLap } from "../session-capture/import-pipeline";
-import {
-  advanceSessionFrames,
-  encodeMetaFrame,
-  gzipBufferSync,
-  gunzipBufferSync,
-  readFrameStreamStart,
-  sessionFrameAt,
-} from "../session-capture/framing";
+import { advanceSessionFrames, encodeMetaFrame, gzipBufferSync, gunzipBufferSync, readFrameStreamStart, sessionFrameAt } from "../session-capture/framing";
+import { sha256ContentHash } from "../session-capture/identity";
+import type { EvidenceSourceKind } from "../../shared/racing/quality/contracts";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import type { GameId } from "../../shared/games/ids";
 
@@ -57,6 +48,10 @@ export interface ManifestEntry {
   trackName: string;
   createdAt: string;
   laps: ManifestLap[];
+  memberSha256?: string;
+  sourceKind?: EvidenceSourceKind;
+  recordingQualitySchemaVersion?: string;
+  sourceGeneration?: string;
 }
 
 export interface LapsZipManifest {
@@ -111,22 +106,11 @@ function fileNamesForZip(files: Record<string, Uint8Array>): string[] {
     .sort();
 }
 
-function parseCaptureGameId(
-  memberName: string,
-  bytes: Buffer,
-  manifestGame: ReadonlyMap<string, GameId>,
-): GameId | null {
-  return (
-    detectGameIdFromBuffer(bytes) ??
-    manifestGame.get(memberName) ??
-    detectGameIdFromFilename(captureFileName(memberName))
-  );
+function parseCaptureGameId(memberName: string, bytes: Buffer, manifestGame: ReadonlyMap<string, GameId>): GameId | null {
+  return detectGameIdFromBuffer(bytes) ?? manifestGame.get(memberName) ?? detectGameIdFromFilename(captureFileName(memberName));
 }
 
-function selectedLapsBySession(
-  rows: ReadonlyArray<RawLapRow>,
-  wantedIds: ReadonlySet<number>,
-): Map<number, RawLapRow[]> {
+function selectedLapsBySession(rows: ReadonlyArray<RawLapRow>, wantedIds: ReadonlySet<number>): Map<number, RawLapRow[]> {
   const map = new Map<number, RawLapRow[]>();
   for (const row of rows) {
     if (!wantedIds.has(row.id)) continue;
@@ -138,9 +122,7 @@ function selectedLapsBySession(
 }
 
 function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
-  return rows.filter(
-    (row) => row.rawFile && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0,
-  );
+  return rows.filter((row) => row.rawFile && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0);
 }
 
 /**
@@ -148,10 +130,7 @@ function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
  * begin at a later lap, so carry that one length-prefixed header record into
  * the slice instead of replaying every preceding telemetry frame.
  */
-function latestIRacingSessionRecord(
-  buf: Buffer,
-  beforeOffset: number,
-): Buffer | null {
+function latestIRacingSessionRecord(buf: Buffer, beforeOffset: number): Buffer | null {
   let offset = readFrameStreamStart(buf);
   let latest: Buffer | null = null;
   while (offset < beforeOffset) {
@@ -168,7 +147,10 @@ function latestIRacingSessionRecord(
 }
 
 function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 /**
@@ -184,9 +166,7 @@ function slugify(s: string): string {
  * Laps with no raw capture (pre-migration rows, or a capture deleted off disk)
  * are skipped.
  */
-export async function buildLapsZip(
-  lapIds: number[]
-): Promise<{ bytes: Uint8Array; manifest: LapsZipManifest }> {
+export async function buildLapsZip(lapIds: number[]): Promise<{ bytes: Uint8Array; manifest: LapsZipManifest }> {
   const wanted = new Set(lapIds);
   const allRows = await getLapsRaw();
   const sessions = selectedLapsBySession(allRows, wanted);
@@ -214,26 +194,13 @@ export async function buildLapsZip(
     }
     if (startByte >= buf.length) continue;
     // +1 frame: the next-lap trigger that completes the final lap on replay.
-    const endByte = advanceSessionFrames(
-      buf,
-      last.rawByteOffset as number,
-      (last.rawFrameCount as number) + 1
-    );
+    const endByte = advanceSessionFrames(buf, last.rawByteOffset as number, (last.rawFrameCount as number) + 1);
 
     const gameId = first.gameId as GameId;
     const firstFrame = sessionFrameAt(buf, startByte);
-    const sessionPrefix =
-      gameId === "iracing" &&
-      firstFrame &&
-      !isIRacingSessionFrame(firstFrame)
-        ? latestIRacingSessionRecord(buf, startByte)
-        : null;
+    const sessionPrefix = gameId === "iracing" && firstFrame && !isIRacingSessionFrame(firstFrame) ? latestIRacingSessionRecord(buf, startByte) : null;
     const telemetrySlice = buf.subarray(startByte, endByte);
-    const slice = Buffer.concat(
-      sessionPrefix
-        ? [encodeMetaFrame(), sessionPrefix, telemetrySlice]
-        : [encodeMetaFrame(), telemetrySlice],
-    );
+    const slice = Buffer.concat(sessionPrefix ? [encodeMetaFrame(), sessionPrefix, telemetrySlice] : [encodeMetaFrame(), telemetrySlice]);
 
     const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
     const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
@@ -241,18 +208,11 @@ export async function buildLapsZip(
     // filename-based game detection.
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
 
-    files[fileName] = gzipBufferSync(slice);
+    const compressedSlice = gzipBufferSync(slice);
+    files[fileName] = compressedSlice;
 
     // Everything inside the exported span comes back on import — list it all.
-    const covered = allRows
-      .filter(
-        (r) =>
-          r.sessionId === sessionId &&
-          r.rawByteOffset != null &&
-          r.rawByteOffset >= startByte &&
-          r.rawByteOffset < endByte
-      )
-      .sort((a, b) => a.lapNumber - b.lapNumber);
+    const covered = allRows.filter((r) => r.sessionId === sessionId && r.rawByteOffset != null && r.rawByteOffset >= startByte && r.rawByteOffset < endByte).sort((a, b) => a.lapNumber - b.lapNumber);
 
     entries.push({
       file: fileName,
@@ -263,6 +223,10 @@ export async function buildLapsZip(
       carName,
       trackName,
       createdAt: first.createdAt,
+      memberSha256: sha256ContentHash(compressedSlice),
+      sourceKind: (first.source as EvidenceSourceKind | null) ?? "unknown",
+      recordingQualitySchemaVersion: first.recordingQualitySchemaVersion ?? "legacy",
+      sourceGeneration: first.recordingQuality?.provenance.sourceGeneration ?? "legacy",
       laps: covered.map((r) => ({
         lapNumber: r.lapNumber,
         lapTime: r.lapTime,
@@ -292,8 +256,7 @@ export function lapsZipFilename(manifest: LapsZipManifest): string {
   const date = manifest.exportedAt.slice(0, 10);
   const lapCount = manifest.entries.reduce((sum, e) => sum + e.laps.length, 0);
   const tracks = new Set(manifest.entries.map((e) => e.trackName));
-  const trackPart =
-    tracks.size === 1 ? `${slugify(tracks.values().next().value as string)}-` : "";
+  const trackPart = tracks.size === 1 ? `${slugify(tracks.values().next().value as string)}-` : "";
   return `raceiq-${trackPart}${lapCount}lap${lapCount === 1 ? "" : "s"}-${date}.zip`;
 }
 
@@ -314,8 +277,15 @@ export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResul
   const files = unzipSync(zipData);
 
   const manifest = parseManifestFile(files);
+  if (manifest && manifest.version !== 1 && manifest.version !== LAPS_ZIP_VERSION) {
+    throw new Error(`Unsupported RaceIQ archive version ${manifest.version}`);
+  }
   const manifestGame = new Map<string, GameId>();
-  for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
+  const manifestEntries = new Map<string, ManifestEntry>();
+  for (const entry of manifest?.entries ?? []) {
+    manifestGame.set(entry.file, entry.gameId);
+    manifestEntries.set(entry.file, entry);
+  }
 
   const laps: ImportedLap[] = [];
   const errors: string[] = [];
@@ -324,26 +294,40 @@ export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResul
   const names = fileNamesForZip(files);
 
   if (names.length === 0) {
-    throw new Error(
-      "Zip contains no session captures (.bin/.bin.gz). Exports from an older RaceIQ version can't be imported."
-    );
+    throw new Error("Zip contains no session captures (.bin/.bin.gz). Exports from an older RaceIQ version can't be imported.");
   }
 
   for (const name of names) {
     const memberBytes = files[name];
-    const bytes = Buffer.from(
-      memberBytes.buffer,
-      memberBytes.byteOffset,
-      memberBytes.byteLength,
-    );
-    const gameId = parseCaptureGameId(name, bytes, manifestGame);
-    if (!gameId) {
-      skipped++;
-      errors.push(`${name}: could not determine which game this capture came from`);
-      continue;
-    }
+    const bytes = Buffer.from(memberBytes.buffer, memberBytes.byteOffset, memberBytes.byteLength);
+    const entry = manifestEntries.get(name);
     try {
-      const result = await importSessionBin(bytes, gameId);
+      if (manifest?.version === LAPS_ZIP_VERSION) {
+        if (!entry?.memberSha256) {
+          throw new Error("v2 manifest is missing member checksum");
+        }
+        if (sha256ContentHash(bytes) !== entry.memberSha256) {
+          throw new Error("member checksum mismatch");
+        }
+      }
+      const gameId = parseCaptureGameId(name, bytes, manifestGame);
+      if (!gameId) {
+        throw new Error("could not determine which game this capture came from");
+      }
+      const result = await importSessionBin(bytes, gameId, {
+        sourceKind: "raceiq-archive",
+        sourceArchiveVerification:
+          manifest?.version === LAPS_ZIP_VERSION
+            ? {
+                state: "verified",
+                sourceGeneration: entry?.memberSha256 ?? sha256ContentHash(bytes),
+              }
+            : {
+                state: "unknown",
+                sourceGeneration: "legacy",
+                details: "Archive predates member checksums",
+              },
+      });
       laps.push(...result.laps);
     } catch (err) {
       skipped++;

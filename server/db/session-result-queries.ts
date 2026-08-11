@@ -2,7 +2,8 @@ import { eq, desc, and, inArray, ne, or, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions, sessionResults, pitEvents } from "./schema";
 import type { GameId } from "../../shared/games/ids";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "../../shared/racing/results/types";
+import type { RaceResultEvidence, RaceResultLapQualityEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "../../shared/racing/results/types";
+import { resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 
 const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
   fieldStatus: {
@@ -32,7 +33,38 @@ const LEGACY_RACE_RESULT_PROVENANCE: RaceResultProvenance = {
   authorityPolicyId: "legacy-outcome-status",
   authorityPolicyVersion: "unavailable",
 };
+export async function loadRaceResultLapQuality(sessionIds: readonly number[]): Promise<Map<number, RaceResultLapQualityEvidence[]>> {
+  const result = new Map<number, RaceResultLapQualityEvidence[]>();
+  if (sessionIds.length === 0) return result;
 
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualityGeneration: laps.qualityGeneration,
+    })
+    .from(laps)
+    .where(inArray(laps.sessionId, [...sessionIds]))
+    .orderBy(laps.sessionId, laps.lapNumber, laps.id)
+    .all();
+
+  for (const row of rows) {
+    const evidence: RaceResultLapQualityEvidence = {
+      lapId: row.id,
+      lapNumber: row.lapNumber,
+      qualityGeneration: row.qualityGeneration,
+      officialTiming: resolveEligibilityDecision(row, "official-timing"),
+      normalPace: resolveEligibilityDecision(row, "normal-pace"),
+    };
+    const sessionQuality = result.get(row.sessionId);
+    if (sessionQuality) sessionQuality.push(evidence);
+    else result.set(row.sessionId, [evidence]);
+  }
+  return result;
+}
 
 export type SessionResultInput = {
   sessionId: number;
@@ -74,27 +106,27 @@ async function markPitCycleLaps(sessionId: number, events: readonly PitEventInpu
 
   await db
     .update(laps)
-    .set({ isValid: false, invalidReason: "inlap" })
-    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers)))
+    .set({ phase: "in", paceEligibility: "excluded" })
+    .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers)))
     .run();
   await db
     .update(laps)
-    .set({ isValid: false, invalidReason: "outlap" })
-    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1))))
+    .set({ phase: "out", paceEligibility: "excluded" })
+    .where(
+      and(
+        eq(laps.sessionId, sessionId),
+        inArray(
+          laps.lapNumber,
+          inlapNumbers.map((lapNumber) => lapNumber + 1),
+        ),
+      ),
+    )
     .run();
 }
 
-
-export async function upsertSessionResult(
-  input: SessionResultInput,
-  events?: PitEventInput[],
-): Promise<{ id: number; changed: boolean }> {
+export async function upsertSessionResult(input: SessionResultInput, events?: PitEventInput[]): Promise<{ id: number; changed: boolean }> {
   const result = await db.transaction(async (tx) => {
-    const existing = await tx
-      .select({ id: sessionResults.id })
-      .from(sessionResults)
-      .where(eq(sessionResults.sessionId, input.sessionId))
-      .get();
+    const existing = await tx.select({ id: sessionResults.id }).from(sessionResults).where(eq(sessionResults.sessionId, input.sessionId)).get();
     const values = {
       sessionId: input.sessionId,
       processorVersion: input.processorVersion ?? "race-result-v2",
@@ -113,9 +145,7 @@ export async function upsertSessionResult(
       reasons: input.reasons,
       updatedAt: new Date().toISOString(),
     };
-    const id = existing
-      ? existing.id
-      : (await tx.insert(sessionResults).values(values).returning({ id: sessionResults.id }).get()).id;
+    const id = existing ? existing.id : (await tx.insert(sessionResults).values(values).returning({ id: sessionResults.id }).get()).id;
     if (existing) {
       await tx.update(sessionResults).set(values).where(eq(sessionResults.id, existing.id)).run();
     }
@@ -131,7 +161,6 @@ export async function upsertSessionResult(
   return result;
 }
 
-
 export async function replacePitEvents(resultId: number, events: PitEventInput[]): Promise<void> {
   const result = await db.select({ sessionId: sessionResults.sessionId }).from(sessionResults).where(eq(sessionResults.id, resultId)).get();
   await db.transaction(async (tx) => {
@@ -143,7 +172,6 @@ export async function replacePitEvents(resultId: number, events: PitEventInput[]
   if (result) await markPitCycleLaps(result.sessionId, events);
 }
 
-
 export async function getSessionResult(sessionId: number, gameId: GameId) {
   const row = await db
     .select({ result: sessionResults, gameId: sessions.gameId })
@@ -152,12 +180,10 @@ export async function getSessionResult(sessionId: number, gameId: GameId) {
     .where(and(eq(sessionResults.sessionId, sessionId), eq(sessions.gameId, gameId)))
     .get();
   if (!row) return null;
-  const events = await db
-    .select()
-    .from(pitEvents)
-    .where(eq(pitEvents.resultId, row.result.id))
-    .orderBy(pitEvents.sequence)
-    .all();
+  const [events, lapQualityBySession] = await Promise.all([
+    db.select().from(pitEvents).where(eq(pitEvents.resultId, row.result.id)).orderBy(pitEvents.sequence).all(),
+    loadRaceResultLapQuality([sessionId]),
+  ]);
   return {
     ...row.result,
     gameId: row.gameId as GameId,
@@ -165,6 +191,7 @@ export async function getSessionResult(sessionId: number, gameId: GameId) {
     provenance: row.result.provenance ?? LEGACY_RACE_RESULT_PROVENANCE,
     evidence: row.result.evidence ?? UNAVAILABLE_RACE_RESULT_EVIDENCE,
     reasons: row.result.reasons ?? [],
+    lapQuality: lapQualityBySession.get(sessionId) ?? [],
     events,
   };
 }
@@ -180,12 +207,20 @@ export async function getRecentSessionResults(gameId: GameId, limit: number) {
     .all();
   if (rows.length === 0) return [];
 
-  const storedEvents = await db
-    .select()
-    .from(pitEvents)
-    .where(inArray(pitEvents.resultId, rows.map((row) => row.result.id)))
-    .orderBy(pitEvents.resultId, pitEvents.sequence)
-    .all();
+  const [storedEvents, lapQualityBySession] = await Promise.all([
+    db
+      .select()
+      .from(pitEvents)
+      .where(
+        inArray(
+          pitEvents.resultId,
+          rows.map((row) => row.result.id),
+        ),
+      )
+      .orderBy(pitEvents.resultId, pitEvents.sequence)
+      .all(),
+    loadRaceResultLapQuality(rows.map((row) => row.result.sessionId)),
+  ]);
   const eventsByResult = new Map<number, typeof storedEvents>();
   for (const event of storedEvents) {
     const events = eventsByResult.get(event.resultId);
@@ -200,6 +235,7 @@ export async function getRecentSessionResults(gameId: GameId, limit: number) {
     provenance: row.result.provenance ?? LEGACY_RACE_RESULT_PROVENANCE,
     evidence: row.result.evidence ?? UNAVAILABLE_RACE_RESULT_EVIDENCE,
     reasons: row.result.reasons ?? [],
+    lapQuality: lapQualityBySession.get(row.result.sessionId) ?? [],
 
     events: eventsByResult.get(row.result.id) ?? [],
   }));
@@ -209,12 +245,7 @@ export async function countStaleRaceResults(currentProcessorVersion: string): Pr
     .select({ sessionId: sessions.id })
     .from(sessions)
     .leftJoin(sessionResults, eq(sessionResults.sessionId, sessions.id))
-    .where(
-      or(
-        isNull(sessionResults.id),
-        ne(sessionResults.processorVersion, currentProcessorVersion),
-      ),
-    )
+    .where(or(isNull(sessionResults.id), ne(sessionResults.processorVersion, currentProcessorVersion)))
     .all();
   return rows.length;
 }
@@ -224,12 +255,7 @@ export async function getStaleRaceResultSessionIds(currentProcessorVersion: stri
     .select({ sessionId: sessions.id })
     .from(sessions)
     .leftJoin(sessionResults, eq(sessionResults.sessionId, sessions.id))
-    .where(
-      or(
-        isNull(sessionResults.id),
-        ne(sessionResults.processorVersion, currentProcessorVersion),
-      ),
-    )
+    .where(or(isNull(sessionResults.id), ne(sessionResults.processorVersion, currentProcessorVersion)))
     .orderBy(sessions.id)
     .all();
   return rows.map((row) => row.sessionId);

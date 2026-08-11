@@ -8,6 +8,7 @@ import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
+import { importErrorPayload, TelemetryImportError } from "../../session-capture/import-pipeline";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { ExportZipQuerySchema, IbtImportTokenSchema } from "./support";
@@ -63,17 +64,35 @@ export const transferRoutes = new Hono()
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    const gameId = detectGameIdFromBuffer(bytes);
-    if (!gameId) {
-      return c.json(
-        { error: `Could not detect game from "${uploadName}" — no recognized frame format found. Supported games: ${KNOWN_GAME_IDS.join(", ")}.` },
-        400
-      );
-    }
-
     try {
+      const gameId = detectGameIdFromBuffer(bytes);
+      if (!gameId) {
+        return c.json(
+          {
+            error: `Could not detect game from "${uploadName}" — no recognized frame format found. Supported games: ${KNOWN_GAME_IDS.join(", ")}.`,
+            code: "INCOMPATIBLE_IMPORT",
+            quality: {
+              lifecycleState: "incompatible" as const,
+              reasons: ["recording_incompatible" as const],
+            },
+          },
+          400,
+        );
+      }
       const { packetCount, laps } = await importSessionBin(bytes, gameId);
-      if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
+      if (packetCount === 0) {
+        return c.json(
+          {
+            error: "No telemetry packets found in file",
+            code: "INCOMPLETE_IMPORT",
+            quality: {
+              lifecycleState: "incomplete" as const,
+              reasons: ["recording_incomplete" as const],
+            },
+          },
+          400,
+        );
+      }
       return c.json({
         ok: true,
         gameId,
@@ -82,9 +101,10 @@ export const transferRoutes = new Hono()
         imported: laps.length,
         laps,
       });
-    } catch (err: any) {
-      console.error("[Import] Failed:", err?.message);
-      return c.json({ error: "Failed to import file", details: String(err?.message ?? err) }, 500);
+    } catch (error) {
+      const payload = importErrorPayload(error);
+      console.error("[Import] Failed:", payload.error);
+      return c.json(payload, error instanceof TelemetryImportError ? 400 : 500);
     }
   })
 
@@ -157,10 +177,7 @@ export const transferRoutes = new Hono()
         tuneId,
       });
       if (result.laps.length === 0) {
-        return c.json(
-          { error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations },
-          400
-        );
+        return c.json({ error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations }, 400);
       }
       return c.json({
         ...result,
@@ -176,74 +193,53 @@ export const transferRoutes = new Hono()
   })
 
   .post("/api/laps/import-ibt/preview", async (c) => {
-    const uploadName =
-      c.req.header("x-file-name") ?? "session.ibt";
+    const uploadName = c.req.header("x-file-name") ?? "session.ibt";
     if (!uploadName.toLowerCase().endsWith(".ibt")) {
       return c.json({ error: "Expected an .ibt file" }, 400);
     }
-    const declaredHeader =
-      c.req.header("x-file-size") ?? c.req.header("content-length");
-    const declaredBytes = declaredHeader
-      ? Number(declaredHeader)
-      : undefined;
+    const declaredHeader = c.req.header("x-file-size") ?? c.req.header("content-length");
+    const declaredBytes = declaredHeader ? Number(declaredHeader) : undefined;
 
     try {
-      const result = await stageIbtUpload(
-        c.req.raw.body,
-        uploadName,
-        declaredBytes,
-      );
+      const result = await stageIbtUpload(c.req.raw.body, uploadName, declaredBytes);
       return c.json(result);
     } catch (error) {
-      const status =
-        error instanceof IbtImportError ? error.status : 400;
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const status = error instanceof IbtImportError ? error.status : 400;
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[IBT Import] Preview failed:", message);
+      return c.json({ error: `Failed to preview IBT: ${message}` }, status);
+    }
+  })
+
+  .post("/api/laps/import-ibt/commit", zValidator("json", IbtImportTokenSchema), async (c) => {
+    const { token } = c.req.valid("json");
+    try {
+      const { packetCount, laps, preview } = await commitStagedIbt(token);
+      return c.json({
+        ok: true,
+        gameId: "iracing" as const,
+        routePrefix: getGame("iracing").routePrefix,
+        packetCount,
+        imported: laps.length,
+        laps,
+        preview,
+      });
+    } catch (error) {
+      const status = error instanceof IbtImportError ? error.status : error instanceof TelemetryImportError ? 400 : 500;
+      const payload = importErrorPayload(error);
+      console.error("[IBT Import] Commit failed:", payload.error);
       return c.json(
-        { error: `Failed to preview IBT: ${message}` },
+        {
+          ...payload,
+          error: `Failed to import IBT: ${payload.error}`,
+        },
         status,
       );
     }
   })
 
-  .post(
-    "/api/laps/import-ibt/commit",
-    zValidator("json", IbtImportTokenSchema),
-    async (c) => {
-      const { token } = c.req.valid("json");
-      try {
-        const { packetCount, laps, preview } =
-          await commitStagedIbt(token);
-        return c.json({
-          ok: true,
-          gameId: "iracing" as const,
-          routePrefix: getGame("iracing").routePrefix,
-          packetCount,
-          imported: laps.length,
-          laps,
-          preview,
-        });
-      } catch (error) {
-        const status =
-          error instanceof IbtImportError ? error.status : 500;
-        const message =
-          error instanceof Error ? error.message : String(error);
-        console.error("[IBT Import] Commit failed:", message);
-        return c.json(
-          { error: `Failed to import IBT: ${message}` },
-          status,
-        );
-      }
-    },
-  )
-
-  .post(
-    "/api/laps/import-ibt/cancel",
-    zValidator("json", IbtImportTokenSchema),
-    (c) => {
-      const { token } = c.req.valid("json");
-      cancelStagedIbt(token);
-      return c.json({ ok: true });
-    },
-  );
+  .post("/api/laps/import-ibt/cancel", zValidator("json", IbtImportTokenSchema), (c) => {
+    const { token } = c.req.valid("json");
+    cancelStagedIbt(token);
+    return c.json({ ok: true });
+  });

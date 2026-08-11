@@ -1,14 +1,10 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { getAllServerGames } from "../games/registry";
-import {
-  decompressIfGzipSync,
-  iterateSessionFrames,
-} from "./framing";
-import { importSessionFrames, type ImportedLap } from "./import-pipeline";
+import { decompressIfGzipSync, iterateSessionFrames } from "./framing";
+import { importSessionFrames, InvalidImportDataError, type ImportedLap, type ImportSessionFramesOptions } from "./import-pipeline";
+import { sha256ContentHash } from "./identity";
 
-const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(
-  (a, b) => b.length - a.length,
-);
+const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort((a, b) => b.length - a.length);
 
 /** Detect a gameId from an uploaded filename prefix (`<gameId>-...` / `<gameId>_...`). */
 export function detectGameIdFromFilename(name: string): GameId | null {
@@ -34,16 +30,20 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
 }
 
 /** Replay a canonical session capture through parser, detector, and persistence pipeline. */
-export async function importSessionBin(
-  bytes: Buffer,
-  gameId: GameId,
-  options: { notifyDriverProfile?: boolean } = {},
-): Promise<{ packetCount: number; laps: ImportedLap[] }> {
-  const buf = decompressIfGzipSync(bytes);
-  const { packetCount, laps } = await importSessionFrames(
-    iterateSessionFrames(buf),
-    gameId,
-    options,
-  );
+export async function importSessionBin(bytes: Buffer, gameId: GameId, options: ImportSessionFramesOptions = {}): Promise<{ packetCount: number; laps: ImportedLap[] }> {
+  let buf: Buffer;
+  try {
+    buf = decompressIfGzipSync(bytes);
+  } catch (cause) {
+    throw new InvalidImportDataError("Import compression stream is corrupt", { cause });
+  }
+  const sourceArchiveVerification = options.sourceArchiveVerification ?? {
+    state: "verified" as const,
+    sourceGeneration: sha256ContentHash(bytes),
+  };
+  const { packetCount, laps } = await importSessionFrames(iterateSessionFrames(buf), gameId, {
+    ...options,
+    sourceArchiveVerification,
+  });
   return { packetCount, laps };
 }

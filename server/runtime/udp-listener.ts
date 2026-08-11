@@ -13,7 +13,7 @@
 import { resolve } from "node:path";
 import { parsePacket } from "../games/packet-dispatch";
 import { wsManager } from "./websocket-manager";
-import { processPacket, flushSessionRecorderBuffer, lapDetector } from "../telemetry/live-pipeline";
+import { processPacket, flushSessionRecorderBuffer, lapDetector, noteSourceLifecycle } from "../telemetry/live-pipeline";
 import { getRunningGame } from "../games/registry";
 import { SessionRecorder } from "../session-capture/recorder";
 import type { GameId } from "../../shared/games/ids";
@@ -36,6 +36,7 @@ class UdpListener {
   private _lastRaceOn = false;
   private _lastWsPacketCount = 0;
   private _statusTimer: ReturnType<typeof setInterval> | null = null;
+  private _timedOut = false;
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -97,6 +98,11 @@ class UdpListener {
     this._socket = { stop: () => sock.close() };
 
     console.log(`[UDP] Listening on ${hostname}:${port}`);
+    noteSourceLifecycle({
+      kind: "start",
+      timestampMs: Date.now(),
+      eventId: `udp-start:${hostname}:${port}`,
+    });
 
     // Update packets/sec every second. Own the handle so restart replaces,
     // rather than stacks, status/flush loops.
@@ -114,6 +120,12 @@ class UdpListener {
       // Mark as not receiving if no packets in last second
       if (this._packetsPerSec === 0 && this._receiving) {
         this._receiving = false;
+        this._timedOut = true;
+        noteSourceLifecycle({
+          kind: "timeout",
+          timestampMs: Date.now(),
+          eventId: `udp-timeout:${Date.now()}`,
+        });
       }
 
       // Stream-wide activity: count packets handed to wsManager from any
@@ -155,12 +167,8 @@ class UdpListener {
         isRaceOn: raceOn,
         droppedPackets: this._droppedPackets,
         udpPort: this._port,
-        detectedGame: runningGame
-          ? { id: runningGame.id, name: runningGame.shortName }
-          : null,
-        currentSession: session
-          ? { id: session.sessionId, carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal }
-          : null,
+        detectedGame: runningGame ? { id: runningGame.id, name: runningGame.shortName } : null,
+        currentSession: session ? { id: session.sessionId, carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal } : null,
       });
 
       if (this._packetsPerSec > 0) {
@@ -171,6 +179,14 @@ class UdpListener {
 
   private async handlePacket(sourceFrame: Buffer): Promise<void> {
     this._totalPackets++;
+    if (this._timedOut) {
+      this._timedOut = false;
+      noteSourceLifecycle({
+        kind: "reconnect",
+        timestampMs: Date.now(),
+        eventId: `udp-reconnect:${this._totalPackets}`,
+      });
+    }
     this._packetsInWindow++;
 
     if (sourceFrame.length < MIN_PACKET_LENGTH) {
@@ -193,6 +209,11 @@ class UdpListener {
   }
 
   async stop(): Promise<void> {
+    noteSourceLifecycle({
+      kind: "stop",
+      timestampMs: Date.now(),
+      eventId: `udp-stop:${this._hostname}:${this._port}`,
+    });
     if (this._statusTimer) {
       clearInterval(this._statusTimer);
       this._statusTimer = null;
@@ -216,6 +237,7 @@ class UdpListener {
     this._droppedPackets = 0;
     this._totalPackets = 0;
     this._receiving = false;
+    this._timedOut = false;
     this._packetsInWindow = 0;
     this._packetsPerSec = 0;
     await this.start(port, hostname ?? this._hostname);

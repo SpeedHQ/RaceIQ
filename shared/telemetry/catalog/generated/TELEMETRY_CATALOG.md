@@ -9,16 +9,16 @@
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
 - Generator commit: `ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `1e98de699a81605917dbd1c337b0bb0aec13c1adcfb73d0f6b494a7b2d85fb12`
+- Content SHA-256: `569f71649acc717ac85c6dec9055c558ad5be532e6e82cd2e877c23694fd556c`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
-| acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
-| ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
+| f1-2025 | 290 | 290 | 119 | 171 | 0 | 0 | 0 |
+| acc | 202 | 169 | 124 | 45 | 0 | 0 | 33 |
+| ac-evo | 257 | 221 | 124 | 97 | 0 | 0 | 36 |
 | iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
 
 ## Semantic variables
@@ -446,6 +446,8 @@
 | `session.maximum-drivers` | Max Drivers | number | dimensionless | count | scalar |  |  |  |
 | `session.minimum-drivers` | Min Drivers | number | dimensionless | count | scalar |  |  |  |
 | `session.official` | Official | boolean | dimensionless | boolean | scalar |  |  |  |
+| `session.overall-frame-identifier` | Overall Frame Identifier | number | dimensionless | count | scalar |  |  |  |
+| `session.packet-id` | Packet Id | number | dimensionless | count | scalar |  |  |  |
 | `session.physics-packet-id` | Physics Packet Id | number | dimensionless | count | scalar |  |  |  |
 | `session.qualifier-must-start-race` | Qualifier Must Start Race | boolean | dimensionless | boolean | scalar |  |  |  |
 | `session.race-week` | Race Week | number | dimensionless | count | scalar |  |  |  |

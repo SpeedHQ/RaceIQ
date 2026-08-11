@@ -3,6 +3,7 @@ import type { ArmLap } from "../../../server/experiments/comparison/metrics";
 import type { FrameLapMeta, LapFrameLoader } from "../../../server/experiments/comparison/stream";
 import type { Corner } from "../../../server/lap-analysis/corners";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+import type { EligibilityDecision, EligibilityDecisionSet, EligibilityStatus, LapQualitySummary } from "../../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 /** Deterministic synthetic corner shared by frame-based arm suites. */
@@ -10,6 +11,35 @@ export const SYNTHETIC_CORNERS: Corner[] = [{ index: 1, label: "T1", distanceSta
 export const FRAMES_PER_LAP = 121;
 const LAP_TIME_OFFSETS = [0.32, 0.05, 0.71, 0.18, 0.94, 0.43, 0.6, 0.27, 0.85, 0.11];
 export const CORNERS = SYNTHETIC_CORNERS;
+
+const TEST_QUALITY = {
+  lifecycleState: "exact",
+  complete: true,
+  structurallyValid: true,
+  facts: [],
+} as unknown as LapQualitySummary;
+
+function policyDecision(policyId: EligibilityDecision["policyId"], status: EligibilityStatus): EligibilityDecision {
+  return {
+    status,
+    policyId,
+    policyVersion: "1",
+    confidence: { level: status === "eligible" ? "high" : "low", score: status === "eligible" ? 1 : 0 },
+    reasons: [],
+    evidenceIds: [],
+  };
+}
+
+export function qualityEvidence(isValid: boolean): Pick<EvaluableLap, "quality" | "eligibility"> {
+  const status = isValid ? "eligible" : "ineligible";
+  return {
+    quality: TEST_QUALITY,
+    eligibility: {
+      "normal-pace": policyDecision("normal-pace", status),
+      "corner-trace": policyDecision("corner-trace", status),
+    } as EligibilityDecisionSet,
+  };
+}
 
 /** Straight-line lap (600m along Z) with one corner at 200..300m. */
 export function syntheticLap(lateralOffsetM: number, brakeShiftM: number): TelemetryPacket[] {
@@ -49,6 +79,7 @@ export function metadataArm(lapTimes: number[], labelPrefix = "arm"): { label: s
       invalidReason: null,
       experimentExcluded: false,
       experimentExcludedSource: null,
+      ...qualityEvidence(true),
     };
     return { lap, telemetry: null };
   });
@@ -94,6 +125,7 @@ export function telemetryArm(
       invalidReason: null,
       experimentExcluded: false,
       experimentExcludedSource: null,
+      ...qualityEvidence(true),
     },
     telemetry: syntheticLap(spec.lateral, spec.brakeShift),
   }));
@@ -124,6 +156,7 @@ export function buildStreamingArm(specs: LapSpec[], firstId = 1) {
       invalidReason: null,
       experimentExcluded: false,
       experimentExcludedSource: null,
+      ...qualityEvidence(spec.isValid ?? true),
     };
     metas.push({ ...lap, lapNumber: i + 1, createdAt: `2026-01-01T00:0${i % 10}:00Z`, rawFrameCount });
     if (rawFrameCount > 0) frames.set(id, syntheticLap(spec.lateral, spec.brakeShift));

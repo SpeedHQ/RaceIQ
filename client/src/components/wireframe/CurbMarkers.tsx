@@ -37,6 +37,7 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Semant
     return { leftCurb: [], rightCurb: [], puddlePoints: [] };
   }, [telemetry]);
 
+
   const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
   const cz = (semanticNumber(packet, "motion.position-z") ?? 0);
   const yaw = (semanticNumber(packet, "motion.yaw") ?? 0);

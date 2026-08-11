@@ -17,6 +17,10 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
+import { getQualityRebuildStatus, rebuildSessionEligibility, type QualityRebuildStatus } from "../lap-analysis/quality-rebuild";
+import { assessEvidenceRetention } from "../lap-analysis/evidence-retention";
+import { getSessionCanonicalAvailability } from "../lap-analysis/canonical-archive-availability";
+import { getLapsForSession } from "../db/lap-reprocessing-queries";
 
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
@@ -34,7 +38,18 @@ export const sessionRoutes = new Hono()
     const adapter = tryGetGame(gameId);
     const carName = adapter ? adapter.getCarName(data.session.carOrdinal) : resolveCarName(data.session.carOrdinal, gameId);
     const trackName = adapter ? adapter.getTrackName(data.session.trackOrdinal) : resolveTrackName(data.session.trackOrdinal, gameId);
-    return c.json(computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
+    return c.json(
+      computeRecap({
+        session: data.session,
+        laps: data.laps,
+        carName,
+        trackName,
+        trackLengthM: data.trackLengthM,
+        allTimeBestSec: data.allTimeBestSec,
+        allTimeBestSectors: data.allTimeBestSectors,
+        sectorStarts: data.sectorStarts,
+      }),
+    );
   })
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -44,7 +59,11 @@ export const sessionRoutes = new Hono()
     if (!result) return c.json({ error: "Session result unavailable", outcomeStatus: "unavailable" as const }, 404);
     return c.json(result);
   })
-  .post("/api/race-results/backfill", zValidator("json", z.object({ gameId: GameIdSchema, limit: z.number().int().min(1).max(100).default(25), afterSessionId: z.number().int().optional() })), async (c) => c.json(await backfillRaceResults(c.req.valid("json"))))
+  .post(
+    "/api/race-results/backfill",
+    zValidator("json", z.object({ gameId: GameIdSchema, limit: z.number().int().min(1).max(100).default(25), afterSessionId: z.number().int().optional() })),
+    async (c) => c.json(await backfillRaceResults(c.req.valid("json"))),
+  )
   .post("/api/race-results/reconcile-stale", async (c) => {
     const staleIds = await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID);
     const total = staleIds.length;
@@ -68,8 +87,62 @@ export const sessionRoutes = new Hono()
     if (!failed) wsManager.setStaleRaceResultsNotification(null);
     return c.json({ reprocessed: results.filter((result) => result.status !== "error").length, results });
   })
-  .get("/api/race-results/summary", zValidator("query", z.object({ gameId: GameIdSchema, carOrdinal: z.coerce.number().int().optional(), trackOrdinal: z.coerce.number().int().optional() })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))
-  .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)))
+  .get(
+    "/api/race-results/summary",
+    zValidator("query", z.object({ gameId: GameIdSchema, carOrdinal: z.coerce.number().int().optional(), trackOrdinal: z.coerce.number().int().optional() })),
+    async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))),
+  )
+  .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) =>
+    c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)),
+  )
+  .get("/api/sessions/:id/evidence-retention", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    const canonicalArchive = await getSessionCanonicalAvailability(id);
+    if (!canonicalArchive) return c.json({ error: "Session not found" }, 404);
+
+    const status = await getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+    return c.json(
+      await assessEvidenceRetention(id, {
+        rawCapture: status.rawAvailable,
+        canonicalArchive,
+      }),
+    );
+  })
+  .get("/api/sessions/:id/quality", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    let status: QualityRebuildStatus;
+    try {
+      status = await getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+    } catch {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    const laps = await getLapsForSession(id);
+    return c.json({
+      ...status,
+      laps: laps.map((lap) => ({
+        id: lap.id,
+        lapNumber: lap.lapNumber,
+        quality: lap.quality,
+        eligibility: lap.eligibility,
+        qualityGeneration: lap.qualityGeneration,
+      })),
+    });
+  })
+  .post("/api/sessions/:id/quality/rebuild", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    const status = await getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+    if (status.action === "unavailable") {
+      return c.json({ error: "Source recording unavailable", status }, 409);
+    }
+    if (status.action === "reprocess") {
+      const result = await reprocessSession(id);
+      wsManager.broadcastNotification({ type: "quality-updated", sessionId: id });
+      return c.json({ strategy: "reprocess" as const, status: await getQualityRebuildStatus(id, ALL_DETECTOR_IDS), result });
+    }
+    const rebuilt = await rebuildSessionEligibility(id);
+    wsManager.broadcastNotification({ type: "quality-updated", sessionId: id });
+    return c.json({ strategy: status.action === "current" ? ("none" as const) : ("eligibility" as const), status: rebuilt });
+  })
   .patch("/api/sessions/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
     const { id } = c.req.valid("param");
     await updateSession(id, { notes: c.req.valid("json").notes });
@@ -87,12 +160,21 @@ export const sessionRoutes = new Hono()
     const staleIds = await getStaleSessions(ALL_DETECTOR_IDS);
     const results = [];
     for (const id of staleIds) {
-      const result = await reprocessSession(id);
-      wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
-      results.push(result);
+      const status = await getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+      if (status.action === "reprocess") {
+        const result = await reprocessSession(id);
+        wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
+        results.push({ sessionId: id, strategy: "reprocess" as const, result });
+      } else if (status.action === "rebuild_eligibility") {
+        const result = await rebuildSessionEligibility(id);
+        wsManager.broadcastNotification({ type: "quality-updated", sessionId: id });
+        results.push({ sessionId: id, strategy: "eligibility" as const, result });
+      } else {
+        results.push({ sessionId: id, strategy: status.action, result: status });
+      }
     }
     wsManager.setStaleSessionsNotification(null);
-    return c.json({ reprocessed: results.length, results });
+    return c.json({ reprocessed: results.filter(({ strategy }) => strategy === "reprocess").length, results });
   })
   .post("/api/sessions/bulk-delete", zValidator("json", z.object({ ids: z.array(z.number().int()) })), async (c) => {
     const { ids } = c.req.valid("json");

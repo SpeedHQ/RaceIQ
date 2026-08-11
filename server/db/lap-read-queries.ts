@@ -1,11 +1,12 @@
 import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
-import { toLapMeta } from "./lap-meta";
+import { lapMetaProjection, toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
 
 interface LapStats {
   totalLaps: number;
@@ -15,7 +16,6 @@ interface LapStats {
   uniqueTracks: number;
   lapsByTrack: { trackOrdinal: number; count: number }[];
 }
-
 
 export async function getLapStats(gameId?: GameId): Promise<LapStats> {
   const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId}` : sql``;
@@ -66,47 +66,9 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
  */
 
 export async function getLaps(gameId?: GameId, limit: number = 200): Promise<LapMeta[]> {
-  const query = db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-      catalogVersion: laps.catalogVersion,
-      catalogHash: laps.catalogHash,
-      catalogSchemaVersion: laps.catalogSchemaVersion,
-      parserVersion: laps.parserVersion,
-      resolverVersion: laps.resolverVersion,
-      derivationVersion: laps.derivationVersion,
-    })
-    .from(laps)
-    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .orderBy(desc(laps.id))
-    .limit(limit);
+  const query = db.select(lapMetaProjection).from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).leftJoin(tunes, eq(laps.tuneId, tunes.id)).orderBy(desc(laps.id)).limit(limit);
 
-  const rows = gameId
-    ? await query.where(eq(sessions.gameId, gameId)).all()
-    : await query.all();
+  const rows = gameId ? await query.where(eq(sessions.gameId, gameId)).all() : await query.all();
 
   return rows.map(toLapMeta);
 }
@@ -128,31 +90,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
   if (trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal));
 
   const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-    })
+    .select(lapMetaProjection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -186,10 +124,13 @@ type LapSummary = {
   createdAt: string;
   sectorTimes: number[] | null;
   isValid: boolean;
+  phase: LapMeta["phase"];
+  conditions: LapMeta["conditions"];
+  paceEligibility: LapMeta["paceEligibility"];
+  eligibility: LapMeta["eligibility"] | null;
   invalidReason: string | null;
   notes: string | null;
 };
-
 
 export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: GameId): Promise<LapSummary[]> {
   const query = db
@@ -204,22 +145,22 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       createdAt: laps.createdAt,
       sectorTimes: laps.sectorTimes,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
+      eligibility: laps.eligibility,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .where(
-      gameId
-        ? and(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.gameId, gameId))
-        : eq(sessions.trackOrdinal, trackOrdinal)
-    )
+    .where(gameId ? and(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.gameId, gameId)) : eq(sessions.trackOrdinal, trackOrdinal))
     .orderBy(desc(laps.id));
 
   const rows = await query.all();
   return rows
-    .filter(r => (r.lapTime ?? 0) > 0)
-    .map(r => ({
+    .filter((r) => (r.lapTime ?? 0) > 0)
+    .map((r) => ({
       lapId: r.lapId,
       lapNumber: r.lapNumber ?? 0,
       lapTime: r.lapTime,
@@ -230,14 +171,16 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       createdAt: r.createdAt,
       sectorTimes: r.sectorTimes ?? null,
       isValid: Boolean(r.isValid),
+      phase: r.phase,
+      conditions: r.conditions,
+      paceEligibility: r.paceEligibility,
+      eligibility: r.eligibility ?? null,
       invalidReason: r.invalidReason ?? null,
       notes: r.notes ?? null,
     }));
 }
 
-export async function getLapById(
-  id: number
-): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
+export async function getLapById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
   const row = await db
     .select({
       id: laps.id,
@@ -245,6 +188,9 @@ export async function getLapById(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       createdAt: laps.createdAt,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
@@ -262,6 +208,13 @@ export async function getLapById(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      source: sessions.source,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      qualityGeneration: laps.qualityGeneration,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -280,18 +233,10 @@ export async function getLapById(
   const rawFile = row.rawFile;
   const rawByteOffset = row.rawByteOffset;
   const rawFrameCount = row.rawFrameCount;
-  const shouldParseRaw =
-    rawFile != null &&
-    rawByteOffset != null &&
-    rawFrameCount != null;
+  const shouldParseRaw = rawFile != null && rawByteOffset != null && rawFrameCount != null;
   if (shouldParseRaw) {
     try {
-      telemetry = await parseRawLapFrames(
-        rawFile,
-        rawByteOffset,
-        rawFrameCount,
-        row.gameId as GameId,
-      );
+      telemetry = await parseRawLapFrames(rawFile, rawByteOffset, rawFrameCount, row.gameId as GameId);
     } catch (err) {
       if (err instanceof LapParseError) {
         console.error(`[DB] Lap ${id} parse failed (${err.details.reason}): ${err.message}`, err.details);
@@ -317,6 +262,9 @@ type LapResultRow = {
   lapNumber: number;
   lapTime: number;
   isValid: number | boolean;
+  phase: LapMeta["phase"];
+  conditions: LapMeta["conditions"];
+  paceEligibility: LapMeta["paceEligibility"];
   createdAt: string;
   carOrdinal: number;
   trackOrdinal: number;
@@ -332,18 +280,25 @@ type LapResultRow = {
   resolverVersion: string | null;
   derivationVersion: string | null;
   rawFile?: string | null;
+  source: string | null;
+  quality: LapMeta["quality"] | null;
+  eligibility: LapMeta["eligibility"] | null;
+  qualitySchemaVersion: string | null;
+  qualityPolicyVersion: string | null;
+  qualityConfigVersion: string | null;
+  qualityGeneration: string | null;
 };
 
-function buildLapResult(
-  row: LapResultRow,
-  telemetry: TelemetryPacket[]
-): LapMeta & { telemetry: TelemetryPacket[] } {
+function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMeta & { telemetry: TelemetryPacket[] } {
   return {
     id: row.id,
     sessionId: row.sessionId,
     lapNumber: row.lapNumber,
     lapTime: row.lapTime,
     isValid: Boolean(row.isValid),
+    phase: row.phase,
+    conditions: row.conditions,
+    paceEligibility: row.paceEligibility,
     createdAt: row.createdAt,
     carOrdinal: row.carOrdinal,
     trackOrdinal: row.trackOrdinal,
@@ -358,10 +313,20 @@ function buildLapResult(
     parserVersion: row.parserVersion ?? undefined,
     resolverVersion: row.resolverVersion ?? undefined,
     derivationVersion: row.derivationVersion ?? undefined,
+    source: (row.source as LapMeta["source"] | null) ?? "unknown",
+    quality: row.quality ?? undefined,
+    eligibility: row.eligibility ?? undefined,
+    qualityGeneration: row.qualityGeneration ?? undefined,
+    qualityStale:
+      !row.quality ||
+      !row.eligibility ||
+      row.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
+      row.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
+      row.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
+      row.qualityGeneration !== row.quality.provenance.outputGeneration,
     telemetry,
   };
 }
-
 
 /**
  * Load several laps' telemetry at once, decoding each session's laps in a single
@@ -372,9 +337,7 @@ function buildLapResult(
  * order. Laps the batch pass can't resolve fall back to getLapById.
  */
 
-export async function getLapsByIds(
-  ids: number[]
-): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[]> {
+export async function getLapsByIds(ids: number[]): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[]> {
   if (ids.length === 0) return [];
 
   const rows = await db
@@ -384,6 +347,9 @@ export async function getLapsByIds(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       createdAt: laps.createdAt,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
@@ -401,6 +367,13 @@ export async function getLapsByIds(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      source: sessions.source,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      qualityGeneration: laps.qualityGeneration,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -468,6 +441,9 @@ export async function getLapsRaw(ids?: number[]) {
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       pi: laps.pi,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
@@ -482,6 +458,9 @@ export async function getLapsRaw(ids?: number[]) {
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      source: sessions.source,
+      recordingQuality: sessions.recordingQuality,
+      recordingQualitySchemaVersion: sessions.qualitySchemaVersion,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id));

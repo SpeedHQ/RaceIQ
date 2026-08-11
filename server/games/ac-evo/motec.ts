@@ -46,27 +46,14 @@
  * happened to use.
  */
 
-import {
-  ACEVO_CAR_LOCATION,
-  ACEVO_SESSION_TYPE,
-  ACEVO_STATUS,
-  GRAPHICS_EVO,
-  PHYSICS,
-  SESSION_STATE,
-  STATIC_EVO,
-} from "./structs";
+import { ACEVO_CAR_LOCATION, ACEVO_SESSION_TYPE, ACEVO_STATUS, GRAPHICS_EVO, PHYSICS, SESSION_STATE, STATIC_EVO } from "./structs";
 import { ACEVO_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import { encodeFrameLength, encodeMetaFrame } from "../../session-capture/framing";
-import { getAcEvoCarByModel, getAcEvoCarName } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName,
-getAcEvoTrackBySetupFolder,
-getAcEvoTracks, } from "../../../shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoCarByModel, getAcEvoCarName } from "../../../shared/racing/cars/ac-evo";
+import { getAcEvoTrackByName, getAcEvoTrackBySetupFolder, getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
 import { findChannel, type LdChannel, type LdLog } from "../../motec/ld";
-import type {
-  MotecCarTrack,
-  MotecCarTrackOverride,
-  SynthesizeResult,
-} from "../../motec/types";
+import { MOTEC_SYNTH_HZ, MOTEC_SYNTH_SOURCE_VERSION, type MotecCarTrack, type MotecCarTrackOverride, type SynthesizeResult } from "../../motec/types";
+import { SOURCE_CHANNEL_PROFILE_VERSION, type SourceChannelProfile, type SourceChannelProfileEntry } from "../../../shared/racing/quality/contracts";
 
 /**
  * Frame rate of the synthesized capture. MoTeC's AC Evo export logs the driver
@@ -76,7 +63,7 @@ import type {
  * emitting slower would throw away input detail. The 200 Hz suspension bucket is
  * genuinely decimated by this choice — noted in {@link MOTEC_IMPORT_LIMITATIONS}.
  */
-export const SYNTH_HZ = 60;
+export const SYNTH_HZ = MOTEC_SYNTH_HZ;
 
 /**
  * Assumed full-lock steering, in degrees, used to normalise `STEERANGLE`.
@@ -217,14 +204,7 @@ const MIN_SPEED_FOR_CURVATURE_MS = 3;
  * lateral-G trace as `ω = a_lat·g / v`, which is the standard steady-state
  * relation and is how a track map can be built from a G-trace alone.
  */
-export function deadReckonPath(
-  speedKmh: Float64Array,
-  yawRate: Float64Array,
-  gLat: Float64Array,
-  lapIndexOf: Int32Array,
-  dt: number,
-  yawUnit: string,
-): DeadReckonedPath {
+export function deadReckonPath(speedKmh: Float64Array, yawRate: Float64Array, gLat: Float64Array, lapIndexOf: Int32Array, dt: number, yawUnit: string): DeadReckonedPath {
   const frames = speedKmh.length;
   const x = new Float64Array(frames);
   const z = new Float64Array(frames);
@@ -251,11 +231,7 @@ export function deadReckonPath(
     }
 
     const v = speedKmh[i]! / 3.6;
-    const omega = hasYaw
-      ? yawRate[i]! * yawToRad
-      : v > MIN_SPEED_FOR_CURVATURE_MS
-        ? (gLat[i]! * G) / v
-        : 0;
+    const omega = hasYaw ? yawRate[i]! * yawToRad : v > MIN_SPEED_FOR_CURVATURE_MS ? (gLat[i]! * G) / v : 0;
 
     if (!isLapStart) heading += omega * dt;
 
@@ -342,19 +318,11 @@ export type { MotecCarTrack, MotecCarTrackOverride };
  * detector register an unknown car in `discovered_cars` exactly as it does for
  * an unknown live one.
  */
-export function resolveMotecCarTrack(
-  log: LdLog,
-  override?: MotecCarTrackOverride,
-): MotecCarTrack {
-  const car =
-    override?.carOrdinal !== undefined && override.carOrdinal >= 0
-      ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) }
-      : getAcEvoCarByModel(log.vehicleId);
+export function resolveMotecCarTrack(log: LdLog, override?: MotecCarTrackOverride): MotecCarTrack {
+  const car = override?.carOrdinal !== undefined && override.carOrdinal >= 0 ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) } : getAcEvoCarByModel(log.vehicleId);
 
   const track =
-    override?.trackOrdinal !== undefined && override.trackOrdinal >= 0
-      ? getAcEvoTracks().get(override.trackOrdinal)
-      : (getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue));
+    override?.trackOrdinal !== undefined && override.trackOrdinal >= 0 ? getAcEvoTracks().get(override.trackOrdinal) : (getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue));
 
   return {
     carOrdinal: car?.id ?? -1,
@@ -395,11 +363,7 @@ export type { SynthesizeResult };
 /**
  * Transcode a parsed MoTeC log (plus its `.ldx` beacons) into a session capture.
  */
-export function synthesizeAcEvoCapture(
-  log: LdLog,
-  beacons: number[],
-  override?: MotecCarTrackOverride,
-): SynthesizeResult {
+export function synthesizeAcEvoCapture(log: LdLog, beacons: number[], override?: MotecCarTrackOverride): SynthesizeResult {
   const dt = 1 / SYNTH_HZ;
   const duration = log.duration;
   if (!(duration > 0)) throw new Error("MoTeC log has no usable duration");
@@ -414,26 +378,43 @@ export function synthesizeAcEvoCapture(
 
   // --- resample every channel we consume onto the synthesis timeline ---
   const speedCh = take(CHANNELS.speed);
-  const speedKmh = speedToKmh(resample(speedCh, frames, dt), speedCh);
-  const throttle = normalizePedal(resample(take(CHANNELS.throttle), frames, dt));
-  const brake = normalizePedal(resample(take(CHANNELS.brake), frames, dt));
-  const clutch = normalizePedal(resample(pick(log, CHANNELS.clutch), frames, dt));
-  const steerDeg = resample(take(CHANNELS.steer), frames, dt);
-  const rpm = resample(take(CHANNELS.rpm), frames, dt);
-  const gear = resample(take(CHANNELS.gear), frames, dt);
-  const gLat = resample(take(CHANNELS.gLat), frames, dt);
-  const gLon = resample(take(CHANNELS.gLon), frames, dt);
+  const throttleCh = take(CHANNELS.throttle);
+  const brakeCh = take(CHANNELS.brake);
+  const clutchCh = pick(log, CHANNELS.clutch);
+  const steerCh = take(CHANNELS.steer);
+  const rpmCh = take(CHANNELS.rpm);
+  const gearCh = take(CHANNELS.gear);
+  const gLatCh = take(CHANNELS.gLat);
+  const gLonCh = take(CHANNELS.gLon);
   const yawCh = pick(log, CHANNELS.yawRate);
-  const yawRate = resample(yawCh, frames, dt);
-  const fuel = resample(pick(log, CHANNELS.fuel), frames, dt);
-  const tc = resample(pick(log, CHANNELS.tc), frames, dt);
-  const abs = resample(pick(log, CHANNELS.abs), frames, dt);
+  const fuelCh = pick(log, CHANNELS.fuel);
+  const tcCh = pick(log, CHANNELS.tc);
+  const absCh = pick(log, CHANNELS.abs);
+  const brakeTempCh = CORNERS.map((c) => pick(log, CHANNELS.brakeTemp(c)));
+  const tyrePressCh = CORNERS.map((c) => pick(log, CHANNELS.tyrePress(c)));
+  const tyreTempCh = CORNERS.map((c) => pick(log, CHANNELS.tyreTemp(c)));
+  const suspTravelCh = CORNERS.map((c) => pick(log, CHANNELS.suspTravel(c)));
+  const wheelSpeedCh = CORNERS.map((c) => pick(log, CHANNELS.wheelSpeed(c)));
 
-  const brakeTemp = CORNERS.map((c) => resample(pick(log, CHANNELS.brakeTemp(c)), frames, dt));
-  const tyrePress = CORNERS.map((c) => resample(pick(log, CHANNELS.tyrePress(c)), frames, dt));
-  const tyreTemp = CORNERS.map((c) => resample(pick(log, CHANNELS.tyreTemp(c)), frames, dt));
-  const suspTravel = CORNERS.map((c) => resample(pick(log, CHANNELS.suspTravel(c)), frames, dt));
-  const wheelSpeed = CORNERS.map((c) => resample(pick(log, CHANNELS.wheelSpeed(c)), frames, dt));
+  const speedKmh = speedToKmh(resample(speedCh, frames, dt), speedCh);
+  const throttle = normalizePedal(resample(throttleCh, frames, dt));
+  const brake = normalizePedal(resample(brakeCh, frames, dt));
+  const clutch = normalizePedal(resample(clutchCh, frames, dt));
+  const steerDeg = resample(steerCh, frames, dt);
+  const rpm = resample(rpmCh, frames, dt);
+  const gear = resample(gearCh, frames, dt);
+  const gLat = resample(gLatCh, frames, dt);
+  const gLon = resample(gLonCh, frames, dt);
+  const yawRate = resample(yawCh, frames, dt);
+  const fuel = resample(fuelCh, frames, dt);
+  const tc = resample(tcCh, frames, dt);
+  const abs = resample(absCh, frames, dt);
+
+  const brakeTemp = brakeTempCh.map((channel) => resample(channel, frames, dt));
+  const tyrePress = tyrePressCh.map((channel) => resample(channel, frames, dt));
+  const tyreTemp = tyreTempCh.map((channel) => resample(channel, frames, dt));
+  const suspTravel = suspTravelCh.map((channel) => resample(channel, frames, dt));
+  const wheelSpeed = wheelSpeedCh.map((channel) => resample(channel, frames, dt));
 
   const carTrack = resolveMotecCarTrack(log, override);
   const windows = lapWindows(beacons, duration);
@@ -481,18 +462,135 @@ export function synthesizeAcEvoCapture(
   if (lapLengthM === 0) lapLengthM = lapDistM[frames - 1] ?? 0;
 
   const path = deadReckonPath(speedKmh, yawRate, gLat, lapIndexOf, dt, yawCh?.unit ?? "");
+  const usableChannel = (channel: LdChannel | undefined): channel is LdChannel => channel !== undefined && channel.samples.length > 0 && channel.effectiveFreq > 0;
+  const rateTreatment = (channels: readonly (LdChannel | undefined)[]): SourceChannelProfileEntry["treatment"] => {
+    const present = channels.filter(usableChannel);
+    if (present.length === 0) return "absent";
+    if (present.every(({ effectiveFreq }) => Math.abs(effectiveFreq - SYNTH_HZ) <= SYNTH_HZ * 0.01)) return "direct";
+    if (present.every(({ effectiveFreq }) => effectiveFreq < SYNTH_HZ)) return "held";
+    return "resampled";
+  };
+  const availabilityMapping = (channels: readonly (LdChannel | undefined)[], available: SourceChannelProfileEntry["mappingStatus"]): SourceChannelProfileEntry["mappingStatus"] => {
+    const present = channels.filter(usableChannel).length;
+    return channels.length > 0 && present === channels.length ? available : "unavailable";
+  };
+  const sourceEntry = (
+    semanticId: string,
+    treatment: SourceChannelProfileEntry["treatment"],
+    mappingStatus: SourceChannelProfileEntry["mappingStatus"],
+    channels: readonly (LdChannel | undefined)[],
+    limitations: string[],
+  ): SourceChannelProfileEntry => ({
+    treatment,
+    mappingStatus,
+    sourceChannels: channels
+      .filter((channel): channel is LdChannel => channel !== undefined)
+      .map((channel) => ({
+        name: channel.name,
+        declaredHz: Number.isFinite(channel.declaredFreq) ? channel.declaredFreq : null,
+        effectiveHz: Number.isFinite(channel.effectiveFreq) ? channel.effectiveFreq : null,
+      })),
+    limitations,
+    evidenceId: `source-channel-profile:${SOURCE_CHANNEL_PROFILE_VERSION}:motec:${semanticId}`,
+  });
+  const timingSource = [
+    {
+      name: beacons.length > 0 ? "MoTeC lap beacons" : "MoTeC log timeline",
+      declaredHz: null,
+      effectiveHz: null,
+    },
+  ];
+  const timingEntry = (semanticId: string, limitation: string): SourceChannelProfileEntry => {
+    const evidenceId = `source-channel-profile:${SOURCE_CHANNEL_PROFILE_VERSION}:motec:${semanticId}`;
+    return {
+      treatment: "direct",
+      mappingStatus: "derived",
+      sourceChannels: timingSource,
+      limitations: [limitation],
+      evidenceId,
+    };
+  };
+  const positionAvailable = usableChannel(speedCh) && (usableChannel(yawCh) || usableChannel(gLatCh));
+  const positionChannels = [speedCh, usableChannel(yawCh) ? yawCh : gLatCh];
+  const positionLimitation = path.yawFromLateralG ? "Position dead-reckoned from speed and lateral acceleration." : "Position dead-reckoned from speed and yaw rate.";
+  const sourceChannelProfile: SourceChannelProfile = {
+    schemaVersion: SOURCE_CHANNEL_PROFILE_VERSION,
+    sourceKind: "motec",
+    channels: {
+      "timing.last-lap": timingEntry("timing.last-lap", "Lap timing derived from MoTeC beacon windows."),
+      "timing.current-lap": timingEntry("timing.current-lap", "Current lap time synthesized from MoTeC capture timeline."),
+      "timing.distance-traveled": sourceEntry(
+        "timing.distance-traveled",
+        usableChannel(speedCh) ? "dead-reckoned" : "absent",
+        usableChannel(speedCh) ? "derived" : "unavailable",
+        [speedCh],
+        [usableChannel(speedCh) ? "Distance integrated from speed." : "MoTeC speed channel unavailable; distance has no evidence."],
+      ),
+      "motion.position-x": sourceEntry("motion.position-x", positionAvailable ? "dead-reckoned" : "absent", positionAvailable ? "derived" : "unavailable", positionChannels, [
+        positionAvailable ? positionLimitation : "MoTeC position inputs unavailable.",
+      ]),
+      "motion.position-z": sourceEntry("motion.position-z", positionAvailable ? "dead-reckoned" : "absent", positionAvailable ? "derived" : "unavailable", positionChannels, [
+        positionAvailable ? positionLimitation : "MoTeC position inputs unavailable.",
+      ]),
+      "motion.speed": sourceEntry(
+        "motion.speed",
+        rateTreatment([speedCh]),
+        usableChannel(speedCh) ? "normalized" : "unavailable",
+        [speedCh],
+        [usableChannel(speedCh) ? "Speed unit-normalized on the 60 Hz capture timeline." : "MoTeC speed channel unavailable."],
+      ),
+      "inputs.accel": sourceEntry(
+        "inputs.accel",
+        rateTreatment([throttleCh]),
+        usableChannel(throttleCh) ? "normalized" : "unavailable",
+        [throttleCh],
+        [usableChannel(throttleCh) ? "Throttle range-normalized on the 60 Hz capture timeline." : "MoTeC throttle channel unavailable."],
+      ),
+      "inputs.brake": sourceEntry(
+        "inputs.brake",
+        rateTreatment([brakeCh]),
+        usableChannel(brakeCh) ? "normalized" : "unavailable",
+        [brakeCh],
+        [usableChannel(brakeCh) ? "Brake range-normalized on the 60 Hz capture timeline." : "MoTeC brake channel unavailable."],
+      ),
+      "inputs.steer": sourceEntry(
+        "inputs.steer",
+        usableChannel(steerCh) ? "assumed" : "absent",
+        usableChannel(steerCh) ? "simplified" : "unavailable",
+        [steerCh],
+        [usableChannel(steerCh) ? `Steering normalized using assumed ${STEER_LOCK_DEG} degree full lock.` : "MoTeC steering channel unavailable."],
+      ),
+      "fuel.fuel": sourceEntry(
+        "fuel.fuel",
+        rateTreatment([fuelCh]),
+        usableChannel(fuelCh) ? "direct" : "unavailable",
+        [fuelCh],
+        [usableChannel(fuelCh) ? "Fuel samples placed on the 60 Hz capture timeline." : "MoTeC fuel channel unavailable."],
+      ),
+      "tire.temperature.average": sourceEntry("tire.temperature.average", rateTreatment(tyreTempCh), availabilityMapping(tyreTempCh, "direct"), tyreTempCh, [
+        "Per-corner tire temperatures placed on the 60 Hz capture timeline; unavailable corners remain non-evidence.",
+      ]),
+      "tires.tire-wear": sourceEntry("tires.tire-wear", "absent", "unavailable", [], ["MoTeC import does not provide tire wear."]),
+      "tires.tire-pressure": sourceEntry("tires.tire-pressure", rateTreatment(tyrePressCh), availabilityMapping(tyrePressCh, "direct"), tyrePressCh, [
+        "Per-corner tire pressures placed on the 60 Hz capture timeline; unavailable corners remain non-evidence.",
+      ]),
+      "tires.tire-slip-ratio": sourceEntry("tires.tire-slip-ratio", "absent", "unavailable", [], ["MoTeC import does not provide tire slip ratio."]),
+      "tires.tire-slip-angle": sourceEntry("tires.tire-slip-angle", "absent", "unavailable", [], ["MoTeC import does not provide tire slip angle."]),
+      "tires.wheel-rotation-speed": sourceEntry("tires.wheel-rotation-speed", rateTreatment(wheelSpeedCh), availabilityMapping(wheelSpeedCh, "direct"), wheelSpeedCh, [
+        "Per-corner wheel speeds placed on the 60 Hz capture timeline; unavailable corners remain non-evidence.",
+      ]),
+      "suspension.norm-suspension-travel": sourceEntry("suspension.norm-suspension-travel", rateTreatment(suspTravelCh), availabilityMapping(suspTravelCh, "direct"), suspTravelCh, [
+        "Per-corner suspension travel placed on the 60 Hz capture timeline; unavailable corners remain non-evidence.",
+      ]),
+    },
+  };
 
   // --- static page: constant for the whole capture ---
   const staticBuf = Buffer.alloc(STATIC_EVO.SIZE);
   writeCString(staticBuf, STATIC_EVO.sm_version.offset, STATIC_EVO.sm_version.size, "1.0");
-  writeCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size, "motec");
+  writeCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size, MOTEC_SYNTH_SOURCE_VERSION);
   staticBuf.writeInt32LE(ACEVO_SESSION_TYPE.AC_HOT_STINT, STATIC_EVO.session.offset);
-  writeCString(
-    staticBuf,
-    STATIC_EVO.session_name.offset,
-    STATIC_EVO.session_name.size,
-    log.eventSession || "MoTeC import",
-  );
+  writeCString(staticBuf, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.size, log.eventSession || "MoTeC import");
   staticBuf.writeInt32LE(1, STATIC_EVO.number_of_sessions.offset);
   writeCString(staticBuf, STATIC_EVO.track.offset, STATIC_EVO.track.size, carTrack.trackName);
   writeCString(staticBuf, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "");
@@ -522,10 +620,7 @@ export function synthesizeAcEvoCapture(
     // AC encodes gear as 0=R, 1=N, 2=1st; MoTeC logs the real gear with 0=N.
     physics.writeInt32LE(Math.max(0, Math.round(gear[i]!) + 1), PHYSICS.gear.offset);
     physics.writeInt32LE(Math.round(rpm[i]!), PHYSICS.rpms.offset);
-    physics.writeFloatLE(
-      Math.max(-1, Math.min(1, steerDeg[i]! / STEER_LOCK_DEG)),
-      PHYSICS.steerAngle.offset,
-    );
+    physics.writeFloatLE(Math.max(-1, Math.min(1, steerDeg[i]! / STEER_LOCK_DEG)), PHYSICS.steerAngle.offset);
     physics.writeFloatLE(speedKmh[i]!, PHYSICS.speedKmh.offset);
     physics.writeFloatLE(gLat[i]!, PHYSICS.accGX.offset);
     physics.writeFloatLE(gLon[i]!, PHYSICS.accGZ.offset);
@@ -562,10 +657,7 @@ export function synthesizeAcEvoCapture(
     graphics.writeInt32LE(lastLapMs, GRAPHICS_EVO.last_laptime_ms.offset);
     graphics.writeInt32LE(bestMs, GRAPHICS_EVO.best_laptime_ms.offset);
     graphics.writeFloatLE(sessionDistM[i]! / 1000, GRAPHICS_EVO.current_km.offset);
-    graphics.writeFloatLE(
-      lapLengthM > 0 ? Math.min(1, lapDistM[i]! / lapLengthM) : 0,
-      GRAPHICS_EVO.npos.offset,
-    );
+    graphics.writeFloatLE(lapLengthM > 0 ? Math.min(1, lapDistM[i]! / lapLengthM) : 0, GRAPHICS_EVO.npos.offset);
     graphics.writeInt32LE(ACEVO_CAR_LOCATION.ACEVO_TRACK, GRAPHICS_EVO.car_location.offset);
     graphics.writeUInt8(1, GRAPHICS_EVO.is_valid_lap.offset);
     graphics.writeUInt8(0, GRAPHICS_EVO.is_in_pit_box.offset);
@@ -575,23 +667,10 @@ export function synthesizeAcEvoCapture(
     graphics.writeFloatLE(throttle[i]!, GRAPHICS_EVO.gas_percent.offset);
     graphics.writeFloatLE(brake[i]!, GRAPHICS_EVO.brake_percent.offset);
     graphics.writeFloatLE(clutch[i]!, GRAPHICS_EVO.clutch_percent.offset);
-    graphics.writeInt16LE(
-      Math.max(-32768, Math.min(32767, Math.round(speedKmh[i]!))),
-      GRAPHICS_EVO.display_speed_kmh.offset,
-    );
+    graphics.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(speedKmh[i]!))), GRAPHICS_EVO.display_speed_kmh.offset);
     graphics.writeFloatLE(fuel[i]!, GRAPHICS_EVO.fuel_liter_current_quantity.offset);
-    writeCString(
-      graphics,
-      GRAPHICS_EVO.car_model.offset,
-      GRAPHICS_EVO.car_model.size,
-      carTrack.carModel,
-    );
-    writeCString(
-      graphics,
-      GRAPHICS_EVO.driver_name.offset,
-      GRAPHICS_EVO.driver_name.size,
-      log.driver,
-    );
+    writeCString(graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size, carTrack.carModel);
+    writeCString(graphics, GRAPHICS_EVO.driver_name.offset, GRAPHICS_EVO.driver_name.size, log.driver);
     // Player car occupies slot 0; `active_cars` is 1 so the parser's slot
     // calibration only ever probes that slot.
     const coordBase = GRAPHICS_EVO.car_coordinates_base.offset;
@@ -604,9 +683,7 @@ export function synthesizeAcEvoCapture(
     graphics.writeInt32LE(windows.length, sessBase + SESSION_STATE.total_lap);
     graphics.writeFloatLE(lapLengthM / 1000, sessBase + SESSION_STATE.lap_length_km);
 
-    records.push(
-      packTriplet(ACEVO_PACKED_MAGIC, carTrack.carOrdinal, carTrack.trackOrdinal, physics, graphics, staticBuf),
-    );
+    records.push(packTriplet(ACEVO_PACKED_MAGIC, carTrack.carOrdinal, carTrack.trackOrdinal, physics, graphics, staticBuf));
   }
 
   // --- session-capture framing: meta frame, then [u32 len][frame] records ---
@@ -624,5 +701,6 @@ export function synthesizeAcEvoCapture(
     carTrack,
     missingChannels,
     yawFromLateralG: path.yawFromLateralG,
+    sourceChannelProfile,
   };
 }

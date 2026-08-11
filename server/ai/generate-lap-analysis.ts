@@ -1,5 +1,8 @@
 import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
+import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
+import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { getLapById } from "../db/lap-read-queries";
 import { getCorners } from "../db/track-queries";
 import { getAnalysis, saveAnalysis } from "../db/analysis-queries";
@@ -38,12 +41,10 @@ export interface LapAnalysisResult {
   cornerFracs: CornerFraction[];
   hasTune: boolean;
   error?: string;
+  decision?: EligibilityDecision;
 }
 
-type AgentGenerate = (
-  prompt: string,
-  options: Record<string, unknown>,
-) => Promise<unknown>;
+type AgentGenerate = (prompt: string, options: Record<string, unknown>) => Promise<unknown>;
 export interface GenerateLapAnalysisDeps {
   getLapById?: typeof getLapById;
   getCorners?: typeof getCorners;
@@ -62,16 +63,13 @@ export interface GenerateLapAnalysisDeps {
   generate?: AgentGenerate;
 }
 
-const invalidAnalysisError =
-  "Model produced invalid analysis structure. Not cached. Try again or switch model.";
+const invalidAnalysisError = "Model produced invalid analysis structure. Not cached. Try again or switch model.";
 
 function parseAndValidateAnalysis(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   try {
     const text = extractJson(raw);
-    return AnalystOutputSchema.safeParse(JSON.parse(text)).success
-      ? text
-      : null;
+    return AnalystOutputSchema.safeParse(JSON.parse(text)).success ? text : null;
   } catch {
     return null;
   }
@@ -99,6 +97,17 @@ export async function generateLapAnalysis(
       hasTune: false,
       error: "Lap not found",
     };
+  const decision = resolveEligibilityDecision(lap, "corner-trace");
+  if (!isEligibilityUsable(decision)) {
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs: [],
+      hasTune: false,
+      decision,
+      error: eligibilityDecisionText(decision),
+    };
+  }
   if (lap.telemetry.length === 0)
     return {
       analysis: null,
@@ -106,20 +115,13 @@ export async function generateLapAnalysis(
       cornerFracs: [],
       hasTune: false,
       error: "No telemetry data",
+      decision,
     };
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
-  let corners: Corner[] =
-    trackOrdinal > 0 && lap.gameId
-      ? await findCorners(trackOrdinal, lap.gameId)
-      : [];
-  if (corners.length === 0)
-    corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
-  const totalDist =
-    lap.telemetry.length > 1
-      ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled -
-        lap.telemetry[0].DistanceTraveled
-      : 1;
+  let corners: Corner[] = trackOrdinal > 0 && lap.gameId ? await findCorners(trackOrdinal, lap.gameId) : [];
+  if (corners.length === 0) corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
+  const totalDist = lap.telemetry.length > 1 ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled - lap.telemetry[0].DistanceTraveled : 1;
   const firstDist = lap.telemetry[0]?.DistanceTraveled ?? 0;
   const cornerFracs = corners.map((corner) => ({
     label: corner.label,
@@ -144,10 +146,10 @@ export async function generateLapAnalysis(
         },
         cornerFracs,
         hasTune,
+        decision,
       };
     }
-    if (options.cacheOnly && !options.preflight)
-      return { analysis: null, cached: false, cornerFracs, hasTune };
+    if (options.cacheOnly && !options.preflight) return { analysis: null, cached: false, cornerFracs, hasTune, decision };
   }
 
   const settings = (deps.loadSettings ?? loadSettings)();
@@ -165,35 +167,20 @@ export async function generateLapAnalysis(
       } as Tune;
     }
   }
-  const track = (deps.resolveTrack ?? resolveTrack)(
-    lap.gameId,
-    lap.trackOrdinal,
-  );
+  const track = (deps.resolveTrack ?? resolveTrack)(lap.gameId, lap.trackOrdinal);
   let sectors: PromptSectors | undefined;
   try {
     const game = lap.gameId ? (deps.getGame ?? getGame)(lap.gameId) : undefined;
     if (game?.nativeSectors && game.getNativeSectorLayout) {
-      const timeline = (
-        deps.computeNativeSectorTimeline ?? computeNativeSectorTimeline
-      )(lap.telemetry, lap.lapTime, game.getNativeSectorLayout);
+      const timeline = (deps.computeNativeSectorTimeline ?? computeNativeSectorTimeline)(lap.telemetry, lap.lapTime, game.getNativeSectorLayout);
       if (timeline && timeline.times.length >= 2) {
         sectors = {
           times: timeline.times,
           sectorStarts: timeline.sectorStarts,
         };
       }
-    } else if (
-      track.sectors.s1End &&
-      track.sectors.s2End &&
-      lap.gameId &&
-      lap.trackOrdinal != null
-    ) {
-      const times = await (deps.computeLapSectors ?? computeLapSectors)(
-        lap.trackOrdinal,
-        lap.gameId as GameId,
-        lap.telemetry,
-        lap.lapTime,
-      );
+    } else if (track.sectors.s1End && track.sectors.s2End && lap.gameId && lap.trackOrdinal != null) {
+      const times = await (deps.computeLapSectors ?? computeLapSectors)(lap.trackOrdinal, lap.gameId as GameId, lap.telemetry, lap.lapTime);
       if (times && times.length >= 3) {
         sectors = {
           times,
@@ -227,12 +214,13 @@ export async function generateLapAnalysis(
       cached: false,
       cornerFracs,
       hasTune,
+      decision,
       error: toClientAiError(err).message,
     };
   }
 
   if (options.preflight) {
-    return { analysis: null, cached: false, cornerFracs, hasTune };
+    return { analysis: null, cached: false, cornerFracs, hasTune, decision };
   }
   const model = ai.model;
   const startedAt = Date.now();
@@ -256,21 +244,12 @@ export async function generateLapAnalysis(
             jsonSchema: { name: "analyst_output", strict: true, schema },
           },
         },
-        google: buildGoogleProviderOptions(
-          model,
-          schema,
-          settings.aiThinkingBudget,
-        ),
+        google: buildGoogleProviderOptions(model, schema, settings.aiThinkingBudget),
       },
     };
-    const generate =
-      deps.generate ??
-      ((requestPrompt, requestOptions) =>
-        lapAnalystAgent.generate(requestPrompt, requestOptions as never));
+    const generate = deps.generate ?? ((requestPrompt, requestOptions) => lapAnalystAgent.generate(requestPrompt, requestOptions as never));
     const runStructured = deps.runAiStructured ?? runAiStructured;
-    const result = await runStructured(ai, input, (requestContext) =>
-      generate(prompt, { ...generationOptions, requestContext }),
-    );
+    const result = await runStructured(ai, input, (requestContext) => generate(prompt, { ...generationOptions, requestContext }));
     const text = parseAndValidateAnalysis(result.analysis);
     if (!text)
       return {
@@ -278,14 +257,12 @@ export async function generateLapAnalysis(
         cached: false,
         cornerFracs,
         hasTune,
+        decision,
         error: invalidAnalysisError,
       };
 
     const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-    const numberFor = (...keys: string[]) =>
-      keys
-        .map((key) => rawUsage[key])
-        .find((value): value is number => typeof value === "number") ?? 0;
+    const numberFor = (...keys: string[]) => keys.map((key) => rawUsage[key]).find((value): value is number => typeof value === "number") ?? 0;
     const usage: AnalysisUsage = {
       inputTokens: numberFor("inputTokens", "promptTokens"),
       outputTokens: numberFor("outputTokens", "completionTokens"),
@@ -294,13 +271,14 @@ export async function generateLapAnalysis(
       model,
     };
     await writeAnalysis(lapId, text, usage);
-    return { analysis: text, cached: false, usage, cornerFracs, hasTune };
+    return { analysis: text, cached: false, usage, cornerFracs, hasTune, decision };
   } catch (err) {
     return {
       analysis: null,
       cached: false,
       cornerFracs,
       hasTune,
+      decision,
       error: toClientAiError(err).message,
     };
   }

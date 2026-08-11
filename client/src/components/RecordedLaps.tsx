@@ -1,4 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
+import { isTimedLapEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/quality/policies";
+import { LapStatus } from "@/components/LapStatus";
+import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
 import { m } from "@/paraglide/messages";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import { useDeleteLap } from "../hooks/laps";
@@ -32,11 +35,12 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const gridTemplateColumns = sectorCount > 0 ? `auto repeat(${sectorCount}, minmax(0,1fr)) minmax(0,1fr) auto auto` : "auto minmax(0,1fr) auto auto";
 
-  const allTimes = filteredLaps.map((l) => l.lapTime);
+  const paceLaps = filteredLaps.filter((lap) => isTimedLapEligibilityUsable(lap));
+  const allTimes = paceLaps.map((lap) => lap.lapTime);
   const best = allTimes.length > 0 ? Math.min(...allTimes) : 0;
 
   const bestSectors = Array.from({ length: sectorCount }, (_, index) => {
-    const times = filteredLaps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
+    const times = paceLaps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
     return times.length > 0 ? Math.min(...times) : 0;
   });
 
@@ -70,16 +74,24 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
           </div>
           <div className="divide-y divide-app-border/30">
             {sorted.map((l) => {
-              const delta = l.lapTime - best;
+              const paceEligible = isTimedLapEligibilityUsable(l);
+              const analysisDecision = resolveEligibilityDecision(l, "corner-trace");
+              const analysisUsable = isTimedLapEligibilityUsable(l, "corner-trace");
+              const delta = paceEligible && best > 0 ? l.lapTime - best : null;
               const isBest = delta === 0;
-              const timeColor = isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
+              const timeColor = !paceEligible
+                ? "text-app-text-muted"
+                : isBest
+                  ? "text-(--lap-pace-best)"
+                  : delta! < 0.5
+                    ? "text-(--lap-pace-on-target)"
+                    : delta! < 1.5
+                      ? "text-app-text"
+                      : "text-(--lap-pace-off-target)";
               return (
                 <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }}>
-                  <span
-                    className={`text-xs font-mono w-10 flex items-center gap-1 ${l.isValid ? "text-app-text-muted" : "text-status-danger"}`}
-                    title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}
-                  >
-                    {!l.isValid && <span className="text-status-danger leading-none">✕</span>}
+                  <span className="text-xs font-mono w-10 flex items-center gap-1 text-app-text-muted">
+                    <LapStatus lap={l} presentation="indicator" visibility="invalid" />
                     {l.lapNumber}
                   </span>
                   {sectorLabels.map((label, index) => {
@@ -91,13 +103,19 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                     );
                   })}
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
-                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
-                  <div className="flex items-center gap-1 w-16 justify-end">
+                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">
+                    <LapStatus lap={l} visibility="non-pace" />
+                    {paceEligible && (isBest ? "PB" : delta === null ? "—" : `+${delta.toFixed(3)}`)}
+                  </span>
+                  <div className="flex items-center justify-end gap-1">
+                    <LapQualityBadge lap={l} policyId="corner-trace" />
                     <Button // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
                       variant="app-primary"
                       size="app-sm"
                       className="!px-1.5 !py-0.5"
+                      disabled={!analysisUsable}
+                      title={analysisUsable ? m.label_analyse() : localizedEligibilityDecisionText(analysisDecision)}
                     >
                       {m.label_analyse()}
                     </Button>

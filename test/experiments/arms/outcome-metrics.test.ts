@@ -11,19 +11,26 @@ import {
   pickReferenceLap,
 } from "../../../server/experiments/comparison/metrics";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+import { qualityEvidence } from "../../support/experiments/arms";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
  *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */
 const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };
 
 function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {
+  const isValid = overrides.isValid ?? true;
+  const paceEligibility = overrides.paceEligibility ?? "eligible";
   return {
     lapTime: 90,
-    isValid: true,
+    isValid,
     invalidReason: null,
+    phase: "flying",
+    conditions: [],
+    paceEligibility,
     experimentExcluded: false,
     experimentExcludedSource: null,
     ...overrides,
+    ...qualityEvidence(isValid && paceEligibility === "eligible"),
   };
 }
 
@@ -137,19 +144,19 @@ describe("curation policy is per-metric", () => {
     expect(all.droppedIneligible).toBe(1);
   });
 
-  test("invalid and pit laps are ineligible under both policies", () => {
+  test("invalid and non-pace laps are ineligible under both policies", () => {
     const laps = [
       lap({ id: 1, lapTime: 90.0 }),
       lap({ id: 2, lapTime: 91.0, isValid: false }),
-      lap({ id: 3, lapTime: 120.0, invalidReason: "inlap" }),
+      lap({ id: 3, lapTime: 120.0, phase: "in", paceEligibility: "excluded" }),
       lap({ id: 4, lapTime: 90.4 }),
     ];
 
     for (const curation of [FASTEST_5, OUTCOME_METRICS.consistencySpreadSec.curation]) {
       const pool = curateLaps(laps, curation);
       expect(pool.kept.map((l) => l.id)).toEqual([1, 4]);
-      expect(pool.reasonById.get(2)).toBe("invalid");
-      expect(pool.reasonById.get(3)).toBe("pit");
+      expect(pool.reasonById.get(2)).toBe("non-pace");
+      expect(pool.reasonById.get(3)).toBe("non-pace");
     }
   });
 });

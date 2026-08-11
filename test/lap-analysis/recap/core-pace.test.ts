@@ -1,8 +1,8 @@
 import { describe, test, expect } from "bun:test";
-import { baseSession, lap, run } from "../../support/lap-analysis/recap";
+import { baseSession, lap, normalPaceEligibility, run } from "../../support/lap-analysis/recap";
 
 describe("computeRecap", () => {
-  test("bestLapId points at the fastest VALID lap, for deep-linking to analyse", () => {
+  test("bestLapId points at fastest valid pace lap", () => {
     const laps = [
       lap({ id: 501, lapNumber: 1, lapTime: 100 }),
       lap({ id: 502, lapNumber: 2, lapTime: 95 }),
@@ -14,6 +14,31 @@ describe("computeRecap", () => {
     expect(recap.bestLapId).toBe(502);
   });
 
+  test("valid non-pace lap stays visible but cannot set pace metrics", () => {
+    const recap = run([
+      lap({ id: 501, lapNumber: 1, lapTime: 40, phase: "grid_start", paceEligibility: "excluded" }),
+      lap({ id: 502, lapNumber: 2, lapTime: 95 }),
+    ]);
+    expect(recap.lapsValid).toBe(1);
+    expect(recap.bestLapSec).toBe(95);
+    expect(recap.bestLapId).toBe(502);
+    expect(recap.sparkline).toEqual([
+      expect.objectContaining({ lapId: 501, lapNumber: 1, lapTimeSec: 40, isValid: true, phase: "grid_start", conditions: [], paceEligibility: "excluded" }),
+      expect.objectContaining({ lapId: 502, lapNumber: 2, lapTimeSec: 95, isValid: true, phase: "flying", conditions: [], paceEligibility: "eligible" }),
+    ]);
+  });
+
+  test("persisted normal-pace decisions override legacy classification for pace metrics", () => {
+    const recap = run([
+      lap({ id: 601, lapNumber: 1, lapTime: 90, paceEligibility: "eligible", eligibility: normalPaceEligibility("ineligible") }),
+      lap({ id: 602, lapNumber: 2, lapTime: 95, paceEligibility: "excluded", eligibility: normalPaceEligibility("eligible") }),
+    ]);
+    expect(recap.bestLapId).toBe(602);
+    expect(recap.bestLapSec).toBe(95);
+    expect(recap.sparkline[0]?.eligibility?.["normal-pace"].status).toBe("ineligible");
+    expect(recap.sparkline[1]?.eligibility?.["normal-pace"].status).toBe("eligible");
+  });
+
   test("sparkline preserves lap ids when detector lap numbers repeat", () => {
     const recap = run([
       lap({ id: 45, lapNumber: 0, lapTime: 135.5, isValid: false }),
@@ -22,7 +47,7 @@ describe("computeRecap", () => {
     expect(recap.sparkline.map((point) => point.lapId)).toEqual([45, 54]);
   });
 
-  test("bestLapId is null when there is no valid lap", () => {
+  test("bestLapId is null when there is no valid pace lap", () => {
     const recap = run([lap({ id: 9, lapNumber: 1, lapTime: 100, isValid: false })]);
     expect(recap.bestLapId).toBeNull();
   });

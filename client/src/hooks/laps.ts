@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { ChannelQualitySummary, EligibilityDecision } from "../../../shared/racing/quality/contracts";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
@@ -34,6 +35,10 @@ export interface SemanticLapTelemetry {
   sectorTimes?: number[] | null;
   sectorStarts?: number[] | null;
   insights?: unknown[];
+  decision: EligibilityDecision;
+  qualityGeneration: string | null;
+  /** Fidelity, freshness, units, issue intervals, and source limitations for replayed semantic channels. */
+  channelQuality: ChannelQualitySummary[];
   envelopes: SemanticReplayFrame[];
 }
 
@@ -45,7 +50,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
       const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
-      if (!res.ok) throw new Error(res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as SemanticLapTelemetry;
     },
     enabled: lapId != null && gameId != null,

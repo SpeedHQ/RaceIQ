@@ -7,14 +7,20 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionRecorder } from "../../server/session-capture/recorder";
+import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import { db } from "../../server/db/index";
-import { sessions, laps } from "../../server/db/schema";
+import { sessions, laps, pitEvents, sessionResults } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
+import { finalizeRecordingQualityGeneration } from "../../server/lap-analysis/quality-generation";
+import { LOCAL_PLAYER_EVIDENCE } from "../../shared/racing/quality/contracts";
+import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
+import { qualityPackets, TEST_VERSION_IDENTITY } from "../lap-analysis/quality-model.test";
+import { getRecordingFixture } from "../support/recordings/fixtures";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -36,20 +42,22 @@ describe("SessionRecorder meta frame", () => {
     recorder.writeMetaFrame();
     recorder.writeRecord(Buffer.from([0x01, 0x02]));
     recorder.writeRecord(Buffer.from([0x03, 0x04]));
-    await recorder.stop();
+    const verification = await recorder.stop();
 
     const buf = Buffer.from(await Bun.file(recorder.path!).arrayBuffer());
     expect(buf.readUInt32LE(0)).toBe(META_FRAME_MAGIC);
     expect(buf.readUInt32LE(4)).toBe(4); // payload length always 4
     expect(buf.readUInt32LE(8)).toBe(2); // frame count patched on stop()
+    expect(verification.state).toBe("verified");
+    expect(verification.sourceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
   });
 
-  test("getCurrentByteOffset starts at 0 before any writes", () => {
+  test("getCurrentByteOffset starts at 0 before any writes", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
     const recorder = new SessionRecorder();
     recorder.start(join(tmpDir, "session.bin"));
     expect(recorder.getCurrentByteOffset()).toBe(0);
-    recorder.stop();
+    expect((await recorder.stop()).state).toBe("unavailable");
   });
 
   test("getCurrentByteOffset tracks written bytes", async () => {
@@ -76,7 +84,7 @@ describe("SessionRecorder meta frame", () => {
     recorder.writeMetaFrame();
     const offsetAfterMeta = recorder.getCurrentByteOffset(); // always 12
 
-    const pkt = Buffer.from([0xAA, 0xBB]);
+    const pkt = Buffer.from([0xaa, 0xbb]);
     recorder.writeRecord(pkt);
     await recorder.stop();
 
@@ -115,18 +123,17 @@ describe("reprocessSession", () => {
     return row!.id;
   }
 
-  async function insertTestLap(
-    sessId: number,
-    lapNumber: number,
-    notes?: string,
-  ): Promise<void> {
-    await db.insert(laps).values({
-      sessionId: sessId,
-      lapNumber,
-      lapTime: 90.0,
-      isValid: true,
-      notes: notes ?? null,
-    }).run();
+  async function insertTestLap(sessId: number, lapNumber: number, notes?: string): Promise<void> {
+    await db
+      .insert(laps)
+      .values({
+        sessionId: sessId,
+        lapNumber,
+        lapTime: 90.0,
+        isValid: true,
+        notes: notes ?? null,
+      })
+      .run();
   }
 
   function emptyBin(path: string): void {
@@ -160,6 +167,69 @@ describe("reprocessSession", () => {
     expect(result.sessionId).toBe(sessionId);
   });
 
+  test("retains non-replayable lifecycle facts without carrying packet-derived facts forward", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    emptyBin(binPath);
+    sessionId = await insertTestSession(binPath, "0.9.0");
+
+    const priorAccumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
+    const packets = qualityPackets(3);
+    for (const packet of packets) priorAccumulator.observe(packet);
+    priorAccumulator.observe(packets[packets.length - 1]!);
+    priorAccumulator.noteSourceLifecycle({ kind: "timeout", timestampMs: 1_000, eventId: "lifecycle:timeout:1" });
+    priorAccumulator.noteSourceLifecycle({ kind: "reconnect", timestampMs: 2_000, eventId: "lifecycle:reconnect:1" });
+    priorAccumulator.noteWriterFailure(new Error("disk full"));
+    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: "sha256:prior" }));
+    await db.update(sessions).set({ source: "native-live", recordingQuality: previous }).where(eq(sessions.id, sessionId)).run();
+
+    await reprocessSession(sessionId);
+    const first = await db.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sessionId)).get();
+
+    expect(first?.recordingQuality?.facts.some(({ code }) => code === "duplicate_observations")).toBe(false);
+    expect(first?.recordingQuality?.facts.filter(({ code }) => code === "writer_drop")).toHaveLength(1);
+    expect(first?.recordingQuality?.facts.find(({ details }) => details?.lifecycleEvent === "timeout")?.eventIds).toEqual(["lifecycle:timeout:1"]);
+    expect(first?.recordingQuality?.facts.find(({ code }) => code === "source_reconnect")?.eventIds).toEqual(["lifecycle:reconnect:1"]);
+    expect(first?.recordingQuality?.lifecycleState).toBe("degraded");
+
+    await reprocessSession(sessionId);
+    const second = await db.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    expect(second?.recordingQuality?.facts.filter(({ code }) => code === "writer_drop")).toHaveLength(1);
+    expect(second?.recordingQuality?.facts.filter(({ code }) => code === "source_reconnect")).toHaveLength(1);
+    expect(second?.recordingQuality?.provenance.outputGeneration).toBe(first?.recordingQuality?.provenance.outputGeneration);
+  });
+
+  test("relinks existing durable pit and position events after rebuilding laps", async () => {
+    const recording = getRecordingFixture("iracing-road-america-gt3.bin.gz");
+    if (!recording) throw new Error("Required recording fixture is missing");
+    const capturePath = join(tmpDir, "session.bin");
+    const recorder = new SessionRecorder();
+    recorder.start(capturePath);
+    recorder.writeMetaFrame();
+    for (const frame of readIRacingFrames(recording)) recorder.writeRecord(frame);
+    await recorder.stop();
+    const priorAccumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
+    priorAccumulator.noteWriterFailure(new Error("recording write failed"));
+    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: "sha256:prior-event-test" }));
+    sessionId = (
+      await db
+        .insert(sessions)
+        .values({ carOrdinal: 42, trackOrdinal: 99, gameId: "iracing", source: "native-live", rawFile: capturePath, recordingQuality: previous })
+        .returning({ id: sessions.id })
+        .get()
+    ).id;
+    const resultId = (await db.insert(sessionResults).values({ sessionId }).returning({ id: sessionResults.id }).get()).id;
+    const pitEventId = (await db.insert(pitEvents).values({ resultId, sequence: 1, eventType: "pit", lapNumber: 1 }).returning({ id: pitEvents.id }).get()).id;
+    const positionEventId = (await db.insert(pitEvents).values({ resultId, sequence: 2, eventType: "position-change", lapNumber: 1 }).returning({ id: pitEvents.id }).get()).id;
+
+    await reprocessSession(sessionId);
+
+    const lap = await db.select({ quality: laps.quality }).from(laps).where(eq(laps.sessionId, sessionId)).get();
+    expect(lap?.quality?.facts.length).toBeGreaterThan(0);
+    const eventIds = lap?.quality?.facts.flatMap((fact) => fact.eventIds);
+    expect(eventIds).toContain(`pit-event:${pitEventId}`);
+    expect(eventIds).toContain(`position-event:${positionEventId}`);
+  });
+
   test("replace strategy when lap count differs", async () => {
     // Empty bin → 0 laps detected; session with 1 existing lap → replace
     const binPath = join(tmpDir, "session.bin");
@@ -186,7 +256,6 @@ describe("reprocessSession", () => {
     expect(remaining).toHaveLength(0);
   });
 
-
   test("updates lap_detector_version on session after reprocess", async () => {
     const binPath = join(tmpDir, "session.bin");
     emptyBin(binPath);
@@ -200,7 +269,6 @@ describe("reprocessSession", () => {
   });
 
   test("skips additional meta frames inside bin during replay", async () => {
-    // Build a bin with: meta frame + another meta frame (should be skipped gracefully)
     const binPath = join(tmpDir, "session.bin");
     const meta1 = Buffer.alloc(8);
     meta1.writeUInt32LE(META_FRAME_MAGIC, 0);
@@ -211,27 +279,23 @@ describe("reprocessSession", () => {
     writeFileSync(binPath, Buffer.concat([meta1, meta2]));
 
     sessionId = await insertTestSession(binPath, "0.9.0");
-    // Should not throw — meta frames are silently skipped
     const result = await reprocessSession(sessionId);
     expect(result.lapsDetected).toBe(0);
   });
 
-  test("handles truncated frame at end of file gracefully", async () => {
+  test("rejects truncated framing during reprocessing", async () => {
     const binPath = join(tmpDir, "session.bin");
-    // meta frame + a truncated packet (declares 10 bytes, only 2 present)
     const meta = Buffer.alloc(8);
     meta.writeUInt32LE(META_FRAME_MAGIC, 0);
     meta.writeUInt32LE(0, 4);
     const truncated = Buffer.alloc(6);
-    truncated.writeUInt32LE(10, 0); // claims 10 bytes
-    truncated.writeUInt8(0xAA, 4);
-    truncated.writeUInt8(0xBB, 5);
+    truncated.writeUInt32LE(10, 0);
+    truncated.writeUInt8(0xaa, 4);
+    truncated.writeUInt8(0xbb, 5);
     writeFileSync(binPath, Buffer.concat([meta, truncated]));
 
     sessionId = await insertTestSession(binPath, "0.9.0");
-    // Should not throw — truncated frame causes loop to break
-    const result = await reprocessSession(sessionId);
-    expect(result.lapsDetected).toBe(0);
+    await expect(reprocessSession(sessionId)).rejects.toThrow("Truncated frame payload");
   });
 
   test("throws with descriptive error when raw file is missing from disk", async () => {
@@ -281,17 +345,13 @@ describe("countStaleSessions", () => {
   });
 
   async function insertSession(rawFile: string | null, lapDetectorVersion: string | null): Promise<number> {
-    const row = await db
-      .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion })
-      .returning({ id: sessions.id })
-      .get();
+    const row = await db.insert(sessions).values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion }).returning({ id: sessions.id }).get();
     const id = row!.id;
     insertedIds.push(id);
     return id;
   }
 
-  test("counts only raw sessions with stale detector versions", async () => {
+  test("counts raw sessions with stale detector or quality schema versions", async () => {
     const beforeCount = await countStaleSessions(detectorId);
 
     await insertSession("/some/path-old.bin", "lapdetector_v0");
@@ -300,26 +360,25 @@ describe("countStaleSessions", () => {
     await insertSession(null, null);
 
     const afterCount = await countStaleSessions(detectorId);
-
-    expect(afterCount - beforeCount).toBe(2);
+    expect(afterCount - beforeCount).toBe(3);
   });
 
-  test("getStaleSessions returns only raw sessions with stale detector versions", async () => {
+  test("getStaleSessions returns raw sessions with stale detector or quality schema versions", async () => {
     const baselineIds = await getStaleSessions(detectorId);
     const baselineSet = new Set(baselineIds);
 
     const staleRawOldVersion = await insertSession("/some/path-old.bin", "lapdetector_v0");
     const staleRawNullVersion = await insertSession("/some/path-null.bin", null);
-    const currentVersion = await insertSession("/some/path-current.bin", detectorId);
+    const staleQualitySchema = await insertSession("/some/path-current.bin", detectorId);
     const noRaw = await insertSession(null, null);
 
     const allIds = await getStaleSessions(detectorId);
     const insertedIdsOnly = allIds.filter((id) => !baselineSet.has(id));
 
-    expect(insertedIdsOnly).toHaveLength(2);
+    expect(insertedIdsOnly).toHaveLength(3);
     expect(insertedIdsOnly).toContain(staleRawOldVersion);
     expect(insertedIdsOnly).toContain(staleRawNullVersion);
-    expect(insertedIdsOnly).not.toContain(currentVersion);
+    expect(insertedIdsOnly).toContain(staleQualitySchema);
     expect(insertedIdsOnly).not.toContain(noRaw);
   });
 });

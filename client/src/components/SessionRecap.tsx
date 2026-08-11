@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
@@ -135,21 +136,22 @@ function formatDuration(sec: number): string {
 }
 
 function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
-  if (laps.length < 2) return null;
+  const paceLaps = laps.filter((lap) => isTimedLapEligibilityUsable({ lapTime: lap.lapTimeSec, eligibility: lap.eligibility }));
+  if (paceLaps.length < 2) return null;
   const width = 240,
     height = 48,
     pad = 4;
-  const times = laps.map((l) => l.lapTimeSec).filter((t) => t > 0);
+  const times = paceLaps.map((lap) => lap.lapTimeSec).filter((time) => time > 0);
   if (times.length === 0) return null;
   const min = Math.min(...times),
     max = Math.max(...times),
     range = max - min || 1;
-  const stepX = (width - pad * 2) / Math.max(1, laps.length - 1);
-  const points = laps.map((l, i) => {
-    const x = pad + i * stepX;
-    const t = l.lapTimeSec > 0 ? l.lapTimeSec : max;
+  const stepX = (width - pad * 2) / Math.max(1, paceLaps.length - 1);
+  const points = paceLaps.map((lap, index) => {
+    const x = pad + index * stepX;
+    const t = lap.lapTimeSec > 0 ? lap.lapTimeSec : max;
     const y = pad + (1 - (t - min) / range) * (height - pad * 2);
-    return { x, y, lap: l };
+    return { x, y, lap };
   });
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   return (
