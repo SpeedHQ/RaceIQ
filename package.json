@@ -22,7 +22,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "bun scripts/data/seed-db.ts",
     "test": "DATA_DIR=\"$PWD/.data-test\" bun test --timeout 30000",
-    "typecheck": "bun run --cwd client i18n:compile && bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun run --cwd client i18n:compile && bunx tsc --build client/tsconfig.json --pretty false && bunx tsc --project tsconfig.json --noEmit",
     "typecheck:scripts": "bunx tsc --project scripts/tsconfig.json",
     "lint": "bun run --cwd client lint:root",
     "format": "cd client && bun run format",
