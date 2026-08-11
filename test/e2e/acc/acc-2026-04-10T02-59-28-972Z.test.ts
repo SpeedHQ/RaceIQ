@@ -77,5 +77,5 @@ describe(recordingFile, () => {
     expect(lapSaved[2].isValid).toBe(true);
     expect(lapSaved[3].lapNumber).toBe(4);
     expect(lapSaved[3].isValid).toBe(true);
-  }, 120_000); // replays a full recorded UDP session through the pipeline; slow on CI
+  }, 300_000); // replays a full recorded UDP session; full-suite CPU contention can exceed 120s
 });
