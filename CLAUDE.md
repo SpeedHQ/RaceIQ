@@ -322,9 +322,9 @@ Signatures live in `shared/tracks/verified.json` and pin a hash of the file sign
 
 ### Pre-commit Hooks (Lefthook)
 
-Installed via `postinstall` script. Runs in parallel on staged client files:
-- **lint** — ESLint on staged `client/src/**/*.{ts,tsx}`
-- **typecheck** — full client build (`cd client && bun run build`)
+Installed via `postinstall` script. Runs repository-wide checks before every commit:
+- **lint** — `bun run lint`
+- **typecheck** — `bun run typecheck`
 
 ### AI Evaluators
 

@@ -242,9 +242,9 @@ Follow the registry and boundary model in [architecture overview](docs/architect
 
 ### Pre-commit Hooks (Lefthook)
 
-Installed via `postinstall` script. Runs in parallel on staged client files:
-- **lint** — ESLint on staged `client/src/**/*.{ts,tsx}`
-- **typecheck** — full client build (`cd client && bun run build`)
+Installed via `postinstall` script. Runs repository-wide checks before every commit:
+- **lint** — `bun run lint`
+- **typecheck** — `bun run typecheck`
 
 
 ### Pull Request Creation

@@ -1,6 +1,6 @@
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
-import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
@@ -36,7 +36,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     { carOrdinal: number; trackOrdinal: number }
   >();
 
-  constructor(options: { notifyDriverProfile?: boolean } = {}) {
+  constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {}) {
     this._inner = new RealDbAdapter(options);
   }
 
@@ -46,6 +46,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     gameId: GameId,
     sessionType?: string,
     versionIdentity?: TelemetryVersionIdentity,
+    ownership?: SessionOwnership,
   ): Promise<number> {
     const id = await this._inner.insertSession(
       carOrdinal,
@@ -53,6 +54,7 @@ export class ImportCaptureAdapter implements DbAdapter {
       gameId,
       sessionType,
       versionIdentity,
+      ownership,
     );
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
@@ -162,6 +164,8 @@ interface ImportSessionFramesOptions {
   requireLaps?: boolean;
   /** Opt out of background profile generation for offline imports such as seeds. */
   notifyDriverProfile?: boolean;
+  /** Ownership classification applied to every created session. */
+  ownership?: SessionOwnership;
 }
 
 /**
@@ -181,7 +185,10 @@ export async function importSessionFrames(
 }> {
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
-  const db = new ImportCaptureAdapter({ notifyDriverProfile: options.notifyDriverProfile });
+  const db = new ImportCaptureAdapter({
+    notifyDriverProfile: options.notifyDriverProfile,
+    ownership: options.ownership,
+  });
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
   });

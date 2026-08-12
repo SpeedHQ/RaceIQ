@@ -21,7 +21,7 @@ export type CompareSearch = {
   ai?: number;
 };
 
-export type SessionsTab = "recorded" | "imported";
+export type SessionsTab = "mine" | "others";
 export type SessionsSearch = { tab?: SessionsTab };
 export type TuneView = "overview" | `s${number}`;
 export type TuneSearch = {
@@ -102,7 +102,8 @@ export function validateCompareSearch(search: Record<string, unknown>): CompareS
 }
 
 export function validateSessionsSearch(search: Record<string, unknown>): SessionsSearch {
-  return { tab: search.tab === "imported" ? "imported" : undefined };
+  const tab = search.tab === "others" || search.tab === "mine" ? search.tab : search.tab === "recorded" || search.tab === "imported" ? "mine" : undefined;
+  return { tab };
 }
 
 export function validateTuneSearch(search: Record<string, unknown>): TuneSearch {

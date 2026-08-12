@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
 import { client } from "../../lib/rpc";
 import type { IbtImportPreview } from "./IbtImportPreviewModal";
 
@@ -34,6 +35,7 @@ export function useAnalyseImports(args: {
   const { queryClient, gameId, setSelectedTrack, setSelectedCar, setSelectedLapId } = args;
   const [exportingBin, setExportingBin] = useState(false);
   const [importingBin, setImportingBin] = useState(false);
+  const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [importResult, setImportResult] = useState<AnalyseImportResult | null>(null);
   const [ibtPreview, setIbtPreview] = useState<IbtPreviewState | null>(null);
   const selectLastLap = useCallback(
@@ -94,6 +96,7 @@ export function useAnalyseImports(args: {
         }
         const body = new FormData();
         body.append("file", file);
+        body.append("ownership", ownership);
         const res = await fetch("/api/laps/import", { method: "POST", body });
         const data = (await res.json().catch(() => null)) as { error?: string; packetCount?: number; laps?: ImportedLap[]; gameId?: string; routePrefix?: string } | null;
         if (!res.ok) {
@@ -112,7 +115,7 @@ export function useAnalyseImports(args: {
         setImportingBin(false);
       }
     },
-    [queryClient, selectLastLap],
+    [queryClient, ownership, selectLastLap],
   );
   const handleCancelIbt = useCallback(() => {
     const token = ibtPreview?.token;
@@ -124,7 +127,7 @@ export function useAnalyseImports(args: {
     if (!staged?.token) return;
     setImportingBin(true);
     try {
-      const res = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token } });
+      const res = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token, ownership } });
       const data = (await res.json().catch(() => null)) as { error?: string; packetCount?: number; laps?: ImportedLap[]; gameId?: string; routePrefix?: string } | null;
       if (!res.ok) {
         setIbtPreview(null);
@@ -144,6 +147,6 @@ export function useAnalyseImports(args: {
     } finally {
       setImportingBin(false);
     }
-  }, [ibtPreview, queryClient, selectLastLap]);
-  return { exportingBin, importingBin, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult };
+  }, [ibtPreview, ownership, queryClient, selectLastLap]);
+  return { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult };
 }
