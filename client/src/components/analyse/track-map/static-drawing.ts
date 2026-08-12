@@ -23,12 +23,13 @@ export interface StaticTrackOptions {
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;
   showInputs?: boolean;
+  showRaceLine?: boolean;
   showTrace: boolean;
   rotateWithCar: boolean;
   zoom: number;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
+  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace, rotateWithCar, zoom } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -42,6 +43,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const flip = needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
+  const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
@@ -110,6 +112,19 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
   if (outline) ctx.lineTo(sx, sy);
   ctx.stroke();
+
+  if (raceLine) {
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(raceLine[0].x, raceLine[0].z));
+    for (let i = 1; i < raceLine.length; i++) ctx.lineTo(...toCanvas(raceLine[i].x, raceLine[i].z));
+    ctx.closePath();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "var(--track-racing-line)";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+  }
 
   const n = displayOutline.length;
   const cumDist = [0];

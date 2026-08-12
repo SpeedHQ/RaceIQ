@@ -700,6 +700,7 @@
   "overlay_inputs": "Eingaben",
   "overlay_segments": "Segmente",
   "overlay_sectors": "Sektoren",
+  "overlay_racing_line": "Ideallinie",
   "track_detail_class": "Klasse",
   "track_detail_lap_num": "Runde #",
   "track_detail_all_cars": "Alle Fahrzeuge",

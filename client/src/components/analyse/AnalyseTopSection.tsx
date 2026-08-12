@@ -2,7 +2,7 @@ import type { GameId } from "../../../../shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
+import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlay } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
@@ -22,8 +22,7 @@ interface AnalyseTopSectionProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  boundaries: any;
+  boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentFrame: SemanticAnalysisFrame | null;
@@ -38,7 +37,7 @@ interface AnalyseTopSectionProps {
 
   // View toggles
   rotateWithCar: boolean;
-  trackOverlay: "none" | "inputs" | "segments" | "sectors";
+  trackOverlay: TrackOverlay;
   mapZoom: number;
   onRotateWithCarToggle: () => void;
   onTrackOverlayCycle: () => void;

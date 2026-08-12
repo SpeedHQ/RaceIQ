@@ -15,9 +15,24 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import { semanticNumber, type Point, type TrackMapHandle } from "./track-map/types";
+import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlay } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
+
+function nextTrackOverlay(current: TrackOverlay, hasRaceLine: boolean): TrackOverlay {
+  switch (current) {
+    case "none":
+      return "inputs";
+    case "inputs":
+      return "segments";
+    case "segments":
+      return "sectors";
+    case "sectors":
+      return hasRaceLine ? "racingLine" : "none";
+    case "racingLine":
+      return "none";
+  }
+}
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -79,6 +94,8 @@ function LapAnalyseInner() {
     handleCarChange,
     cursorRef,
   } = useAnalyseSelections(search, gameId);
+  const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
+  const effectiveTrackOverlay = trackOverlay === "racingLine" && !hasRacingLine ? "none" : trackOverlay;
   const loading = lapLoading;
   const [cursorIdx, setCursorIdx] = useState(0);
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
@@ -245,7 +262,7 @@ function LapAnalyseInner() {
     return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
   }, [currentFrame, cursorIdx, telemetry]);
   const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
-  const currentTime = playing ? interpolatedTimeRef.current : semanticNumber(currentFrame, "timing.current-lap") ?? 0;
+  const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const totalTime = selectedLap?.lapTime ?? 0;
 
@@ -294,7 +311,6 @@ function LapAnalyseInner() {
     if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     deleteLapMutation.mutate(selectedLapId);
   }, [selectedLapId, filteredLaps, deleteLapMutation]);
-
 
   const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
@@ -366,10 +382,10 @@ function LapAnalyseInner() {
             aiPanelOpen,
             aiHighlights,
             rotateWithCar,
-            trackOverlay,
+            trackOverlay: effectiveTrackOverlay,
             mapZoom,
             onRotateWithCarToggle: () => setRotateWithCar((r) => !r),
-            onTrackOverlayCycle: () => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none")),
+            onTrackOverlayCycle: () => setTrackOverlay(nextTrackOverlay(effectiveTrackOverlay, hasRacingLine)),
             onMapZoomChange: setMapZoom,
             vizMode,
             onVizModeChange: setWheelTab,

@@ -9,9 +9,15 @@ import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
-import { semanticValues, type Point, type SectorBoundaries, type SemanticAnalysisFrame, type TrackMapBoundaries, type TrackMapLabel } from "./track-map/types";
+import { semanticValues, type Point, type SectorBoundaries, type SemanticAnalysisFrame, type TrackMapBoundaries, type TrackMapLabel, type TrackOverlay } from "./track-map/types";
 import type { SemanticReplayFrame } from "../../hooks/laps";
-interface AnalyseSemanticFrame { sequence: number; observedAtMs: number; values: SemanticAnalysisFrame["values"]; states: Readonly<Record<string, string | undefined>>; freshness: Readonly<Record<string, string | undefined>>; }
+interface AnalyseSemanticFrame {
+  sequence: number;
+  observedAtMs: number;
+  values: SemanticAnalysisFrame["values"];
+  states: Readonly<Record<string, string | undefined>>;
+  freshness: Readonly<Record<string, string | undefined>>;
+}
 const emptyLaps: LapMeta[] = [];
 
 export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0]) {
@@ -22,13 +28,17 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
   const { data: allLaps = emptyLaps } = useLapsQuery();
   const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
-  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(() => semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
-    sequence: envelope.sequence,
-    observedAtMs: envelope.observedAt.milliseconds,
-    values: semanticValues(envelope.values),
-    states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
-    freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
-  })) ?? [], [semanticReplay]);
+  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
+    () =>
+      semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
+        sequence: envelope.sequence,
+        observedAtMs: envelope.observedAt.milliseconds,
+        values: semanticValues(envelope.values),
+        states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
+        freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
+      })) ?? [],
+    [semanticReplay],
+  );
   const telemetry = semanticFrames;
   const displayTelemetry = semanticFrames;
   const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
@@ -82,7 +92,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const initialCursor = search.cursor;
   const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);
   const [rotateWithCar, setRotateWithCar] = useLocalStorage("analyse-rotateWithCar", false);
-  const [trackOverlay, setTrackOverlay] = useLocalStorage<"none" | "inputs" | "segments" | "sectors">("analyse-trackOverlay", "none");
+  const [trackOverlay, setTrackOverlay] = useLocalStorage<TrackOverlay>("analyse-trackOverlay", "none");
   const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
   const appliedVizParam = useRef(false);
   useEffect(() => {

@@ -12,9 +12,7 @@ export interface SemanticValueEntry {
   value: unknown;
 }
 
-export function semanticValues(
-  entries: readonly SemanticValueEntry[],
-): SemanticAnalysisFrame["values"] {
+export function semanticValues(entries: readonly SemanticValueEntry[]): SemanticAnalysisFrame["values"] {
   const values: Partial<Record<TelemetryVariableId, unknown>> = {};
   for (const entry of entries) {
     if (isTelemetryVariableId(entry.semanticId)) {
@@ -24,23 +22,19 @@ export function semanticValues(
   return values;
 }
 
-export const semanticNumber = (
-  frame: SemanticAnalysisFrame | undefined,
-  id: TelemetryVariableId,
-): number | null => {
+export const semanticNumber = (frame: SemanticAnalysisFrame | undefined, id: TelemetryVariableId): number | null => {
   const value = frame?.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 };
 
-export const semanticBoolean = (
-  frame: SemanticAnalysisFrame | undefined,
-  id: TelemetryVariableId,
-): boolean => semanticNumber(frame, id) === 1;
+export const semanticBoolean = (frame: SemanticAnalysisFrame | undefined, id: TelemetryVariableId): boolean => semanticNumber(frame, id) === 1;
 
 export interface Point {
   x: number;
   z: number;
 }
+
+export type TrackOverlay = "none" | "inputs" | "segments" | "sectors" | "racingLine";
 
 export interface TrackMapLabel extends Point {
   text: string;
@@ -66,6 +60,7 @@ export interface TrackMapBoundaries {
   leftEdge: Point[];
   rightEdge: Point[];
   centerLine: Point[];
+  raceLine?: Point[] | null;
   pitLane: Point[] | null;
   coordSystem: string;
 }
@@ -80,6 +75,7 @@ export interface TrackMapProps {
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;
+  showRaceLine?: boolean;
   showInputs?: boolean;
   showTrace?: boolean;
   rotateWithCar: boolean;

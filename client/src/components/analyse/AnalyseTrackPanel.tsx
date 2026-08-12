@@ -5,7 +5,7 @@ import { m } from "../../paraglide/messages";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
-import type { Point, SectorBoundaries, SemanticAnalysisFrame, TrackMapHandle, TrackMapLabel } from "./track-map/types";
+import type { Point, SectorBoundaries, SemanticAnalysisFrame, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlay } from "./track-map/types";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
@@ -14,8 +14,7 @@ interface AnalyseTrackPanelProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  boundaries: any;
+  boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentFrame: SemanticAnalysisFrame | null;
@@ -24,7 +23,7 @@ interface AnalyseTrackPanelProps {
   aiHighlights?: AnalysisHighlight[] | null;
 
   rotateWithCar: boolean;
-  trackOverlay: "none" | "inputs" | "segments" | "sectors";
+  trackOverlay: TrackOverlay;
   mapZoom: number;
   /** Live view passes false to draw only track edges, not the driving line. */
   showTrace?: boolean;
@@ -38,6 +37,21 @@ interface AnalyseTrackPanelProps {
   hideSteeringOverlay?: boolean;
   /** Live dashboard passes true to move the weather widget to the bottom-right instead of bottom-left. */
   weatherBottomRight?: boolean;
+}
+
+function trackOverlayLabel(trackOverlay: TrackOverlay): string {
+  switch (trackOverlay) {
+    case "none":
+      return m.overlay_overlay();
+    case "inputs":
+      return m.overlay_inputs();
+    case "segments":
+      return m.overlay_segments();
+    case "sectors":
+      return m.overlay_sectors();
+    case "racingLine":
+      return m.overlay_racing_line();
+  }
 }
 
 /**
@@ -93,6 +107,7 @@ export function AnalyseTrackPanel({
         highlights={aiPanelOpen ? aiHighlights : null}
         showInputs={trackOverlay === "inputs"}
         showTrace={showTrace}
+        showRaceLine={trackOverlay === "racingLine"}
         rotateWithCar={rotateWithCar}
         zoom={mapZoom}
       />
@@ -116,7 +131,7 @@ export function AnalyseTrackPanel({
               trackOverlay !== "none" ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
             }`}
           >
-            {trackOverlay === "none" ? m.overlay_overlay() : trackOverlay === "inputs" ? m.overlay_inputs() : trackOverlay === "segments" ? m.overlay_segments() : m.overlay_sectors()}
+            {trackOverlayLabel(trackOverlay)}
           </Button>
         )}
       </div>
