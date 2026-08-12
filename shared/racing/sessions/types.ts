@@ -2,6 +2,8 @@ import type { GameId } from "@shared/games/ids";
 
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 
+export type SessionOwnership = "mine" | "others";
+
 
 
 export interface LapMeta extends Partial<TelemetryVersionIdentity> {
@@ -25,6 +27,7 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // must degrade for 'motec'; measured channels (speed, brake, throttle, gear,
   // steering) are exact and need no caveat. See MOTEC_IMPORT_LIMITATIONS.
   source?: "motec" | null;
+  ownership?: SessionOwnership;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;
   // Tune assignment
@@ -82,6 +85,7 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
    * absolute position matters.
    */
   source?: string;
+  ownership?: SessionOwnership;
   gameId?: GameId;
 }
 

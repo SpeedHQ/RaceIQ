@@ -16,6 +16,7 @@
  *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
  */
 import { zipSync, unzipSync } from "fflate";
+import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
@@ -121,6 +122,22 @@ function parseCaptureGameId(
     manifestGame.get(memberName) ??
     detectGameIdFromFilename(captureFileName(memberName))
   );
+}
+export interface LapsZipDetection {
+  isRaceIqArchive: boolean;
+  captureCount: number;
+  gameIds: GameId[];
+}
+
+/** Inspect archive contents without importing any captures. */
+export function detectLapsZip(zipData: Uint8Array): LapsZipDetection {
+  const files = unzipSync(zipData);
+  const names = fileNamesForZip(files);
+  const manifest = parseManifestFile(files);
+  const manifestGame = new Map<string, GameId>();
+  for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
+  const gameIds = [...new Set(names.map((name) => parseCaptureGameId(name, Buffer.from(files[name]), manifestGame)).filter((gameId): gameId is GameId => gameId != null))];
+  return { isRaceIqArchive: names.length > 0, captureCount: names.length, gameIds };
 }
 
 function selectedLapsBySession(
@@ -310,7 +327,7 @@ export interface ImportZipResult {
  * re-detected. Duplicates are not merged — importing the same zip twice gives
  * you the laps twice, same as the single-file `.bin` import.
  */
-export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResult> {
+export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership } = {}): Promise<ImportZipResult> {
   const files = unzipSync(zipData);
 
   const manifest = parseManifestFile(files);
@@ -343,7 +360,7 @@ export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResul
       continue;
     }
     try {
-      const result = await importSessionBin(bytes, gameId);
+      const result = await importSessionBin(bytes, gameId, { ownership: options.ownership });
       laps.push(...result.laps);
     } catch (err) {
       skipped++;

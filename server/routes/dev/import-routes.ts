@@ -26,6 +26,7 @@ import { LiveTelemetryPipeline } from "../../telemetry/live-pipeline";
 import { NullWsAdapter } from "../../telemetry/pipeline-ports";
 import { detectGameIdFromFilename } from "../../session-capture/import-capture";
 import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
+import { OwnershipSchema } from "../laps/support";
 
 export const importRoutes = new Hono();
 
@@ -37,6 +38,10 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     const file = form?.get("file");
     if (!(file instanceof File)) {
       return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    }
+    const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
+    if (!ownership.success) {
+      return c.json({ error: "ownership must be exactly mine or others" }, 400);
     }
 
     const uploadName = file.name || "upload.bin";
@@ -70,7 +75,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     let carModel: string | null = null;
     let trackName: string | null = null;
 
-    const db = new ImportCaptureAdapter();
+    const db = new ImportCaptureAdapter({ ownership: ownership.data });
     const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
       bypassPacketRateFilter: true,
     });

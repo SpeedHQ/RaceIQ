@@ -1,10 +1,12 @@
 ## Unreleased
 
 ### Features
+- Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
+- Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
@@ -61,6 +63,8 @@
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 
 ### Internal
+- Replace Biome with Oxc for repository linting and formatting
+- Consolidate coding-agent guidance in `AGENTS.md` and remove duplicate guidance file
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs

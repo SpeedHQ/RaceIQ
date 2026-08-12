@@ -32,6 +32,7 @@ type StoredLapMetaRow = {
   resolverVersion?: string | null;
   derivationVersion?: string | null;
   rawFrameCount?: number | null;
+  ownership?: string | null;
 };
 
 /** Normalize nullable SQLite fields into the public LapMeta representation. */
@@ -59,6 +60,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     parserVersion,
     resolverVersion,
     derivationVersion,
+    ownership,
     rawFrameCount,
     ...base
   } = row;
@@ -89,6 +91,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     gameId: gameId as GameId,
     sectorTimes: sectorTimes ?? undefined,
     source: (source as "motec" | null) ?? null,
+    ownership: ownership === "others" ? "others" : "mine",
     experimentId: experimentId ?? null,
     experimentVersionId: experimentVersionId ?? null,
     experimentExcluded: Boolean(experimentExcluded),
