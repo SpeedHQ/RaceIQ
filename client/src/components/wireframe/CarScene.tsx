@@ -1,3 +1,5 @@
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -182,6 +184,7 @@ export function CarScene({
   const vehicleSpeed = semanticNumber(frame, "motion.speed") ?? 0;
   const rotationValue = frame.values["tires.wheel-rotation-speed"];
   const measuredRotation = Array.isArray(rotationValue) ? rotationValue : undefined;
+  const wheelRotationAvailable = resolveAnalysisTelemetry(getGame(gameId)).wheelRotation.source !== "unavailable";
 
   // Zero out wheel rotation during lockup — locked wheel = no spin
   const ws = {
@@ -193,10 +196,10 @@ export function CarScene({
 
   // Preserve measured zeroes (including lockups). iRacing does not expose
   // per-wheel speed, so derive visual rolling from vehicle speed and tire radius.
-  const rotFL = ws.fl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[0], vehicleSpeed, fTireR);
-  const rotFR = ws.fr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[1], vehicleSpeed, fTireR);
-  const rotRL = ws.rl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[2], vehicleSpeed, rTireR);
-  const rotRR = ws.rr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[3], vehicleSpeed, rTireR);
+  const rotFL = ws.fl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[0], vehicleSpeed, fTireR, wheelRotationAvailable);
+  const rotFR = ws.fr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[1], vehicleSpeed, fTireR, wheelRotationAvailable);
+  const rotRL = ws.rl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[2], vehicleSpeed, rTireR, wheelRotationAvailable);
+  const rotRR = ws.rr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[3], vehicleSpeed, rTireR, wheelRotationAvailable);
 
   const wb = carModel.halfWheelbase;
   const ft = carModel.halfFrontTrack;
