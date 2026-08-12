@@ -63,6 +63,7 @@
 
 ### Internal
 - Replace Biome with Oxc for repository linting and formatting
+- Consolidate coding-agent guidance in `AGENTS.md` and remove duplicate guidance file
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs
