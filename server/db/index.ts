@@ -2,7 +2,8 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
-import { mkdirSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync } from "node:fs";
+import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
@@ -10,8 +11,6 @@ import { resolveDataDir } from "../runtime/config/data-dir";
 // here with DATA_DIR unset (see server/runtime/config/data-dir.ts), and sibling state such as
 // settings.json still lives on disk.
 const DB_DIR = resolveDataDir();
-const DB_FILENAME = process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "forza-telemetry.db";
-const DB_PATH = `${DB_DIR}/${DB_FILENAME}`;
 
 /**
  * Opt-in only: set DB_IN_MEMORY=1. Tests deliberately do NOT default to this.
@@ -31,6 +30,75 @@ const IN_MEMORY = process.env.DB_IN_MEMORY === "1";
 // Ensure data directory exists
 if (!existsSync(DB_DIR)) {
   mkdirSync(DB_DIR, { recursive: true });
+}
+
+export const DB_PATH = join(
+  DB_DIR,
+  process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db",
+);
+
+function migrateLegacyDatabase(legacyPath: string, currentPath: string): void {
+  const legacyExists = existsSync(legacyPath);
+  const currentExists = existsSync(currentPath);
+
+  if (legacyExists && currentExists) {
+    throw new Error(
+      `[DB] Refusing to start because both "${legacyPath}" and "${currentPath}" exist. RaceIQ will not overwrite either database; move one file out of DATA_DIR and restart.`,
+    );
+  }
+  if (!legacyExists) return;
+
+  const suffixes = ["-wal", "-shm"] as const;
+  const currentArtifacts = [currentPath, ...suffixes.map((suffix) => `${currentPath}${suffix}`)];
+  for (const targetPath of currentArtifacts) {
+    if (existsSync(targetPath)) {
+      throw new Error(
+        `[DB] Cannot migrate "${legacyPath}" because destination artifact "${targetPath}" already exists. No database files were changed.`,
+      );
+    }
+  }
+
+  const transfers = [
+    ...suffixes
+      .map((suffix) => ({
+        source: `${legacyPath}${suffix}`,
+        destination: `${currentPath}${suffix}`,
+      }))
+      .filter(({ source }) => existsSync(source)),
+    { source: legacyPath, destination: currentPath },
+  ];
+  const completed: typeof transfers = [];
+
+  try {
+    for (const transfer of transfers) {
+      renameSync(transfer.source, transfer.destination);
+      completed.push(transfer);
+    }
+  } catch (cause) {
+    const rollbackFailures: unknown[] = [];
+    for (const transfer of completed.reverse()) {
+      try {
+        renameSync(transfer.destination, transfer.source);
+      } catch (rollbackError) {
+        rollbackFailures.push(rollbackError);
+      }
+    }
+
+    const message = `[DB] Failed to migrate legacy database from "${legacyPath}" to "${currentPath}".`;
+    if (rollbackFailures.length > 0) {
+      throw new AggregateError(
+        [cause, ...rollbackFailures],
+        `${message} Rollback was incomplete; inspect both database stems before restarting.`,
+      );
+    }
+    throw new Error(`${message} No database files were changed.`, { cause });
+  }
+
+  console.log(`[DB] Migrated legacy database from "${legacyPath}" to "${currentPath}".`);
+}
+
+if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
+  migrateLegacyDatabase(join(DB_DIR, "forza-telemetry.db"), DB_PATH);
 }
 
 const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
