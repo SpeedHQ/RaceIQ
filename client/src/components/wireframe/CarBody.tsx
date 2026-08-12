@@ -144,7 +144,7 @@ export function CarBody({
   return (
     <group rotation={[0, carModel.glbRotationY ?? 0, 0]}>
       <group scale={autoScale} position={[offset.x, offset.y + 0.25 + (carModel.glbOffsetY ?? 0), offset.z + (carModel.glbOffsetZ ?? 0)]}>
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: react-three primitive handles scene interaction rather than DOM interaction */}
+        {/* oxlint-disable-next-line a11y/noStaticElementInteractions: react-three primitive handles scene interaction rather than DOM interaction */}
         <primitive object={model} onDoubleClick={handleDoubleClick} dispose={null} />
       </group>
     </group>
