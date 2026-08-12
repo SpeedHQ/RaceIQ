@@ -6,11 +6,9 @@ import type { GameId } from "../../../shared/games/ids";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { getLapById } from "../../db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
-import { getCorners, saveCorners } from "../../db/track-queries";
 import { compareLaps } from "../../lap-analysis/comparison";
-import { detectCorners } from "../../lap-analysis/corners";
 import { loadSettings } from "../../runtime/config/settings";
-import { resolveTrack } from "../../tracks/info";
+import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
 import { buildCompareChatSystemPrompt } from "../../ai/compare-chat-prompt";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../../ai/inputs-compare-prompt";
@@ -46,25 +44,9 @@ export const comparisonRoutes = new Hono()
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    let corners: Awaited<ReturnType<typeof getCorners>> = [];
-    try {
-      corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
-    } catch {
-      /* corners optional */
-    }
-
-    if (corners.length === 0 && trackOrdinal > 0) {
-      const detected = detectCorners(lapA.telemetry);
-      if (detected.length > 0 && lapA.gameId) {
-        try {
-          await saveCorners(trackOrdinal, detected, lapA.gameId, true);
-          corners = detected;
-        } catch {
-          // Race / unique constraint — corners optional, fall back to in-memory only
-          corners = detected;
-        }
-      }
-    }
+    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
+      saveDetected: true,
+    });
     const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
     const semanticIds = [
       "motion.position-x",
@@ -163,12 +145,10 @@ export const comparisonRoutes = new Hono()
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    let corners: Awaited<ReturnType<typeof getCorners>> = [];
-    try {
-      corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
-    } catch {
-      /* corners optional */
-    }
+    const trackSegments = await resolveLapSegments(trackOrdinal, lapA.gameId);
+    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
+      segments: trackSegments,
+    });
 
     const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
 
@@ -178,7 +158,7 @@ export const comparisonRoutes = new Hono()
     // Game-specific, and carrying the official turn numbers so the breakdown
     // names corners the same way the map and the track guide do.
     const segments: PromptSegment[] | null =
-      resolveTrack(lapA.gameId, lapA.trackOrdinal).segments.map((s) => ({
+      trackSegments.map((s) => ({
         name: s.name,
         type: s.type === "corner" ? ("corner" as const) : ("straight" as const),
         startFrac: s.startFrac,
@@ -358,12 +338,7 @@ export const comparisonRoutes = new Hono()
     }
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    let corners: Awaited<ReturnType<typeof getCorners>> = [];
-    try {
-      corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
-    } catch {
-      /* corners optional */
-    }
+    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry);
 
     const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
 

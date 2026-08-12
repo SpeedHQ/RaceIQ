@@ -1,8 +1,8 @@
 /** Representative lap and derived setup-engineer context for an experiment. */
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { detectCorners } from "../lap-analysis/corners";
 import { getLapById } from "../db/lap-read-queries";
+import { resolveLapCorners } from "../tracks/corner-resolution";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";
 import { telemetryToSymptoms, type TuneSymptoms } from "../ai/tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "../ai/track-conditions";
@@ -39,7 +39,7 @@ export async function loadRepresentativeLap(
 export async function computeSessionSymptoms(experimentId: number): Promise<TuneSymptoms | null> {
   const lap = await loadRepresentativeLap(experimentId);
   if (!lap) return null;
-  const corners = detectCorners(lap.telemetry);
+  const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
   return telemetryToSymptoms(lap.telemetry, corners);
 }
 
