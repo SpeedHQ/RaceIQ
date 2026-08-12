@@ -305,7 +305,7 @@ function LapAnalyseInner() {
     [setTrackOverlay],
   );
 
-  const { exportingBin, importingBin, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
+  const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
     gameId,
     setSelectedTrack,
@@ -343,6 +343,8 @@ function LapAnalyseInner() {
         onImportBin={handleImportBin}
         exportingBin={exportingBin}
         importingBin={importingBin}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
         onToggleAi={handleToggleAi}
         onDeleteLap={handleDeleteLap}
         onNotesChange={handleNotesChange}
@@ -450,6 +452,8 @@ function LapAnalyseInner() {
         setup={null}
         onCloseSetup={() => undefined}
         importingBin={importingBin}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
         onCommitIbt={() => void handleCommitIbt()}
         onCancelIbt={handleCancelIbt}
         importResult={importResult}

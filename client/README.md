@@ -19,7 +19,7 @@ Run from `client/` unless command says otherwise:
 ```sh
 bun run dev          # Vite development server
 bun run build        # Vite production build plus TypeScript build
-bun run lint         # Biome check
+bun run lint         # Oxc lint
 bun run test         # Explicitly runs ./test; root bunfig otherwise discovers root test/
 bun run storybook    # Storybook development server on port 6006
 bun run snapshot:test

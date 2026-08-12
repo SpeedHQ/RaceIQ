@@ -1240,5 +1240,16 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE session_results ADD COLUMN evidence TEXT`,
     ],
   },
+  // v58: Persist whether a session belongs to the user or another driver.
+  {
+    version: 58,
+    name: "persist session ownership",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN ownership TEXT NOT NULL DEFAULT 'mine'`,
+      `UPDATE sessions
+       SET ownership = 'mine'
+       WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
+    ],
+  },
 ];
 

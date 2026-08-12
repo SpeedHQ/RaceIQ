@@ -20,6 +20,7 @@ import {
   type IRacingValue,
 } from "./source-frame";
 import { importSessionFrames } from "../../session-capture/import-pipeline";
+import type { SessionOwnership } from "../../../shared/racing/sessions/types";
 
 const STAGE_TTL_MS = 30 * 60 * 1000;
 export const MAX_IBT_BYTES = 8 * 1024 * 1024 * 1024;
@@ -475,7 +476,7 @@ async function* ibtFrames(
   }
 }
 
-export async function commitStagedIbt(token: string): Promise<{
+export async function commitStagedIbt(token: string, ownership: SessionOwnership = "mine"): Promise<{
   packetCount: number;
   laps: Awaited<ReturnType<typeof importSessionFrames>>["laps"];
   preview: IbtImportPreview;
@@ -487,7 +488,7 @@ export async function commitStagedIbt(token: string): Promise<{
       const result = await importSessionFrames(
         ibtFrames(paths.ibt, manifest.preview),
         "iracing",
-        { requireLaps: true },
+        { requireLaps: true, ownership },
       );
       return {
         packetCount: result.packetCount,

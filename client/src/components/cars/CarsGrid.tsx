@@ -24,7 +24,7 @@ export function CarsGrid({ cars, selected, configsReady, onSelect, onDetail, onM
         const specs = car.specs!;
         const isSelected = selected.has(car.ordinal);
         return (
-          // biome-ignore lint/a11y/useSemanticElements: card contains nested checkbox and navigation button
+          // oxlint-disable-next-line a11y/useSemanticElements: card contains nested checkbox and navigation button
           <div
             key={car.ordinal}
             role="button"
