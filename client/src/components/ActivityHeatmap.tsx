@@ -141,7 +141,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
         <div className="flex gap-2 w-max mx-auto">
           <div className="flex flex-col justify-between py-[14px] pr-1 text-app-micro text-app-text/90 leading-none select-none">
             {dayLabels.map((l, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: static ordered weekday labels, never reordered
+              // oxlint-disable-next-line suspicious/noArrayIndexKey: static ordered weekday labels, never reordered
               <div key={i} style={{ height: CELL }}>
                 {l}
               </div>
@@ -166,7 +166,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
                   const strokeOpacity = isBestDay ? 1 : isToday ? 0.9 : 0.04;
                   const strokeWidth = isBestDay ? 1.5 : isToday ? 1 : 0.5;
                   return (
-                    // biome-ignore lint/a11y/noStaticElementInteractions: hover-only tooltip on decorative SVG cell; data available in legend/stats
+                    // oxlint-disable-next-line a11y/noStaticElementInteractions: hover-only tooltip on decorative SVG cell; data available in legend/stats
                     <rect
                       key={key}
                       x={w * (CELL + GAP)}

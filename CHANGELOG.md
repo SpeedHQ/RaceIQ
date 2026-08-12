@@ -62,6 +62,7 @@
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 
 ### Internal
+- Replace Biome with Oxc for repository linting and formatting
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs

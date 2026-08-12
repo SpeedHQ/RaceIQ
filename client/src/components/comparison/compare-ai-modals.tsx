@@ -52,7 +52,7 @@ export function InputsModal({
                 });
                 const clickable = !!(match && onJumpToFrac);
                 return (
-                  // biome-ignore lint/a11y/noStaticElementInteractions: optional jump-to-segment affordance, non-essential
+                  // oxlint-disable-next-line a11y/noStaticElementInteractions: optional jump-to-segment affordance, non-essential
                   <div
                     key={`${seg.name}-${seg.type ?? ""}-${seg.deltaSeconds ?? ""}`}
                     onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
