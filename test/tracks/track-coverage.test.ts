@@ -48,10 +48,10 @@ describe("track curation coverage", () => {
     expect(spliceDetail(doc, renderDetailTables())).toBe(doc);
   });
 
-  test("CLAUDE.md keeps no coverage numbers of its own", () => {
-    const claudeMd = readFileSync(resolve(import.meta.dir, "../..", "CLAUDE.md"), "utf8");
-    expect(claudeMd).not.toContain(COVERAGE_START);
-    expect(claudeMd).toContain("docs/contributing/track-curation.md");
+  test("AGENTS.md keeps no coverage numbers of its own", () => {
+    const agentsMd = readFileSync(resolve(import.meta.dir, "../..", "AGENTS.md"), "utf8");
+    expect(agentsMd).not.toContain(COVERAGE_START);
+    expect(agentsMd).toContain("docs/contributing/track-curation.md");
   });
 
   test("detail rows account for every track the summary counts", () => {
