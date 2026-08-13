@@ -174,7 +174,7 @@ describe("production database path", () => {
     expectArtifactsAbsent(testPath);
   });
 
-  test("dual-file startup refuses to modify either database", async () => {
+  test("dual-file startup keeps app.db and continues", async () => {
     const dataDir = makeDataDir();
     const appPath = join(dataDir, "app.db");
     const legacyPath = join(dataDir, "forza-telemetry.db");
@@ -186,11 +186,8 @@ describe("production database path", () => {
 
     const result = await runDbStartup(dataDir);
 
-    expect(result.code).not.toBe(0);
-    expect(result.output).toContain("app.db");
-    expect(result.output).toContain("forza-telemetry.db");
-    expect(result.output).toContain("will not overwrite either database");
-    expect(snapshotArtifacts(appPath)).toEqual(appBefore);
+    expect(result.code, result.output).toBe(0);
+    expect(profileNames(appPath)).toEqual([expect.stringContaining("app-profile-")]);
     expect(snapshotArtifacts(legacyPath)).toEqual(legacyBefore);
     expectArtifactsAbsent(testPath);
   });

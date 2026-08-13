@@ -40,12 +40,7 @@ export const DB_PATH = join(
 function migrateLegacyDatabase(): void {
   const legacyPath = join(DB_DIR, "forza-telemetry.db");
   const currentPath = DB_PATH;
-  if (!existsSync(legacyPath)) return;
-  if (existsSync(currentPath)) {
-    throw new Error(
-      `[DB] Refusing to start because both "${legacyPath}" and "${currentPath}" exist. RaceIQ will not overwrite either database; move one file out of DATA_DIR and restart.`,
-    );
-  }
+  if (!existsSync(legacyPath) || existsSync(currentPath)) return;
   renameSync(legacyPath, currentPath);
   console.log(`[DB] Migrated legacy database from "${legacyPath}" to "${currentPath}".`);
 }
