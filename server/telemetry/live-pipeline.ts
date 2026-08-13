@@ -23,6 +23,7 @@ import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { wsManager } from "../runtime/websocket-manager";
+import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
@@ -147,10 +148,12 @@ export class LiveTelemetryPipeline {
   private async _finishRecordedSession(
     session = this._recordingSession,
   ): Promise<void> {
-    if (session && this._recordingSession?.sessionId === session.sessionId) {
-      this._recordingSession = null;
-    }
-    await this.recorder.stop();
+    await withSessionCaptureMaintenanceLock(async () => {
+      if (session && this._recordingSession?.sessionId === session.sessionId) {
+        this._recordingSession = null;
+      }
+      await this.recorder.stop();
+    });
     if (session) await this._reconcileRecordedSession(session);
   }
 
@@ -158,21 +161,23 @@ export class LiveTelemetryPipeline {
     return {
       onSessionStart: async (session) => {
         const previousSession = this._recordingSession;
-        this._recordingSession = null;
-        await this.recorder.stop();
-        this.recorder.start(session.gameId);
-        this.recorder.writeMetaFrame();
-        this._recordingSession = {
-          sessionId: session.sessionId,
-          gameId: session.gameId,
-        };
-        if (this.recorder.path) {
-          await this.db.updateSessionRawFile(
-            session.sessionId,
-            this.recorder.path,
-            this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
-          );
-        }
+        await withSessionCaptureMaintenanceLock(async () => {
+          this._recordingSession = null;
+          await this.recorder.stop();
+          this.recorder.start(session.gameId);
+          this.recorder.writeMetaFrame();
+          this._recordingSession = {
+            sessionId: session.sessionId,
+            gameId: session.gameId,
+          };
+          if (this.recorder.path) {
+            await this.db.updateSessionRawFile(
+              session.sessionId,
+              this.recorder.path,
+              this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+            );
+          }
+        });
         if (previousSession) {
           void this._reconcileRecordedSession(previousSession).catch((error) => {
             console.error(
@@ -431,7 +436,7 @@ export class LiveTelemetryPipeline {
   }
 
   async flushSessionRecorder(): Promise<void> {
-    await this.recorder.stop();
+    await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
   }
 
   /** Flush buffered writes to disk without closing. */

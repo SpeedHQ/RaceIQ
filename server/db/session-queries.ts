@@ -64,10 +64,12 @@ export async function updateSessionRawFile(
  * cards and per-game pages now both report the full picture.
  */
 
-export async function countStaleSessions(currentIds: string | string[]): Promise<number> {
+async function getAvailableStaleSessionRows(
+  currentIds: string | string[],
+): Promise<{ id: number; rawFile: string }[]> {
   const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
   const rows = await db
-    .select({ id: sessions.id })
+    .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
     .where(
       and(
@@ -76,26 +78,21 @@ export async function countStaleSessions(currentIds: string | string[]): Promise
       )
     )
     .all();
-  return rows.length;
+  return rows.filter(
+    (row): row is { id: number; rawFile: string } =>
+      row.rawFile != null && existsSync(row.rawFile),
+  );
+}
+
+export async function countStaleSessions(currentIds: string | string[]): Promise<number> {
+  return (await getAvailableStaleSessionRows(currentIds)).length;
 }
 
 /**
- * Get IDs of sessions with stale lap detector version that have a raw file.
+ * Get IDs of sessions with stale lap detector versions and available raw files.
  */
-
 export async function getStaleSessions(currentIds: string | string[]): Promise<number[]> {
-  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
-  const rows = await db
-    .select({ id: sessions.id })
-    .from(sessions)
-    .where(
-      and(
-        sql`${sessions.rawFile} IS NOT NULL`,
-        or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
-      )
-    )
-    .all();
-  return rows.map(r => r.id);
+  return (await getAvailableStaleSessionRows(currentIds)).map((row) => row.id);
 }
 
 /**

@@ -3,7 +3,7 @@ name: Comment app screenshot diffs
 # Runs after the dashboard screenshot or snapshot workflow completes. Downloads
 # the rendered before/after/diff PNGs, hosts them on the throwaway
 # `pr-previews` branch, and posts (or updates) a sticky PR comment showing
-# every change from main. Also labels the PR "ui change".
+# every change from the pull request's base branch. Also labels the PR "ui change".
 
 #
 # Security: this triggers on workflow_run, so it runs in the BASE repo context
@@ -43,7 +43,9 @@ jobs:
         id: meta
         run: |
           pr=$(cat pr-preview/pr-number.txt)
+          base_ref=$(cat pr-preview/base-ref.txt)
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "base-ref=$base_ref" >> "$GITHUB_OUTPUT"
           if ls pr-preview/*-after.png >/dev/null 2>&1; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
@@ -81,6 +83,7 @@ jobs:
         env:
           PR: ${{ steps.meta.outputs.pr }}
           SUBDIR: ${{ steps.publish.outputs.subdir }}
+          BASE_REF: ${{ steps.meta.outputs.base-ref }}
         run: |
           marker='<!-- app-screenshot-diff -->'
           base="https://raw.githubusercontent.com/${REPO}/${PREVIEW_BRANCH}/${SUBDIR}"
@@ -88,7 +91,7 @@ jobs:
             echo "$marker"
             echo "## 🖼️ App UI changes"
             echo
-            echo "Current PR screenshots compared with main. Storybook render-vs-committed-baseline failures are listed separately from committed PR-baseline-vs-main changes."
+            printf 'Current PR screenshots compared with `%s`. Storybook render-vs-committed-baseline failures are listed separately from committed PR-baseline-vs-base changes.\n' "$BASE_REF"
             echo
             for after in pr-preview/*-after.png; do
               name=$(basename "$after" -after.png)
@@ -108,7 +111,7 @@ jobs:
               echo "| ![before](${base}/${name}-before.png) | ![after](${base}/${name}-after.png) | ![diff](${base}/${name}-diff.png) |"
               echo
             done
-            echo "<sub>Rendered from Storybook and responsive app screenshot tests against current main.</sub>"
+            printf '<sub>Rendered from Storybook and responsive app screenshot tests against `%s`.</sub>\n' "$BASE_REF"
           } > body.md
 
           # Replace previous UI-diff reports so each PR has one current comment.

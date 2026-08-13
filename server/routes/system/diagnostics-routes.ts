@@ -1,5 +1,5 @@
 import { existsSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname } from "node:path";
 import { arch, platform, release, type as osType, cpus, networkInterfaces, totalmem, freemem, uptime as osUptime } from "node:os";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
@@ -8,15 +8,17 @@ import { zipSync, strToU8 } from "fflate";
 
 import { lapDetector } from "../../telemetry/live-pipeline";
 import { wsManager } from "../../runtime/websocket-manager";
-import { IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../../runtime/config/paths";
+import { IS_COMPILED, ROOT_DIR } from "../../runtime/config/paths";
 import { udpListener } from "../../runtime/udp-listener";
 import { getRunningGame } from "../../games/registry";
 import { getCurrentDetectedGame } from "../../games/packet-dispatch";
 import { loadSettings } from "../../runtime/config/settings";
-import { client as dbClient } from "../../db";
+import { client as dbClient, DB_PATH } from "../../db";
 import { getChatMemory, CHAT_RESOURCE_ID } from "../../ai/chat-agent";
 import { log, readRecentLogText } from "../../runtime/logger";
 import pkg from "../../../package.json";
+
+const DB_DIR = dirname(DB_PATH);
 
 const ClientLogSchema = z.object({
   level: z.enum(["warn", "error"]).default("error"),
@@ -113,9 +115,8 @@ export const diagnosticsRoutes = new Hono()
     let sessionCount: number | null = null;
     let lapCount: number | null = null;
     try {
-      const dbPath = join(USER_DATA_DIR, "forza-telemetry.db");
-      if (existsSync(dbPath)) {
-        const stats = statSync(dbPath);
+      if (existsSync(DB_PATH)) {
+        const stats = statSync(DB_PATH);
         dbSizeMB = Math.round(stats.size / 1024 / 1024 * 100) / 100;
       }
       // Query session and lap counts
@@ -222,7 +223,7 @@ export const diagnosticsRoutes = new Hono()
         } catch { return null; }
       };
       installDriveType = driveType(ROOT_DIR);
-      dataDriveType = driveType(USER_DATA_DIR);
+      dataDriveType = driveType(DB_DIR);
     }
 
     const diagnostics = {
@@ -231,7 +232,7 @@ export const diagnosticsRoutes = new Hono()
         compiled: IS_COMPILED,
         installDir: ROOT_DIR,
         installDriveType,
-        dataDir: USER_DATA_DIR,
+        dataDir: DB_DIR,
         dataDriveType,
         bunVersion: typeof Bun !== "undefined" ? Bun.version : null,
       },

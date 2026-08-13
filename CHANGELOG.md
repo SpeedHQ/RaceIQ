@@ -1,5 +1,8 @@
 ## Unreleased
 
+### Breaking
+- Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
+
 ### Features
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
@@ -10,6 +13,8 @@
 ### Fixes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
+- Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
+- Keep newly started session captures from being removed by concurrent storage cleanup
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
 - Show actionable, neutral guidance when AI provider, credentials, or model configuration is incomplete
 - Keep iRacing lap replay within saved frame boundaries so telemetry from the following lap is not included
@@ -78,6 +83,7 @@
 - Restored live-dashboard Storybook runtime context and added same-renderer local visual comparison before canonical Linux baseline generation
 - Expanded visual regression coverage to 97 fixture-seeded responsive app states plus 17 Storybook states, covering every game, high-risk screens, track and experiment details, reusable primitives, navigation, dialogs, and viewport-positioned menus
 - Added a local main-versus-worktree UI comparison report using the same responsive and Storybook screenshot inventory as pull-request previews
+- Compare screenshot previews against each pull request's base branch and revision instead of current main
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
 - Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
 - Add fixture-seeded cross-game route and lap playback end-to-end coverage
