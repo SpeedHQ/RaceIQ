@@ -5,7 +5,7 @@ import { GameIdQuerySchema, IdParamSchema } from "@shared/platform/http/route-sc
 import { GameIdSchema } from "../../shared/games/ids";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds } from "../db/session-result-queries";
-import { reprocessSession, SessionRawFileMissingError } from "../session-capture/reprocess";
+import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "../session-capture/reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
@@ -86,6 +86,9 @@ export const sessionRoutes = new Hono()
     } catch (error) {
       if (error instanceof SessionRawFileMissingError) {
         return c.json({ error: error.message }, 410);
+      }
+      if (error instanceof SessionNotFoundError) {
+        return c.json({ error: error.message }, 404);
       }
       throw error;
     }

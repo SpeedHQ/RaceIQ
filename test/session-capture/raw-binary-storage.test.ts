@@ -258,6 +258,37 @@ describe("reprocessSession", () => {
     });
   });
 
+  test("returns 410 when session has no raw capture", async () => {
+    sessionId = await insertTestSession(null, "0.9.0");
+
+    const response = await sessionRoutes.request(
+      `/api/sessions/${sessionId}/reprocess`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(410);
+    expect(await response.json()).toEqual({
+      error: `Session ${sessionId} has no raw file to reprocess`,
+    });
+  });
+
+  test("returns 404 when reprocess session does not exist", async () => {
+    sessionId = await insertTestSession(null, "0.9.0");
+    const missingSessionId = sessionId;
+    await db.delete(sessions).where(eq(sessions.id, missingSessionId)).run();
+    sessionId = 0;
+
+    const response = await sessionRoutes.request(
+      `/api/sessions/${missingSessionId}/reprocess`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: `Session ${missingSessionId} not found`,
+    });
+  });
+
   test("replace strategy preserves notes for matched lap numbers when new laps exceed old count", async () => {
     // Empty bin → 0 laps detected; we need a bin that actually produces laps.
     // Use emptyBin (0 detected) but pre-populate 2 laps with notes — replace

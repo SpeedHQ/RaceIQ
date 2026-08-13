@@ -24,9 +24,20 @@ interface ReprocessResult {
 }
 
 export class SessionRawFileMissingError extends Error {
-  constructor(sessionId: number, rawFile: string) {
-    super(`Session ${sessionId} raw file not found: ${rawFile}`);
+  constructor(sessionId: number, rawFile?: string) {
+    super(
+      rawFile
+        ? `Session ${sessionId} raw file not found: ${rawFile}`
+        : `Session ${sessionId} has no raw file to reprocess`,
+    );
     this.name = "SessionRawFileMissingError";
+  }
+}
+
+export class SessionNotFoundError extends Error {
+  constructor(sessionId: number) {
+    super(`Session ${sessionId} not found`);
+    this.name = "SessionNotFoundError";
   }
 }
 
@@ -41,8 +52,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     .where(eq(sessions.id, sessionId))
     .get();
 
-  if (!session?.rawFile) {
-    throw new Error(`Session ${sessionId} has no raw file to reprocess`);
+  if (!session) {
+    throw new SessionNotFoundError(sessionId);
+  }
+  if (!session.rawFile) {
+    throw new SessionRawFileMissingError(sessionId);
   }
 
   const gameId = session.gameId as GameId;
