@@ -7,7 +7,7 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: `${DATA_DIR}/forza-telemetry.db`,
+    url: `${DATA_DIR}/app.db`,
   },
   tablesFilter: ["!schema_migrations"],
 });
