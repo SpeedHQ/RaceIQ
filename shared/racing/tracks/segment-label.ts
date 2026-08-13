@@ -56,6 +56,24 @@ export function lapWrappedSegmentGroup(
   };
 }
 
+/** Count driver-facing sections, collapsing a section split at the lap boundary. */
+export function logicalSegmentCounts(
+  segments: readonly Pick<LabelSegment, "type" | "group">[],
+): { corners: number; straights: number } {
+  let corners = 0;
+  let straights = 0;
+  for (const segment of segments) {
+    if (segment.type === "corner") corners++;
+    if (segment.type === "straight") straights++;
+  }
+  const lapWrap = lapWrappedSegmentGroup(segments);
+  if (lapWrap) {
+    if (segments[lapWrap.firstIndex].type === "corner") corners--;
+    if (segments[lapWrap.firstIndex].type === "straight") straights--;
+  }
+  return { corners, straights };
+}
+
 /** Official turn numbers a corner entry accounts for, lowest first. */
 export function turnNumbers(seg: Pick<LabelSegment, "number" | "covers">): number[] {
   return seg.number === undefined ? [] : [seg.number, ...(seg.covers ?? [])];

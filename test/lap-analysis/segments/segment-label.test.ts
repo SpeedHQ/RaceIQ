@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import {
   formatTurnNumbers,
   lapWrappedSegmentGroup,
+  logicalSegmentCounts,
   segmentDisplayNames,
   segmentGroupLabels,
   segmentPromptLabels,
@@ -61,6 +62,32 @@ describe("lapWrappedSegmentGroup", () => {
       straight("Kemmel"),
     ];
     expect(lapWrappedSegmentGroup(segments)).toBeNull();
+  });
+});
+
+describe("logicalSegmentCounts", () => {
+  test("counts a lap-wrapped straight once", () => {
+    expect(
+      logicalSegmentCounts([
+        straight("Frontstretch", "Frontstretch"),
+        corner("", [1]),
+        corner("", [2]),
+        straight("Backstretch"),
+        corner("", [3]),
+        corner("", [4]),
+        straight("Frontstretch", "Frontstretch"),
+      ]),
+    ).toEqual({ corners: 4, straights: 2 });
+  });
+
+  test("keeps ordinary grouped corners as separate turn sections", () => {
+    expect(
+      logicalSegmentCounts([
+        corner("Eau Rouge", [2], "Eau Rouge/Raidillon"),
+        corner("Raidillon", [3, 4], "Eau Rouge/Raidillon"),
+        straight("Kemmel"),
+      ]),
+    ).toEqual({ corners: 2, straights: 1 });
   });
 });
 

@@ -1,4 +1,4 @@
-import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
+import { logicalSegmentCounts, segmentDisplayNames } from "@shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
@@ -214,8 +214,10 @@ export function TrackDetail({
   // Corner names carry their official turn numbers; straights are auto-numbered.
   const segDisplayNames = useMemo(() => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])), [editing, editSegments, displaySectors]);
 
-  const corners = displaySectors?.segments.filter((s) => s.type === "corner") ?? [];
-  const straights = displaySectors?.segments.filter((s) => s.type === "straight") ?? [];
+  const { corners: cornerCount, straights: straightCount } = useMemo(
+    () => logicalSegmentCounts(displaySectors?.segments ?? []),
+    [displaySectors],
+  );
 
   // Lap manager: unique cars, filtered & sorted laps
   const uniqueCars = useMemo(() => {
@@ -362,8 +364,8 @@ export function TrackDetail({
               editingSectors={editingSectors}
               trackLengthKm={track.lengthKm}
               trackCreatedAt={track.createdAt ?? undefined}
-              corners={corners.length}
-              straights={straights.length}
+              corners={cornerCount}
+              straights={straightCount}
             />
           </div>
           <TrackDebugSidebar
@@ -426,8 +428,8 @@ export function TrackDetail({
                   displaySectors={displaySectors}
                   mapDisplayMode={mapDisplayMode}
                   setMapDisplayMode={setMapDisplayMode}
-                  corners={corners}
-                  straights={straights}
+                  cornerCount={cornerCount}
+                  straightCount={straightCount}
                 />
               </div>
             )}

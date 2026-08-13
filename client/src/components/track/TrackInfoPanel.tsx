@@ -1,5 +1,5 @@
 import type { ResolvedTrackGuide } from "@shared/racing/tracks/guide/types";
-import { lapWrappedSegmentGroup, segmentDisplayNames, turnNumbers } from "@shared/racing/tracks/segment-label";
+import { lapWrappedSegmentGroup, logicalSegmentCounts, segmentDisplayNames, turnNumbers } from "@shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
@@ -87,16 +87,13 @@ export function TrackInfoPanel({
   const labels = useMemo(() => segmentDisplayNames(segments), [segments, lapWrap]);
 
   const corners = segments.filter((s) => s.type === "corner");
-  const straights = segments.filter((s) => s.type === "straight");
   // Turn count is highest official number curation covers; fallback native catalog count.
   const turnCount = corners.reduce((max, s) => Math.max(max, ...turnNumbers(s), 0), 0);
   const displayedTurnCount = turnCount || track.cornersPerLap || 0;
-  const displayedCornerSections =
-    corners.length -
-    (lapWrap && segments[lapWrap.firstIndex]?.type === "corner" ? 1 : 0);
-  const displayedStraights =
-    straights.length -
-    (lapWrap && segments[lapWrap.firstIndex]?.type === "straight" ? 1 : 0);
+  const {
+    corners: displayedCornerSections,
+    straights: displayedStraights,
+  } = logicalSegmentCounts(segments);
   /** Which sector a segment falls in, by its midpoint. */
   const sectorOf = (startFrac: number, endFrac: number): 1 | 2 | 3 => {
     if (!sectorBounds) return 1;
