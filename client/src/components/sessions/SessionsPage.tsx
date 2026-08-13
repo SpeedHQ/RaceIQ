@@ -1,8 +1,7 @@
-import { motecImportSupported } from "@shared/integrations/motec";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MotecImportModal } from "@/components/analyse/MotecImportModal";
+import { SessionImportModal } from "./SessionImportModal";
 import { SessionRecapModal } from "@/components/SessionRecapModal";
 import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
@@ -45,14 +44,12 @@ export function SessionsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const routeSearch = useSearch({ strict: false }) as { tab?: string };
-  const tab: SessionsTab = routeSearch.tab === "imported" && motecImportSupported(gameId) ? "imported" : "recorded";
+  const tab: SessionsTab = routeSearch.tab === "others" ? "others" : "mine";
   const setTab = useCallback(
     (nextTab: SessionsTab) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      navigate({ to: ".", search: (previous: any) => ({ ...previous, tab: nextTab === "recorded" ? undefined : nextTab }) } as any);
+      navigate({ to: ".", search: (previous: any) => ({ ...previous, tab: nextTab === "mine" ? undefined : nextTab }) } as any);
       setPage(0);
-      setSelectedSessions(new Set());
-      setSelectedLaps(new Set());
     },
     [navigate],
   );
@@ -201,16 +198,15 @@ export function SessionsPage() {
   );
   const isF1 = gameId === "f1-2025";
   const colCount = isF1 ? 9 : 8;
-  const emptyMessage = tab === "imported" ? m.sessions_none_imported() : m.sessions_none();
+  const emptyMessage = tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
       {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} gameId={gameId} onClose={() => setRecapSessionId(null)} />}
       {importOpen && (
-        <MotecImportModal
+        <SessionImportModal
           onClose={() => setImportOpen(false)}
           onImported={() => {
-            setImportOpen(false);
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             void queryClient.invalidateQueries({ queryKey: queryKeys.laps });
           }}

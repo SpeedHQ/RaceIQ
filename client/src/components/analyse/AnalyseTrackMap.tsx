@@ -7,7 +7,7 @@ import { drawStaticTrack } from "./track-map/static-drawing";
 import type { TrackMapHandle, TrackMapProps, TrackTransform } from "./track-map/types";
 
 export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(function AnalyseTrackMap(props, ref) {
-  const { telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace = true, rotateWithCar, zoom = 1 } = props;
+  const { gameId, telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace = true, rotateWithCar, zoom = 1 } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
@@ -24,6 +24,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       canvas,
       bufferCanvas: bufferCanvasRef.current,
       telemetry,
+      gameId,
       resolvedPositions,
       outline,
       mapLabels,
@@ -42,7 +43,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       const ctx = getSemanticCanvasContext(carCanvasRef.current);
       ctx?.clearRect(0, 0, carCanvasRef.current.width, carCanvasRef.current.height);
     }
-  }, [telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom]);
+  }, [gameId, telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom]);
 
   const renderOverlayOptions = useCallback(
     () => ({

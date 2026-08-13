@@ -1,22 +1,16 @@
 import type { LivePitData, LiveSectorData } from "../../../../shared/racing/live/types";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import type { DisplayPacket } from "../../lib/convert-packet";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { SectorTimes } from "../SectorTimes";
-import { LapTimes } from "../telemetry/LapTimes";
 import { TireGrid } from "../telemetry/TireGrid";
 import { DashShell } from "./dash-shell";
 import { FitToViewport } from "./FitToViewport";
 import { RevBar } from "./RevBar";
-
 interface ComboDashProps {
-  rawPacket: TelemetryPacket | null;
-  packet: DisplayPacket | null;
+  view?: LiveTelemetryView | null;
   sectors: LiveSectorData | null;
   pit: LivePitData | null;
   unitSystem: "metric" | "imperial";
   tireHealthThresholds?: { green: number; yellow: number };
-  /** Convert a tire temperature from the game's native unit to °C. */
-  toTempC: (t: number) => number;
 }
 
 function gearLabel(gear: number): string {
@@ -24,8 +18,7 @@ function gearLabel(gear: number): string {
   if (gear === 1) return "N";
   return String(gear - 1);
 }
-
-export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHealthThresholds, toTempC }: ComboDashProps) {
+export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds }: ComboDashProps) {
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
   const tireCliffs = pit?.tireEstimates?.toCliff ?? [];
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
@@ -39,16 +32,17 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
       weakestLabel = tireLabels[i];
     }
   }
-
-  const rpm = packet?.CurrentEngineRpm ?? 0;
-  const idle = packet?.EngineIdleRpm ?? 0;
-  const max = packet?.EngineMaxRpm ?? 10000;
-  const gear = packet?.Gear ?? 1;
-  const speed = packet?.DisplaySpeed ?? 0;
+  const rpm = view?.engine.rpm ?? 0;
+  const idle = view?.engine.idleRpm ?? 0;
+  const max = view?.engine.maxRpm ?? 10000;
+  const gear = view?.inputs.gear ?? 1;
+  const speed = (view?.motion.speedMps ?? 0) * (unitSystem === "metric" ? 3.6 : 2.23694);
   const unit = unitSystem === "metric" ? "km/h" : "mph";
-  const lapNumber = packet?.LapNumber ?? 0;
-  const totalLaps = rawPacket?.f1?.totalLaps;
+  const lapNumber = view?.timing.lapNumber ?? 0;
+  const totalLaps = view?.timing.totalLaps;
   const health = tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
+  const tires = view?.tires;
+  const hasTelemetry = !!view;
 
   return (
     <DashShell>
@@ -102,10 +96,9 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
 
         <div className="col-span-2 min-h-0 flex gap-3">
           <div className="flex-[3] min-w-0 min-h-0 rounded-md border border-app-text/10 bg-app-text/[0.02] overflow-hidden">
-            {rawPacket ? (
+            {hasTelemetry ? (
               <FitToViewport padding={12} alignX="start" alignY="center">
                 <div style={{ width: 560 }} className="space-y-3">
-                  <LapTimes packet={rawPacket} sectors={sectors} />
                   <SectorTimes sectors={sectors} />
                 </div>
               </FitToViewport>
@@ -113,38 +106,16 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
               <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">Waiting for lap data…</div>
             )}
           </div>
-
           <div className="flex-[2] min-w-0 min-h-0 rounded-md border border-app-text/10 bg-app-text/[0.02] overflow-hidden">
-            {rawPacket ? (
+            {tires ? (
               <FitToViewport padding={4} maxScale={5}>
                 <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
                   <TireGrid
-                    fl={{
-                      tempC: Math.round(toTempC(rawPacket.TireTempFL)),
-                      wear: rawPacket.TireWearFL,
-                      brakeTemp: rawPacket.BrakeTempFrontLeft,
-                      pressure: rawPacket.TirePressureFrontLeft,
-                    }}
-                    fr={{
-                      tempC: Math.round(toTempC(rawPacket.TireTempFR)),
-                      wear: rawPacket.TireWearFR,
-                      brakeTemp: rawPacket.BrakeTempFrontRight,
-                      pressure: rawPacket.TirePressureFrontRight,
-                    }}
-                    rl={{
-                      tempC: Math.round(toTempC(rawPacket.TireTempRL)),
-                      wear: rawPacket.TireWearRL,
-                      brakeTemp: rawPacket.BrakeTempRearLeft,
-                      pressure: rawPacket.TirePressureRearLeft,
-                    }}
-                    rr={{
-                      tempC: Math.round(toTempC(rawPacket.TireTempRR)),
-                      wear: rawPacket.TireWearRR,
-                      brakeTemp: rawPacket.BrakeTempRearRight,
-                      pressure: rawPacket.TirePressureRearRight,
-                    }}
-                    healthThresholds={health}
-                    tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+                    fl={{ tempC: Math.round(tires.temperatureC?.fl ?? 0), wear: tires.wear?.fl ?? 0, brakeTemp: tires.brakeTemperatureC?.fl ?? 0, pressure: tires.pressurePsi?.fl ?? 0 }}
+                    fr={{ tempC: Math.round(tires.temperatureC?.fr ?? 0), wear: tires.wear?.fr ?? 0, brakeTemp: tires.brakeTemperatureC?.fr ?? 0, pressure: tires.pressurePsi?.fr ?? 0 }}
+                    rl={{ tempC: Math.round(tires.temperatureC?.rl ?? 0), wear: tires.wear?.rl ?? 0, brakeTemp: tires.brakeTemperatureC?.rl ?? 0, pressure: tires.pressurePsi?.rl ?? 0 }}
+                    rr={{ tempC: Math.round(tires.temperatureC?.rr ?? 0), wear: tires.wear?.rr ?? 0, brakeTemp: tires.brakeTemperatureC?.rr ?? 0, pressure: tires.pressurePsi?.rr ?? 0 }}
+                    healthThresholds={health} tempThresholds={{ blue: 60, orange: 85, red: 100 }}
                   />
                 </div>
               </FitToViewport>

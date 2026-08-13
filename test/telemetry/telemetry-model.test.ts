@@ -91,7 +91,7 @@ describe("game telemetry models", () => {
       expect(model.tirePressure !== undefined).toBe(
         expected.tirePressure,
       );
-      expect(model.ers === true).toBe(expected.ers);
+      expect(model.ers !== undefined).toBe(expected.ers);
 
       const supportedScalars = (
         ["boost", "power", "torque"] as const
@@ -129,10 +129,12 @@ describe("game telemetry models", () => {
     expect(getGame("f1-2025").telemetry.weather).toEqual({
       source: "direct",
       freshness: "continuous",
+      binding: { kind: "group", required: ["weather.air-temp"] },
     });
     expect(getGame("ac-evo").telemetry.weather).toEqual({
       source: "direct",
-      freshness: "static",
+      freshness: "continuous",
+      binding: { kind: "group", required: ["weather.air-temp"] },
     });
     expect(getGame("acc").telemetry.weather).toBeUndefined();
     expect(getGame("iracing").telemetry.weather).toBeUndefined();

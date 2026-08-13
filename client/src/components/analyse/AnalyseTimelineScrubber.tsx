@@ -1,17 +1,18 @@
 import { memo, type RefObject, useEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { Button } from "../ui/button";
+import { type SemanticAnalysisFrame, semanticNumber } from "./track-map/types";
+
+const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
 
 interface SectorTimesData {
   times: number[];
   sectorCount: number;
   cursorSector: number;
 }
-
 interface TimelineScrubberProps {
-  displayTelemetry: TelemetryPacket[];
+  displayTelemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   totalPackets: number;
   currentTime: number;
@@ -28,6 +29,63 @@ interface TimelineScrubberProps {
   onSeek: (idx: number) => void;
   onVisualFracChange: (frac: number | null) => void;
 }
+interface TimelineData {
+  timeFracs: number[];
+  times: number[];
+}
+
+const PlaybackControls = memo(function PlaybackControls({
+  playing,
+  playbackSpeed,
+  onTogglePlay,
+  onSpeedChange,
+}: Pick<TimelineScrubberProps, "playing" | "playbackSpeed" | "onTogglePlay" | "onSpeedChange">) {
+  return (
+    <>
+      <Button
+        type="button"
+        onClick={onTogglePlay}
+        className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-surface-hover text-app-text transition-colors"
+        title={playing ? "Pause (Space)" : "Play (Space)"}
+      >
+        {playing ? "\u275A\u275A" : "\u25B6"}
+      </Button>
+      <div className="flex flex-wrap gap-1">
+        {[0.1, 0.25, 0.5, 1, 1.5, 2, 2.5].map((speed) => (
+          <Button
+            type="button"
+            key={speed}
+            aria-pressed={playbackSpeed === speed}
+            onClick={() => onSpeedChange(speed)}
+            className={`px-1.5 py-0.5 text-app-caption font-mono rounded transition-colors ${
+              playbackSpeed === speed ? "bg-app-accent text-app-on-filled" : "bg-app-surface-alt text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
+            }`}
+          >
+            {speed}x
+          </Button>
+        ))}
+      </div>
+    </>
+  );
+});
+
+const TimelineGapHighlights = memo(function TimelineGapHighlights({ timelineData }: { timelineData: TimelineData }) {
+  return timelineData.times.map((time, index) => {
+    if (index === 0) return null;
+    const delta = time - timelineData.times[index - 1];
+    if (delta <= 0.1) return null;
+    const left = timelineData.timeFracs[index - 1] * 100;
+    const right = timelineData.timeFracs[index] * 100;
+    return (
+      <div
+        key={`${timelineData.timeFracs[index - 1]}-${timelineData.timeFracs[index]}`}
+        className="absolute top-0 h-full border-x bg-status-danger/30 border-status-danger/50"
+        style={{ left: `${left}%`, width: `${Math.max(0.3, right - left)}%` }}
+        title={`${delta.toFixed(2)}s gap`}
+      />
+    );
+  });
+});
 
 export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   displayTelemetry,
@@ -58,20 +116,21 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   );
   const timelineData = useMemo(() => {
     if (displayTelemetry.length === 0) return null;
-    const startTime = displayTelemetry[0].CurrentLap;
-    // Use max CurrentLap as end time — last packet may have reset to next lap
+    const startTime = currentLap(displayTelemetry[0]);
+    // Use max current-lap as end time — last frame may have reset to next lap
     let maxTime = startTime;
-    for (const p of displayTelemetry) {
-      if (p.CurrentLap > maxTime) maxTime = p.CurrentLap;
+    for (const frame of displayTelemetry) {
+      const time = currentLap(frame);
+      if (time > maxTime) maxTime = time;
     }
     const lapDuration = maxTime - startTime || 1;
     let prevFrac = 0;
-    const timeFracs = displayTelemetry.map((p) => {
-      const frac = Math.max(prevFrac, (p.CurrentLap - startTime) / lapDuration);
+    const timeFracs = displayTelemetry.map((frame) => {
+      const frac = Math.max(prevFrac, (currentLap(frame) - startTime) / lapDuration);
       prevFrac = frac;
       return frac;
     });
-    const times = displayTelemetry.map((p) => p.CurrentLap);
+    const times = displayTelemetry.map(currentLap);
     return { timeFracs, times };
   }, [displayTelemetry]);
 
@@ -104,29 +163,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          onClick={onTogglePlay}
-          className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-surface-hover text-app-text transition-colors"
-          title={playing ? "Pause (Space)" : "Play (Space)"}
-        >
-          {playing ? "\u275A\u275A" : "\u25B6"}
-        </Button>
-        <div className="flex flex-wrap gap-1">
-          {[0.1, 0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
-            <Button
-              type="button"
-              key={s}
-              aria-pressed={playbackSpeed === s}
-              onClick={() => onSpeedChange(s)}
-              className={`px-1.5 py-0.5 text-app-caption font-mono rounded transition-colors ${
-                playbackSpeed === s ? "bg-app-accent text-app-on-filled" : "bg-app-surface-alt text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
-              }`}
-            >
-              {s}x
-            </Button>
-          ))}
-        </div>
+        <PlaybackControls playing={playing} playbackSpeed={playbackSpeed} onTogglePlay={onTogglePlay} onSpeedChange={onSpeedChange} />
         <div
           role="slider"
           tabIndex={0}
@@ -184,25 +221,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
           {/* Track background */}
           <div className="absolute inset-x-0 h-2 bg-app-border-input rounded-full">
             {/* Gap highlights */}
-            {timelineData?.timeFracs &&
-              timelineData.times?.map((t, i) => {
-                if (i === 0) return null;
-                const dt = t - timelineData.times[i - 1];
-                if (dt <= 0.1) return null;
-                const left = timelineData.timeFracs[i - 1] * 100;
-                const right = timelineData.timeFracs[i] * 100;
-                return (
-                  <div
-                    key={`${timelineData.timeFracs[i - 1]}-${timelineData.timeFracs[i]}`}
-                    className="absolute top-0 h-full border-x bg-status-danger/30 border-status-danger/50"
-                    style={{
-                      left: `${left}%`,
-                      width: `${Math.max(0.3, right - left)}%`,
-                    }}
-                    title={`${dt.toFixed(2)}s gap`}
-                  />
-                );
-              })}
+            {timelineData && <TimelineGapHighlights timelineData={timelineData} />}
             {/* Progress fill */}
             <div ref={progressRef} className="absolute top-0 h-full rounded-full bg-app-accent/40" style={{ width: `${cursorPct}%` }} />
           </div>

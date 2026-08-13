@@ -168,11 +168,11 @@ describe("local UI diff report", () => {
   test("keeps screenshot coverage bounded to high-value visual states", () => {
     expect(RESPONSIVE_VIEWPORTS).toHaveLength(3);
     expect(RESPONSIVE_PAGES).toHaveLength(51);
-    expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(4);
-    expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(97);
+    expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(5);
+    expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(98);
     expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(8);
-    expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(9);
-    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(17);
-    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(114);
+    expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(10);
+    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(18);
+    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(116);
   });
 });

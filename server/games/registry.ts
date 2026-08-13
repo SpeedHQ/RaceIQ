@@ -7,13 +7,17 @@ const adapterMap = new Map<string, ServerGameAdapter>();
 const processNameMap = new Map<string, string[]>();
 
 export function registerServerGame(adapter: ServerGameAdapter): void {
-  adapters.push(adapter);
+  const existing = adapterMap.get(adapter.id);
+  if (existing) adapters[adapters.indexOf(existing)] = adapter;
+  else adapters.push(adapter);
   adapterMap.set(adapter.id, adapter);
   if (adapter.processNames?.length) {
     processNameMap.set(
       adapter.id,
       adapter.processNames.map((name) => name.replace(/\.exe$/i, "").toLowerCase()),
     );
+  } else {
+    processNameMap.delete(adapter.id);
   }
 }
 

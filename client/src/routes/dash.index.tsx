@@ -3,28 +3,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
-import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, generateFakeSessionLaps } from "../stories/fakeData";
+import { fakeF1SemanticFixture, fakePit, fakeSectors, generateFakeSessionLaps } from "../stories/fakeData";
 
 const PREVIEW_LAPS = generateFakeSessionLaps(10);
 
-const PREVIEW_RAW_PACKET = {
-  ...fakeForzaPacket,
-  BrakeTempFrontLeft: 380,
-  BrakeTempFrontRight: 375,
-  BrakeTempRearLeft: 240,
-  BrakeTempRearRight: 238,
-  TirePressureFrontLeft: 27.8,
-  TirePressureFrontRight: 27.7,
-  TirePressureRearLeft: 26.5,
-  TirePressureRearRight: 26.4,
-  f1: { ...(fakeForzaPacket.f1 ?? {}), totalLaps: 57 },
-} as TelemetryPacket;
-
-// Forza stores tire temps in °F — convert to °C.
-const fToC = (f: number) => ((f - 32) * 5) / 9;
 
 interface DashMeta {
   slug: "combo-1" | "combo-2";
@@ -63,9 +47,9 @@ function DashCatalogue() {
 
   const previewFor = (slug: DashMeta["slug"]): ReactNode => {
     if (slug === "combo-1") {
-      return <ComboDash rawPacket={PREVIEW_RAW_PACKET} packet={fakeForzaDisplayPacket} sectors={fakeSectors} pit={fakePit} unitSystem="metric" toTempC={fToC} />;
+      return <ComboDash view={fakeF1SemanticFixture.view} sectors={fakeSectors} pit={fakePit} unitSystem="metric" />;
     }
-    return <ComboDash2 rawPacket={PREVIEW_RAW_PACKET} sessionLaps={PREVIEW_LAPS} />;
+    return <ComboDash2 rawPacket={null} sessionLaps={PREVIEW_LAPS} />;
   };
 
   return (

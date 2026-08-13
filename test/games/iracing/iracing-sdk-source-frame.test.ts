@@ -116,13 +116,25 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.iracing?.incidents).toBe(1);
   });
 
-  test("normalizes iRacing steering to canonical left and right signs", () => {
+  test("normalizes iRacing steering and yaw to canonical turn signs", () => {
     const leftFrame = sampleFrame();
+    leftFrame.values.Yaw = 0.75;
+    leftFrame.values.YawRate = 0.2;
     const rightFrame = sampleFrame();
     rightFrame.values.SteeringWheelAngle = -0.2;
+    rightFrame.values.Yaw = -0.75;
+    rightFrame.values.YawRate = -0.2;
 
-    expect(normalizeIRacingFrame(leftFrame)?.Steer).toBe(-13);
-    expect(normalizeIRacingFrame(rightFrame)?.Steer).toBe(13);
+    expect(normalizeIRacingFrame(leftFrame)).toMatchObject({
+      Steer: -13,
+      Yaw: -0.75,
+      AngularVelocityY: -0.2,
+    });
+    expect(normalizeIRacingFrame(rightFrame)).toMatchObject({
+      Steer: 13,
+      Yaw: 0.75,
+      AngularVelocityY: 0.2,
+    });
   });
 
   test("keeps historical v2 frames compatible without inventing raw YAML", () => {

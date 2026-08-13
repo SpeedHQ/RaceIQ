@@ -4,7 +4,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapsByIds } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
-import { getSessionResult, upsertSessionResult } from "../db/session-result-queries";
+import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
@@ -180,9 +180,15 @@ export function reconcileSessionResultAfterLap(sessionId: number, gameId: GameId
   return pending;
 }
 
-export async function backfillRaceResults(options: { gameId: GameId; limit: number; afterSessionId?: number }): Promise<BackfillReport> {
+export async function backfillRaceResults(options: {
+  gameId: GameId;
+  limit: number;
+  afterSessionId?: number;
+  eligibleSessionIds?: ReadonlySet<number>;
+}): Promise<BackfillReport> {
   const limit = Math.max(1, Math.min(100, Math.trunc(options.limit)));
   const sessions = (await getSessions(options.gameId))
+    .filter((session) => options.eligibleSessionIds?.has(session.id) ?? true)
     .filter((session) => options.afterSessionId == null || session.id > options.afterSessionId)
     .sort((a, b) => a.id - b.id)
     .slice(0, limit);
@@ -199,13 +205,25 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
   return { processed: results.length, enriched: counts.enriched, unchanged: counts.unchanged, skipped: counts.skipped, ambiguous: counts.ambiguous, errors: counts.error, results };
 }
 
+
+/** Reconcile only missing results or rows written by an older processor. */
+export async function backfillStaleRaceResults(options: {
+  gameId: GameId;
+  limit: number;
+  afterSessionId?: number;
+}): Promise<BackfillReport> {
+  const eligibleSessionIds = new Set(
+    await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID),
+  );
+  return backfillRaceResults({ ...options, eligibleSessionIds });
+}
 export async function backfillAllRaceResults(): Promise<void> {
   for (const game of getAllServerGames()) {
     let afterSessionId: number | undefined;
     let totals = { processed: 0, enriched: 0, unchanged: 0, ambiguous: 0, errors: 0 };
     try {
       while (true) {
-        const report = await backfillRaceResults({ gameId: game.id, limit: 100, afterSessionId });
+        const report = await backfillStaleRaceResults({ gameId: game.id, limit: 100, afterSessionId });
         totals = {
           processed: totals.processed + report.processed,
           enriched: totals.enriched + report.enriched,

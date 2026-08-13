@@ -1,9 +1,10 @@
 name: Render dashboard snapshots
 
 # Renders Storybook dashboard snapshots on pull requests that change the client
-# and compares them against the committed baselines. Any differences produce
+# and compares them against the committed baselines, then compares those
+# baselines with each pull request's base branch. Any differences produce
 # before/after/diff PNGs for the companion comment workflow.
-#
+
 # This workflow runs the PR's code, so it deliberately uses the read-only
 # `pull_request` token — it never gets write access. All writes (comment,
 # label, preview hosting) happen in the separate workflow_run job, which does
@@ -11,7 +12,6 @@ name: Render dashboard snapshots
 
 on:
   pull_request:
-    branches: [main]
     paths:
       - "client/**"
     types: [opened, synchronize, reopened, ready_for_review]
@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: "PR number to render (renders that PR's merge ref and comments on it)"
+        description: "PR number to render (merges its base into the PR head and comments on it)"
         required: true
         type: number
 
@@ -35,9 +35,24 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.62.0-jammy
     permissions:
       contents: read
+      pull-requests: read
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
+      - name: Resolve pull request revisions
+        id: pull-request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            core.setOutput("base-ref", pull.base.ref);
+            core.setOutput("base-sha", pull.base.sha);
+
       - uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
@@ -46,15 +61,19 @@ jobs:
       - name: Mark workspace safe for git (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Merge current main into the PR head
+      - name: Merge pull request base into the PR head
+        env:
+          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git merge --no-edit origin/main
+          git fetch --no-tags origin "$BASE_SHA"
+          git merge --no-edit "$BASE_SHA"
 
-      - name: Prepare main comparison worktree
-        run: git worktree add --detach "$RUNNER_TEMP/raceiq-main" origin/main
+      - name: Prepare base comparison worktree
+        env:
+          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
+        run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
 
       - name: Install unzip (required by setup-bun in the container)
         run: apt-get update && apt-get install -y --no-install-recommends unzip
@@ -88,6 +107,7 @@ jobs:
           out="$GITHUB_WORKSPACE/pr-preview"
           mkdir -p "$out"
           echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
+          echo "${{ steps.pull-request.outputs.base-ref }}" > "$out/base-ref.txt"
 
           results="src/stories/__snapshots__/results"
           if [ -d "$results" ]; then
@@ -103,10 +123,10 @@ jobs:
           fi
 
           bun "$GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" \
-            --base "$RUNNER_TEMP/raceiq-main/client/src/stories/__snapshots__" \
+            --base "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__" \
             --current "$GITHUB_WORKSPACE/client/src/stories/__snapshots__" \
             --out "$out" \
-            --prefix committed-pr-baseline-vs-main
+            --prefix committed-pr-baseline-vs-base
 
           if compgen -G "$out/*-after.png" >/dev/null; then
             echo "changed=1" >> "$GITHUB_OUTPUT"

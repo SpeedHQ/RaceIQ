@@ -13,9 +13,18 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "../../shared/racing/live/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { LiveProjection } from "../telemetry/live-projector";
+import { IS_DEV, IS_E2E } from "./config/env";
+import {
+  isDevTelemetryControlMessageV1,
+  type DevTelemetryControlMessageV1,
+  type DevTelemetryPacketMessageV1,
+  type DevTelemetrySubscriptionMessageV1,
+} from "../../shared/telemetry/live/contracts";
 
 export interface WSData {
   createdAt: number;
+  devTelemetrySubscribed: boolean;
 }
 
 const GRIP_MAX_SAMPLES = 600; // 60s of history at 10Hz sampling
@@ -60,14 +69,17 @@ function pushFourWheelSample(
   }
 }
 
-class WebSocketManager {
+export class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
   private _packetCount = 0;
   private broadcastIntervalMs = 16; // default 60Hz
   private gripSampleCounter = 0; // Counts to 6 for 10Hz history sampling
   private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
   /** Last broadcast JSON — sent to new clients so they don't start blank */
-  private lastBroadcastJson: string | null = null;
+  private lastSchemaJson: string | null = null;
+  private lastFrameJson: string | null = null;
+  private lastDevPacketJson: string | null = null;
+  private readonly allowDevTelemetry = IS_DEV || IS_E2E;
   /** Injected getter for session laps — avoids circular import with pipeline */
   private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
   /** Stale lap detection notification — sent to each new client on connect */
@@ -100,6 +112,9 @@ class WebSocketManager {
   get connectedClients(): number {
     return this.clients.size;
   }
+  get wantsDevTelemetry(): boolean {
+    return this.allowDevTelemetry && [...this.clients].some((client) => client.data.devTelemetrySubscribed);
+  }
 
   /** Monotonic count of packets handed to broadcast() — used by status
    *  interval to detect active pipeline flow regardless of source (UDP, ACC
@@ -116,10 +131,9 @@ class WebSocketManager {
 
   addClient(ws: ServerWebSocket<WSData>): void {
     this.clients.add(ws);
-    // Send last state so client doesn't start blank on refresh
-    if (this.lastBroadcastJson) {
-      try { ws.send(this.lastBroadcastJson); } catch {}
-    }
+    if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch {} }
+    if (this.lastFrameJson) { try { ws.send(this.lastFrameJson); } catch {} }
+    if (this.lastDevPacketJson && ws.data.devTelemetrySubscribed) { try { ws.send(this.lastDevPacketJson); } catch {} }
     // Send current session laps so recorded laps survive refresh
     const laps = this._getSessionLaps?.();
     if (laps && laps.length > 0) {
@@ -194,19 +208,37 @@ class WebSocketManager {
   broadcastDevState(payload: Record<string, unknown>): void {
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "dev-state", ...payload });
-    for (const client of this.clients) {
-      try { client.send(json); } catch {}
-    }
+    for (const client of this.clients) { try { client.send(json); } catch {} }
   }
 
+  publishTelemetry(projection: LiveProjection): void {
+    if (projection.schema) this.lastSchemaJson = JSON.stringify(projection.schema);
+    if (projection.frame) this.lastFrameJson = JSON.stringify(projection.frame);
+  }
+
+  handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer): void {
+    let parsed: unknown;
+    try { parsed = JSON.parse(typeof message === "string" ? message : message.toString()); } catch { parsed = null; }
+    if (!isDevTelemetryControlMessageV1(parsed)) {
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "invalid-message" } satisfies DevTelemetrySubscriptionMessageV1)); return;
+    }
+    const control = parsed as DevTelemetryControlMessageV1;
+    if (!this.allowDevTelemetry) {
+      ws.data.devTelemetrySubscribed = false;
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "not-available" } satisfies DevTelemetrySubscriptionMessageV1)); return;
+    }
+    ws.data.devTelemetrySubscribed = control.type === "subscribe";
+    ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: ws.data.devTelemetrySubscribed } satisfies DevTelemetrySubscriptionMessageV1));
+    if (ws.data.devTelemetrySubscribed && this.lastDevPacketJson) ws.send(this.lastDevPacketJson);
+  }
+
+  stageDevTelemetry(packet: TelemetryPacket): void {
+    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet } satisfies DevTelemetryPacketMessageV1);
+  }
+
+  flushLatest(): void { this._pushToClients(); }
+
   // Latest state — written by packet handler, read by broadcast timer
-  private _latestPacket: TelemetryPacket | null = null;
-  private _latestSectors: LiveSectorData | null = null;
-  private _latestPit: LivePitData | null = null;
-  /** Live Tuning Dashboard transient issues — undefined when live analysis is
-   *  off (pipeline doesn't pass the arg at all); an array (possibly empty)
-   *  each packet while on, so stale alerts get cleared client-side. */
-  private _latestLiveIssues: TuneIssue[] | undefined = undefined;
   private _broadcastTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
@@ -215,15 +247,11 @@ class WebSocketManager {
    */
   broadcast(
     packet: TelemetryPacket,
-    sectors?: LiveSectorData | null,
-    pit?: LivePitData | null,
-    liveIssues?: TuneIssue[],
+    _sectors?: LiveSectorData | null,
+    _pit?: LivePitData | null,
+    _liveIssues?: TuneIssue[],
   ): void {
     this._packetCount++;
-    this._latestPacket = packet;
-    if (sectors) this._latestSectors = sectors;
-    if (pit) this._latestPit = pit;
-    this._latestLiveIssues = liveIssues;
 
     // Sample telemetry history at ~10Hz
     this.gripSampleCounter++;
@@ -263,38 +291,16 @@ class WebSocketManager {
     }
   }
 
-  /** Push latest state to all WebSocket clients. Called by timer. */
   private _pushToClients(): void {
-    const packet = this._latestPacket;
-    if (!packet || this.clients.size === 0) return;
-
-    // Strip heavy f1 sub-objects for broadcast
-    let broadcastPacket: unknown = packet;
-    if (packet.f1) {
-      const { motionEx, ...lightF1 } = packet.f1;
-      broadcastPacket = { ...packet, f1: lightF1 };
-    }
-    const extra: Record<string, unknown> = {};
-    if (this._latestSectors) extra._sectors = this._latestSectors;
-    if (this._latestPit) extra._pit = this._latestPit;
-    if (this._latestLiveIssues !== undefined) extra._liveIssues = this._latestLiveIssues;
-    const json = JSON.stringify(Object.keys(extra).length > 0 ? Object.assign({}, broadcastPacket, extra) : broadcastPacket);
-    this.lastBroadcastJson = json;
     const deadClients: ServerWebSocket<WSData>[] = [];
-
     for (const client of this.clients) {
       try {
-        client.send(json);
-      } catch (err) {
-        console.warn("[WS] Send failed, removing dead client:", err);
-        deadClients.push(client);
-      }
+        if (this.lastSchemaJson) client.send(this.lastSchemaJson);
+        if (this.lastFrameJson) client.send(this.lastFrameJson);
+        if (this.lastDevPacketJson && client.data.devTelemetrySubscribed) client.send(this.lastDevPacketJson);
+      } catch { deadClients.push(client); }
     }
-
-    // Clean up dead clients
-    for (const dead of deadClients) {
-      this.clients.delete(dead);
-    }
+    for (const dead of deadClients) this.clients.delete(dead);
   }
 }
 

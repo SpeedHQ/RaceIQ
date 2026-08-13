@@ -1,24 +1,102 @@
 import { getGame } from "@shared/games/registry";
 import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
+import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
 import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
+import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import { useUnits } from "@/hooks/useUnits";
 import type { DisplayPacket } from "@/lib/convert-packet";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { convertTemp } from "@/lib/temperature";
 import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { SuspBar } from "./SuspBar";
+import { TireGrid } from "./TireGrid";
 import { WheelCard } from "./WheelCard";
+
+const WHEELS = ["FL", "FR", "RL", "RR"] as const;
+const numericWheels = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
+  const value = frame.values[id];
+  return WHEELS.map((_, index) => (Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null));
+};
+const numeric = (frame: SemanticAnalysisFrame, id: string): number | null => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0] }) {
+  const units = useUnits();
+  const analysis = resolveAnalysisTelemetry(getGame(gameId));
+  const temps = numericWheels(frame, "tire.temperature.average");
+  const wear = numericWheels(frame, "tires.tire-wear");
+  const angles = numericWheels(frame, "tires.tire-slip-angle");
+  const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
+  const brakes = numericWheels(frame, "brakes.brake-temp");
+  const states = resolveWheelStates(frame, analysis.traction);
+  const steering = numeric(frame, "inputs.steer");
+  const temperatureAvailable = temps.some((value) => value != null);
+  const healthAvailable = wear.some((value) => value != null);
+  const showSlipAngle = angles.some((value) => value != null);
+  const showWheelState = states.some((state) => state != null);
+  const steerAngle = steering == null ? 0 : (steering / 127) * 20;
+  const wheel = (index: number, outerSide: "left" | "right") => {
+    const resolvedState = states[index];
+    const state = resolvedState ? { state: resolvedState.state, slipRatio: resolvedState.slipRatio } : { state: "idle" as const, slipRatio: 0 };
+    return (
+      <WheelCard
+        label={WHEELS[index]}
+        temp={temps[index] ?? 0}
+        wear={wear[index] ?? 0}
+        slipAngle={(angles[index] ?? 0) * (180 / Math.PI)}
+        outerSide={outerSide}
+        wheelState={state}
+        steerAngle={index < 2 ? steerAngle : 0}
+        thresholds={units.thresholds}
+        tempFn={(value) => convertTemp(value, "C", units.tempUnit)}
+        tempUnit={units.tempUnit}
+        onRumble={false}
+        puddleDepth={0}
+        brakeTemp={brakes[index] ?? undefined}
+        showSlipAngle={showSlipAngle}
+        showWheelState={showWheelState}
+        tempCaption={m.analyse_wheels_temp()}
+        healthCaption={m.analyse_wheels_health()}
+        temperatureAvailable={temperatureAvailable}
+        healthAvailable={healthAvailable}
+      />
+    );
+  };
+  const suspensionBar = (index: number) => <SuspBar norm={suspension[index] ?? 0} thresholds={[0.25, 0.65, 0.85]} />;
+  return (
+    <div className="relative flex w-full max-w-xs flex-col gap-3 mx-auto">
+      <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+        <WeightShiftRadar frame={frame} />
+      </div>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-1">{wheel(0, "left")}{suspensionBar(0)}</div>
+        <div className="flex items-center gap-1">{suspensionBar(1)}{wheel(1, "right")}</div>
+      </div>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-1">{wheel(2, "left")}{suspensionBar(2)}</div>
+        <div className="flex items-center gap-1">{suspensionBar(3)}{wheel(3, "right")}</div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * TireDiagram — Arranges 4 WheelCards in a front/rear axle layout with suspension bars.
- * Derives effective wheel radius from ground speed / rotation speed to calculate
- * spin percentage (how much faster/slower each wheel turns vs ground truth).
- * Falls back to 0.33m radius when stationary to avoid division by zero.
+ * Supports both legacy packets/live views and semantic Analyse frames.
  */
-export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
+export function TireDiagram({ packet, frame, view, gameId }: { packet?: DisplayPacket | TelemetryPacket; frame?: SemanticAnalysisFrame; view?: LiveTelemetryView; gameId?: Parameters<typeof getGame>[0] }) {
   const units = useUnits();
-  const adapter = getGame(packet.gameId);
+  if (frame) return <SemanticTireDiagram frame={frame} gameId={view?.simulator ?? gameId ?? "ac-evo"} />;
+  if (!packet && view) {
+    const t = view.tires;
+    return <TireGrid fl={{ tempC: t.temperatureC?.fl ?? 0, wear: t.wear?.fl ?? 0 }} fr={{ tempC: t.temperatureC?.fr ?? 0, wear: t.wear?.fr ?? 0 }} rl={{ tempC: t.temperatureC?.rl ?? 0, wear: t.wear?.rl ?? 0 }} rr={{ tempC: t.temperatureC?.rr ?? 0, wear: t.wear?.rr ?? 0 }} healthThresholds={{ green: 0.7, yellow: 0.4 }} tempThresholds={{ blue: 60, orange: 85, red: 100 }} />;
+  }
+  if (!packet) return null;
+  const adapter = getGame(view?.simulator ?? packet.gameId);
   const telemetryModel = adapter.telemetry;
   const analysis = resolveAnalysisTelemetry(adapter);
   const suspThresh = adapter.suspensionThresholds.values;

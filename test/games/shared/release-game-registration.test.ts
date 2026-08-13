@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { gameAdaptersForFeatures } from "../../../shared/games/init";
 import { releaseFeatureFlags } from "../../../shared/platform/runtime/release-feature-flags";
-import { nativeTelemetryGameIds, serverGameAdaptersForFeatures } from "../../../server/games/init";
+import { initServerGameAdapters, nativeTelemetryGameIds, serverGameAdaptersForFeatures } from "../../../server/games/init";
+import { getAllServerGames } from "../../../server/games/registry";
 
 const ids = (adapters: readonly { id: string }[]) => adapters.map((adapter) => adapter.id);
 
@@ -19,6 +20,14 @@ describe("release game registration", () => {
     const flags = releaseFeatureFlags(developmentEnv);
     expect(ids(gameAdaptersForFeatures(flags))).toContain("iracing");
     expect(ids(serverGameAdaptersForFeatures(flags))).toContain("iracing");
+  });
+
+  test("keeps repeated server registration idempotent", () => {
+    const flags = releaseFeatureFlags(developmentEnv);
+    initServerGameAdapters(flags);
+    initServerGameAdapters(flags);
+
+    expect(ids(getAllServerGames())).toEqual(ids(serverGameAdaptersForFeatures(flags)));
   });
 
   test("omits iRacing from production registries while keeping F1", () => {

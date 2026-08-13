@@ -1,16 +1,15 @@
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
-import { hasWorldPositions } from "@shared/racing/tracks/path";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 import type { GameId } from "../../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
+import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
-import { THREE_COLORS } from "../../lib/wireframe-utils";
+import { steeringAngleRadians, THREE_COLORS } from "../../lib/wireframe-utils";
+import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
 import { CurbMarkers } from "./CurbMarkers";
@@ -26,6 +25,19 @@ import { Wheel } from "./Wheel";
 // normalized compression (how hard that corner is loaded). Dot reaches a
 // corner edge only when that corner is at 100% compression AND the others
 // are at the baseline.
+const wheel = (f: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], i: number) => {
+  const v = f.values[id];
+  return Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? (v[i] as number) : 0;
+};
+
+function normalizedSuspension(frame: SemanticAnalysisFrame, range?: { min: number; max: number }): [number, number, number, number] {
+  const normalized = frame.values["suspension.norm-suspension-travel"];
+  if (Array.isArray(normalized) && normalized.length >= 4 && normalized.slice(0, 4).every((value) => typeof value === "number" && Number.isFinite(value))) {
+    return normalized.slice(0, 4) as [number, number, number, number];
+  }
+  return normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"] as unknown[], range);
+}
+
 function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft: number, rt: number): { x: number; z: number } | null {
   const base = Math.min(susp[0], susp[1], susp[2], susp[3]);
   const maxC = Math.max(susp[0], susp[1], susp[2], susp[3]);
@@ -45,7 +57,7 @@ function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft
 
 export function CarScene({
   gameId,
-  packet: packetProp,
+  frame,
   telemetry,
   cursorIdx,
   outline,
@@ -56,13 +68,14 @@ export function CarScene({
   modelOffsetX,
   fmtTemp,
   hideModelWheels,
+  mergeBodyMeshes,
   suspThresholds,
   autoOrbit,
   tireColors,
 }: {
   gameId: GameId;
-  packet: TelemetryPacket;
-  telemetry: TelemetryPacket[];
+  frame: SemanticAnalysisFrame;
+  telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
   boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
@@ -73,30 +86,29 @@ export function CarScene({
   fmtTemp: (f: number) => string;
   hideModelWheels?: boolean;
   suspThresholds: number[];
+  mergeBodyMeshes?: boolean;
   autoOrbit?: boolean;
   tireColors: [string, string, string, string];
 }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
-  const pressureOptimal = useTirePressureOptimal(gameId, packetProp.CarOrdinal);
-  const hasWorldPositionTelemetry = useMemo(() => hasWorldPositions(telemetry), [telemetry]);
+  const pressureOptimal = useTirePressureOptimal(gameId, 0);
+  const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f) => semanticNumber(f, "motion.position-x") != null && semanticNumber(f, "motion.position-z") != null), [telemetry]);
+
+  const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
+  const [suspFL, suspFR, suspRL, suspRR] = normalizedSuspension(frame, suspensionRange);
 
   // Keep packet in a ref so useFrame reads latest without triggering re-render
-  const packetRef = useRef(packetProp);
+  const packetRef = useRef(frame);
   useEffect(() => {
-    packetRef.current = packetProp;
+    packetRef.current = frame;
   });
-  const packet = packetProp; // still use prop for JSX (re-renders at 10fps)
   const carGroupRef = useRef<THREE.Group>(null);
-  const prevTimeRef = useRef(packet.TimestampMS);
-  const prevWear = useRef([packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR]);
+  const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
+  const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
 
   // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
   // Higher suspension travel = more compressed on that corner
-  const suspFL = packet.NormSuspensionTravelFL;
-  const suspFR = packet.NormSuspensionTravelFR;
-  const suspRL = packet.NormSuspensionTravelRL;
-  const suspRR = packet.NormSuspensionTravelRR;
 
   // Body drops when suspension compresses (wheels stay on ground).
   // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
@@ -130,9 +142,9 @@ export function CarScene({
 
   // Compute tire wear rate (/s) — smoothed with EMA
   useEffect(() => {
-    const dt = (packet.TimestampMS - prevTimeRef.current) / 1000;
-    prevTimeRef.current = packet.TimestampMS;
-    const currentWear = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
+    const dt = (semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0 - prevTimeRef.current) / 1000;
+    prevTimeRef.current = semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0;
+    const currentWear = [wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)];
     if (dt > 0 && dt < 1) {
       setWearRatesVal((prev) => {
         const next = [...prev];
@@ -146,7 +158,7 @@ export function CarScene({
     prevWear.current = currentWear;
   });
 
-  const steerRad = -(packet.Steer / 127) * 0.35;
+  const steerRad = steeringAngleRadians(semanticNumber(frame, "inputs.steer") ?? 0);
 
   // All games: fronts rotate by the normalized Steer input scaled to a
   // ballpark max front wheel angle; rears stay at 0. ACC's tyreContactHeading
@@ -161,7 +173,7 @@ export function CarScene({
   // Camber rendering is currently disabled for every game. ACC is the only
   // title exposing a camber field (camberRAD[4] in the shared memory Physics
   // page) and Kunos ships it as a zeroed stub — reading it produces no
-  // visible effect. The parser still reads it into packet.acc.tireCamber so
+  // visible effect. The parser still reads it into frame.acc.tireCamber so
   // this can be re-enabled (along with the Camber UI toggle) the moment ACC
   // or AC Evo starts writing real values.
   const cambFL = 0;
@@ -170,11 +182,21 @@ export function CarScene({
   const cambRR = 0;
 
   // Zero out wheel rotation during lockup — locked wheel = no spin
-  const ws = allWheelStates(packet);
-  const rotFL = ws.fl.state === "lockup" ? 0 : packet.WheelRotationSpeedFL;
-  const rotFR = ws.fr.state === "lockup" ? 0 : packet.WheelRotationSpeedFR;
-  const rotRL = ws.rl.state === "lockup" ? 0 : packet.WheelRotationSpeedRL;
-  const rotRR = ws.rr.state === "lockup" ? 0 : packet.WheelRotationSpeedRR;
+  const ws = {
+    fl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 0) },
+    fr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 1) },
+    rl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 2) },
+    rr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 3) },
+  } as {
+    fl: { state: "nominal" | "lockup"; slipRatio: number };
+    fr: { state: "nominal" | "lockup"; slipRatio: number };
+    rl: { state: "nominal" | "lockup"; slipRatio: number };
+    rr: { state: "nominal" | "lockup"; slipRatio: number };
+  };
+  const rotFL = ws.fl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 0);
+  const rotFR = ws.fr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 1);
+  const rotRL = ws.rl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 2);
+  const rotRR = ws.rr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 3);
 
   const wb = carModel.halfWheelbase;
   const ft = carModel.halfFrontTrack;
@@ -183,26 +205,26 @@ export function CarScene({
   const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
   const fTireW = carModel.frontTireWidth ?? 0.3;
   const rTireW = carModel.rearTireWidth ?? 0.3;
-  const pressFL = packet.TirePressureFrontLeft ?? packet.f1?.tyrePressureFL ?? 0;
-  const pressFR = packet.TirePressureFrontRight ?? packet.f1?.tyrePressureFR ?? 0;
-  const pressRL = packet.TirePressureRearLeft ?? packet.f1?.tyrePressureRL ?? 0;
-  const pressRR = packet.TirePressureRearRight ?? packet.f1?.tyrePressureRR ?? 0;
+  const pressFL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
+  const pressFR = semanticNumber(frame, "tires.tire-pressure") ?? 0;
+  const pressRL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
+  const pressRR = semanticNumber(frame, "tires.tire-pressure") ?? 0;
   const wheelData = [
     {
       id: "fl",
       pos: [wb, 0, -ft] as [number, number, number],
       steer: steerFL,
       camber: cambFL,
-      susp: packet.NormSuspensionTravelFL,
+      susp: suspFL,
       drop: dropFL,
-      traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).color,
+      traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.tire-slip-angle", 0)).color,
       rimColor: colorFL,
-      brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0,
+      brakeTemp: wheel(frame, "brakes.brake-temp", 0),
       pressure: pressFL,
-      onRumble: packet.WheelOnRumbleStripFL !== 0,
-      puddle: packet.WheelInPuddleDepthFL,
+      onRumble: false,
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 0),
       wearRate: wearRatesVal[0],
-      wear: packet.TireWearFL,
+      wear: wheel(frame, "tires.tire-wear", 0),
       rotSpeed: rotFL,
       tireRadius: fTireR,
       tireWidth: fTireW,
@@ -212,16 +234,16 @@ export function CarScene({
       pos: [wb, 0, ft] as [number, number, number],
       steer: steerFR,
       camber: cambFR,
-      susp: packet.NormSuspensionTravelFR,
+      susp: suspFR,
       drop: dropFR,
-      traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).color,
+      traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.tire-slip-angle", 1)).color,
       rimColor: colorFR,
-      brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0,
+      brakeTemp: wheel(frame, "brakes.brake-temp", 1),
       pressure: pressFR,
-      onRumble: packet.WheelOnRumbleStripFR !== 0,
-      puddle: packet.WheelInPuddleDepthFR,
+      onRumble: false,
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 1),
       wearRate: wearRatesVal[1],
-      wear: packet.TireWearFR,
+      wear: wheel(frame, "tires.tire-wear", 1),
       rotSpeed: rotFR,
       tireRadius: fTireR,
       tireWidth: fTireW,
@@ -231,16 +253,16 @@ export function CarScene({
       pos: [-wb, 0, -rt] as [number, number, number],
       steer: steerRL,
       camber: cambRL,
-      susp: packet.NormSuspensionTravelRL,
+      susp: suspRL,
       drop: dropRL,
-      traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).color,
+      traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.tire-slip-angle", 2)).color,
       rimColor: colorRL,
-      brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0,
+      brakeTemp: wheel(frame, "brakes.brake-temp", 2),
       pressure: pressRL,
-      onRumble: packet.WheelOnRumbleStripRL !== 0,
-      puddle: packet.WheelInPuddleDepthRL,
+      onRumble: false,
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 2),
       wearRate: wearRatesVal[2],
-      wear: packet.TireWearRL,
+      wear: wheel(frame, "tires.tire-wear", 2),
       rotSpeed: rotRL,
       tireRadius: rTireR,
       tireWidth: rTireW,
@@ -250,54 +272,43 @@ export function CarScene({
       pos: [-wb, 0, rt] as [number, number, number],
       steer: steerRR,
       camber: cambRR,
-      susp: packet.NormSuspensionTravelRR,
+      susp: suspRR,
       drop: dropRR,
-      traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).color,
+      traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.tire-slip-angle", 3)).color,
       rimColor: colorRR,
-      brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0,
+      brakeTemp: wheel(frame, "brakes.brake-temp", 3),
       pressure: pressRR,
-      onRumble: packet.WheelOnRumbleStripRR !== 0,
-      puddle: packet.WheelInPuddleDepthRR,
+      onRumble: false,
+      puddle: wheel(frame, "tires.wheel-in-puddle-depth", 3),
       wearRate: wearRatesVal[3],
-      wear: packet.TireWearRR,
+      wear: wheel(frame, "tires.tire-wear", 3),
       rotSpeed: rotRR,
       tireRadius: rTireR,
       tireWidth: rTireW,
     },
   ];
-
-  // Load distribution — weighted centroid of excess-compression per corner.
-  // Dot reaches a corner iff that corner is at max compression (susp=1) while
-  // the others are at/below static (susp≤0.5).
   const loadDot = (() => {
     const xz = computeLoadDotXZ([suspFL, suspFR, suspRL, suspRR], wb, ft, rt);
     if (!xz) return null;
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
     return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
-
-  // Derive load-dot trail from the last 1s of lap time walked back from
-  // cursorIdx. Uses packet.CurrentLap (lap-time seconds) so the window is
-  // scoped to the current lap and resets cleanly at the lap boundary.
-  // Pure derivation — persists on pause, reconstructs correctly on scrub.
   const loadTrail = useMemo(() => {
     const cur = telemetry[cursorIdx];
     if (!cur) return [];
-    const endLap = cur.CurrentLap;
+    const endLap = semanticNumber(cur, "timing.current-lap") ?? 0;
     const pts: Array<[number, number]> = [];
     for (let i = cursorIdx; i >= 0; i--) {
       const p = telemetry[i];
       if (!p) break;
-      // Stop at lap boundary: previous lap has a *larger* CurrentLap value
-      // (lap time reset on crossing the line).
-      if (p.CurrentLap > endLap) break;
-      if (endLap - p.CurrentLap > 1) break;
-      const xz = computeLoadDotXZ([p.NormSuspensionTravelFL, p.NormSuspensionTravelFR, p.NormSuspensionTravelRL, p.NormSuspensionTravelRR], wb, ft, rt);
+      const lap = semanticNumber(p, "timing.current-lap") ?? 0;
+      if (lap > endLap || endLap - lap > 1) break;
+      const suspension = normalizedSuspension(p, suspensionRange ?? undefined);
+      const xz = computeLoadDotXZ(suspension, wb, ft, rt);
       if (xz) pts.push([xz.x, xz.z]);
     }
-    // Oldest first → newest last, matching the drawing direction of the Line.
     return pts.reverse();
-  }, [telemetry, cursorIdx, wb, ft, rt]);
+  }, [telemetry, cursorIdx, wb, ft, rt, suspensionRange]);
 
   return (
     <>
@@ -312,10 +323,10 @@ export function CarScene({
           yaw transform used by TireTrails / TrackOutline / CurbMarkers. */}
       {toggles.grid &&
         (() => {
-          const gs = Math.sin(packet.Yaw);
-          const gc = Math.cos(packet.Yaw);
-          const gLocalX = packet.PositionX * gs + packet.PositionZ * gc;
-          const gLocalZ = packet.PositionX * gc - packet.PositionZ * gs;
+          const gs = Math.sin(semanticNumber(frame, "motion.yaw") ?? 0);
+          const gc = Math.cos(semanticNumber(frame, "motion.yaw") ?? 0);
+          const gLocalX = (semanticNumber(frame, "motion.position-x") ?? 0) * gs + (semanticNumber(frame, "motion.position-z") ?? 0) * gc;
+          const gLocalZ = (semanticNumber(frame, "motion.position-x") ?? 0) * gc - (semanticNumber(frame, "motion.position-z") ?? 0) * gs;
           return (
             <Grid
               args={[10, 10]}
@@ -334,7 +345,9 @@ export function CarScene({
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <Suspense fallback={null}>{carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}</Suspense>
+        <Suspense fallback={null}>
+          {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} mergeMeshes={mergeBodyMeshes} />}
+        </Suspense>
       </group>
 
       {/* Running gear — positioned by suspension */}
@@ -349,7 +362,7 @@ export function CarScene({
             gripColor={w.traction}
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}
-            displayTemp={toggles.wheelInfo ? fmtTemp(i === 0 ? packet.TireTempFL : i === 1 ? packet.TireTempFR : i === 2 ? packet.TireTempRL : packet.TireTempRR) : ""}
+            displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, "tire.temperature.average", i)) : ""}
             rimColorForDisplay={w.rimColor}
             brakeTemp={w.brakeTemp}
             pressurePsi={w.pressure}
@@ -446,13 +459,13 @@ export function CarScene({
       </group>
 
       {/* Track outline (center line) */}
-      {toggles.track && outline && <TrackOutline outline={outline} packet={packet} distAhead={autoOrbit ? 80 : undefined} />}
+      {toggles.track && outline && <TrackOutline outline={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
 
       {/* Track boundary edges (walls) */}
-      {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={packet} tireRadius={carModel.tireRadius} distAhead={autoOrbit ? 80 : undefined} />}
+      {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={frame} tireRadius={carModel.tireRadius} distAhead={autoOrbit ? 80 : undefined} />}
 
       {/* Curb + puddle markers on track surface */}
-      {toggles.track && hasWorldPositionTelemetry && <CurbMarkers telemetry={telemetry} cursorIdx={cursorIdx} packet={packet} carModel={carModel} />}
+      {toggles.track && hasWorldPositionTelemetry && <CurbMarkers telemetry={telemetry} cursorIdx={cursorIdx} packet={frame} carModel={carModel} />}
 
       {/* Dimension measurement lines */}
       {toggles.dimensions && <DimensionLines carModel={carModel} />}
@@ -461,10 +474,10 @@ export function CarScene({
       {toggles.trails && <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} carModel={carModel} />}
 
       {/* Throttle/brake input overlay */}
-      {toggles.inputs && hasWorldPositionTelemetry && <InputOverlay telemetry={telemetry} packet={packet} />}
+      {toggles.inputs && hasWorldPositionTelemetry && <InputOverlay telemetry={telemetry} packet={frame} />}
 
       {/* Camera controls */}
-      {autoOrbit ? <AutoChaseCamera packet={packet} /> : <CameraController viewPreset={viewPreset} />}
+      {autoOrbit ? <AutoChaseCamera packet={frame} /> : <CameraController viewPreset={viewPreset} />}
     </>
   );
 }

@@ -52,7 +52,7 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving, col
           render={
             <span
               role="status"
-              // biome-ignore lint/a11y/noNoninteractiveTabindex: a non-action status needs keyboard focus to reveal its tooltip.
+              // oxlint-disable-next-line a11y/noNoninteractiveTabindex: a non-action status needs keyboard focus to reveal its tooltip.
               tabIndex={0}
               aria-label={accessibleLabel}
               className="flex h-9 w-full items-center justify-center rounded outline-none focus-visible:ring-2 focus-visible:ring-app-accent"

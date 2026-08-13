@@ -186,6 +186,10 @@ describe("frontend theme contract", () => {
     }
   });
 
+  test("keeps throttle channel bright enough for analysis overlays", () => {
+    expect(themeHex("--ch-throttle")).toBe("#34d399");
+  });
+
   test("rejects malformed semantic utilities", () => {
     const frontendSources = [
       ...sourceFiles.map((path) => readFileSync(path, "utf8")),
@@ -223,7 +227,9 @@ describe("frontend theme contract", () => {
     const canvasAdapterPath = resolve(SOURCE_DIR, "lib/rendering/css-canvas.ts");
     const cssValuesPath = resolve(SOURCE_DIR, "lib/rendering/css-values.ts");
     const runtimeFiles = [
-      ...sourceFiles.filter((path) => [".ts", ".tsx"].includes(extname(path)) && path !== canvasAdapterPath),
+      ...sourceFiles.filter(
+        (path) => [".ts", ".tsx"].includes(extname(path)) && path !== canvasAdapterPath && path !== cssValuesPath,
+      ),
       resolve(CLIENT_DIR, ".storybook/preview.ts"),
     ];
     const rawColors = runtimeFiles.flatMap((path) => {

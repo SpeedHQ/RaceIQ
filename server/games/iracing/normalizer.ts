@@ -240,10 +240,12 @@ export function normalizeIRacingFrame(
     VelocityY: scalar(values, "VelocityY", 0),
     VelocityZ: scalar(values, "VelocityZ", 0),
     AngularVelocityX: scalar(values, "PitchRate", 0),
-    AngularVelocityY: scalar(values, "YawRate", 0),
+    // iRacing yaw increases through left turns. RaceIQ's canonical heading
+    // increases through right turns, matching its mirrored canvas coordinates.
+    AngularVelocityY: -scalar(values, "YawRate", 0),
     AngularVelocityZ: scalar(values, "RollRate", 0),
 
-    Yaw: scalar(values, "Yaw", 0),
+    Yaw: -scalar(values, "Yaw", 0),
     Pitch: scalar(values, "Pitch", 0),
     Roll: scalar(values, "Roll", 0),
 

@@ -1,30 +1,28 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { GameId } from "@shared/games/ids";
-import { parseAnalyseLapIds } from "@/lib/game-routes";
-import type { LapMeta } from "@shared/racing/sessions/types";
-import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
+import type { LapMeta } from "@shared/racing/sessions/types";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";
 import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
-import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "@/components/tunes/SectorRangeBreakdown";
-import { TrackFocusView } from "@/components/tunes/track-focus/TrackFocusView";
+import { bandColor, buildSemanticSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "@/components/tunes/SectorRangeBreakdown";
 import { Button } from "@/components/ui/button";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentVersion } from "@/hooks/experiments";
-import { useLapTelemetry } from "@/hooks/laps";
+import { useLapSemanticTelemetry } from "@/hooks/laps";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { ArmHeadline, ReviewOverviewSkeleton } from "./OverviewSkeleton";
-import { buildOpenLapContext } from "./open-lap-context";
 import { IssuePill } from "./ReviewIssues";
-import { tireSnapshot } from "./tire-snapshot";
+import { semanticTireSnapshot } from "./tire-snapshot";
+import { semanticSamples, wheelValue, type SemanticTuneSample } from "../semantic-tune";
+import { buildOpenLapContext } from "./open-lap-context";
+import { TrackFocusView } from "../track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
-  gameId: GameId;
+  gameId: "acc" | "ac-evo";
   trackName?: string;
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
@@ -34,16 +32,17 @@ interface TuneReviewDashboardProps {
    *  read-only — editing stays in VersionGraph. */
   test?: ExperimentVersion;
   /** The experiment being reviewed (from the route param). Drives the
-   *  Track Focus line-spread lane + map heat. */
+   *  Track Focus line-spread lane + map heat. Passed straight through rather
+   *  than read off `test` so it survives an orphaned/missing test row. */
   experimentId?: number | null;
   /** Fires whenever the compact text summary of the currently-open lap review
-   *  changes. */
+   *  changes (lap switch, sector telemetry load, metric change, etc.) — lets a
+   *  parent pipe "what the user is currently looking at" into the Setup
+   *  Engineer chat's request context. Fires with `null` when nothing is open
+   *  (no laps yet). */
   onOpenLapContextChange?: (text: string | null) => void;
-  /** Label for the optional back action. */
-  backLabel?: string;
-  /** When set, concrete lap selection promotes the lap to the parent route. */
-  onSelectLap?: (lap: LapMeta) => void;
 }
+
 type SectorView = `s${number}`;
 type ReviewView = "overview" | "track" | SectorView;
 
@@ -54,61 +53,39 @@ type ReviewView = "overview" | "track" | SectorView;
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel = "← Session", test, experimentId, onOpenLapContextChange, onSelectLap }: TuneReviewDashboardProps) {
+export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
+  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
+
+  // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { lap?: number; laps?: string; view?: ReviewView };
-  const [localFocusId, setLocalFocusId] = useState<number | null>(search.lap ?? null);
-  const defaultReviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const requestedReviewIds = parseAnalyseLapIds(search.laps);
-  const reviewLaps = useMemo(() => {
-    if (!requestedReviewIds || requestedReviewIds.length === 0) return defaultReviewLaps;
-    const lapsById = new Map(laps.map((lap) => [lap.id, lap]));
-    return requestedReviewIds.map((id) => lapsById.get(id)).filter((lap): lap is LapMeta => lap != null && lap.isValid && lap.lapTime > 0);
-  }, [defaultReviewLaps, laps, requestedReviewIds]);
-  const candidateLaps = useMemo(() => [...laps].filter((lap) => lap.isValid && lap.lapTime > 0).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
-  const evaluationLapIds = useMemo(() => reviewLaps.map((lap) => lap.id), [reviewLaps]);
-  const reviewLapIds = useMemo(() => new Set(reviewLaps.map((lap) => lap.id)), [reviewLaps]);
-  const focusId = onSelectLap ? localFocusId : search.lap;
-  const focusLap = candidateLaps.find((l) => l.id === focusId) ?? candidateLaps[0];
-  const setFocus = (id: number) => {
-    const lap = candidateLaps.find((candidate) => candidate.id === id);
-    if (!lap) return;
-    if (onSelectLap) {
-      setLocalFocusId(id);
-      onSelectLap(lap);
-      return;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    void navigate({ search: (p: Record<string, unknown>) => ({ ...p, lap: id }) } as never);
-  };
+  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView };
+  const focusLap = validLaps.find((l) => l.id === search.lap) ?? validLaps[0];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const setFocus = (id: number) => navigate({ search: (p: any) => ({ ...p, lap: id }) } as any);
 
+  // Point the URL at a real lap when it's missing or stale for this session.
+  // The track view is stint-wide: a missing ?lap= there means "All", so leave it.
   useEffect(() => {
-    if (candidateLaps.length === 0 || !onSelectLap) return;
-    if (localFocusId == null || !candidateLaps.some((l) => l.id === localFocusId)) setLocalFocusId(candidateLaps[0].id);
-  }, [localFocusId, onSelectLap, candidateLaps]);
-
-  useEffect(() => {
-    if (onSelectLap || candidateLaps.length === 0) return;
+    if (validLaps.length === 0) return;
     if (search.view === "track" && search.lap == null) return;
-    if (candidateLaps.some((l) => l.id === search.lap)) return;
-    void navigate({ replace: true, search: (p: Record<string, unknown>) => ({ ...p, lap: candidateLaps[0].id }) } as never);
-  }, [onSelectLap, search.lap, search.view, candidateLaps, navigate]);
+    if (validLaps.some((l) => l.id === search.lap)) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    navigate({ replace: true, search: (p: any) => ({ ...p, lap: validLaps[0].id }) } as any);
+  }, [search.lap, validLaps, navigate]);
 
-  const { data: lapTel, isLoading: loadingTel } = useLapTelemetry(focusLap?.id ?? null);
+  const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(focusLap?.id ?? null);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
 
-  const telemetry = lapTel?.telemetry ?? [];
-  const sectorTimes = lapTel?.sectorTimes ?? null;
+  const telemetry = useMemo(() => semanticSamples(lapTel?.envelopes), [lapTel]);
+  const sectorTimes = lapTel?.sectorTimes ? { times: lapTel.sectorTimes, boundaryIndices: lapTel.sectorStarts ?? [] } : null;
   const sectorCount = sectorTimes?.times.length ?? 3;
-  const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
+  const corners = useMemo(() => semanticTireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
 
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
   const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
-  const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
-
-  // Bucket detected issues into sectors by their distance fraction. Issues with
+  const ranges = useMemo(() => buildSemanticSectorRanges(telemetry, sectorTimes, metric.key), [telemetry, sectorTimes, metric.key]);
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
     const count = sectorTimes?.times.length ?? 3;
@@ -138,44 +115,32 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
   const parsedSectorIndex = requestedSector ? Number(requestedSector) - 1 : null;
   const sectorIndex = parsedSectorIndex != null && parsedSectorIndex < sectorCount ? parsedSectorIndex : null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setView = (v: ReviewView) => {
-    if (onSelectLap && v === "track") setLocalFocusId(null);
-    void navigate({ search: (p: Record<string, unknown>) => ({ ...p, view: v === "overview" ? undefined : v, ...(onSelectLap ? {} : { lap: v === "track" ? undefined : (typeof p.lap === "number" ? p.lap : focusLap?.id) }) }) } as never);
-  };
+  const setView = (v: ReviewView) =>
+    // Entering the track view defaults the lap picker to "All" (no ?lap=).
+    navigate({ search: (p: any) => ({ ...p, view: v === "overview" ? undefined : v, lap: v === "track" ? undefined : (p.lap ?? focusLap?.id) }) } as any);
   // In the track view, no ?lap= means "All laps"; a stale id also counts as All.
-  const trackFocusId = view === "track" && candidateLaps.some((l) => l.id === (onSelectLap ? localFocusId : search.lap)) ? ((onSelectLap ? localFocusId : search.lap) as number) : null;
+  const trackFocusId = view === "track" && validLaps.some((l) => l.id === search.lap) ? (search.lap as number) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
     if (!f) return undefined;
-    const out: Partial<Record<CornerKey, number>> = {};
-    for (const c of CORNERS) {
-      const v = metric.sel[c](f);
-      if (v != null && Number.isFinite(v)) out[c] = v;
-    }
-    return out;
-  }, [hoverPos, telemetry, metric]);
+    const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tires.tire-pressure", wear: "tires.tire-wear" } as const)[metric.key];
+    return Object.fromEntries(CORNERS.map((c, i) => [c, wheelValue(f, id, i)]).filter(([, v]) => v != null)) as Partial<Record<CornerKey, number>>;
+  }, [hoverPos, telemetry, metric.key]);
 
   // Hover readout for the map: the selected metric's four corner values at the
   // cursor's point on the lap.
   const readout = useCallback(
-    (frame: TelemetryPacket) =>
-      CORNERS.map((c) => {
-        const v = metric.sel[c](frame);
+    (frame: SemanticTuneSample) => {
+      const id = ({ tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tires.tire-pressure", wear: "tires.tire-wear" } as const)[metric.key];
+      return CORNERS.map((c, i) => {
+        const v = wheelValue(frame, id, i);
         const ok = v != null && Number.isFinite(v);
-        return {
-          label: c,
-          value: ok ? `${v!.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.unit}` : "—",
-          color: !ok ? undefined : metric.semantic ? bandColor(v!) : metric.accent,
-        };
-      }),
+        return { label: c, value: ok ? `${v!.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.unit}` : "—", color: !ok ? undefined : metric.semantic ? bandColor(v!) : metric.accent };
+      });
+    },
     [metric],
   );
-
-  // Compact text summary of exactly what's rendered for the focused lap —
-  // lap/time, sector times + deltas vs this session's best, corner/tyre data,
-  // detected issues, the selected metric's per-sector ranges, driver/engineer
-  // notes, and excluded/invalid flags. Piped up to the parent so it can feed
   // the Setup Engineer chat "what the user currently sees" (rebuilt whenever
   // any of this changes, not captured once).
   const openLapContext = useMemo(
@@ -183,7 +148,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
       buildOpenLapContext({
         focusLap,
         sectorTimes,
-        laps: reviewLaps,
+        laps,
         corners,
         issues,
         ranges,
@@ -191,7 +156,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
         test,
         cornerKeys: CORNERS,
       }),
-    [focusLap, sectorTimes, reviewLaps, corners, issues, ranges, metric, test],
+    [focusLap, sectorTimes, laps, corners, issues, ranges, metric, test],
   );
 
   useEffect(() => {
@@ -217,38 +182,40 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
           {onBack && (
             <Button variant="app-outline" size="app-sm" onClick={onBack}>
-              {backLabel}
+              ← Session
             </Button>
           )}
-          <label htmlFor="review-lap-picker" className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</label>
+          <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
           <select
-            id="review-lap-picker"
-            aria-label="Post-lap comparison lap"
-            value={view === "track" ? (trackFocusId ?? "all") : (focusLap?.id ?? "")}
             className="bg-app-surface-alt border border-app-border rounded px-2 py-1 text-app-detail font-mono"
+            value={view === "track" ? (trackFocusId ?? "all") : focusLap.id}
             onChange={(e) => {
               if (e.target.value === "all") {
-                if (onSelectLap) setLocalFocusId(null);
-                else void navigate({ search: (p: Record<string, unknown>) => ({ ...p, lap: undefined }) } as never);
-              } else setFocus(Number(e.target.value));
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                navigate({ search: (p: any) => ({ ...p, lap: undefined }) } as any);
+              } else {
+                setFocus(Number(e.target.value));
+              }
             }}
           >
             {view === "track" && <option value="all">All laps</option>}
-            {candidateLaps.map((l) => (
+            {validLaps.map((l) => (
               <option key={l.id} value={l.id}>
-                {reviewLapIds.has(l.id) ? "✓ Eval · " : ""}Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
+                Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
               </option>
             ))}
           </select>
-          <span role="status" className="text-xs text-app-text-muted">Evaluating fastest {reviewLaps.length} of {candidateLaps.length} laps</span>
-          {!(view === "track" && trackFocusId == null) && <span className="text-status-success text-sm" title="valid lap">✓</span>}
-          <div role="group" aria-label="Review view" className="flex gap-1">
+          {!(view === "track" && trackFocusId == null) && (
+            <span className="text-status-success text-sm" title="valid lap">
+              ✓
+            </span>
+          )}
+          <div className="flex gap-1">
             {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"] as ReviewView[]).map((v) => (
               <Button
                 key={v}
                 variant="app-ghost"
                 size="app-sm"
-                aria-pressed={view === v}
                 onClick={() => setView(v)}
                 className={`!border text-xs ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
@@ -259,7 +226,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
           <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden text-xs text-app-text-muted @5xl/workspace:inline">{trackName}</span>}</div>
         </div>
 
-        {test && <ArmHeadline kind={test.kind} laps={candidateLaps} />}
+        {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
 
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">
@@ -284,13 +251,12 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
           <div className="border-b border-app-border">
             <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
               <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
-              <div role="group" aria-label="Sector metric" className="flex gap-1 flex-wrap justify-end">
+              <div className="flex gap-1 flex-wrap justify-end">
                 {METRICS.map((m) => (
                   <Button
                     key={m.key}
                     variant="app-ghost"
                     size="app-sm"
-                    aria-pressed={m.key === metricKey}
                     onClick={() => setMetricKey(m.key)}
                     className={`!border text-app-compact ${m.key === metricKey ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
                   >
@@ -309,12 +275,12 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
                   <div className="text-xl font-mono tabular-nums text-app-text mt-1.5">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</div>
                   {telemetry.length > 0 ? (
                     <SectorMap
-                      telemetry={telemetry}
+                      telemetry={telemetry as unknown as TelemetryPacket[]}
                       sectorTimes={sectorTimes}
                       highlight={i}
                       showTimes={false}
                       trackOrdinal={focusLap.trackOrdinal}
-                      readout={readout}
+                      readout={readout as unknown as (frame: TelemetryPacket, fraction: number) => { label: string; value: string; color?: string }[]}
                       onHover={(idx) => setHoverPos(idx == null ? null : { sector: i, idx })}
                       markFraction={markedIssue?.sector === i ? markedIssue.frac : null}
                     />
@@ -342,9 +308,9 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, backLabel
       {/* Detail body — owns its own scroll; the header above stays static. */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {view === "track" ? (
-          <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} evaluationLapIds={evaluationLapIds} experimentId={experimentId ?? test?.experimentId ?? null} />
+          <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
         ) : sectorIndex != null ? (
-          <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+          <SectorDetailView telemetry={telemetry as unknown as TelemetryPacket[]} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
         ) : (
           <>
             {/* Detected issues, laid out per sector */}

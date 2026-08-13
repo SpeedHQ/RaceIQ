@@ -1,8 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
@@ -21,19 +19,34 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-export function useLapTelemetry(lapId: number | null) {
+
+export interface SemanticReplayFrame {
+  sequence: number;
+  observedAt: { domain: string; milliseconds: number };
+  receivedAt: { domain: string; milliseconds: number };
+  simulator: string;
+  values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }>;
+}
+
+export interface SemanticLapTelemetry {
+  lapId: number;
+  requestedSemanticIds: string[];
+  sectorTimes?: number[] | null;
+  sectorStarts?: number[] | null;
+  insights?: unknown[];
+  envelopes: SemanticReplayFrame[];
+}
+
+/** Canonical semantic replay; unlike useLapTelemetry this never exposes native packets. */
+export function useLapSemanticTelemetry(lapId: number | null) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: ["lap-telemetry", lapId, gameId ?? null],
+    queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
-      const res = await client.api.laps[":id"].$get({ param: { id: String(lapId!) } }, { headers: { "X-Game-Id": gameId } });
+      const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
       if (!res.ok) throw new Error(res.statusText);
-      return res.json() as Promise<{
-        telemetry: TelemetryPacket[];
-        sectorTimes: SectorTimeline | null;
-        [key: string]: any;
-      }>;
+      return (await res.json()) as SemanticLapTelemetry;
     },
     enabled: lapId != null && gameId != null,
     gcTime: 0,

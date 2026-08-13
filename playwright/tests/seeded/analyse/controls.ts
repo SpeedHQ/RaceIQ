@@ -69,6 +69,11 @@ export async function exercise3dGuide(page: Page, assertClosed = true): Promise<
   await page.getByRole("tab", { name: "3D", exact: true }).click();
   await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "2D", exact: true }).click();
+  const activeVizPanel = page.locator('[role="tabpanel"][data-state="active"]');
+  await expect(activeVizPanel.getByText(/\d+\s+(mph|km\/h)/i).first()).toBeVisible();
+  await expect(activeVizPanel.locator("svg")).toHaveCount(4);
+  await expect(activeVizPanel.locator("canvas")).toHaveCount(2);
+  await expect(activeVizPanel.getByText("Load", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });

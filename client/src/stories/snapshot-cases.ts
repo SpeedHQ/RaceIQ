@@ -6,6 +6,7 @@ export interface StorybookSnapshotCase {
   readyText?: string;
   hoverLabel?: string;
   clickLabel?: string;
+  clickRole?: "button" | "combobox";
   readyRole?: "dialog" | "listbox" | "menu";
   readyName?: string;
 }
@@ -104,6 +105,8 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     id: "ui-reusable-primitives--search-select-menu",
     outputName: "snapshot-ReusableSearchSelect.png",
     viewport: { width: 900, height: 650 },
+    clickRole: "combobox",
+    clickLabel: "Search tracks...",
     readyRole: "listbox",
     readyName: "Search tracks...",
   },
@@ -122,7 +125,12 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     viewport: { width: 900, height: 650 },
     readyRole: "menu",
   },
+  {
+    name: "AnalyseDataPanelParity",
+    id: "screens-analysedatapanelparity--loaded-main-parity",
+    outputName: "snapshot-AnalyseDataPanelParity.png",
+    viewport: { width: 1080, height: 800 },
+  },
 ];
-
 export const CORE_STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...DASHBOARD_SNAPSHOT_CASES, THEME_SNAPSHOT_CASE];
 export const STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...CORE_STORYBOOK_SNAPSHOT_CASES, ...REUSABLE_UI_SNAPSHOT_CASES];

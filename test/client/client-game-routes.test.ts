@@ -69,8 +69,9 @@ describe("game route helpers", () => {
     });
   });
 
-  test("accepts only the imported sessions tab", () => {
-    expect(validateSessionsSearch({ tab: "imported" })).toEqual({ tab: "imported" });
+  test("maps legacy imported sessions tab to Mine", () => {
+    expect(validateSessionsSearch({ tab: "imported" })).toEqual({ tab: "mine" });
+    expect(validateSessionsSearch({ tab: "others" })).toEqual({ tab: "others" });
     expect(validateSessionsSearch({ tab: "other" })).toEqual({ tab: undefined });
   });
 

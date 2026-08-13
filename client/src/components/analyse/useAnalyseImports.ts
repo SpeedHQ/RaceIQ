@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
 import { client } from "../../lib/rpc";
 import type { IbtImportPreview } from "./IbtImportPreviewModal";
 
@@ -24,12 +25,29 @@ export interface IbtPreviewState {
   preview: IbtImportPreview;
 }
 
-export function useAnalyseImports(args: { queryClient: QueryClient }) {
-  const { queryClient } = args;
+export function useAnalyseImports(args: {
+  queryClient: QueryClient;
+  gameId: string;
+  setSelectedTrack: (value: number) => void;
+  setSelectedCar: (value: number) => void;
+  setSelectedLapId: (value: number) => void;
+}) {
+  const { queryClient, gameId, setSelectedTrack, setSelectedCar, setSelectedLapId } = args;
   const [exportingBin, setExportingBin] = useState(false);
   const [importingBin, setImportingBin] = useState(false);
+  const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [importResult, setImportResult] = useState<AnalyseImportResult | null>(null);
   const [ibtPreview, setIbtPreview] = useState<IbtPreviewState | null>(null);
+  const selectLastLap = useCallback(
+    (laps: ImportedLap[], importedGameId: string | undefined) => {
+      if (importedGameId !== gameId || laps.length === 0) return;
+      const last = laps[laps.length - 1];
+      setSelectedTrack(last.trackOrdinal);
+      setSelectedCar(last.carOrdinal);
+      setSelectedLapId(last.lapId);
+    },
+    [gameId, setSelectedTrack, setSelectedCar, setSelectedLapId],
+  );
   const handleExportBin = useCallback(async (selectedLapId: number | null) => {
     if (selectedLapId == null) return;
     setExportingBin(true);
@@ -78,6 +96,7 @@ export function useAnalyseImports(args: { queryClient: QueryClient }) {
         }
         const body = new FormData();
         body.append("file", file);
+        body.append("ownership", ownership);
         const res = await fetch("/api/laps/import", { method: "POST", body });
         const data = (await res.json().catch(() => null)) as { error?: string; packetCount?: number; laps?: ImportedLap[]; gameId?: string; routePrefix?: string } | null;
         if (!res.ok) {
@@ -89,13 +108,14 @@ export function useAnalyseImports(args: { queryClient: QueryClient }) {
         void queryClient.invalidateQueries({ queryKey: ["tracks"] });
         const laps = data?.laps ?? [];
         setImportResult({ fileName: file.name, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
+        selectLastLap(laps, data?.gameId);
       } catch (e) {
         window.alert(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setImportingBin(false);
       }
     },
-    [queryClient],
+    [queryClient, ownership, selectLastLap],
   );
   const handleCancelIbt = useCallback(() => {
     const token = ibtPreview?.token;
@@ -107,7 +127,7 @@ export function useAnalyseImports(args: { queryClient: QueryClient }) {
     if (!staged?.token) return;
     setImportingBin(true);
     try {
-      const res = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token } });
+      const res = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token, ownership } });
       const data = (await res.json().catch(() => null)) as { error?: string; packetCount?: number; laps?: ImportedLap[]; gameId?: string; routePrefix?: string } | null;
       if (!res.ok) {
         setIbtPreview(null);
@@ -120,12 +140,13 @@ export function useAnalyseImports(args: { queryClient: QueryClient }) {
       void queryClient.invalidateQueries({ queryKey: ["tracks"] });
       const laps = data?.laps ?? [];
       setImportResult({ fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
+      selectLastLap(laps, data?.gameId);
     } catch (e) {
       setIbtPreview(null);
       window.alert(`IBT import failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setImportingBin(false);
     }
-  }, [ibtPreview, queryClient]);
-  return { exportingBin, importingBin, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult };
+  }, [ibtPreview, ownership, queryClient, selectLastLap]);
+  return { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult };
 }

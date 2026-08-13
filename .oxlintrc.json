@@ -1,0 +1,21 @@
+{
+  "$schema": "./client/node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "off",
+    "eslint/no-shadow": "off",
+    "eslint/no-underscore-dangle": "off",
+    "eslint/no-unused-vars": "off",
+    "eslint/no-unassigned-vars": "off",
+    "eslint/no-unmodified-loop-condition": "off",
+    "eslint/no-useless-concat": "off",
+    "eslint/preserve-caught-error": "off"
+  },
+  "env": {
+    "builtin": true
+  }
+}

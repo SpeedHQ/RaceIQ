@@ -74,7 +74,7 @@ export function SessionMobileList({
           const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
           return (
             <div key={session.id} className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
-              {/* biome-ignore lint/a11y/useSemanticElements: wraps checkbox and buttons */}
+              {/* oxlint-disable-next-line a11y/useSemanticElements: wraps checkbox and buttons */}
               <div
                 role="button"
                 tabIndex={0}
@@ -143,7 +143,7 @@ export function SessionMobileList({
                     </span>
                     <span className="ml-auto text-app-text/90">{isExpanded ? "▾" : "▸"}</span>
                   </div>
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: containment prevents card toggle */}
+                  {/* oxlint-disable-next-line a11y/noStaticElementInteractions: containment prevents card toggle */}
                   <div role="presentation" className="mt-2" onClick={(event) => event.stopPropagation()}>
                     <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                   </div>

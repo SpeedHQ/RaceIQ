@@ -27,8 +27,6 @@ interface LapSummary {
   isValid: boolean;
   carName: string;
   trackName: string;
-  trackOrdinal: number | null;
-  carOrdinal: number | null;
   gameId: string;
 }
 
@@ -62,8 +60,6 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
     isValid: lap.isValid,
     carName: resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
     trackName: resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
-    trackOrdinal: lap.trackOrdinal ?? null,
-    carOrdinal: lap.carOrdinal ?? null,
     gameId: lap.gameId ?? "",
   };
 }

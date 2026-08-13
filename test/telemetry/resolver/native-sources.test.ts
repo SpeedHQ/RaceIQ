@@ -136,4 +136,32 @@ describe("compiled telemetry resolver native sources", () => {
     expect(second).toBe(first);
     expect(second).toEqual([1.1, 1.2, 1.3, 1.4]);
   });
+
+  test("reads collection source paths in packet order", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: [
+        { semanticId: "race.competitor.driver-name" },
+        { semanticId: "race.competitor.position" },
+        { semanticId: "timing.competitor.gap-to-leader" },
+        { semanticId: "timing.sector.competitor-last.s1" },
+      ],
+    });
+    const frame = resolver.createFrameView(
+      packet("f1-2025", {
+        f1: {
+          grid: [
+            { name: "Alpha", position: 1, gapToLeader: 0, lastS1: 31.2 },
+            { name: "Bravo", position: 2, gapToLeader: 1.5, lastS1: 32.4 },
+          ],
+        },
+      } as never),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
+    );
+
+    expect(frame.readValue<readonly string[]>(resolver.slot("race.competitor.driver-name"))).toEqual(["Alpha", "Bravo"]);
+    expect(frame.readValue<readonly number[]>(resolver.slot("race.competitor.position"))).toEqual([1, 2]);
+    expect(frame.readValue<readonly number[]>(resolver.slot("timing.competitor.gap-to-leader"))).toEqual([0, 1.5]);
+    expect(frame.readValue<readonly number[]>(resolver.slot("timing.sector.competitor-last.s1"))).toEqual([31.2, 32.4]);
+  });
 });

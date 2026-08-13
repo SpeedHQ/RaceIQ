@@ -7,24 +7,23 @@ import { ComboDash } from "../../components/dashes/ComboDash";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { useGameStore } from "../../stores/game";
 import {
-  fakeAccDisplayPacket,
-  fakeAccPacket,
   fakeAcEvoDisplayPacket,
   fakeAcEvoPacket,
+  fakeAccDisplayPacket,
+  fakeAccPacket,
   fakeF1DisplayPacket,
   fakeF1Packet,
   fakeForzaDisplayPacket,
   fakeForzaPacket,
   fakePit,
   fakeSectors,
+  fakeF1SemanticFixture,
 } from "../fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 
-const fToC = (f: number) => ((f - 32) * 5) / 9;
-const idC = (c: number) => c;
 
 type Game = "fm-2023" | "f1-2025" | "acc" | "ac-evo";
 
@@ -88,14 +87,8 @@ function GameIdSync({ game }: { game: Game }) {
   return null;
 }
 
-function render({ game, rpm, gear, unitSystem }: Args) {
-  const fx = FIXTURES[game];
-  const raw = { ...fx.raw, CurrentEngineRpm: rpm, Gear: gear } as TelemetryPacket;
-  const display = {
-    ...fx.display,
-    CurrentEngineRpm: rpm,
-    Gear: gear,
-  } as DisplayPacket;
+function render({ game, rpm: _rpm, gear: _gear, unitSystem }: Args) {
+  const _fx = FIXTURES[game];
   return (
     <QueryClientProvider client={queryClient}>
       <GameIdSync game={game} />
@@ -109,7 +102,7 @@ function render({ game, rpm, gear, unitSystem }: Args) {
           transform: "translateZ(0)",
         }}
       >
-        <ComboDash rawPacket={raw} packet={display} sectors={fakeSectors} pit={fakePit} unitSystem={unitSystem} toTempC={fx.tempUnit === "F" ? fToC : idC} />
+        <ComboDash view={fakeF1SemanticFixture.view} sectors={fakeSectors} pit={fakePit} unitSystem={unitSystem} />
       </div>
     </QueryClientProvider>
   );
@@ -183,7 +176,7 @@ export const NoData: Story = {
   render: () => (
     <QueryClientProvider client={queryClient}>
       <div style={{ width: "100vw", height: "100vh", background: "var(--app-bg)" }}>
-        <ComboDash rawPacket={null} packet={null} sectors={null} pit={null} unitSystem="metric" toTempC={fToC} />
+        <ComboDash view={null} sectors={null} pit={null} unitSystem="metric" />
       </div>
     </QueryClientProvider>
   ),

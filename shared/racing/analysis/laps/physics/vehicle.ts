@@ -62,8 +62,8 @@ export function wheelSlipRatios(pkt: TelemetryPacket): { fl: number; fr: number;
 //
 // The longitudinal slip is derived from wheel-rotation vs ground
 // speed (wheelSlipRatios / slipRatio) — NOT from pkt.TireSlipRatio*,
-// which each game reports in its own non-SAE scale. Slip angle IS
-// radians in all three games (FM/F1/ACC) so we use it directly.
+// which each game reports in its own non-SAE scale. Physical slip-angle
+// callers must provide radians.
 
 export const SLIP_RATIO_PEAK = 0.12;
 export const SLIP_ANGLE_PEAK_RAD = (8 * Math.PI) / 180; // 8°
@@ -132,6 +132,7 @@ export interface SteerBalance {
   frontSlipDeg: number; // avg front slip angle magnitude (degrees)
   rearSlipDeg: number; // avg rear slip angle magnitude (degrees)
   slipDelta: number; // front − rear (degrees, >0 = understeer, <0 = oversteer)
+  slipAvailable: boolean; // whether per-wheel slip-angle signal was available
   // Normalized component signals (both scaled so ±1 = "full" severity)
   uSlip: number; // slip-angle signal: + = understeer, − = oversteer
   uYaw: number; // yaw-rate signal:  + = understeer, − = oversteer
@@ -206,6 +207,7 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
     frontSlipDeg,
     rearSlipDeg,
     slipDelta,
+    slipAvailable: true,
     uSlip,
     uYaw,
     signalsAgree,
@@ -213,6 +215,84 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
     state,
     severity,
   };
+}
+export interface SemanticBalanceSignals {
+  speedMps: number;
+  accelerationX: number;
+  yawRate: number;
+  slipAngles?: readonly [number, number, number, number];
+}
+
+/** Packet-free equivalent of steerBalance for canonical semantic replay values. */
+export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerBalance {
+  const slipAvailable = signals.slipAngles?.every(Number.isFinite) ?? false;
+  const [fl, fr, rl, rr] = signals.slipAngles ?? [0, 0, 0, 0];
+  const frontSlipDeg = slipAvailable ? ((Math.abs(fl) + Math.abs(fr)) / 2) * RAD2DEG : 0;
+  const rearSlipDeg = slipAvailable ? ((Math.abs(rl) + Math.abs(rr)) / 2) * RAD2DEG : 0;
+  const slipDelta = frontSlipDeg - rearSlipDeg;
+  const latG = -signals.accelerationX / G;
+  const speed = Math.max(signals.speedMps, 0.1);
+  const yawRatePath = Math.abs(latG * G) / speed;
+  const yawError = Math.abs(signals.yawRate) - yawRatePath;
+  const gated = Math.abs(latG) < LAT_G_FLOOR || speed < SPEED_FLOOR;
+  const uSlip = slipDelta / SLIP_DELTA_SCALE;
+  const uYaw = -yawError / YAW_ERR_SCALE;
+  const yawContrib = gated ? 0 : uYaw;
+  const signalsAgree = !slipAvailable || uSlip * yawContrib >= 0;
+  const yawActive = Math.abs(yawContrib) > 0.05;
+  const slipConfident = Math.abs(uSlip) >= 0.15;
+  const blended = 0.5 * uSlip + 0.5 * yawContrib;
+  const balanceRaw =
+    speed < SPEED_FLOOR
+      ? 0
+      : !slipAvailable
+        ? yawContrib
+        : !signalsAgree || !slipConfident
+          ? uSlip
+          : yawActive && Math.abs(blended) > Math.abs(uSlip)
+            ? blended
+            : uSlip;
+  const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
+  const moving = speed >= SPEED_FLOOR;
+  const state: SteerBalance["state"] =
+    moving && balance > CLASSIFY_THRESHOLD
+      ? "understeer"
+      : moving && balance < -CLASSIFY_THRESHOLD
+        ? "oversteer"
+        : "neutral";
+  return {
+    latG,
+    yawRate: signals.yawRate,
+    yawRatePath,
+    yawError,
+    frontSlipDeg,
+    rearSlipDeg,
+    slipDelta,
+    slipAvailable,
+    uSlip,
+    uYaw,
+    signalsAgree,
+    balance,
+    state,
+    severity: moving ? Math.min(1, Math.max(0, (Math.abs(balance) - CLASSIFY_THRESHOLD) / (1 - CLASSIFY_THRESHOLD))) : 0,
+  };
+}
+
+export interface SemanticWheelDynamicsFrame {
+  speedMps: number;
+  steer: number;
+  wheelRotationRadS: { fl: number; fr: number; rl: number; rr: number };
+  wheelRadiusM: number;
+}
+
+/** Packet-free wheel-state and slip-ratio calculation for canonical replay. */
+export function semanticWheelDynamics(frame: SemanticWheelDynamicsFrame): {
+  fl: WheelState;
+  fr: WheelState;
+  rl: WheelState;
+  rr: WheelState;
+} {
+  return wheelDynamicsFrame(frame);
 }
 
 // ── Suspension Compression Distribution ────────────────────────────
@@ -228,20 +308,28 @@ export interface SuspensionCompression {
   leftBias: number; // 0-1: share of compression on the left side
 }
 
+export function suspensionCompressionBias([fl, fr, rl, rr]: readonly [number, number, number, number]): { front: number; left: number } {
+  const total = fl + fr + rl + rr || 1;
+  return {
+    front: (fl + fr) / total,
+    left: (fl + rl) / total,
+  };
+}
+
 export function suspensionCompression(pkt: TelemetryPacket): SuspensionCompression {
   const fl = pkt.NormSuspensionTravelFL;
   const fr = pkt.NormSuspensionTravelFR;
   const rl = pkt.NormSuspensionTravelRL;
   const rr = pkt.NormSuspensionTravelRR;
-  const total = fl + fr + rl + rr || 1;
+  const { front, left } = suspensionCompressionBias([fl, fr, rl, rr]);
 
   return {
     fl,
     fr,
     rl,
     rr,
-    frontBias: (fl + fr) / total,
-    leftBias: (fl + rl) / total,
+    frontBias: front,
+    leftBias: left,
   };
 }
 
@@ -279,6 +367,32 @@ export function wheelState(
   return { state: "grip", slipRatio: sr };
 }
 
+export interface WheelDynamicsFrame {
+  speedMps: number;
+  steer: number;
+  wheelRotationRadS: { fl: number; fr: number; rl: number; rr: number };
+  wheelRadiusM: number;
+}
+
+/** Semantic wheel-dynamics primitive. Units are canonical SI (m/s, rad/s, m). */
+export function wheelDynamicsFrame(frame: WheelDynamicsFrame): {
+  fl: WheelState;
+  fr: WheelState;
+  rl: WheelState;
+  rr: WheelState;
+} {
+  const { speedMps: gs, steer } = frame;
+  const turningRight = steer > 5;
+  const turningLeft = steer < -5;
+  return {
+    fl: wheelState(frame.wheelRotationRadS.fl, gs, frame.wheelRadiusM, steer, turningRight),
+    fr: wheelState(frame.wheelRotationRadS.fr, gs, frame.wheelRadiusM, steer, turningLeft),
+    rl: wheelState(frame.wheelRotationRadS.rl, gs, frame.wheelRadiusM, 0, turningRight),
+    rr: wheelState(frame.wheelRotationRadS.rr, gs, frame.wheelRadiusM, 0, turningLeft),
+  };
+}
+
+/** Historical packet compatibility wrapper. Live callers must use wheelDynamicsFrame. */
 export function allWheelStates(pkt: TelemetryPacket): {
   fl: WheelState;
   fr: WheelState;
@@ -286,18 +400,17 @@ export function allWheelStates(pkt: TelemetryPacket): {
   rr: WheelState;
 } {
   const r = effectiveWheelRadius(pkt);
-  const gs = pkt.Speed;
-  const steer = pkt.Steer; // -128 to 127
-  // Determine which side is inner in the turn
-  const turningRight = steer > 5;
-  const turningLeft = steer < -5;
-
-  return {
-    fl: wheelState(pkt.WheelRotationSpeedFL, gs, r, steer, turningRight),
-    fr: wheelState(pkt.WheelRotationSpeedFR, gs, r, steer, turningLeft),
-    rl: wheelState(pkt.WheelRotationSpeedRL, gs, r, 0, turningRight),
-    rr: wheelState(pkt.WheelRotationSpeedRR, gs, r, 0, turningLeft),
-  };
+  return wheelDynamicsFrame({
+    speedMps: pkt.Speed,
+    steer: pkt.Steer,
+    wheelRotationRadS: {
+      fl: pkt.WheelRotationSpeedFL,
+      fr: pkt.WheelRotationSpeedFR,
+      rl: pkt.WheelRotationSpeedRL,
+      rr: pkt.WheelRotationSpeedRR,
+    },
+    wheelRadiusM: r,
+  });
 }
 
 // ── Cornering Efficiency ───────────────────────────────────────────

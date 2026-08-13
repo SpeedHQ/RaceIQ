@@ -94,7 +94,7 @@
   --tire-temperature-hot: var(--color-amber-500);
 
   /* Driver input channels. */
-  --ch-throttle: #059669;
+  --ch-throttle: #34d399;
   --ch-brake: #ef4444;
   --ch-steer: #0891b2;
 

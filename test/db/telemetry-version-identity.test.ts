@@ -9,9 +9,8 @@ import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
 } from "../../shared/telemetry/resolver/versions";
-import { deleteSession, getSessions, insertSession } from "../../server/db/session-queries";
+import { deleteSession, getSessions, } from "../../server/db/session-queries";
 import { getLapById } from "../../server/db/lap-read-queries";
-import { insertLap } from "../../server/db/lap-mutation-queries";
 import { initServerGameAdapters } from "../../server/games/init";
 import { RealDbAdapter } from "../../server/telemetry/pipeline-ports"
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";

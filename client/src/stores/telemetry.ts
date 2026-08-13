@@ -3,9 +3,9 @@ import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, 
 import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
-
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
+import type { LiveTelemetryView } from "../lib/live-telemetry-view";
+import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 export interface DisplaySettings {
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
@@ -96,10 +96,9 @@ export interface ServerStatus {
 
 interface TelemetryState {
   connected: boolean;
-  /** Raw packet from WebSocket (unchanged, for calculations) */
-  rawPacket: TelemetryPacket | null;
-  /** Display-converted packet (speed/temp in user units) */
-  packet: DisplayPacket | null;
+  telemetrySchema: LiveTelemetrySchemaMessageV1 | null;
+  telemetryFrame: LiveTelemetryFrameMessageV1 | null;
+  telemetryView: LiveTelemetryView | null;
   packetsPerSec: number;
   /** Full server status pushed via WebSocket */
   serverStatus: ServerStatus | null;
@@ -143,12 +142,13 @@ interface TelemetryState {
   /** Live Tuning Dashboard: per-lap issue feed, most recent lap first. */
   lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[] }[];
   setConnected: (connected: boolean) => void;
-  setPacket: (packet: TelemetryPacket) => void;
+  setTelemetrySchema: (schema: LiveTelemetrySchemaMessageV1) => void;
+  setTelemetryFrame: (frame: LiveTelemetryFrameMessageV1) => void;
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
   setLiveIssues: (issues: TuneIssue[]) => void;
   addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[] }) => void;
-  clearPacket: () => void;
+  clearTelemetry: () => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
   setSessionLaps: (laps: LapMeta[]) => void;
@@ -172,14 +172,11 @@ interface TelemetryState {
   setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
 }
 
-function speedUnit(u: "metric" | "imperial") {
-  return u === "metric" ? ("kmh" as const) : ("mph" as const);
-}
-
 export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   connected: false,
-  rawPacket: null,
-  packet: null,
+  telemetrySchema: null,
+  telemetryFrame: null,
+  telemetryView: null,
   sectors: null,
   pit: null,
   packetsPerSec: 0,
@@ -223,14 +220,10 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
       // Most-recent-first, capped so a long practice session doesn't grow unbounded.
       lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20),
     })),
-  setPacket: (raw) => {
-    const { unitSystem, temperatureUnit } = get();
-    set({
-      rawPacket: raw,
-      packet: convertPacket(raw, speedUnit(unitSystem), temperatureUnit),
-    });
-  },
-  clearPacket: () => set({ rawPacket: null, packet: null }),
+  setTelemetrySchema: (telemetrySchema) => set({ telemetrySchema, telemetryFrame: null, telemetryView: null }),
+  setTelemetryFrame: (telemetryFrame) =>
+    set((prev) => ({ telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
+  clearTelemetry: () => set({ telemetryFrame: null, telemetryView: null, telemetrySchema: null }),
   setPacketsPerSec: (packetsPerSec) => set({ packetsPerSec }),
   setServerStatus: (status: ServerStatus | null) =>
     set(
@@ -269,12 +262,5 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     set({ devState: state });
   },
   toggleDevStatePause: () => set((prev) => ({ devStatePaused: !prev.devStatePaused })),
-  setDisplayUnits: (unit, temperatureUnit) => {
-    const { rawPacket } = get();
-    set({
-      unitSystem: unit,
-      temperatureUnit,
-      packet: rawPacket ? convertPacket(rawPacket, speedUnit(unit), temperatureUnit) : null,
-    });
-  },
+  setDisplayUnits: (unit, temperatureUnit) => set({ unitSystem: unit, temperatureUnit }),
 }));

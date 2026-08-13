@@ -7,9 +7,9 @@
 - Catalog version: `0.13.0`
 - Schema version: `v6`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator commit: `a19eb52c879baeeafcc9b4f5ebfcd51f1465e886e54e6d642107e9938eca0452`
+- Generator commit: `ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `dc7ba66510ccfb923c4a096cbaac495accbb67272d1fd1dd47c660e50bc942cc`
+- Content SHA-256: `1e98de699a81605917dbd1c337b0bb0aec13c1adcfb73d0f6b494a7b2d85fb12`
 
 ## Coverage
 
@@ -36,7 +36,7 @@
 | `brakes.brake-temp` | Brake Temp | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.hand-brake` | Hand Brake | number | unit:0–255 | 0–255 | scalar |  |  |  |
 | `damage.brake-disc-life` | Brake Disc Life | number | dimensionless | % | scalar |  |  |  |
-| `damage.brake-pad-wear` | Brake Pad Wear | number | dimensionless | % | scalar |  |  |  |
+| `damage.brake-pad-wear` | Brake Pad Wear | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `damage.brakes-damage` | Brakes Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
 | `damage.car-damage-centre` | Car Damage centre | number | dimensionless | % | scalar |  |  |  |
 | `damage.car-damage-front` | Car Damage front | number | dimensionless | % | scalar |  |  |  |
@@ -701,16 +701,17 @@
 | `tires.right-tire-sets-used` | Right Tire Sets Used | number | unit:unitless | unitless | scalar |  |  |  |
 | `tires.slip-vibrations` | Slip Vibrations | number | dimensionless | ratio | scalar |  |  |  |
 | `tires.surface-rumble` | Surface rumble | number | unit:unitless | unitless | fixed:4 | FL, FR, RL, RR |  |  |
-| `tires.tire-camber` | Tire Camber | number | angle | rad | scalar |  |  |  |
+| `tires.tire-camber` | Tire Camber | number | angle | rad | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-combined-slip` | Tire combined slip | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-compound` | Tire compound | enum | unit:enum | enum | scalar |  | domain: 7, 8, 16, 17, 18, dry_compound, wet_compound |  |
 | `tires.tire-compound-code` | Tire compound code | number | dimensionless | id | scalar |  |  |  |
 | `tires.tire-compound-name` | Tire compound name | string | dimensionless | text | scalar |  |  |  |
 | `tires.tire-contact-heading` | Tire Contact Heading | number | angle | rad | scalar |  |  |  |
+| `tires.tire-inner-temp` | Tire Inner Temp | number | temperature | °C | scalar |  |  |  |
 | `tires.tire-lf-rumble-pitch` | Tire LF Rumble Pitch | number | unit:hz | Hz | scalar |  |  |  |
 | `tires.tire-lr-rumble-pitch` | Tire LR Rumble Pitch | number | unit:hz | Hz | scalar |  |  |  |
 | `tires.tire-pressure` | Tire Pressure | number | mass × length^-1 × time^-2 | psi | fixed:4 | FL, FR, RL, RR |  |  |
-| `tires.tire-radius` | Tire Radius | number | length | m | scalar |  |  |  |
+| `tires.tire-radius` | Tire Radius | number | length | m | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-rf-rumble-pitch` | Tire RF Rumble Pitch | number | unit:hz | Hz | scalar |  |  |  |
 | `tires.tire-rr-rumble-pitch` | Tire RR Rumble Pitch | number | unit:hz | Hz | scalar |  |  |  |
 | `tires.tire-sets-available` | Tire Sets Available | number | unit:unitless | unitless | scalar |  |  |  |

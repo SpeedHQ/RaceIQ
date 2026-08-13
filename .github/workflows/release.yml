@@ -14,6 +14,10 @@ on:
   release:
     types: [published]
 
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -217,6 +221,7 @@ jobs:
           VERSION="${TAG#v}"
           PUBLISHED_AT="${{ github.event.release.published_at }}"
           bun scripts/release/rollover-changelog.ts "$VERSION" "$PUBLISHED_AT"
+
 
       - name: Update version in package.json
         shell: bash

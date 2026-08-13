@@ -18,6 +18,10 @@ on:
           - ac-evo
           - iracing
 
+concurrency:
+  group: native-replay-${{ github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   replay:
     runs-on: blacksmith-4vcpu-windows-2025

@@ -5,34 +5,22 @@ import type {
   GameAdapter,
 } from "../../games/types";
 
-const directContinuous = {
-  source: "direct",
-  freshness: "continuous",
-} as const;
-const derivedHigh = {
-  source: "derived",
-  confidence: "high",
-} as const;
-
 export const DEFAULT_ANALYSIS_TELEMETRY: AnalysisTelemetryModel = {
-  balance: derivedHigh,
-  gForce: { source: "derived", confidence: "exact" },
-  gripDemand: { ...derivedHigh, display: "per-wheel" },
-  traction: { ...derivedHigh, display: "per-wheel" },
-  tireTemperature: { ...directContinuous, display: "per-wheel" },
-  surface: { ...directContinuous, display: "per-wheel" },
-  slipRatio: { ...derivedHigh, display: "per-wheel" },
-  slipAngle: { ...directContinuous, display: "per-wheel" },
-  wheelRotation: { ...directContinuous, display: "per-wheel" },
-  tireHealth: { ...directContinuous, display: "per-wheel" },
-  tireWearRate: { ...derivedHigh, display: "per-wheel" },
-  tirePressure: { ...directContinuous, display: "per-wheel" },
-  suspensionTravel: { ...directContinuous, display: "normalized" },
-  suspensionCompressionBias: {
-    source: "derived",
-    confidence: "exact",
-    display: "compression-bias",
-  },
+  balance: { source: "unavailable", reason: "missing-model" },
+  gForce: { source: "unavailable", reason: "missing-model" },
+  gripDemand: { source: "unavailable", reason: "source-limitation" },
+  traction: { source: "unavailable", reason: "source-limitation" },
+  tireTemperature: { source: "unavailable", reason: "source-limitation" },
+  surface: { source: "unavailable", reason: "source-limitation" },
+  slipRatio: { source: "unavailable", reason: "source-limitation" },
+  slipAngle: { source: "unavailable", reason: "source-limitation" },
+  lateralSlip: { source: "unavailable", reason: "source-limitation" },
+  wheelRotation: { source: "unavailable", reason: "source-limitation" },
+  tireHealth: { source: "unavailable", reason: "source-limitation" },
+  tireWearRate: { source: "unavailable", reason: "source-limitation" },
+  tirePressure: { source: "unavailable", reason: "source-limitation" },
+  suspensionTravel: { source: "unavailable", reason: "source-limitation" },
+  suspensionCompressionBias: { source: "unavailable", reason: "missing-model" },
 };
 
 export function resolveAnalysisTelemetry(
@@ -84,4 +72,12 @@ export function hasTireHealthData(
       packet.TireWearRR,
     ].some((value) => value !== 0)
   );
+}
+
+export function hasTireHealthDataSemantic(
+  wear: readonly number[] | undefined,
+  metric: AnalysisTelemetryMetric,
+): boolean {
+  if (metric.source !== "direct" || metric.freshness !== "pit-snapshot") return metric.source !== "unavailable";
+  return (wear ?? []).some((value) => value !== 0);
 }

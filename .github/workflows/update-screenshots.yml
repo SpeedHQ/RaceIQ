@@ -8,6 +8,10 @@ on:
       - "assets/screenshots/**"
   workflow_dispatch:
 
+concurrency:
+  group: update-screenshots-${{ github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   update-readme:
     runs-on: ubuntu-latest

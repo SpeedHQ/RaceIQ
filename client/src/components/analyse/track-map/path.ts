@@ -1,10 +1,12 @@
-import { lapPath } from "@shared/racing/tracks/path";
-import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
-import type { Point } from "./types";
+import type { Point, SemanticAnalysisFrame } from "./types";
 
-export function resolveTrackPositions(telemetry: TelemetryPacket[], outline: Point[] | null): Point[] {
-  const path = lapPath(telemetry, outline);
-  return telemetry.map((_, index) => ({ x: path.x[index], z: path.z[index] }));
+const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], _outline: Point[] | null): Point[] {
+  return telemetry.map((frame) => ({ x: number(frame, "motion.position-x") ?? 0, z: number(frame, "motion.position-z") ?? 0 }));
 }
 
 export function pathForwardOffsets(points: readonly Point[]): ([number, number] | null)[] {

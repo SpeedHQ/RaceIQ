@@ -18,10 +18,11 @@ interface LapStats {
 
 
 export async function getLapStats(gameId?: GameId): Promise<LapStats> {
-  const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId}` : sql``;
+  const owned = sql`COALESCE(sessions.ownership, 'mine') != 'others'`;
+  const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId} AND ${owned}` : sql`WHERE ${owned}`;
   const whereClauseByTrack = gameId
-    ? sql`WHERE sessions.game_id = ${gameId} AND laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`
-    : sql`WHERE laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`;
+    ? sql`WHERE sessions.game_id = ${gameId} AND ${owned} AND laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`
+    : sql`WHERE ${owned} AND laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`;
 
   const totals = await db.all<{
     totalLaps: number;
@@ -84,6 +85,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      ownership: sessions.ownership,
       source: sessions.source,
       experimentId: laps.experimentId,
       experimentVersionId: laps.experimentVersionId,
@@ -121,9 +123,8 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
  * decode), so the scan is cheap; the expensive per-lap frame decode is bounded
  * separately by MAX_PROFILE_LAPS in driver-profile-aggregate.ts.
  */
-
 export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: number, trackOrdinal?: number): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId)];
+  const filters = [eq(sessions.gameId, gameId), sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`];
   if (carOrdinal != null) filters.push(eq(sessions.carOrdinal, carOrdinal));
   if (trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal));
 
@@ -145,6 +146,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      ownership: sessions.ownership,
       source: sessions.source,
       experimentId: laps.experimentId,
       experimentVersionId: laps.experimentVersionId,
@@ -254,6 +256,7 @@ export async function getLapById(
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
+      ownership: sessions.ownership,
       carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes,
       catalogVersion: laps.catalogVersion,
@@ -329,6 +332,7 @@ type LapResultRow = {
   catalogHash: string | null;
   catalogSchemaVersion: string | null;
   parserVersion: string | null;
+  ownership: string | null;
   resolverVersion: string | null;
   derivationVersion: string | null;
   rawFile?: string | null;
@@ -347,6 +351,7 @@ function buildLapResult(
     createdAt: row.createdAt,
     carOrdinal: row.carOrdinal,
     trackOrdinal: row.trackOrdinal,
+    ownership: row.ownership === "others" ? "others" : "mine",
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
@@ -393,6 +398,7 @@ export async function getLapsByIds(
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
+      ownership: sessions.ownership,
       carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes,
       catalogVersion: laps.catalogVersion,

@@ -3,6 +3,30 @@ import { SETUP_CONCEPT_DEFINITIONS } from "../../shared/racing/setups/catalog/co
 import type { SemanticDefinition } from "./model";
 
 const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
+  "damage.brake-pad-wear": {
+    label: "Brake Pad Wear",
+    description: "Brake pad wear, FL/FR/RL/RR.",
+    parentId: "damage",
+    canonicalUnit: "mm",
+    shape: "per-wheel",
+    ordering: ["FL", "FR", "RL", "RR"],
+  },
+  "tires.tire-radius": {
+    label: "Tire Radius",
+    description: "Tire radius, FL/FR/RL/RR.",
+    parentId: "tires",
+    canonicalUnit: "m",
+    shape: "per-wheel",
+    ordering: ["FL", "FR", "RL", "RR"],
+  },
+  "tires.tire-camber": {
+    label: "Tire Camber",
+    description: "Tire camber, FL/FR/RL/RR.",
+    parentId: "tires",
+    canonicalUnit: "rad",
+    shape: "per-wheel",
+    ordering: ["FL", "FR", "RL", "RR"],
+  },
   ...SETUP_CONCEPT_DEFINITIONS,
   "aero.drs-active": {
     label: "DRS active",

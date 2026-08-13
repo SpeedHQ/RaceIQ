@@ -6,7 +6,8 @@ import { z } from "zod";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
-import { getGame, tryGetGame } from "../../../shared/games/registry";
+import { getAllGames, getGame, tryGetGame } from "../../../shared/games/registry";
+import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
 import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
@@ -19,8 +20,41 @@ import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
+export function semanticReplayIds(): readonly string[] {
+  return [...new Set([
+    ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
+    "engine.current-engine-rpm",
+    "inputs.gear",
+    "inputs.accel",
+    "inputs.brake",
+    "inputs.steer",
+    "motion.speed",
+    "motion.acceleration-x",
+    "motion.angular-velocity-y",
+    "motion.position-x",
+    "motion.position-z",
+    "motion.yaw",
+    "timing.current-lap",
+    "timing.current-race-time",
+    "timing.distance-traveled",
+    "aero.drs-active",
+    "weather.air-temp",
+    "fuel.ers-store-energy",
+    "fuel.ers-deploy-mode",
+    "brakes.brake-bias",
+    "fuel.ers-deployed",
+    "fuel.ers-harvested",
+    "fuel.fuel-capacity",
+    "identity.car-ordinal",
+    "identity.player-track-surface",
+    "tires.tire-radius",
+  ])];
+}
+const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
+  timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
 const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
@@ -28,6 +62,35 @@ export const resourceRoutes = new Hono()
     const { gameId } = c.req.valid("query");
     const lapList = await getLaps(gameId);
     return c.json(lapList);
+  })
+
+  .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    try {
+      const lap = await getLapById(id);
+      if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
+      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
+      if (!replay) return c.json({ error: "Lap not found" }, 404);
+      const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      return c.json({
+        lapId: replay.lapId,
+        requestedSemanticIds: replay.requestedSemanticIds,
+        sectorTimes: lap.sectorTimes ?? null,
+        sectorStarts: nativeLayout?.starts ?? null,
+        insights: analyzeLap(lap.telemetry, lap.gameId),
+        envelopes: replay.envelopes.map((envelope) => ({
+          sequence: Number(envelope.sequence),
+          observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
+          receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) },
+          simulator: envelope.simulator,
+          values: envelope.values.map(({ semanticId, value, state, freshness }) => ({ semanticId, value, state, freshness })),
+        })),
+      });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to replay telemetry" }, 422);
+    }
   })
 
   .post("/api/laps/bulk-delete", zValidator("json", BulkDeleteSchema), async (c) => {

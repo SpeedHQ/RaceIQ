@@ -9,6 +9,7 @@ import {
   RealDbAdapter,
   RealSessionRecorderAdapter,
 } from "./pipeline-ports";
+import { LiveTelemetryProjector } from "./live-projector";
 import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
@@ -22,6 +23,7 @@ import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { wsManager } from "../runtime/websocket-manager";
+import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
@@ -37,6 +39,7 @@ export class LiveTelemetryPipeline {
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
+  private projector = new LiveTelemetryProjector();
   private _sessionLaps: LapMeta[] = [];
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
@@ -145,10 +148,12 @@ export class LiveTelemetryPipeline {
   private async _finishRecordedSession(
     session = this._recordingSession,
   ): Promise<void> {
-    if (session && this._recordingSession?.sessionId === session.sessionId) {
-      this._recordingSession = null;
-    }
-    await this.recorder.stop();
+    await withSessionCaptureMaintenanceLock(async () => {
+      if (session && this._recordingSession?.sessionId === session.sessionId) {
+        this._recordingSession = null;
+      }
+      await this.recorder.stop();
+    });
     if (session) await this._reconcileRecordedSession(session);
   }
 
@@ -156,21 +161,23 @@ export class LiveTelemetryPipeline {
     return {
       onSessionStart: async (session) => {
         const previousSession = this._recordingSession;
-        this._recordingSession = null;
-        await this.recorder.stop();
-        this.recorder.start(session.gameId);
-        this.recorder.writeMetaFrame();
-        this._recordingSession = {
-          sessionId: session.sessionId,
-          gameId: session.gameId,
-        };
-        if (this.recorder.path) {
-          await this.db.updateSessionRawFile(
-            session.sessionId,
-            this.recorder.path,
-            this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
-          );
-        }
+        await withSessionCaptureMaintenanceLock(async () => {
+          this._recordingSession = null;
+          await this.recorder.stop();
+          this.recorder.start(session.gameId);
+          this.recorder.writeMetaFrame();
+          this._recordingSession = {
+            sessionId: session.sessionId,
+            gameId: session.gameId,
+          };
+          if (this.recorder.path) {
+            await this.db.updateSessionRawFile(
+              session.sessionId,
+              this.recorder.path,
+              this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+            );
+          }
+        });
         if (previousSession) {
           void this._reconcileRecordedSession(previousSession).catch((error) => {
             console.error(
@@ -333,6 +340,7 @@ export class LiveTelemetryPipeline {
    * Shared telemetry processing pipeline used by every telemetry source.
    *
    * Stages: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
+   * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, sourceFrame?: Buffer): Promise<void> {
     this._totalProcessed++;
@@ -346,6 +354,10 @@ export class LiveTelemetryPipeline {
     }
 
     const adapter = getServerGame(packet.gameId);
+    if (this.ws.wantsDevTelemetry) {
+      // Clone parser-native values before any in-place normalization/derivation.
+      this.ws.stageDevTelemetry(structuredClone(packet));
+    }
 
     // Normalize coordinates and derived channels using the adapter profile.
     normalizeTelemetryPacket(
@@ -404,8 +416,15 @@ export class LiveTelemetryPipeline {
       ? detectLiveIssues(packet, this.sectorTracker.getTrackLength())
       : undefined;
 
-    // Broadcast to WebSocket clients (handles 30Hz throttle internally)
-    this.ws.broadcast(packet, sectors, pit, liveIssues);
+    const projection = this.projector.project({
+      packet,
+      sessionId: detector.session?.sessionId,
+      sectors,
+      pit,
+      liveIssues,
+      receivedAtMs: Date.now(),
+    });
+    this.ws.publishTelemetry({ packet, sectors, pit, liveIssues, projection });
 
     if (!this._skipDevState) {
       this.ws.broadcastDevState({
@@ -417,7 +436,7 @@ export class LiveTelemetryPipeline {
   }
 
   async flushSessionRecorder(): Promise<void> {
-    await this.recorder.stop();
+    await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
   }
 
   /** Flush buffered writes to disk without closing. */
@@ -428,8 +447,13 @@ export class LiveTelemetryPipeline {
 
 // Module-level pipeline used by live runtime callers.
 const _defaultWs: WsAdapter = {
-  broadcast: (packet, sectors, pit, liveIssues) =>
-    wsManager.broadcast(packet, sectors, pit, liveIssues),
+  get wantsDevTelemetry() { return wsManager.wantsDevTelemetry; },
+  broadcast: (packet, sectors, pit, liveIssues) => wsManager.broadcast(packet, sectors, pit, liveIssues),
+  stageDevTelemetry: (packet) => wsManager.stageDevTelemetry(packet),
+  publishTelemetry: ({ packet, sectors, pit, liveIssues, projection }) => {
+    wsManager.broadcast(packet, sectors, pit, liveIssues);
+    if (projection) wsManager.publishTelemetry(projection);
+  },
   broadcastNotification: (event) => wsManager.broadcastNotification(event),
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };

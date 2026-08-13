@@ -45,10 +45,9 @@ export function startHttpServer({
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
         const upgraded = server.upgrade(req, {
-          data: { createdAt: Date.now() },
+          data: { createdAt: Date.now(), devTelemetrySubscribed: false },
         });
         if (upgraded) return undefined as unknown as Response;
-        return new Response("WebSocket upgrade failed", { status: 400 });
       }
 
       if (url.pathname.startsWith("/api") || url.pathname.startsWith("/studio-api")) {
@@ -98,8 +97,8 @@ export function startHttpServer({
       close(ws) {
         wsManager.removeClient(ws);
       },
-      message(_ws, _msg) {
-        // No client-to-server messages expected.
+      message(ws, msg) {
+        wsManager.handleMessage(ws, typeof msg === "string" ? msg : Buffer.from(msg));
       },
     },
   });

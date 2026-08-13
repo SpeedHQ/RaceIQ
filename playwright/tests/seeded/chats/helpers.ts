@@ -5,8 +5,6 @@ import { z } from "zod";
 export const LapSummarySchema = z.object({
   id: z.number(),
   lapNumber: z.number(),
-  trackOrdinal: z.number().nullable(),
-  carOrdinal: z.number().nullable(),
 });
 
 export const ChatRowSchema = z.object({

@@ -9,10 +9,12 @@ import { useCreateExperiment } from "@/hooks/experiments";
 import { useTelemetryStore } from "@/stores/telemetry";
 
 export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
-  const packet = useTelemetryStore((s) => s.packet);
-  const { data: names } = useResolveNames(packet?.TrackOrdinal != null ? [packet.TrackOrdinal] : [], packet?.CarOrdinal != null ? [packet.CarOrdinal] : []);
-  const liveCar = packet?.CarOrdinal != null ? (names?.carNames[String(packet.CarOrdinal)] ?? "") : "";
-  const liveTrack = packet?.TrackOrdinal != null ? (names?.trackNames[String(packet.TrackOrdinal)] ?? "") : "";
+  const view = useTelemetryStore((s) => s.telemetryView);
+  const trackOrdinal = view?.identity.trackOrdinal;
+  const carOrdinal = view?.identity.carOrdinal;
+  const { data: names } = useResolveNames(trackOrdinal != null ? [trackOrdinal] : [], carOrdinal != null ? [carOrdinal] : []);
+  const liveCar = carOrdinal != null ? (names?.carNames[String(carOrdinal)] ?? "") : "";
+  const liveTrack = trackOrdinal != null ? (names?.trackNames[String(trackOrdinal)] ?? "") : "";
 
   const { data: tracksData } = useTracks();
 

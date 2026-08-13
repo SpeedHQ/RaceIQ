@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import { OwnershipChoice } from "../import/OwnershipChoice";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
-
 interface ImportedLap {
   lapId: number;
   sessionId: number;
@@ -29,6 +30,7 @@ interface ImportResult {
 
 export function ImportDumpPanel() {
   const [file, setFile] = useState<File | null>(null);
+  const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +65,7 @@ export function ImportDumpPanel() {
     try {
       const form = new FormData();
       form.append("file", file);
+      form.append("ownership", ownership);
       const res = await fetch("/api/dev/import-dump", {
         method: "POST",
         body: form,
@@ -118,6 +121,8 @@ export function ImportDumpPanel() {
           </>
         )}
       </label>
+
+      <OwnershipChoice value={ownership} onChange={setOwnership} disabled={importing} />
 
       <div className="mt-4 flex gap-2">
         <Button

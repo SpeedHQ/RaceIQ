@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { fakeForzaDisplayPacket, fakeForzaPacket, fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
@@ -12,8 +12,12 @@ const queryClient = new QueryClient({
 queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
+  const { schema, frame, view } = fakeForzaSemanticFixture;
   useTelemetryStore.setState({
     connected: true,
+    telemetrySchema: schema,
+    telemetryFrame: frame,
+    telemetryView: view,
     rawPacket: fakeForzaPacket,
     packet: fakeForzaDisplayPacket,
     sectors: fakeSectors,

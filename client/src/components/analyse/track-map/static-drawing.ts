@@ -1,9 +1,8 @@
-import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
-import type { Point, SectorBoundaries, TrackHighlight, TrackMapBoundaries, TrackMapLabel, TrackTransform } from "./types";
+import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform } from "./types";
 
 const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
   good: { stroke: "color-mix(in srgb, var(--severity-nominal) 70%, transparent)", width: 6 },
@@ -14,7 +13,8 @@ const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width:
 export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
   bufferCanvas: HTMLCanvasElement | null;
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
+  gameId?: import("../../../../../shared/games/ids").GameId;
   resolvedPositions: Point[];
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
@@ -27,9 +27,8 @@ export interface StaticTrackOptions {
   rotateWithCar: boolean;
   zoom: number;
 }
-
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
+  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -39,9 +38,8 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
   const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
-  if (displayOutline.length < 2) return { bufferCanvas: null, transform: null };
-
-  const flip = needsTrackFlip(telemetry[0]?.gameId);
+  if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
+  const flip = needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
@@ -218,15 +216,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     }
 
   if (outline) {
-    let sfX = displayOutline[0].x,
-      sfZ = displayOutline[0].z;
-    if (telemetry.length) {
-      let minLapIdx = 0;
-      for (let i = 1; i < telemetry.length; i++) if ((telemetry[i].CurrentLap ?? Infinity) < (telemetry[minLapIdx].CurrentLap ?? Infinity)) minLapIdx = i;
-      sfX = resolvedPositions[minLapIdx].x;
-      sfZ = resolvedPositions[minLapIdx].z;
-    }
-    const [sfCx, sfCy] = toCanvas(sfX, sfZ);
+    const [sfCx, sfCy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
     ctx.beginPath();
     ctx.arc(sfCx, sfCy, 5, 0, Math.PI * 2);
     ctx.fillStyle = "var(--track-start)";
@@ -274,15 +264,15 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       if (len < 0.01) continue;
       const nx = -dy / len,
         ny = dx / len,
-        pkt = telemetry[telemetryPointsWithIdx[i].idx];
-      if (!pkt) continue;
-      const throttle = (pkt.Accel ?? 0) / 255,
-        brake = (pkt.Brake ?? 0) / 255;
+        frame = telemetry[telemetryPointsWithIdx[i].idx];
+      if (!frame) continue;
+      const throttle = (semanticNumber(frame, "inputs.accel") ?? 0) / 255;
+      const brake = (semanticNumber(frame, "inputs.brake") ?? 0) / 255;
       if (throttle > 0) {
         ctx.beginPath();
         ctx.moveTo(x0 + nx * 1.5, y0 + ny * 1.5);
         ctx.lineTo(x1 + nx * 1.5, y1 + ny * 1.5);
-        ctx.globalAlpha = throttle;
+        ctx.globalAlpha = 0.35 + throttle * 0.65;
         ctx.strokeStyle = "var(--ch-throttle)";
         ctx.lineWidth = 2;
         ctx.stroke();

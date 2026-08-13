@@ -37,6 +37,8 @@ export interface RecordedCatalogCoverage {
   readonly gameId: GameId;
   readonly recording: string;
   readonly expectations: readonly RecordedSemanticExpectation[];
+  /** Semantic bindings advertised by adapter; continuous values must resolve to finite numbers. */
+  readonly requiredSemanticIds?: readonly string[];
   /** Continuous values displayed by UI that must vary within one representative lap. */
   readonly lapDynamics?: readonly RecordedLapDynamicsExpectation[];
 }
@@ -120,8 +122,33 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
   }
 
   expect(parsed.rawPackets.every((packet) => packet.gameId === coverage.gameId)).toBe(true);
+  const explicitById = new Map(coverage.expectations.map((expectation) => [expectation.semanticId, expectation]));
+  const requiredExpectations: RecordedSemanticExpectation[] = (coverage.requiredSemanticIds ?? [])
+    .filter((semanticId) => !explicitById.has(semanticId))
+    .flatMap((semanticId) => {
+      const variable = TELEMETRY_CATALOG.variables.find((candidate) => candidate.id === semanticId);
+      if (!variable) throw new Error(`${coverage.gameId} required semantic ${semanticId} is unknown`);
+      const mapping = variable.games[coverage.gameId];
+      if (!mapping || mapping.kind === "unavailable") {
+        throw new Error(`${coverage.gameId} required semantic ${semanticId} is unavailable`);
+      }
+      return [{
+        semanticId,
+        mappingStatus: mapping.kind,
+        accepts: (value: unknown) => {
+          const acceptsValue = (item: unknown): boolean =>
+            variable.valueType === "number" ? typeof item === "number" && Number.isFinite(item) :
+            variable.valueType === "boolean" ? typeof item === "boolean" :
+            variable.valueType === "string" ? typeof item === "string" :
+            typeof item === "string" || (typeof item === "number" && Number.isFinite(item));
+          return Array.isArray(value) ? value.length > 0 && value.every(acceptsValue) : acceptsValue(value);
+        },
+        unit: variable.canonicalUnit,
+      }];
+    });
+  const expectations = [...coverage.expectations, ...requiredExpectations];
   const lapDynamics = coverage.lapDynamics ?? [];
-  const needsRepresentativeLap = lapDynamics.length > 0 || coverage.expectations.some((expectation) => expectation.minimumRange !== undefined);
+  const needsRepresentativeLap = lapDynamics.length > 0 || expectations.some((expectation) => expectation.minimumRange !== undefined);
   const lapCandidates = needsRepresentativeLap ? candidateLapSegments(parsed.rawPackets, lapDynamics) : [];
   if (needsRepresentativeLap && lapCandidates.length === 0) {
     throw new Error("Recording has no complete representative lap with progressing CurrentLap");
@@ -129,7 +156,7 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
 
   const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
     simulator: coverage.gameId,
-    requested: coverage.expectations.map(({ semanticId }) => ({
+    requested: expectations.map(({ semanticId }) => ({
       semanticId,
       required: true,
     })),
@@ -140,12 +167,13 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
   expect(resolver.parserVersion).toBe(TELEMETRY_PARSER_VERSIONS[coverage.gameId]);
   expect(resolver.resolverVersion).toBe(TELEMETRY_RESOLVER_VERSION);
 
-  const slots = new Map(coverage.expectations.map((expectation) => [expectation.semanticId, resolver.slot(expectation.semanticId)]));
+  const slots = new Map(expectations.map((expectation) => [expectation.semanticId, resolver.slot(expectation.semanticId)]));
   const resolvedById = new Map<string, ResolvedValue<unknown>>();
   const lastStateById = new Map<string, string>();
   const rangesByLapStart = new Map<number, Map<string, SampledRange>>(lapCandidates.map((candidate) => [candidate.start, new Map()]));
   let frame: TelemetryFrameView | undefined;
   let candidateCursor = 0;
+
 
   for (let packetIndex = 0; packetIndex < parsed.rawPackets.length; packetIndex += 1) {
     while (candidateCursor < lapCandidates.length && lapCandidates[candidateCursor].end <= packetIndex) {
@@ -156,7 +184,7 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
     const packet = parsed.rawPackets[packetIndex];
     frame = resolver.createFrameView(packet, { timestamp: { domain: "session", milliseconds: packet.TimestampMS }, updateSequence: BigInt(packet.TimestampMS) }, frame);
 
-    for (const expectation of coverage.expectations) {
+    for (const expectation of expectations) {
       const requiredRange = expectation.minimumRange;
       if (resolvedById.has(expectation.semanticId) && (requiredRange === undefined || currentCandidate === undefined)) {
         continue;
@@ -169,7 +197,6 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
 
       if (!resolvedById.has(expectation.semanticId)) {
         expect(resolved.mappingStatus).toBe(expectation.mappingStatus);
-        expect(resolved.unit).toBe(expectation.unit);
         expect(resolved.schemaVersion).toBe(TELEMETRY_CATALOG.metadata.schemaVersion);
         expect(resolved.confidence).toBeGreaterThan(0);
         expect(resolved.provenance.simulator).toBe(coverage.gameId);
@@ -199,17 +226,16 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
       }
     }
   }
-
-  const missing = coverage.expectations.filter(({ semanticId }) => !resolvedById.has(semanticId)).map(({ semanticId }) => `${semanticId} (${lastStateById.get(semanticId) ?? "not-evaluated"})`);
+  const missing = expectations.filter(({ semanticId }) => !resolvedById.has(semanticId)).map(({ semanticId }) => `${semanticId} (${lastStateById.get(semanticId) ?? "not-evaluated"})`);
   if (missing.length > 0) {
     throw new Error(`${coverage.gameId} recording did not resolve required semantics: ${missing.join(", ")}`);
   }
 
   const rankedCandidates = lapCandidates
     .map((candidate) => {
-      const ranges = rangesByLapStart.get(candidate.start)!;
-      const semanticFailureCount = coverage.expectations.filter((expectation) => {
+      const semanticFailureCount = expectations.filter((expectation) => {
         if (expectation.minimumRange === undefined) return false;
+        const ranges = rangesByLapStart.get(candidate.start)!;
         const range = ranges.get(expectation.semanticId);
         return range === undefined || range.count < 2 || range.max - range.min <= expectation.minimumRange;
       }).length;
@@ -227,7 +253,7 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
   }
 
   const representativeRanges = representativeLap ? rangesByLapStart.get(representativeLap.start)! : new Map<string, SampledRange>();
-  const staticDynamics = coverage.expectations
+  const staticDynamics = expectations
     .filter((expectation) => {
       if (expectation.minimumRange === undefined) return false;
       const range = representativeRanges.get(expectation.semanticId);

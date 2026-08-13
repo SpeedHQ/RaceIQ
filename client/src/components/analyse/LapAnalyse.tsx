@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch, useNavigate } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import { useSettings } from "../../hooks/settings";
+import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
 import type { AnalyseSearch } from "../../lib/game-routes";
-import { buildExportCsv } from "../../lib/lap-export";
 import { client } from "../../lib/rpc";
 import { useRequiredGameId } from "../../stores/game";
 import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
@@ -16,36 +15,37 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import type { Point, TrackMapHandle } from "./track-map/types";
+import { type Point, semanticNumber, type TrackMapHandle } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 
 // ── Main Component ───────────────────────────────────────────────────
+const noop = () => undefined;
 
-export function LapAnalyse({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: number; carOrdinal: number; lapId: number }) {
-  return <LapAnalyseInner trackOrdinal={trackOrdinal} carOrdinal={carOrdinal} lapId={lapId} />;
+export function LapAnalyse() {
+  return <LapAnalyseInner />;
 }
 
-function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: number; carOrdinal: number; lapId: number }) {
-  const navigate = useNavigate();
-
+function LapAnalyseInner() {
   const search = useSearch({ strict: false }) as AnalyseSearch;
   const units = useUnits();
   const gameId = useRequiredGameId();
   const queryClient = useQueryClient();
-  const { displaySettings } = useSettings();
   const {
     laps,
     setLaps,
-    lapData,
     lapLoading,
     lapError,
     parseError,
     telemetry,
-    displayTelemetry,
+    semanticFrames,
+    semanticReplay,
     selectedTrack,
+    setSelectedTrack,
     selectedCar,
+    setSelectedCar,
     selectedLapId,
+    setSelectedLapId,
     outline,
     mapLabels,
     boundaries,
@@ -78,10 +78,8 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
     setTrackName,
     handleTrackChange,
     handleCarChange,
-    handleLapChange,
     cursorRef,
-  } = useAnalyseSelections(search, gameId, { trackOrdinal, carOrdinal, lapId });
-  const resourceMismatch = lapData != null && (lapData.trackOrdinal !== trackOrdinal || lapData.carOrdinal !== carOrdinal);
+  } = useAnalyseSelections(search, gameId);
   const loading = lapLoading;
   const [cursorIdx, setCursorIdx] = useState(0);
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
@@ -95,19 +93,22 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
   const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
-  const [showSetup, setShowSetup] = useState(false);
   const lapLine = useMemo(() => {
     if (telemetry.length < 2) return null;
     const pts: Point[] = [];
-    for (const p of telemetry) if (p.PositionX !== 0 || p.PositionZ !== 0) pts.push({ x: p.PositionX, z: p.PositionZ });
+    for (const p of telemetry) {
+      const x = semanticNumber(p, "motion.position-x");
+      const z = semanticNumber(p, "motion.position-z");
+      if (x != null || z != null) pts.push({ x: x ?? 0, z: z ?? 0 });
+    }
     return pts.length > 2 ? pts : null;
   }, [telemetry]);
   const playRef = useRef(false);
   const speedRef = useRef(1);
-  const displayTelemetryRef = useRef(displayTelemetry);
+  const displayTelemetryRef = useRef(semanticFrames);
   useEffect(() => {
-    displayTelemetryRef.current = displayTelemetry;
-  }, [displayTelemetry]);
+    displayTelemetryRef.current = semanticFrames;
+  }, [semanticFrames]);
   const seekRef = useRef(0);
   const trackMapRef = useRef<TrackMapHandle>(null);
   const lastStateUpdateRef = useRef(0);
@@ -167,14 +168,13 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
     w.__setFrame = (n: number) => {
       const idx = Math.max(0, Math.min(telemetry.length - 1, n));
       setCursorIdx(idx);
+      cursorRef.current = idx;
       trackMapRef.current?.updateCursor(idx);
       chartsPanelRef.current?.updateCursor(idx);
     };
     w.__pauseAnimation = () => setPlaying(false);
     w.__totalFrames = telemetry.length;
-    // Per-frame lap timestamps (seconds) so the recorder can offset the start
-    // by real seconds, not a guessed fraction.
-    w.__frameTimes = telemetry.map((p) => p.CurrentLap);
+    w.__frameTimes = telemetry.map((p) => semanticNumber(p, "timing.current-lap") ?? 0);
     return () => {
       w.__setFrame = undefined;
       w.__pauseAnimation = undefined;
@@ -202,16 +202,16 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
     setPlaying,
   });
 
-  // Derive cursor sector cheaply from precomputed server data
   const sectorTimes = useMemo(() => {
     if (!sectorData || !sectors) return null;
-    const cursorFrac = telemetry.length > 1 ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist : 0;
+    const cursorDistance = semanticNumber(telemetry[cursorIdx], "timing.distance-traveled") ?? 0;
+    const cursorFrac = telemetry.length > 1 ? (cursorDistance - sectorData.firstDist) / sectorData.lapDist : 0;
     let cursorSector = 0;
     for (let index = 1; index < sectors.sectorStarts.length; index++) {
       if (cursorFrac < sectors.sectorStarts[index]) break;
       cursorSector = index;
     }
-    return { ...sectorData, cursorSector };
+    return { ...sectorData, times: sectorData.times, cursorSector };
   }, [sectorData, sectors, telemetry, cursorIdx]);
 
   const handleChartClick = useCallback(
@@ -229,27 +229,25 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
     playRef.current = false;
   }, []);
 
-  const currentPacket = telemetry[cursorIdx] ?? null;
-  const currentDisplayPacket = displayTelemetry[cursorIdx] ?? null;
+  const currentFrame = telemetry[cursorIdx] ?? null;
   const wearRate = useMemo(() => {
-    if (!currentPacket || telemetry.length < 2) return null;
-    const windowIdx = Math.max(0, cursorIdx - 60);
-    const windowPacket = telemetry[windowIdx];
-    const dt = currentPacket.CurrentLap - windowPacket.CurrentLap;
-    if (dt <= 0.1) return null;
-    return {
-      FL: (currentPacket.TireWearFL - windowPacket.TireWearFL) / dt,
-      FR: (currentPacket.TireWearFR - windowPacket.TireWearFR) / dt,
-      RL: (currentPacket.TireWearRL - windowPacket.TireWearRL) / dt,
-      RR: (currentPacket.TireWearRR - windowPacket.TireWearRR) / dt,
-    };
-  }, [currentPacket, cursorIdx, telemetry]);
-  // Insights computed server-side, included in the initial lap fetch
-  const lapInsights = useMemo(() => lapData?.insights ?? [], [lapData]);
-
-  // Cursor state already publishes at 30 Hz during playback. Read interpolated
-  // time on those renders instead of driving a second 60 Hz parent render loop.
-  const currentTime = playing ? interpolatedTimeRef.current : currentPacket ? currentPacket.CurrentLap : 0;
+    if (!currentFrame || telemetry.length < 2) return null;
+    const previous = telemetry[Math.max(0, cursorIdx - 60)];
+    const currentTime = semanticNumber(currentFrame, "timing.current-lap");
+    const previousTime = semanticNumber(previous, "timing.current-lap");
+    const dt = (currentTime ?? 0) - (previousTime ?? 0);
+    const currentWear = currentFrame.values["tires.tire-wear"];
+    const previousWear = previous.values["tires.tire-wear"];
+    if (dt <= 0.1 || !Array.isArray(currentWear) || !Array.isArray(previousWear)) return null;
+    const values = [0, 1, 2, 3].map((index) => {
+      const current = currentWear[index];
+      const prior = previousWear[index];
+      return typeof current === "number" && typeof prior === "number" ? (current - prior) / dt : null;
+    });
+    return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
+  }, [currentFrame, cursorIdx, telemetry]);
+  const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
+  const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const totalTime = selectedLap?.lapTime ?? 0;
 
@@ -284,37 +282,43 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
   });
 
   const deleteLapMutation = useMutation({
-    mutationFn: async (lapId: number) => {
-      const response = await client.api.laps[":id"].$delete({ param: { id: String(lapId) } });
-      if (!response.ok) throw new Error(`Failed to delete lap (${response.status})`);
-      return response.json();
-    },
+    mutationFn: (lapId: number) => client.api.laps[":id"].$delete({ param: { id: String(lapId) } }).then((r) => r.json() as any),
     onSuccess: () => {
-      void navigate({ search: { ...search, lap: undefined, view: "track", cursor: undefined } } as never);
+      setSelectedLapId(null);
       queryClient.invalidateQueries({ queryKey: ["laps"] });
     },
   });
 
   const handleDeleteLap = useCallback(() => {
     if (!selectedLapId) return;
-    const lap = filteredLaps.find((l) => l.id === selectedLapId);
+    const lap = filteredLaps.find((candidate) => candidate.id === selectedLapId);
     const label = lap ? `Lap ${lap.lapNumber}` : `Lap ${selectedLapId}`;
     if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     deleteLapMutation.mutate(selectedLapId);
-  }, [selectedLapId, filteredLaps, deleteLapMutation]);
+  }, [selectedLapId, filteredLaps, deleteLapMutation.mutate]);
+  const handleTuneChange = useCallback((tuneId: number | null) => updateLapTune.mutate(tuneId), [updateLapTune.mutate]);
+  const handleNotesChange = useCallback((notes: string) => updateLapNotesMutation.mutate(notes), [updateLapNotesMutation.mutate]);
+  const handleToggleAi = useCallback(() => setAiPanelOpen((open) => !open), [setAiPanelOpen]);
+  const handleRotateWithCarToggle = useCallback(() => setRotateWithCar((rotate) => !rotate), [setRotateWithCar]);
+  const handleTrackOverlayCycle = useCallback(
+    () => setTrackOverlay((overlay) => (overlay === "none" ? "inputs" : overlay === "inputs" ? "segments" : overlay === "segments" ? "sectors" : "none")),
+    [setTrackOverlay],
+  );
 
-  // Export handler
-  const handleExport = useCallback(() => {
-    if (telemetry.length === 0) return;
-    buildExportCsv(telemetry, carName, trackName, selectedLap, selectedLapId, displaySettings.driverName);
-  }, [telemetry, selectedLapId, selectedLap, carName, trackName]);
-
-  const { exportingBin, importingBin, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({ queryClient });
+  const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
+    queryClient,
+    gameId,
+    setSelectedTrack,
+    setSelectedCar,
+    setSelectedLapId,
+  });
 
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
+        onExport={noop}
+        onExportBin={noop}
         selectedTrack={selectedTrack}
         selectedCar={selectedCar}
         selectedLapId={selectedLapId}
@@ -325,32 +329,33 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
         carsForTrack={carsForTrack}
         filteredLaps={filteredLaps}
         hasTelemetry={telemetry.length > 0}
-        hasF1Setup={!!telemetry[0]?.f1?.setup}
+        hasF1Setup={false}
         availableTunes={availableTunes}
         tunePending={updateLapTune.isPending}
         loading={loading}
         aiPanelOpen={aiPanelOpen}
         onTrackChange={handleTrackChange}
         onCarChange={handleCarChange}
-        onLapChange={handleLapChange}
-        onTuneChange={(tuneId) => updateLapTune.mutate(tuneId)}
+        onLapChange={setSelectedLapId}
+        onTuneChange={handleTuneChange}
         onViewTune={setViewingTuneId}
-        onShowSetup={() => setShowSetup(true)}
-        onExport={handleExport}
-        onExportBin={() => void handleExportBin(selectedLapId)}
+        onShowSetup={noop}
         onImportBin={handleImportBin}
         exportingBin={exportingBin}
         importingBin={importingBin}
-        onToggleAi={() => setAiPanelOpen((v) => !v)}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onToggleAi={handleToggleAi}
         onDeleteLap={handleDeleteLap}
-        onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}
+        onNotesChange={handleNotesChange}
       />
 
-      {(resourceMismatch || telemetry.length === 0) && <AnalyseWorkspaceStatus loading={loading} lapError={resourceMismatch ? new Error("Lap not found in this track/car analysis") : lapError} parseError={parseError} selectedLapId={selectedLapId} />}
+      {telemetry.length === 0 && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
 
-      {telemetry.length > 0 && !resourceMismatch && (
+      {telemetry.length > 0 && (
         <AnalyseWorkspacePanels
           topSectionProps={{
+            gameId,
             topHeight,
             leftColWidth,
             rightColWidth,
@@ -363,9 +368,8 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
             boundaries,
             sectors,
             segments,
-            currentPacket,
-            currentDisplayPacket,
-            displayTelemetry,
+            currentFrame,
+            displayTelemetry: semanticFrames,
             lapLine,
             units,
             aiPanelOpen,
@@ -373,8 +377,8 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
             rotateWithCar,
             trackOverlay,
             mapZoom,
-            onRotateWithCarToggle: () => setRotateWithCar((r) => !r),
-            onTrackOverlayCycle: () => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none")),
+            onRotateWithCarToggle: handleRotateWithCarToggle,
+            onTrackOverlayCycle: handleTrackOverlayCycle,
             onMapZoomChange: setMapZoom,
             vizMode,
             onVizModeChange: setWheelTab,
@@ -384,7 +388,7 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
           }}
           resizeHandleProps={{ topHeight, onHeightChange: setTopHeight }}
           timelineScrubberProps={{
-            displayTelemetry,
+            displayTelemetry: semanticFrames,
             cursorIdx,
             totalPackets: telemetry.length,
             currentTime,
@@ -402,8 +406,8 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
             onVisualFracChange: setVisualTimeFrac,
           }}
           chartsPanelProps={{
-            displayTelemetry,
             totalPackets: telemetry.length,
+            displayTelemetry: semanticFrames,
             visualTimeFrac,
             onVisualFracChange: setVisualTimeFrac,
             onClickIndex: handleChartClick,
@@ -412,13 +416,12 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
             tempLabel: units.tempLabel,
           }}
           chartsPanelRef={chartsPanelRef}
-          displayTelemetryLength={displayTelemetry.length}
+          displayTelemetryLength={semanticFrames.length}
           dataPanelProps={{
             sidebarTab,
             onSidebarTabChange: setSidebarTab,
-            currentPacket,
-            currentDisplayPacket,
-            startFuel: telemetry[0]?.Fuel,
+            currentFrame,
+            startFuel: semanticNumber(telemetry[0], "fuel.fuel") ?? undefined,
             gameId,
             units,
             wearRate,
@@ -429,8 +432,8 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
             aiPanelOpen && selectedLapId
               ? {
                   lapId: selectedLapId,
-                  carName,
                   trackName,
+                  carName,
                   segments,
                   aiPanelRef,
                   onJumpToFrac: (frac) => {
@@ -445,25 +448,19 @@ function LapAnalyseInner({ trackOrdinal, carOrdinal, lapId }: { trackOrdinal: nu
       <AnalyseWorkspaceModals
         viewingTuneId={viewingTuneId}
         onCloseTune={() => setViewingTuneId(null)}
-        setup={showSetup ? (telemetry[0]?.f1?.setup ?? null) : null}
-        onCloseSetup={() => setShowSetup(false)}
         ibtPreview={ibtPreview}
+        setup={null}
+        onCloseSetup={() => undefined}
         importingBin={importingBin}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
         onCommitIbt={() => void handleCommitIbt()}
         onCancelIbt={handleCancelIbt}
         importResult={importResult}
         gameId={gameId}
-        onGoToLap={(lap) =>
-          void navigate({
-            search: {
-              ...search,
-              track: lap.trackOrdinal,
-              car: lap.carOrdinal,
-              lap: lap.lapId,
-              cursor: undefined,
-            },
-          } as never)
-        }
+        setSelectedTrack={setSelectedTrack}
+        setSelectedCar={setSelectedCar}
+        setSelectedLapId={setSelectedLapId}
         onCloseImport={() => setImportResult(null)}
       />
     </div>

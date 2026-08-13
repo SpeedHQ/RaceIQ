@@ -36,7 +36,8 @@ export const BulkDeleteSchema = z.object({
 export const IbtImportTokenSchema = z.object({
   token: z.string().uuid(),
 });
-
+export const OwnershipSchema = z.enum(["mine", "others"]);
+export const IbtCommitSchema = IbtImportTokenSchema.extend({ ownership: OwnershipSchema });
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
 const IdListSchema = z
   .string()

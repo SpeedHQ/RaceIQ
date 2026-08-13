@@ -199,3 +199,24 @@ function rangeOf(frames: TelemetryPacket[], sel: (p: TelemetryPacket) => number 
   if (n === 0) return { min: 0, avg: 0, max: 0, n: 0 };
   return { min, avg: sum / n, max, n };
 }
+
+import type { SemanticTuneSample } from "./semantic-tune";
+import { wheelValue } from "./semantic-tune";
+
+export function buildSemanticSectorRanges(samples: SemanticTuneSample[], sectorTimes: SectorTimes | null, metric: MetricKey): SectorRangeModel | null {
+  if (samples.length < 5) return null;
+  const ids: Record<MetricKey, keyof SemanticTuneSample["values"]> = { tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tires.tire-pressure", wear: "tires.tire-wear" };
+  const n = samples.length;
+  const count = sectorTimes?.times.length && sectorTimes.times.length >= 2 ? sectorTimes.times.length : 3;
+  const bounds = sectorTimes?.boundaryIndices.length === count - 1 ? sectorTimes.boundaryIndices : Array.from({ length: count - 1 }, (_, i) => Math.floor(((i + 1) * n) / count));
+  const slices = [0, ...bounds, n].map((start, i, a) => samples.slice(start, a[i + 1] ?? n)).slice(0, count);
+  const skipZero = metric !== "wear";
+  const ranges = (xs: SemanticTuneSample[]) => Object.fromEntries(CORNERS.map((c, i) => {
+    const vs = xs.map((s) => wheelValue(s, ids[metric], i)).filter((v): v is number => v != null && (!skipZero || v > 0));
+    return [c, vs.length ? { min: Math.min(...vs), avg: vs.reduce((a, b) => a + b, 0) / vs.length, max: Math.max(...vs), n: vs.length } : { min: 0, avg: 0, max: 0, n: 0 }];
+  })) as Record<CornerKey, Range>;
+  const sectors = slices.map(ranges); const vals = sectors.flatMap((s) => CORNERS.flatMap((c) => s[c].n ? [s[c].min, s[c].max] : []));
+  if (!vals.length) return { sectors, domain: [0, 1] };
+  const min = Math.min(...vals), max = Math.max(...vals), pad = Math.max(metric === "wear" ? 1 : 4, (max - min) * .15);
+  return { sectors, domain: [Math.floor(min - pad), Math.ceil(max + pad)] };
+}

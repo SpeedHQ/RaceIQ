@@ -7,7 +7,7 @@ import { useTelemetryStore } from "../stores/telemetry";
 
 function ComboDash2Route() {
   const setGameId = useGameStore((s) => s.setGameId);
-  const rawPacket = useTelemetryStore((s) => s.rawPacket);
+  const view = useTelemetryStore((s) => s.telemetryView);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as GameId | null | undefined;
 
@@ -16,7 +16,7 @@ function ComboDash2Route() {
     return () => setGameId(null);
   }, [detectedGameId, setGameId]);
 
-  return <ComboDash2 rawPacket={rawPacket} sessionLaps={sessionLaps} />;
+  return <ComboDash2 view={view} sessionLaps={sessionLaps} />;
 }
 
 export const Route = createFileRoute("/dash/combo-2")({

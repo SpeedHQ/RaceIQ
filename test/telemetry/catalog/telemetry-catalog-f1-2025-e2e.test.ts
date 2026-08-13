@@ -1,5 +1,9 @@
 import { test } from "bun:test";
+import { getGame } from "../../../shared/games/registry";
+import { initGameAdapters } from "../../../shared/games/init";
+import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
+initGameAdapters();
 
 const FIXTURE = "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
 
@@ -66,6 +70,7 @@ test(
     await assertRecordedCatalogCoverage({
       gameId: "f1-2025",
       recording: FIXTURE,
+      requiredSemanticIds: requiredSemanticIds(getGame("f1-2025")),
       lapDynamics: [
         ...changingPacketFields(DYNAMIC_UI_FIELDS),
         {

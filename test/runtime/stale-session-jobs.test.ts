@@ -101,7 +101,11 @@ describe("startup stale-session notifications", () => {
 
     staleSessionsSpy = spyOn(wsManager, "setStaleSessionsNotification").mockImplementation(() => {});
     staleResultsSpy = spyOn(wsManager, "setStaleRaceResultsNotification").mockImplementation(() => {});
-    startSyncAndStaleSessionJobs(NOOP_STARTUP_JOBS);
+    startSyncAndStaleSessionJobs({
+      ...NOOP_STARTUP_JOBS,
+      countStaleSessions: async () => 2,
+      countStaleRaceResults: async () => 2,
+    });
     await waitForStartupChecks();
 
     expect(staleSessionsSpy).toHaveBeenCalledWith({ type: "stale-lap-detection", sessionCount: 2, currentVersion: [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID].join(",") });
@@ -121,7 +125,11 @@ describe("startup stale-session notifications", () => {
 
     staleSessionsSpy = spyOn(wsManager, "setStaleSessionsNotification").mockImplementation(() => {});
     staleResultsSpy = spyOn(wsManager, "setStaleRaceResultsNotification").mockImplementation(() => {});
-    startSyncAndStaleSessionJobs(NOOP_STARTUP_JOBS);
+    startSyncAndStaleSessionJobs({
+      ...NOOP_STARTUP_JOBS,
+      countStaleSessions: async () => 0,
+      countStaleRaceResults: async () => 0,
+    });
     await waitForStartupChecks();
 
     expect(staleSessionsSpy).not.toHaveBeenCalled();

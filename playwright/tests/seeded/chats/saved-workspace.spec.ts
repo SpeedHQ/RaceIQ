@@ -34,11 +34,9 @@ test("saved Analyse and Compare chats open their AI workspaces without a provide
 
   await openChatRow(page, "analyse");
   await expect.poll(() => new URL(page.url()).pathname).toBe("/fm23/analyse");
-  const analyseUrl = new URL(page.url());
-  expect(analyseUrl.searchParams.get("track")).toBe(String(analyse.laps[0].trackOrdinal));
-  expect(analyseUrl.searchParams.get("car")).toBe(String(analyse.laps[0].carOrdinal));
-  expect(analyseUrl.searchParams.get("lap")).toBe(String(analyse.laps[0].id));
-  expect(analyseUrl.searchParams.get("ai")).toBe("1");
+  expect(new URL(page.url()).searchParams.get("lap")).toBe(String(analyse.laps[0].id));
+  expect(new URL(page.url()).searchParams.get("ai")).toBe("1");
+  await expect(page.locator("span").getByText("AI Analysis", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("AI not set up", { exact: true })).toBeVisible();
 
   await page.goto("/fm23/chats", { waitUntil: "domcontentloaded" });

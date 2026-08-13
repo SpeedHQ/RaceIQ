@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { RawTelemetry } from "../../components/RawTelemetry";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useTelemetryStore } from "../../stores/telemetry";
 
 type PageKey = "physics" | "graphics" | "staticData";
@@ -102,7 +103,8 @@ interface VerifyResp {
 }
 
 function RawPage() {
-  const { packet } = useTelemetryStore();
+  const devState = useTelemetryStore((s) => s.devState);
+  const packet = (devState as { packet?: TelemetryPacket } | null)?.packet ?? null;
   const [view, setView] = useState<"parsed" | "hex" | "fields" | "verify">("parsed");
   const [page, setPage] = useState<PageKey>("graphics");
   const [hex, setHex] = useState<{ physics: Uint8Array; graphics: Uint8Array; staticData: Uint8Array } | null>(null);

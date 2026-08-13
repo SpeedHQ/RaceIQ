@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { F1LiveDashboard } from "../components/f1/F1LiveDashboard";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { fakeF1DisplayPacket, fakeF1Packet, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { fakeF1SemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
@@ -16,10 +16,12 @@ queryClient.setQueryData(["car-name", 42, "f1-2025"], "F1 2025");
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   // Inject fake state into stores before render
+  const { schema, frame, view } = fakeF1SemanticFixture;
   useTelemetryStore.setState({
     connected: true,
-    rawPacket: fakeF1Packet,
-    packet: fakeF1DisplayPacket,
+    telemetrySchema: schema,
+    telemetryFrame: frame,
+    telemetryView: view,
     sectors: fakeSectors,
     pit: fakePit,
     sessionLaps: fakeSessionLaps,

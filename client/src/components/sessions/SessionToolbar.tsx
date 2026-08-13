@@ -1,11 +1,11 @@
-import { motecImportSupported } from "@shared/integrations/motec";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { useGameId, useGameRoute } from "@/stores/game";
+import { useGameRoute } from "@/stores/game";
 import type { SessionsTab } from "./types";
+
 
 export type SessionToolbarProps = {
   sessions: SessionMeta[];
@@ -48,31 +48,19 @@ export function SessionToolbar({
   isDeleting,
   deleteError,
 }: SessionToolbarProps) {
-  const gameId = useGameId();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
-  const motecEnabled = motecImportSupported(gameId);
 
   return (
     <div className="flex items-center flex-wrap gap-3">
-      {motecEnabled && (
-        <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
-          {(["recorded", "imported"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
-            <Button
-              key={nextTab}
-              variant="app-ghost"
-              size="app-md"
-              onClick={() => {
-                setTab(nextTab);
-                setPage(0);
-              }}
-              className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
-            >
-              {nextTab === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
-            </Button>
-          ))}
-        </div>
-      )}
+      <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
+        {(["mine", "others"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
+          <Button key={nextTab} variant="app-ghost" size="app-md" onClick={() => { setTab(nextTab); setPage(0); }} className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}>
+            {nextTab === "mine" ? m.sessions_tab_mine() : m.sessions_tab_others()}
+          </Button>
+        ))}
+      </div>
+      <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
       <AppInput
         type="search"
         value={search}
@@ -89,28 +77,6 @@ export function SessionToolbar({
         )}
       </h1>
       <div className="flex items-center flex-wrap gap-2">
-        {tab === "imported" && (
-          <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>
-            {m.sessions_import_motec()}
-          </Button>
-        )}
-        {selectedLaps.size >= 2 &&
-          (() => {
-            const ids = [...selectedLaps];
-            const selected = ids.map((id) => allLaps.find((lap) => lap.id === id)).filter((lap): lap is LapMeta => lap != null);
-            const first = selected[0];
-            const sameGroup = first?.trackOrdinal != null && first.carOrdinal != null && selected.length === ids.length && selected.every((lap) => lap.trackOrdinal === first.trackOrdinal && lap.carOrdinal === first.carOrdinal);
-            if (!sameGroup) return null;
-            return (
-              <Button
-                variant="app-primary"
-                size="app-md"
-                onClick={() => void navigate({ to: `${gameRoute}/analyse` as never, search: { track: first.trackOrdinal, car: first.carOrdinal, laps: ids.join(",") } as never })}
-              >
-                {m.label_analyse()} ({ids.length})
-              </Button>
-            );
-          })()}
         {selectedLaps.size === 2 &&
           (() => {
             const ids = [...selectedLaps];
