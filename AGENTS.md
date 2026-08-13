@@ -7,6 +7,14 @@ This file provides guidance to coding agents working in this repository.
 
 RaceIQ is a full-stack racing telemetry analysis app for Forza Motorsport 2023, F1 25, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing. UDP and native Windows telemetry sources feed a Bun server, SQLite storage, and a React dashboard. See [architecture overview](docs/architecture/overview.md).
 
+## Codebase Discovery
+
+When available, try the DeepWiki MCP first (`read_wiki_structure`,
+`read_wiki_contents`, or `ask_question`) to learn the app's architecture and
+feature flows before broad code searches. Use DeepWiki for orientation, then
+verify implementation details against the current checkout because its content
+may be stale or unavailable. Fall back to repository search when needed.
+
 ## Commands
 
 ```bash
