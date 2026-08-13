@@ -19,7 +19,7 @@ import {
 } from "../../../shared/racing/tracks/catalogs/iracing";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
-import type { IRacingMapLabel } from "../../games/iracing/track-map-svg";
+import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "../../games/iracing/track-map-svg";
 import { lapPath } from "../../../shared/racing/tracks/path";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
@@ -225,8 +225,12 @@ export async function resolveTrackSegments(
       : {},
   );
 
+  const segments =
+    gameId === "iracing" && resolved?.labels.length
+      ? alignIRacingAutoSegmentsToTurnLabels(result.segments, outline, resolved.labels)
+      : result.segments;
   return {
-    segments: result.segments,
+    segments,
     totalDist: result.totalDist,
     source: "auto",
   };

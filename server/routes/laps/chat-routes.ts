@@ -6,9 +6,8 @@ import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import type { Tune } from "../../../shared/racing/tuning/types";
 import { getLapById } from "../../db/lap-read-queries";
 import { deleteAnalysis as deleteAnalysisQuery, getAnalysis } from "../../db/analysis-queries";
-import { getCorners } from "../../db/track-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
-import { detectCorners } from "../../lap-analysis/corners";
+import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { loadSettings } from "../../runtime/config/settings";
 import { buildChatSystemPrompt } from "../../ai/chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
@@ -64,13 +63,9 @@ export const chatRoutes = new Hono()
 
     const settings = loadSettings();
     const trackOrdinal = lap.trackOrdinal ?? 0;
-    // Curated corners from `track_corners` first; fall back to telemetry
-    // detection (T1..Tn) when the track has no entries — lets the client
-    // resolve "T13" card clicks to the correct position instead of lap start.
-    let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
-    if (corners.length === 0 && lap.telemetry.length > 0) {
-      corners = detectCorners(lap.telemetry);
-    }
+    // Official track segments first, then stored corners and telemetry detection,
+    // so AI card jumps use the same turn labels as Analyse.
+    const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry);
 
     // Load tune if linked
     let parsedTune: Tune | undefined;

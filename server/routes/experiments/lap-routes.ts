@@ -7,13 +7,12 @@ import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { getLapById, getLapsByIds } from "../../db/lap-read-queries";
 import { getLapsForExperiment, getImportableLapsForExperiment, importLapsToExperiment } from "../../db/experiment-lap-queries";
-import { getCorners } from "../../db/track-queries";
 import { setLapMetrics } from "../../db/lap-mutation-queries";
 import { lineSpreadLapSetHash, getLineSpreadCache, setLineSpreadCache } from "../../db/line-spread-cache-queries";
 import { getExperiment, setSessionHead } from "../../db/experiment-queries";
 import { createExperimentVersion, getExperimentVersion, listExperimentVersions, nextVersion } from "../../db/experiment-version-queries";
 import { recordAction } from "../../db/experiment-action-queries";
-import { detectCorners } from "../../lap-analysis/corners";
+import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { computeLineSpreadTrace } from "../../lap-analysis/consistency";
 import { selectCleanLaps } from "../../experiments/lap-evidence/selection";
 import { fastestLaps } from "../../../shared/racing/laps/review-selection";
@@ -338,10 +337,11 @@ export const experimentLapAnalysisRoutes = new Hono()
       }
 
       const fastest = [...loadedLaps].sort((a, b) => a.meta.lapTime - b.meta.lapTime)[0]!;
-      let corners = session?.trackOrdinal != null && session.gameId
-        ? await getCorners(session.trackOrdinal, session.gameId as GameId)
-        : [];
-      if (corners.length === 0) corners = detectCorners(fastest.telemetry);
+      const corners = await resolveLapCorners(
+        session?.trackOrdinal,
+        session?.gameId,
+        fastest.telemetry,
+      );
 
       const trace = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), loadedLaps.map((l) => l.meta.id), corners);
       if (!trace) {

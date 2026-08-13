@@ -1,3 +1,5 @@
+import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
+
 export interface IRacingMapPoint {
   x: number;
   z: number;
@@ -12,6 +14,81 @@ export interface IRacingSvgTrackMap {
   labels: IRacingMapLabel[];
   /** Filled decorative contours from iRacing's official pitroad.svg layer. */
   pitRoad: IRacingMapPoint[][];
+}
+
+/**
+ * Official iRacing maps label every numbered turn, while curvature detection
+ * can merge adjacent turns into one corner region. Split those regions at the
+ * midpoint between official labels so segment lists and map labels agree.
+ */
+export function alignIRacingAutoSegmentsToTurnLabels(
+  segments: NamedSegment[],
+  points: readonly IRacingMapPoint[],
+  labels: readonly IRacingMapLabel[],
+): NamedSegment[] {
+  if (segments.length === 0 || points.length < 2 || labels.length === 0) return segments;
+
+  const cumulativeDistance = new Float64Array(points.length);
+  for (let index = 1; index < points.length; index++) {
+    cumulativeDistance[index] =
+      cumulativeDistance[index - 1] +
+      Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z);
+  }
+  const totalDistance = cumulativeDistance[points.length - 1];
+  if (!(totalDistance > 0)) return segments;
+
+  const anchors: { number: number; fraction: number }[] = [];
+  for (const label of labels) {
+    const match = label.text.match(/^(?:T)?(\d+)$/i);
+    if (!match) continue;
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < points.length; index++) {
+      const distance = (points[index].x - label.x) ** 2 + (points[index].z - label.z) ** 2;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    }
+    anchors.push({
+      number: Number(match[1]),
+      fraction: cumulativeDistance[nearestIndex] / totalDistance,
+    });
+  }
+  anchors.sort((left, right) => left.fraction - right.fraction);
+  if (anchors.length === 0) return segments;
+
+  const aligned: NamedSegment[] = [];
+  for (const segment of segments) {
+    if (segment.type !== "corner") {
+      aligned.push(segment);
+      continue;
+    }
+    const contained = anchors.filter(
+      (anchor) => anchor.fraction >= segment.startFrac && anchor.fraction <= segment.endFrac,
+    );
+    if (contained.length === 0) {
+      aligned.push(segment);
+      continue;
+    }
+    for (let index = 0; index < contained.length; index++) {
+      const anchor = contained[index];
+      aligned.push({
+        ...segment,
+        name: `T${anchor.number}`,
+        number: anchor.number,
+        startFrac:
+          index === 0
+            ? segment.startFrac
+            : (contained[index - 1].fraction + anchor.fraction) / 2,
+        endFrac:
+          index === contained.length - 1
+            ? segment.endFrac
+            : (anchor.fraction + contained[index + 1].fraction) / 2,
+      });
+    }
+  }
+  return aligned;
 }
 
 interface SvgPoint {

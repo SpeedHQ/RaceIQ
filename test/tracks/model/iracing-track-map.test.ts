@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { orientIRacingOvalMap } from "../../../server/games/iracing/track-map";
 import {
+  alignIRacingAutoSegmentsToTurnLabels,
   parseIRacingActiveSvg,
   parseIRacingPitRoadSvg,
   parseIRacingTurnLabels,
@@ -10,6 +11,7 @@ import {
   getIRacingTrack,
 } from "../../../shared/racing/tracks/catalogs/iracing";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
+import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 
 const activeSvg = `
   <svg viewBox="0 0 100 100">
@@ -127,6 +129,33 @@ describe("iRacing official SVG track maps", () => {
       x: -50,
       z: 106,
     });
+  });
+
+  test("splits one detected corner at official turn labels", () => {
+    const points = Array.from({ length: 101 }, (_, index) => ({ x: index, z: 0 }));
+    const segments: NamedSegment[] = [
+      { type: "straight", name: "", startFrac: 0, endFrac: 0.2 },
+      { type: "corner", name: "T1", direction: "left", startFrac: 0.2, endFrac: 0.8 },
+      { type: "straight", name: "", startFrac: 0.8, endFrac: 1 },
+    ];
+
+    const aligned = alignIRacingAutoSegmentsToTurnLabels(segments, points, [
+      { text: "3", x: 30, z: 5 },
+      { text: "4", x: 70, z: 5 },
+    ]);
+
+    expect(aligned.map(({ type, name, number, startFrac, endFrac }) => ({
+      type,
+      name,
+      number,
+      startFrac,
+      endFrac,
+    }))).toEqual([
+      { type: "straight", name: "", number: undefined, startFrac: 0, endFrac: 0.2 },
+      { type: "corner", name: "T3", number: 3, startFrac: 0.2, endFrac: 0.5 },
+      { type: "corner", name: "T4", number: 4, startFrac: 0.5, endFrac: 0.8 },
+      { type: "straight", name: "", number: undefined, startFrac: 0.8, endFrac: 1 },
+    ]);
   });
 
   test("keeps Lime Rock layouts exact and uses curated names only for exact aliases", () => {
