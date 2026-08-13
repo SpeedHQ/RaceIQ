@@ -163,14 +163,6 @@ export function drawTrack(
     minZ = Math.min(minZ, p.z);
     maxZ = Math.max(maxZ, p.z);
   }
-  for (const contour of pitRoad ?? []) {
-    for (const p of contour) {
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-      minZ = Math.min(minZ, p.z);
-      maxZ = Math.max(maxZ, p.z);
-    }
-  }
 
   const rangeX = maxX - minX || 1;
   const rangeZ = maxZ - minZ || 1;
@@ -184,8 +176,8 @@ export function drawTrack(
     return [flipX ? offsetX + (x - minX) * scale : offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
 
-  // Official pit-road markings are decorative only: they never participate
-  // in lap-distance, sector, or segment calculations.
+  // Official pit-road markings are decorative: use the track transform so
+  // distant markings cannot shrink the racing surface.
   drawPitRoadLayer(
     ctx,
     pitRoad,

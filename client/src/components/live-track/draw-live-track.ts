@@ -80,14 +80,13 @@ export function drawLiveTrack({
 
   const isLiveTrace = !outline && !boundaryCenter;
 
-  // Fit-to-canvas: compute bounding box, then uniform scale to preserve aspect ratio
-  // Include boundary edges in bounding box so they don't clip
+  // Fit the racing surface and boundary edges. Pit-road markings use this
+  // transform without shrinking the main track.
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let minZ = Number.POSITIVE_INFINITY;
   let maxZ = Number.NEGATIVE_INFINITY;
   const allPoints = [displayOutline];
-  if (pitRoad) allPoints.push(...pitRoad);
   if (boundaries) {
     if (boundaries.leftEdge) allPoints.push(boundaries.leftEdge);
     if (boundaries.rightEdge) allPoints.push(boundaries.rightEdge);

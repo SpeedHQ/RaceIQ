@@ -53,7 +53,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const allBoundsPts: Point[][] = [displayOutline];
   if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
   if (mapLabels?.length) allBoundsPts.push(mapLabels);
-  if (flippedPitRoad?.length) allBoundsPts.push(...flippedPitRoad);
+  // Pit-road contours use this track-derived transform but never expand it.
   for (const pts of allBoundsPts)
     for (const p of pts) {
       minX = Math.min(minX, p.x);
