@@ -36,6 +36,7 @@
 - Treat tracks without optional boundary geometry as available instead of failed requests
 - Open Analyse from home and session recaps without a full-page white flash
 - Keep Analyse responsive while loading and playing large laps or recovering from server disconnects
+- Keep Analyse 3D playback at configured 60 or 120 FPS while telemetry panels update
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations

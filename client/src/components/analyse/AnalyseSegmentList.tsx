@@ -4,8 +4,10 @@ import type { SemanticAnalysisFrame } from "./track-map/types";
 
 export type { SemanticAnalysisFrame } from "./track-map/types";
 
-const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
-return typeof value === "number" && Number.isFinite(value) ? value : null; }
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
 
 interface Segment {
   type: string;
@@ -41,10 +43,7 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
       const z = numeric(telemetry[i], "motion.position-z");
       const previousX = numeric(telemetry[i - 1], "motion.position-x");
       const previousZ = numeric(telemetry[i - 1], "motion.position-z");
-      cumDist[i] =
-        x != null && z != null && previousX != null && previousZ != null
-          ? cumDist[i - 1] + Math.hypot(x - previousX, z - previousZ)
-          : cumDist[i - 1];
+      cumDist[i] = x != null && z != null && previousX != null && previousZ != null ? cumDist[i - 1] + Math.hypot(x - previousX, z - previousZ) : cumDist[i - 1];
     }
   }
 
@@ -82,6 +81,29 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
   });
   return { cumDist, totalDist, staticSegments };
 }
+function segmentStateSignature({ telemetry, segments, cursorIdx }: SegmentListProps): string | null {
+  if (!segments || telemetry.length < 2) return null;
+  const firstDistance = numeric(telemetry[0], "timing.distance-traveled");
+  const currentDistance = numeric(telemetry[cursorIdx], "timing.distance-traveled");
+  const lastDistance = numeric(telemetry[telemetry.length - 1], "timing.distance-traveled");
+  if (firstDistance == null || currentDistance == null || lastDistance == null || lastDistance <= firstDistance) return null;
+  const cursorFraction = (currentDistance - firstDistance) / (lastDistance - firstDistance);
+  let active = -1;
+  let completed = 0;
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index];
+    if (cursorFraction >= segment.startFrac && cursorFraction < segment.endFrac) active = index;
+    if (cursorFraction >= segment.endFrac) completed++;
+  }
+  return `${active}:${completed}`;
+}
+
+function areSegmentListPropsEqual(previous: SegmentListProps, next: SegmentListProps): boolean {
+  if (previous.telemetry !== next.telemetry || previous.segments !== next.segments) return false;
+  if (previous.cursorIdx === next.cursorIdx) return true;
+  const previousState = segmentStateSignature(previous);
+  return previousState != null && previousState === segmentStateSignature(next);
+}
 
 export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, segments, cursorIdx }: SegmentListProps) {
   const segmentData = useMemo(() => (segments ? buildSegmentData(telemetry, segments) : null), [segments, telemetry]);
@@ -117,4 +139,4 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
       ))}
     </div>
   );
-});
+}, areSegmentListPropsEqual);

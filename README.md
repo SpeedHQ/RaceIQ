@@ -87,6 +87,8 @@ RaceIQ checks for new releases automatically and notifies you when one is availa
 
 ## Platform
 
+> **Slow 3D wireframe playback?** Enable hardware acceleration in your browser when supported. Without GPU acceleration, Analyse playback may run far below the configured 60 or 120 FPS.
+
 **Game on Windows is recommended.** RaceIQ runs on the same PC as the game for two reasons:
 
 - **UDP reliability** — loopback delivery is lossless and low-latency, avoiding the packet loss and timing jitter of network routing.

@@ -92,23 +92,23 @@ export function WheelInfoCard({
   side: "left" | "right";
   isRear: boolean;
 }) {
+  const healthPct = ((1 - wear) * 100).toFixed(0);
+  const healthColor = severityRangeColor(wear, [0.3, 0.6]);
+  const brakeText = brakeTemp > 0 ? `${brakeTemp.toFixed(0)}°C` : null;
+  const brakeColor = brakeTempColor(brakeTemp, isRear);
+  const pressureText = pressurePsi > 0 ? `${pressurePsi.toFixed(1)} psi` : null;
+  const pressureColor = tirePressureColor(pressurePsi, pressureOptimal);
+  const wearText = wearRate > 0.0001 ? `-${(wearRate * 100).toFixed(2)}%/s` : null;
   const { rows, cardH } = useMemo(() => {
-    const health = 1 - wear;
-    const pct = (health * 100).toFixed(0);
-    const healthColor = severityRangeColor(1 - health, [0.3, 0.6]);
-    const brakeCol = brakeTempColor(brakeTemp, isRear);
-    const pressureCol = tirePressureColor(pressurePsi, pressureOptimal);
-
     const rows: Row[] = [
-      { kind: "health", pct, color: healthColor },
+      { kind: "health", pct: healthPct, color: healthColor },
       { kind: "temp", text: displayTemp, color: tempColor },
     ];
-    if (pressurePsi > 0) rows.push({ kind: "pressure", text: `${pressurePsi.toFixed(1)} psi`, color: pressureCol });
-    if (brakeTemp > 0) rows.push({ kind: "brake", text: `${brakeTemp.toFixed(0)}°C`, color: brakeCol });
-    if (wearRate > 0.0001) rows.push({ kind: "wear", text: `-${(wearRate * 100).toFixed(2)}%/s` });
-
+    if (pressureText) rows.push({ kind: "pressure", text: pressureText, color: pressureColor });
+    if (brakeText) rows.push({ kind: "brake", text: brakeText, color: brakeColor });
+    if (wearText) rows.push({ kind: "wear", text: wearText });
     return { rows, cardH: PAD_Y * 2 + rows.length * ROW_H };
-  }, [displayTemp, tempColor, wear, wearRate, brakeTemp, isRear, pressurePsi, pressureOptimal]);
+  }, [brakeColor, brakeText, displayTemp, healthColor, healthPct, pressureColor, pressureText, tempColor, wearText]);
 
   const { canvas, ctx, texture, material } = useMemo(() => {
     const canvas = document.createElement("canvas");
