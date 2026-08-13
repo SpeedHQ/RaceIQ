@@ -19,7 +19,11 @@ import {
 } from "../../../shared/racing/tracks/catalogs/iracing";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
-import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "../../games/iracing/track-map-svg";
+import {
+  alignIRacingAutoSegmentsToTurnLabels,
+  projectIRacingTurnAnchors,
+  type IRacingMapLabel,
+} from "../../games/iracing/track-map-svg";
 import { lapPath } from "../../../shared/racing/tracks/path";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
@@ -218,15 +222,19 @@ export async function resolveTrackSegments(
   const isFourTurnOval =
     iracingTrack?.category.endsWith("oval") === true &&
     iracingTrack.cornersPerLap === 4;
+  const ovalTurnAnchors =
+    isFourTurnOval && resolved?.labels.length
+      ? projectIRacingTurnAnchors(outline, resolved.labels)
+      : [];
   const result = autoTrackSegments(
     outline,
     isFourTurnOval && ovalDirection
-      ? { fourTurnOval: { direction: ovalDirection } }
+      ? { fourTurnOval: { direction: ovalDirection, turnAnchors: ovalTurnAnchors } }
       : {},
   );
 
   const segments =
-    gameId === "iracing" && resolved?.labels.length
+    gameId === "iracing" && !isFourTurnOval && resolved?.labels.length
       ? alignIRacingAutoSegmentsToTurnLabels(result.segments, outline, resolved.labels)
       : result.segments;
   return {

@@ -313,6 +313,8 @@ export interface AutoTrackSegmentOptions {
    */
   fourTurnOval?: {
     direction: "left" | "right";
+    /** Official numbered turn positions projected onto lap fractions. */
+    turnAnchors?: readonly { number: number; fraction: number }[];
   };
 }
 
@@ -336,6 +338,7 @@ export function autoTrackSegments(
       segments: fourTurnOvalSegments(
         strongCorners,
         options.fourTurnOval.direction,
+        options.fourTurnOval.turnAnchors,
       ),
       cornerCount: 4,
       totalDist: raw.totalDist,
@@ -397,11 +400,12 @@ function groupAutoStartFinishStraight(segments: NamedSegment[]): void {
 function fourTurnOvalSegments(
   detected: CornerRegion[],
   direction: "left" | "right",
+  turnAnchors: readonly { number: number; fraction: number }[] = [],
 ): NamedSegment[] {
   const firstEnd = ovalEndBounds(detected, 0, 0.5, 0.1, 0.4);
   const secondEnd = ovalEndBounds(detected, 0.5, 1, 0.6, 0.9);
-  const firstMiddle = (firstEnd.start + firstEnd.end) / 2;
-  const secondMiddle = (secondEnd.start + secondEnd.end) / 2;
+  const firstMiddle = ovalTurnSplit(turnAnchors, 1, 2, firstEnd);
+  const secondMiddle = ovalTurnSplit(turnAnchors, 3, 4, secondEnd);
 
   return [
     {
@@ -457,6 +461,23 @@ function fourTurnOvalSegments(
       endFrac: 1,
     },
   ];
+}
+
+function ovalTurnSplit(
+  anchors: readonly { number: number; fraction: number }[],
+  firstTurn: number,
+  secondTurn: number,
+  bounds: { start: number; end: number },
+): number {
+  const first = anchors.find((anchor) => anchor.number === firstTurn);
+  const second = anchors.find((anchor) => anchor.number === secondTurn);
+  if (first && second) {
+    const anchoredMiddle = (first.fraction + second.fraction) / 2;
+    if (anchoredMiddle > bounds.start && anchoredMiddle < bounds.end) {
+      return anchoredMiddle;
+    }
+  }
+  return (bounds.start + bounds.end) / 2;
 }
 
 function ovalEndBounds(

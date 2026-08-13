@@ -59,6 +59,25 @@ describe("automatic oval segments", () => {
     }
   });
 
+  test("uses official anchors to split each banked end", () => {
+    const result = autoTrackSegments(ovalOutline(), {
+      fourTurnOval: {
+        direction: "left",
+        turnAnchors: [
+          { number: 1, fraction: 0.065 },
+          { number: 2, fraction: 0.125 },
+          { number: 3, fraction: 0.565 },
+          { number: 4, fraction: 0.625 },
+        ],
+      },
+    });
+    const corners = result.segments.filter((segment) => segment.type === "corner");
+    expect(corners[0].endFrac).toBeCloseTo(0.095);
+    expect(corners[1].startFrac).toBeCloseTo(0.095);
+    expect(corners[2].endFrac).toBeCloseTo(0.595);
+    expect(corners[3].startFrac).toBeCloseTo(0.595);
+  });
+
   test("supports explicit clockwise oval exceptions", () => {
     const result = autoTrackSegments(ovalOutline(), { fourTurnOval: { direction: "right" } });
     expect(result.segments.filter((segment) => segment.type === "corner").every((segment) => segment.direction === "right")).toBe(true);

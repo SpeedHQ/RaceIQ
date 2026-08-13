@@ -16,17 +16,17 @@ export interface IRacingSvgTrackMap {
   pitRoad: IRacingMapPoint[][];
 }
 
-/**
- * Official iRacing maps label every numbered turn, while curvature detection
- * can merge adjacent turns into one corner region. Split those regions at the
- * midpoint between official labels so segment lists and map labels agree.
- */
-export function alignIRacingAutoSegmentsToTurnLabels(
-  segments: NamedSegment[],
+export interface IRacingTurnAnchor {
+  number: number;
+  fraction: number;
+}
+
+/** Project official numbered labels onto lap fractions along the parsed centerline. */
+export function projectIRacingTurnAnchors(
   points: readonly IRacingMapPoint[],
   labels: readonly IRacingMapLabel[],
-): NamedSegment[] {
-  if (segments.length === 0 || points.length < 2 || labels.length === 0) return segments;
+): IRacingTurnAnchor[] {
+  if (points.length < 2 || labels.length === 0) return [];
 
   const cumulativeDistance = new Float64Array(points.length);
   for (let index = 1; index < points.length; index++) {
@@ -35,9 +35,9 @@ export function alignIRacingAutoSegmentsToTurnLabels(
       Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z);
   }
   const totalDistance = cumulativeDistance[points.length - 1];
-  if (!(totalDistance > 0)) return segments;
+  if (!(totalDistance > 0)) return [];
 
-  const anchors: { number: number; fraction: number }[] = [];
+  const anchors: IRacingTurnAnchor[] = [];
   for (const label of labels) {
     const match = label.text.match(/^(?:T)?(\d+)$/i);
     if (!match) continue;
@@ -56,6 +56,22 @@ export function alignIRacingAutoSegmentsToTurnLabels(
     });
   }
   anchors.sort((left, right) => left.fraction - right.fraction);
+  return anchors;
+}
+
+
+/**
+ * Official iRacing maps label every numbered turn, while curvature detection
+ * can merge adjacent turns into one corner region. Split those regions at the
+ * midpoint between official labels so segment lists and map labels agree.
+ */
+export function alignIRacingAutoSegmentsToTurnLabels(
+  segments: NamedSegment[],
+  points: readonly IRacingMapPoint[],
+  labels: readonly IRacingMapLabel[],
+): NamedSegment[] {
+  if (segments.length === 0) return segments;
+  const anchors = projectIRacingTurnAnchors(points, labels);
   if (anchors.length === 0) return segments;
 
   const aligned: NamedSegment[] = [];
