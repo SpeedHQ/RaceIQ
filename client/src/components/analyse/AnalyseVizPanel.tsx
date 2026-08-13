@@ -47,7 +47,17 @@ export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displa
       <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
         <div className="relative min-h-0 w-full flex-1">
           {currentFrame && (
-            <CarWireframe frame={currentFrame} telemetry={displayTelemetry} cursorRef={cursorRef} telemetryRef={displayTelemetryRef} cursorIdx={cursorIdx} outline={lapLine} boundaries={boundaries} tempLabel={units.tempLabel} />
+            <CarWireframe
+              gameId={gameId}
+              frame={currentFrame}
+              telemetry={displayTelemetry}
+              cursorRef={cursorRef}
+              telemetryRef={displayTelemetryRef}
+              cursorIdx={cursorIdx}
+              outline={lapLine}
+              boundaries={boundaries}
+              tempLabel={units.tempLabel}
+            />
           )}
           {currentFrame && (
             <div className="absolute bottom-1 left-1 opacity-80">

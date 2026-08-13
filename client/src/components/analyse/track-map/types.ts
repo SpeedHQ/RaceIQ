@@ -34,7 +34,21 @@ export interface Point {
   z: number;
 }
 
-export type TrackOverlay = "none" | "inputs" | "segments" | "sectors" | "racingLine";
+export interface TrackOverlays {
+  inputs: boolean;
+  segments: boolean;
+  sectors: boolean;
+  racingLine: boolean;
+}
+
+export type TrackOverlayKey = keyof TrackOverlays;
+
+export const DEFAULT_TRACK_OVERLAYS: TrackOverlays = {
+  inputs: false,
+  segments: false,
+  sectors: false,
+  racingLine: false,
+};
 
 export interface TrackMapLabel extends Point {
   text: string;

@@ -82,6 +82,9 @@ export const THREE_COLORS = {
   get trackCurbRight() {
     return threeColor("var(--track-curb-right)");
   },
+  get trackRacingLine() {
+    return threeColor("var(--track-racing-line)");
+  },
   get loadDistribution() {
     return threeColor("var(--load-distribution)");
   },
@@ -291,16 +294,7 @@ export function buildTrackIndex(pts: ReadonlyArray<{ x: number; z: number }>, ch
  * (invariant of yaw, since chunks are fixed), then falls through to the
  * exact rotated-window check per point.
  */
-export function filterByDistanceIndexed(
-  index: TrackIndex,
-  cx: number,
-  cz: number,
-  yaw: number,
-  y: number,
-  ahead = DIST_AHEAD,
-  behind = DIST_BEHIND,
-  lateral = DIST_LATERAL,
-): FilteredTrackSegment[] {
+export function filterByDistanceIndexed(index: TrackIndex, cx: number, cz: number, yaw: number, y: number, ahead = DIST_AHEAD, behind = DIST_BEHIND, lateral = DIST_LATERAL): FilteredTrackSegment[] {
   const pts = index.pts;
   if (!Array.isArray(pts) || pts.length === 0) return [];
 

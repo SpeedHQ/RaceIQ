@@ -17,7 +17,7 @@ import { DimensionLines } from "./DimensionLines";
 import { InputOverlay } from "./InputOverlay";
 import { SuspensionSpring } from "./SuspensionSpring";
 import { TireTrails } from "./TireTrails";
-import { TrackBoundaryEdges, TrackOutline } from "./TrackElements";
+import { TrackBoundaryEdges, TrackLine } from "./TrackElements";
 import { Wheel } from "./Wheel";
 
 // Load-dot geometry: direction comes from the baseline-subtracted weighted
@@ -25,7 +25,10 @@ import { Wheel } from "./Wheel";
 // normalized compression (how hard that corner is loaded). Dot reaches a
 // corner edge only when that corner is at 100% compression AND the others
 // are at the baseline.
-const wheel = (f: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], i: number) => { const v = f.values[id]; return Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? v[i] as number : 0; }
+const wheel = (f: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], i: number) => {
+  const v = f.values[id];
+  return Array.isArray(v) && typeof v[i] === "number" && Number.isFinite(v[i]) ? (v[i] as number) : 0;
+};
 
 function normalizedSuspension(frame: SemanticAnalysisFrame, range?: { min: number; max: number }): [number, number, number, number] {
   const normalized = frame.values["suspension.norm-suspension-travel"];
@@ -34,7 +37,6 @@ function normalizedSuspension(frame: SemanticAnalysisFrame, range?: { min: numbe
   }
   return normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"] as unknown[], range);
 }
-
 
 function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft: number, rt: number): { x: number; z: number } | null {
   const base = Math.min(susp[0], susp[1], susp[2], susp[3]);
@@ -75,7 +77,7 @@ export function CarScene({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
+  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[]; raceLine?: { x: number; z: number }[] | null } | null;
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };
@@ -88,7 +90,7 @@ export function CarScene({
 }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
   const pressureOptimal = useTirePressureOptimal(gameId, 0);
-  const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f)=>semanticNumber(f,"motion.position-x")!=null && semanticNumber(f,"motion.position-z")!=null), [telemetry]);
+  const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f) => semanticNumber(f, "motion.position-x") != null && semanticNumber(f, "motion.position-z") != null), [telemetry]);
 
   const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
   const [suspFL, suspFR, suspRL, suspRR] = normalizedSuspension(frame, suspensionRange);
@@ -98,7 +100,7 @@ export function CarScene({
   useEffect(() => {
     packetRef.current = frame;
   });
-    const carGroupRef = useRef<THREE.Group>(null);
+  const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
   const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
@@ -178,7 +180,17 @@ export function CarScene({
   const cambRR = 0;
 
   // Zero out wheel rotation during lockup — locked wheel = no spin
-  const ws = { fl: { state: "nominal", slipRatio: wheel(frame,"tires.tire-slip-ratio",0) }, fr: { state: "nominal", slipRatio: wheel(frame,"tires.tire-slip-ratio",1) }, rl: { state: "nominal", slipRatio: wheel(frame,"tires.tire-slip-ratio",2) }, rr: { state: "nominal", slipRatio: wheel(frame,"tires.tire-slip-ratio",3) } } as { fl: { state: "nominal" | "lockup"; slipRatio: number }; fr: { state: "nominal" | "lockup"; slipRatio: number }; rl: { state: "nominal" | "lockup"; slipRatio: number }; rr: { state: "nominal" | "lockup"; slipRatio: number } };
+  const ws = {
+    fl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 0) },
+    fr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 1) },
+    rl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 2) },
+    rr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 3) },
+  } as {
+    fl: { state: "nominal" | "lockup"; slipRatio: number };
+    fr: { state: "nominal" | "lockup"; slipRatio: number };
+    rl: { state: "nominal" | "lockup"; slipRatio: number };
+    rr: { state: "nominal" | "lockup"; slipRatio: number };
+  };
   const rotFL = ws.fl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 0);
   const rotFR = ws.fr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 1);
   const rotRL = ws.rl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 2);
@@ -309,8 +321,8 @@ export function CarScene({
           yaw transform used by TireTrails / TrackOutline / CurbMarkers. */}
       {toggles.grid &&
         (() => {
-          const gs = Math.sin((semanticNumber(frame, "motion.yaw") ?? 0));
-          const gc = Math.cos((semanticNumber(frame, "motion.yaw") ?? 0));
+          const gs = Math.sin(semanticNumber(frame, "motion.yaw") ?? 0);
+          const gc = Math.cos(semanticNumber(frame, "motion.yaw") ?? 0);
           const gLocalX = (semanticNumber(frame, "motion.position-x") ?? 0) * gs + (semanticNumber(frame, "motion.position-z") ?? 0) * gc;
           const gLocalZ = (semanticNumber(frame, "motion.position-x") ?? 0) * gc - (semanticNumber(frame, "motion.position-z") ?? 0) * gs;
           return (
@@ -443,7 +455,12 @@ export function CarScene({
       </group>
 
       {/* Track outline (center line) */}
-      {toggles.track && outline && <TrackOutline outline={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+      {toggles.track && outline && <TrackLine points={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+
+      {/* Game-provided reference racing line */}
+      {toggles.racingLine && boundaries?.raceLine && boundaries.raceLine.length > 1 && (
+        <TrackLine points={boundaries.raceLine} packet={frame} color={THREE_COLORS.trackRacingLine} lineWidth={4} opacity={1} y={-0.435} distAhead={autoOrbit ? 80 : undefined} />
+      )}
 
       {/* Track boundary edges (walls) */}
       {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={frame} tireRadius={carModel.tireRadius} distAhead={autoOrbit ? 80 : undefined} />}

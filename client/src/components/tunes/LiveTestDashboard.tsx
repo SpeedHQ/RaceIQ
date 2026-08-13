@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import type { SemanticAnalysisFrame, TrackMapBoundaries } from "../analyse/track-map/types";
+import { DEFAULT_TRACK_OVERLAYS, type SemanticAnalysisFrame, type TrackMapBoundaries } from "../analyse/track-map/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
@@ -116,7 +116,6 @@ export function LiveTestDashboard({
   const latestLap = useMemo(() => (sessionLaps.length ? [...sessionLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [sessionLaps]);
 
   const [rotateWithCar, setRotateWithCar] = useState(false);
-  const [trackOverlay, setTrackOverlay] = useState<"none" | "inputs" | "segments" | "sectors">("none");
   const [mapZoom, setMapZoom] = useState(1);
 
   // Live driving line for the current in-progress lap: append each new packet,
@@ -173,10 +172,9 @@ export function LiveTestDashboard({
               currentFrame={currentFrame}
               showTrace={false}
               rotateWithCar={rotateWithCar}
-              trackOverlay={trackOverlay}
+              trackOverlays={DEFAULT_TRACK_OVERLAYS}
               mapZoom={mapZoom}
               onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
-              onTrackOverlayCycle={() => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none"))}
               onMapZoomChange={setMapZoom}
               hideSteeringOverlay
               weatherBottomRight

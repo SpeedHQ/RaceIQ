@@ -154,10 +154,11 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.stroke();
   };
 
-  if (sectors && displayOutline.length > 10 && !showInputs) {
+  if (sectors && displayOutline.length > 10) {
     const bounds = [...sectors.sectorStarts, 1];
     for (let si = 0; si < sectors.sectorCount; si++) drawRange(bounds[si], bounds[si + 1], SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length], 2.5);
-  } else if (segments?.length && !showInputs) {
+  }
+  if (segments?.length) {
     const labelCandidates: { text: string; x: number; y: number; priority: number }[] = [];
     const labelledNames = new Set<string>();
     for (const seg of segments) {
@@ -200,7 +201,8 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.fillStyle = "var(--track-label-text)";
       ctx.fillText(label.text, label.x, label.y);
     }
-  } else {
+  }
+  if (!sectors && !segments?.length) {
     ctx.beginPath();
     ctx.strokeStyle = "var(--track-edge)";
     ctx.lineWidth = 2;
@@ -210,7 +212,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.stroke();
   }
 
-  if (mapLabels?.length && !showInputs) {
+  if (mapLabels?.length) {
     ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
     ctx.textAlign = "center";
     for (const label of mapLabels) {

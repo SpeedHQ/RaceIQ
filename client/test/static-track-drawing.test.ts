@@ -206,6 +206,45 @@ function drawRaceLineCase(boundaries: TrackMapBoundaries | null, showRaceLine: b
   return { ...harness, ...result };
 }
 
+test("draws input, segment, and racing-line overlays together", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const { canvas, strokes } = createDrawingHarness();
+    const frame = (accel: number) => ({ values: { "inputs.accel": accel, "inputs.brake": 0 }, states: {}, freshness: {} });
+    drawStaticTrack({
+      canvas,
+      bufferCanvas: canvas,
+      telemetry: [frame(64), frame(128), frame(255)],
+      resolvedPositions: [
+        { x: 1, z: 1 },
+        { x: 2, z: 2 },
+        { x: 3, z: 3 },
+      ],
+      gameId: "acc",
+      outline: outlineFixture,
+      boundaries: boundaryFixture([
+        { x: 3.5, z: 1 },
+        { x: 2.5, z: 3 },
+        { x: 1.5, z: 1 },
+      ]),
+      sectors: null,
+      segments: [{ type: "corner", name: "", startFrac: 0, endFrac: 1 }],
+      showInputs: true,
+      showRaceLine: true,
+      showTrace: true,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+
+    expect(strokes.some((stroke) => stroke.color === "var(--ch-throttle)")).toBe(true);
+    expect(strokes.some((stroke) => stroke.color === "var(--track-corner-marker)")).toBe(true);
+    expect(strokes.some((stroke) => stroke.color === "var(--track-racing-line)")).toBe(true);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
 function projectRaceLinePoint(point: Point, transform: TrackTransform, gameId: "acc" | "ac-evo"): [number, number] {
   const x = needsTrackFlip(gameId) ? -point.x : point.x;
   return [transform.offsetX + (transform.maxX - x) * transform.scale, transform.offsetZ + (point.z - transform.minZ) * transform.scale];

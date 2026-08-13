@@ -15,24 +15,9 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlay } from "./track-map/types";
+import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
-
-function nextTrackOverlay(current: TrackOverlay, hasRaceLine: boolean): TrackOverlay {
-  switch (current) {
-    case "none":
-      return "inputs";
-    case "inputs":
-      return "segments";
-    case "segments":
-      return "sectors";
-    case "sectors":
-      return hasRaceLine ? "racingLine" : "none";
-    case "racingLine":
-      return "none";
-  }
-}
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -71,8 +56,8 @@ function LapAnalyseInner() {
     setMapZoom,
     rotateWithCar,
     setRotateWithCar,
-    trackOverlay,
-    setTrackOverlay,
+    trackOverlays,
+    setTrackOverlays,
     vizMode,
     setWheelTab,
     leftColWidth,
@@ -95,7 +80,7 @@ function LapAnalyseInner() {
     cursorRef,
   } = useAnalyseSelections(search, gameId);
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
-  const effectiveTrackOverlay = trackOverlay === "racingLine" && !hasRacingLine ? "none" : trackOverlay;
+  const effectiveTrackOverlays = hasRacingLine ? trackOverlays : { ...trackOverlays, racingLine: false };
   const loading = lapLoading;
   const [cursorIdx, setCursorIdx] = useState(0);
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
@@ -382,10 +367,13 @@ function LapAnalyseInner() {
             aiPanelOpen,
             aiHighlights,
             rotateWithCar,
-            trackOverlay: effectiveTrackOverlay,
+            trackOverlays: effectiveTrackOverlays,
             mapZoom,
             onRotateWithCarToggle: () => setRotateWithCar((r) => !r),
-            onTrackOverlayCycle: () => setTrackOverlay(nextTrackOverlay(effectiveTrackOverlay, hasRacingLine)),
+            onTrackOverlayChange: (overlay: TrackOverlayKey, checked: boolean) => {
+              if (overlay === "racingLine" && !hasRacingLine) return;
+              setTrackOverlays((current) => ({ ...current, [overlay]: checked }));
+            },
             onMapZoomChange: setMapZoom,
             vizMode,
             onVizModeChange: setWheelTab,
