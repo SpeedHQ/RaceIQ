@@ -71,6 +71,10 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
     );
   }
 
+  if (gameId !== "acc" && gameId !== "ac-evo") {
+    return <div role="alert" className="p-8 text-sm text-app-text-muted">Review is unavailable for this game.</div>;
+  }
+
   return (
     // Single page scroll: the app shell's outlet wrapper is the only scroll
     // container. This page just flows — the dashboard grows to its content and

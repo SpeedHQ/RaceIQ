@@ -33,6 +33,10 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal }: 
   if (lapsLoading || trackLoading || carLoading || namesLoading) {
     return <div role="status" aria-live="polite" className="p-8 text-sm text-app-text-muted">Loading Analyse review…</div>;
   }
+  if (gameId !== "acc" && gameId !== "ac-evo") {
+    return <div role="alert" className="p-8 text-sm text-app-text-muted">Analyse review is unavailable for this game.</div>;
+  }
+
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -42,9 +46,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal }: 
           gameId={gameId}
           laps={groupLaps}
           trackName={resolvedTrackName}
-          backLabel="← Analyse picker"
           onBack={backToPicker}
-          onSelectLap={(lap) => void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, track: trackOrdinal, car: carOrdinal, laps: canonicalLaps, lap: lap.id }) } as never)}
         />
       </div>
     </div>

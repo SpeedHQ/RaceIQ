@@ -48,6 +48,6 @@ export function AnalyseRoute({ gameId }: { gameId: GameId }) {
     return <InvalidAnalyseSelection message="A lap selection must include its track and car." />;
   }
   if (!hasTrack && !hasCar) return <AnalysePickerPage gameId={gameId} />;
-  if (hasLap) return <LapAnalyse trackOrdinal={search.track!} carOrdinal={search.car!} lapId={search.lap!} />;
+  if (hasLap) return <LapAnalyse />;
   return <TrackCarAnalyseReviewPage gameId={gameId} trackOrdinal={search.track!} carOrdinal={search.car!} />;
 }
