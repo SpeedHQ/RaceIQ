@@ -33,6 +33,7 @@
     "bench": "bun test/benchmarks/pipeline.bench.ts",
     "bench:telemetry": "bun scripts/quality/replay-parser-bench-local.ts",
     "bench:telemetry:current": "bun test/benchmarks/replay-parser.bench.ts",
+    "bench:telemetry:soak": "bun test/benchmarks/replay-parser-soak.ts",
     "extract:tracks": "bun scripts/games/fm-2023/extract-tracks.ts && bun scripts/games/f1-2025/extract-tracks.ts",
     "extract:tracks:forza": "bun scripts/games/fm-2023/extract-tracks.ts",
     "extract:tracks:f1": "bun scripts/games/f1-2025/extract-tracks.ts",
