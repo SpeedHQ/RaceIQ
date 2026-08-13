@@ -10,7 +10,7 @@ import { db } from "../../server/db/index";
 import { sessions } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { runCompressionNow } from "../../server/session-capture/compressor";
-import { cleanupOrphanSessionFiles } from "../../server/session-capture/cleanup";
+import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "../../server/session-capture/cleanup";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
 
 // Insert a minimal session row. createdAt accepts an ISO string so we can
@@ -149,5 +149,24 @@ describe("session capture cleanup", () => {
 
     await cleanupOrphanSessionFiles();
     expect(existsSync(capturePath)).toBe(false);
+  });
+
+  test("serializes capture maintenance with session transitions", async () => {
+    let releaseFirst!: () => void;
+    let secondStarted = false;
+    const first = withSessionCaptureMaintenanceLock(
+      () => new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      }),
+    );
+    const second = withSessionCaptureMaintenanceLock(async () => {
+      secondStarted = true;
+    });
+
+    await Promise.resolve();
+    expect(secondStarted).toBe(false);
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(secondStarted).toBe(true);
   });
 });

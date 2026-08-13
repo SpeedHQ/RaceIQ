@@ -15,6 +15,19 @@ import { META_FRAME_BYTES } from "./framing";
 
 const TINY_ORPHAN_THRESHOLD_BYTES = META_FRAME_BYTES;
 
+let maintenanceQueue = Promise.resolve();
+
+export function withSessionCaptureMaintenanceLock<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = maintenanceQueue;
+  let release!: () => void;
+  maintenanceQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return previous.then(operation).finally(release);
+}
+
 async function loadReferencedRawFiles(): Promise<Set<string>> {
   const rows = await db
     .select({ rawFile: sessions.rawFile })
@@ -68,21 +81,24 @@ export async function cleanupOrphanSessionFiles(
   const captureFiles = await listSessionCaptureFiles();
   let removed = 0;
   for (const filePath of captureFiles) {
-    if (sessionActive()) break;
-    try {
-      const { size } = await stat(filePath);
-      if (sessionActive()) break;
-      const isTiny =
-        filePath.endsWith(".bin") &&
-        size <= TINY_ORPHAN_THRESHOLD_BYTES;
-      const isUntracked = !referenced.has(filePath);
-      if (isTiny || isUntracked) {
+    const deleted = await withSessionCaptureMaintenanceLock(async () => {
+      if (sessionActive()) return false;
+      try {
+        const { size } = await stat(filePath);
+        if (sessionActive()) return false;
+        const isTiny =
+          filePath.endsWith(".bin") &&
+          size <= TINY_ORPHAN_THRESHOLD_BYTES;
+        const isUntracked = !referenced.has(filePath);
+        if (!isTiny && !isUntracked) return false;
         await unlink(filePath);
-        removed++;
+        return true;
+      } catch {
+        // Skip unreadable / concurrently-removed entries
+        return false;
       }
-    } catch {
-      // Skip unreadable / concurrently-removed entries
-    }
+    });
+    if (deleted) removed++;
   }
   return removed;
 }
