@@ -82,12 +82,14 @@ describe("iRacing analysis segment timing", () => {
   });
 
   test("combines start/finish ranges split by the lap boundary", () => {
-    const telemetry = Array.from({ length: 101 }, (_, index) => ({
-      DistanceTraveled: 7000 + index * 20,
-      CurrentLap: index * 0.5,
-      PositionX: 0,
-      PositionZ: 0,
-    })) as TelemetryPacket[];
+    const telemetry = Array.from({ length: 101 }, (_, index) =>
+      frame({
+        "timing.distance-traveled": 7000 + index * 20,
+        "timing.current-lap": index * 0.5,
+        "motion.position-x": 0,
+        "motion.position-z": 0,
+      }),
+    );
     const segments = [
       {
         type: "straight",
