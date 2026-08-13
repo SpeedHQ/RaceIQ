@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { readFileSync } from "node:fs";
+import { z } from "zod";
 import type { ReplayParserBenchmarkReport, ReplayParserBenchmarkResult } from "../../test/benchmarks/replay-parser.bench";
 
 const MAX_THROUGHPUT_REGRESSION_PERCENT = 10;
@@ -13,12 +14,62 @@ if (files.length !== 2) {
   process.exit(1);
 }
 
+const NonEmptyStringSchema = z.string().refine((value) => value.trim().length > 0);
+const PositiveFiniteNumberSchema = z.number().finite().positive();
+const NonNegativeFiniteNumberSchema = z.number().finite().nonnegative();
+
+const BenchmarkBudgetSchema = z.object({
+  maxPeakRssBytes: PositiveFiniteNumberSchema,
+  maxIncrementalRssBytes: PositiveFiniteNumberSchema,
+  maxIncrementalHeapBytes: PositiveFiniteNumberSchema,
+});
+
+const BenchmarkResultSchema = z.object({
+  name: z.enum(["parser", "replay"]),
+  fixture: NonEmptyStringSchema,
+  inputFrames: z.number().finite().int().positive(),
+  outputItems: z.number().finite().int().nonnegative(),
+  semanticCount: z.number().finite().int().nonnegative(),
+  durationMs: PositiveFiniteNumberSchema,
+  throughputPerSecond: PositiveFiniteNumberSchema,
+  baselineRssBytes: NonNegativeFiniteNumberSchema,
+  peakRssBytes: NonNegativeFiniteNumberSchema,
+  incrementalPeakRssBytes: NonNegativeFiniteNumberSchema,
+  baselineHeapBytes: NonNegativeFiniteNumberSchema,
+  peakHeapBytes: NonNegativeFiniteNumberSchema,
+  incrementalPeakHeapBytes: NonNegativeFiniteNumberSchema,
+  budget: BenchmarkBudgetSchema,
+});
+
+const BenchmarkReportSchema = z.object({
+  schemaVersion: z.literal(2),
+  runtime: NonEmptyStringSchema,
+  platform: NonEmptyStringSchema,
+  architecture: NonEmptyStringSchema,
+  machine: z.object({
+    cpuModel: NonEmptyStringSchema,
+    logicalCpuCount: z.number().finite().int().positive(),
+    totalMemoryBytes: PositiveFiniteNumberSchema,
+  }),
+  results: z.array(BenchmarkResultSchema).length(2).refine(
+    (results) =>
+      results.filter((result) => result.name === "parser").length === 1
+      && results.filter((result) => result.name === "replay").length === 1,
+  ),
+});
+
 function readReport(path: string): ReplayParserBenchmarkReport {
-  const report = JSON.parse(readFileSync(path, "utf8")) as ReplayParserBenchmarkReport;
-  if (report.schemaVersion !== 2 || !Array.isArray(report.results)) {
-    throw new Error(`${path} is not a replay/parser benchmark report`);
+  let report: unknown;
+  try {
+    report = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  } catch {
+    throw new Error(`${path} is not a valid replay/parser benchmark report`);
   }
-  return report;
+  const parsedReport = BenchmarkReportSchema.safeParse(report);
+  if (!parsedReport.success) {
+    throw new Error(`${path} is not a valid replay/parser benchmark report`);
+  }
+  return parsedReport.data;
 }
 
 function indexedResults(report: ReplayParserBenchmarkReport, path: string): Map<string, ReplayParserBenchmarkResult> {
@@ -56,6 +107,29 @@ function absoluteBudgetFailures(result: ReplayParserBenchmarkResult): string[] {
   return failures;
 }
 
+function budgetRelaxationFailures(
+  baseline: ReplayParserBenchmarkResult,
+  current: ReplayParserBenchmarkResult,
+): string[] {
+  const failures: string[] = [];
+  if (current.budget.maxPeakRssBytes > baseline.budget.maxPeakRssBytes) {
+    failures.push(
+      `${current.name} maxPeakRssBytes budget relaxed: ${formatBytes(baseline.budget.maxPeakRssBytes)} → ${formatBytes(current.budget.maxPeakRssBytes)}`,
+    );
+  }
+  if (current.budget.maxIncrementalRssBytes > baseline.budget.maxIncrementalRssBytes) {
+    failures.push(
+      `${current.name} maxIncrementalRssBytes budget relaxed: ${formatBytes(baseline.budget.maxIncrementalRssBytes)} → ${formatBytes(current.budget.maxIncrementalRssBytes)}`,
+    );
+  }
+  if (current.budget.maxIncrementalHeapBytes > baseline.budget.maxIncrementalHeapBytes) {
+    failures.push(
+      `${current.name} maxIncrementalHeapBytes budget relaxed: ${formatBytes(baseline.budget.maxIncrementalHeapBytes)} → ${formatBytes(current.budget.maxIncrementalHeapBytes)}`,
+    );
+  }
+  return failures;
+}
+
 const [baselinePath, currentPath] = files;
 const baselineReport = readReport(baselinePath);
 const currentReport = readReport(currentPath);
@@ -65,14 +139,14 @@ const scenarioNames = [...new Set([...baseline.keys(), ...current.keys()])].sort
 const rows: string[] = [];
 const failures: string[] = [];
 
-if (
-  baselineReport.runtime !== currentReport.runtime ||
-  baselineReport.platform !== currentReport.platform ||
-  baselineReport.architecture !== currentReport.architecture ||
-  baselineReport.machine.cpuModel !== currentReport.machine.cpuModel ||
-  baselineReport.machine.logicalCpuCount !== currentReport.machine.logicalCpuCount ||
-  baselineReport.machine.totalMemoryBytes !== currentReport.machine.totalMemoryBytes
-) {
+const sameMachineConfiguration =
+  baselineReport.runtime === currentReport.runtime
+  && baselineReport.platform === currentReport.platform
+  && baselineReport.architecture === currentReport.architecture
+  && baselineReport.machine.cpuModel === currentReport.machine.cpuModel
+  && baselineReport.machine.logicalCpuCount === currentReport.machine.logicalCpuCount
+  && baselineReport.machine.totalMemoryBytes === currentReport.machine.totalMemoryBytes;
+if (!sameMachineConfiguration) {
   failures.push("Benchmark reports came from different runtime or machine configurations");
 }
 
@@ -88,30 +162,40 @@ for (const name of scenarioNames) {
     continue;
   }
 
-  if (baselineResult.inputFrames !== currentResult.inputFrames || baselineResult.semanticCount !== currentResult.semanticCount) {
-    failures.push(`${name} workload changed: ${baselineResult.inputFrames} frames/${baselineResult.semanticCount} semantics → ${currentResult.inputFrames} frames/${currentResult.semanticCount} semantics`);
+  const sameWorkload =
+    baselineResult.fixture === currentResult.fixture
+    && baselineResult.inputFrames === currentResult.inputFrames
+    && baselineResult.semanticCount === currentResult.semanticCount;
+  if (!sameWorkload) {
+    failures.push(
+      `${name} workload changed: ${baselineResult.fixture}, ${baselineResult.inputFrames} frames/${baselineResult.semanticCount} semantics → ` +
+      `${currentResult.fixture}, ${currentResult.inputFrames} frames/${currentResult.semanticCount} semantics`,
+    );
   }
 
   const throughputChange = percentChange(currentResult.throughputPerSecond, baselineResult.throughputPerSecond);
   const rssChange = percentChange(currentResult.peakRssBytes, baselineResult.peakRssBytes);
   const heapChange = percentChange(currentResult.peakHeapBytes, baselineResult.peakHeapBytes);
   const absoluteFailures = absoluteBudgetFailures(currentResult);
-  failures.push(...absoluteFailures);
+  const relaxationFailures = budgetRelaxationFailures(baselineResult, currentResult);
+  failures.push(...absoluteFailures, ...relaxationFailures);
 
-  if (throughputChange < -MAX_THROUGHPUT_REGRESSION_PERCENT) {
-    failures.push(`${name} throughput regressed ${(-throughputChange).toFixed(1)}%, limit is ${MAX_THROUGHPUT_REGRESSION_PERCENT}%`);
-  }
-  if (rssChange > MAX_MEMORY_REGRESSION_PERCENT) {
-    failures.push(`${name} peak RSS regressed ${rssChange.toFixed(1)}%, limit is ${MAX_MEMORY_REGRESSION_PERCENT}%`);
-  }
-  if (heapChange > MAX_MEMORY_REGRESSION_PERCENT) {
-    failures.push(`${name} peak heap regressed ${heapChange.toFixed(1)}%, limit is ${MAX_MEMORY_REGRESSION_PERCENT}%`);
+  if (sameMachineConfiguration && sameWorkload) {
+    if (throughputChange < -MAX_THROUGHPUT_REGRESSION_PERCENT) {
+      failures.push(`${name} throughput regressed ${(-throughputChange).toFixed(1)}%, limit is ${MAX_THROUGHPUT_REGRESSION_PERCENT}%`);
+    }
+    if (rssChange > MAX_MEMORY_REGRESSION_PERCENT) {
+      failures.push(`${name} peak RSS regressed ${rssChange.toFixed(1)}%, limit is ${MAX_MEMORY_REGRESSION_PERCENT}%`);
+    }
+    if (heapChange > MAX_MEMORY_REGRESSION_PERCENT) {
+      failures.push(`${name} peak heap regressed ${heapChange.toFixed(1)}%, limit is ${MAX_MEMORY_REGRESSION_PERCENT}%`);
+    }
   }
 
   rows.push(
     `| ${name} | ${baselineResult.throughputPerSecond.toFixed(0)}/s → ${currentResult.throughputPerSecond.toFixed(0)}/s | ${signedPercent(throughputChange)} | ` +
     `${formatBytes(baselineResult.peakRssBytes)} → ${formatBytes(currentResult.peakRssBytes)} | ${signedPercent(rssChange)} | ` +
-    `${formatBytes(baselineResult.peakHeapBytes)} → ${formatBytes(currentResult.peakHeapBytes)} | ${signedPercent(heapChange)} | ${absoluteFailures.length === 0 ? "pass" : "failed"} |`,
+    `${formatBytes(baselineResult.peakHeapBytes)} → ${formatBytes(currentResult.peakHeapBytes)} | ${signedPercent(heapChange)} | ${absoluteFailures.length === 0 && relaxationFailures.length === 0 ? "pass" : "failed"} |`,
   );
 }
 
