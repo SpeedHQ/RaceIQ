@@ -37,7 +37,9 @@ export const DB_PATH = join(
   process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db",
 );
 
-function migrateLegacyDatabase(legacyPath: string, currentPath: string): void {
+function migrateLegacyDatabase(): void {
+  const legacyPath = join(DB_DIR, "forza-telemetry.db");
+  const currentPath = DB_PATH;
   if (!existsSync(legacyPath)) return;
   if (existsSync(currentPath)) {
     throw new Error(
@@ -49,7 +51,7 @@ function migrateLegacyDatabase(legacyPath: string, currentPath: string): void {
 }
 
 if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
-  migrateLegacyDatabase(join(DB_DIR, "forza-telemetry.db"), DB_PATH);
+  migrateLegacyDatabase();
 }
 
 const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
