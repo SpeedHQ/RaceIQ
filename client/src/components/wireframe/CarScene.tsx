@@ -68,6 +68,7 @@ export function CarScene({
   modelOffsetX,
   fmtTemp,
   hideModelWheels,
+  mergeBodyMeshes,
   suspThresholds,
   autoOrbit,
   tireColors,
@@ -85,6 +86,7 @@ export function CarScene({
   fmtTemp: (f: number) => string;
   hideModelWheels?: boolean;
   suspThresholds: number[];
+  mergeBodyMeshes?: boolean;
   autoOrbit?: boolean;
   tireColors: [string, string, string, string];
 }) {
@@ -343,7 +345,9 @@ export function CarScene({
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <Suspense fallback={null}>{carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}</Suspense>
+        <Suspense fallback={null}>
+          {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} mergeMeshes={mergeBodyMeshes} />}
+        </Suspense>
       </group>
 
       {/* Running gear — positioned by suspension */}

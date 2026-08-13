@@ -2,7 +2,8 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
-import { mkdirSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync } from "node:fs";
+import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
@@ -10,8 +11,6 @@ import { resolveDataDir } from "../runtime/config/data-dir";
 // here with DATA_DIR unset (see server/runtime/config/data-dir.ts), and sibling state such as
 // settings.json still lives on disk.
 const DB_DIR = resolveDataDir();
-const DB_FILENAME = process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "forza-telemetry.db";
-const DB_PATH = `${DB_DIR}/${DB_FILENAME}`;
 
 /**
  * Opt-in only: set DB_IN_MEMORY=1. Tests deliberately do NOT default to this.
@@ -31,6 +30,23 @@ const IN_MEMORY = process.env.DB_IN_MEMORY === "1";
 // Ensure data directory exists
 if (!existsSync(DB_DIR)) {
   mkdirSync(DB_DIR, { recursive: true });
+}
+
+export const DB_PATH = join(
+  DB_DIR,
+  process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db",
+);
+
+function migrateLegacyDatabase(): void {
+  const legacyPath = join(DB_DIR, "forza-telemetry.db");
+  const currentPath = DB_PATH;
+  if (!existsSync(legacyPath) || existsSync(currentPath)) return;
+  renameSync(legacyPath, currentPath);
+  console.log(`[DB] Migrated legacy database from "${legacyPath}" to "${currentPath}".`);
+}
+
+if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
+  migrateLegacyDatabase();
 }
 
 const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });

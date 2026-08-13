@@ -1,9 +1,10 @@
 import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
-import { useLaps as useLapsQuery, useLapSemanticTelemetry } from "../../hooks/laps";
+import type { SemanticReplayFrame } from "../../hooks/laps";
+import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -19,7 +20,6 @@ import {
   type TrackMapLabel,
   type TrackOverlays,
 } from "./track-map/types";
-import type { SemanticReplayFrame } from "../../hooks/laps";
 interface AnalyseSemanticFrame {
   sequence: number;
   observedAtMs: number;
@@ -155,15 +155,15 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
       replace: true,
     });
   }, [selectedTrack, selectedCar, selectedLapId, navigate]);
-  const handleTrackChange = (value: number | null) => {
+  const handleTrackChange = useCallback((value: number | null) => {
     setSelectedTrack(value);
     setSelectedCar(null);
     setSelectedLapId(null);
-  };
-  const handleCarChange = (value: number | null) => {
+  }, []);
+  const handleCarChange = useCallback((value: number | null) => {
     setSelectedCar(value);
     setSelectedLapId(null);
-  };
+  }, []);
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
   const cursorRef = useRef(0);

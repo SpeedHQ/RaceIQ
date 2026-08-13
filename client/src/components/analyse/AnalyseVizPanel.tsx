@@ -1,13 +1,14 @@
-import type { RefObject } from "react";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import type { GameId } from "@shared/games/ids";
+import { memo, type RefObject, useEffect, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import type { Point, TrackMapBoundaries } from "./track-map/types";
-import type { GameId } from "@shared/games/ids";
+
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
   vizMode: "2d" | "3d";
@@ -21,8 +22,46 @@ interface Props {
   units: ReturnType<typeof useUnits>;
   gameId?: GameId;
 }
+function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
+  return (
+    previous.vizMode === next.vizMode &&
+    previous.onVizModeChange === next.onVizModeChange &&
+    previous.displayTelemetry === next.displayTelemetry &&
+    previous.cursorRef === next.cursorRef &&
+    previous.displayTelemetryRef === next.displayTelemetryRef &&
+    previous.lapLine === next.lapLine &&
+    previous.boundaries === next.boundaries &&
+    previous.units === next.units &&
+    previous.gameId === next.gameId
+  );
+}
 
-export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displayTelemetry, cursorRef, displayTelemetryRef, cursorIdx, lapLine, boundaries, units, gameId }: Props) {
+export const AnalyseVizPanel = memo(function AnalyseVizPanel({
+  vizMode,
+  onVizModeChange,
+  currentFrame,
+  displayTelemetry,
+  cursorRef,
+  displayTelemetryRef,
+  cursorIdx,
+  lapLine,
+  boundaries,
+  units,
+  gameId,
+}: Props) {
+  const [visualCursorIdx, setVisualCursorIdx] = useState(cursorIdx);
+  useEffect(() => {
+    let animationFrame: number;
+    const syncCursor = () => {
+      const nextCursor = cursorRef.current;
+      setVisualCursorIdx((current) => (current === nextCursor ? current : nextCursor));
+      animationFrame = requestAnimationFrame(syncCursor);
+    };
+    animationFrame = requestAnimationFrame(syncCursor);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [cursorRef]);
+  const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? displayTelemetry[visualCursorIdx] ?? currentFrame;
+
   return (
     <Tabs
       value={vizMode}
@@ -41,36 +80,36 @@ export function AnalyseVizPanel({ vizMode, onVizModeChange, currentFrame, displa
       </TabsList>
 
       <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
-        <Vitals2D frame={currentFrame ?? undefined} gameId={gameId} />
+        <Vitals2D frame={visualFrame ?? undefined} gameId={gameId} />
       </TabsContent>
 
       <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
         <div className="relative min-h-0 w-full flex-1">
-          {currentFrame && (
+          {visualFrame && (
             <CarWireframe
               gameId={gameId}
-              frame={currentFrame}
+              frame={visualFrame}
               telemetry={displayTelemetry}
               cursorRef={cursorRef}
               telemetryRef={displayTelemetryRef}
-              cursorIdx={cursorIdx}
+              cursorIdx={visualCursorIdx}
               outline={lapLine}
               boundaries={boundaries}
               tempLabel={units.tempLabel}
             />
           )}
-          {currentFrame && (
+          {visualFrame && (
             <div className="absolute bottom-1 left-1 opacity-80">
-              <BodyAttitude frame={currentFrame} />
+              <BodyAttitude frame={visualFrame} />
             </div>
           )}
-          {currentFrame && (
+          {visualFrame && (
             <div className="absolute bottom-1 left-1 opacity-90" style={{ bottom: "9rem" }}>
-              <GForceCircle frame={currentFrame} />
+              <GForceCircle frame={visualFrame} />
             </div>
           )}
         </div>
       </TabsContent>
     </Tabs>
   );
-}
+}, areAnalyseVizPropsEqual);

@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
-import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
+import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
@@ -20,6 +20,7 @@ import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 
 // ── Main Component ───────────────────────────────────────────────────
+const noop = () => undefined;
 
 export function LapAnalyse() {
   return <LapAnalyseInner />;
@@ -169,6 +170,7 @@ function LapAnalyseInner() {
     w.__setFrame = (n: number) => {
       const idx = Math.max(0, Math.min(telemetry.length - 1, n));
       setCursorIdx(idx);
+      cursorRef.current = idx;
       trackMapRef.current?.updateCursor(idx);
       chartsPanelRef.current?.updateCursor(idx);
     };
@@ -291,11 +293,22 @@ function LapAnalyseInner() {
 
   const handleDeleteLap = useCallback(() => {
     if (!selectedLapId) return;
-    const lap = filteredLaps.find((l) => l.id === selectedLapId);
+    const lap = filteredLaps.find((candidate) => candidate.id === selectedLapId);
     const label = lap ? `Lap ${lap.lapNumber}` : `Lap ${selectedLapId}`;
     if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     deleteLapMutation.mutate(selectedLapId);
-  }, [selectedLapId, filteredLaps, deleteLapMutation]);
+  }, [selectedLapId, filteredLaps, deleteLapMutation.mutate]);
+  const handleTuneChange = useCallback((tuneId: number | null) => updateLapTune.mutate(tuneId), [updateLapTune.mutate]);
+  const handleNotesChange = useCallback((notes: string) => updateLapNotesMutation.mutate(notes), [updateLapNotesMutation.mutate]);
+  const handleToggleAi = useCallback(() => setAiPanelOpen((open) => !open), [setAiPanelOpen]);
+  const handleRotateWithCarToggle = useCallback(() => setRotateWithCar((rotate) => !rotate), [setRotateWithCar]);
+  const handleTrackOverlayChange = useCallback(
+    (overlay: TrackOverlayKey, checked: boolean) => {
+      if (overlay === "racingLine" && !hasRacingLine) return;
+      setTrackOverlays((current) => ({ ...current, [overlay]: checked }));
+    },
+    [hasRacingLine, setTrackOverlays],
+  );
 
   const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
@@ -309,8 +322,8 @@ function LapAnalyseInner() {
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
-        onExport={() => undefined}
-        onExportBin={() => undefined}
+        onExport={noop}
+        onExportBin={noop}
         selectedTrack={selectedTrack}
         selectedCar={selectedCar}
         selectedLapId={selectedLapId}
@@ -329,17 +342,17 @@ function LapAnalyseInner() {
         onTrackChange={handleTrackChange}
         onCarChange={handleCarChange}
         onLapChange={setSelectedLapId}
-        onTuneChange={(tuneId) => updateLapTune.mutate(tuneId)}
+        onTuneChange={handleTuneChange}
         onViewTune={setViewingTuneId}
-        onShowSetup={() => undefined}
+        onShowSetup={noop}
         onImportBin={handleImportBin}
         exportingBin={exportingBin}
         importingBin={importingBin}
         ownership={ownership}
         onOwnershipChange={setOwnership}
-        onToggleAi={() => setAiPanelOpen((v) => !v)}
+        onToggleAi={handleToggleAi}
         onDeleteLap={handleDeleteLap}
-        onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}
+        onNotesChange={handleNotesChange}
       />
 
       {telemetry.length === 0 && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
@@ -369,11 +382,8 @@ function LapAnalyseInner() {
             rotateWithCar,
             trackOverlays: effectiveTrackOverlays,
             mapZoom,
-            onRotateWithCarToggle: () => setRotateWithCar((r) => !r),
-            onTrackOverlayChange: (overlay: TrackOverlayKey, checked: boolean) => {
-              if (overlay === "racingLine" && !hasRacingLine) return;
-              setTrackOverlays((current) => ({ ...current, [overlay]: checked }));
-            },
+            onRotateWithCarToggle: handleRotateWithCarToggle,
+            onTrackOverlayChange: handleTrackOverlayChange,
             onMapZoomChange: setMapZoom,
             vizMode,
             onVizModeChange: setWheelTab,

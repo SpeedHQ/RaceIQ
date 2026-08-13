@@ -32,13 +32,16 @@ async function seekToClosestRacingLine(page: Page, request: APIRequestContext, l
   expect(replayResponse.ok(), `${gameId} semantic replay response`).toBe(true);
   const replay = (await replayResponse.json()) as {
     envelopes: Array<{
-      observedAt: { milliseconds: number };
       values: Array<{ semanticId: string; value: unknown }>;
     }>;
   };
   let bestFrameIndex = 0;
   let bestDistanceSquared = Infinity;
   const frameDistances = new Array<number>(replay.envelopes.length).fill(Infinity);
+  const frameTimes = replay.envelopes.map((envelope) => {
+    const value = envelope.values.find((entry) => entry.semanticId === "timing.current-lap")?.value;
+    return typeof value === "number" ? value : 0;
+  });
   for (let frameIndex = 0; frameIndex < replay.envelopes.length; frameIndex++) {
     const values = replay.envelopes[frameIndex].values;
     const positionX = values.find((entry) => entry.semanticId === "motion.position-x")?.value;
@@ -56,9 +59,9 @@ async function seekToClosestRacingLine(page: Page, request: APIRequestContext, l
   }
   expect(Math.sqrt(bestDistanceSquared), `${gameId} replay should cross its reference line`).toBeLessThan(1);
 
-  const firstTime = replay.envelopes[0].observedAt.milliseconds;
-  const lastTime = replay.envelopes.at(-1)!.observedAt.milliseconds;
-  const bestTime = replay.envelopes[bestFrameIndex].observedAt.milliseconds;
+  const firstTime = frameTimes[0];
+  const lastTime = frameTimes.at(-1)!;
+  const bestTime = frameTimes[bestFrameIndex];
   const timeFraction = (bestTime - firstTime) / (lastTime - firstTime);
   const slider = page.getByRole("slider", { name: "Lap timeline" });
   const box = await slider.boundingBox();
