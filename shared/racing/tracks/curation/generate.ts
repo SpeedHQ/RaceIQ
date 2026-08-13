@@ -392,18 +392,22 @@ function groupAutoStartFinishStraight(segments: NamedSegment[]): void {
 /**
  * Normalize standard oval geometry into racing terminology and numbering.
  *
- * Start/finish sits within the frontstretch. Each banked end is one continuous
- * curvature region on many ovals, but carries two official turn numbers.
- * Detector extents still place each end; conservative defaults cover smooth
- * ovals whose SVG centerline never crosses road-course curvature thresholds.
+ * iRacing's official T1–T4 anchors define each banked end: extrapolate half
+ * one anchor spacing before the first turn and after the second. Curvature
+ * detection and conservative defaults apply only when a complete anchor pair
+ * is unavailable.
  */
 function fourTurnOvalSegments(
   detected: CornerRegion[],
   direction: "left" | "right",
   turnAnchors: readonly { number: number; fraction: number }[] = [],
 ): NamedSegment[] {
-  const firstEnd = ovalEndBounds(detected, 0, 0.5, 0.1, 0.4);
-  const secondEnd = ovalEndBounds(detected, 0.5, 1, 0.6, 0.9);
+  const firstEnd =
+    officialOvalEndBounds(turnAnchors, 1, 2, 0, 0.5) ??
+    ovalEndBounds(detected, 0, 0.5, 0.1, 0.4);
+  const secondEnd =
+    officialOvalEndBounds(turnAnchors, 3, 4, 0.5, 1) ??
+    ovalEndBounds(detected, 0.5, 1, 0.6, 0.9);
   const firstMiddle = ovalTurnSplit(turnAnchors, 1, 2, firstEnd);
   const secondMiddle = ovalTurnSplit(turnAnchors, 3, 4, secondEnd);
 
@@ -461,6 +465,30 @@ function fourTurnOvalSegments(
       endFrac: 1,
     },
   ];
+}
+
+function officialOvalEndBounds(
+  anchors: readonly { number: number; fraction: number }[],
+  firstTurn: number,
+  secondTurn: number,
+  halfStart: number,
+  halfEnd: number,
+): { start: number; end: number } | null {
+  const first = anchors.find((anchor) => anchor.number === firstTurn);
+  const second = anchors.find((anchor) => anchor.number === secondTurn);
+  if (
+    !first ||
+    !second ||
+    first.fraction < halfStart ||
+    second.fraction > halfEnd ||
+    first.fraction >= second.fraction
+  ) {
+    return null;
+  }
+  const halfSpacing = (second.fraction - first.fraction) / 2;
+  const start = first.fraction - halfSpacing;
+  const end = second.fraction + halfSpacing;
+  return start > halfStart && end < halfEnd ? { start, end } : null;
 }
 
 function ovalTurnSplit(

@@ -72,10 +72,14 @@ describe("automatic oval segments", () => {
       },
     });
     const corners = result.segments.filter((segment) => segment.type === "corner");
+    expect(corners[0].startFrac).toBeCloseTo(0.035);
     expect(corners[0].endFrac).toBeCloseTo(0.095);
     expect(corners[1].startFrac).toBeCloseTo(0.095);
+    expect(corners[1].endFrac).toBeCloseTo(0.155);
+    expect(corners[2].startFrac).toBeCloseTo(0.535);
     expect(corners[2].endFrac).toBeCloseTo(0.595);
     expect(corners[3].startFrac).toBeCloseTo(0.595);
+    expect(corners[3].endFrac).toBeCloseTo(0.655);
   });
 
   test("supports explicit clockwise oval exceptions", () => {

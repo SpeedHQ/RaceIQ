@@ -15,9 +15,9 @@ import {
 } from "./track-map-svg";
 
 interface CachedMapFile extends Omit<IRacingSvgTrackMap, "pitRoad"> {
-  version: 1;
+  version: 2;
   mapUrl: string;
-  /** Optional for upgrading existing caches written before pit-road support. */
+  /** Omitted when pit-road layer fetch fails; next request retries that layer. */
   pitRoad?: IRacingSvgTrackMap["pitRoad"];
 }
 
@@ -47,7 +47,7 @@ export function orientIRacingOvalMap(
   };
 }
 
-const MAP_CACHE_VERSION = 1;
+const MAP_CACHE_VERSION = 2;
 const FETCH_TIMEOUT_MS = 4_000;
 const PUBLIC_MAP_PREFIX =
   "https://members-assets.iracing.com/public/track-maps/";

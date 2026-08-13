@@ -131,6 +131,20 @@ describe("iRacing official SVG track maps", () => {
     });
   });
 
+  test("reads translate-positioned official oval turn numbers", () => {
+    expect(
+      parseIRacingTurnLabels(`
+        <svg viewBox="0 0 1920 1080">
+          <text transform="translate(291.83 492.74)">1</text>
+          <text transform="translate(347.25, 956.07)">2</text>
+        </svg>
+      `),
+    ).toEqual([
+      { text: "1", x: -291.83, z: 492.74 },
+      { text: "2", x: -347.25, z: 956.07 },
+    ]);
+  });
+
   test("splits one detected corner at official turn labels", () => {
     const points = Array.from({ length: 101 }, (_, index) => ({ x: index, z: 0 }));
     const segments: NamedSegment[] = [

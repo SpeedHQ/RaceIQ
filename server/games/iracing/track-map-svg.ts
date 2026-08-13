@@ -607,22 +607,30 @@ export function parseIRacingTurnLabels(svg: string): IRacingMapLabel[] {
     const text = decodeXmlText(match[2].replace(/<[^>]+>/g, ""));
     if (!text) continue;
 
-    const transform = attributes.match(
+    const matrixTransform = attributes.match(
       /\btransform=(["'])matrix\(([^)]+)\)\1/i,
     );
-    const matrix = transform ? numberTokens(transform[2]) : [];
+    const translateTransform = attributes.match(
+      /\btransform=(["'])translate\(([^)]+)\)\1/i,
+    );
+    const matrix = matrixTransform ? numberTokens(matrixTransform[2]) : [];
+    const translation = translateTransform ? numberTokens(translateTransform[2]) : [];
     const xMatch = attributes.match(/\bx=(["'])(.*?)\1/i);
     const yMatch = attributes.match(/\by=(["'])(.*?)\1/i);
     const x = matrix.length >= 6
       ? matrix[4]
-      : xMatch
-        ? numberTokens(xMatch[2])[0]
-        : Number.NaN;
+      : translation.length >= 2
+        ? translation[0]
+        : xMatch
+          ? numberTokens(xMatch[2])[0]
+          : Number.NaN;
     const y = matrix.length >= 6
       ? matrix[5]
-      : yMatch
-        ? numberTokens(yMatch[2])[0]
-        : Number.NaN;
+      : translation.length >= 2
+        ? translation[1]
+        : yMatch
+          ? numberTokens(yMatch[2])[0]
+          : Number.NaN;
     if (Number.isFinite(x) && Number.isFinite(y)) {
       labels.push({ text, x: -x, z: y });
     }
