@@ -1,4 +1,3 @@
-import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import type { LapSortKey, SessionNames, SessionsTab, SortDir, SortKey } from "./types";
 
@@ -80,8 +79,7 @@ export function filterSessions(sessions: SessionMeta[], search: string, tab: Ses
   const query = search.toLowerCase().trim();
   const tokens = query.split(/\s+/).filter(Boolean);
   return sessions.filter((session) => {
-    const imported = session.source === MOTEC_SESSION_SOURCE;
-    if (imported !== (tab === "imported")) return false;
+    if ((session.ownership ?? "mine") !== tab) return false;
     if (!tokens.length) return true;
     const track = (names.trackNames[session.trackOrdinal] ?? "").toLowerCase();
     const car = (names.carNames[session.carOrdinal] ?? "").toLowerCase();

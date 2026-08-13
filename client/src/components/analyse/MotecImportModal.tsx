@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from "react";
+import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import { OwnershipChoice } from "../import/OwnershipChoice";
 import type { GameId } from "../../../../shared/games/ids";
 import { useCarsFromEndpoint, useMotecTargets, useTracksForGame } from "../../hooks/catalog-queries";
 import { useUserTunes } from "../../hooks/tunes";
@@ -61,6 +63,7 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
   const [tuneId, setTuneId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
 
   const { data: targets = [] } = useMotecTargets();
@@ -98,6 +101,7 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
       body.append("carOrdinal", carOrdinal);
       body.append("trackOrdinal", trackOrdinal);
       if (tuneId) body.append("tuneId", tuneId);
+      body.append("ownership", ownership);
       // Multipart upload — no RPC binding for form bodies, same as
       // /api/laps/import and /api/laps/import-zip.
       const res = await fetch("/api/laps/import-motec", { method: "POST", body });
@@ -177,6 +181,8 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
                 wrong rather than fail.
               </p>
             )}
+
+            <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
 
             {/* Files */}
             <div className="space-y-2">

@@ -55,7 +55,7 @@ export function RevBar({ rpm, idle, max, segments = 100, className = "" }: RevBa
         const lit = i < litCount;
         return (
           <div
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length static segment list, never reordered
+            // oxlint-disable-next-line suspicious/noArrayIndexKey: fixed-length static segment list, never reordered
             key={i}
             className="flex-1 rounded-[2px] transition-colors duration-75"
             style={{

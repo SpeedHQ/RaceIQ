@@ -3,7 +3,7 @@ import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
-import type { SessionMeta } from "../../shared/racing/sessions/types";
+import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { tryGetGame } from "../../shared/games/registry";
@@ -19,10 +19,11 @@ export async function insertSession(
   gameId: GameId,
   sessionType?: string,
   versionIdentity?: TelemetryVersionIdentity,
+  ownership?: SessionOwnership,
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ...versionIdentity })
+    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity })
     .returning({ id: sessions.id })
     .get();
   return result.id;
@@ -204,6 +205,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       parserVersion: sessions.parserVersion,
       resolverVersion: sessions.resolverVersion,
       derivationVersion: sessions.derivationVersion,
+      ownership: sessions.ownership,
     })
     .from(sessions)
     .orderBy(desc(sessions.id));
@@ -267,6 +269,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       parserVersion: session.parserVersion ?? undefined,
       resolverVersion: session.resolverVersion ?? undefined,
       derivationVersion: session.derivationVersion ?? undefined,
+      ownership: session.ownership === "others" ? "others" : "mine",
     });
   }
   return result;
@@ -299,6 +302,7 @@ export async function getSessionRecapData(
       trackOrdinal: sessions.trackOrdinal,
       gameId: sessions.gameId,
       createdAt: sessions.createdAt,
+      ownership: sessions.ownership,
     })
     .from(sessions)
     .where(eq(sessions.id, id))
@@ -401,6 +405,7 @@ export async function getSessionRecapData(
       trackOrdinal: sessionRow.trackOrdinal,
       gameId: sessionRow.gameId as GameId,
       createdAt: sessionRow.createdAt,
+      ownership: sessionRow.ownership === "others" ? "others" : "mine",
     },
     laps: lapRows.map((l) => ({ ...l, isValid: Boolean(l.isValid) })),
     trackLengthM,
