@@ -55,13 +55,10 @@ describe("semantic telemetry catalog artifacts", () => {
         version: TELEMETRY_CATALOG_VERSION,
       },
     });
-    expect(TELEMETRY_CATALOG.metadata.generator.commit).toMatch(
+    expect(TELEMETRY_CATALOG.metadata.generator.sourceHash).toMatch(
       /^[a-f0-9]{64}$/,
     );
     expect(TELEMETRY_CATALOG.metadata.contentHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(TELEMETRY_CATALOG.metadata.generatedAt).toBe(
-      "1970-01-01T00:00:00.000Z",
-    );
 
     const first = await buildTelemetryCatalogArtifacts();
     const second = await buildTelemetryCatalogArtifacts();

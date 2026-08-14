@@ -49,7 +49,7 @@ function sameCardinality(
 }
 
 export function assertTelemetryCatalogComplete(): void {
-  if (TELEMETRY_CATALOG.format !== "raceiq-semantic-telemetry-catalog-v6") {
+  if (TELEMETRY_CATALOG.format !== "raceiq-semantic-telemetry-catalog-v7") {
     throw new Error(`Unexpected catalog format ${TELEMETRY_CATALOG.format}`);
   }
   const metadata = TELEMETRY_CATALOG.metadata;
@@ -58,9 +58,13 @@ export function assertTelemetryCatalogComplete(): void {
     !metadata.schemaVersion ||
     !metadata.generator.name ||
     !metadata.generator.version ||
-    !/^[a-f0-9]{64}$/.test(metadata.generator.commit) ||
-    !/^[a-f0-9]{64}$/.test(metadata.contentHash) ||
-    Number.isNaN(Date.parse(metadata.generatedAt))
+    !/^[a-f0-9]{64}$/.test(metadata.generator.sourceHash) ||
+    !metadata.sourceHashes ||
+    Object.keys(metadata.sourceHashes).length === 0 ||
+    Object.values(metadata.sourceHashes).some(
+      (sourceHash) => !/^[a-f0-9]{64}$/.test(sourceHash),
+    ) ||
+    !/^[a-f0-9]{64}$/.test(metadata.contentHash)
   ) {
     throw new Error("Telemetry catalog metadata is incomplete");
   }
@@ -212,7 +216,7 @@ export function assertTelemetryCatalogComplete(): void {
       if (
         !mapping.provenance.artifact ||
         !mapping.provenance.origin ||
-        !/^[a-f0-9]{64}$/.test(mapping.provenance.commit) ||
+        !metadata.sourceHashes[mapping.provenance.artifact] ||
         !Array.isArray(mapping.limitations)
       ) {
         throw new Error(`${variable.id} ${gameId} lacks mapping provenance`);

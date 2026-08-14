@@ -5,11 +5,10 @@
 ## Manifest
 
 - Catalog version: `0.13.0`
-- Schema version: `v6`
+- Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator commit: `ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59`
-- Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `1e98de699a81605917dbd1c337b0bb0aec13c1adcfb73d0f6b494a7b2d85fb12`
+- Generator source SHA-256: `1f34aeb938da59a4a16a9a1fca61351b878c01c2d8ece5b1cf36e478b0656171`
+- Content SHA-256: `891ce3a5167300550134f31b14b9a1d0679de32fa6e5d16deb95a1e3c44bd4db`
 
 ## Coverage
 

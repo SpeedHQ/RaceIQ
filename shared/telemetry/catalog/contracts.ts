@@ -57,7 +57,6 @@ export interface TelemetryMappingExecution {
 export interface TelemetryMappingProvenance {
   origin: "parser" | "projection" | "schema" | "yaml" | "derivation";
   artifact: string;
-  commit: string;
 }
 
 export interface TelemetryCompatibilityReview {
@@ -147,14 +146,14 @@ export interface TelemetryCatalogMetadata {
   generator: {
     name: string;
     version: string;
-    commit: string;
+    sourceHash: string;
   };
-  generatedAt: string;
+  sourceHashes: Readonly<Record<string, string>>;
   contentHash: string;
 }
 
 export interface TelemetryCatalogData {
-  format: "raceiq-semantic-telemetry-catalog-v6";
+  format: "raceiq-semantic-telemetry-catalog-v7";
   metadata: TelemetryCatalogMetadata;
   generatedFrom: readonly string[];
   groups: readonly TelemetryCatalogGroup[];
