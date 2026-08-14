@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { evaluateAllEligibility, evaluateEligibility, evaluateGroupEligibility, isEligibilityUsable } from "../../shared/racing/quality/policies";
-import type { EligibilityDecisionSet, EligibilityReason, GroupEligibilityLap, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { evaluateAllEligibility, evaluateEligibility, evaluateGroupEligibility, isEligibilityUsable, QUALITY_POLICY_CONFIG_V1 } from "../../shared/racing/quality/policies";
+import { QUALITY_CONFIG_VERSION, type EligibilityDecisionSet, type EligibilityReason, type GroupEligibilityLap, type LapQualitySummary } from "../../shared/racing/quality/contracts";
 import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 function copyQuality(quality: LapQualitySummary): LapQualitySummary {
@@ -40,6 +40,10 @@ function groupLap(quality: LapQualitySummary, lapTime: number): GroupEligibility
 }
 
 describe("eligibility policy registry", () => {
+  test("publishes its configuration compatibility identity", () => {
+    expect(QUALITY_POLICY_CONFIG_V1.version).toBe(QUALITY_CONFIG_VERSION);
+  });
+
   test("keeps official timing eligible through irrelevant telemetry gaps", () => {
     const missing = Array.from({ length: 20 }, (_, index) => 90 + index);
     const quality = summarize(qualityPackets(200, missing));

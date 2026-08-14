@@ -73,10 +73,12 @@ const CORNER_TRACE_CHANNELS = ["timing.distance-traveled", "motion.speed", "inpu
 
 const TRANSIENT_CHANNELS = ["tires.tire-slip-ratio", "tires.tire-slip-angle", "tires.wheel-rotation-speed", "suspension.norm-suspension-travel"] as const satisfies readonly TelemetryVariableId[];
 
-const ML_CHANNELS = ["timing.distance-traveled", "motion.speed", "inputs.accel", "inputs.brake", "inputs.steer"] as const satisfies readonly TelemetryVariableId[];
+const ML_CHANNELS = CORNER_TRACE_CHANNELS;
+
+const INTERRUPTING_TIMELINE_REASON_CODES = ["telemetry_gap_major", "timeline_discontinuity", "out_of_order_observations", "writer_drop"] as const satisfies readonly QualityReasonCode[];
 
 export const QUALITY_POLICY_CONFIG_V1 = {
-  version: ELIGIBILITY_POLICY_VERSION,
+  version: QUALITY_CONFIG_VERSION,
   thresholds: QUALITY_THRESHOLDS_V1,
   requiredChannels: {
     "official-timing": [],
@@ -203,6 +205,22 @@ function dedupeReasons(reasons: readonly EligibilityReason[]): EligibilityReason
     result.push(reason);
   }
   return result;
+}
+
+function unresolvedDecision(
+  policyId: EligibilityPolicyId,
+  reasons: readonly EligibilityReason[],
+  policyVersion: string = ELIGIBILITY_POLICY_VERSION,
+): EligibilityDecision {
+  const uniqueReasons = dedupeReasons(reasons);
+  return {
+    status: "unknown",
+    policyId,
+    policyVersion,
+    confidence: { level: "unknown", score: null },
+    reasons: uniqueReasons,
+    evidenceIds: [...new Set(uniqueReasons.flatMap(({ evidenceIds }) => evidenceIds))],
+  };
 }
 
 const SOURCE_FIDELITY_REASON_CODES = new Set<QualityReasonCode>(["channel_simplified", "channel_derived", "pit_only_updates", "interpolated_channel", "fallback_channel"]);
@@ -334,8 +352,6 @@ function sourceUnavailableDecision(policyId: EligibilityPolicyId, quality: LapQu
 }
 
 function officialTiming(quality: LapQualitySummary): EligibilityDecision {
-  const unavailable = sourceUnavailableDecision("official-timing", quality);
-  if (unavailable) return unavailable;
   if (!quality.complete) {
     const reasons = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
     return decision("official-timing", quality, "ineligible", reasons.length > 0 ? reasons : [syntheticReason("partial_lap")]);
@@ -368,7 +384,7 @@ function normalPace(quality: LapQualitySummary, range?: QualityDistanceRange): E
   }
   const incidents = factsFor(quality, ["incident_lap"], range).map(reasonFromFact);
   reasons.push(...incidents);
-  const majorGaps = factsFor(quality, ["telemetry_gap_major", "timeline_discontinuity", "out_of_order_observations", "writer_drop"], range).map(reasonFromFact);
+  const majorGaps = factsFor(quality, INTERRUPTING_TIMELINE_REASON_CODES, range).map(reasonFromFact);
   reasons.push(...majorGaps);
   if (reasons.length > 0) return decision("normal-pace", quality, "ineligible", reasons, [], range);
 
@@ -400,7 +416,7 @@ function lapComparison(quality: LapQualitySummary, range?: QualityDistanceRange)
   if (!quality.structurallyValid) reasons.push(syntheticReason("structurally_invalid"));
   reasons.push(...channelCoverageReasons(quality, LAP_COMPARISON_CHANNELS, QUALITY_THRESHOLDS_V1.lapComparisonCoverage, range));
   const fidelityReasons = sourceFidelityReasons(quality, LAP_COMPARISON_CHANNELS);
-  const majorGap = factsFor(quality, ["telemetry_gap_major", "timeline_discontinuity", "out_of_order_observations", "writer_drop"], range)
+  const majorGap = factsFor(quality, INTERRUPTING_TIMELINE_REASON_CODES, range)
     .filter((fact) => fact.code !== "telemetry_gap_major" || (fact.timeRange?.endMs ?? 0) - (fact.timeRange?.startMs ?? 0) > QUALITY_THRESHOLDS_V1.lapComparisonGapMaxMs)
     .map(reasonFromFact);
   reasons.push(...majorGap);
@@ -578,14 +594,7 @@ function groupDecision(
 ): EligibilityDecision {
   const quality = laps[0]?.quality;
   if (!quality) {
-    return {
-      status: "unknown",
-      policyId,
-      policyVersion: ELIGIBILITY_POLICY_VERSION,
-      confidence: { level: "unknown", score: null },
-      reasons: dedupeReasons(reasons.length > 0 ? reasons : [syntheticReason("insufficient_sample_pool")]),
-      evidenceIds: [],
-    };
+    return unresolvedDecision(policyId, reasons.length > 0 ? reasons : [syntheticReason("insufficient_sample_pool")]);
   }
   const confidenceScores = laps.map((lap) => lap.eligibility[policyId]?.confidence.score).filter((score): score is number => score != null);
   const result = decision(policyId, quality, status, reasons);
@@ -656,16 +665,7 @@ export function evaluateGroupEligibility(policyId: EligibilityPolicyId, laps: re
   }
 
   const first = laps[0];
-  if (!first) {
-    return {
-      status: "unknown",
-      policyId,
-      policyVersion: ELIGIBILITY_POLICY_VERSION,
-      confidence: { level: "unknown", score: null },
-      reasons: [syntheticReason("insufficient_sample_pool")],
-      evidenceIds: [],
-    };
-  }
+  if (!first) return unresolvedDecision(policyId, [syntheticReason("insufficient_sample_pool")]);
   return first.eligibility[policyId];
 }
 
@@ -687,15 +687,7 @@ export function replaceWithUnknownEligibilityDecision(
   code: QualityReasonCode,
   semanticIds: readonly TelemetryVariableId[] = [],
 ): EligibilityDecision {
-  const reason = syntheticReason(code, semanticIds);
-  return {
-    status: "unknown",
-    policyId: current.policyId,
-    policyVersion: current.policyVersion,
-    confidence: { level: "unknown", score: null },
-    reasons: [reason],
-    evidenceIds: reason.evidenceIds,
-  };
+  return unresolvedDecision(current.policyId, [syntheticReason(code, semanticIds)], current.policyVersion);
 }
 
 export function resolveEligibilityDecision(
@@ -707,14 +699,7 @@ export function resolveEligibilityDecision(
   const persisted = evidence.eligibility?.[policyId];
   if (snapshotCurrent && persisted?.policyId === policyId && persisted.policyVersion === ELIGIBILITY_POLICY_VERSION) return persisted;
   if (snapshotCurrent && evidence.quality) return evaluateEligibility(policyId, evidence.quality, options);
-  return {
-    status: "unknown",
-    policyId,
-    policyVersion: ELIGIBILITY_POLICY_VERSION,
-    confidence: { level: "unknown", score: null },
-    reasons: [syntheticReason("quality_not_rebuilt")],
-    evidenceIds: [],
-  };
+  return unresolvedDecision(policyId, [syntheticReason("quality_not_rebuilt")]);
 }
 
 export function isEligibilityStrict(decision: EligibilityDecision | null | undefined): boolean {

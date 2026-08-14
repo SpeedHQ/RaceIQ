@@ -3,7 +3,11 @@ import type { ArmLap } from "../../../server/experiments/comparison/metrics";
 import type { FrameLapMeta, LapFrameLoader } from "../../../server/experiments/comparison/stream";
 import type { Corner } from "../../../server/lap-analysis/corners";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+import { DEFAULT_LAP_CLASSIFICATION, type LapClassification } from "../../../shared/racing/laps/classification";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../../shared/racing/quality/contracts";
+import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { qualityPackets, summarize } from "../lap-analysis/quality-model";
 
 /** Deterministic synthetic corner shared by frame-based arm suites. */
 export const SYNTHETIC_CORNERS: Corner[] = [{ index: 1, label: "T1", distanceStart: 200, distanceEnd: 300 }];
@@ -38,6 +42,25 @@ export function syntheticLap(lateralOffsetM: number, brakeShiftM: number): Telem
 }
 
 let nextMetadataId = 1;
+const policyEvidenceCache = new Map<
+  string,
+  LapClassification & { quality: LapQualitySummary; eligibility: EligibilityDecisionSet }
+>();
+
+export function policyEvidence(
+  classification: LapClassification = DEFAULT_LAP_CLASSIFICATION,
+  structurallyValid = true,
+  invalidReason: string | null = null,
+): LapClassification & { quality: LapQualitySummary; eligibility: EligibilityDecisionSet } {
+  const cacheKey = JSON.stringify([classification, structurallyValid, invalidReason]);
+  const cached = policyEvidenceCache.get(cacheKey);
+  if (cached) return cached;
+  const quality = summarize(qualityPackets(200), { classification, structurallyValid, invalidReason });
+  const evidence = { ...classification, quality, eligibility: evaluateAllEligibility(quality) };
+  policyEvidenceCache.set(cacheKey, evidence);
+  return evidence;
+}
+
 
 /** Build metadata-only arms used by outcome and comparison statistics tests. */
 export function metadataArm(lapTimes: number[], labelPrefix = "arm"): { label: string; laps: ArmLap[] } {
@@ -49,6 +72,7 @@ export function metadataArm(lapTimes: number[], labelPrefix = "arm"): { label: s
       invalidReason: null,
       experimentExcluded: false,
       experimentExcludedSource: null,
+      ...policyEvidence(),
     };
     return { lap, telemetry: null };
   });
@@ -94,6 +118,7 @@ export function telemetryArm(
       invalidReason: null,
       experimentExcluded: false,
       experimentExcludedSource: null,
+      ...policyEvidence(),
     },
     telemetry: syntheticLap(spec.lateral, spec.brakeShift),
   }));
@@ -117,13 +142,15 @@ export function buildStreamingArm(specs: LapSpec[], firstId = 1) {
   specs.forEach((spec, i) => {
     const id = firstId + i;
     const rawFrameCount = spec.rawFrameCount ?? FRAMES_PER_LAP;
+    const isValid = spec.isValid ?? true;
     const lap = {
       id,
       lapTime: 90 + LAP_TIME_OFFSETS[i % LAP_TIME_OFFSETS.length],
-      isValid: spec.isValid ?? true,
-      invalidReason: null,
+      isValid,
+      invalidReason: isValid ? null : "fixture-invalid",
       experimentExcluded: false,
       experimentExcludedSource: null,
+      ...policyEvidence(DEFAULT_LAP_CLASSIFICATION, isValid, isValid ? null : "fixture-invalid"),
     };
     metas.push({ ...lap, lapNumber: i + 1, createdAt: `2026-01-01T00:0${i % 10}:00Z`, rawFrameCount });
     if (rawFrameCount > 0) frames.set(id, syntheticLap(spec.lateral, spec.brakeShift));

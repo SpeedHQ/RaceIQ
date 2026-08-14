@@ -5,6 +5,7 @@ import {
   aggregateSymptoms,
   baselineFallbackNote,
 } from "../../server/experiments/lap-evidence/aggregate";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneSymptoms } from "../../server/ai/tune-symptoms";
 
@@ -19,9 +20,9 @@ function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
     experimentVersionId: 1,
     experimentExcluded: false,
     ...overrides,
-    phase: overrides.phase ?? "flying",
-    conditions: overrides.conditions ?? [],
-    paceEligibility: overrides.paceEligibility ?? "eligible",
+    phase: overrides.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+    conditions: overrides.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+    paceEligibility: overrides.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
   };
 }
 
