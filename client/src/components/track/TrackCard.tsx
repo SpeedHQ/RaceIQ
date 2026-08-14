@@ -56,6 +56,7 @@ export function TrackCard({
   const [outlineVisible, setOutlineVisible] = useState(false);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [pitLines, setPitLines] = useState<PitLine[]>([]);
+  const [outlineState, setOutlineState] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
   const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
@@ -67,25 +68,37 @@ export function TrackCard({
       setOutline(null);
       setPitLines([]);
       setFlipX(false);
+      setOutlineState("idle");
       return;
     }
+    const controller = new AbortController();
+    setOutline(null);
+    setPitLines([]);
+    setFlipX(false);
+    setOutlineState("loading");
     client.api["track-outline"][":ordinal"]
-      .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
+      .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } }, { init: { signal: controller.signal } })
       .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
           setOutline(data.points);
           setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
           setFlipX(data.flipX ?? false);
+          setOutlineState("ready");
         } else if (Array.isArray(data)) {
           setOutline(data);
           setPitLines([]);
+          setOutlineState("ready");
         } else {
           setOutline(null);
           setPitLines([]);
+          setOutlineState("unavailable");
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted) setOutlineState("unavailable");
+      });
+    return () => controller.abort();
   }, [track.ordinal, track.hasOutline, gameId, outlineVisible]);
 
   useEffect(() => {
@@ -116,6 +129,8 @@ export function TrackCard({
       <div className="bg-app-bg relative" style={{ height: 150 }}>
         {outline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
+        ) : track.hasOutline && outlineState !== "unavailable" ? (
+          <div data-testid={`track-map-loading-${track.ordinal}`} className="h-full bg-app-surface-alt/20 animate-pulse" />
         ) : track.mapUrl ? (
           <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
         ) : (
