@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getIRacingOvalDirection, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
-import { USER_TRACKS_DIR } from "../../../shared/platform/runtime/data-paths";
+import { GAMES_DIR, USER_TRACKS_DIR } from "../../../shared/platform/runtime/data-paths";
 
 import { parseIRacingActiveSvg, parseIRacingPitRoadSvg, type IRacingSvgTrackMap } from "./track-map-svg";
 
@@ -10,6 +10,11 @@ interface CachedMapFile extends Omit<IRacingSvgTrackMap, "pitLines"> {
   mapUrl: string;
   /** Omitted when pit-road layer fetch fails; next request retries that layer. */
   pitLines?: IRacingSvgTrackMap["pitLines"];
+}
+
+interface CachedMapResult {
+  map: IRacingSvgTrackMap;
+  hasPitLineLayer: boolean;
 }
 
 /**
@@ -32,7 +37,7 @@ export function orientIRacingOvalMap(map: IRacingSvgTrackMap, direction: "left" 
   };
 }
 
-const MAP_CACHE_VERSION = 4;
+export const IRACING_MAP_CACHE_VERSION = 4;
 const FETCH_TIMEOUT_MS = 4_000;
 const PUBLIC_MAP_PREFIX = "https://members-assets.iracing.com/public/track-maps/";
 const memoryCache = new Map<number, Promise<IRacingSvgTrackMap | null>>();
@@ -41,31 +46,34 @@ function cachePath(ordinal: number): string {
   return resolve(USER_TRACKS_DIR, "iracing", "official-svg", `${ordinal}.json`);
 }
 
-function readCachedMap(
-  ordinal: number,
-  mapUrl: string,
-): {
-  map: IRacingSvgTrackMap;
-  hasPitLineLayer: boolean;
-} | null {
-  const path = cachePath(ordinal);
-  if (!existsSync(path)) return null;
-  try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as CachedMapFile;
-    const valid = parsed.version === MAP_CACHE_VERSION && parsed.mapUrl === mapUrl && Array.isArray(parsed.points) && parsed.points.length >= 20;
-    if (!valid) return null;
-    const hasPitLineLayer = Array.isArray(parsed.pitLines);
-    return {
-      map: {
-        points: parsed.points,
-        labels: parsed.labels ?? [],
-        pitLines: hasPitLineLayer ? parsed.pitLines! : [],
-      },
-      hasPitLineLayer,
-    };
-  } catch {
-    return null;
+function bundledCachePath(ordinal: number): string {
+  return resolve(GAMES_DIR, "iracing", "track-maps", `${ordinal}.json`);
+}
+
+function readCachedMap(ordinal: number, mapUrl: string): CachedMapResult | null {
+  let incomplete: CachedMapResult | null = null;
+  for (const path of [cachePath(ordinal), bundledCachePath(ordinal)]) {
+    if (!existsSync(path)) continue;
+    try {
+      const parsed = JSON.parse(readFileSync(path, "utf8")) as CachedMapFile;
+      const valid = parsed.version === IRACING_MAP_CACHE_VERSION && parsed.mapUrl === mapUrl && Array.isArray(parsed.points) && parsed.points.length >= 20 && Array.isArray(parsed.labels);
+      if (!valid) continue;
+      const hasPitLineLayer = Array.isArray(parsed.pitLines);
+      const cached: CachedMapResult = {
+        map: {
+          points: parsed.points,
+          labels: parsed.labels,
+          pitLines: hasPitLineLayer ? parsed.pitLines! : [],
+        },
+        hasPitLineLayer,
+      };
+      if (hasPitLineLayer) return cached;
+      incomplete ??= cached;
+    } catch {
+      continue;
+    }
   }
+  return incomplete;
 }
 
 function writeCachedMap(ordinal: number, mapUrl: string, map: IRacingSvgTrackMap, includePitLines = true): void {
@@ -75,7 +83,7 @@ function writeCachedMap(ordinal: number, mapUrl: string, map: IRacingSvgTrackMap
     writeFileSync(
       path,
       JSON.stringify({
-        version: MAP_CACHE_VERSION,
+        version: IRACING_MAP_CACHE_VERSION,
         mapUrl,
         points: map.points,
         labels: map.labels,

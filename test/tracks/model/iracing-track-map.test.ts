@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { orientIRacingOvalMap } from "../../../server/games/iracing/track-map";
+import { getIRacingSvgTrackMap, IRACING_MAP_CACHE_VERSION, orientIRacingOvalMap } from "../../../server/games/iracing/track-map";
 import { alignIRacingAutoSegmentsToTurnLabels, parseIRacingActiveSvg, parseIRacingPitRoadSvg, parseIRacingTurnLabels } from "../../../server/games/iracing/track-map-svg";
-import { getIRacingSharedTrackName, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
+import { GAMES_DIR } from "../../../shared/platform/runtime/data-paths";
+import { getAllIRacingTracks, getIRacingSharedTrackName, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 
@@ -49,6 +52,33 @@ function nearestIndex(points: { x: number; z: number }[], target: { x: number; z
 }
 
 describe("iRacing official SVG track maps", () => {
+  test("bundles a complete validated map for every catalog layout", async () => {
+    const bundledMaps = new Map<number, {
+      mapUrl: string;
+      version: number;
+      points: { x: number; z: number }[];
+      labels: { text: string; x: number; z: number }[];
+      pitLines: { kind: "pit-road" | "merge-line"; points: { x: number; z: number }[] }[];
+    }>();
+    for (const track of getAllIRacingTracks()) {
+      const path = resolve(GAMES_DIR, "iracing", "track-maps", `${track.ordinal}.json`);
+      const cached = JSON.parse(readFileSync(path, "utf8"));
+      expect(cached.version).toBe(IRACING_MAP_CACHE_VERSION);
+      expect(cached.mapUrl).toBe(track.mapUrl);
+      expect(cached.points.length).toBeGreaterThanOrEqual(20);
+      expect(Array.isArray(cached.labels)).toBe(true);
+      expect(Array.isArray(cached.pitLines)).toBe(true);
+      bundledMaps.set(track.ordinal, cached);
+    }
+
+    const bundled = bundledMaps.get(238)!;
+    await expect(getIRacingSvgTrackMap(238)).resolves.toEqual({
+      points: bundled.points,
+      labels: bundled.labels,
+      pitLines: bundled.pitLines,
+    });
+  });
+
   test("turns active ribbon into start-aligned ordered centerline", () => {
     const map = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg, pitRoadSvg);
 

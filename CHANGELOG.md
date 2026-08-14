@@ -9,6 +9,7 @@
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Enriched iRacing car and track catalogs with current specifications, capabilities, official map layers, and contextual car-class metadata
+- Load every current iRacing layout's official track map without an internet connection
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
