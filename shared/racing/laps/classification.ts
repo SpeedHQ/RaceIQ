@@ -6,18 +6,18 @@ export type LapCondition = "caution" | "slow_zone" | "formation";
 export type PaceEligibility = "eligible" | "excluded";
 
 export const LAP_PHASE_META = {
-  flying: { label: "Pace", tone: "success" as const },
-  out: { label: "Out lap", tone: "warning" as const },
-  in: { label: "In lap", tone: "warning" as const },
-  pit: { label: "Pit lap", tone: "warning" as const },
-  grid_start: { label: "Grid start", tone: "warning" as const },
-} as const satisfies Record<LapPhase, { label: string; tone: "success" | "warning" }>;
+  flying: { label: "Pace" },
+  out: { label: "Out lap" },
+  in: { label: "In lap" },
+  pit: { label: "Pit lap" },
+  grid_start: { label: "Grid start" },
+} as const satisfies Record<LapPhase, { label: string }>;
 
 export const LAP_CONDITION_META = {
-  caution: { label: "Caution", tone: "warning" as const },
-  slow_zone: { label: "Slow zone", tone: "warning" as const },
-  formation: { label: "Formation", tone: "warning" as const },
-} as const satisfies Record<LapCondition, { label: string; tone: "warning" }>;
+  caution: { label: "Caution" },
+  slow_zone: { label: "Slow zone" },
+  formation: { label: "Formation" },
+} as const satisfies Record<LapCondition, { label: string }>;
 
 export type LapClassificationTone = "success" | "warning";
 
@@ -38,6 +38,7 @@ export const DEFAULT_LAP_CLASSIFICATION: LapClassification = {
   conditions: [],
   paceEligibility: "eligible",
 };
+
 
 
 /** Missing eligibility defaults to eligible only for generic legacy-tolerant helpers. */
