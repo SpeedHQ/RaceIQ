@@ -14,6 +14,7 @@ import {
   type IRacingSourceFrameV3,
 } from "../../../server/games/iracing/source-frame";
 import { parsePacket } from "../../../server/games/packet-dispatch";
+import { timerResolutionRefCount } from "../../../server/games/shared/win-timer-resolution";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   iracingAdapter,
@@ -24,6 +25,18 @@ initGameAdapters();
 initServerGameAdapters();
 import { sampleFrame, } from "../../support/games/iracing-sdk";
 describe("iRacing source ownership integration", () => {
+  test.skipIf(process.platform !== "win32")("holds high-resolution timer while polling iRacing", async () => {
+    const initialRefCount = timerResolutionRefCount();
+    const reader: IRacingFrameReader = { start() {}, async stop() {}, readLatest: () => null };
+    const source = new IRacingTelemetrySource({ reader, pollIntervalMs: 1000 });
+    source.start();
+    try {
+      expect(timerResolutionRefCount()).toBe(initialRefCount + 1);
+    } finally {
+      await source.stop();
+    }
+    expect(timerResolutionRefCount()).toBe(initialRefCount);
+  });
 
   test("parsing a historical frame cannot overwrite live identity", () => {
     const carOrdinal = 901_042;
@@ -103,6 +116,7 @@ DriverInfo:
   DriverCarIdleRPM: 900
   DriverCarRedLine: 8500
   DriverCarEngCylinderCount: 8
+  DriverCarFuelMaxLtr: 105.0
   Drivers:
   - CarIdx: 7
     CarID: 42
@@ -142,6 +156,7 @@ DriverInfo:
     );
     expect(parsePacket(delivered!)).toMatchObject({
       gameId: "iracing",
+      FuelCapacity: 105,
       iracing: { sectorStarts: [0, 0.34, 0.67] },
     });
   });

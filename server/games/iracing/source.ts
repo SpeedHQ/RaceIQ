@@ -14,6 +14,7 @@ import {
   IRacingFramePipeline,
   ParsingProcessor,
 } from "./frame-pipeline";
+import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
 
 export interface IRacingFrameReader {
   start(): void;
@@ -68,6 +69,7 @@ export class IRacingTelemetrySource {
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private lastErrorLogAt = 0;
+  private holdsTimerResolution = false;
   private cachedSessionInfoUpdate: number | null = null;
   private cachedSessionInfo: string | null = null;
   private cachedSessionNum: number | null = null;
@@ -81,7 +83,9 @@ export class IRacingTelemetrySource {
     this.reader = options.reader ?? new IRacingSdkReader();
     this.dispatchRawFrame = options.dispatchRawFrame ?? dispatchThroughParser;
     this.registerIdentity = options.registerIdentity;
-    this.pollIntervalMs = options.pollIntervalMs ?? 1000 / 60;
+    // Poll above the SDK's 60Hz rate so timer phase and brief processing overlap cannot miss ticks.
+    // IRacingSdkReader deduplicates unchanged tick counts.
+    this.pollIntervalMs = options.pollIntervalMs ?? 1000 / 240;
     this.recordingEnabled = options.recordingEnabled ?? false;
     this.recordingDir = options.recordingDir;
     this.recorder = options.recorder ?? iracingRecorder;
@@ -98,6 +102,8 @@ export class IRacingTelemetrySource {
       console.log(`[iRacing] Recording mode: bin file created at ${recordPath}`);
     }
     this.reader.start();
+    acquireHighResolutionTimer();
+    this.holdsTimerResolution = true;
     this.running = true;
     this.timer = setInterval(() => void this.pollOnce(), this.pollIntervalMs);
     console.log("[iRacing] Telemetry source started");
@@ -108,6 +114,10 @@ export class IRacingTelemetrySource {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
+    }
+    if (this.holdsTimerResolution) {
+      this.holdsTimerResolution = false;
+      releaseHighResolutionTimer();
     }
     try {
       await this.reader.stop();

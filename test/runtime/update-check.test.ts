@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
-import { findReleaseAsset, isNewer, mergeLatestRelease } from "../../server/runtime/update/check";
+import { findReleaseAsset, isNewer, mergeLatestRelease, shouldFetchReleaseArtifacts } from "../../server/runtime/update/check";
 describe("resolveDataDir", () => {
   let originalDataDir: string | undefined;
 
@@ -78,5 +78,15 @@ describe("release asset selection", () => {
     };
 
     expect(findReleaseAsset(release, "releasenotes.md")).toBe("full");
+  });
+});
+
+describe("release artifact cache gate", () => {
+  test("does not refetch artifacts when latest tag matches cached tag", () => {
+    expect(shouldFetchReleaseArtifacts("0.14.0", "0.14.0")).toBe(false);
+  });
+
+  test("fetches artifacts when latest tag changes", () => {
+    expect(shouldFetchReleaseArtifacts("0.14.0", "0.15.0")).toBe(true);
   });
 });

@@ -12,12 +12,14 @@ import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
 import { PitEstimate } from "../src/components/telemetry/PitEstimate";
 import { SurfaceConditions } from "../src/components/telemetry/SurfaceConditions";
 import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
 import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
+import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
 import { fakeAccPacket, fakeF1Packet, fakeForzaPacket, fakePit } from "../src/stories/fakeData";
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
@@ -217,6 +219,68 @@ describe("telemetry capability UI", () => {
 
     expect(markup).toContain("Fuel 40.0L");
     expect(markup).toContain("width:40%");
+  });
+
+  test("renders changing semantic iRacing fuel as a visible fill bar", () => {
+    const full = renderToStaticMarkup(
+      createElement(FuelGauge, {
+        view: {
+          simulator: "iracing",
+          fuel: { amount: 100, capacity: 100 },
+        } as LiveTelemetryView,
+      }),
+    );
+    const used = renderToStaticMarkup(
+      createElement(FuelGauge, {
+        view: {
+          simulator: "iracing",
+          fuel: { amount: 60, capacity: 100 },
+        } as LiveTelemetryView,
+      }),
+    );
+
+    expect(full).toContain("Fuel 100.0L");
+    expect(full).toContain("width:100%");
+    expect(used).toContain("Fuel 60.0L");
+    expect(used).toContain("width:60%");
+    expect(used).toContain("background-color:");
+  });
+
+  test("scales pit crew semantic pedal inputs from 0–255 to percentages", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(LiveTelemetry, {
+          mode: "pitcrew",
+          view: {
+            simulator: "iracing",
+            streamId: "test",
+            sessionId: 1,
+            sequence: 1,
+            observedAtMs: 1,
+            identity: {},
+            motion: {},
+            inputs: { throttle: 64, brake: 32, gear: 3 },
+            engine: {},
+            fuel: {},
+            timing: {},
+            tires: {},
+            weather: {},
+            aero: {},
+            ers: {},
+            damage: {},
+            competitors: [],
+            stateBySemanticId: {},
+          },
+        }),
+      ),
+    );
+
+    expect(markup).toContain("width:25.098039215686274%");
+    expect(markup).toContain("width:12.549019607843137%");
+    expect(markup).not.toContain("width:6400%");
+    expect(markup).not.toContain("width:3200%");
   });
 
   test("renders the ACC live dashboard fuel fill from fixture capacity", () => {

@@ -68,8 +68,17 @@ let state: UpdateState = {
   checked: false,
 };
 
+// Tag associated with the release-note artifacts held in `state`.
+let releaseArtifactsTag: string | null = null;
+
+// Release metadata is cheap to poll; attached markdown assets are not.
+export function shouldFetchReleaseArtifacts(cachedTag: string | null, latestTag: string): boolean {
+  return cachedTag !== latestTag;
+}
+
 // Path to the tray command file (server writes, tray polls)
 let trayCommandFile: string | null = null;
+
 
 export function setTrayCommandFile(path: string): void {
   trayCommandFile = path;
@@ -127,7 +136,7 @@ async function fetchReleases(currentVersion: string, latest?: GitHubRelease): Pr
   currentReleaseDate: string | null;
 }> {
   const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=50`, { headers: GH_HEADERS });
-  if (!res.ok) return { newReleases: [], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null };
+  if (!res.ok) throw new Error(`Release list fetch failed: ${res.status}`);
 
   const releases = mergeLatestRelease(await res.json() as GitHubRelease[], latest);
   const fullReleaseNotes = latest ? await fetchReleaseAsset(latest, "releasenotes.md") : null;
@@ -178,7 +187,18 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const installerAsset = data.assets.find((a) => a.name.match(/RaceIQ-Setup-v.*\.exe$/));
     const downloadUrl = installerAsset?.browser_download_url ?? null;
 
-    const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION, data).catch(() => ({ newReleases: [] as ReleaseInfo[], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null }));
+    let releaseData = {
+      newReleases: state.newReleases,
+      fullReleaseNotes: state.fullReleaseNotes,
+      currentReleaseNotes: state.currentReleaseNotes,
+      currentReleaseDate: state.currentReleaseDate,
+    };
+    if (shouldFetchReleaseArtifacts(releaseArtifactsTag, latest)) {
+      releaseData = await fetchReleases(VERSION, data);
+      releaseArtifactsTag = latest;
+    }
+
+    const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = releaseData;
 
     const lastChecked = new Date().toISOString();
     state = { current: VERSION, latest, updateAvailable, downloadUrl, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };

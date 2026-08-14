@@ -11,8 +11,11 @@
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
-- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
+- Show iRacing live fuel bars using tank capacity reported by simulator session data
+- Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
+- Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
+- Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
@@ -71,6 +74,7 @@
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
 - Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
+- Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
 - Replace Biome with Oxc for repository linting and formatting
