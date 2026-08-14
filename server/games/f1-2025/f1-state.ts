@@ -218,6 +218,8 @@ export class F1StateAccumulator {
     }
 
     const f1: F1ExtendedData = {
+      overallFrameIdentifier: header.overallFrameIdentifier,
+      packetId: header.packetId,
       drsAllowed: cs?.drsAllowed ?? false,
       drsActivated: ct.drs,
       drsZoneApproaching: false, // TODO: from motion extra data
