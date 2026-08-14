@@ -3,7 +3,7 @@ import { compareArms } from "../../../server/experiments/comparison/compare";
 import { type CurationSpec, type MetadataOutcomeMetric, OUTCOME_METRICS } from "../../../server/experiments/comparison/metrics";
 import { metadataArm, normals } from "../../support/experiments/arms";
 
-const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };
+const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none", requiredPolicyIds: ["normal-pace"] };
 function paceWith(curation: CurationSpec): MetadataOutcomeMetric {
   return { ...OUTCOME_METRICS.lapTimeSec, curation };
 }

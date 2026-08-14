@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { getLaps, getLapById } from "../../db/lap-read-queries";
 import {
   deleteRecordedOutline,
@@ -67,7 +68,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
       // Multi-lap mode — average best laps
       const outlineGameId = c.req.query("gameId") as GameId | undefined;
       const allLaps = (await getLaps(outlineGameId)).filter(
-        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
+        (lap) => lap.trackOrdinal === trackOrdinal && isTimedLapEligibilityUsable(lap)
       );
       if (allLaps.length === 0) {
         return c.json({ error: "No laps found for this track" }, 404);

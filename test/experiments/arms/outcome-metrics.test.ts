@@ -11,19 +11,26 @@ import {
   pickReferenceLap,
 } from "../../../server/experiments/comparison/metrics";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+import { qualityEvidence } from "../../support/experiments/arms";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
  *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */
-const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };
+const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none", requiredPolicyIds: ["normal-pace"] };
 
 function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {
+  const isValid = overrides.isValid ?? true;
+  const paceEligibility = overrides.paceEligibility ?? "eligible";
   return {
     lapTime: 90,
-    isValid: true,
+    isValid,
     invalidReason: null,
+    phase: "flying",
+    conditions: [],
+    paceEligibility,
     experimentExcluded: false,
     experimentExcludedSource: null,
     ...overrides,
+    ...qualityEvidence(isValid && paceEligibility === "eligible"),
   };
 }
 
@@ -151,6 +158,24 @@ describe("curation policy is per-metric", () => {
       expect(pool.reasonById.get(2)).toBe("non-pace");
       expect(pool.reasonById.get(3)).toBe("non-pace");
     }
+  });
+
+  test("metadata metrics do not require unrelated trace eligibility", () => {
+    const timedLap = lap({ id: 1, lapTime: 90 });
+    const cornerTrace = timedLap.eligibility?.["corner-trace"];
+    expect(cornerTrace).toBeDefined();
+    timedLap.eligibility = {
+      ...timedLap.eligibility!,
+      "corner-trace": {
+        ...cornerTrace!,
+        status: "ineligible",
+      },
+    };
+
+    for (const metric of [OUTCOME_METRICS.lapTimeSec, OUTCOME_METRICS.consistencySpreadSec]) {
+      expect(curateLaps([timedLap], metric.curation).kept.map(({ id }) => id)).toEqual([1]);
+    }
+    expect(curateLaps([timedLap], OUTCOME_METRICS.lineSpreadScore.curation).kept).toEqual([]);
   });
 });
 

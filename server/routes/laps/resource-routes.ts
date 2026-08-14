@@ -3,6 +3,8 @@ import { Hono } from "hono";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
@@ -16,7 +18,6 @@ import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
-import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
@@ -71,6 +72,10 @@ export const resourceRoutes = new Hono()
     try {
       const lap = await getLapById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
+      const decision = resolveEligibilityDecision(lap, "corner-trace");
+      if (!isEligibilityUsable(decision)) {
+        return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
+      }
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
@@ -79,7 +84,10 @@ export const resourceRoutes = new Hono()
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
         sectorStarts: nativeLayout?.starts ?? null,
-        insights: analyzeLap(lap.telemetry, lap.gameId),
+        insights: analyzeLap(lap.telemetry, lap.gameId, lap.quality),
+        decision,
+        qualityGeneration: lap.qualityGeneration ?? null,
+        channelQuality: lap.quality?.channelQuality ?? [],
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
@@ -108,12 +116,28 @@ export const resourceRoutes = new Hono()
 
     const laps = await getLapsByIds(ids);
     const traces: EncodedLapTrace[] = [];
+    const decisions = [];
     for (const lap of laps) {
-      if (lap.telemetry.length === 0) continue;
+      const decision = resolveEligibilityDecision(lap, "corner-trace");
+      decisions.push({ lapId: lap.id, decision });
+      if (!isEligibilityUsable(decision) || lap.telemetry.length === 0) continue;
       const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, lap.telemetry, null);
       if (trace) traces.push(encodeLapTrace(trace));
     }
-    return c.json({ traces });
+    return c.json({ traces, decisions });
+  })
+  .get("/api/laps/:id/quality", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    const lap = await getLapById(id);
+    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    return c.json({
+      lapId: lap.id,
+      sessionId: lap.sessionId,
+      quality: lap.quality,
+      eligibility: lap.eligibility,
+      qualityGeneration: lap.qualityGeneration,
+      source: lap.source,
+    });
   })
 
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
@@ -145,11 +169,7 @@ export const resourceRoutes = new Hono()
       const lapDist = lastDist - firstDist;
 
       if (game.nativeSectors && game.getNativeSectorLayout) {
-        const nativeTimeline = computeNativeSectorTimeline(
-          packets,
-          lap.lapTime,
-          game.getNativeSectorLayout,
-        );
+        const nativeTimeline = computeNativeSectorTimeline(packets, lap.lapTime, game.getNativeSectorLayout);
         if (nativeTimeline && lapDist > 0) {
           sectorTimes = {
             ...nativeTimeline,
@@ -198,7 +218,7 @@ export const resourceRoutes = new Hono()
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = analyzeLap(packets, gameId);
+    const insights = analyzeLap(packets, gameId, lap.quality);
 
     return c.json({ ...lap, sectorTimes, insights });
   })
@@ -246,52 +266,51 @@ export const resourceRoutes = new Hono()
     return c.json({ ok: true });
   })
 
-  .post(
-    "/api/laps/:id/experiment-excluded",
-    zValidator("param", IdParamSchema),
-    zValidator("json", z.object({ excluded: z.boolean() })),
-    async (c) => {
-      const { id } = c.req.valid("param");
-      const { excluded } = c.req.valid("json");
-      const { ok, prev, experimentId } = await setLapExperimentExcluded(id, excluded);
-      if (!ok) return c.json({ error: "Lap not found" }, 404);
+  .post("/api/laps/:id/experiment-excluded", zValidator("param", IdParamSchema), zValidator("json", z.object({ excluded: z.boolean() })), async (c) => {
+    const { id } = c.req.valid("param");
+    const { excluded } = c.req.valid("json");
+    const { ok, prev, experimentId } = await setLapExperimentExcluded(id, excluded);
+    if (!ok) return c.json({ error: "Lap not found" }, 404);
 
-      // Best-effort: an action-log write failure must not fail the request —
-      // the lap flag is already committed. Only log when the lap is linked
-      // to a tuning session (laps outside a tuning session have nothing to undo into).
-      if (experimentId != null) {
-        try {
-          await recordAction(experimentId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
-        } catch (err: any) {
-          console.error("[LapRoutes] Failed to log set-lap-excluded action:", err?.message);
-        }
+    // Best-effort: an action-log write failure must not fail the request —
+    // the lap flag is already committed. Only log when the lap is linked
+    // to a tuning session (laps outside a tuning session have nothing to undo into).
+    if (experimentId != null) {
+      try {
+        await recordAction(experimentId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
+      } catch (err: any) {
+        console.error("[LapRoutes] Failed to log set-lap-excluded action:", err?.message);
       }
+    }
 
-      return c.json({ ok: true, lapId: id, excluded });
-    },
-  )
+    return c.json({ ok: true, lapId: id, excluded });
+  })
 
   .post("/api/laps/:id/recheck", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
     const lap = await getLapById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
 
-    const quality = assessLapRecording(lap.telemetry, lap.lapTime);
+    // Recording fidelity is separate from simulator validity. This legacy
+    // endpoint may refresh derived sectors, but never rewrites validity from
+    // packet gaps or capture completeness.
 
     // Recompute sector times
     const packets = lap.telemetry;
     let sectors: number[] | null = null;
     if (packets.length >= 50 && lap.gameId && lap.trackOrdinal != null) {
-      sectors = await computeLapSectors(
-        lap.trackOrdinal,
-        lap.gameId as GameId,
-        packets,
-        lap.lapTime,
-      );
+      sectors = await computeLapSectors(lap.trackOrdinal, lap.gameId as GameId, packets, lap.lapTime);
     }
 
-    await updateLapValidity(id, quality.valid, quality.valid ? null : quality.reason, sectors);
-    return c.json({ id, valid: quality.valid, reason: quality.reason, sectors });
+    await updateLapValidity(id, lap.isValid, lap.invalidReason ?? null, sectors);
+    return c.json({
+      id,
+      valid: lap.isValid,
+      reason: lap.invalidReason,
+      sectors,
+      quality: lap.quality,
+      eligibility: lap.eligibility,
+    });
   })
 
   .delete("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {

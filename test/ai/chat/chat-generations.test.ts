@@ -16,20 +16,13 @@
 // process forever whenever this file ran before another file that loads those
 // agents (e.g. laps-issues-route.test.ts).
 import { describe, test, expect } from "bun:test";
-import {
-  parseThreadGeneration,
-  generationThreadId,
-  listThreadGenerations,
-  resolveActiveThread,
-  chatMemoryOptions,
-} from "../../../server/ai/chat-agent";
+import { parseThreadGeneration, generationThreadId, listThreadGenerations, resolveActiveThread, chatMemoryOptions, compareChatThreadId, parseCompareChatThreadId } from "../../../server/ai/chat-agent";
 
 function makeFakeMemory(existingThreadIds: string[]) {
   const threads = new Set(existingThreadIds);
   return {
     threads,
-    getThreadById: async ({ threadId }: { threadId: string }) =>
-      threads.has(threadId) ? { id: threadId } : null,
+    getThreadById: async ({ threadId }: { threadId: string }) => (threads.has(threadId) ? { id: threadId } : null),
   };
 }
 
@@ -105,5 +98,14 @@ describe("chatMemoryOptions", () => {
     expect(chatMemoryOptions("compare-5-6")).toEqual({
       memory: { thread: "compare-5-6", resource: "raceiq" },
     });
+  });
+});
+
+describe("compareChatThreadId", () => {
+  test("isolates chat history by quality identity while preserving canonical lap order", () => {
+    const original = compareChatThreadId(5, 6, "policy-1:quality-generation-1");
+    expect(compareChatThreadId(6, 5, "policy-1:quality-generation-1")).toBe(original);
+    expect(compareChatThreadId(5, 6, "policy-1:quality-generation-2")).not.toBe(original);
+    expect(parseCompareChatThreadId(generationThreadId(original, 2))).toEqual([5, 6]);
   });
 });

@@ -4,6 +4,8 @@ import { Hono } from "hono";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import type { Tune } from "../../../shared/racing/tuning/types";
+import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 import { getLapById } from "../../db/lap-read-queries";
 import { deleteAnalysis as deleteAnalysisQuery, getAnalysis } from "../../db/analysis-queries";
 import { getCorners } from "../../db/track-queries";
@@ -14,14 +16,7 @@ import { buildChatSystemPrompt } from "../../ai/chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
 import { lapChatAgent } from "../../ai/agents";
-import {
-  CHAT_RESOURCE_ID,
-  chatThreadId,
-  generationThreadId,
-  getChatMemory,
-  listThreadGenerations,
-  resolveActiveThread,
-} from "../../ai/chat-agent";
+import { CHAT_RESOURCE_ID, chatThreadId, generationThreadId, getChatMemory, listThreadGenerations, resolveActiveThread } from "../../ai/chat-agent";
 import { getSecret } from "../../runtime/platform/keystore";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
@@ -33,9 +28,7 @@ export const chatRoutes = new Hono()
       const memory = getChatMemory();
       const base = chatThreadId(id);
       const genParam = Number(c.req.query("gen"));
-      const threadId = Number.isInteger(genParam) && genParam >= 1
-        ? generationThreadId(base, genParam)
-        : await resolveActiveThread(base);
+      const threadId = Number.isInteger(genParam) && genParam >= 1 ? generationThreadId(base, genParam) : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
@@ -43,9 +36,7 @@ export const chatRoutes = new Hono()
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
-      const uiMessages = list.get.all.aiV5
-        .ui()
-        .filter((m) => m.role === "user" || m.role === "assistant");
+      const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
     } catch (err: any) {
@@ -60,6 +51,10 @@ export const chatRoutes = new Hono()
 
     const lap = await getLapById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
+    const decision = resolveEligibilityDecision(lap, "corner-trace");
+    if (!isEligibilityUsable(decision)) {
+      return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
+    }
     if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
 
     const settings = loadSettings();
@@ -111,26 +106,18 @@ export const chatRoutes = new Hono()
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
     }
 
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
+    const chatModelLabel = settings.chatModel || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "local" ? "local-model" : "gemini-flash-latest");
 
     const threadId = await resolveActiveThread(chatThreadId(id));
     const turnStartedAt = Date.now();
     try {
-      const stream = await lapChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
-        {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
+      const stream = await lapChatAgent.stream([{ role: "system", content: systemPrompt }, ...messages], {
+        memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        providerOptions: {
+          openai: { reasoningEffort: "medium" },
+          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
-      );
+      });
 
       return streamAgentTurnResponse({
         agentStream: stream,

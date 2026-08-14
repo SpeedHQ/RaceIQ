@@ -10,6 +10,7 @@ import { getLapsForExperiment } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { getTrackLengthMeters } from "../../../shared/racing/tracks/recording/outlines";
 import { suggestLapTarget } from "../../../shared/racing/experiments/stint-target";
+import { isTimedLapEligibilityUsable } from "../../../shared/racing/quality/policies";
 import { ExperimentFocusSchema } from "../../../shared/racing/experiments/focus";
 
 const ExperimentQuerySchema = z.object({
@@ -159,7 +160,7 @@ export const experimentDetailRoutes = new Hono()
 
       const sessionLaps = await getLapsForExperiment(id);
       const bestLap = sessionLaps.reduce<number | null>((best, l) => {
-        if (!l.isValid || l.lapTime <= 0) return best;
+        if (!isTimedLapEligibilityUsable(l)) return best;
         return best == null || l.lapTime < best ? l.lapTime : best;
       }, null);
       const trackLengthM = row.trackOrdinal != null ? getTrackLengthMeters(row.trackOrdinal, row.gameId) : null;

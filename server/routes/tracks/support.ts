@@ -16,6 +16,10 @@ import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
 import type { IRacingMapLabel } from "../../games/iracing/track-map-svg";
 import { lapPath } from "../../../shared/racing/tracks/path";
+import {
+  isEligibilitySnapshotCurrent,
+  isEligibilityUsable,
+} from "../../../shared/racing/quality/policies";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -140,7 +144,13 @@ export async function resolveTrackOutline(
   if (gameId === "iracing") {
     const laps = await getLapSummariesByTrack(ordinal, "iracing");
     for (const lap of laps) {
-      if (!lap.isValid) continue;
+      if (
+        !lap.isValid ||
+        !isEligibilitySnapshotCurrent(lap, ["normal-pace"]) ||
+        !isEligibilityUsable(lap.eligibility?.["normal-pace"])
+      ) {
+        continue;
+      }
       const saved = await getLapById(lap.lapId);
       if (!saved?.telemetry || saved.telemetry.length < 50) continue;
       const path = lapPath(saved.telemetry);
