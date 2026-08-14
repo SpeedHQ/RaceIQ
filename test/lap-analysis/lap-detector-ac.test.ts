@@ -247,7 +247,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(saved[0].lapTime).toBeCloseTo(80, 0);
   });
 
-  test("keeps short-distance laps structurally valid", async () => {
+  test("rejects short-distance lap recordings without changing classification", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean }> = [];
     const d = new LapDetectorAcc({
@@ -264,8 +264,15 @@ describe("LapDetectorAc — reset detection", () => {
     // Reset
     await d.feed(packet({ CurrentLap: 0.1, DistanceTraveled: 52, TimestampMS: 51000 }));
 
-    expect(saved.length).toBe(1);
-    expect(saved[0].isValid).toBe(true);
+    expect(saved).toHaveLength(1);
+    expect(saved[0].isValid).toBe(false);
+    expect(db.inserted[0]).toMatchObject({
+      valid: false,
+      invalidReason: "telemetry distance too short",
+      phase: "flying",
+      conditions: [],
+      paceEligibility: "eligible",
+    });
   });
 
   test("classifies ACC out laps without invalidating telemetry", async () => {

@@ -1,6 +1,7 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { DbAdapter } from "../../telemetry/pipeline-ports";
 import { persistLapMetrics } from "../../lap-analysis/metrics-store";
+import { assessLapRecording } from "../../lap-analysis/quality";
 import { reconcileAutoExclusionsForLap } from "../../experiments/auto-exclude";
 import { computeLapSectors } from "../../lap-analysis/sectors";
 import type {
@@ -208,10 +209,11 @@ export abstract class KunosLapDetector implements ILapDetector {
     this._lapByteOffset = this._currentRawByteOffset;
     this._lapFrameCount = 0;
 
+    const recordingAssessment = assessLapRecording(packets, lapTime);
     const classification = classifyLap(packets);
-    let isValid = forcedInvalidReason === null;
-    let invalidReason = forcedInvalidReason;
-
+    const complete = forcedInvalidReason === null;
+    let isValid = complete && recordingAssessment.valid;
+    let invalidReason = forcedInvalidReason ?? recordingAssessment.reason;
     if (isValid) {
       const cutReason = this.classifyTrackLimits(packets);
       if (cutReason) {
@@ -254,6 +256,7 @@ export abstract class KunosLapDetector implements ILapDetector {
     // scope.
     await reconcileAutoExclusionsForLap(this.db, lapId);
     if (!opts?.silent) {
+
       this.onLapSaved?.({
         type: "lap-saved",
         lapId,

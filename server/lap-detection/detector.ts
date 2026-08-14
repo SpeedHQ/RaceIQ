@@ -18,6 +18,7 @@ import { extractCurbSegments, recordCurbData } from "../../shared/racing/tracks/
 import { recordLapTrace } from "../../shared/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "../../shared/racing/tracks/catalogs/iracing"
 import { lapPath } from "../../shared/racing/tracks/path";
+import { assessLapRecording } from "../lap-analysis/quality";
 import { classifyLap, type LapClassification } from "../../shared/racing/laps/classification";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
@@ -372,11 +373,11 @@ export class LapDetector implements ILapDetector {
       const packetCount = this.lapBuffer.length;
 
       // Structural validity and pace classification remain independent.
+      const recordingAssessment = assessLapRecording(this.lapBuffer, lapTime);
       const classification = classifyLap(this.lapBuffer);
-      const valid = this.lapIsValid;
-      const invalidReason = this.invalidReason;
+      const valid = this.lapIsValid && recordingAssessment.valid;
+      const invalidReason = this.invalidReason ?? recordingAssessment.reason;
       const normalPaceEligible = valid && classification.paceEligibility === "eligible";
-
       const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
 
       // iRacing exposes heading, speed, and native LapDistPct but no public
@@ -419,6 +420,7 @@ export class LapDetector implements ILapDetector {
           isValid: valid,
           ...classification,
           sectors,
+
         });
       }
 
@@ -552,17 +554,20 @@ export class LapDetector implements ILapDetector {
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
       const lapPackets = this.lapBuffer;
+      const recordingAssessment = assessLapRecording(lapPackets, lapTime);
       const classification = classifyLap(lapPackets);
+      const valid = isComplete && this.lapIsValid && recordingAssessment.valid;
+      const invalidReason = isComplete ? (this.invalidReason ?? recordingAssessment.reason) : "incomplete";
       this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
         lapTime,
-        isComplete && this.lapIsValid,
+        valid,
         this._lapByteOffset,
         this._lapFrameCount,
         null,
         tuneAssignment?.tuneId ?? null,
-        isComplete ? this.invalidReason : "incomplete",
+        invalidReason,
         null,
         undefined,
         classification
