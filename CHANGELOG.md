@@ -1,9 +1,11 @@
 ## Unreleased
 
 ### Breaking
+
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
 
 ### Features
+
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Enriched iRacing car and track catalogs with current specifications, capabilities, official map layers, and contextual car-class metadata
@@ -11,8 +13,10 @@
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
+
 ### Fixes
-- Show official iRacing pit-road and merge markings on track maps without including them in lap-distance or segment calculations
+
+- Show iRacing pit roads and exits as separate solid red and blue lines on track maps, without official dash or arrow artwork or effects on lap-distance calculations
 - Present start/finish straights as one logical segment on every circuit and use standard Frontstretch, Turns 1–2, Backstretch, and Turns 3–4 ordering for automatic iRacing oval segments
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
@@ -72,6 +76,7 @@
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 
 ### Internal
+
 - Replace Biome with Oxc for repository linting and formatting
 - Consolidate coding-agent guidance in `AGENTS.md` and remove duplicate guidance file
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
@@ -97,6 +102,7 @@
 ## v0.14.0 - 2026-08-05
 
 ### Features
+
 - Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
 - Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
 - Import MoTeC logs as normal sessions for analysis, comparison, and experiments
@@ -111,6 +117,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+
 - Keep unfinished game integrations and experiments out of production releases
 - Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
 - Show actionable guidance when AI provider, credentials, or model configuration is incomplete
@@ -123,6 +130,7 @@
 - Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
 
 ### Internal
+
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
 - Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
@@ -143,6 +151,7 @@
 ## v0.13.0 - 2026-07-16
 
 ### Features
+
 - New lap insight detectors and server-side computation
 - Static corner names and sector data from track geometry
 - Session recap card with sector-coloured track map
@@ -150,9 +159,11 @@
 - AC Evo car and track extraction updates
 
 ### Fixes
+
 - Separate Power and Torque rows in analysis
 - Correct ACC centreline for corner detection
 - Correct AC Evo track and car resolution
 
 ### Internal
+
 - Backfilled from the pre-changelog GitHub release body

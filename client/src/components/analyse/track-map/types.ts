@@ -1,5 +1,6 @@
 import { isTelemetryVariableId } from "../../../../../shared/telemetry/catalog/query";
 import type { TelemetryVariableId } from "../../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { PitLine } from "@/lib/canvas/draw-track";
 
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
@@ -12,9 +13,7 @@ export interface SemanticValueEntry {
   value: unknown;
 }
 
-export function semanticValues(
-  entries: readonly SemanticValueEntry[],
-): SemanticAnalysisFrame["values"] {
+export function semanticValues(entries: readonly SemanticValueEntry[]): SemanticAnalysisFrame["values"] {
   const values: Partial<Record<TelemetryVariableId, unknown>> = {};
   for (const entry of entries) {
     if (isTelemetryVariableId(entry.semanticId)) {
@@ -24,18 +23,12 @@ export function semanticValues(
   return values;
 }
 
-export const semanticNumber = (
-  frame: SemanticAnalysisFrame | undefined,
-  id: TelemetryVariableId,
-): number | null => {
+export const semanticNumber = (frame: SemanticAnalysisFrame | undefined, id: TelemetryVariableId): number | null => {
   const value = frame?.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 };
 
-export const semanticBoolean = (
-  frame: SemanticAnalysisFrame | undefined,
-  id: TelemetryVariableId,
-): boolean => semanticNumber(frame, id) === 1;
+export const semanticBoolean = (frame: SemanticAnalysisFrame | undefined, id: TelemetryVariableId): boolean => semanticNumber(frame, id) === 1;
 
 export interface Point {
   x: number;
@@ -76,7 +69,7 @@ export interface TrackMapProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  pitRoad?: Point[][] | null;
+  pitLines?: PitLine[] | null;
   boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;

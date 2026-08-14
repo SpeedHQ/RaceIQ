@@ -1,15 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { orientIRacingOvalMap } from "../../../server/games/iracing/track-map";
-import {
-  alignIRacingAutoSegmentsToTurnLabels,
-  parseIRacingActiveSvg,
-  parseIRacingPitRoadSvg,
-  parseIRacingTurnLabels,
-} from "../../../server/games/iracing/track-map-svg";
-import {
-  getIRacingSharedTrackName,
-  getIRacingTrack,
-} from "../../../shared/racing/tracks/catalogs/iracing";
+import { alignIRacingAutoSegmentsToTurnLabels, parseIRacingActiveSvg, parseIRacingPitRoadSvg, parseIRacingTurnLabels } from "../../../server/games/iracing/track-map-svg";
+import { getIRacingSharedTrackName, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 
@@ -43,16 +35,11 @@ const pitRoadSvg = `
   </svg>
 `;
 
-function nearestIndex(
-  points: { x: number; z: number }[],
-  target: { x: number; z: number },
-): number {
+function nearestIndex(points: { x: number; z: number }[], target: { x: number; z: number }): number {
   let bestIndex = 0;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (let index = 0; index < points.length; index++) {
-    const distance =
-      (points[index].x - target.x) ** 2 +
-      (points[index].z - target.z) ** 2;
+    const distance = (points[index].x - target.x) ** 2 + (points[index].z - target.z) ** 2;
     if (distance < bestDistance) {
       bestDistance = distance;
       bestIndex = index;
@@ -63,46 +50,64 @@ function nearestIndex(
 
 describe("iRacing official SVG track maps", () => {
   test("turns active ribbon into start-aligned ordered centerline", () => {
-    const map = parseIRacingActiveSvg(
-      activeSvg,
-      startFinishSvg,
-      turnsSvg,
-      pitRoadSvg,
-    );
+    const map = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg, pitRoadSvg);
 
     expect(map).not.toBeNull();
     expect(map!.points).toHaveLength(512);
     expect(map!.points[0].x).toBeCloseTo(-45, 0);
     expect(map!.points[0].z).toBeCloseTo(5, 0);
-    expect(map!.labels.map((label) => label.text)).toEqual([
-      "1",
-      "2",
-      "Main Straight",
+    expect(map!.labels.map((label) => label.text)).toEqual(["1", "2", "Main Straight"]);
+    expect(map!.pitLines).toEqual([
+      {
+        kind: "pit-road",
+        points: [
+          { x: -15, z: 22.5 },
+          { x: -35, z: 42.5 },
+        ],
+      },
     ]);
-    expect(map!.pitRoad).toHaveLength(2);
-    expect(map!.pitRoad[0][0]).toEqual({ x: -10, z: 20 });
-    expect(map!.points).toEqual(
-      parseIRacingActiveSvg(
-        activeSvg,
-        startFinishSvg,
-        turnsSvg,
-      )!.points,
-    );
+    expect(map!.points).toEqual(parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg)!.points);
 
     const turn1 = map!.labels.find((label) => label.text === "1")!;
     const turn2 = map!.labels.find((label) => label.text === "2")!;
-    expect(nearestIndex(map!.points, turn1)).toBeLessThan(
-      nearestIndex(map!.points, turn2),
-    );
+    expect(nearestIndex(map!.points, turn1)).toBeLessThan(nearestIndex(map!.points, turn2));
   });
 
-  test("keeps pit-road markings as separate filled contours", () => {
-    const contours = parseIRacingPitRoadSvg(pitRoadSvg);
-    expect(contours).toHaveLength(2);
-    expect(contours.every((contour) => contour.length >= 4)).toBe(true);
+  test("reconstructs one solid centerline from separate pit-road markers", () => {
+    expect(parseIRacingPitRoadSvg(pitRoadSvg)).toEqual([
+      {
+        kind: "pit-road",
+        points: [
+          { x: -15, z: 22.5 },
+          { x: -35, z: 42.5 },
+        ],
+      },
+    ]);
   });
 
-  test("normalizes oval traversal while retaining pit-road contours", () => {
+  test("separates pit-road and merge-line colors while omitting arrow geometry", () => {
+    const lines = parseIRacingPitRoadSvg(`
+      <svg viewBox="0 0 120 60">
+        <g id="Pitroad">
+          <path d="M0,10 L10,10 L10,12 L0,12 z"/>
+          <path d="M20,10 L30,10 L30,12 L20,12 z"/>
+          <path d="M40,10 L50,10 L50,12 L40,12 z"/>
+          <path d="M60,10 L70,10 L70,12 L60,12 z"/>
+          <path d="M80,0 L110,11 L80,22 L86,11 z"/>
+        </g>
+        <g id="Mergeline">
+          <path d="M0,30 L10,30 L10,32 L0,32 z"/>
+          <path d="M20,30 L30,30 L30,32 L20,32 z"/>
+        </g>
+      </svg>
+    `);
+
+    expect(lines.map((line) => line.kind)).toEqual(["pit-road", "merge-line"]);
+    expect(lines[0].points).toHaveLength(4);
+    expect(lines[1].points).toHaveLength(2);
+  });
+
+  test("normalizes oval traversal while retaining pit lines", () => {
     const map = {
       points: [
         { x: 0, z: 0 },
@@ -111,16 +116,19 @@ describe("iRacing official SVG track maps", () => {
         { x: 0, z: 1 },
       ],
       labels: [],
-      pitRoad: [[{ x: 2, z: 2 }, { x: 3, z: 2 }, { x: 3, z: 3 }]],
+      pitLines: [
+        {
+          kind: "pit-road" as const,
+          points: [
+            { x: 2, z: 2 },
+            { x: 3, z: 2 },
+          ],
+        },
+      ],
     };
     expect(orientIRacingOvalMap(map, "left").points).toEqual(map.points);
-    expect(orientIRacingOvalMap(map, "right").points).toEqual([
-      map.points[0],
-      map.points[3],
-      map.points[2],
-      map.points[1],
-    ]);
-    expect(orientIRacingOvalMap(map, "right").pitRoad).toEqual(map.pitRoad);
+    expect(orientIRacingOvalMap(map, "right").points).toEqual([map.points[0], map.points[3], map.points[2], map.points[1]]);
+    expect(orientIRacingOvalMap(map, "right").pitLines).toEqual(map.pitLines);
   });
 
   test("reads matrix-positioned official turn names", () => {
@@ -158,13 +166,15 @@ describe("iRacing official SVG track maps", () => {
       { text: "4", x: 70, z: 5 },
     ]);
 
-    expect(aligned.map(({ type, name, number, startFrac, endFrac }) => ({
-      type,
-      name,
-      number,
-      startFrac,
-      endFrac,
-    }))).toEqual([
+    expect(
+      aligned.map(({ type, name, number, startFrac, endFrac }) => ({
+        type,
+        name,
+        number,
+        startFrac,
+        endFrac,
+      })),
+    ).toEqual([
       { type: "straight", name: "", number: undefined, startFrac: 0, endFrac: 0.2 },
       { type: "corner", name: "T3", number: 3, startFrac: 0.2, endFrac: 0.5 },
       { type: "corner", name: "T4", number: 4, startFrac: 0.5, endFrac: 0.8 },
@@ -175,19 +185,11 @@ describe("iRacing official SVG track maps", () => {
   test("keeps Lime Rock layouts exact and uses curated names only for exact aliases", () => {
     expect(getIRacingSharedTrackName(352)).toBe("lime-rock");
     expect(getIRacingSharedTrackName(353)).toBeUndefined();
-    expect(getIRacingTrack(352)?.mapUrl).toContain(
-      "352-limerock-2019-classic",
-    );
-    expect(getIRacingTrack(353)?.mapUrl).toContain(
-      "353-limerock-2019-gp",
-    );
+    expect(getIRacingTrack(352)?.mapUrl).toContain("352-limerock-2019-classic");
+    expect(getIRacingTrack(353)?.mapUrl).toContain("353-limerock-2019-gp");
 
     const roadAmerica = loadLabelledSegments("road-america", "iracing");
-    expect(roadAmerica.some((segment) => segment.name === "The Kink")).toBe(
-      true,
-    );
-    expect(
-      roadAmerica.some((segment) => segment.name === "Canada Corner"),
-    ).toBe(true);
+    expect(roadAmerica.some((segment) => segment.name === "The Kink")).toBe(true);
+    expect(roadAmerica.some((segment) => segment.name === "Canada Corner")).toBe(true);
   });
 });

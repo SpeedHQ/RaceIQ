@@ -1,5 +1,5 @@
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import { drawPitRoadLayer } from "@/lib/canvas/draw-track";
+import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
@@ -19,7 +19,7 @@ export interface StaticTrackOptions {
   resolvedPositions: Point[];
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  pitRoad?: Point[][] | null;
+  pitLines?: PitLine[] | null;
   sectors: SectorBoundaries | null;
   boundaries: TrackMapBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
@@ -30,7 +30,7 @@ export interface StaticTrackOptions {
   zoom: number;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, pitRoad, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
+  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, pitLines, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -44,7 +44,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const flip = needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
-  const flippedPitRoad = flip && pitRoad ? pitRoad.map((contour) => flipPoints(contour)) : pitRoad;
+  const flippedPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
@@ -53,7 +53,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const allBoundsPts: Point[][] = [displayOutline];
   if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
   if (mapLabels?.length) allBoundsPts.push(mapLabels);
-  // Pit-road contours use this track-derived transform but never expand it.
+  // Pit lines use this track-derived transform but never expand it.
   for (const pts of allBoundsPts)
     for (const p of pts) {
       minX = Math.min(minX, p.x);
@@ -82,7 +82,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
   ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
 
-  drawPitRoadLayer(ctx, flippedPitRoad, toCanvas);
+  drawPitLines(ctx, flippedPitLines, toCanvas);
   if (hasBounds) {
     const left = flippedLeft!;
     const right = flippedRight!;

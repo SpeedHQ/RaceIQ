@@ -2,6 +2,17 @@ import { segmentDisplayNames, segmentGroupLabels } from "@shared/racing/tracks/s
 import type { Point, TrackSectors } from "@/components/track/types";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+export type PitLineKind = "pit-road" | "merge-line";
+
+export interface PitLine {
+  kind: PitLineKind;
+  points: Point[];
+}
+
+const PIT_LINE_COLORS: Record<PitLineKind, string> = {
+  "pit-road": "var(--track-pit-road)",
+  "merge-line": "var(--track-pit-exit)",
+};
 
 interface LabelCandidate {
   text: string;
@@ -93,28 +104,27 @@ function cumulativeDistances(outline: Point[]): number[] {
   return cumulative;
 }
 
-/** Draw official iRacing pit-road contours as decorative filled geometry. */
-export function drawPitRoadLayer(
+/** Draw solid pit-road and pit-exit centerlines reconstructed from iRacing markers. */
+export function drawPitLines(
   ctx: CanvasRenderingContext2D,
-  pitRoad: readonly (readonly Point[])[] | null | undefined,
+  pitLines: readonly PitLine[] | null | undefined,
   toCanvas: (x: number, z: number) => [number, number],
-  opacity = 0.55,
-  lineWidth = 0.8,
+  opacity = 0.75,
+  lineWidth = 1.5,
 ): void {
   ctx.save();
-  ctx.fillStyle = "var(--track-pit-lane)";
-  ctx.strokeStyle = "var(--track-pit-lane)";
   ctx.globalAlpha = opacity;
   ctx.lineWidth = lineWidth;
-  for (const contour of pitRoad ?? []) {
-    if (contour.length < 3) continue;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const line of pitLines ?? []) {
+    if (line.points.length < 2) continue;
     ctx.beginPath();
-    ctx.moveTo(...toCanvas(contour[0].x, contour[0].z));
-    for (let index = 1; index < contour.length; index++) {
-      ctx.lineTo(...toCanvas(contour[index].x, contour[index].z));
+    ctx.strokeStyle = PIT_LINE_COLORS[line.kind];
+    ctx.moveTo(...toCanvas(line.points[0].x, line.points[0].z));
+    for (let index = 1; index < line.points.length; index++) {
+      ctx.lineTo(...toCanvas(line.points[index].x, line.points[index].z));
     }
-    ctx.closePath();
-    ctx.fill();
     ctx.stroke();
   }
   ctx.restore();
@@ -136,8 +146,8 @@ export function drawTrack(
   sectorOverride?: { starts: number[] },
   flipX?: boolean,
   sectorColors?: string[],
-  /** Decorative filled contours from iRacing's pitroad.svg layer. */
-  pitRoad?: Point[][] | null,
+  /** Solid pit-road and pit-exit centerlines from iRacing's pitroad.svg layer. */
+  pitLines?: PitLine[] | null,
   /** Debug editing: label every segment individually instead of once per group. */
   perSegmentLabels?: boolean,
 ) {
@@ -176,15 +186,9 @@ export function drawTrack(
     return [flipX ? offsetX + (x - minX) * scale : offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
 
-  // Official pit-road markings are decorative: use the track transform so
-  // distant markings cannot shrink the racing surface.
-  drawPitRoadLayer(
-    ctx,
-    pitRoad,
-    toCanvas,
-    large ? 0.55 : 0.45,
-    large ? 0.8 : 0.6,
-  );
+  // Official pit lines share the track transform, so distant marker geometry
+  // cannot shrink the racing surface.
+  drawPitLines(ctx, pitLines, toCanvas, large ? 0.8 : 0.65, large ? 2 : 1.25);
 
   // Track outline
   ctx.beginPath();
@@ -314,9 +318,7 @@ export function drawTrack(
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
       let color = seg.group ? groupColors.get(seg.group) : undefined;
       if (!color) {
-        color = seg.type === "corner"
-          ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length]
-          : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
+        color = seg.type === "corner" ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length] : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
         if (seg.group) groupColors.set(seg.group, color);
       }
 

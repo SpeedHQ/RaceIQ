@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { drawTrack } from "@/lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -55,7 +55,7 @@ export function TrackCard({
   const cardRef = useRef<HTMLButtonElement>(null);
   const [outlineVisible, setOutlineVisible] = useState(false);
   const [outline, setOutline] = useState<Point[] | null>(null);
-  const [pitRoad, setPitRoad] = useState<Point[][]>([]);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
@@ -65,24 +65,24 @@ export function TrackCard({
   useEffect(() => {
     if (!track.hasOutline || !outlineVisible) {
       setOutline(null);
-      setPitRoad([]);
+      setPitLines([]);
       setFlipX(false);
       return;
     }
     client.api["track-outline"][":ordinal"]
       .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as unknown as { points?: Point[]; pitRoad?: Point[][]; flipX?: boolean } | Point[])
+      .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
           setOutline(data.points);
-          setPitRoad(Array.isArray(data.pitRoad) ? data.pitRoad : []);
+          setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
           setFlipX(data.flipX ?? false);
         } else if (Array.isArray(data)) {
           setOutline(data);
-          setPitRoad([]);
+          setPitLines([]);
         } else {
           setOutline(null);
-          setPitRoad([]);
+          setPitLines([]);
         }
       })
       .catch(() => {});
@@ -90,8 +90,8 @@ export function TrackCard({
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX, undefined, pitRoad);
-  }, [outline, flipX, pitRoad]);
+    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX, undefined, pitLines);
+  }, [outline, flipX, pitLines]);
 
   return (
     <button

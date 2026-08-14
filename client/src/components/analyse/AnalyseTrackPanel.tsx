@@ -1,6 +1,7 @@
 import type { GameId } from "../../../../shared/games/ids";
 import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
+import type { PitLine } from "@/lib/canvas/draw-track";
 import { m } from "../../paraglide/messages";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
@@ -14,7 +15,7 @@ interface AnalyseTrackPanelProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  pitRoad?: Point[][] | null;
+  pitLines?: PitLine[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
   sectors: SectorBoundaries | null;
@@ -55,7 +56,7 @@ export function AnalyseTrackPanel({
   cursorIdx,
   outline,
   mapLabels,
-  pitRoad,
+  pitLines,
   boundaries,
   sectors,
   segments,
@@ -89,7 +90,7 @@ export function AnalyseTrackPanel({
         cursorIdx={cursorIdx}
         outline={outline}
         mapLabels={trackOverlay === "segments" ? mapLabels : null}
-        pitRoad={pitRoad}
+        pitLines={pitLines}
         boundaries={boundaries}
         sectors={trackOverlay === "sectors" ? sectors : null}
         segments={trackOverlay === "segments" ? segments : null}

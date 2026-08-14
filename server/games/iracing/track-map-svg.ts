@@ -8,12 +8,18 @@ export interface IRacingMapPoint {
 export interface IRacingMapLabel extends IRacingMapPoint {
   text: string;
 }
+export type IRacingPitLineKind = "pit-road" | "merge-line";
+
+export interface IRacingPitLine {
+  kind: IRacingPitLineKind;
+  points: IRacingMapPoint[];
+}
 
 export interface IRacingSvgTrackMap {
   points: IRacingMapPoint[];
   labels: IRacingMapLabel[];
-  /** Filled decorative contours from iRacing's official pitroad.svg layer. */
-  pitRoad: IRacingMapPoint[][];
+  /** Solid centerlines reconstructed from iRacing's official pitroad.svg markers. */
+  pitLines: IRacingPitLine[];
 }
 
 export interface IRacingTurnAnchor {
@@ -22,17 +28,12 @@ export interface IRacingTurnAnchor {
 }
 
 /** Project official numbered labels onto lap fractions along the parsed centerline. */
-export function projectIRacingTurnAnchors(
-  points: readonly IRacingMapPoint[],
-  labels: readonly IRacingMapLabel[],
-): IRacingTurnAnchor[] {
+export function projectIRacingTurnAnchors(points: readonly IRacingMapPoint[], labels: readonly IRacingMapLabel[]): IRacingTurnAnchor[] {
   if (points.length < 2 || labels.length === 0) return [];
 
   const cumulativeDistance = new Float64Array(points.length);
   for (let index = 1; index < points.length; index++) {
-    cumulativeDistance[index] =
-      cumulativeDistance[index - 1] +
-      Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z);
+    cumulativeDistance[index] = cumulativeDistance[index - 1] + Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z);
   }
   const totalDistance = cumulativeDistance[points.length - 1];
   if (!(totalDistance > 0)) return [];
@@ -59,17 +60,12 @@ export function projectIRacingTurnAnchors(
   return anchors;
 }
 
-
 /**
  * Official iRacing maps label every numbered turn, while curvature detection
  * can merge adjacent turns into one corner region. Split those regions at the
  * midpoint between official labels so segment lists and map labels agree.
  */
-export function alignIRacingAutoSegmentsToTurnLabels(
-  segments: NamedSegment[],
-  points: readonly IRacingMapPoint[],
-  labels: readonly IRacingMapLabel[],
-): NamedSegment[] {
+export function alignIRacingAutoSegmentsToTurnLabels(segments: NamedSegment[], points: readonly IRacingMapPoint[], labels: readonly IRacingMapLabel[]): NamedSegment[] {
   if (segments.length === 0) return segments;
   const anchors = projectIRacingTurnAnchors(points, labels);
   if (anchors.length === 0) return segments;
@@ -80,9 +76,7 @@ export function alignIRacingAutoSegmentsToTurnLabels(
       aligned.push(segment);
       continue;
     }
-    const contained = anchors.filter(
-      (anchor) => anchor.fraction >= segment.startFrac && anchor.fraction <= segment.endFrac,
-    );
+    const contained = anchors.filter((anchor) => anchor.fraction >= segment.startFrac && anchor.fraction <= segment.endFrac);
     if (contained.length === 0) {
       aligned.push(segment);
       continue;
@@ -93,14 +87,8 @@ export function alignIRacingAutoSegmentsToTurnLabels(
         ...segment,
         name: `T${anchor.number}`,
         number: anchor.number,
-        startFrac:
-          index === 0
-            ? segment.startFrac
-            : (contained[index - 1].fraction + anchor.fraction) / 2,
-        endFrac:
-          index === contained.length - 1
-            ? segment.endFrac
-            : (anchor.fraction + contained[index + 1].fraction) / 2,
+        startFrac: index === 0 ? segment.startFrac : (contained[index - 1].fraction + anchor.fraction) / 2,
+        endFrac: index === contained.length - 1 ? segment.endFrac : (anchor.fraction + contained[index + 1].fraction) / 2,
       });
     }
   }
@@ -131,44 +119,19 @@ function pointEquals(a: SvgPoint, b: SvgPoint): boolean {
   return Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6;
 }
 
-function cubicPoint(
-  start: SvgPoint,
-  control1: SvgPoint,
-  control2: SvgPoint,
-  end: SvgPoint,
-  amount: number,
-): SvgPoint {
+function cubicPoint(start: SvgPoint, control1: SvgPoint, control2: SvgPoint, end: SvgPoint, amount: number): SvgPoint {
   const inverse = 1 - amount;
   return {
-    x:
-      inverse ** 3 * start.x +
-      3 * inverse ** 2 * amount * control1.x +
-      3 * inverse * amount ** 2 * control2.x +
-      amount ** 3 * end.x,
-    y:
-      inverse ** 3 * start.y +
-      3 * inverse ** 2 * amount * control1.y +
-      3 * inverse * amount ** 2 * control2.y +
-      amount ** 3 * end.y,
+    x: inverse ** 3 * start.x + 3 * inverse ** 2 * amount * control1.x + 3 * inverse * amount ** 2 * control2.x + amount ** 3 * end.x,
+    y: inverse ** 3 * start.y + 3 * inverse ** 2 * amount * control1.y + 3 * inverse * amount ** 2 * control2.y + amount ** 3 * end.y,
   };
 }
 
-function quadraticPoint(
-  start: SvgPoint,
-  control: SvgPoint,
-  end: SvgPoint,
-  amount: number,
-): SvgPoint {
+function quadraticPoint(start: SvgPoint, control: SvgPoint, end: SvgPoint, amount: number): SvgPoint {
   const inverse = 1 - amount;
   return {
-    x:
-      inverse ** 2 * start.x +
-      2 * inverse * amount * control.x +
-      amount ** 2 * end.x,
-    y:
-      inverse ** 2 * start.y +
-      2 * inverse * amount * control.y +
-      amount ** 2 * end.y,
+    x: inverse ** 2 * start.x + 2 * inverse * amount * control.x + amount ** 2 * end.x,
+    y: inverse ** 2 * start.y + 2 * inverse * amount * control.y + amount ** 2 * end.y,
   };
 }
 
@@ -181,20 +144,8 @@ function vectorAngle(ux: number, uy: number, vx: number, vy: number): number {
 }
 
 /** Flatten one SVG elliptical arc using the endpoint-to-center algorithm. */
-function arcPoints(
-  start: SvgPoint,
-  rxValue: number,
-  ryValue: number,
-  rotationDegrees: number,
-  largeArc: boolean,
-  sweep: boolean,
-  end: SvgPoint,
-): SvgPoint[] {
-  if (
-    pointEquals(start, end) ||
-    !(Math.abs(rxValue) > 0) ||
-    !(Math.abs(ryValue) > 0)
-  ) {
+function arcPoints(start: SvgPoint, rxValue: number, ryValue: number, rotationDegrees: number, largeArc: boolean, sweep: boolean, end: SvgPoint): SvgPoint[] {
+  if (pointEquals(start, end) || !(Math.abs(rxValue) > 0) || !(Math.abs(ryValue) > 0)) {
     return [end];
   }
 
@@ -208,37 +159,21 @@ function arcPoints(
   const xPrime = cosPhi * dx + sinPhi * dy;
   const yPrime = -sinPhi * dx + cosPhi * dy;
 
-  const scale =
-    xPrime ** 2 / rx ** 2 +
-    yPrime ** 2 / ry ** 2;
+  const scale = xPrime ** 2 / rx ** 2 + yPrime ** 2 / ry ** 2;
   if (scale > 1) {
     const factor = Math.sqrt(scale);
     rx *= factor;
     ry *= factor;
   }
 
-  const numerator = Math.max(
-    0,
-    rx ** 2 * ry ** 2 -
-      rx ** 2 * yPrime ** 2 -
-      ry ** 2 * xPrime ** 2,
-  );
-  const denominator =
-    rx ** 2 * yPrime ** 2 +
-    ry ** 2 * xPrime ** 2;
+  const numerator = Math.max(0, rx ** 2 * ry ** 2 - rx ** 2 * yPrime ** 2 - ry ** 2 * xPrime ** 2);
+  const denominator = rx ** 2 * yPrime ** 2 + ry ** 2 * xPrime ** 2;
   const sign = largeArc === sweep ? -1 : 1;
-  const coefficient =
-    denominator > 0 ? sign * Math.sqrt(numerator / denominator) : 0;
+  const coefficient = denominator > 0 ? sign * Math.sqrt(numerator / denominator) : 0;
   const cxPrime = coefficient * ((rx * yPrime) / ry);
   const cyPrime = coefficient * (-(ry * xPrime) / rx);
-  const centerX =
-    cosPhi * cxPrime -
-    sinPhi * cyPrime +
-    (start.x + end.x) / 2;
-  const centerY =
-    sinPhi * cxPrime +
-    cosPhi * cyPrime +
-    (start.y + end.y) / 2;
+  const centerX = cosPhi * cxPrime - sinPhi * cyPrime + (start.x + end.x) / 2;
+  const centerY = sinPhi * cxPrime + cosPhi * cyPrime + (start.y + end.y) / 2;
 
   const startVector = {
     x: (xPrime - cxPrime) / rx,
@@ -249,12 +184,7 @@ function arcPoints(
     y: (-yPrime - cyPrime) / ry,
   };
   const startAngle = vectorAngle(1, 0, startVector.x, startVector.y);
-  let deltaAngle = vectorAngle(
-    startVector.x,
-    startVector.y,
-    endVector.x,
-    endVector.y,
-  );
+  let deltaAngle = vectorAngle(startVector.x, startVector.y, endVector.x, endVector.y);
   if (!sweep && deltaAngle > 0) deltaAngle -= Math.PI * 2;
   if (sweep && deltaAngle < 0) deltaAngle += Math.PI * 2;
 
@@ -263,14 +193,8 @@ function arcPoints(
   for (let index = 1; index <= steps; index++) {
     const angle = startAngle + (deltaAngle * index) / steps;
     result.push({
-      x:
-        centerX +
-        cosPhi * rx * Math.cos(angle) -
-        sinPhi * ry * Math.sin(angle),
-      y:
-        centerY +
-        sinPhi * rx * Math.cos(angle) +
-        cosPhi * ry * Math.sin(angle),
+      x: centerX + cosPhi * rx * Math.cos(angle) - sinPhi * ry * Math.sin(angle),
+      y: centerY + sinPhi * rx * Math.cos(angle) + cosPhi * ry * Math.sin(angle),
     });
   }
   return result;
@@ -282,10 +206,7 @@ function arcPoints(
  * ordered points that every existing RaceIQ canvas can consume.
  */
 function parsePathData(pathData: string): ParsedPath {
-  const tokens =
-    pathData.match(
-      /[a-zA-Z]|[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi,
-    ) ?? [];
+  const tokens = pathData.match(/[a-zA-Z]|[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi) ?? [];
   const contours: SvgPoint[][] = [];
   let contour: SvgPoint[] | null = null;
   let index = 0;
@@ -295,20 +216,10 @@ function parsePathData(pathData: string): ParsedPath {
   let lastCubicControl: SvgPoint | null = null;
   let lastQuadraticControl: SvgPoint | null = null;
 
-  const isCommand = (token: string | undefined) =>
-    token != null && /^[a-zA-Z]$/.test(token);
-  const hasNumbers = (count: number) =>
-    index + count <= tokens.length &&
-    !tokens.slice(index, index + count).some(isCommand);
+  const isCommand = (token: string | undefined) => token != null && /^[a-zA-Z]$/.test(token);
+  const hasNumbers = (count: number) => index + count <= tokens.length && !tokens.slice(index, index + count).some(isCommand);
   const take = () => Number(tokens[index++]);
-  const absolutePoint = (
-    x: number,
-    y: number,
-    relative: boolean,
-  ): SvgPoint =>
-    relative
-      ? { x: current.x + x, y: current.y + y }
-      : { x, y };
+  const absolutePoint = (x: number, y: number, relative: boolean): SvgPoint => (relative ? { x: current.x + x, y: current.y + y } : { x, y });
   const append = (point: SvgPoint) => {
     if (!contour) {
       contour = [current];
@@ -413,15 +324,7 @@ function parsePathData(pathData: string): ParsedPath {
       const largeArc = take() !== 0;
       const sweep = take() !== 0;
       const end = absolutePoint(take(), take(), relative);
-      for (const point of arcPoints(
-        start,
-        rx,
-        ry,
-        rotation,
-        largeArc,
-        sweep,
-        end,
-      )) {
+      for (const point of arcPoints(start, rx, ry, rotation, largeArc, sweep, end)) {
         append(point);
       }
       lastCubicControl = null;
@@ -449,56 +352,218 @@ function extractPathData(svg: string): string[] {
 }
 
 function allContours(svg: string): SvgPoint[][] {
-  return extractPathData(svg).flatMap(
-    (pathData) => parsePathData(pathData).contours,
-  );
+  return extractPathData(svg).flatMap((pathData) => parsePathData(pathData).contours);
 }
 
-/** Parse iRacing's pitroad.svg shapes as separate decorative contours. */
-export function parseIRacingPitRoadSvg(
-  svg: string,
-): IRacingMapPoint[][] {
-  return allContours(svg)
-    .filter(
-      (points) =>
-        points.length >= 3 &&
-        closedPerimeter(points) > 0,
-    )
-    .map((points) =>
-      points.map((point) => ({ x: -point.x, z: point.y })),
-    );
+type PitPathHint = IRacingPitLineKind | "ignore" | null;
+
+function svgAttribute(tag: string, name: string): string | null {
+  const match = tag.match(new RegExp(`\\b${name}=(["'])([\\s\\S]*?)\\1`, "i"));
+  return match?.[2] ?? null;
+}
+
+function pitPathHintFromName(value: string | null): PitPathHint {
+  if (!value) return null;
+  const normalized = value.toLowerCase().replace(/[^a-z]+/g, "");
+  if (normalized.includes("joker")) return "ignore";
+  if (normalized.includes("merge")) return "merge-line";
+  if (normalized.includes("pit")) return "pit-road";
+  return null;
+}
+
+function pitPathHintFromColor(value: string | null): PitPathHint {
+  switch (value?.toLowerCase()) {
+    case "#016699":
+    case "#0089ba":
+      return "merge-line";
+    case "#d82520":
+    case "#d32222":
+      return "pit-road";
+    case "#ff9100":
+      return "ignore";
+    default:
+      return null;
+  }
+}
+
+function pitPathContours(svg: string): Record<IRacingPitLineKind, SvgPoint[][]> {
+  const classFills = new Map<string, string>();
+  for (const match of svg.matchAll(/\.([\w-]+)\s*\{([^}]*)\}/gi)) {
+    const fill = match[2].match(/\bfill\s*:\s*(#[\da-f]{6})/i)?.[1];
+    if (fill) classFills.set(match[1], fill);
+  }
+
+  const contours: Record<IRacingPitLineKind, SvgPoint[][]> = {
+    "pit-road": [],
+    "merge-line": [],
+  };
+  const groupHints: PitPathHint[] = [];
+  for (const match of svg.matchAll(/<\/?g\b[^>]*>|<path\b[^>]*>/gi)) {
+    const tag = match[0];
+    if (/^<\/g/i.test(tag)) {
+      groupHints.pop();
+      continue;
+    }
+    if (/^<g\b/i.test(tag)) {
+      const ownHint = pitPathHintFromName(svgAttribute(tag, "id"));
+      groupHints.push(ownHint ?? groupHints.at(-1) ?? null);
+      continue;
+    }
+
+    const pathData = svgAttribute(tag, "d");
+    if (!pathData) continue;
+    const ownHint = pitPathHintFromName(svgAttribute(tag, "id"));
+    const groupHint = groupHints.at(-1) ?? null;
+    const directFill = svgAttribute(tag, "fill") ?? svgAttribute(tag, "style")?.match(/\bfill\s*:\s*(#[\da-f]{6})/i)?.[1] ?? null;
+    const classHint =
+      (svgAttribute(tag, "class") ?? "")
+        .split(/\s+/)
+        .map((className) => pitPathHintFromColor(classFills.get(className) ?? null))
+        .find((hint) => hint !== null) ?? null;
+    const hint = ownHint ?? groupHint ?? pitPathHintFromColor(directFill) ?? classHint ?? "pit-road";
+    if (hint === "ignore") continue;
+    contours[hint].push(...parsePathData(pathData).contours.filter((points) => points.length >= 3 && closedPerimeter(points) > 0));
+  }
+  return contours;
+}
+
+interface PitMarker {
+  center: SvgPoint;
+  diagonal: number;
+  elongation: number;
+}
+
+function pitMarker(contour: readonly SvgPoint[]): PitMarker {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const point of contour) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  let xx = 0;
+  let xy = 0;
+  let yy = 0;
+  for (const point of contour) {
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    xx += dx * dx;
+    xy += dx * dy;
+    yy += dy * dy;
+  }
+  const discriminant = Math.hypot(xx - yy, 2 * xy);
+  const major = Math.max(0, (xx + yy + discriminant) / 2);
+  const minor = Math.max(0, (xx + yy - discriminant) / 2);
+  return {
+    center,
+    diagonal: Math.hypot(maxX - minX, maxY - minY),
+    elongation: minor > 0 ? Math.sqrt(major / minor) : Number.POSITIVE_INFINITY,
+  };
+}
+
+function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = sorted.length >> 1;
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function connectPitMarkers(markersValue: readonly PitMarker[]): SvgPoint[][] {
+  if (markersValue.length < 2) return [];
+  const medianDiagonal = median(markersValue.map((marker) => marker.diagonal));
+  const markers = markersValue.filter((marker) => markersValue.length < 4 || marker.elongation >= 2 || marker.diagonal <= medianDiagonal * 1.3);
+  if (markers.length < 2) return [];
+
+  const nearestDistances = markers.map((marker, index) => {
+    let nearest = Number.POSITIVE_INFINITY;
+    for (let other = 0; other < markers.length; other++) {
+      if (other === index) continue;
+      nearest = Math.min(nearest, Math.hypot(marker.center.x - markers[other].center.x, marker.center.y - markers[other].center.y));
+    }
+    return nearest;
+  });
+  const maxGap = median(nearestDistances) * 2.5;
+  const remaining = new Set(markers.map((_, index) => index));
+  const lines: SvgPoint[][] = [];
+
+  while (remaining.size > 0) {
+    let seed = -1;
+    let seedNeighbors = Number.POSITIVE_INFINITY;
+    for (const candidate of remaining) {
+      let neighbors = 0;
+      for (const index of remaining) {
+        if (index !== candidate && Math.hypot(markers[candidate].center.x - markers[index].center.x, markers[candidate].center.y - markers[index].center.y) <= maxGap) {
+          neighbors++;
+        }
+      }
+      if (
+        neighbors < seedNeighbors ||
+        (neighbors === seedNeighbors &&
+          (seed < 0 || markers[candidate].center.x < markers[seed].center.x || (markers[candidate].center.x === markers[seed].center.x && markers[candidate].center.y < markers[seed].center.y)))
+      ) {
+        seed = candidate;
+        seedNeighbors = neighbors;
+      }
+    }
+    remaining.delete(seed);
+    const line = [markers[seed].center];
+
+    while (remaining.size > 0) {
+      let bestIndex = -1;
+      let bestAtStart = false;
+      let bestDistance = Number.POSITIVE_INFINITY;
+      for (const index of remaining) {
+        const toStart = Math.hypot(line[0].x - markers[index].center.x, line[0].y - markers[index].center.y);
+        const toEnd = Math.hypot(line.at(-1)!.x - markers[index].center.x, line.at(-1)!.y - markers[index].center.y);
+        const distance = Math.min(toStart, toEnd);
+        if (distance < bestDistance) {
+          bestIndex = index;
+          bestAtStart = toStart < toEnd;
+          bestDistance = distance;
+        }
+      }
+      if (bestIndex < 0 || bestDistance > maxGap) break;
+      remaining.delete(bestIndex);
+      if (bestAtStart) line.unshift(markers[bestIndex].center);
+      else line.push(markers[bestIndex].center);
+    }
+    if (line.length >= 2) lines.push(line);
+  }
+  return lines;
+}
+
+/** Reconstruct solid, arrowless centerlines from iRacing's dashed pit markers. */
+export function parseIRacingPitRoadSvg(svg: string): IRacingPitLine[] {
+  const contours = pitPathContours(svg);
+  return (["pit-road", "merge-line"] as const).flatMap((kind) =>
+    connectPitMarkers(contours[kind].map(pitMarker)).map((points) => ({
+      kind,
+      points: points.map((point) => ({ x: -point.x, z: point.y })),
+    })),
+  );
 }
 
 function closedPerimeter(points: readonly SvgPoint[]): number {
   let total = 0;
   for (let index = 0; index < points.length; index++) {
     const next = points[(index + 1) % points.length];
-    total += Math.hypot(
-      next.x - points[index].x,
-      next.y - points[index].y,
-    );
+    total += Math.hypot(next.x - points[index].x, next.y - points[index].y);
   }
   return total;
 }
 
-function resampleClosed(
-  pointsValue: readonly SvgPoint[],
-  count: number,
-): SvgPoint[] {
-  const points =
-    pointsValue.length > 1 &&
-    pointEquals(pointsValue[0], pointsValue.at(-1)!)
-      ? pointsValue.slice(0, -1)
-      : [...pointsValue];
+function resampleClosed(pointsValue: readonly SvgPoint[], count: number): SvgPoint[] {
+  const points = pointsValue.length > 1 && pointEquals(pointsValue[0], pointsValue.at(-1)!) ? pointsValue.slice(0, -1) : [...pointsValue];
   if (points.length < 2) return [];
 
   const cumulative = [0];
   for (let index = 0; index < points.length; index++) {
     const next = points[(index + 1) % points.length];
-    cumulative.push(
-      cumulative[index] +
-        Math.hypot(next.x - points[index].x, next.y - points[index].y),
-    );
+    cumulative.push(cumulative[index] + Math.hypot(next.x - points[index].x, next.y - points[index].y));
   }
   const total = cumulative.at(-1)!;
   if (!(total > 0)) return [];
@@ -507,17 +572,13 @@ function resampleClosed(
   let segment = 0;
   for (let index = 0; index < count; index++) {
     const target = (index / count) * total;
-    while (
-      segment + 1 < cumulative.length - 1 &&
-      cumulative[segment + 1] < target
-    ) {
+    while (segment + 1 < cumulative.length - 1 && cumulative[segment + 1] < target) {
       segment++;
     }
     const start = points[segment % points.length];
     const end = points[(segment + 1) % points.length];
     const length = cumulative[segment + 1] - cumulative[segment];
-    const amount =
-      length > 0 ? (target - cumulative[segment]) / length : 0;
+    const amount = length > 0 ? (target - cumulative[segment]) / length : 0;
     sampled.push({
       x: start.x + (end.x - start.x) * amount,
       y: start.y + (end.y - start.y) * amount,
@@ -526,11 +587,7 @@ function resampleClosed(
   return sampled;
 }
 
-function alignmentCost(
-  first: readonly SvgPoint[],
-  second: readonly SvgPoint[],
-  shift: number,
-): number {
+function alignmentCost(first: readonly SvgPoint[], second: readonly SvgPoint[], shift: number): number {
   let total = 0;
   const stride = 4;
   for (let index = 0; index < first.length; index += stride) {
@@ -542,14 +599,8 @@ function alignmentCost(
   return total;
 }
 
-function alignBoundary(
-  first: readonly SvgPoint[],
-  secondValue: readonly SvgPoint[],
-): SvgPoint[] {
-  const variants = [
-    [...secondValue],
-    [...secondValue].reverse(),
-  ];
+function alignBoundary(first: readonly SvgPoint[], secondValue: readonly SvgPoint[]): SvgPoint[] {
+  const variants = [[...secondValue], [...secondValue].reverse()];
   let best = variants[0];
   let bestShift = 0;
   let bestCost = Number.POSITIVE_INFINITY;
@@ -566,10 +617,7 @@ function alignBoundary(
   return best.map((_, index) => best[(index + bestShift) % best.length]);
 }
 
-function nearestPointIndex(
-  points: readonly SvgPoint[],
-  targets: readonly SvgPoint[],
-): number {
+function nearestPointIndex(points: readonly SvgPoint[], targets: readonly SvgPoint[]): number {
   let bestIndex = 0;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (let index = 0; index < points.length; index++) {
@@ -591,13 +639,7 @@ function rotateToIndex<T>(values: readonly T[], index: number): T[] {
 }
 
 function decodeXmlText(value: string): string {
-  return value
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .trim();
+  return value.replaceAll("&amp;", "&").replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&#39;", "'").trim();
 }
 
 export function parseIRacingTurnLabels(svg: string): IRacingMapLabel[] {
@@ -607,30 +649,14 @@ export function parseIRacingTurnLabels(svg: string): IRacingMapLabel[] {
     const text = decodeXmlText(match[2].replace(/<[^>]+>/g, ""));
     if (!text) continue;
 
-    const matrixTransform = attributes.match(
-      /\btransform=(["'])matrix\(([^)]+)\)\1/i,
-    );
-    const translateTransform = attributes.match(
-      /\btransform=(["'])translate\(([^)]+)\)\1/i,
-    );
+    const matrixTransform = attributes.match(/\btransform=(["'])matrix\(([^)]+)\)\1/i);
+    const translateTransform = attributes.match(/\btransform=(["'])translate\(([^)]+)\)\1/i);
     const matrix = matrixTransform ? numberTokens(matrixTransform[2]) : [];
     const translation = translateTransform ? numberTokens(translateTransform[2]) : [];
     const xMatch = attributes.match(/\bx=(["'])(.*?)\1/i);
     const yMatch = attributes.match(/\by=(["'])(.*?)\1/i);
-    const x = matrix.length >= 6
-      ? matrix[4]
-      : translation.length >= 2
-        ? translation[0]
-        : xMatch
-          ? numberTokens(xMatch[2])[0]
-          : Number.NaN;
-    const y = matrix.length >= 6
-      ? matrix[5]
-      : translation.length >= 2
-        ? translation[1]
-        : yMatch
-          ? numberTokens(yMatch[2])[0]
-          : Number.NaN;
+    const x = matrix.length >= 6 ? matrix[4] : translation.length >= 2 ? translation[0] : xMatch ? numberTokens(xMatch[2])[0] : Number.NaN;
+    const y = matrix.length >= 6 ? matrix[5] : translation.length >= 2 ? translation[1] : yMatch ? numberTokens(yMatch[2])[0] : Number.NaN;
     if (Number.isFinite(x) && Number.isFinite(y)) {
       labels.push({ text, x: -x, z: y });
     }
@@ -643,12 +669,7 @@ export function parseIRacingTurnLabels(svg: string): IRacingMapLabel[] {
  * closed contours are the ribbon edges; sampling and averaging them produces
  * a stable line suitable for LapDistPct projection.
  */
-export function parseIRacingActiveSvg(
-  activeSvg: string,
-  startFinishSvg?: string | null,
-  turnsSvg?: string | null,
-  pitRoadSvg?: string | null,
-): IRacingSvgTrackMap | null {
+export function parseIRacingActiveSvg(activeSvg: string, startFinishSvg?: string | null, turnsSvg?: string | null, pitRoadSvg?: string | null): IRacingSvgTrackMap | null {
   const contours = allContours(activeSvg)
     .filter((points) => points.length >= 4)
     .sort((a, b) => closedPerimeter(b) - closedPerimeter(a));
@@ -671,10 +692,7 @@ export function parseIRacingActiveSvg(
   if (startFinishSvg) {
     const markerPoints = allContours(startFinishSvg).flat();
     if (markerPoints.length > 0) {
-      centerline = rotateToIndex(
-        centerline,
-        nearestPointIndex(centerline, markerPoints),
-      );
+      centerline = rotateToIndex(centerline, nearestPointIndex(centerline, markerPoints));
     }
   }
 
@@ -684,11 +702,7 @@ export function parseIRacingActiveSvg(
     .sort((a, b) => Number(a.text) - Number(b.text))
     .slice(0, 2)
     .map((label) => ({ x: -label.x, y: label.z }));
-  if (
-    numericLabels.length === 2 &&
-    nearestPointIndex(centerline, [numericLabels[0]]) >
-      nearestPointIndex(centerline, [numericLabels[1]])
-  ) {
+  if (numericLabels.length === 2 && nearestPointIndex(centerline, [numericLabels[0]]) > nearestPointIndex(centerline, [numericLabels[1]])) {
     centerline = [centerline[0], ...centerline.slice(1).reverse()];
   }
 
@@ -697,6 +711,6 @@ export function parseIRacingActiveSvg(
     // pixels. Negating SVG X here preserves iRacing's published orientation.
     points: centerline.map((point) => ({ x: -point.x, z: point.y })),
     labels: rawLabels,
-    pitRoad: pitRoadSvg ? parseIRacingPitRoadSvg(pitRoadSvg) : [],
+    pitLines: pitRoadSvg ? parseIRacingPitRoadSvg(pitRoadSvg) : [],
   };
 }

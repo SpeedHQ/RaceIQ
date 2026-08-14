@@ -1,6 +1,7 @@
 import type { GameId } from "../../../../shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
+import type { PitLine } from "@/lib/canvas/draw-track";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
 import { m } from "../../paraglide/messages";
@@ -22,7 +23,7 @@ interface AnalyseTopSectionProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  pitRoad?: Point[][] | null;
+  pitLines?: PitLine[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
   sectors: SectorBoundaries | null;
@@ -66,7 +67,7 @@ export function AnalyseTopSection({
   cursorIdx,
   outline,
   mapLabels,
-  pitRoad,
+  pitLines,
   boundaries,
   sectors,
   segments,
@@ -164,7 +165,7 @@ export function AnalyseTopSection({
           cursorIdx={cursorIdx}
           outline={outline}
           mapLabels={mapLabels}
-          pitRoad={pitRoad}
+          pitLines={pitLines}
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}
