@@ -444,7 +444,11 @@ describe("countStaleSessions", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  async function insertSession(rawFile: string | null, lapDetectorVersion: string | null): Promise<number> {
+  async function insertSession(
+    rawFile: string | null,
+    lapDetectorVersion: string | null,
+    qualitySchemaVersion: string | null = QUALITY_SCHEMA_VERSION,
+  ): Promise<number> {
     const row = await db
       .insert(sessions)
       .values({
@@ -453,7 +457,7 @@ describe("countStaleSessions", () => {
         gameId: "fm-2023",
         rawFile,
         lapDetectorVersion,
-        qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+        qualitySchemaVersion,
       })
       .returning({ id: sessions.id })
       .get();
@@ -474,7 +478,7 @@ describe("countStaleSessions", () => {
     await insertSession(staleOldPath, "lapdetector_v0");
     await insertSession(staleNullPath, null);
     await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
-    await insertSession(currentPath, detectorId);
+    await insertSession(currentPath, detectorId, null);
     await insertSession(null, null);
 
     const afterCount = await countStaleSessions(detectorId);
@@ -494,7 +498,7 @@ describe("countStaleSessions", () => {
     const staleRawOldVersion = await insertSession(staleOldPath, "lapdetector_v0");
     const staleRawNullVersion = await insertSession(staleNullPath, null);
     const missingRaw = await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
-    const staleQualitySchema = await insertSession(currentPath, detectorId);
+    const staleQualitySchema = await insertSession(currentPath, detectorId, null);
     const noRaw = await insertSession(null, null);
 
     const allIds = await getStaleSessions(detectorId);
