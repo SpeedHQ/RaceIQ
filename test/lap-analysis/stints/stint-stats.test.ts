@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 import { repeatabilityStats, stintStats } from "../../../shared/racing/laps/stint-stats";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 
 describe("repeatabilityStats", () => {
@@ -69,7 +70,11 @@ const lap = (overrides: Partial<LapMeta> = {}): LapMeta => {
       lapTime: 10,
       structurallyValid: value.isValid,
       invalidReason: value.isValid ? null : (value.invalidReason ?? "invalid-lap"),
-      classification: { phase: value.phase, conditions: value.conditions, paceEligibility: value.paceEligibility },
+      classification: {
+        phase: value.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+        conditions: value.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+        paceEligibility: value.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
+      },
     });
   return { ...value, quality, eligibility: overrides.eligibility ?? evaluateAllEligibility(quality) };
 };
