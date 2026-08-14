@@ -344,7 +344,7 @@ When creating or updating a pull request:
 
 ### Pull Request Changelog
 
-Every pull request must include a concise bullet in `CHANGELOG.md` under `## Unreleased`. Use `### Internal` for implementation, CI, tooling, and maintenance changes that are not user-visible; keep `### Breaking`, `### Features`, and `### Fixes` for user-facing changes. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
+Every pull request must include a concise user-facing bullet in `CHANGELOG.md` under `## Unreleased`; do not omit it for implementation, CI, tooling, or maintenance work. Describe the observable benefit in `### Breaking`, `### Features`, or `### Fixes` rather than documenting internal mechanics. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
 
 ### AI Evaluators
 

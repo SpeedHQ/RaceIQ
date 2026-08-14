@@ -66,6 +66,7 @@
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
+- Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
 - Replace Biome with Oxc for repository linting and formatting
