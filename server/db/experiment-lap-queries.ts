@@ -3,6 +3,7 @@ import { db } from "./index";
 import { lapMetaProjection, toLapMeta } from "./lap-meta";
 import { sessions, laps, tunes } from "./schema";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import type { LapClassification } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 
@@ -28,19 +29,16 @@ export async function getLapsForExclusionScope(
   experimentId: number,
   tuneId: number,
 ): Promise<
-  {
+  (Pick<LapClassification, "phase" | "conditions" | "paceEligibility"> & {
     id: number;
     lapTime: number;
     isValid: boolean;
-    phase: LapMeta["phase"];
-    conditions: LapMeta["conditions"];
-    paceEligibility: LapMeta["paceEligibility"];
     quality: LapQualitySummary | null;
     eligibility: EligibilityDecisionSet | null;
     invalidReason: string | null;
     experimentExcluded: boolean;
     experimentExcludedSource: "auto" | "manual" | null;
-  }[]
+  })[]
 > {
   const rows = await db
     .select({
