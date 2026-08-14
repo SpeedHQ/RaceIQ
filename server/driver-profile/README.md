@@ -6,7 +6,7 @@ Build deterministic, game-scoped driver fingerprints from stored laps and genera
 
 ## Structure
 
-- `load.ts` loads the newest usable telemetry and aligns metadata, insights, and style summaries.
+- `load.ts` loads newest telemetry accepted by shared `driver-profile` eligibility and aligns metadata, insights, style summaries, and quality generation.
 - `detectors.ts` aggregates per-lap findings and derives ranked weaknesses and style axes.
 - `trend.ts` normalizes pace within game/car/track contexts and compares recent and previous windows.
 - `fingerprint.ts` assembles the stable persisted fingerprint contract.
@@ -16,7 +16,7 @@ Build deterministic, game-scoped driver fingerprints from stored laps and genera
 
 ## Boundaries and invariants
 
-Fingerprints are global to one selected game. Trend input is newest-first; detector results remain paired with lap metadata before deterministic lap-id sorting. Missing measurements stay `null`, detector frequencies are per-lap, and unquantified weaknesses remain separate from time-loss rankings. Prompt text contains trend evidence only. Runner writes a result only when its lap-pool key is still current and no newer successful run exists.
+Fingerprints are global to one selected game. Input laps must pass the shared `driver-profile` decision; local validity or ad hoc pace filters are not substitutes. Trend input is newest-first, and detector results remain paired with lap metadata before deterministic lap-id sorting. Missing measurements stay `null`, detector frequencies are per-lap, and unquantified weaknesses remain separate from time-loss rankings. Prompt text contains trend evidence only. Runner writes a result only when its lap-pool key and quality generation are still current and no newer successful run exists.
 
 Database access, telemetry decoding, AI providers, settings, and HTTP routing stay outside this domain's pure calculation modules.
 

@@ -17,7 +17,7 @@ Materialize durable race outcomes from captured telemetry, arbitrate conflicting
 
 ## Boundaries and invariants
 
-Telemetry packets enter through `source.ts`; database and raw-capture access is confined to reconciliation and aggregate read paths. Authority precedence is simulator final, canonical derivation, simulator live, then validated ML. Evidence outside its claim scope, policy, confidence, or age bounds is rejected before ranking. Fallback classification is created only when no classification claim exists. Pit events remain sequence-sorted and densely renumbered before persistence. Aggregate reads use persisted results only and count confirmed outcomes where required.
+Telemetry packets enter through `source.ts`; database and raw-capture access is confined to reconciliation and aggregate read paths. Authority precedence is simulator final, canonical derivation, simulator live, then validated ML. Evidence outside its claim scope, policy, confidence, or age bounds is rejected before ranking. Fallback classification is created only when no classification claim exists. Pit events remain sequence-sorted and densely renumbered before persistence. Quality linkage compares event and packet timestamps only when their game-specific clock domains match; otherwise it requires matching lap numbers. Aggregate reads use persisted results only and count confirmed outcomes where required.
 
 ## Testing
 
