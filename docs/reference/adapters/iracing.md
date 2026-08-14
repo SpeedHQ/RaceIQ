@@ -10,7 +10,7 @@ RaceIQ reads iRacing directly through the local Windows SDK memory map. It does 
 4. The source combines telemetry values with the current SessionInfo snapshot and encodes a versioned RaceIQ source frame.
 5. The iRacing adapter parses and normalizes that frame to `TelemetryPacket` before the common pipeline performs recording, lap/sector processing, persistence, analysis, and WebSocket broadcast.
 
-iRacing publishes SDK ticks at 60 Hz. RaceIQ polls the memory map above that rate so timer phase, scheduling jitter, and brief processing overlap do not miss ticks, deduplicates unchanged tick counters, and displays measured accepted-tick frequency. Actual change frequency remains variable-specific.
+iRacing normally publishes live SDK variables at 60 Hz. RaceIQ checks the shared-memory map independently from the user-configured WebSocket refresh cap and accepts each new SDK tick once using its tick counter. The WebSocket broadcaster separately sends the latest accepted frame at the configured refresh rate. Actual change frequency remains variable-specific.
 
 ## Source-frame contract
 
