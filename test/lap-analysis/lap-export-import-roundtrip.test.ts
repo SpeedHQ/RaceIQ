@@ -9,7 +9,8 @@
  * session by replaying a committed capture, export a lap from it, import the
  * zip back, and assert the same lap reappears with the same lap time.
  */
-import { describe, test, expect, afterEach } from "bun:test";
+import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { zipSync, unzipSync } from "fflate";
 import { gunzipSync } from "node:zlib";
 import { rmSync } from "node:fs";
 import { eq, inArray } from "drizzle-orm";
@@ -17,9 +18,11 @@ import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { importSessionBin } from "../../server/session-capture/import-capture"
+import { importSessionBin } from "../../server/session-capture/import-capture";
 import { getSessionResult } from "../../server/db/session-result-queries";
-import { buildLapsZip, importLapsZip } from "../../server/laps/archive"
+import { buildLapsZip, importLapsZip } from "../../server/laps/archive";
+import type { SourceChannelProfile } from "../../shared/racing/quality/contracts";
+import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -29,7 +32,24 @@ const MIN_FRAMES = 100;
 
 const CAPTURE = "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
 
+const SOURCE_CHANNEL_PROFILE: SourceChannelProfile = {
+  schemaVersion: "1",
+  sourceKind: "motec",
+  channels: {
+    "inputs.steer": {
+      treatment: "assumed",
+      mappingStatus: "unavailable",
+      sourceChannels: [{ name: "Steering Angle", declaredHz: 20, effectiveHz: 20 }],
+      limitations: ["Steering reconstructed from source telemetry."],
+      evidenceId: "source-channel-profile:1:motec:inputs.steer",
+    },
+  },
+};
+
 describe("lap export → import round-trip (real capture)", () => {
+  afterAll(() => {
+    stopMaintenanceTasks();
+  });
   const createdSessions: number[] = [];
   const tmpFiles: string[] = [];
 
@@ -106,5 +126,87 @@ describe("lap export → import round-trip (real capture)", () => {
     const got = result.laps.map((l) => Math.round(l.lapTime * 1000)).sort((a, b) => a - b);
     const want = exportable.map((r) => Math.round(r.lapTime * 1000)).sort((a, b) => a - b);
     expect(got).toEqual(want);
+  }, 120000);
+
+  test("preserves original source fidelity while verifying the ZIP member separately", async () => {
+    const { sid, rows } = await seedSession();
+    await db.update(sessions).set({ source: "motec", sourceChannelProfile: SOURCE_CHANNEL_PROFILE }).where(eq(sessions.id, sid)).run();
+    const sourceSession = await db.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sid)).get();
+    const sourceVerification = sourceSession?.recordingQuality?.archiveVerification;
+    if (!sourceVerification) throw new Error("Seed session is missing source verification");
+
+    const { bytes, manifest } = await buildLapsZip([rows[0].id]);
+    expect(manifest.entries[0]).toMatchObject({
+      sourceKind: "motec",
+      sourceChannelProfile: SOURCE_CHANNEL_PROFILE,
+      sourceVerification,
+    });
+
+    const result = await importLapsZip(bytes);
+    expect(result.errors).toEqual([]);
+    expect(result.imported).toBeGreaterThan(0);
+    const importedSessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
+    createdSessions.push(...importedSessionIds);
+    const importedSessions = await db.select().from(sessions).where(inArray(sessions.id, importedSessionIds)).all();
+    for (const imported of importedSessions) {
+      if (imported.rawFile) tmpFiles.push(imported.rawFile);
+      expect(imported.source).toBe("motec");
+      expect(imported.sourceChannelProfile).toEqual(SOURCE_CHANNEL_PROFILE);
+      expect(imported.recordingQuality?.sourceKind).toBe("motec");
+      expect(imported.recordingQuality?.archiveVerification).toEqual(sourceVerification);
+      expect(imported.recordingQuality?.transportVerification).toEqual({
+        state: "verified",
+        sourceGeneration: manifest.entries[0].memberSha256 ?? null,
+      });
+      expect(imported.recordingQuality?.canonicalVerification).toMatchObject({
+        state: "verified",
+        sourceGeneration: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+      });
+    }
+  }, 120000);
+
+  test("imports archives without a manifest as legacy unverified evidence", async () => {
+    const { rows } = await seedSession();
+    const { bytes } = await buildLapsZip([rows[0].id]);
+    const files = unzipSync(bytes);
+    delete files["manifest.json"];
+
+    const result = await importLapsZip(zipSync(files));
+    for (const lap of result.laps) createdSessions.push(lap.sessionId);
+
+    expect(result.errors).toEqual([]);
+    expect(result.imported).toBeGreaterThan(0);
+    const importedSessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
+    const importedSessions = await db.select().from(sessions).where(inArray(sessions.id, importedSessionIds)).all();
+    for (const imported of importedSessions) {
+      if (imported.rawFile) tmpFiles.push(imported.rawFile);
+    }
+    const importedSession = importedSessions.find(({ id }) => id === result.laps[0]!.sessionId);
+    expect(importedSession?.recordingQuality?.archiveVerification).toMatchObject({
+      state: "unknown",
+      sourceGeneration: "legacy",
+    });
+  }, 120000);
+
+  test("rejects a v2 manifest that declares a missing capture member", async () => {
+    const { rows } = await seedSession();
+    const { bytes, manifest } = await buildLapsZip([rows[0].id]);
+    const files = unzipSync(bytes);
+    manifest.entries.push({
+      ...manifest.entries[0],
+      file: "missing-session.bin.gz",
+    });
+    files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
+
+    await expect(importLapsZip(zipSync(files))).rejects.toThrow("v2 manifest declares a missing capture member");
+  }, 120000);
+
+  test("rejects a present corrupt v2 manifest instead of importing as legacy", async () => {
+    const { rows } = await seedSession();
+    const { bytes } = await buildLapsZip([rows[0].id]);
+    const files = unzipSync(bytes);
+    files["manifest.json"] = new TextEncoder().encode('{"version":2,"exportedAt":');
+
+    await expect(importLapsZip(zipSync(files))).rejects.toThrow("Invalid RaceIQ archive manifest");
   }, 120000);
 });

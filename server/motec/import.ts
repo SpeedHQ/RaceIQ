@@ -7,8 +7,8 @@
  * re-materialisable afterwards, because the pipeline's recorder persists the
  * frames it was given.
  *
- * The only thing that marks them out is `sessions.source = 'motec'`, stamped
- * after the fact so the pipeline's own signatures stay untouched.
+ * `sessions.source = 'motec'` and its source channel profile preserve the
+ * original log's weaker fidelity when synthesized fields occupy AC Evo slots.
  *
  * ## One transcoder per game
  *
@@ -24,7 +24,7 @@
  */
 
 import { db } from "../db";
-import { laps as laps_, sessions } from "../db/schema";
+import { laps as laps_ } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
 import { importSessionBin } from "../session-capture/import-capture";
@@ -33,12 +33,8 @@ import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
-import {
-  getDefaultMotecTarget,
-  initMotecTargets,
-  tryGetMotecTarget,
-  type MotecTarget,
-} from "./targets";
+import { getDefaultMotecTarget, initMotecTargets, tryGetMotecTarget, type MotecTarget } from "./targets";
+import { sha256SourceArtifacts } from "../session-capture/identity";
 
 export { MOTEC_SESSION_SOURCE };
 
@@ -110,11 +106,7 @@ export interface MotecImportOptions {
  * honest reading, since lap beacons live only in the `.ldx`, and AC Evo's
  * exporter writes an empty beacon group for a standalone hotlap anyway.
  */
-export async function importMotec(
-  ldBytes: Buffer,
-  ldxText?: string,
-  options?: MotecImportOptions,
-): Promise<MotecImportResult> {
+export async function importMotec(ldBytes: Buffer, ldxText?: string, options?: MotecImportOptions): Promise<MotecImportResult> {
   const target = resolveMotecTarget(options?.gameId);
   const log = parseLd(ldBytes);
   const beacons = ldxText ? parseLdxBeacons(ldxText) : [];
@@ -123,18 +115,15 @@ export async function importMotec(
     carOrdinal: options?.carOrdinal,
     trackOrdinal: options?.trackOrdinal,
   });
-  const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId, { ownership: options?.ownership });
-
-  // Stamp every session the import touched. Normally one, but the pipeline
-  // rotates sessions on a car/track change, so don't assume.
-  const sessionIds = new Set<number>();
-  for (const lap of laps) sessionIds.add(lap.sessionId);
-  for (const sessionId of sessionIds) {
-    await db
-      .update(sessions)
-      .set({ source: MOTEC_SESSION_SOURCE })
-      .where(eq(sessions.id, sessionId));
-  }
+  const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId, {
+    ownership: options?.ownership,
+    sourceKind: "motec",
+    sourceArchiveVerification: {
+      state: "verified",
+      sourceGeneration: sha256SourceArtifacts([{ name: "source.ld", bytes: ldBytes }, ...(ldxText === undefined ? [] : [{ name: "source.ldx", bytes: Buffer.from(ldxText) }])]),
+    },
+    sourceChannelProfile: capture.sourceChannelProfile,
+  });
 
   // The pipeline resolves a lap's tune from the live tune assignment, which an
   // import has no business touching, so the chosen setup is applied afterwards.

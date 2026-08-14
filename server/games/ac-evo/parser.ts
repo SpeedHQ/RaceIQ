@@ -28,8 +28,10 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "./structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo";
+import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo";
+import { MOTEC_SYNTH_HZ, MOTEC_SYNTH_SOURCE_VERSION } from "../../motec/types";
+import { createKunosReplayClock, type KunosReplayClock } from "../kunos/replay-clock";
 
 export interface AcEvoParserCache {
   carOrdinal: number;
@@ -38,6 +40,7 @@ export interface AcEvoParserCache {
   lastTrack: string;
   playerSlotState: PlayerSlotState;
   distanceState: AcEvoDistanceState;
+  replayClock: KunosReplayClock;
 }
 
 export function createAcEvoParserCache(): AcEvoParserCache {
@@ -52,6 +55,7 @@ export function createAcEvoParserCache(): AcEvoParserCache {
     lastTrack: "",
     playerSlotState: createPlayerSlotState(),
     distanceState: createAcEvoDistanceState(),
+    replayClock: createKunosReplayClock(),
   };
 }
 export function parseAcEvoBuffers(
@@ -59,12 +63,9 @@ export function parseAcEvoBuffers(
   graphicsBuf: Buffer,
   staticBuf: Buffer,
   cache: AcEvoParserCache,
+  timestampMS?: number,
 ): TelemetryPacket | null {
-  if (
-    physicsBuf.length < PHYSICS.SIZE ||
-    graphicsBuf.length < GRAPHICS_EVO.SIZE ||
-    staticBuf.length < STATIC_EVO.SIZE
-  ) {
+  if (physicsBuf.length < PHYSICS.SIZE || graphicsBuf.length < GRAPHICS_EVO.SIZE || staticBuf.length < STATIC_EVO.SIZE) {
     return null;
   }
 
@@ -156,12 +157,7 @@ export function parseAcEvoBuffers(
   const camberRR = physicsBuf.readFloatLE(PHYSICS.camberRR.offset);
 
   const chBase = PHYSICS.contactHeadingBase.offset;
-  const contactHeading: [
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-  ] = [
+  const contactHeading: [[number, number, number], [number, number, number], [number, number, number], [number, number, number]] = [
     [physicsBuf.readFloatLE(chBase), physicsBuf.readFloatLE(chBase + 4), physicsBuf.readFloatLE(chBase + 8)],
     [physicsBuf.readFloatLE(chBase + 12), physicsBuf.readFloatLE(chBase + 16), physicsBuf.readFloatLE(chBase + 20)],
     [physicsBuf.readFloatLE(chBase + 24), physicsBuf.readFloatLE(chBase + 28), physicsBuf.readFloatLE(chBase + 32)],
@@ -260,9 +256,9 @@ export function parseAcEvoBuffers(
 
   // Electronics (setting-level integers) — from embedded Electronics sub-struct
   const elecBase = GRAPHICS_EVO.electronics_base.offset;
-  const tcLevel = graphicsBuf.readInt8(elecBase + 0);     // tc_level
-  const tcCutLevel = graphicsBuf.readInt8(elecBase + 1);  // tc_cut_level
-  const absLevel = graphicsBuf.readInt8(elecBase + 2);    // abs_level
+  const tcLevel = graphicsBuf.readInt8(elecBase + 0); // tc_level
+  const tcCutLevel = graphicsBuf.readInt8(elecBase + 1); // tc_cut_level
+  const absLevel = graphicsBuf.readInt8(elecBase + 2); // abs_level
   const engineMapLevel = graphicsBuf.readInt8(elecBase + 12); // engine_map_level
 
   // Tyre compound from front-left tyre state (FL and FR share tyre_compound_front)
@@ -292,11 +288,12 @@ export function parseAcEvoBuffers(
   const startingGripRaw = staticBuf.readInt32LE(STATIC_EVO.starting_grip.offset);
   const sessBase = GRAPHICS_EVO.session_state_base.offset;
   const timBase = GRAPHICS_EVO.timing_state_base.offset;
+  const acEvoVersion = readCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size);
 
   const acEvoExt: AcEvoExtendedData = {
     physicsPacketId: physPacketId,
     graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS_EVO.packetId.offset),
-    acEvoVersion: readCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size),
+    acEvoVersion,
 
     sessionType: ACEVO_SESSION_TYPE_NAMES[sessionRaw] ?? "unknown",
     sessionName: readCString(staticBuf, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.size),
@@ -357,11 +354,7 @@ export function parseAcEvoBuffers(
       physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRR.offset),
     ],
 
-    localVelocity: [
-      physicsBuf.readFloatLE(PHYSICS.localVelocityX.offset),
-      physicsBuf.readFloatLE(PHYSICS.localVelocityY.offset),
-      physicsBuf.readFloatLE(PHYSICS.localVelocityZ.offset),
-    ],
+    localVelocity: [physicsBuf.readFloatLE(PHYSICS.localVelocityX.offset), physicsBuf.readFloatLE(PHYSICS.localVelocityY.offset), physicsBuf.readFloatLE(PHYSICS.localVelocityZ.offset)],
 
     gapAheadMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_ahead.offset),
     gapBehindMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_behind.offset),
@@ -405,6 +398,8 @@ export function parseAcEvoBuffers(
   const isRaceOn = status === ACEVO_STATUS.AC_LIVE ? 1 : 0;
 
   const acc: KunosExtendedData = {
+    physicsPacketId: acEvoExt.physicsPacketId,
+    graphicsPacketId: acEvoExt.graphicsPacketId,
     tireCompound: tyreCompound || "dry_compound",
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
@@ -433,14 +428,8 @@ export function parseAcEvoBuffers(
     trackGripStatus: "unknown",
     windSpeed: 0,
     windDirection: 0,
-    airTempC:
-      physicsBuf.length >= PHYSICS.airTemp.offset + 4
-        ? physicsBuf.readFloatLE(PHYSICS.airTemp.offset)
-        : null,
-    roadTempC:
-      physicsBuf.length >= PHYSICS.roadTemp.offset + 4
-        ? physicsBuf.readFloatLE(PHYSICS.roadTemp.offset)
-        : null,
+    airTempC: physicsBuf.length >= PHYSICS.airTemp.offset + 4 ? physicsBuf.readFloatLE(PHYSICS.airTemp.offset) : null,
+    roadTempC: physicsBuf.length >= PHYSICS.roadTemp.offset + 4 ? physicsBuf.readFloatLE(PHYSICS.roadTemp.offset) : null,
     flagStatus,
     drsAvailable: false,
     drsEnabled: false,
@@ -471,7 +460,7 @@ export function parseAcEvoBuffers(
     gameId: "ac-evo" as GameId,
     acc,
     IsRaceOn: isRaceOn,
-    TimestampMS: Date.now(),
+    TimestampMS: timestampMS ?? (acEvoVersion === MOTEC_SYNTH_SOURCE_VERSION ? Math.round((Math.max(0, physPacketId) * 1_000) / MOTEC_SYNTH_HZ) : Date.now()),
 
     EngineMaxRpm: currentMaxRpm || 0,
     EngineIdleRpm: 0,
@@ -547,8 +536,7 @@ export function parseAcEvoBuffers(
 
     Boost: 0,
     Fuel: fuel,
-    FuelCapacity:
-      Number.isFinite(maxFuel) && maxFuel > 0 ? maxFuel : undefined,
+    FuelCapacity: Number.isFinite(maxFuel) && maxFuel > 0 ? maxFuel : undefined,
     DistanceTraveled: distanceTraveled,
     BestLap: bestLap,
     LastLap: lastLap,
@@ -603,9 +591,7 @@ export function parseAcEvoBuffers(
     CarOrdinal: cache.carOrdinal,
     // Surface the raw model string for unknown cars so the session layer can
     // register them in discovered_cars (task #1) instead of "Unknown Car".
-    ...(cache.carOrdinal < 0 && cache.lastCarModel
-      ? { carModelName: cache.lastCarModel }
-      : {}),
+    ...(cache.carOrdinal < 0 && cache.lastCarModel ? { carModelName: cache.lastCarModel } : {}),
     CarClass: 0,
     CarPerformanceIndex: 0,
     DrivetrainType: 1,

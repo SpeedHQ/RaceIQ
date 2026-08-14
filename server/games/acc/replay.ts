@@ -33,7 +33,7 @@ export async function replayRecording(
   const trackName = readWString(firstStatic, STATIC.track.offset, STATIC.track.size);
   const carOrdinal = getAccCarByModel(carModel)?.id ?? 0;
   const trackOrdinal = getAccTrackByName(trackName)?.id ?? 0;
-  const overrides = { carOrdinal, trackOrdinal };
+  const overrides = { carOrdinal, trackOrdinal, timestampMS: 0 };
   console.log(`[ACC Replay] Playing ${filePath} — ${frames.length} frames at ${speed}x (car: ${carModel} → #${carOrdinal}, track: ${trackName} → #${trackOrdinal})`);
 
   let cancelled = false;
@@ -47,6 +47,7 @@ export async function replayRecording(
       for (const frame of frames) {
         if (cancelled) return;
 
+        overrides.timestampMS = frame.timestampMS;
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, overrides);
         if (!packet) continue;
 

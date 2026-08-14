@@ -23,6 +23,9 @@
 - Replace provisional live lap evidence with finalized quality in current and newly connected clients
 - Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
 - Clear stale degraded lap-quality states after a clean recording rebuild
+- Validate RaceIQ canonical recording and every archive manifest/member separately from imported-source provenance so valid source cannot hide corrupt local evidence
+- Reject RaceIQ archives that omit session captures declared by their v2 manifest
+- Preserve native-live provenance when migrating legacy sessions while retaining explicit imported-source labels
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run

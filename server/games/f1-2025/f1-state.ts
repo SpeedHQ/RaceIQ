@@ -1,12 +1,7 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { F1ExtendedData, F1GridEntry } from "../../../shared/telemetry/f1-2025";
-import { getF1CompoundName } from "../../../shared/racing/cars/f1"
-import {
-  F1_HEADER_SIZE,
-  F1_PACKET_IDS,
-  F1_SESSION_TYPES,
-  type F1Header,
-} from "./f1-wire";
+import { getF1CompoundName } from "../../../shared/racing/cars/f1";
+import { F1_HEADER_SIZE, F1_PACKET_IDS, F1_SESSION_TYPES, type F1Header } from "./f1-wire";
 import {
   decodeF1CarDamage,
   decodeF1CarSetup,
@@ -110,8 +105,7 @@ export class F1StateAccumulator {
         this.carStatus = decodeF1CarStatus(data, this.playerCarIndex) ?? this.carStatus;
         break;
       case F1_PACKET_IDS.FINAL_CLASSIFICATION:
-        this.finalClassification =
-          decodeF1FinalClassification(data, this.playerCarIndex) ?? this.finalClassification;
+        this.finalClassification = decodeF1FinalClassification(data, this.playerCarIndex) ?? this.finalClassification;
         break;
       case F1_PACKET_IDS.CAR_DAMAGE:
         this.carDamage = decodeF1CarDamage(data, this.playerCarIndex) ?? this.carDamage;
@@ -143,17 +137,8 @@ export class F1StateAccumulator {
 
     for (const { lapNumber, sectors } of decoded.lapSectors) {
       const existing = lapSectorMap.get(lapNumber);
-      const completeness =
-        (sectors.s1 > 0 ? 1 : 0) +
-        (sectors.s2 > 0 ? 1 : 0) +
-        (sectors.s3 > 0 ? 1 : 0) +
-        (sectors.lapTime > 0 ? 1 : 0);
-      const existingCompleteness = existing
-        ? (existing.s1 > 0 ? 1 : 0) +
-          (existing.s2 > 0 ? 1 : 0) +
-          (existing.s3 > 0 ? 1 : 0) +
-          (existing.lapTime > 0 ? 1 : 0)
-        : -1;
+      const completeness = (sectors.s1 > 0 ? 1 : 0) + (sectors.s2 > 0 ? 1 : 0) + (sectors.s3 > 0 ? 1 : 0) + (sectors.lapTime > 0 ? 1 : 0);
+      const existingCompleteness = existing ? (existing.s1 > 0 ? 1 : 0) + (existing.s2 > 0 ? 1 : 0) + (existing.s3 > 0 ? 1 : 0) + (existing.lapTime > 0 ? 1 : 0) : -1;
       if (completeness > existingCompleteness) {
         lapSectorMap.set(lapNumber, sectors);
       }
@@ -218,6 +203,8 @@ export class F1StateAccumulator {
     }
 
     const f1: F1ExtendedData = {
+      overallFrameIdentifier: header.overallFrameIdentifier,
+      packetId: header.packetId,
       drsAllowed: cs?.drsAllowed ?? false,
       drsActivated: ct.drs,
       drsZoneApproaching: false, // TODO: from motion extra data
@@ -328,21 +315,34 @@ export class F1StateAccumulator {
       pitStopWindowLatestLap: sess?.pitStopWindowLatestLap,
       grid,
       setup: this.carSetup ?? undefined,
-      motionEx: mx ? {
-        wheelSlipAngleFL: mx.wheelSlipAngleFL, wheelSlipAngleFR: mx.wheelSlipAngleFR,
-        wheelSlipAngleRL: mx.wheelSlipAngleRL, wheelSlipAngleRR: mx.wheelSlipAngleRR,
-        wheelLatForceFL: mx.wheelLatForceFL, wheelLatForceFR: mx.wheelLatForceFR,
-        wheelLatForceRL: mx.wheelLatForceRL, wheelLatForceRR: mx.wheelLatForceRR,
-        wheelLongForceFL: mx.wheelLongForceFL, wheelLongForceFR: mx.wheelLongForceFR,
-        wheelLongForceRL: mx.wheelLongForceRL, wheelLongForceRR: mx.wheelLongForceRR,
-        wheelVertForceFL: mx.wheelVertForceFL, wheelVertForceFR: mx.wheelVertForceFR,
-        wheelVertForceRL: mx.wheelVertForceRL, wheelVertForceRR: mx.wheelVertForceRR,
-        frontWheelsAngle: mx.frontWheelsAngle,
-        frontAeroHeight: mx.frontAeroHeight, rearAeroHeight: mx.rearAeroHeight,
-        frontRollAngle: mx.frontRollAngle, rearRollAngle: mx.rearRollAngle,
-        chassisYaw: mx.chassisYaw, chassisPitch: mx.chassisPitch,
-        heightOfCOGAboveGround: mx.heightOfCOGAboveGround,
-      } : undefined,
+      motionEx: mx
+        ? {
+            wheelSlipAngleFL: mx.wheelSlipAngleFL,
+            wheelSlipAngleFR: mx.wheelSlipAngleFR,
+            wheelSlipAngleRL: mx.wheelSlipAngleRL,
+            wheelSlipAngleRR: mx.wheelSlipAngleRR,
+            wheelLatForceFL: mx.wheelLatForceFL,
+            wheelLatForceFR: mx.wheelLatForceFR,
+            wheelLatForceRL: mx.wheelLatForceRL,
+            wheelLatForceRR: mx.wheelLatForceRR,
+            wheelLongForceFL: mx.wheelLongForceFL,
+            wheelLongForceFR: mx.wheelLongForceFR,
+            wheelLongForceRL: mx.wheelLongForceRL,
+            wheelLongForceRR: mx.wheelLongForceRR,
+            wheelVertForceFL: mx.wheelVertForceFL,
+            wheelVertForceFR: mx.wheelVertForceFR,
+            wheelVertForceRL: mx.wheelVertForceRL,
+            wheelVertForceRR: mx.wheelVertForceRR,
+            frontWheelsAngle: mx.frontWheelsAngle,
+            frontAeroHeight: mx.frontAeroHeight,
+            rearAeroHeight: mx.rearAeroHeight,
+            frontRollAngle: mx.frontRollAngle,
+            rearRollAngle: mx.rearRollAngle,
+            chassisYaw: mx.chassisYaw,
+            chassisPitch: mx.chassisPitch,
+            heightOfCOGAboveGround: mx.heightOfCOGAboveGround,
+          }
+        : undefined,
     };
 
     const packet: TelemetryPacket = {
@@ -384,10 +384,10 @@ export class F1StateAccumulator {
       TireSlipRatioRR: mx?.wheelSlipRatioRR ?? 0,
 
       // MotionEx provides per-wheel speed (km/h); fall back to estimate from car speed
-      WheelRotationSpeedFL: mx ? mx.wheelSpeedFL / 0.36 : (ct.speed / 3.6) / 0.36,
-      WheelRotationSpeedFR: mx ? mx.wheelSpeedFR / 0.36 : (ct.speed / 3.6) / 0.36,
-      WheelRotationSpeedRL: mx ? mx.wheelSpeedRL / 0.36 : (ct.speed / 3.6) / 0.36,
-      WheelRotationSpeedRR: mx ? mx.wheelSpeedRR / 0.36 : (ct.speed / 3.6) / 0.36,
+      WheelRotationSpeedFL: mx ? mx.wheelSpeedFL / 0.36 : ct.speed / 3.6 / 0.36,
+      WheelRotationSpeedFR: mx ? mx.wheelSpeedFR / 0.36 : ct.speed / 3.6 / 0.36,
+      WheelRotationSpeedRL: mx ? mx.wheelSpeedRL / 0.36 : ct.speed / 3.6 / 0.36,
+      WheelRotationSpeedRR: mx ? mx.wheelSpeedRR / 0.36 : ct.speed / 3.6 / 0.36,
 
       WheelOnRumbleStripFL: 0,
       WheelOnRumbleStripFR: 0,
@@ -463,10 +463,7 @@ export class F1StateAccumulator {
 
       Boost: 0,
       Fuel: cs && cs.fuelCapacity > 0 ? cs.fuelRemaining / cs.fuelCapacity : 0,
-      FuelCapacity:
-        cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0
-          ? cs.fuelCapacity
-          : undefined,
+      FuelCapacity: cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0 ? cs.fuelCapacity : undefined,
 
       DistanceTraveled: ld.lapDistance,
       BestLap: this.finalClassification?.bestLapTime ?? ld.bestLapTime,
@@ -491,7 +488,7 @@ export class F1StateAccumulator {
       TrackOrdinal: trackOrdinal,
 
       // DRS/ERS per-packet tracking
-      DrsActive: (cs?.drsAllowed && f1.drsActivated) ? 1 : 0,
+      DrsActive: cs?.drsAllowed && f1.drsActivated ? 1 : 0,
       ErsStoreEnergy: cs?.ersStore ?? 0,
       ErsDeployMode: cs?.ersDeployMode ?? 0,
       ErsDeployed: cs?.ersDeployedThisLap ?? 0,

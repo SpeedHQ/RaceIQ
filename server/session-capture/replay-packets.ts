@@ -72,6 +72,7 @@ function readAccPackets(recordingPath: string): RecordedTelemetry {
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
       carOrdinal,
       trackOrdinal,
+      timestampMS: frame.timestampMS,
     });
     if (packet) packets.push(packet);
   }
@@ -96,6 +97,7 @@ function readAcEvoPackets(recordingPath: string): RecordedTelemetry {
       frame.graphics,
       frame.staticData,
       cache,
+      frame.timestampMS,
     );
     if (packet) packets.push(packet);
   }
