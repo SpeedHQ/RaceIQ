@@ -42,7 +42,7 @@ describe("native iRacing SDK decoding", () => {
     expect(iracingAdapter.nativeSectors).toBe(true);
     expect(iracingAdapter.authoritativeTrackLength).toBe(true);
     expect(iracingAdapter.appendsDelayedFinishFrame).toBe(false);
-    expect(LAP_DETECTOR_IRACING_ID).toBe("iracing_lapdetector_v4");
+    expect(LAP_DETECTOR_IRACING_ID).toBe("iracing_lapdetector_v5");
   });
 
   test("bounds native reads to the VirtualQuery region", () => {

@@ -62,7 +62,7 @@ export class ParsingProcessor implements TripletProcessor {
         gameId: "acc",
       });
       if (packet) {
-        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
+        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData, packet.TimestampMS);
         await processPacket(packet, sourceFrame);
       }
     } catch (err) {

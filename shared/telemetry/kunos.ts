@@ -30,12 +30,7 @@ export interface KunosExtendedData {
   cgHeight?: number;
   tireRadius: [number, number, number, number]; // metres, FL/FR/RL/RR (from STATIC)
   // Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])
-  tireContactHeading: [
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-  ];
+  tireContactHeading: [[number, number, number], [number, number, number], [number, number, number], [number, number, number]];
 
   // Brake detail
   brakePadCompound: number;
@@ -89,8 +84,8 @@ export interface KunosExtendedData {
   fuelPerLap: number;
 
   // Sector timing (native from game)
-  currentSectorIndex: number;  // 0=S1, 1=S2, 2=S3
-  lastSectorTime: number;       // ms, time of last completed sector
+  currentSectorIndex: number; // 0=S1, 1=S2, 2=S3
+  lastSectorTime: number; // ms, time of last completed sector
 
   // Damage
   carDamage: {
@@ -118,9 +113,9 @@ export interface AcEvoExtendedData {
   acEvoVersion: string;
 
   // Session context (STATIC_EVO)
-  sessionType: string;          // "time_attack" | "race" | "hot_stint" | "cruise" | "unknown"
+  sessionType: string; // "time_attack" | "race" | "hot_stint" | "cruise" | "unknown"
   sessionName: string;
-  startingGrip: string;         // "green" | "fast" | "optimum" | "unknown"
+  startingGrip: string; // "green" | "fast" | "optimum" | "unknown"
   isStaticWeather: boolean;
   isTimedRace: boolean;
   isOnline: boolean;
@@ -131,9 +126,9 @@ export interface AcEvoExtendedData {
   roadTempC: number;
 
   // Live timing (GRAPHICS_EVO — the fields v0.5 froze)
-  deltaTimeMs: number;          // live delta vs reference lap
+  deltaTimeMs: number; // live delta vs reference lap
   predictedLapTimeMs: number;
-  deltaCurrent: string;         // preformatted from TIMING_STATE (e.g. "-0.234")
+  deltaCurrent: string; // preformatted from TIMING_STATE (e.g. "-0.234")
   deltaLast: string;
   idealLapTime: string;
   timingIsInvalid: boolean;
@@ -150,8 +145,8 @@ export interface AcEvoExtendedData {
   isDrsOpen: boolean;
 
   // Engine health (GRAPHICS_EVO)
-  clutchPercent: number;        // 0..1
-  handbrakePercent: number;     // 0..1
+  clutchPercent: number; // 0..1
+  handbrakePercent: number; // 0..1
   waterTempC: number;
   oilTempC: number;
   oilPressureBar: number;
@@ -172,7 +167,7 @@ export interface AcEvoExtendedData {
 
   // Brake disc life + tyre middle-tread temps (PHYSICS — pad life & inner/outer
   // already exposed on the packet; these complete the picture)
-  brakeDiscLife: [number, number, number, number];  // FL/FR/RL/RR
+  brakeDiscLife: [number, number, number, number]; // FL/FR/RL/RR
   tyreMiddleTempC: [number, number, number, number]; // FL/FR/RL/RR
 
   // Car-frame velocity (PHYSICS localVelocity — distinct from world VelocityXYZ)

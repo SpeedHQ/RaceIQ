@@ -10,7 +10,7 @@ import { parseRawLapFramesForTest } from "../../../server/db/telemetry-replay-st
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { getAccTrackName } from "../../../shared/racing/tracks/catalogs/acc"
 import { getAccCarName } from "../../../shared/racing/cars/acc"
-import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
+import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -20,6 +20,7 @@ afterAll(() => stopMaintenanceTasks());
 /** Helper: create a minimal physics buffer with given values */
 function makePhysicsBuf(overrides: Record<string, number> = {}): Buffer {
   const buf = Buffer.alloc(PHYSICS.SIZE);
+  buf.writeInt32LE(overrides.packetId ?? 0, PHYSICS.packetId.offset);
   buf.writeFloatLE(overrides.gas ?? 0.8, PHYSICS.gas.offset);
   buf.writeFloatLE(overrides.brake ?? 0.0, PHYSICS.brake.offset);
   buf.writeFloatLE(overrides.fuel ?? 50.0, PHYSICS.fuel.offset);
@@ -95,6 +96,15 @@ describe("ACC parser", () => {
     expect(packet!.Yaw).toBeCloseTo(1.5);
   });
 
+  test("native packets keep wall-clock timestamps", () => {
+    const before = Date.now();
+    const packet = parseAccBuffers(makePhysicsBuf(), makeGraphicsBuf(), makeStaticBuf());
+    const after = Date.now();
+
+    expect(packet?.TimestampMS).toBeGreaterThanOrEqual(before);
+    expect(packet?.TimestampMS).toBeLessThanOrEqual(after);
+  });
+
   test("parseAccBuffers populates ACC extended data", () => {
     const physics = makePhysicsBuf();
     const graphics = makeGraphicsBuf();
@@ -146,6 +156,33 @@ describe("ACC parser", () => {
     expect(packet!.CurrentLap).toBeCloseTo(45.0);
     expect(packet!.LastLap).toBeCloseTo(92.345);
     expect(packet!.BestLap).toBeCloseTo(91.234);
+  });
+
+  test("replays persisted source timestamps instead of wall-clock time", () => {
+    const physics = makePhysicsBuf({ packetId: 42 });
+    const graphics = makeGraphicsBuf();
+    const staticData = makeStaticBuf();
+    const frame = packTriplet(ACC_PACKED_MAGIC, 0, 0, physics, graphics, staticData, 1_234_567);
+    const serverGame = getServerGame("acc");
+
+    const packet = serverGame.tryParse(frame, serverGame.createParserState());
+
+    expect(unpackTriplet(frame)?.timestampMS).toBe(1_234_567);
+    expect(packet?.TimestampMS).toBe(1_234_567);
+  });
+
+  test("reconstructs deterministic timestamps for legacy packed frames", () => {
+    const graphics = makeGraphicsBuf();
+    const staticData = makeStaticBuf();
+    const frames = [100, 104].map((packetId) => (
+      packTriplet(ACC_PACKED_MAGIC, 0, 0, makePhysicsBuf({ packetId }), graphics, staticData)
+    ));
+    const serverGame = getServerGame("acc");
+    const parserState = serverGame.createParserState();
+
+    const timestamps = frames.map((frame) => serverGame.tryParse(frame, parserState)?.TimestampMS);
+
+    expect(timestamps).toEqual([0, 12]);
   });
 });
 

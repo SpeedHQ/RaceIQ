@@ -28,11 +28,38 @@ afterAll(() => stopMaintenanceTasks());
 describe("committed iRacing recorder fixture", () => {
   test("replays every recorded SDK tick through the production parser", () => {
     expect(roadAmericaRecording.rawPackets).toHaveLength(138);
-    expect(roadAmericaRecording.sessions).toEqual([
+    expect(
+      roadAmericaRecording.sessions.map(
+        ({
+          carOrdinal,
+          trackOrdinal,
+          gameId,
+          sourceKind,
+          ownership,
+          sessionType,
+          sourceChannelProfile,
+          versionIdentity,
+        }) => ({
+          carOrdinal,
+          trackOrdinal,
+          gameId,
+          sourceKind,
+          ownership,
+          sessionType,
+          sourceChannelProfile,
+          versionIdentity,
+        }),
+      ),
+    ).toEqual([
       {
         carOrdinal: 42,
         trackOrdinal: 99,
         gameId: "iracing",
+        sourceKind: "native-live",
+        ownership: undefined,
+        sessionType: undefined,
+        sourceChannelProfile: undefined,
+        versionIdentity: undefined,
       },
     ]);
     expect(roadAmericaRecording.carModel).toBe("GT3 Test Car");
@@ -88,11 +115,38 @@ describe("committed iRacing recorder fixture", () => {
 describe("committed iRacing seed fixture", () => {
   test("replays the compact real-telemetry window through the production parser", () => {
     expect(recording.rawPackets).toHaveLength(6_357);
-    expect(recording.sessions).toEqual([
+    expect(
+      recording.sessions.map(
+        ({
+          carOrdinal,
+          trackOrdinal,
+          gameId,
+          sourceKind,
+          ownership,
+          sessionType,
+          sourceChannelProfile,
+          versionIdentity,
+        }) => ({
+          carOrdinal,
+          trackOrdinal,
+          gameId,
+          sourceKind,
+          ownership,
+          sessionType,
+          sourceChannelProfile,
+          versionIdentity,
+        }),
+      ),
+    ).toEqual([
       {
         carOrdinal: 206,
         trackOrdinal: 192,
         gameId: "iracing",
+        sourceKind: "native-live",
+        ownership: undefined,
+        sessionType: undefined,
+        sourceChannelProfile: undefined,
+        versionIdentity: undefined,
       },
     ]);
     expect(recording.carModel).toBe("Aston Martin Vantage GT3 EVO");

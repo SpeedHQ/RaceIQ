@@ -191,7 +191,6 @@ describe("LapDetector normal-pace geometry recording gates", () => {
       spies.curb.mockRestore();
     }
   });
-
   test("uses one eligible flying-lap decision for best lap, iRacing outline, and curb recording", async () => {
     const spies = recordingSpies();
     try {
@@ -209,6 +208,7 @@ describe("LapDetector normal-pace geometry recording gates", () => {
         paceEligibility: "eligible",
       });
       expect(result.completed).toHaveLength(1);
+      expect(result.completed[0].eligibility["normal-pace"].status).toMatch(/^eligible/);
       expect(result.detector.session?.bestLapTime).toBe(90);
       expect(spies.outline).toHaveBeenCalledTimes(1);
       expect(spies.curb).toHaveBeenCalledTimes(1);

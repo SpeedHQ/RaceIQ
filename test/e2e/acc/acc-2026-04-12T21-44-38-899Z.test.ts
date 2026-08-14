@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { parseDump } from "../../support/recordings/parse-dump";
+import { currentTelemetryVersionIdentity } from "../../../server/telemetry/pipeline-ports";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 import { assertValidLapHasSectors } from "../../support/laps/assertions";
 
@@ -21,9 +22,26 @@ describe(recordingFile, () => {
     // 3 laps: outlap + valid + incomplete (pit-only opening segment discarded)
     expect(laps.length).toBe(3);
 
-    // Lap 0: structurally valid out lap (was lap 1 before the pit-only opening segment was discarded)
+    const expectedVersionIdentity = currentTelemetryVersionIdentity("acc");
+    for (const lap of laps) {
+      expect({
+        sourceKind: lap.quality?.sourceKind,
+        qualityVersionIdentity: lap.quality?.versionIdentity,
+        versionIdentity: lap.versionIdentity,
+      }).toEqual({
+        sourceKind: "native-live",
+        qualityVersionIdentity: expectedVersionIdentity,
+        versionIdentity: expectedVersionIdentity,
+      });
+    }
+
+    // Lap 0: valid out lap (pit-only opening segment was discarded)
     expect(laps[0].isValid).toBe(true);
-    expect(laps[0]).toMatchObject({ phase: "out", conditions: ["caution"], paceEligibility: "excluded" });
+    expect({ phase: laps[0].phase, conditions: laps[0].conditions, paceEligibility: laps[0].paceEligibility }).toEqual({
+      phase: "out",
+      conditions: ["caution"],
+      paceEligibility: "excluded",
+    });
     expect(laps[0].invalidReason).toBeNull();
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
     assertBrandHatchSectorBounds(laps[0]);
