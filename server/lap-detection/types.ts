@@ -65,6 +65,8 @@ export interface ILapDetector {
    * stuck at null.
    */
   setCurrentLapByteOffset?(offset: number): void;
+  /** Wait until every accepted lap and its persistence follow-ups settle. */
+  waitForPendingLapWrites?(): Promise<void>;
   /** Return implementation-specific debug state for the dev panel. */
   getDebugState?(): Record<string, unknown>;
 }
