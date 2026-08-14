@@ -37,20 +37,22 @@ describe("SessionRecorder meta frame", () => {
     recorder.writeMetaFrame();
     recorder.writeRecord(Buffer.from([0x01, 0x02]));
     recorder.writeRecord(Buffer.from([0x03, 0x04]));
-    await recorder.stop();
+    const verification = await recorder.stop();
 
     const buf = Buffer.from(await Bun.file(recorder.path!).arrayBuffer());
     expect(buf.readUInt32LE(0)).toBe(META_FRAME_MAGIC);
     expect(buf.readUInt32LE(4)).toBe(4); // payload length always 4
     expect(buf.readUInt32LE(8)).toBe(2); // frame count patched on stop()
+    expect(verification.state).toBe("verified");
+    expect(verification.sourceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
   });
 
-  test("getCurrentByteOffset starts at 0 before any writes", () => {
+  test("getCurrentByteOffset starts at 0 before any writes", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
     const recorder = new SessionRecorder();
     recorder.start(join(tmpDir, "session.bin"));
     expect(recorder.getCurrentByteOffset()).toBe(0);
-    recorder.stop();
+    expect((await recorder.stop()).state).toBe("unavailable");
   });
 
   test("getCurrentByteOffset tracks written bytes", async () => {

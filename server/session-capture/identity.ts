@@ -15,6 +15,20 @@ export function sha256ContentHash(bytes: Uint8Array): string {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+export function sha256SourceArtifacts(artifacts: readonly { name: string; bytes: Uint8Array }[]): string {
+  const hash = createHash("sha256");
+  const lengths = Buffer.allocUnsafe(12);
+  for (const artifact of artifacts) {
+    const name = Buffer.from(artifact.name);
+    lengths.writeUInt32LE(name.length, 0);
+    lengths.writeBigUInt64LE(BigInt(artifact.bytes.byteLength), 4);
+    hash.update(lengths);
+    hash.update(name);
+    hash.update(artifact.bytes);
+  }
+  return `sha256:${hash.digest("hex")}`;
+}
+
 export async function loadRawCaptureIdentity(path: string): Promise<RawCaptureIdentity | undefined> {
   const file = Bun.file(path);
   if (!(await file.exists())) return undefined;

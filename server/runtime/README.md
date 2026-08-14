@@ -19,7 +19,7 @@
 - Boot ordering is intentional: adapters and database state initialize before listeners; HTTP starts before UDP and background jobs; native sources and desktop integration start before maintenance jobs; the ready message is last.
 - HTTP port precedence is explicit option, then `SERVER_PORT`, then `3117`. UDP port precedence is explicit option, persisted setting, then `UDP_PORT`, then `5301`. `DATA_DIR` overrides the derived user-data path, while tests refuse an implicit real user-data path.
 - HTTP paths remain partitioned: `/ws` is the WebSocket upgrade, `/api` and `/studio-api` dispatch to Hono, production serves bundled assets with SPA fallback, and development may serve public files.
-- UDP binds IPv4 on `0.0.0.0` by default, preserves raw recording frames before parsing, and owns its one-second status/flush interval across restarts.
+- UDP binds IPv4 on `0.0.0.0` by default, records length-valid raw UDP datagrams before parsing—including parser-skipped packets—and owns its one-second status/flush interval across restarts. Timeout and reconnect evidence is emitted only for accepted telemetry from the matching UDP source.
 - Native process detection is Windows-only and polls every two seconds. Reader references are cleared before asynchronous stops so one source instance has clear ownership.
 - Shutdown stops the compressor first, then settles recorder flush, native-source stop, and recording-mode source stops before exiting. Signal registration and task ordering must not move casually.
 - Runtime orchestrates game, database, telemetry, session-capture, tune-sync, route, and shared-data domains; those domains retain their own parsing, persistence, and policy. Cross-domain moves or new shared layers require a separate dependency-cycle pass.
