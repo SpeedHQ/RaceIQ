@@ -23,6 +23,24 @@ interface ReprocessResult {
   strategy: "in-place" | "replace";
 }
 
+export class SessionRawFileMissingError extends Error {
+  constructor(sessionId: number, rawFile?: string) {
+    super(
+      rawFile
+        ? `Session ${sessionId} raw file not found: ${rawFile}`
+        : `Session ${sessionId} has no raw file to reprocess`,
+    );
+    this.name = "SessionRawFileMissingError";
+  }
+}
+
+export class SessionNotFoundError extends Error {
+  constructor(sessionId: number) {
+    super(`Session ${sessionId} not found`);
+    this.name = "SessionNotFoundError";
+  }
+}
+
 /**
  * Replay a session's raw .bin file through the current lap detector.
  * Updates lap frame indexes and metadata in the DB.
@@ -34,8 +52,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     .where(eq(sessions.id, sessionId))
     .get();
 
-  if (!session?.rawFile) {
-    throw new Error(`Session ${sessionId} has no raw file to reprocess`);
+  if (!session) {
+    throw new SessionNotFoundError(sessionId);
+  }
+  if (!session.rawFile) {
+    throw new SessionRawFileMissingError(sessionId);
   }
 
   const gameId = session.gameId as GameId;
@@ -45,7 +66,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   // Read the raw session file
   const rawFileHandle = Bun.file(session.rawFile);
   if (!(await rawFileHandle.exists())) {
-    throw new Error(`Session ${sessionId} raw file not found: ${session.rawFile}`);
+    throw new SessionRawFileMissingError(sessionId, session.rawFile);
   }
   const rawBuffer = Buffer.from(await rawFileHandle.arrayBuffer());
   // Decompress if file is gzipped

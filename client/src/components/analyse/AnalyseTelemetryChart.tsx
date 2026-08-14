@@ -211,7 +211,7 @@ export function TelemetryChart({
   );
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: canvas scrubbing uses pointer drag; keyboard navigation is provided by the timeline controls
+    // oxlint-disable-next-line a11y/noStaticElementInteractions: canvas scrubbing uses pointer drag; keyboard navigation is provided by the timeline controls
     <div ref={containerRef} className="w-full relative" style={{ height }} onMouseDown={handleMouseDown}>
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair rounded bg-app-surface/40" />
     </div>

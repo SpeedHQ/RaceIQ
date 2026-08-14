@@ -127,9 +127,9 @@ let _interval: ReturnType<typeof setInterval> | null = null;
 
 async function runMaintenance(): Promise<void> {
   await runCompression();
-  // Piggyback orphan sweep on the same interval. cleanupOrphanSessionFiles()
-  // is a no-op during an active session, so it's safe to run here.
-  const removed = await cleanupOrphanSessionFiles(isSessionActive());
+  // Re-check activity inside the async orphan sweep so a session that starts
+  // during file enumeration cannot have its capture removed.
+  const removed = await cleanupOrphanSessionFiles(isSessionActive);
   console.debug(
     removed > 0
       ? `[Cleanup] Removed ${removed} orphan session file(s)`

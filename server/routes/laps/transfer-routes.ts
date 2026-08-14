@@ -5,12 +5,12 @@ import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { getGame } from "../../../shared/games/registry";
 import { getLapsForSession } from "../../db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
-import { buildLapsZip, lapsZipFilename, importLapsZip } from "../../laps/archive";
+import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
-import { ExportZipQuerySchema, IbtImportTokenSchema } from "./support";
+import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 export const transferRoutes = new Hono()
   .get("/api/laps/export-zip", zValidator("query", ExportZipQuerySchema), async (c) => {
@@ -35,16 +35,49 @@ export const transferRoutes = new Hono()
     return c.body(bytes.slice().buffer as ArrayBuffer);
   })
 
+  .post("/api/laps/detect-import", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const lower = file.name.toLowerCase();
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+      try {
+        const detection = detectLapsZip(bytes);
+        return c.json({
+          format: "zip" as const,
+          supported: detection.isRaceIqArchive,
+          gameIds: detection.gameIds,
+          captureCount: detection.captureCount,
+          message: detection.isRaceIqArchive ? null : "ZIP does not contain RaceIQ session captures.",
+        });
+      } catch {
+        return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "File is not a readable ZIP archive." });
+      }
+    }
+    if (lower.endsWith(".bin") || lower.endsWith(".bin.gz")) {
+      const gameId = detectGameIdFromBuffer(Buffer.from(bytes));
+      return c.json({
+        format: "bin" as const,
+        supported: gameId != null,
+        gameIds: gameId ? [gameId] : [],
+        captureCount: 1,
+        message: gameId ? null : "Could not detect a supported game from this capture.",
+      });
+    }
+    if (lower.endsWith(".ibt")) return c.json({ format: "ibt" as const, supported: true, gameIds: ["iracing"], captureCount: 1, message: null });
+    if (lower.endsWith(".ld")) return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
+    return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "Unsupported import file." });
+  })
   .post("/api/laps/import-zip", async (c) => {
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
-    if (!(file.name || "").toLowerCase().endsWith(".zip")) {
-      return c.json({ error: "Expected a .zip file" }, 400);
-    }
-
+    const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
+    if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
+    if (!file.name.toLowerCase().endsWith(".zip")) return c.json({ error: "Expected a .zip file" }, 400);
     try {
-      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()));
+      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data });
       return c.json(result);
     } catch (err) {
       return c.json({ error: `Failed to import zip: ${err instanceof Error ? err.message : String(err)}` }, 400);
@@ -61,7 +94,8 @@ export const transferRoutes = new Hono()
     if (!lower.endsWith(".bin") && !lower.endsWith(".bin.gz")) {
       return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
     }
-
+    const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
+    if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
     const bytes = Buffer.from(await file.arrayBuffer());
     const gameId = detectGameIdFromBuffer(bytes);
     if (!gameId) {
@@ -70,9 +104,9 @@ export const transferRoutes = new Hono()
         400
       );
     }
-
     try {
-      const { packetCount, laps } = await importSessionBin(bytes, gameId);
+
+      const { packetCount, laps } = await importSessionBin(bytes, gameId, { ownership: ownership.data });
       if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
       return c.json({
         ok: true,
@@ -111,8 +145,10 @@ export const transferRoutes = new Hono()
 
     // The sidecar carries the lap beacons. Without it the log imports as a
     // single unsplit stint, which is correct for a standalone hotlap export.
+    const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     const sidecar = form?.get("ldx");
     const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+    if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
 
     // Car and track are the user's call, not the log header's — a log filed
     // against the wrong track gets meaningless sectors and corner names. The
@@ -155,6 +191,7 @@ export const transferRoutes = new Hono()
         carOrdinal,
         trackOrdinal,
         tuneId,
+        ownership: ownership.data,
       });
       if (result.laps.length === 0) {
         return c.json(
@@ -209,12 +246,12 @@ export const transferRoutes = new Hono()
 
   .post(
     "/api/laps/import-ibt/commit",
-    zValidator("json", IbtImportTokenSchema),
+    zValidator("json", IbtCommitSchema),
     async (c) => {
-      const { token } = c.req.valid("json");
+      const { token, ownership } = c.req.valid("json");
       try {
         const { packetCount, laps, preview } =
-          await commitStagedIbt(token);
+          await commitStagedIbt(token, ownership);
         return c.json({
           ok: true,
           gameId: "iracing" as const,

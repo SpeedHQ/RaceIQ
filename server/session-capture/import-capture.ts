@@ -1,4 +1,5 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
+import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getAllServerGames } from "../games/registry";
 import {
   decompressIfGzipSync,
@@ -37,7 +38,7 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
 export async function importSessionBin(
   bytes: Buffer,
   gameId: GameId,
-  options: { notifyDriverProfile?: boolean } = {},
+  options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
   const { packetCount, laps } = await importSessionFrames(
