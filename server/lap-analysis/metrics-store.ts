@@ -3,17 +3,10 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { db } from "../db";
-import { lapMetrics } from "../db/schema";
+import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
 import { resolveTrack } from "../tracks/info";
-import {
-  computeLapMetrics,
-  deriveFuelPerLap,
-  deriveTyreWear,
-  LAP_METRICS_ALGO_VERSION,
-  type LapMetrics,
-  type SegmentStat,
-} from "./metrics";
+import { computeLapMetrics, deriveFuelPerLap, deriveTyreWear, LAP_METRICS_ALGO_VERSION, type LapMetrics, type SegmentStat } from "./metrics";
 
 /** Minimal DB surface persistLapMetrics needs (DbAdapter satisfies it). */
 interface LapMetricsWriter {
@@ -21,11 +14,7 @@ interface LapMetricsWriter {
 }
 
 /** Derive fuel + tyre metrics from in-memory frames and persist them on the lap row. */
-export async function persistLapMetrics(
-  writer: LapMetricsWriter,
-  lapId: number,
-  packets: TelemetryPacket[],
-): Promise<void> {
+export async function persistLapMetrics(writer: LapMetricsWriter, lapId: number, packets: TelemetryPacket[]): Promise<void> {
   const fuelPerLap = deriveFuelPerLap(packets) ?? null;
   const tyreWear = deriveTyreWear(packets) ?? null;
   if (fuelPerLap == null && tyreWear == null) return;
@@ -38,10 +27,11 @@ interface MetricsRow {
   insights: string;
   segmentStats: string;
   computedAt: string;
+  qualityGeneration: string | null;
 }
 
-function rowToMetrics(row: MetricsRow): LapMetrics | null {
-  if (row.algoVersion !== LAP_METRICS_ALGO_VERSION) return null;
+function rowToMetrics(row: MetricsRow, currentQualityGeneration: string | null): LapMetrics | null {
+  if (row.algoVersion !== LAP_METRICS_ALGO_VERSION || currentQualityGeneration == null || row.qualityGeneration !== currentQualityGeneration) return null;
   try {
     return {
       lapId: row.lapId,
@@ -55,7 +45,7 @@ function rowToMetrics(row: MetricsRow): LapMetrics | null {
   }
 }
 
-async function persist(metrics: LapMetrics): Promise<void> {
+async function persist(metrics: LapMetrics, qualityGeneration: string | null): Promise<void> {
   const insights = JSON.stringify(metrics.insights);
   const segmentStats = JSON.stringify(metrics.segmentStats);
   await db
@@ -65,6 +55,7 @@ async function persist(metrics: LapMetrics): Promise<void> {
       algoVersion: metrics.algoVersion,
       insights,
       segmentStats,
+      qualityGeneration,
       computedAt: metrics.computedAt,
     })
     .onConflictDoUpdate({
@@ -73,15 +64,29 @@ async function persist(metrics: LapMetrics): Promise<void> {
         algoVersion: metrics.algoVersion,
         insights,
         segmentStats,
+        qualityGeneration,
         computedAt: metrics.computedAt,
       },
     });
 }
 
 export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics | null> {
-  const existing = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
+  const existing = await db
+    .select({
+      lapId: lapMetrics.lapId,
+      algoVersion: lapMetrics.algoVersion,
+      insights: lapMetrics.insights,
+      segmentStats: lapMetrics.segmentStats,
+      computedAt: lapMetrics.computedAt,
+      qualityGeneration: lapMetrics.qualityGeneration,
+      currentQualityGeneration: laps.qualityGeneration,
+    })
+    .from(lapMetrics)
+    .innerJoin(laps, eq(lapMetrics.lapId, laps.id))
+    .where(eq(lapMetrics.lapId, lapId))
+    .get();
   if (existing) {
-    const hit = rowToMetrics(existing);
+    const hit = rowToMetrics(existing, existing.currentQualityGeneration);
     if (hit) return hit;
   }
 
@@ -89,8 +94,8 @@ export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics 
   if (!lap || lap.telemetry.length === 0 || !lap.gameId) return null;
 
   const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
-  const metrics = computeLapMetrics(lapId, lap.telemetry, lap.gameId as GameId, segments);
-  await persist(metrics);
+  const metrics = computeLapMetrics(lapId, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
+  await persist(metrics, lap.qualityGeneration ?? null);
   return metrics;
 }
 
@@ -99,21 +104,34 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   if (lapIds.length === 0) return output;
 
   const ids = [...new Set(lapIds)];
-  const rows = await db.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
+  const rows = await db
+    .select({
+      lapId: lapMetrics.lapId,
+      algoVersion: lapMetrics.algoVersion,
+      insights: lapMetrics.insights,
+      segmentStats: lapMetrics.segmentStats,
+      computedAt: lapMetrics.computedAt,
+      qualityGeneration: lapMetrics.qualityGeneration,
+      currentQualityGeneration: laps.qualityGeneration,
+    })
+    .from(lapMetrics)
+    .innerJoin(laps, eq(lapMetrics.lapId, laps.id))
+    .where(inArray(lapMetrics.lapId, ids))
+    .all();
   for (const row of rows) {
-    const hit = rowToMetrics(row);
+    const hit = rowToMetrics(row, row.currentQualityGeneration);
     if (hit) output.set(hit.lapId, hit);
   }
 
   const missing = ids.filter((id) => !output.has(id));
   if (missing.length === 0) return output;
 
-  const laps = await getLapsByIds(missing);
-  for (const lap of laps) {
+  const loadedLaps = await getLapsByIds(missing);
+  for (const lap of loadedLaps) {
     if (lap.telemetry.length === 0 || !lap.gameId) continue;
     const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
-    const metrics = computeLapMetrics(lap.id, lap.telemetry, lap.gameId as GameId, segments);
-    await persist(metrics);
+    const metrics = computeLapMetrics(lap.id, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
+    await persist(metrics, lap.qualityGeneration ?? null);
     output.set(lap.id, metrics);
   }
   return output;

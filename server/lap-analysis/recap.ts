@@ -1,16 +1,22 @@
 import type { GameId } from "../../shared/games/ids";
 import type { SessionRecap } from "../../shared/racing/sessions/types";
-import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
+import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
+import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
+import { isTimedLapEligibilityUsable, type QualitySnapshotEvidence } from "../../shared/racing/quality/policies";
 import { stddevPopulation, consistencyRating } from "./stats";
 
 /** Plain lap data needed to compute a recap. Null sectors are legacy laps. */
-export interface RecapLapInput {
+export interface RecapLapInput extends QualitySnapshotEvidence {
   id: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  phase: LapPhase;
+  conditions: LapCondition[];
+  paceEligibility: PaceEligibility;
   sectorTimes: number[] | null;
   invalidReason?: string | null;
+  eligibility?: EligibilityDecisionSet | null;
 }
 
 export interface RecapSessionInput {
@@ -44,8 +50,8 @@ export interface ComputeRecapInput {
   sectorStarts?: number[] | null;
 }
 
-function isValidLap(lap: RecapLapInput): boolean {
-  return lap.isValid === true && lap.lapTime > 0 && !isPitCycleLap(lap);
+function isEligiblePaceLap(lap: RecapLapInput): boolean {
+  return isTimedLapEligibilityUsable(lap);
 }
 
 /**
@@ -62,7 +68,7 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
   let firstValidLap: RecapLapInput | null = null;
   let timeOnTrackSec = 0;
   for (const lap of laps) {
-    if (!isValidLap(lap)) continue;
+    if (!isEligiblePaceLap(lap)) continue;
     validLaps.push(lap);
     validLapTimes.push(lap.lapTime);
     timeOnTrackSec += lap.lapTime;
@@ -75,27 +81,26 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
 
   const distanceM = trackLengthM !== null ? trackLengthM * lapsValid : null;
 
-  const sparkline = laps.filter((lap) => !isPitCycleLap(lap)).map((l) => ({
-    lapId: l.id,
-    lapNumber: l.lapNumber,
-    lapTimeSec: l.lapTime,
-    isValid: isValidLap(l),
+  const sparkline = laps.map((lap) => ({
+    lapId: lap.id,
+    lapNumber: lap.lapNumber,
+    lapTimeSec: lap.lapTime,
+    isValid: lap.isValid,
+    phase: lap.phase,
+    conditions: lap.conditions,
+    paceEligibility: lap.paceEligibility,
+    quality: lap.quality ?? null,
+    eligibility: lap.eligibility ?? null,
+    qualityGeneration: lap.qualityGeneration ?? null,
+    qualitySchemaVersion: lap.qualitySchemaVersion ?? null,
+    qualityPolicyVersion: lap.qualityPolicyVersion ?? null,
+    qualityConfigVersion: lap.qualityConfigVersion ?? null,
   }));
 
   let theoretical: SessionRecap["theoretical"] = null;
   let sectors: SessionRecap["sectors"] = null;
-  const sectorCount =
-    validLaps.find(
-      (lap) =>
-        lap.sectorTimes != null &&
-        lap.sectorTimes.length >= 2 &&
-        lap.sectorTimes.every((time) => time > 0),
-    )?.sectorTimes?.length ?? 0;
-  const completeSectorLaps = validLaps.filter(
-    (lap) =>
-      lap.sectorTimes?.length === sectorCount &&
-      lap.sectorTimes.every((time) => time > 0),
-  );
+  const sectorCount = validLaps.find((lap) => lap.sectorTimes != null && lap.sectorTimes.length >= 2 && lap.sectorTimes.every((time) => time > 0))?.sectorTimes?.length ?? 0;
+  const completeSectorLaps = validLaps.filter((lap) => lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0));
   if (completeSectorLaps.length > 0 && bestLapSec !== null) {
     const sessionBests = new Array<number>(sectorCount).fill(Infinity);
     for (const lap of completeSectorLaps) {
@@ -114,13 +119,8 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
     // could own the fastest overall time with gaps in its sector splits). In
     // that case fall back to the session bests for every sector, and never
     // report "lost" since we have no real per-sector time from the best lap.
-    const bestLapHasCompleteSectors =
-      bestLap !== null &&
-      bestLap.sectorTimes?.length === sectorCount &&
-      bestLap.sectorTimes.every((time) => time > 0);
-    const bestLapSectors = bestLapHasCompleteSectors
-      ? bestLap!.sectorTimes!
-      : sessionBests;
+    const bestLapHasCompleteSectors = bestLap !== null && bestLap.sectorTimes?.length === sectorCount && bestLap.sectorTimes.every((time) => time > 0);
+    const bestLapSectors = bestLapHasCompleteSectors ? bestLap!.sectorTimes! : sessionBests;
 
     const EPS = 1e-6;
     sectors = sessionBests.map((sessionBestSec, i) => {
@@ -181,10 +181,7 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
     timeOnTrackSec,
     distanceM,
     sparkline,
-    sectorStarts:
-      sectors !== null && input.sectorStarts?.length === sectorCount
-        ? [...input.sectorStarts]
-        : null,
+    sectorStarts: sectors !== null && input.sectorStarts?.length === sectorCount ? [...input.sectorStarts] : null,
     theoretical,
     improvementSec,
     consistency,

@@ -143,6 +143,10 @@ export class LapDetectorIRacing implements ILapDetector {
     await this.detector.finalizeCurrentSession();
   }
 
+  async waitForPendingLapWrites(): Promise<void> {
+    await this.detector.waitForPendingLapWrites();
+  }
+
   getDebugState(): Record<string, unknown> {
     return {
       ...this.detector.getDebugState(),

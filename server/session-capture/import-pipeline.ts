@@ -1,15 +1,19 @@
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
+import type { LapClassification } from "../../shared/racing/laps/classification";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { EligibilityDecisionSet, EvidenceSourceKind, LapQualitySummary, RecordingQualitySummary, SourceChannelProfile } from "../../shared/racing/quality/contracts";
+import type { PersistLapInput } from "../db/lap-mutation-queries";
 import { deleteSession } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 
 
-export interface ImportedLap {
+export interface ImportedLap extends LapClassification {
   lapId: number;
   sessionId: number;
   lapNumber: number;
@@ -17,24 +21,22 @@ export interface ImportedLap {
   isValid: boolean;
   carOrdinal: number;
   trackOrdinal: number;
+  quality: LapQualitySummary;
+  eligibility: EligibilityDecisionSet;
 }
 
 /**
- * Delegates to RealDbAdapter but captures the returned lap IDs + session
- * metadata so an import caller can tell the UI what got inserted and build
- * deep links into the analyse page.
+ * metadata so import callers can report inserted rows and build deep links.
  */
 export class ImportCaptureAdapter implements DbAdapter {
-  private readonly _inner: RealDbAdapter;
+  private readonly _inner: DbAdapter;
   readonly laps: ImportedLap[] = [];
   readonly sessionIds = new Set<number>();
   readonly rawFiles = new Set<string>();
   private readonly _pendingLapWrites = new Set<Promise<number>>();
   private _lapWriteFailure: unknown;
-  private readonly _sessionMeta = new Map<
-    number,
-    { carOrdinal: number; trackOrdinal: number }
-  >();
+  private readonly _lapIdentity = new Map<number, { lapNumber: number; rawByteOffset: number | null; rawFrameCount: number }>();
+  private readonly _sessionMeta = new Map<number, { carOrdinal: number; trackOrdinal: number }>();
 
   constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {}) {
     this._inner = new RealDbAdapter(options);
@@ -46,46 +48,35 @@ export class ImportCaptureAdapter implements DbAdapter {
     gameId: GameId,
     sessionType?: string,
     versionIdentity?: TelemetryVersionIdentity,
+    sourceKind?: EvidenceSourceKind,
+    sourceChannelProfile?: SourceChannelProfile,
     ownership?: SessionOwnership,
   ): Promise<number> {
-    const id = await this._inner.insertSession(
-      carOrdinal,
-      trackOrdinal,
-      gameId,
-      sessionType,
-      versionIdentity,
-      ownership,
-    );
+    const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, sourceKind, sourceChannelProfile, ownership);
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
     return id;
   }
 
-  insertLap(
-    sessionId: number,
-    lapNumber: number,
-    lapTime: number,
-    isValid: boolean,
-    rawByteOffset: number | null,
-    rawFrameCount: number,
-    profileId: number | null,
-    tuneId: number | null,
-    invalidReason: string | null,
-    sectors: number[] | null,
-    versionIdentity?: TelemetryVersionIdentity,
-  ): Promise<number> {
-    const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity
-    ).then((id) => {
-      const meta = this._sessionMeta.get(sessionId);
+  insertLap(input: PersistLapInput): Promise<number> {
+    const pending = this._inner.insertLap(input).then((id) => {
+      const meta = this._sessionMeta.get(input.sessionId);
       this.laps.push({
         lapId: id,
-        sessionId,
-        lapNumber,
-        lapTime,
-        isValid,
+        sessionId: input.sessionId,
+        lapNumber: input.lapNumber,
+        lapTime: input.lapTime,
+        isValid: input.isValid,
+        ...input.classification,
+        quality: input.quality!,
+        eligibility: input.eligibility!,
         carOrdinal: meta?.carOrdinal ?? 0,
         trackOrdinal: meta?.trackOrdinal ?? 0,
+      });
+      this._lapIdentity.set(id, {
+        lapNumber: input.lapNumber,
+        rawByteOffset: input.rawByteOffset,
+        rawFrameCount: input.rawFrameCount,
       });
       return id;
     });
@@ -98,6 +89,20 @@ export class ImportCaptureAdapter implements DbAdapter {
       },
     );
     return pending;
+  }
+
+  async updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
+    await this.waitForPendingLapWrites();
+    const finalized = await this._inner.updateSessionQuality(sessionId, quality);
+    for (const lap of this.laps) {
+      if (lap.sessionId !== sessionId) continue;
+      const identity = this._lapIdentity.get(lap.lapId);
+      if (!identity) continue;
+      const generated = finalizeLapQualityGeneration(lap.quality, finalized.provenance.sourceGeneration, identity);
+      lap.quality = generated.quality;
+      lap.eligibility = generated.eligibility;
+    }
+    return finalized;
   }
 
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
