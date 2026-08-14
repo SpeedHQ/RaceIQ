@@ -83,6 +83,8 @@ export interface VersionInfo {
 
 export interface ServerStatus {
   udpPps: number;
+  /** Telemetry packets/sec accepted by the common live pipeline. */
+  telemetryPps: number;
   isRaceOn: boolean;
   droppedPackets: number;
   udpPort: number;
@@ -220,7 +222,12 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
       // Most-recent-first, capped so a long practice session doesn't grow unbounded.
       lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20),
     })),
-  setTelemetrySchema: (telemetrySchema) => set({ telemetrySchema, telemetryFrame: null, telemetryView: null }),
+  setTelemetrySchema: (telemetrySchema) =>
+    set((prev) =>
+      prev.telemetrySchema?.schemaId === telemetrySchema.schemaId
+        ? { telemetrySchema }
+        : { telemetrySchema, telemetryFrame: null, telemetryView: null },
+    ),
   setTelemetryFrame: (telemetryFrame) =>
     set((prev) => ({ telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
   clearTelemetry: () => set({ telemetryFrame: null, telemetryView: null, telemetrySchema: null }),
