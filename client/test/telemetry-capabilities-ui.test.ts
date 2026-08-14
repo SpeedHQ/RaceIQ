@@ -18,6 +18,7 @@ import { SurfaceConditions } from "../src/components/telemetry/SurfaceConditions
 import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
 import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
+import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
 import { fakeAccPacket, fakeF1Packet, fakeForzaPacket, fakePit } from "../src/stories/fakeData";
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
@@ -217,6 +218,31 @@ describe("telemetry capability UI", () => {
 
     expect(markup).toContain("Fuel 40.0L");
     expect(markup).toContain("width:40%");
+  });
+
+  test("renders changing semantic iRacing fuel as a visible fill bar", () => {
+    const full = renderToStaticMarkup(
+      createElement(FuelGauge, {
+        view: {
+          simulator: "iracing",
+          fuel: { amount: 100, capacity: 100 },
+        } as LiveTelemetryView,
+      }),
+    );
+    const used = renderToStaticMarkup(
+      createElement(FuelGauge, {
+        view: {
+          simulator: "iracing",
+          fuel: { amount: 60, capacity: 100 },
+        } as LiveTelemetryView,
+      }),
+    );
+
+    expect(full).toContain("Fuel 100.0L");
+    expect(full).toContain("width:100%");
+    expect(used).toContain("Fuel 60.0L");
+    expect(used).toContain("width:60%");
+    expect(used).toContain("background-color:");
   });
 
   test("renders the ACC live dashboard fuel fill from fixture capacity", () => {
