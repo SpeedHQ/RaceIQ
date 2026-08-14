@@ -28,8 +28,11 @@ describe("semantic telemetry catalog artifacts", () => {
     if (!jsonArtifact) {
       throw new Error("Generated telemetry catalog JSON is missing");
     }
-    expect(readFileSync(jsonArtifact[0], "utf8")).toBe(jsonArtifact[1]);
-    expect(() => assertTelemetryCatalogComplete()).not.toThrow();
+    const actualJson = readFileSync(jsonArtifact[0], "utf8");
+    expect(actualJson).toBe(jsonArtifact[1]);
+    expect(() =>
+      assertTelemetryCatalogComplete(JSON.parse(actualJson)),
+    ).not.toThrow();
   });
   test("rejects unconstrained structured and enum value contracts", () => {
     const structured = getTelemetryVariable("race.competitor.position");
