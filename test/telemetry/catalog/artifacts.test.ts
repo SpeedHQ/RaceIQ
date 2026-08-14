@@ -1,6 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import {
-  buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   getSourcesWithoutSemanticDefinition,
   getTelemetrySources,
@@ -22,9 +22,13 @@ import {
 
 describe("semantic telemetry catalog artifacts", () => {
   test("generated artifact is current and structurally complete", async () => {
-    expect(JSON.stringify(await buildTelemetryCatalog())).toBe(
-      JSON.stringify(TELEMETRY_CATALOG),
+    const jsonArtifact = [...(await buildTelemetryCatalogArtifacts())].find(
+      ([path]) => path.endsWith("telemetry-catalog.generated.json"),
     );
+    if (!jsonArtifact) {
+      throw new Error("Generated telemetry catalog JSON is missing");
+    }
+    expect(readFileSync(jsonArtifact[0], "utf8")).toBe(jsonArtifact[1]);
     expect(() => assertTelemetryCatalogComplete()).not.toThrow();
   });
   test("rejects unconstrained structured and enum value contracts", () => {
