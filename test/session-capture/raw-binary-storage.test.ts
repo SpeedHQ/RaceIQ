@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
+import { QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
 import { sessionRoutes } from "../../server/routes/session-routes";
 
 initGameAdapters();
@@ -338,7 +339,14 @@ describe("countStaleSessions", () => {
   async function insertSession(rawFile: string | null, lapDetectorVersion: string | null): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion })
+      .values({
+        carOrdinal: 1,
+        trackOrdinal: 1,
+        gameId: "fm-2023",
+        rawFile,
+        lapDetectorVersion,
+        qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+      })
       .returning({ id: sessions.id })
       .get();
     const id = row!.id;
