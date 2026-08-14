@@ -1,7 +1,6 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
-import { memo, useMemo, useRef, useState } from "react";
-import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
+import { memo, useMemo, useState } from "react";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
@@ -16,9 +15,6 @@ export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { DataGuideModal } from "./DataGuideModal";
-import { MotecImportModal } from "./MotecImportModal";
-import { OwnershipChoice } from "../import/OwnershipChoice";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
   // Selection state
   selectedTrack: number | null;
@@ -38,6 +34,7 @@ interface Props {
   // UI state
   loading: boolean;
   aiPanelOpen: boolean;
+  exportingBin: boolean;
   // Callbacks
   onTrackChange: (v: number | null) => void;
   onCarChange: (v: number | null) => void;
@@ -47,11 +44,7 @@ interface Props {
   onShowSetup: () => void;
   onExport: () => void;
   onExportBin: () => void;
-  onImportBin: (file: File) => void;
-  exportingBin: boolean;
-  importingBin: boolean;
-  ownership: SessionOwnership;
-  onOwnershipChange: (value: SessionOwnership) => void;
+  onImportSession: () => void;
   onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
@@ -73,6 +66,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   tunePending,
   loading,
   aiPanelOpen,
+  exportingBin,
   onTrackChange,
   onCarChange,
   onLapChange,
@@ -81,20 +75,13 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   onShowSetup,
   onExport,
   onExportBin,
-  onImportBin,
-  exportingBin,
-  importingBin,
-  ownership,
-  onOwnershipChange,
+  onImportSession,
   onToggleAi,
   onDeleteLap,
   onNotesChange,
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
-  const [motecOpen, setMotecOpen] = useState(false);
-  const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
   const trackOptions = useMemo(() => tracks.map(([ordinal, count]) => ({ value: String(ordinal), label: `${trackNames[ordinal] || `Track ${ordinal}`} (${count})` })), [trackNames, tracks]);
   const carOptions = useMemo(() => carsForTrack.map(([ordinal, count]) => ({ value: String(ordinal), label: `${carNames[ordinal] || `Car ${ordinal}`} (${count})` })), [carNames, carsForTrack]);
   const lapOptions = useMemo(() => {
@@ -111,7 +98,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
       return { ...buildAnalyseLapOption(lap), group: sessionLabel };
     });
   }, [filteredLaps]);
-  const [pendingImport, setPendingImport] = useState<File | null>(null);
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
@@ -220,64 +206,39 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
               {m.analyse_guide_button()}
             </Button>
           )}
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".bin,.gz,.bin.gz,.ibt"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                if (file.name.toLowerCase().endsWith(".ibt")) onImportBin(file);
-                else setPendingImport(file);
+          {hasTelemetry && (
+            <DropdownMenu
+              trigger={
+                <Button variant="app-outline" size="app-md" disabled={exportingBin}>
+                  {exportingBin ? "Exporting..." : "Export"}
+                  <ChevronDown className="size-3.5" />
+                </Button>
               }
-              e.target.value = "";
-            }}
-          />
-          <DropdownMenu
-            trigger={
-              <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
-                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.analyse_export_import_button()}
-                <ChevronDown className="size-3.5" />
-              </Button>
-            }
-            items={[
-              ...(hasTelemetry
-                ? [
-                    {
-                      key: "export-csv",
-                      label: m.analyse_export_csv_button(),
-                      icon: <FileDown className="size-3.5" />,
-                      onClick: onExport,
-                    },
-                  ]
-                : []),
-              ...(selectedLapId != null && hasTelemetry
-                ? [
-                    {
-                      key: "export-bin",
-                      label: "Export .bin",
-                      icon: <Download className="size-3.5" />,
-                      onClick: onExportBin,
-                      disabled: exportingBin,
-                    },
-                  ]
-                : []),
-              {
-                key: "import-session",
-                label: "Import session (.bin or .ibt)",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => importInputRef.current?.click(),
-                disabled: importingBin,
-              },
-              {
-                key: "import-motec",
-                label: "Import MoTeC log",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => setMotecOpen(true),
-              },
-            ]}
-          />
+              items={[
+                {
+                  key: "export-csv",
+                  label: m.analyse_export_csv_button(),
+                  icon: <FileDown className="size-3.5" />,
+                  onClick: onExport,
+                },
+                ...(selectedLapId != null
+                  ? [
+                      {
+                        key: "export-bin",
+                        label: "Export .bin",
+                        icon: <Download className="size-3.5" />,
+                        onClick: onExportBin,
+                        disabled: exportingBin,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          )}
+          <Button variant="app-outline" size="app-md" onClick={onImportSession}>
+            <Upload className="size-3.5" />
+            {m.sessions_import()}
+          </Button>
           {hasTelemetry && (
             <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
               <Sparkles className="size-3.5" />
@@ -287,46 +248,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
         </div>
       </div>
-      {pendingImport && (
-        <Dialog open onOpenChange={(open) => !open && setPendingImport(null)}>
-          <DialogContent size="sm">
-            <DialogHeader>
-              <DialogTitle>Choose lap ownership</DialogTitle>
-            </DialogHeader>
-            <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
-            <DialogFooter>
-              <Button variant="app-ghost" size="app-sm" disabled={importingBin} onClick={() => setPendingImport(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="app-primary"
-                size="app-sm"
-                disabled={importingBin}
-                onClick={() => {
-                  const file = pendingImport;
-                  setPendingImport(null);
-                  onImportBin(file);
-                }}
-              >
-                Import
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
       {guideOpen && <DataGuideModal onClose={() => setGuideOpen(false)} />}
-      {motecOpen && (
-        <MotecImportModal
-          onClose={() => setMotecOpen(false)}
-          // The imported laps land under AC Evo, which may not be the game
-          // whose page we're on — invalidate broadly so they show up when the
-          // user navigates there rather than only after a reload.
-          onImported={() => {
-            queryClient.invalidateQueries({ queryKey: ["laps"] });
-            queryClient.invalidateQueries({ queryKey: ["sessions"] });
-          }}
-        />
-      )}
     </>
   );
 });

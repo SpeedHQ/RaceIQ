@@ -1,8 +1,9 @@
 import type { SessionOwnership } from "@shared/racing/sessions/types";
 import { useRef, useState } from "react";
 import { client } from "../../lib/rpc";
-import { IbtImportPreviewModal, type IbtImportPreview } from "../analyse/IbtImportPreviewModal";
-import { OwnershipChoice } from "../import/OwnershipChoice";
+import { IbtImportPreviewModal, type IbtImportPreview } from "./IbtImportPreviewModal";
+import { MotecImportModal, type MotecImportSuccess } from "./MotecImportModal";
+import { OwnershipChoice } from "./OwnershipChoice";
 import { importLapsZip } from "../../lib/lap-export";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -10,12 +11,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 type DetectedFormat = "zip" | "bin" | "ibt" | "motec" | "unknown";
 type DetectionResult = { format: DetectedFormat; supported: boolean; gameIds: string[]; captureCount: number; message: string | null };
 
-type ImportResult = {
+export interface SessionImportedLap {
+  lapId: number;
+  sessionId?: number;
+  lapNumber: number;
+  lapTime: number;
+  carOrdinal: number;
+  trackOrdinal: number;
+}
+
+export interface SessionImportResult {
   imported: number;
   skipped?: number;
   gameId?: string;
+  routePrefix?: string;
   packetCount?: number;
-};
+  laps?: SessionImportedLap[];
+}
 
 type IbtPreviewState = {
   token: string | null;
@@ -38,7 +50,7 @@ function formatLabel(format: DetectedFormat): string {
   }
 }
 
-export function SessionImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (result: ImportResult) => void }) {
+export function SessionImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (result: SessionImportResult) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [detected, setDetected] = useState<DetectionResult | null>(null);
@@ -46,8 +58,10 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<SessionImportResult | null>(null);
   const [ibtPreview, setIbtPreview] = useState<IbtPreviewState | null>(null);
+  const [motecFile, setMotecFile] = useState<File | null>(null);
+  const [motecImported, setMotecImported] = useState(false);
 
   async function chooseFile(nextFile: File | null) {
     setFile(nextFile);
@@ -75,10 +89,14 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   }
 
   async function importFile() {
-    if (!file || !detected?.supported || !["zip", "bin", "ibt"].includes(detected.format)) return;
+    if (!file || !detected?.supported || !["zip", "bin", "ibt", "motec"].includes(detected.format)) return;
     setBusy(true);
     setError(null);
     try {
+      if (detected.format === "motec") {
+        setMotecFile(file);
+        return;
+      }
       if (detected.format === "ibt") {
         const response = await fetch("/api/laps/import-ibt/preview", {
           method: "POST",
@@ -96,7 +114,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
         return;
       }
 
-      let imported: ImportResult;
+      let imported: SessionImportResult;
       if (detected.format === "zip") {
         const response = await importLapsZip(file, ownership);
         imported = { imported: response.imported, skipped: response.skipped };
@@ -105,7 +123,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
         body.append("file", file);
         body.append("ownership", ownership);
         const response = await fetch("/api/laps/import", { method: "POST", body });
-        const data = (await response.json().catch(() => null)) as ImportResult & { error?: string };
+        const data = (await response.json().catch(() => null)) as SessionImportResult & { error?: string };
         if (!response.ok) throw new Error(data?.error ?? `Import failed (${response.status})`);
         imported = data;
       }
@@ -131,13 +149,10 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
     setError(null);
     try {
       const response = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token, ownership } });
-      const data = (await response.json().catch(() => null)) as (ImportResult & { error?: string }) | null;
+      const data = (await response.json().catch(() => null)) as (SessionImportResult & { error?: string }) | null;
       if (!response.ok) throw new Error(data?.error ?? `IBT import failed (${response.status})`);
-      const imported: ImportResult = {
-        imported: data?.imported ?? 0,
-        gameId: data?.gameId,
-        packetCount: data?.packetCount,
-      };
+      if (!data) throw new Error("IBT import response was invalid");
+      const imported: SessionImportResult = data;
       setIbtPreview(null);
       setResult(imported);
       onImported?.(imported);
@@ -150,7 +165,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
     }
   }
 
-  const canImport = !!file && !!detected?.supported && ["zip", "bin", "ibt"].includes(detected.format) && !busy;
+  const canImport = !!file && !!detected?.supported && ["zip", "bin", "ibt", "motec"].includes(detected.format) && !busy;
 
   if (ibtPreview) {
     return (
@@ -162,6 +177,23 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
         onOwnershipChange={setOwnership}
         onImport={() => void commitIbt()}
         onClose={cancelIbtPreview}
+      />
+    );
+  }
+
+  if (motecFile) {
+    return (
+      <MotecImportModal
+        initialFile={motecFile}
+        initialOwnership={ownership}
+        onImported={(imported: MotecImportSuccess) => {
+          setMotecImported(true);
+          onImported?.(imported);
+        }}
+        onClose={() => {
+          if (motecImported) onClose();
+          else setMotecFile(null);
+        }}
       />
     );
   }
@@ -207,7 +239,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
                       {detected.supported && detected.format === "bin" && <p className="mt-1">Game detected from telemetry content.</p>}
                       {detected.supported && detected.format === "zip" && <p className="mt-1">{detected.captureCount} RaceIQ capture{detected.captureCount === 1 ? "" : "s"} found.</p>}
                       {detected.format === "ibt" && <p className="mt-1">Review detected laps before importing.</p>}
-                      {detected.format === "motec" && <p className="mt-1">MoTeC imports require game, car, and track setup from Analyse.</p>}
+                      {detected.format === "motec" && <p className="mt-1">Continue to choose game, car, track, and optional setup.</p>}
                     </>
                   ) : null}
                 </div>
@@ -215,7 +247,9 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
               {error && <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
               <div className="flex justify-end gap-2">
                 <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>Cancel</Button>
-                <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>{busy ? "Importing…" : detected?.format === "ibt" ? "Preview" : "Import"}</Button>
+                <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>
+                  {busy ? "Importing…" : detected?.format === "ibt" ? "Preview" : detected?.format === "motec" ? "Continue" : "Import"}
+                </Button>
               </div>
             </>
           )}

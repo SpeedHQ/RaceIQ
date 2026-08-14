@@ -90,6 +90,32 @@ test("Sessions previews and imports iRacing IBT recordings", async ({ page, requ
   }
 });
 
+test("Analyse opens the shared session importer", async ({ page }) => {
+  await page.goto("/iracing/analyse", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Import session data", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("group", { name: "Who does this recording belong to?" })).toBeVisible();
+  await expect(dialog.locator('input[type="file"]')).toHaveAttribute("accept", ".zip,.bin,.bin.gz,.ibt,.ld");
+});
+
+test("shared importer continues MoTeC files into setup", async ({ page }) => {
+  await page.goto("/iracing/sessions", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  const importDialog = page.getByRole("dialog");
+  await importDialog.locator('input[type="file"]').setInputFiles({
+    name: "session.ld",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("MoTeC fixture placeholder"),
+  });
+  await expect(importDialog.getByText("MoTeC log (.ld)", { exact: true })).toBeVisible();
+  await importDialog.getByRole("button", { name: "Continue", exact: true }).click();
+  const setupDialog = page.getByRole("dialog");
+  await expect(setupDialog.getByRole("heading", { name: "Import session data", exact: true })).toBeVisible();
+  await expect(setupDialog.getByText("MoTeC log setup", { exact: true })).toBeVisible();
+  await expect(setupDialog.getByText("session.ld", { exact: true })).toBeVisible();
+});
+
 const MOTEC_FIXTURES = ["test/fixtures/motec.ld", "test/fixtures/motec.ldx", "test-data-seeded/motec/example.ld"] as const;
 const motecLd = MOTEC_FIXTURES.find((path) => path.endsWith(".ld") && existsSync(path));
 const motecLdx = MOTEC_FIXTURES.find((path) => path.endsWith(".ldx") && existsSync(path));

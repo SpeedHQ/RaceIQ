@@ -25,7 +25,7 @@
 - Highlight only one fastest lap per sector in session and live lap tables
 - Exclude pit-entry and pit-exit laps from pace, sector, consistency, improvement, and theoretical-best metrics
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
-- Preview, confirm ownership, and import iRacing IBT recordings directly from Sessions
+- Use one import workflow from Sessions and Analyse for RaceIQ captures, iRacing IBT recordings, ZIP archives, and MoTeC logs
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps

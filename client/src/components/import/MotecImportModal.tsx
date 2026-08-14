@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
-import { OwnershipChoice } from "../import/OwnershipChoice";
+import { OwnershipChoice } from "./OwnershipChoice";
 import type { GameId } from "../../../../shared/games/ids";
 import { useCarsFromEndpoint, useMotecTargets, useTracksForGame } from "../../hooks/catalog-queries";
 import { useUserTunes } from "../../hooks/tunes";
@@ -22,6 +22,13 @@ export interface MotecImportSuccess {
   laps: MotecImportedLap[];
   meta: { driver: string; venue: string; vehicleId: string; [k: string]: unknown };
   limitations: readonly string[];
+}
+
+interface MotecImportModalProps {
+  onClose: () => void;
+  onImported?: (result: MotecImportSuccess) => void;
+  initialFile?: File;
+  initialOwnership?: SessionOwnership;
 }
 
 function fmtLapTime(ms: number | null | undefined): string {
@@ -52,10 +59,10 @@ function fmtLapTime(ms: number | null | undefined): string {
  * there is only one the picker stays hidden and the dialog states the
  * assumption instead.
  */
-export function MotecImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (r: MotecImportSuccess) => void }) {
+export function MotecImportModal({ onClose, onImported, initialFile, initialOwnership = "mine" }: MotecImportModalProps) {
   const ldRef = useRef<HTMLInputElement>(null);
   const ldxRef = useRef<HTMLInputElement>(null);
-  const [ld, setLd] = useState<File | null>(null);
+  const [ld, setLd] = useState<File | null>(initialFile ?? null);
   const [ldx, setLdx] = useState<File | null>(null);
   const [gameId, setGameId] = useState<GameId | "">("");
   const [carOrdinal, setCarOrdinal] = useState("");
@@ -63,7 +70,7 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
   const [tuneId, setTuneId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ownership, setOwnership] = useState<SessionOwnership>("mine");
+  const [ownership, setOwnership] = useState<SessionOwnership>(initialOwnership);
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
 
   const { data: targets = [] } = useMotecTargets();
@@ -124,7 +131,8 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
         <DialogHeader>
-          <DialogTitle variant="import">Import MoTeC log</DialogTitle>
+          <DialogTitle variant="import">Import session data</DialogTitle>
+          <p className="mt-1 text-xs text-app-text-muted">MoTeC log setup</p>
         </DialogHeader>
 
         {result ? (

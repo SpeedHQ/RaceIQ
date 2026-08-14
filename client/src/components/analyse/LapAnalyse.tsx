@@ -11,12 +11,12 @@ import type { AnalyseSearch } from "../../lib/game-routes";
 import { client } from "../../lib/rpc";
 import { useRequiredGameId } from "../../stores/game";
 import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
+import { SessionImportModal, type SessionImportResult } from "../import/SessionImportModal";
 import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
 import { type Point, semanticNumber, type TrackMapHandle } from "./track-map/types";
-import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 
 // ── Main Component ───────────────────────────────────────────────────
@@ -93,6 +93,7 @@ function LapAnalyseInner() {
   const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const lapLine = useMemo(() => {
     if (telemetry.length < 2) return null;
     const pts: Point[] = [];
@@ -305,13 +306,19 @@ function LapAnalyseInner() {
     [setTrackOverlay],
   );
 
-  const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
-    queryClient,
-    gameId,
-    setSelectedTrack,
-    setSelectedCar,
-    setSelectedLapId,
-  });
+  const handleSessionImported = useCallback(
+    (result: SessionImportResult) => {
+      void queryClient.invalidateQueries({ queryKey: ["laps"] });
+      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["tracks"] });
+      const lastLap = result.laps?.[result.laps.length - 1];
+      if (!lastLap || result.gameId !== gameId) return;
+      setSelectedTrack(lastLap.trackOrdinal);
+      setSelectedCar(lastLap.carOrdinal);
+      setSelectedLapId(lastLap.lapId);
+    },
+    [gameId, queryClient, setSelectedCar, setSelectedLapId, setSelectedTrack],
+  );
 
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
@@ -340,15 +347,14 @@ function LapAnalyseInner() {
         onTuneChange={handleTuneChange}
         onViewTune={setViewingTuneId}
         onShowSetup={noop}
-        onImportBin={handleImportBin}
-        exportingBin={exportingBin}
-        importingBin={importingBin}
-        ownership={ownership}
-        onOwnershipChange={setOwnership}
+        onImportSession={() => setImportOpen(true)}
+        exportingBin={false}
         onToggleAi={handleToggleAi}
         onDeleteLap={handleDeleteLap}
         onNotesChange={handleNotesChange}
       />
+      {importOpen && <SessionImportModal onClose={() => setImportOpen(false)} onImported={handleSessionImported} />}
+
 
       {telemetry.length === 0 && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
 
@@ -448,20 +454,8 @@ function LapAnalyseInner() {
       <AnalyseWorkspaceModals
         viewingTuneId={viewingTuneId}
         onCloseTune={() => setViewingTuneId(null)}
-        ibtPreview={ibtPreview}
         setup={null}
-        onCloseSetup={() => undefined}
-        importingBin={importingBin}
-        ownership={ownership}
-        onOwnershipChange={setOwnership}
-        onCommitIbt={() => void handleCommitIbt()}
-        onCancelIbt={handleCancelIbt}
-        importResult={importResult}
-        gameId={gameId}
-        setSelectedTrack={setSelectedTrack}
-        setSelectedCar={setSelectedCar}
-        setSelectedLapId={setSelectedLapId}
-        onCloseImport={() => setImportResult(null)}
+        onCloseSetup={noop}
       />
     </div>
   );
