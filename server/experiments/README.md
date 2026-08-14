@@ -14,7 +14,7 @@ Own tuning-experiment state, setup lineage, reversible actions, lap evidence, an
 
 ## Boundaries and invariants
 
-- Lap eligibility, outlier handling, reference-lap choice, sample ordering, minimum frame count, and frame-budget drops are explicit parts of comparison evidence. Never trim or reorder them silently.
+- Shared `normal-pace`, `corner-trace`, and group `setup-analysis` decisions determine policy eligibility before `selectEvaluationLaps` applies review ordering and caps. Policy rejection, manual exclusion, outlier handling, and fastest-lap caps remain separate and must never be silently reordered.
 - Frame metrics hold one reference lap and one candidate lap at a time. Both comparison arms use the same fence policy and are streamed sequentially.
 - Significance describes distinguishability from noise, not a tuning verdict. Persisted verdicts remain human decisions.
 - Setup lineage walks through drill nodes to the nearest setup-bearing ancestor and guards cycles. F1 setup state is JSON snapshot data; ACC and AC EVO normally use guarded setup files.

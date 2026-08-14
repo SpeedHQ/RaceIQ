@@ -1,3 +1,4 @@
+import { lapClassificationLabel, type ClassifiedLap } from "../../shared/racing/laps/classification";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { tryGetGame } from "../../shared/games/registry";
 
@@ -20,7 +21,7 @@ function convertTemp(value: number, unit: "F" | "C", source: "F" | "C" = "F"): n
  * Generate a Claude-formatted lap export summary.
  */
 export function generateExport(
-  lap: {
+  lap: ClassifiedLap & {
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -138,7 +139,7 @@ export function generateExport(
 
   let output = `=== RaceIQ Lap Export ===
 Car: #${first.CarOrdinal} | Class: ${className} (PI ${first.CarPerformanceIndex}) | Drivetrain: ${drivetrainName}
-Track: #${lap.trackOrdinal ?? 0} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"}
+Track: #${lap.trackOrdinal ?? 0} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"} | Classification: ${lapClassificationLabel(lap)}
 
 --- Performance Summary ---
 Speed (${speedLabel}):    min=${minSpeed.toFixed(1)}  avg=${avgSpeed.toFixed(1)}  max=${maxSpeed.toFixed(1)}

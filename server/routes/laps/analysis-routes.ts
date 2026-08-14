@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
+import type { EligibilityDecision } from "@shared/racing/quality/contracts";
 import { deleteAnalysis } from "../../db/analysis-queries";
 import { generateLapAnalysis } from "../../ai/generate-lap-analysis";
 import { toClientAiError } from "../../ai/provider-error";
@@ -11,6 +12,9 @@ import {
   getAnalysisRun,
 } from "../../ai/analysis-run-registry";
 import { AnalyseQuerySchema } from "./support";
+
+const analysisErrorStatus = (error: string, decision: EligibilityDecision | undefined): 400 | 404 | 422 =>
+  error === "Lap not found" ? 404 : decision?.status === "ineligible" || decision?.status === "unknown" ? 422 : 400;
 
 const analysisRunKey = (lapId: number) => `lap-analysis:${lapId}`;
 
@@ -39,8 +43,8 @@ export const analysisRoutes = new Hono()
       if (!regenerate || cacheOnly) {
         const cached = await generateLapAnalysis(id, { cacheOnly: true });
         if (cached.error) {
-          const status: 404 | 400 = cached.error === "Lap not found" ? 404 : 400;
-          return c.json({ error: cached.error }, status);
+          const status = analysisErrorStatus(cached.error, cached.decision);
+          return c.json({ error: cached.error, decision: cached.decision }, status);
         }
         if (cacheOnly || cached.cached) return c.json(cached);
       }
@@ -54,8 +58,8 @@ export const analysisRoutes = new Hono()
         preflight: true,
       });
       if (preflight.error) {
-        const status: 404 | 400 = preflight.error === "Lap not found" ? 404 : 400;
-        return c.json({ error: preflight.error }, status);
+        const status = analysisErrorStatus(preflight.error, preflight.decision);
+        return c.json({ error: preflight.error, decision: preflight.decision }, status);
       }
 
       const key = analysisRunKey(id);

@@ -30,6 +30,12 @@
 - Validate RaceIQ canonical recording and every archive manifest/member separately from imported-source provenance so valid source cannot hide corrupt local evidence
 - Reject RaceIQ archives that omit session captures declared by their v2 manifest
 - Preserve native-live provenance when migrating legacy sessions while retaining explicit imported-source labels
+- Mark analysis unsuitable when imported recording omits required controls or continuous tire channel contains only isolated samples instead of treating filled zeroes as real telemetry
+- Keep valid timed laps in lap-time experiment metrics when unrelated steering or input trace channels are unavailable
+- Reject stale eligibility snapshots in policy consumers, AI cache reads, and raw-recording cleanup decisions
+- Keep every recorded experiment lap available for inspection in Tune Review while limiting aggregate setup evaluation to its curated evidence pool
+- Preserve telemetry warning reasons in setup-analysis decisions and Setup Engineer lap summaries
+- Clear displayed comparison analysis and conversations when either lap quality generation changes
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup

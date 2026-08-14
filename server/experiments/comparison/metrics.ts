@@ -54,6 +54,7 @@
  */
 
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { EligibilityPolicyId } from "../../../shared/racing/quality/contracts";
 import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
 import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "../../lap-analysis/consistency";
@@ -76,6 +77,9 @@ export type OutcomeMetricId = (typeof OUTCOME_METRIC_IDS)[number];
 
 /** Input channel an `inputVariance*` metric measures. */
 type InputChannel = "brake" | "throttle";
+const TIMING_ELIGIBILITY_POLICY_IDS = ["normal-pace"] as const satisfies readonly EligibilityPolicyId[];
+const TRACE_ELIGIBILITY_POLICY_IDS = ["normal-pace", "corner-trace"] as const satisfies readonly EligibilityPolicyId[];
+
 
 /**
  * How an arm's raw lap pool is reduced to the laps a metric is computed over.
@@ -95,6 +99,8 @@ type InputChannel = "brake" | "throttle";
  *   distribution.
  */
 export interface CurationSpec {
+  /** Per-lap evidence policies this metric needs; unrelated channels cannot shrink its sample. */
+  requiredPolicyIds: readonly EligibilityPolicyId[];
   mode: "fastest-n" | "all-valid";
   /** Only meaningful for `fastest-n`. */
   n?: number;
@@ -198,7 +204,10 @@ export function curateLaps<T extends EvaluableLap>(
   opts?: { fence?: number | null },
 ): CuratedPool<T> {
   const cap = curation.mode === "fastest-n" ? (curation.n ?? REVIEW_LAP_CAP) : Number.POSITIVE_INFINITY;
-  const selection = selectEvaluationLaps(laps, cap);
+  const selection = selectEvaluationLaps(laps, cap, {
+    requireSetupEligibility: false,
+    requiredPolicyIds: curation.requiredPolicyIds,
+  });
 
   const reasonById = new Map<number, CurationReason>(selection.reasonById);
   let kept = selection.chosen;
@@ -449,7 +458,7 @@ const lapTimeSec: MetadataOutcomeMetric = {
   label: "Lap time",
   unit: "s",
   direction: "lower-better",
-  curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+  curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TIMING_ELIGIBILITY_POLICY_IDS },
   sampling: "metadata",
   extract: (input) => input.laps.map((e) => ({ lapId: e.lap.id, value: e.lap.lapTime })),
 };
@@ -476,7 +485,7 @@ const consistencySpreadSec: MetadataOutcomeMetric = {
   label: "Lap-time deviation",
   unit: "s",
   direction: "lower-better",
-  curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+  curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TIMING_ELIGIBILITY_POLICY_IDS },
   sampling: "metadata",
   extract: (input) => {
     const times = input.laps.map((e) => e.lap.lapTime).sort((a, b) => a - b);
@@ -492,7 +501,7 @@ function inputVarianceMetric(channel: InputChannel): PairwiseFramesOutcomeMetric
     label: channel === "brake" ? "Brake input variance" : "Throttle input variance",
     unit: "",
     direction: "lower-better",
-    curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+    curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TRACE_ELIGIBILITY_POLICY_IDS },
     sampling: "pairwise-frames",
     reduce: (input) => {
       const d = pairwiseDelta(input);
@@ -512,7 +521,7 @@ const lineSpreadScore: PairwiseFramesOutcomeMetric = {
   label: "Line consistency",
   unit: "/100",
   direction: "higher-better",
-  curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+  curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TRACE_ELIGIBILITY_POLICY_IDS },
   sampling: "pairwise-frames",
   reduce: (input) => {
     const spread = pairwiseDelta(input).overall.lateralSpreadM;

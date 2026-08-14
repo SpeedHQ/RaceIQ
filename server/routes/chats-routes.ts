@@ -10,6 +10,7 @@ import {
   getChatMemory,
   CHAT_RESOURCE_ID,
   parseThreadGeneration,
+  parseCompareChatThreadId,
   listThreadGenerations,
   truncateChatAfterUserMessage,
   deleteChatLineage,
@@ -97,11 +98,9 @@ export function createChatsRoutes(
               updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : String(t.updatedAt),
             });
           } else if (id.startsWith("compare-")) {
-            const parts = id.slice(8).split("-");
-            if (parts.length !== 2) continue;
-            const a = Number(parts[0]);
-            const b = Number(parts[1]);
-            if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+            const pair = parseCompareChatThreadId(id);
+            if (!pair) continue;
+            const [a, b] = pair;
             const [lapA, lapB] = await Promise.all([loadLapSummary(a), loadLapSummary(b)]);
             if (!lapA || !lapB) continue;
             if (lapA.gameId !== gameId || lapB.gameId !== gameId) continue;

@@ -120,7 +120,7 @@ describe("buildTuneChatSystemPrompt", () => {
       symptoms: null,
       currentSetupSummary: null,
     });
-    expect(prompt).toContain("no analysable lap yet");
+    expect(prompt).toContain("no policy-suitable analysable evidence yet");
     expect(prompt).toContain("no setup file available");
     expect(prompt).toContain("(no setup versions yet)");
   });

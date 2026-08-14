@@ -4,8 +4,8 @@
  * A setup-scoped conversation the driver has *before* asking for the next tune:
  * the AI is a race engineer discussing THIS car+track setup. It reasons over
  *   - the current setup values (summarised, not a raw JSON dump),
- *   - the deterministic symptom report (telemetryToSymptoms) for the stint's
- *     representative lap, and
+ *   - the deterministic symptom report (telemetryToSymptoms) for the
+ *     policy-selected setup evidence, and
  *   - the applied-change history across the session's setup versions.
  *
  * Hard rule (parity §4d): the deterministic engine owns the maths. The chat
@@ -46,8 +46,8 @@ interface TuneChatPromptInput {
   session: TuneChatSession;
   /** Setup versions under evaluation, oldest-first (v1 base → latest). */
   tests: TuneChatTest[];
-  /** Deterministic symptom report over the representative lap; null when the
-   *  session has no analysable lap yet (legacy/empty telemetry). */
+  /** Deterministic symptom report over policy-selected setup evidence; null
+   *  when the session has no suitable analysable telemetry. */
   symptoms: TuneSymptoms | null;
   /** Human-readable summary of the active setup's values; null when no setup
    *  file could be read. */
@@ -107,11 +107,7 @@ export function formatSymptoms(symptoms: TuneSymptoms): string {
     .map((c) => {
       const phases = c.phases
         .map((p) => {
-          const flags = [
-            p.balance !== "neutral" ? p.balance : null,
-            p.brakeLockup ? "brake lockup" : null,
-            p.bottoming ? "bottoming" : null,
-          ].filter(Boolean);
+          const flags = [p.balance !== "neutral" ? p.balance : null, p.brakeLockup ? "brake lockup" : null, p.bottoming ? "bottoming" : null].filter(Boolean);
           return `${p.phase}: ${flags.length ? flags.join("/") : "neutral"}`;
         })
         .join("; ");
@@ -173,8 +169,8 @@ export function buildTuneChatSystemPrompt(input: TuneChatPromptInput): string {
     : "--- CURRENT SETUP VALUES ---\n(no setup file available for the active version)";
 
   const symptomBlock = symptoms
-    ? `--- SYMPTOM REPORT (deterministic, from the stint's representative lap) ---\n${formatSymptoms(symptoms)}`
-    : "--- SYMPTOM REPORT ---\n(no analysable lap yet — discuss the setup from the driver's feel and the current values above)";
+    ? `--- SYMPTOM REPORT (deterministic, from policy-selected setup evidence) ---\n${formatSymptoms(symptoms)}`
+    : "--- SYMPTOM REPORT ---\n(no policy-suitable analysable evidence yet — discuss the setup from the driver's feel and the current values above)";
 
   return `You are a sharp, decisive GT3 / endurance race engineer working the setup for ${car}${track} in ${gameId.toUpperCase()} (session "${session.name}"). The driver talks to you between runs about how the car feels and what to change.
 
