@@ -50,7 +50,7 @@ function AppShell() {
   }, [settingsLoaded, settingsLanguage]);
 
   const connected = useTelemetryStore((s) => s.connected);
-  const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
+  const packetsPerSec = useTelemetryStore((s) => s.serverStatus?.telemetryPps ?? 0);
   const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const updateState = useUpdateCheck();
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
