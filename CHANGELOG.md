@@ -17,6 +17,11 @@
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
 - Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Detect F1 race-start laps even when the first telemetry sample is stationary, keeping standing-start Lap 1 out of normal pace comparisons
+- Measure telemetry coverage and cadence from each native source packet family so cached values cannot hide missed channel updates
+- Count isolated missing telemetry samples inside requested track ranges so strict analyses reject unreliable evidence without excluding unaffected ranges
+- Carry imported channel fidelity into eligibility reasons and confidence so strict analyses reject held, resampled, reconstructed, or assumed evidence
+- Measure lap coverage from native progress or track length without penalizing later laps whose distance counter is cumulative
+- Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup

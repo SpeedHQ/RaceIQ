@@ -6,6 +6,7 @@ import { sessions, laps, sessionResults, pitEvents } from "./schema";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { EvidenceSourceKind } from "../../shared/racing/quality/contracts";
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
@@ -266,7 +267,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       pitCount: resultRow?.pitCount ?? null,
       pitDurationSeconds: pitDurationRow?.duration ?? null,
       notes: session.notes ?? undefined,
-      source: session.source ?? undefined,
+      source: (session.source as EvidenceSourceKind | null) ?? "unknown",
       gameId: session.gameId as GameId,
       catalogVersion: session.catalogVersion ?? undefined,
       catalogHash: session.catalogHash ?? undefined,

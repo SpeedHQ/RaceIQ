@@ -10,6 +10,7 @@ Shared racing contracts, policies, catalogs, and reusable analysis.
 - `experiments/` — test-change shapes, focus policy, and stint targets.
 - `laps/` — lap review policy, stint statistics, and trace wire codec.
 - `live/` — live sector, pit, and server status DTOs.
+- `quality/` — source-aware recording quality, versioned analysis-eligibility policies, reason display, and evidence-retention contracts.
 - `results/` — race result, provenance, and authority contracts.
 - `sessions/` — persisted lap/session metadata and recap DTOs.
 - `setups/` — setup schemas, file formats, and catalog authoring data.

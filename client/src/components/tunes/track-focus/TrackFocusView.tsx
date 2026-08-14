@@ -106,7 +106,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // the full stintLaps here made the header disagree with everything under it
   // (out-laps and scrappy laps dragged the averages/degradation around while
   // the line + consistency views only ever showed the chosen laps).
-  const stats = useMemo(() => stintStats(reviewLaps, { dropOutLap: false }), [reviewLaps]);
+  const stats = useMemo(() => stintStats(reviewLaps), [reviewLaps]);
 
   return (
     <TrackFocusViewInner

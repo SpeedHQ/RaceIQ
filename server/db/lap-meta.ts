@@ -1,6 +1,7 @@
 import type { GameId } from "../../shared/games/ids";
 import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { EvidenceSourceKind } from "../../shared/racing/quality/contracts";
 
 type StoredLapMetaRow = {
   id: number;
@@ -100,7 +101,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tuneName: tuneName ?? undefined,
     gameId: gameId as GameId,
     sectorTimes: sectorTimes ?? undefined,
-    source: (source as "motec" | null) ?? null,
+    source: (source as EvidenceSourceKind | null) ?? "unknown",
     ownership: ownership === "others" ? "others" : "mine",
     experimentId: experimentId ?? null,
     experimentVersionId: experimentVersionId ?? null,

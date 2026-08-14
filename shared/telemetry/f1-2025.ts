@@ -24,6 +24,10 @@ export interface F1GridEntry {
 }
 
 export interface F1ExtendedData {
+  /** Native cross-family frame identity from the F1 packet header. */
+  overallFrameIdentifier?: number;
+  /** Native F1 packet family identifier. */
+  packetId?: number;
   drsAllowed: boolean;
   drsActivated: boolean;
   drsZoneApproaching: boolean;
