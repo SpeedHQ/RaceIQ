@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, sessionRows, type DisposableImport } from "./helpers";
+import { createRecording, drivenRows } from "../../../../test/support/games/iracing-ibt";
 
 test("session lap context action rechecks disposable imported lap", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
@@ -32,6 +33,60 @@ test("session lap context action rechecks disposable imported lap", async ({ pag
     expect(browserErrors.errors).toEqual([]);
   } finally {
     await cleanDisposable(request, disposable);
+  }
+});
+
+test("Sessions previews and imports iRacing IBT recordings", async ({ page, request }) => {
+  const browserErrors = collectBrowserErrors(page);
+  const recording = createRecording("sessions-import.ibt", drivenRows(), {
+    trackId: 18,
+    trackName: "Road America",
+    carId: 1,
+    carName: "Skip Barber Formula 2000",
+  });
+  const lapsBefore = new Set((await lapsFor(request, "iracing")).map((lap) => lap.id));
+  let disposable: DisposableImport | undefined;
+  try {
+    await page.goto("/iracing/sessions", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Import", exact: true }).click();
+    const importDialog = page.getByRole("dialog");
+    await importDialog.locator('input[type="file"][accept*=".ibt"]').setInputFiles(recording.path);
+    await expect(importDialog.getByText("Detected:")).toBeVisible();
+    await expect(importDialog.getByText("iRacing telemetry (.ibt)", { exact: true })).toBeVisible();
+    await importDialog.getByRole("button", { name: "Preview", exact: true }).click();
+
+    const previewDialog = page.getByRole("dialog");
+    await expect(previewDialog.getByText("iRacing IBT import preview", { exact: true })).toBeVisible();
+    await expect(previewDialog.getByText("Road America", { exact: true })).toBeVisible();
+    await expect(previewDialog.getByText("Skip Barber Formula 2000", { exact: false })).toBeVisible();
+    const commitResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/laps/import-ibt/commit"));
+    await previewDialog.getByRole("button", { name: "Import 1 lap", exact: true }).click();
+    expect((await commitResponse).ok()).toBe(true);
+
+    await expect(page.getByText("Imported 1 lap.", { exact: true })).toBeVisible();
+    const importedLaps = (await lapsFor(request, "iracing")).filter((lap) => !lapsBefore.has(lap.id) && lap.trackOrdinal === 18 && lap.carOrdinal === 1);
+    disposable = {
+      lapIds: importedLaps.map((lap) => lap.id),
+      sessionIds: [...new Set(importedLaps.map((lap) => lap.sessionId))],
+      note: "",
+    };
+    expect(disposable.lapIds).toHaveLength(1);
+    expect(disposable.sessionIds).toHaveLength(1);
+    expect(browserErrors.errors).toEqual([]);
+  } finally {
+    await page.getByRole("button", { name: "Cancel", exact: true }).click({ timeout: 1_000 }).catch(() => undefined);
+    if (!disposable) {
+      const importedLaps = (await lapsFor(request, "iracing")).filter((lap) => !lapsBefore.has(lap.id) && lap.trackOrdinal === 18 && lap.carOrdinal === 1);
+      disposable = importedLaps.length > 0
+        ? {
+            lapIds: importedLaps.map((lap) => lap.id),
+            sessionIds: [...new Set(importedLaps.map((lap) => lap.sessionId))],
+            note: "",
+          }
+        : undefined;
+    }
+    await cleanDisposable(request, disposable, "iracing");
+    recording.cleanup();
   }
 });
 

@@ -1,5 +1,7 @@
 import type { SessionOwnership } from "@shared/racing/sessions/types";
 import { useRef, useState } from "react";
+import { client } from "../../lib/rpc";
+import { IbtImportPreviewModal, type IbtImportPreview } from "../analyse/IbtImportPreviewModal";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { importLapsZip } from "../../lib/lap-export";
 import { Button } from "../ui/button";
@@ -13,6 +15,11 @@ type ImportResult = {
   skipped?: number;
   gameId?: string;
   packetCount?: number;
+};
+
+type IbtPreviewState = {
+  token: string | null;
+  preview: IbtImportPreview;
 };
 
 
@@ -40,6 +47,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [ibtPreview, setIbtPreview] = useState<IbtPreviewState | null>(null);
 
   async function chooseFile(nextFile: File | null) {
     setFile(nextFile);
@@ -67,10 +75,27 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   }
 
   async function importFile() {
-    if (!file || !detected?.supported || (detected.format !== "zip" && detected.format !== "bin")) return;
+    if (!file || !detected?.supported || !["zip", "bin", "ibt"].includes(detected.format)) return;
     setBusy(true);
     setError(null);
     try {
+      if (detected.format === "ibt") {
+        const response = await fetch("/api/laps/import-ibt/preview", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "X-File-Name": encodeURIComponent(file.name),
+            "X-File-Size": String(file.size),
+          },
+          body: file,
+        });
+        const data = (await response.json().catch(() => null)) as { error?: string; token?: string | null; preview?: IbtImportPreview } | null;
+        if (!response.ok) throw new Error(data?.error ?? `IBT preview failed (${response.status})`);
+        if (!data?.preview) throw new Error("IBT preview response was invalid");
+        setIbtPreview({ token: data.token ?? null, preview: data.preview });
+        return;
+      }
+
       let imported: ImportResult;
       if (detected.format === "zip") {
         const response = await importLapsZip(file, ownership);
@@ -93,7 +118,53 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
     }
   }
 
-  const canImport = !!file && !!detected?.supported && (detected.format === "zip" || detected.format === "bin") && !busy;
+  function cancelIbtPreview() {
+    const token = ibtPreview?.token;
+    setIbtPreview(null);
+    if (token) void client.api.laps["import-ibt"].cancel.$post({ json: { token } }).catch(() => undefined);
+  }
+
+  async function commitIbt() {
+    const staged = ibtPreview;
+    if (!staged?.token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await client.api.laps["import-ibt"].commit.$post({ json: { token: staged.token, ownership } });
+      const data = (await response.json().catch(() => null)) as (ImportResult & { error?: string }) | null;
+      if (!response.ok) throw new Error(data?.error ?? `IBT import failed (${response.status})`);
+      const imported: ImportResult = {
+        imported: data?.imported ?? 0,
+        gameId: data?.gameId,
+        packetCount: data?.packetCount,
+      };
+      setIbtPreview(null);
+      setResult(imported);
+      onImported?.(imported);
+    } catch (cause) {
+      setIbtPreview(null);
+      void client.api.laps["import-ibt"].cancel.$post({ json: { token: staged.token } }).catch(() => undefined);
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canImport = !!file && !!detected?.supported && ["zip", "bin", "ibt"].includes(detected.format) && !busy;
+
+  if (ibtPreview) {
+    return (
+      <IbtImportPreviewModal
+        token={ibtPreview.token}
+        preview={ibtPreview.preview}
+        importing={busy}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onImport={() => void commitIbt()}
+        onClose={cancelIbtPreview}
+      />
+    );
+  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -135,7 +206,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
                       {!detected.supported && <p className="mt-1 text-status-warning">{detected.message ?? "File contents are not supported."}</p>}
                       {detected.supported && detected.format === "bin" && <p className="mt-1">Game detected from telemetry content.</p>}
                       {detected.supported && detected.format === "zip" && <p className="mt-1">{detected.captureCount} RaceIQ capture{detected.captureCount === 1 ? "" : "s"} found.</p>}
-                      {detected.format === "ibt" && <p className="mt-1">iRacing imports require preview and confirmation from Analyse.</p>}
+                      {detected.format === "ibt" && <p className="mt-1">Review detected laps before importing.</p>}
                       {detected.format === "motec" && <p className="mt-1">MoTeC imports require game, car, and track setup from Analyse.</p>}
                     </>
                   ) : null}
@@ -144,7 +215,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
               {error && <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
               <div className="flex justify-end gap-2">
                 <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>Cancel</Button>
-                <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>{busy ? "Importing…" : "Import"}</Button>
+                <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>{busy ? "Importing…" : detected?.format === "ibt" ? "Preview" : "Import"}</Button>
               </div>
             </>
           )}
