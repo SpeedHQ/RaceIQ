@@ -1,19 +1,17 @@
 import type { GameId } from "@shared/games/ids";
-import type { LapCondition, LapPhase, PaceEligibility } from "@shared/racing/laps/classification";
+import type { LapClassification } from "@shared/racing/laps/classification";
 
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 
 export type SessionOwnership = "mine" | "others";
 
-export interface LapMeta extends Partial<TelemetryVersionIdentity> {
+export interface LapMeta extends Partial<TelemetryVersionIdentity>, Partial<LapClassification> {
   id: number;
   sessionId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  phase?: LapPhase;
-  conditions?: LapCondition[];
-  paceEligibility?: PaceEligibility;
+
   invalidReason?: string;
   notes?: string;
   createdAt: string;
@@ -91,14 +89,12 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   gameId?: GameId;
 }
 
-export interface SessionLapData {
+export interface SessionLapData extends Partial<LapClassification> {
   lapId: number;
   lapNumber: number;
   lapTimeSec: number;
   isValid: boolean;
-  phase?: LapPhase;
-  conditions?: LapCondition[];
-  paceEligibility?: PaceEligibility;
+
 }
 
 export interface SessionRecap {
