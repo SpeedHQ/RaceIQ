@@ -6,7 +6,7 @@ import { USER_TRACKS_DIR } from "../../../shared/platform/runtime/data-paths";
 import { parseIRacingActiveSvg, parseIRacingPitRoadSvg, type IRacingSvgTrackMap } from "./track-map-svg";
 
 interface CachedMapFile extends Omit<IRacingSvgTrackMap, "pitLines"> {
-  version: 3;
+  version: 4;
   mapUrl: string;
   /** Omitted when pit-road layer fetch fails; next request retries that layer. */
   pitLines?: IRacingSvgTrackMap["pitLines"];
@@ -32,7 +32,7 @@ export function orientIRacingOvalMap(map: IRacingSvgTrackMap, direction: "left" 
   };
 }
 
-const MAP_CACHE_VERSION = 3;
+const MAP_CACHE_VERSION = 4;
 const FETCH_TIMEOUT_MS = 4_000;
 const PUBLIC_MAP_PREFIX = "https://members-assets.iracing.com/public/track-maps/";
 const memoryCache = new Map<number, Promise<IRacingSvgTrackMap | null>>();

@@ -85,7 +85,7 @@ describe("iRacing official SVG track maps", () => {
     ]);
   });
 
-  test("separates pit-road and merge-line colors while omitting arrow geometry", () => {
+  test("separates pit colors, omits arrows, and joins the road to the merge line", () => {
     const lines = parseIRacingPitRoadSvg(`
       <svg viewBox="0 0 120 60">
         <g id="Pitroad">
@@ -103,8 +103,10 @@ describe("iRacing official SVG track maps", () => {
     `);
 
     expect(lines.map((line) => line.kind)).toEqual(["pit-road", "merge-line"]);
-    expect(lines[0].points).toHaveLength(4);
-    expect(lines[1].points).toHaveLength(2);
+    expect(lines[0].points).toHaveLength(5);
+    expect(lines[1].points).toHaveLength(3);
+    expect(lines[0].points[0]).toEqual({ x: -5, z: 21 });
+    expect(lines[1].points[0]).toEqual(lines[0].points[0]);
   });
 
   test("normalizes oval traversal while retaining pit lines", () => {

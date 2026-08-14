@@ -16,7 +16,7 @@
 
 ### Fixes
 
-- Show iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, without official dash or arrow artwork or effects on lap-distance calculations
+- Show connected iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, without official dash or arrow artwork or effects on lap-distance calculations
 - Present start/finish straights as one logical segment on every circuit and use standard Frontstretch, Turns 1–2, Backstretch, and Turns 3–4 ordering for automatic iRacing oval segments
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback

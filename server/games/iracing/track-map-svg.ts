@@ -536,14 +536,73 @@ function connectPitMarkers(markersValue: readonly PitMarker[]): SvgPoint[][] {
   return lines;
 }
 
+function medianLineStep(points: readonly IRacingMapPoint[]): number {
+  const lengths: number[] = [];
+  for (let index = 1; index < points.length; index++) {
+    lengths.push(Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z));
+  }
+  return median(lengths);
+}
+
+function connectPitLineKinds(linesValue: readonly IRacingPitLine[]): IRacingPitLine[] {
+  const lines = linesValue.map((line) => ({ ...line, points: [...line.points] }));
+  const roads = lines.filter((line) => line.kind === "pit-road");
+  const merges = lines.filter((line) => line.kind === "merge-line");
+  const candidates: Array<{
+    road: IRacingPitLine;
+    merge: IRacingPitLine;
+    roadAtStart: boolean;
+    mergeAtStart: boolean;
+    distance: number;
+  }> = [];
+
+  for (const road of roads) {
+    for (const merge of merges) {
+      const maxGap = Math.max(medianLineStep(road.points), medianLineStep(merge.points)) * 1.75;
+      for (const roadAtStart of [true, false]) {
+        const roadPoint = roadAtStart ? road.points[0] : road.points.at(-1)!;
+        for (const mergeAtStart of [true, false]) {
+          const mergePoint = mergeAtStart ? merge.points[0] : merge.points.at(-1)!;
+          const distance = Math.hypot(roadPoint.x - mergePoint.x, roadPoint.z - mergePoint.z);
+          if (distance <= maxGap) {
+            candidates.push({ road, merge, roadAtStart, mergeAtStart, distance });
+          }
+        }
+      }
+    }
+  }
+
+  candidates.sort((left, right) => left.distance - right.distance);
+  const connectedRoads = new Set<IRacingPitLine>();
+  const connectedMerges = new Set<IRacingPitLine>();
+  for (const candidate of candidates) {
+    if (connectedRoads.has(candidate.road) || connectedMerges.has(candidate.merge)) continue;
+    const roadPoint = candidate.roadAtStart ? candidate.road.points[0] : candidate.road.points.at(-1)!;
+    const mergePoint = candidate.mergeAtStart ? candidate.merge.points[0] : candidate.merge.points.at(-1)!;
+    const junction = {
+      x: (roadPoint.x + mergePoint.x) / 2,
+      z: (roadPoint.z + mergePoint.z) / 2,
+    };
+    if (candidate.roadAtStart) candidate.road.points.unshift(junction);
+    else candidate.road.points.push(junction);
+    if (candidate.mergeAtStart) candidate.merge.points.unshift(junction);
+    else candidate.merge.points.push(junction);
+    connectedRoads.add(candidate.road);
+    connectedMerges.add(candidate.merge);
+  }
+  return lines;
+}
+
 /** Reconstruct solid, arrowless centerlines from iRacing's dashed pit markers. */
 export function parseIRacingPitRoadSvg(svg: string): IRacingPitLine[] {
   const contours = pitPathContours(svg);
-  return (["pit-road", "merge-line"] as const).flatMap((kind) =>
-    connectPitMarkers(contours[kind].map(pitMarker)).map((points) => ({
-      kind,
-      points: points.map((point) => ({ x: -point.x, z: point.y })),
-    })),
+  return connectPitLineKinds(
+    (["pit-road", "merge-line"] as const).flatMap((kind) =>
+      connectPitMarkers(contours[kind].map(pitMarker)).map((points) => ({
+        kind,
+        points: points.map((point) => ({ x: -point.x, z: point.y })),
+      })),
+    ),
   );
 }
 
