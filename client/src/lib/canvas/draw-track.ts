@@ -109,8 +109,8 @@ export function drawPitLines(
   ctx: CanvasRenderingContext2D,
   pitLines: readonly PitLine[] | null | undefined,
   toCanvas: (x: number, z: number) => [number, number],
-  opacity = 0.75,
-  lineWidth = 1.5,
+  opacity = 0.85,
+  lineWidth = 3,
 ): void {
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -119,11 +119,20 @@ export function drawPitLines(
   ctx.lineJoin = "round";
   for (const line of pitLines ?? []) {
     if (line.points.length < 2) continue;
+    const points = line.points.map((point) => toCanvas(point.x, point.z));
     ctx.beginPath();
     ctx.strokeStyle = PIT_LINE_COLORS[line.kind];
-    ctx.moveTo(...toCanvas(line.points[0].x, line.points[0].z));
-    for (let index = 1; index < line.points.length; index++) {
-      ctx.lineTo(...toCanvas(line.points[index].x, line.points[index].z));
+    ctx.moveTo(...points[0]);
+    if (points.length === 2) {
+      ctx.lineTo(...points[1]);
+    } else {
+      for (let index = 0; index < points.length - 1; index++) {
+        const previous = points[Math.max(0, index - 1)];
+        const start = points[index];
+        const end = points[index + 1];
+        const next = points[Math.min(points.length - 1, index + 2)];
+        ctx.bezierCurveTo(start[0] + (end[0] - previous[0]) / 6, start[1] + (end[1] - previous[1]) / 6, end[0] - (next[0] - start[0]) / 6, end[1] - (next[1] - start[1]) / 6, end[0], end[1]);
+      }
     }
     ctx.stroke();
   }
@@ -188,7 +197,7 @@ export function drawTrack(
 
   // Official pit lines share the track transform, so distant marker geometry
   // cannot shrink the racing surface.
-  drawPitLines(ctx, pitLines, toCanvas, large ? 0.8 : 0.65, large ? 2 : 1.25);
+  drawPitLines(ctx, pitLines, toCanvas, large ? 0.85 : 0.5, large ? 3 : 1.5);
 
   // Track outline
   ctx.beginPath();

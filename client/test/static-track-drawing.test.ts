@@ -94,8 +94,9 @@ test("draws throttle input traces in the throttle channel color", () => {
 });
 
 test("draws separate solid pit-road and pit-exit lines", () => {
-  const strokes: Array<{ color: string; points: number }> = [];
+  const strokes: Array<{ color: string; points: number; curves: number; width: number; alpha: number }> = [];
   let points = 0;
+  let curves = 0;
   const context = {
     strokeStyle: "",
     globalAlpha: 1,
@@ -106,6 +107,7 @@ test("draws separate solid pit-road and pit-exit lines", () => {
     restore() {},
     beginPath() {
       points = 0;
+      curves = 0;
     },
     moveTo() {
       points++;
@@ -113,8 +115,18 @@ test("draws separate solid pit-road and pit-exit lines", () => {
     lineTo() {
       points++;
     },
+    bezierCurveTo() {
+      points++;
+      curves++;
+    },
     stroke() {
-      strokes.push({ color: this.strokeStyle, points });
+      strokes.push({
+        color: this.strokeStyle,
+        points,
+        curves,
+        width: this.lineWidth,
+        alpha: this.globalAlpha,
+      });
     },
   } as unknown as CanvasRenderingContext2D;
 
@@ -141,8 +153,8 @@ test("draws separate solid pit-road and pit-exit lines", () => {
   );
 
   expect(strokes).toEqual([
-    { color: "var(--track-pit-road)", points: 3 },
-    { color: "var(--track-pit-exit)", points: 2 },
+    { color: "var(--track-pit-road)", points: 3, curves: 2, width: 3, alpha: 0.85 },
+    { color: "var(--track-pit-exit)", points: 2, curves: 0, width: 3, alpha: 0.85 },
   ]);
   expect(context.lineCap).toBe("round");
   expect(context.lineJoin).toBe("round");
