@@ -19,6 +19,9 @@ function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
     experimentVersionId: 1,
     experimentExcluded: false,
     ...overrides,
+    phase: overrides.phase ?? "flying",
+    conditions: overrides.conditions ?? [],
+    paceEligibility: overrides.paceEligibility ?? "eligible",
   };
 }
 

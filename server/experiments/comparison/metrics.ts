@@ -227,7 +227,7 @@ export function curateLaps<T extends EvaluableLap>(
 
   let droppedIneligible = 0;
   for (const reason of reasonById.values()) {
-    if (reason === "invalid" || reason === "pit" || reason === "manual") droppedIneligible++;
+    if (reason === "invalid" || reason === "non-pace" || reason === "manual") droppedIneligible++;
   }
 
   return {

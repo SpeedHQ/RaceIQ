@@ -1,4 +1,8 @@
 export interface KunosExtendedData {
+  /** Native physics-page sequence when exposed by ACC or AC Evo. */
+  physicsPacketId?: number;
+  /** Native graphics-page sequence when exposed by ACC or AC Evo. */
+  graphicsPacketId?: number;
   // Tire detail
   tireCompound: string;
   tireCoreTemp: [number, number, number, number];

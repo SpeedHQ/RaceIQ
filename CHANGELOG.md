@@ -13,6 +13,11 @@
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
 - Detect F1 race-start laps even when the first telemetry sample is stationary, keeping standing-start Lap 1 out of normal pace comparisons
+- Measure telemetry coverage and cadence from each native source packet family so cached values cannot hide missed channel updates
+- Count isolated missing telemetry samples inside requested track ranges so strict analyses reject unreliable evidence without excluding unaffected ranges
+- Carry imported channel fidelity into eligibility reasons and confidence so strict analyses reject held, resampled, reconstructed, or assumed evidence
+- Measure lap coverage from native progress or track length without penalizing later laps whose distance counter is cumulative
+- Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run

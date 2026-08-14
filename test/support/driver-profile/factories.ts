@@ -18,6 +18,9 @@ export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
     carOrdinal: 100,
     trackOrdinal: 200,
     ...over,
+    phase: over.phase ?? "flying",
+    conditions: over.conditions ?? [],
+    paceEligibility: over.paceEligibility ?? "eligible",
   };
 }
 
