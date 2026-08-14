@@ -459,16 +459,17 @@ export class LapDetector implements ILapDetector {
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
       });
-    }
 
-
-    // Extract and record curb data from any valid lap
-    if (this.lapIsValid && this.currentSession.trackOrdinal > 0 && this.lapBuffer.length > 50) {
-      const curbSegments = extractCurbSegments(this.lapBuffer);
-      if (curbSegments.length > 0) {
-        recordCurbData(this.currentSession.trackOrdinal, curbSegments, this.currentSession.gameId);
+      // Only normal-pace laps may seed shared curb geometry.
+      if (normalPaceEligible && this.currentSession.trackOrdinal > 0 && this.lapBuffer.length > 50) {
+        const curbSegments = extractCurbSegments(this.lapBuffer);
+        if (curbSegments.length > 0) {
+          recordCurbData(this.currentSession.trackOrdinal, curbSegments, this.currentSession.gameId);
+        }
       }
     }
+
+
 
     this.resetLapState(newLapFirstPacket);
   }
