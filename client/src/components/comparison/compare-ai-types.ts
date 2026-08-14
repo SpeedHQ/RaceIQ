@@ -1,9 +1,10 @@
 import type { UIMessage } from "ai";
 import type { AnalysisData } from "@/components/ai/analysis-types";
+import type { LapMeta } from "@shared/racing/sessions/types";
 
 export type ParsedAnalysis = Partial<AnalysisData>;
 
-export interface LapHeader {
+export interface LapHeader extends Pick<LapMeta, "sessionId" | "quality" | "eligibility" | "qualityGeneration" | "qualityStale" | "source"> {
   id: number;
   label: string;
   lapTime: number;
@@ -15,6 +16,23 @@ export interface CompareAiPanelProps {
   panelOpen?: boolean;
   segments?: { name: string; startFrac: number; endFrac: number }[];
   onJumpToFrac?: (frac: number) => void;
+}
+
+export function lapAiStateKey(lap: LapHeader): string {
+  const provenance = lap.quality?.provenance;
+  return [
+    lap.id,
+    lap.qualityGeneration ?? "missing",
+    lap.qualityStale ? "stale" : "current",
+    provenance?.schemaVersion ?? "missing",
+    provenance?.policyVersion ?? "missing",
+    provenance?.configurationVersion ?? "missing",
+    provenance?.outputGeneration ?? "missing",
+  ].join(":");
+}
+
+export function comparisonAiStateKey(lapA: LapHeader, lapB: LapHeader): string {
+  return [lapAiStateKey(lapA), lapAiStateKey(lapB)].sort().join("|");
 }
 
 export interface InputsSegment {

@@ -5,7 +5,7 @@ import { handleWebSocketMessage } from "../lib/websocket-messages";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
-import { queryKeys } from "./query-keys";
+import { qualityUpdatedQueryKeys, queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
@@ -123,10 +123,14 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: queryKeys.sessionResults });
             queryClient.invalidateQueries({ queryKey: queryKeys.raceResultSummaries });
             queryClient.invalidateQueries({ queryKey: queryKeys.raceResultRecents });
-          } else if (data.type === "lap-reprocessed") {
-            queryClient.invalidateQueries({ queryKey: ["laps"] });
-            queryClient.invalidateQueries({ queryKey: ["sessions"] });
-            useTelemetryStore.getState().incrementReprocessProgress();
+          } else if (data.type === "lap-reprocessed" || data.type === "quality-updated") {
+            const sessionId = data.sessionId as number;
+            for (const queryKey of qualityUpdatedQueryKeys(sessionId)) {
+              queryClient.invalidateQueries({ queryKey });
+            }
+            if (data.type === "lap-reprocessed") {
+              useTelemetryStore.getState().incrementReprocessProgress();
+            }
           } else if (data.type === "experiment-updated") {
             const sid = data.sessionId as number;
             queryClient.invalidateQueries({ queryKey: ["experiment-tests", sid] });
@@ -136,6 +140,7 @@ export function useWebSocket() {
               lapId: data.lapId as number,
               lapNumber: data.lapNumber as number,
               issues: data.issues,
+              eligibility: data.eligibility,
             });
           } else {
             if (handleWebSocketMessage(data)) packetCountRef.current++;

@@ -1,5 +1,6 @@
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
+import { LapStatus } from "@/components/LapStatus";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
@@ -90,7 +91,7 @@ export function RecentLapsTable({
               <TD emphasis numeric nowrap tone="primary">
                 <span className="flex items-center gap-1">
                   {formatLapTime(lap.lapTime)}
-                  <span className={`text-sm ${lap.isValid ? "text-status-success" : "text-status-danger"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
+                  <LapStatus lap={lap} presentation="indicator" />
                 </span>
               </TD>
               <TD align="end" nowrap tone="primary">

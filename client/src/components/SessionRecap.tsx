@@ -1,3 +1,4 @@
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
@@ -139,17 +140,15 @@ function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
   const width = 240,
     height = 48,
     pad = 4;
-  const times = laps.map((l) => l.lapTimeSec).filter((t) => t > 0);
-  if (times.length === 0) return null;
+  const times = laps.map((lap) => lap.lapTimeSec);
   const min = Math.min(...times),
     max = Math.max(...times),
     range = max - min || 1;
   const stepX = (width - pad * 2) / Math.max(1, laps.length - 1);
-  const points = laps.map((l, i) => {
-    const x = pad + i * stepX;
-    const t = l.lapTimeSec > 0 ? l.lapTimeSec : max;
-    const y = pad + (1 - (t - min) / range) * (height - pad * 2);
-    return { x, y, lap: l };
+  const points = laps.map((lap, index) => {
+    const x = pad + index * stepX;
+    const y = pad + (1 - (lap.lapTimeSec - min) / range) * (height - pad * 2);
+    return { x, y, lap };
   });
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   return (
@@ -195,7 +194,7 @@ export interface SessionRecapViewProps {
 }
 export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
   const canAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
-
+  const paceSparkline = recap.sparkline.filter((lap) => isTimedLapEligibilityUsable({ ...lap, lapTime: lap.lapTimeSec }));
   return (
     <div className="@container flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:justify-between">
@@ -248,10 +247,10 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           </div>
           {showTrackMap && recap.sectors != null && <SectorTrackMap sectors={recap.sectors} sourceStarts={recap.sectorStarts} outlineData={outlineData} bounds={bounds} />}
 
-          {recap.sparkline.length >= 2 && (
+          {paceSparkline.length >= 2 && (
             <div>
               <div className="mb-1 text-app-caption uppercase tracking-wider text-app-text-muted">{m.recap_pace()}</div>
-              <Sparkline laps={recap.sparkline} />
+              <Sparkline laps={paceSparkline} />
             </div>
           )}
         </div>

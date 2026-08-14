@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../../shared/racing/quality/policies";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
@@ -249,6 +250,8 @@ function LapAnalyseInner() {
   const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
   const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
+  const analysisDecision = selectedLap ? resolveEligibilityDecision(selectedLap, "corner-trace") : undefined;
+  const analysisUsable = isEligibilityUsable(analysisDecision);
   const totalTime = selectedLap?.lapTime ?? 0;
 
   // Tune selector
@@ -372,7 +375,7 @@ function LapAnalyseInner() {
             displayTelemetry: semanticFrames,
             lapLine,
             units,
-            aiPanelOpen,
+            aiPanelOpen: aiPanelOpen && analysisUsable,
             aiHighlights,
             rotateWithCar,
             trackOverlay,
@@ -429,7 +432,7 @@ function LapAnalyseInner() {
             onJumpToFrame: handleChartClick,
           }}
           aiSidebarProps={
-            aiPanelOpen && selectedLapId
+            aiPanelOpen && analysisUsable && selectedLapId
               ? {
                   lapId: selectedLapId,
                   trackName,

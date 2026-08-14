@@ -21,3 +21,18 @@ export const queryKeys = {
   raceResultRecents: ["race-result-recent"] as const,
   raceResultRecent: (gameId: GameId | null) => ["race-result-recent", gameId] as const,
 };
+
+export function qualityUpdatedQueryKeys(sessionId: number) {
+  return [
+    queryKeys.laps,
+    queryKeys.sessions,
+    ["track-laps"] as const,
+    ["session-recap", sessionId] as const,
+    ["session-quality", sessionId] as const,
+    ["experiment-tests"] as const,
+    ["experiment-arm-comparison"] as const,
+    ["experiment-line-spread"] as const,
+    ["experiment-importable-laps"] as const,
+    ["experiment-lap-metrics"] as const,
+  ] as const;
+}

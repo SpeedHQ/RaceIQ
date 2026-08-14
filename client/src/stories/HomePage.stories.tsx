@@ -1,4 +1,12 @@
-import type { LapMeta, SessionMeta, SessionRecap } from "@shared/racing/sessions/types";
+import { DEFAULT_LAP_CLASSIFICATION } from "@shared/racing/laps/classification";
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  QUALITY_CONFIG_VERSION,
+  QUALITY_SCHEMA_VERSION,
+  type EligibilityDecisionSet,
+  type LapQualitySummary,
+} from "@shared/racing/quality/contracts";
+import type { LapMeta, SessionLapData, SessionMeta, SessionRecap } from "@shared/racing/sessions/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
@@ -34,6 +42,7 @@ function makeLap(id: number, day: number, lapNumber: number, lapTime: number, is
     lapNumber,
     lapTime,
     isValid,
+    ...DEFAULT_LAP_CLASSIFICATION,
     createdAt: `2026-07-${String(day).padStart(2, "0")}T18:2${lapNumber}:00.000Z`,
     gameId: GAME_ID,
     carOrdinal: 201,
@@ -69,6 +78,38 @@ const sessions: SessionMeta[] = [
   },
 ];
 
+function recapQualityEvidence(lap: LapMeta): Pick<
+  SessionLapData,
+  "quality" | "eligibility" | "qualityGeneration" | "qualitySchemaVersion" | "qualityPolicyVersion" | "qualityConfigVersion"
+> {
+  const generation = `sha256:homepage-story-lap-${lap.id}`;
+  return {
+    quality: {
+      provenance: {
+        schemaVersion: QUALITY_SCHEMA_VERSION,
+        policyVersion: ELIGIBILITY_POLICY_VERSION,
+        configurationVersion: QUALITY_CONFIG_VERSION,
+        sourceGeneration: `sha256:homepage-story-source-${lap.id}`,
+        outputGeneration: generation,
+      },
+    } as LapQualitySummary,
+    eligibility: {
+      "normal-pace": {
+        status: lap.isValid ? "eligible" : "ineligible",
+        policyId: "normal-pace",
+        policyVersion: ELIGIBILITY_POLICY_VERSION,
+        confidence: { level: "high", score: 1 },
+        reasons: [],
+        evidenceIds: [],
+      },
+    } as unknown as EligibilityDecisionSet,
+    qualityGeneration: generation,
+    qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+    qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+    qualityConfigVersion: QUALITY_CONFIG_VERSION,
+  };
+}
+
 const recap: SessionRecap = {
   sessionId: SESSION_ID,
   gameId: GAME_ID,
@@ -83,7 +124,16 @@ const recap: SessionRecap = {
   bestLapId: 920,
   timeOnTrackSec: 1068.419,
   distanceM: 11_880,
-  sparkline: laps.map((lap) => ({ lapNumber: lap.lapNumber, lapTimeSec: lap.lapTime, isValid: lap.isValid })),
+  sparkline: laps.map((lap) => ({
+    lapId: lap.id,
+    lapNumber: lap.lapNumber,
+    lapTimeSec: lap.lapTime,
+    isValid: lap.isValid,
+    phase: lap.phase,
+    conditions: lap.conditions,
+    paceEligibility: lap.paceEligibility,
+    ...recapQualityEvidence(lap),
+  })),
   theoretical: {
     bestSectorTimes: [31.781, 32.044, 31.812],
     sumSec: 95.637,

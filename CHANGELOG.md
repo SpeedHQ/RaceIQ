@@ -2,7 +2,6 @@
 
 ### Breaking
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
-- Persist versioned lap-quality evidence in primary database; databases upgraded by this release require builds that understand quality schema
 
 ### Features
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
@@ -10,31 +9,42 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Classify flying, out, in, pit, and grid-start phases independently from caution, slow-zone, and formation conditions so overlapping lap states stay visible and out of pace analysis
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Show telemetry quality, evidence limits, and analysis suitability per lap, with safe rebuild actions when source recordings remain available
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
 - Detect F1 race-start laps even when the first telemetry sample is stationary, keeping standing-start Lap 1 out of normal pace comparisons
+- Refresh lap quality, eligibility, metrics, and AI analysis when telemetry sources, pit classification, reprocessing, or policy versions change so stale results are never shown as current
+- Mark analysis unsuitable when an imported recording omits required controls or a continuous tire channel contains only isolated samples instead of treating filled zeroes as real telemetry
+- Refresh quality badges and analysis controls after quality changes, keep unsuitable AI panels closed, and let users re-include excluded laps to rebuild a usable analysis pool
+- Keep quality-aware session summaries, localized lap insights, Track Focus statistics, rebuild status, and analysis controls accurate when evidence is stale, ranged, capped, or unavailable
+- Record reconnect and timeout quality warnings only for accepted telemetry from the same game and session, preventing stale UDP traffic from degrading another recording
+- Validate RaceIQ's canonical recording and every archive manifest/member separately from imported-source provenance so a valid source cannot hide corrupt local evidence
+- Reject RaceIQ archives that omit session captures declared by their v2 manifest
+- Preserve native-live provenance when migrating legacy sessions while retaining explicit imported-source labels
+- Link persisted race events to telemetry-quality facts using compatible clock domains or exact lap identity
 - Measure telemetry coverage and cadence from each native source packet family so cached values cannot hide missed channel updates
 - Count isolated missing telemetry samples inside requested track ranges so strict analyses reject unreliable evidence without excluding unaffected ranges
 - Carry imported channel fidelity into eligibility reasons and confidence so strict analyses reject held, resampled, reconstructed, or assumed evidence
 - Measure lap coverage from native progress or track length without penalizing later laps whose distance counter is cumulative
-- Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
-- Record reconnect and timeout quality warnings only for accepted telemetry from same game and session, preventing stale UDP traffic from degrading another recording
-- Replace provisional live lap evidence with finalized quality in current and newly connected clients
-- Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
-- Clear stale degraded lap-quality states after a clean recording rebuild
-- Validate RaceIQ canonical recording and every archive manifest/member separately from imported-source provenance so valid source cannot hide corrupt local evidence
-- Reject RaceIQ archives that omit session captures declared by their v2 manifest
-- Preserve native-live provenance when migrating legacy sessions while retaining explicit imported-source labels
-- Mark analysis unsuitable when imported recording omits required controls or continuous tire channel contains only isolated samples instead of treating filled zeroes as real telemetry
 - Keep valid timed laps in lap-time experiment metrics when unrelated steering or input trace channels are unavailable
+- Reprocess recorded telemetry when quality measurement settings change instead of relabeling old measurements as current
+- Block raw-recording cleanup when even one session lap lacks rebuilt eligibility, preserving evidence needed for later reprocessing
 - Reject stale eligibility snapshots in policy consumers, AI cache reads, and raw-recording cleanup decisions
+- Show an explicit Track Detail empty state when recorded laps do not qualify for pace statistics
+- Clear displayed comparison analysis and conversations when either lap's quality generation changes
+- Show complete evidence source, generation, and rebuild state in Track Detail quality badges
+- Refresh Track Detail, session recap, and experiment views after lap quality rebuilds or reprocessing
+- Replace provisional live lap evidence with finalized quality in current and newly connected clients
+- Regenerate cached driver profiles when underlying lap quality or eligibility changes
+- Keep lap quality, session quality, and analysis caches on one generation if quality persistence fails
 - Keep every recorded experiment lap available for inspection in Tune Review while limiting aggregate setup evaluation to its curated evidence pool
 - Preserve telemetry warning reasons in setup-analysis decisions and Setup Engineer lap summaries
-- Clear displayed comparison analysis and conversations when either lap quality generation changes
 - Collect recent fuel and tire history independently so several fuel-only laps cannot prevent older tire data from seeding strategy estimates, and vice versa
-- Regenerate cached driver profiles when underlying lap quality or eligibility changes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
+- Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
+- Clear stale degraded lap-quality states after a clean recording rebuild
+- Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup

@@ -96,16 +96,16 @@ export interface SessionLapData {
   lapNumber: number;
   lapTimeSec: number;
   isValid: boolean;
-  phase?: LapPhase;
-  conditions?: LapCondition[];
-  paceEligibility?: PaceEligibility;
+  phase: LapPhase;
+  conditions: LapCondition[];
+  paceEligibility: PaceEligibility;
   /** Persisted quality evidence and decisions used for recap selection. */
-  quality?: LapQualitySummary | null;
-  eligibility?: EligibilityDecisionSet | null;
-  qualityGeneration?: string | null;
-  qualitySchemaVersion?: string | null;
-  qualityPolicyVersion?: string | null;
-  qualityConfigVersion?: string | null;
+  quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
+  qualityGeneration: string | null;
+  qualitySchemaVersion: string | null;
+  qualityPolicyVersion: string | null;
+  qualityConfigVersion: string | null;
 }
 
 export interface SessionRecap {

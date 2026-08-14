@@ -37,7 +37,21 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
       sectors: fakeSectors,
       sessionLaps: fakeSessionLaps,
       isRaceOn: true,
-      lapIssuesFeed: [{ lapId: 10, lapNumber: 4, issues: fakeTuneIssues }],
+      lapIssuesFeed: [
+        {
+          lapId: 10,
+          lapNumber: 4,
+          issues: fakeTuneIssues,
+          eligibility: {
+            status: "eligible",
+            policyId: "transient-event",
+            policyVersion: "1",
+            confidence: { level: "high", score: 1 },
+            reasons: [],
+            evidenceIds: [],
+          },
+        },
+      ],
     });
   }, []);
 

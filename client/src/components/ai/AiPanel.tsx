@@ -374,7 +374,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     [aiConfigured, clearChat, configureAi, fetchAnalysis],
   );
   const deleteAnalysis = useCallback(async () => {
-    if (analysisDeleting || loading || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    if (analysisDeleting || loading || !window.confirm(m.analysis_delete_lap_confirm())) return;
     setAnalysisDeleting(true);
     try {
       const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
@@ -485,7 +485,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               onRegenerate={regenerateAnalysis}
               onDelete={() => void deleteAnalysis()}
               deleteLabel={m.label_clear()}
-              actionsDisabled={analysisDeleting}
+              generationDisabled={analysisDeleting}
+              deletionDisabled={analysisDeleting}
             >
               <AnalysisSummaryRow
                 detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
