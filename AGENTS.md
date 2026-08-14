@@ -15,6 +15,10 @@ feature flows before broad code searches. Use DeepWiki for orientation, then
 verify implementation details against the current checkout because its content
 may be stale or unavailable. Fall back to repository search when needed.
 
+## Storybook Coverage
+
+Every newly introduced page or route MUST include an accompanying Storybook story in `client/src/stories/`. Prefer a full-page story with deterministic fixtures so route-level UI regressions remain visible.
+
 ## Commands
 
 ```bash
