@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
@@ -57,7 +57,7 @@ interface Props {
   onNotesChange: (notes: string) => void;
 }
 
-export function AnalyseLapHeader({
+export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -95,6 +95,22 @@ export function AnalyseLapHeader({
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const trackOptions = useMemo(() => tracks.map(([ordinal, count]) => ({ value: String(ordinal), label: `${trackNames[ordinal] || `Track ${ordinal}`} (${count})` })), [trackNames, tracks]);
+  const carOptions = useMemo(() => carsForTrack.map(([ordinal, count]) => ({ value: String(ordinal), label: `${carNames[ordinal] || `Car ${ordinal}`} (${count})` })), [carNames, carsForTrack]);
+  const lapOptions = useMemo(() => {
+    const sessions = new Map<number, LapMeta[]>();
+    for (const lap of filteredLaps) {
+      const sessionLaps = sessions.get(lap.sessionId);
+      if (sessionLaps) sessionLaps.push(lap);
+      else sessions.set(lap.sessionId, [lap]);
+    }
+    return filteredLaps.map((lap) => {
+      const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
+      const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
+      const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
+      return { ...buildAnalyseLapOption(lap), group: sessionLabel };
+    });
+  }, [filteredLaps]);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   return (
     <>
@@ -103,7 +119,7 @@ export function AnalyseLapHeader({
         <SearchSelect
           value={selectedTrack != null ? String(selectedTrack) : ""}
           onChange={(v) => onTrackChange(v ? Number(v) : null)}
-          options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
+          options={trackOptions}
           placeholder={m.analyse_search_tracks_placeholder()}
           className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
@@ -113,7 +129,7 @@ export function AnalyseLapHeader({
         <SearchSelect
           value={selectedCar != null ? String(selectedCar) : ""}
           onChange={(v) => onCarChange(v ? Number(v) : null)}
-          options={carsForTrack.map(([ord, count]) => ({ value: String(ord), label: `${carNames[ord] || `Car ${ord}`} (${count})` }))}
+          options={carOptions}
           placeholder={m.analyse_search_cars_placeholder()}
           disabled={selectedTrack == null}
           className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
@@ -124,12 +140,7 @@ export function AnalyseLapHeader({
           <SearchSelect
             value={selectedLapId != null ? String(selectedLapId) : ""}
             onChange={(v) => onLapChange(v ? Number(v) : null)}
-            options={filteredLaps.map((lap) => {
-              const sessionLaps = filteredLaps.filter((l) => l.sessionId === lap.sessionId);
-              const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
-              const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
-              return { ...buildAnalyseLapOption(lap), group: sessionLabel };
-            })}
+            options={lapOptions}
             placeholder={m.analyse_search_laps_placeholder()}
             disabled={selectedCar == null}
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
@@ -284,12 +295,21 @@ export function AnalyseLapHeader({
             </DialogHeader>
             <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
             <DialogFooter>
-              <Button variant="app-ghost" size="app-sm" disabled={importingBin} onClick={() => setPendingImport(null)}>Cancel</Button>
-              <Button variant="app-primary" size="app-sm" disabled={importingBin} onClick={() => {
-                const file = pendingImport;
-                setPendingImport(null);
-                onImportBin(file);
-              }}>Import</Button>
+              <Button variant="app-ghost" size="app-sm" disabled={importingBin} onClick={() => setPendingImport(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="app-primary"
+                size="app-sm"
+                disabled={importingBin}
+                onClick={() => {
+                  const file = pendingImport;
+                  setPendingImport(null);
+                  onImportBin(file);
+                }}
+              >
+                Import
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -309,4 +329,4 @@ export function AnalyseLapHeader({
       )}
     </>
   );
-}
+});

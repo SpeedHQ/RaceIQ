@@ -1,17 +1,24 @@
 import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
-import { useLaps as useLapsQuery, useLapSemanticTelemetry } from "../../hooks/laps";
+import type { SemanticReplayFrame } from "../../hooks/laps";
+import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
-import { semanticValues, type Point, type SectorBoundaries, type SemanticAnalysisFrame, type TrackMapBoundaries, type TrackMapLabel } from "./track-map/types";
-import type { SemanticReplayFrame } from "../../hooks/laps";
-interface AnalyseSemanticFrame { sequence: number; observedAtMs: number; values: SemanticAnalysisFrame["values"]; states: Readonly<Record<string, string | undefined>>; freshness: Readonly<Record<string, string | undefined>>; }
+import { type Point, type SectorBoundaries, type SemanticAnalysisFrame, semanticValues, type TrackMapBoundaries, type TrackMapLabel } from "./track-map/types";
+
+interface AnalyseSemanticFrame {
+  sequence: number;
+  observedAtMs: number;
+  values: SemanticAnalysisFrame["values"];
+  states: Readonly<Record<string, string | undefined>>;
+  freshness: Readonly<Record<string, string | undefined>>;
+}
 const emptyLaps: LapMeta[] = [];
 
 export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0]) {
@@ -22,13 +29,17 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
   const { data: allLaps = emptyLaps } = useLapsQuery();
   const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
-  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(() => semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
-    sequence: envelope.sequence,
-    observedAtMs: envelope.observedAt.milliseconds,
-    values: semanticValues(envelope.values),
-    states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
-    freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
-  })) ?? [], [semanticReplay]);
+  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
+    () =>
+      semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
+        sequence: envelope.sequence,
+        observedAtMs: envelope.observedAt.milliseconds,
+        values: semanticValues(envelope.values),
+        states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
+        freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
+      })) ?? [],
+    [semanticReplay],
+  );
   const telemetry = semanticFrames;
   const displayTelemetry = semanticFrames;
   const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
@@ -136,15 +147,15 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
       replace: true,
     });
   }, [selectedTrack, selectedCar, selectedLapId, navigate]);
-  const handleTrackChange = (value: number | null) => {
+  const handleTrackChange = useCallback((value: number | null) => {
     setSelectedTrack(value);
     setSelectedCar(null);
     setSelectedLapId(null);
-  };
-  const handleCarChange = (value: number | null) => {
+  }, []);
+  const handleCarChange = useCallback((value: number | null) => {
     setSelectedCar(value);
     setSelectedLapId(null);
-  };
+  }, []);
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
   const cursorRef = useRef(0);
