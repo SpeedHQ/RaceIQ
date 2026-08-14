@@ -40,7 +40,7 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving, col
       break;
   }
 
-  const packetText = forzaReceiving ? `Telemetry: ${packetsPerSec} Hz` : null;
+  const packetText = forzaReceiving ? `${m.browser_source()}: ${packetsPerSec} Hz` : null;
   const accessibleLabel = packetText ? `${statusText}. ${packetText}` : statusText;
 
   if (collapsed) {
