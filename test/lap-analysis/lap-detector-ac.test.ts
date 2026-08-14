@@ -1,14 +1,27 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "../support/recordings/parse-dump";
-import { LapDetectorAcc } from "../../server/games/acc/lap-detector"
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
+import { LapDetectorAcc } from "../../server/games/acc/lap-detector";
+import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
+import { initGameAdapters } from "../../shared/games/init";
+import { initServerGameAdapters } from "../../server/games/init";
+import type { LapClassification } from "../../shared/racing/laps/classification";
 
 afterAll(() => stopMaintenanceTasks());
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
-// Fake DB stub — v2 should only call insertLap / getTuneAssignment / insertSession
+initGameAdapters();
+initServerGameAdapters();
+
+// Fake DB stub captures lap validity separately from pace classification.
+type CapturedLap = {
+  lapNumber: number;
+  lapTime: number;
+  valid: boolean;
+  invalidReason: string | null;
+} & LapClassification;
+
 function makeFakeDb() {
-  const inserted: Array<{ lapNumber: number; lapTime: number; valid: boolean; invalidReason: string | null }> = [];
+  const inserted: CapturedLap[] = [];
   return {
     inserted,
     insertSession: async () => 1,
@@ -22,9 +35,11 @@ function makeFakeDb() {
       _profileId: unknown,
       _tuneId: unknown,
       invalidReason: string | null,
-      _sectors: unknown
+      _sectors: unknown,
+      _versionIdentity: unknown,
+      classification: LapClassification,
     ) => {
-      inserted.push({ lapNumber, lapTime, valid, invalidReason });
+      inserted.push({ lapNumber, lapTime, valid, invalidReason, ...classification });
       return inserted.length;
     },
     getTuneAssignment: async () => null,
@@ -133,7 +148,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(completeCount).toBe(0);
   });
 
-  test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
+  test("saves partial initial lap as a valid classified out lap", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -189,11 +204,12 @@ describe("LapDetectorAc — reset detection", () => {
       })
     );
 
-    // Two laps: the partial initial lap (invalid outlap, first packet was in pit) and the full clean lap (valid)
+    // Two structurally valid laps: classified out lap, then normal pace lap.
     expect(db.inserted.length).toBe(2);
     expect(db.inserted[0].lapNumber).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("outlap");
+    expect(db.inserted[0].valid).toBe(true);
+    expect(db.inserted[0]).toMatchObject({ phase: "out", conditions: [], paceEligibility: "excluded" });
+    expect(db.inserted[0].invalidReason).toBeNull();
     expect(db.inserted[1].lapNumber).toBe(2);
     expect(db.inserted[1].valid).toBe(true);
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
@@ -231,7 +247,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(saved[0].lapTime).toBeCloseTo(80, 0);
   });
 
-  test("calls assessLapRecording and marks short-distance laps invalid", async () => {
+  test("keeps short-distance laps structurally valid", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean }> = [];
     const d = new LapDetectorAcc({
@@ -249,10 +265,10 @@ describe("LapDetectorAc — reset detection", () => {
     await d.feed(packet({ CurrentLap: 0.1, DistanceTraveled: 52, TimestampMS: 51000 }));
 
     expect(saved.length).toBe(1);
-    expect(saved[0].isValid).toBe(false);
+    expect(saved[0].isValid).toBe(true);
   });
 
-  test("marks ACC lap invalid with reason 'outlap' when it starts in the pit lane", async () => {
+  test("classifies ACC out laps without invalidating telemetry", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -299,11 +315,12 @@ describe("LapDetectorAc — reset detection", () => {
     );
 
     expect(db.inserted.length).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("outlap");
+    expect(db.inserted[0].valid).toBe(true);
+    expect(db.inserted[0]).toMatchObject({ phase: "out", conditions: [], paceEligibility: "excluded" });
+    expect(db.inserted[0].invalidReason).toBeNull();
   });
 
-  test("marks ACC lap invalid with reason 'inlap' when it ends in the pit lane", async () => {
+  test("classifies ACC in laps without invalidating telemetry", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -340,8 +357,9 @@ describe("LapDetectorAc — reset detection", () => {
     );
 
     expect(db.inserted.length).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("inlap");
+    expect(db.inserted[0].valid).toBe(true);
+    expect(db.inserted[0]).toMatchObject({ phase: "in", conditions: [], paceEligibility: "excluded" });
+    expect(db.inserted[0].invalidReason).toBeNull();
   });
 });
 

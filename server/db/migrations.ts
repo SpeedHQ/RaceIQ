@@ -1251,5 +1251,50 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Keep telemetry validity independent from pace eligibility.
+  {
+    version: 59,
+    name: "classify valid non-pace laps",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN classification TEXT NOT NULL DEFAULT 'pace'`,
+      `UPDATE laps
+       SET classification = CASE invalid_reason
+         WHEN 'outlap' THEN 'out_lap'
+         WHEN 'inlap' THEN 'in_lap'
+         WHEN 'pit lap' THEN 'pit_lap'
+         ELSE classification
+       END,
+       is_valid = 1,
+       invalid_reason = NULL
+       WHERE invalid_reason IN ('outlap', 'inlap', 'pit lap')`,
+    ],
+  },
+  // v60: Preserve overlapping lap phase and race-condition facts.
+  {
+    version: 60,
+    name: "split lap classification",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN phase TEXT NOT NULL DEFAULT 'flying'`,
+      `ALTER TABLE laps ADD COLUMN conditions TEXT NOT NULL DEFAULT '[]'`,
+      `ALTER TABLE laps ADD COLUMN pace_eligibility TEXT NOT NULL DEFAULT 'eligible'`,
+      `UPDATE laps
+       SET phase = CASE classification
+         WHEN 'out_lap' THEN 'out'
+         WHEN 'in_lap' THEN 'in'
+         WHEN 'pit_lap' THEN 'pit'
+         WHEN 'grid_start' THEN 'grid_start'
+         ELSE 'flying'
+       END,
+       conditions = CASE classification
+         WHEN 'caution' THEN '["caution"]'
+         ELSE '[]'
+       END,
+       pace_eligibility = CASE classification
+         WHEN 'pace' THEN 'eligible'
+         ELSE 'excluded'
+       END`,
+      `ALTER TABLE laps DROP COLUMN classification`,
+    ],
+  },
 ];
 

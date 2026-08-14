@@ -16,14 +16,7 @@ export type {
   LapTireWearData,
 } from "./detector";
 
-import type {
-  SessionState,
-  LapSavedEvent,
-  LapSavedNotification,
-  LapCompleteEvent,
-  LapFuelData,
-  LapTireWearData,
-} from "./detector";
+import type { SessionState, LapSavedEvent, LapSavedNotification, LapCompleteEvent, LapFuelData, LapTireWearData } from "./detector";
 
 /** Optional event callbacks available to every detector implementation. */
 export interface LapDetectorCallbacks {
@@ -62,6 +55,8 @@ export interface ILapDetector {
    * stuck at null.
    */
   setCurrentLapByteOffset?(offset: number): void;
+  /** Wait until every accepted lap and its persistence follow-ups settle. */
+  waitForPendingLapWrites?(): Promise<void>;
   /** Return implementation-specific debug state for the dev panel. */
   getDebugState?(): Record<string, unknown>;
 }

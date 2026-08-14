@@ -8,13 +8,13 @@ Own shared lap-detector contracts and the ordinal-based detector used by Forza M
 
 - `types.ts` defines detector construction, callbacks, and the interface consumed by game adapters and the live telemetry pipeline.
 - `boundaries.ts` contains pure session, lap-number, restart, and final-lap boundary decisions.
-- `detector.ts` owns mutable ordinal-detector state, lap quality and sector evaluation, persistence metadata, fuel and tire history, and callback dispatch.
+- `detector.ts` owns mutable ordinal-detector state, structural validity, independent lap classification, quality and sector evaluation, persistence metadata, fuel and tire history, and callback dispatch.
 
 ## Boundaries and invariants
 
 Game adapters select or wrap detectors; this folder does not parse game protocols. Telemetry supplies normalized packets and raw-file offsets, while database, lap-analysis, experiment reconciliation, and track-data modules own persistence and derived artifacts.
 
-Boundary ordering is significant: session rollover finalizes the buffered lap before session-start callbacks; restart and rewind decisions precede lap-number completion. Lap numbering comes from normalized `LapNumber`. Invalid reasons retain detector-state precedence over recording-quality reasons. Byte offset and frame count are captured with the completed buffer. In `LapDetector`, valid-lap completion callbacks run before asynchronous save notifications.
+Boundary ordering is significant: session rollover finalizes the buffered lap before session-start callbacks; restart and rewind decisions precede lap-number completion. Lap numbering comes from normalized `LapNumber`. Structural invalid reasons retain detector-state precedence; recording quality and pace classification are persisted separately and must not rewrite validity. Byte offset and frame count are captured with the completed buffer. In `LapDetector`, valid-lap completion callbacks run before asynchronous save notifications.
 
 ## Testing
 

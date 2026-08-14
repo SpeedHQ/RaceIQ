@@ -4,8 +4,9 @@ Reusable lap curation, stint statistics, and telemetry-trace transport.
 
 ## Modules
 
+- `classification.ts` keeps lap phase, race conditions, and pace eligibility independent from structural validity.
 - `pit-cycle.ts` owns the persisted pit-cycle reason vocabulary and classifier helper.
-- `review-selection.ts` defines the canonical fastest-clean-lap selection and exclusion reasons for telemetry-heavy reviews.
+- `review-selection.ts` applies shared quality decisions before canonical fastest-clean-lap ranking, exclusion reporting, and caps.
 - `stint-stats.ts` computes repeatability, consistency, and degradation from lap metadata.
 - `trace/types.ts` defines in-memory and encoded lap traces.
 - `trace/build.ts` converts normalized telemetry packets into full-resolution, distance-indexed traces and channel summaries.
@@ -21,8 +22,9 @@ Dependency flow is:
 
 ## Extending lap utilities
 
-- Change review eligibility only in `review-selection.ts`; callers must not reimplement its precedence or cap.
-- Add persisted pit reasons to `PIT_CYCLE_REASONS` and update their producer in the game-specific lap rules together.
+- Change analysis-policy meaning only in `shared/racing/quality/policies.ts`; keep review ranking, exclusion precedence, and caps in `review-selection.ts`, and do not reimplement either in callers.
+- Apply fastest-lap caps only to frame-heavy trace work. Full-stint statistics and eligible-pool counts must retain every policy-eligible lap, including clean laps outside the cap.
+- Add normalized non-pace signals in `classification.ts`, and keep validity independent from classification.
 - Preserve missing-channel semantics in traces: unavailable channels are `null`, not zero-filled data.
 - Keep trace DTO changes symmetric across `types.ts`, `build.ts`, and `codec.ts`.
 - Import explicit leaf modules such as `shared/racing/laps/review-selection`; do not add a barrel.

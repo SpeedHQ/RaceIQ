@@ -6,6 +6,7 @@ import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
+import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 
 interface LapStats {
   totalLaps: number;
@@ -74,6 +75,9 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
       pi: laps.pi,
@@ -135,6 +139,9 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
       pi: laps.pi,
@@ -188,6 +195,9 @@ type LapSummary = {
   createdAt: string;
   sectorTimes: number[] | null;
   isValid: boolean;
+  phase: LapPhase;
+  conditions: LapCondition[];
+  paceEligibility: PaceEligibility;
   invalidReason: string | null;
   notes: string | null;
 };
@@ -206,6 +216,9 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       createdAt: laps.createdAt,
       sectorTimes: laps.sectorTimes,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
     })
@@ -232,6 +245,9 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       createdAt: r.createdAt,
       sectorTimes: r.sectorTimes ?? null,
       isValid: Boolean(r.isValid),
+      phase: r.phase,
+      conditions: r.conditions,
+      paceEligibility: r.paceEligibility,
       invalidReason: r.invalidReason ?? null,
       notes: r.notes ?? null,
     }));
@@ -247,6 +263,9 @@ export async function getLapById(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       createdAt: laps.createdAt,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
@@ -320,6 +339,9 @@ type LapResultRow = {
   lapNumber: number;
   lapTime: number;
   isValid: number | boolean;
+  phase: LapPhase;
+  conditions: LapCondition[];
+  paceEligibility: PaceEligibility;
   createdAt: string;
   carOrdinal: number;
   trackOrdinal: number;
@@ -348,6 +370,9 @@ function buildLapResult(
     lapNumber: row.lapNumber,
     lapTime: row.lapTime,
     isValid: Boolean(row.isValid),
+    phase: row.phase,
+    conditions: row.conditions,
+    paceEligibility: row.paceEligibility,
     createdAt: row.createdAt,
     carOrdinal: row.carOrdinal,
     trackOrdinal: row.trackOrdinal,
@@ -389,6 +414,9 @@ export async function getLapsByIds(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       createdAt: laps.createdAt,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
@@ -474,6 +502,9 @@ export async function getLapsRaw(ids?: number[]) {
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       pi: laps.pi,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,

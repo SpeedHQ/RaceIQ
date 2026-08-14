@@ -1,10 +1,9 @@
 import type { GameId } from "@shared/games/ids";
+import type { LapCondition, LapPhase, PaceEligibility } from "@shared/racing/laps/classification";
 
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 
 export type SessionOwnership = "mine" | "others";
-
-
 
 export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   id: number;
@@ -12,6 +11,9 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  phase?: LapPhase;
+  conditions?: LapCondition[];
+  paceEligibility?: PaceEligibility;
   invalidReason?: string;
   notes?: string;
   createdAt: string;
@@ -89,6 +91,16 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   gameId?: GameId;
 }
 
+export interface SessionLapData {
+  lapId: number;
+  lapNumber: number;
+  lapTimeSec: number;
+  isValid: boolean;
+  phase?: LapPhase;
+  conditions?: LapCondition[];
+  paceEligibility?: PaceEligibility;
+}
+
 export interface SessionRecap {
   sessionId: number;
   gameId: GameId;
@@ -99,7 +111,7 @@ export interface SessionRecap {
   trackOrdinal: number;
   createdAt: string;
 
-  /** Laps with isValid && lapTime > 0. */
+  /** Structurally valid, pace-classified laps with positive times. */
   lapsValid: number;
   /** Every lap row, including invalid ones. Display only ("valid/total"). */
   lapsTotal: number;
@@ -111,11 +123,10 @@ export interface SessionRecap {
   timeOnTrackSec: number;
   /** trackLength * lapsValid, metres. Null when the track has no outline. */
   distanceM: number | null;
+  /** Every recorded lap in lap order, including classified non-pace laps. */
+  sparkline: SessionLapData[];
 
-  /** Pace trend, in lap order. */
-  sparkline: { lapId: number; lapNumber: number; lapTimeSec: number; isValid: boolean }[];
-
-  /** Best sectors across valid laps, possibly from different laps. */
+  /** Best sectors across pace-eligible laps, possibly from different laps. */
   theoretical: {
     bestSectorTimes: number[];
     sumSec: number;

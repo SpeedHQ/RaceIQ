@@ -1,28 +1,22 @@
 import type { TelemetryPacket } from "../../telemetry/types";
 
 /**
- * Laps that are part of a pit cycle carry no representative pace signal:
- * cold tyres, fuel-flow transients, and pit-limiter or stationary time distort
- * lap-time, sector, consistency, and racing-line metrics.
- *
- * The telemetry catalog owns each game's pit-state semantic. This module owns
- * the stateful lap classification that requires first/last samples across a
- * complete lap.
+ * Pit transitions carry no representative pace signal: cold tyres,
+ * fuel-flow transients, and pit-limiter or stationary time distort lap pace.
+ * Input packets are canonical packets emitted by each game normalizer.
  */
-export const PIT_CYCLE_REASONS = ["outlap", "inlap", "pit lap"] as const;
-
-/** Shared persisted reason vocabulary for every supported pit-state source. */
-export type PitCycleReason = (typeof PIT_CYCLE_REASONS)[number];
-
+export type PitCyclePhase = "out" | "in" | "pit";
 export interface PitCycleLap {
   invalidReason?: string | null;
 }
 
-const PIT_CYCLE_REASON_LOOKUP: Readonly<Record<PitCycleReason, true>> = {
+const LEGACY_PIT_CYCLE_REASON_LOOKUP: Readonly<Record<string, true>> = {
   outlap: true,
   inlap: true,
   "pit lap": true,
 };
+
+const PIT_LAP = "pit" satisfies PitCyclePhase;
 
 function pitState(packet: TelemetryPacket): boolean | undefined {
   if (packet.gameId === "iracing") return packet.iracing?.onPitRoad;
@@ -37,7 +31,7 @@ function pitState(packet: TelemetryPacket): boolean | undefined {
   return undefined;
 }
 
-export function classifyPitCycleLap(packets: readonly TelemetryPacket[]): PitCycleReason | null {
+export function classifyPitCycle(packets: readonly TelemetryPacket[]): PitCyclePhase | null {
   if (packets.length === 0) return null;
 
   const startState = pitState(packets[0]);
@@ -54,12 +48,13 @@ export function classifyPitCycleLap(packets: readonly TelemetryPacket[]): PitCyc
   const startInPit = startState === true;
   const endInPit = endState === true;
 
-  if (startInPit && endInPit) return "pit lap";
-  if (endInPit) return "inlap";
-  if (anyInPit) return "outlap";
+  if (startInPit && endInPit) return PIT_LAP;
+  if (endInPit) return "in";
+  if (anyInPit) return "out";
   return null;
 }
 
+/** Legacy-row compatibility until every consumer reads persisted classification. */
 export function isPitCycleLap(lap: PitCycleLap): boolean {
-  return lap.invalidReason != null && lap.invalidReason in PIT_CYCLE_REASON_LOOKUP;
+  return lap.invalidReason != null && lap.invalidReason in LEGACY_PIT_CYCLE_REASON_LOOKUP;
 }

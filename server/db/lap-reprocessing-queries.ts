@@ -2,10 +2,13 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, and, notInArray } from "drizzle-orm";
 import { db } from "./index";
 import { laps } from "./schema";
+import type { LapClassification } from "../../shared/racing/laps/classification";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean;
+  phase: LapClassification["phase"]; conditions: LapClassification["conditions"];
+  paceEligibility: LapClassification["paceEligibility"];
   notes: string | null; tuneId: number | null;
   rawByteOffset: number | null; rawFrameCount: number | null;
   sectorTimes: number[] | null;
@@ -16,6 +19,9 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       notes: laps.notes,
       tuneId: laps.tuneId,
       rawByteOffset: laps.rawByteOffset,
@@ -40,6 +46,7 @@ export async function updateLapRawIndex(
   invalidReason: string | null,
   sectors: number[] | null,
   versionIdentity?: TelemetryVersionIdentity,
+  classification?: LapClassification,
 ): Promise<void> {
   cacheDelete(lapId);
   await db.update(laps).set({
@@ -49,6 +56,7 @@ export async function updateLapRawIndex(
     isValid,
     invalidReason,
     sectorTimes: sectors,
+    ...classification,
     ...versionIdentity,
   }).where(eq(laps.id, lapId));
 }
@@ -67,9 +75,11 @@ export async function insertReprocessedLap(
   invalidReason: string | null,
   sectors: number[] | null,
   versionIdentity?: TelemetryVersionIdentity,
+  classification?: LapClassification,
 ): Promise<number> {
   const result = await db.insert(laps).values({
     sessionId, lapNumber, lapTime, isValid,
+    ...classification,
     rawByteOffset, rawFrameCount,
     tuneId, notes, invalidReason,
     sectorTimes: sectors,

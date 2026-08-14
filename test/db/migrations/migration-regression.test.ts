@@ -100,7 +100,7 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v51 excludes persisted pit entry and exit laps from pace metrics", async () => {
+  test("v59 migrates persisted pit transitions to valid non-pace classes", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 50);
@@ -109,14 +109,56 @@ describe("migration regressions", () => {
     await client.execute("INSERT INTO session_results (id, session_id) VALUES (1, 1)");
     await client.execute("INSERT INTO pit_events (result_id, sequence, lap_number, linkage) VALUES (1, 1, 7, 'linked')");
 
+    await runMigrations(client, 59);
+
+    const rows = await client.execute("SELECT lap_number, is_valid, classification, invalid_reason FROM laps ORDER BY lap_number");
+    expect(rows.rows.map((row) => ({ lapNumber: Number(row.lap_number), isValid: Number(row.is_valid), classification: row.classification, invalidReason: row.invalid_reason }))).toEqual([
+      { lapNumber: 7, isValid: 1, classification: "in_lap", invalidReason: null },
+      { lapNumber: 8, isValid: 1, classification: "out_lap", invalidReason: null },
+      { lapNumber: 9, isValid: 1, classification: "pace", invalidReason: null },
+    ]);
+    client.close();
+  });
+
+  test("v60 maps every legacy lap class and drops scalar classification", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 59);
+    await client.execute("INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')");
+    await client.execute(
+      `INSERT INTO laps (session_id, lap_number, lap_time, classification)
+       VALUES (1, 1, 100, 'pace'),
+              (1, 2, 101, 'out_lap'),
+              (1, 3, 102, 'in_lap'),
+              (1, 4, 103, 'pit_lap'),
+              (1, 5, 104, 'grid_start'),
+              (1, 6, 105, 'caution')`,
+    );
+
     await runMigrations(client);
 
-    const rows = await client.execute("SELECT lap_number, is_valid, invalid_reason FROM laps ORDER BY lap_number");
-    expect(rows.rows.map((row) => ({ lapNumber: Number(row.lap_number), isValid: Number(row.is_valid), invalidReason: row.invalid_reason }))).toEqual([
-      { lapNumber: 7, isValid: 0, invalidReason: "inlap" },
-      { lapNumber: 8, isValid: 0, invalidReason: "outlap" },
-      { lapNumber: 9, isValid: 1, invalidReason: null },
+    const rows = await client.execute("SELECT lap_number, phase, conditions, pace_eligibility FROM laps ORDER BY lap_number");
+    expect(
+      rows.rows.map((row) => ({
+        lapNumber: Number(row.lap_number),
+        phase: String(row.phase),
+        conditions: JSON.parse(String(row.conditions)),
+        paceEligibility: String(row.pace_eligibility),
+      })),
+    ).toEqual([
+      { lapNumber: 1, phase: "flying", conditions: [], paceEligibility: "eligible" },
+      { lapNumber: 2, phase: "out", conditions: [], paceEligibility: "excluded" },
+      { lapNumber: 3, phase: "in", conditions: [], paceEligibility: "excluded" },
+      { lapNumber: 4, phase: "pit", conditions: [], paceEligibility: "excluded" },
+      { lapNumber: 5, phase: "grid_start", conditions: [], paceEligibility: "excluded" },
+      { lapNumber: 6, phase: "flying", conditions: ["caution"], paceEligibility: "excluded" },
     ]);
+    const columns = await client.execute("PRAGMA table_info(laps)");
+    const columnNames = columns.rows.map((row) => String(row.name));
+    expect(columnNames).toContain("phase");
+    expect(columnNames).toContain("conditions");
+    expect(columnNames).toContain("pace_eligibility");
+    expect(columnNames).not.toContain("classification");
     client.close();
   });
 

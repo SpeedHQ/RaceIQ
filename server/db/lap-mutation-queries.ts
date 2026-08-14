@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { LapClassification } from "../../shared/racing/laps/classification";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 
@@ -44,8 +45,9 @@ export function insertLap(
   invalidReason: string | null = null,
   sectors: number[] | null = null,
   versionIdentity?: TelemetryVersionIdentity,
+  classification?: LapClassification,
 ): Promise<number> {
-  return doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity);
+  return doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, classification);
 }
 
 async function doInsertLap(
@@ -60,6 +62,7 @@ async function doInsertLap(
   invalidReason: string | null,
   sectors: number[] | null = null,
   versionIdentity?: TelemetryVersionIdentity,
+  classification?: LapClassification,
 ): Promise<number> {
   // Stamp the lap with the active tuning session (if any). This is the single
   // choke point every live lap-detector funnels through (via the DbAdapter), so
@@ -82,6 +85,7 @@ async function doInsertLap(
       profileId,
       tuneId,
       invalidReason,
+      ...classification,
       experimentId: activeExperimentId,
       experimentVersionId: activeExperimentVersionId,
       ...versionIdentity,

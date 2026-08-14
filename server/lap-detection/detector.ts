@@ -18,8 +18,7 @@ import { extractCurbSegments, recordCurbData } from "../../shared/racing/tracks/
 import { recordLapTrace } from "../../shared/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "../../shared/racing/tracks/catalogs/iracing"
 import { lapPath } from "../../shared/racing/tracks/path";
-import { classifyPitCycleLap } from "../../shared/racing/laps/pit-cycle";
-import { assessLapRecording } from "../lap-analysis/quality";
+import { classifyLap, type LapClassification } from "../../shared/racing/laps/classification";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
@@ -50,22 +49,22 @@ export interface LapTireWearData {
   worn: { fl: number; fr: number; rl: number; rr: number };
 }
 
-export interface LapSavedEvent {
+export interface LapSavedEvent extends LapClassification {
   lapId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
   sectors: number[] | null;
-  estimatedBestLapTime: number; // best lap time in session (0 if none yet)
+  estimatedBestLapTime: number; // best valid pace lap in session (0 if none)
 }
 export interface LapSavedNotification extends LapSavedEvent {
   type: "lap-saved";
 }
 
 /** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
-export const LAP_DETECTOR_ID = "lapdetector_v2";
+export const LAP_DETECTOR_ID = "lapdetector_v3";
 
-export interface LapCompleteEvent {
+export interface LapCompleteEvent extends LapClassification {
   packets: TelemetryPacket[];
   lapDistStart: number;
   lapTime: number;
@@ -372,12 +371,11 @@ export class LapDetector implements ILapDetector {
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
 
-      // Catalog-normalized pit state becomes a lap-level exclusion only after
-      // the complete lap window is available.
-      const pitReason = classifyPitCycleLap(this.lapBuffer);
-      const quality = assessLapRecording(this.lapBuffer, lapTime);
-      const valid = this.lapIsValid && pitReason === null && quality.valid;
-      const invalidReason = this.invalidReason ?? pitReason ?? (!quality.valid ? quality.reason : null);
+      // Structural validity and pace classification remain independent.
+      const classification = classifyLap(this.lapBuffer);
+      const valid = this.lapIsValid;
+      const invalidReason = this.invalidReason;
+      const normalPaceEligible = valid && classification.paceEligibility === "eligible";
 
       const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
 
@@ -387,7 +385,7 @@ export class LapDetector implements ILapDetector {
       // cannot be reached). Higher-quality shared/SVG sources still win in the
       // outline resolver.
       if (
-        valid &&
+        normalPaceEligible &&
         this.currentSession.gameId === "iracing" &&
         this.currentSession.trackOrdinal > 0 &&
         !getIRacingSharedTrackName(this.currentSession.trackOrdinal)
@@ -407,17 +405,19 @@ export class LapDetector implements ILapDetector {
       }
 
       // Update session best lap time
-      if (valid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
+      if (normalPaceEligible && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
         this.currentSession!.bestLapTime = lapTime;
       }
 
-      // Notify pipeline so sector tracker can update reference lap for delta
-      if (valid) {
+      // Existing consumers receive only normal-pace evidence until policy-aware
+      // callbacks land; saved-lap notifications still preserve classification.
+      if (normalPaceEligible) {
         this.onLapComplete_?.({
           packets: this.lapBuffer,
           lapDistStart: this.lapBuffer[0].DistanceTraveled,
           lapTime,
           isValid: valid,
+          ...classification,
           sectors,
         });
       }
@@ -435,7 +435,9 @@ export class LapDetector implements ILapDetector {
         null,
         tuneId,
         invalidReason,
-        sectors
+        sectors,
+        undefined,
+        classification
       ).then(async (lapId) => {
         // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
         // never decodes on first open.
@@ -448,6 +450,7 @@ export class LapDetector implements ILapDetector {
           lapNumber: lapNum,
           lapTime,
           isValid: valid,
+          ...classification,
           sectors,
           estimatedBestLapTime: this.currentSession!.bestLapTime,
         });
@@ -487,6 +490,7 @@ export class LapDetector implements ILapDetector {
             this.currentSession.trackOrdinal
           );
           const lapPackets = this.lapBuffer;
+          const classification = classifyLap(lapPackets);
           this.db.insertLap(
             this.currentSession.sessionId,
             this.currentLapNumber,
@@ -497,7 +501,9 @@ export class LapDetector implements ILapDetector {
             null,
             tuneAssignment?.tuneId ?? null,
             "incomplete",
-            null
+            null,
+            undefined,
+            classification
           ).then(async (lapId) => {
             await this.persistLapFollowups(lapId, lapPackets);
             console.log(`[Lap] Saved incomplete lap (session ended)`);
@@ -546,6 +552,7 @@ export class LapDetector implements ILapDetector {
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
       const lapPackets = this.lapBuffer;
+      const classification = classifyLap(lapPackets);
       this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
@@ -556,7 +563,9 @@ export class LapDetector implements ILapDetector {
         null,
         tuneAssignment?.tuneId ?? null,
         isComplete ? this.invalidReason : "incomplete",
-        null
+        null,
+        undefined,
+        classification
       ).then(async (lapId) => {
         await this.persistLapFollowups(lapId, lapPackets);
         console.log(

@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
+import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 
 export const profiles = sqliteTable("profiles", {
@@ -179,6 +180,9 @@ export const laps = sqliteTable(
 		lapNumber: integer("lap_number").notNull(),
 		lapTime: real("lap_time").notNull(),
 		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
+		phase: text("phase").$type<LapPhase>().notNull().default("flying"),
+		conditions: text("conditions", { mode: "json" }).$type<LapCondition[]>().notNull().default(sql`'[]'`),
+		paceEligibility: text("pace_eligibility").$type<PaceEligibility>().notNull().default("eligible"),
 		invalidReason: text("invalid_reason"),
 		notes: text("notes"),
 		profileId: integer("profile_id").references(() => profiles.id),
