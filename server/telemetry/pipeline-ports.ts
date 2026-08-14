@@ -383,8 +383,7 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
   async stop(): Promise<ArchiveVerification> {
     const inner = this._inner;
     this._inner = null;
-    if (!inner) return { state: "unavailable", sourceGeneration: null, details: "Recorder was not active" };
-    return (await inner.stop()) ?? { state: "unavailable", sourceGeneration: null, details: "Recorder did not provide archive verification" };
+    return inner ? inner.stop() : { state: "unavailable", sourceGeneration: null, details: "Recorder was not active" };
   }
 }
 

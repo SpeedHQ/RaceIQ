@@ -1,6 +1,8 @@
-import { existsSync, mkdirSync, openSync, writeSync, closeSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, writeSync } from "node:fs";
+import { createHash } from "node:crypto";
+import type { ArchiveVerification } from "../../shared/racing/quality/contracts";
 import { dirname } from "node:path";
-import { encodeFrameLength, encodeMetaFrame, META_FRAME_BYTES } from "./framing";
+import { encodeFrameLength, encodeMetaFrame, iterateSessionFrameRecords, META_FRAME_BYTES, META_FRAME_MAGIC } from "./framing";
 
 /**
  * Appends raw telemetry records to a binary dump file.
@@ -23,6 +25,7 @@ export class SessionRecorder {
   private _byteOffset = 0;
   private _metaPending = false;
   private _active = false;
+  private _hasher = createHash("sha256");
 
   get recording(): boolean {
     return this._active;
@@ -51,6 +54,7 @@ export class SessionRecorder {
     this._recordCount = 0;
     this._byteOffset = 0;
     this._metaPending = false;
+    this._hasher = createHash("sha256");
     this._active = true;
     return this._path;
   }
@@ -74,10 +78,13 @@ export class SessionRecorder {
     if (!this._active) return;
     if (!this._file) this._openAndWriteMeta();
     if (!this._file) return;
-    this._file.write(encodeFrameLength(buf.length));
+    const prefix = encodeFrameLength(buf.length);
+    this._file.write(prefix);
     this._file.write(buf);
+    this._hasher.update(prefix);
+    this._hasher.update(buf);
     this._recordCount++;
-    this._byteOffset += 4 + buf.length;
+    this._byteOffset += prefix.length + buf.length;
   }
 
   private _openAndWriteMeta(): void {
@@ -106,17 +113,35 @@ export class SessionRecorder {
     }
   }
 
-  /** Flush, patch total frame count into header, and close. No file is created if no records were written. */
-  async stop(): Promise<void> {
+  /** Flush, patch total frame count, close, and verify framing plus digest. */
+  async stop(): Promise<ArchiveVerification> {
     const path = this._path;
     const file = this._file;
     const count = this._recordCount;
+    const expectedBytes = this._byteOffset;
     const hadMeta = this._metaPending;
     this._file = null;
     this._metaPending = false;
     this._active = false;
-    if (!file || !path) return;
-    await file.end();
+    if (!file || !path) {
+      return { state: "unavailable", sourceGeneration: null, details: "No records were written" };
+    }
+
+    let closeFailure: unknown;
+    try {
+      await file.end();
+    } catch (error) {
+      closeFailure = error;
+    }
+    const sourceGeneration = `sha256:${this._hasher.digest("hex")}`;
+    if (closeFailure) {
+      return {
+        state: "corrupt",
+        sourceGeneration,
+        details: closeFailure instanceof Error ? closeFailure.message : String(closeFailure),
+      };
+    }
+
     if (hadMeta) {
       try {
         const countBuf = encodeFrameLength(count);
@@ -126,10 +151,58 @@ export class SessionRecorder {
         } finally {
           closeSync(fd);
         }
-      } catch {
-        // Non-fatal: header patch failing doesn't corrupt the record data
+      } catch (error) {
+        return {
+          state: "corrupt",
+          sourceGeneration,
+          details: error instanceof Error ? error.message : String(error),
+        };
       }
     }
+
+    let verification: ArchiveVerification;
+    try {
+      if (!existsSync(path)) {
+        verification = { state: "unavailable", sourceGeneration: null, details: "Recording file disappeared before verification" };
+      } else {
+        const bytes = readFileSync(path);
+        if (bytes.length < expectedBytes) {
+          verification = { state: "truncated", sourceGeneration, details: `Expected ${expectedBytes} bytes, found ${bytes.length}` };
+        } else if (bytes.length > expectedBytes) {
+          verification = { state: "corrupt", sourceGeneration, details: `Expected ${expectedBytes} bytes, found ${bytes.length}` };
+        } else if (
+          hadMeta &&
+          (bytes.length < META_FRAME_BYTES ||
+            bytes.readUInt32LE(0) !== META_FRAME_MAGIC ||
+            bytes.readUInt32LE(4) !== META_FRAME_BYTES - 8 ||
+            bytes.readUInt32LE(8) !== count)
+        ) {
+          verification = { state: "corrupt", sourceGeneration, details: "Recording metadata frame does not match written frame count" };
+        } else {
+          const actualHash = createHash("sha256");
+          let actualCount = 0;
+          for (const record of iterateSessionFrameRecords(bytes, hadMeta ? META_FRAME_BYTES : 0, { strict: true })) {
+            actualHash.update(bytes.subarray(record.offset, record.offset + 4 + record.frame.length));
+            actualCount++;
+          }
+          if (actualCount !== count) {
+            verification = { state: "corrupt", sourceGeneration, details: `Expected ${count} frames, found ${actualCount}` };
+          } else if (`sha256:${actualHash.digest("hex")}` !== sourceGeneration) {
+            verification = { state: "corrupt", sourceGeneration, details: "Recording digest does not match written frames" };
+          } else {
+            verification = { state: "verified", sourceGeneration };
+          }
+        }
+      }
+    } catch (error) {
+      const details = error instanceof Error ? error.message : String(error);
+      verification = {
+        state: /truncated/i.test(details) ? "truncated" : "corrupt",
+        sourceGeneration,
+        details,
+      };
+    }
     console.log(`[SessionRecorder] Stopped. ${count} records written to ${path}`);
+    return verification;
   }
 }
