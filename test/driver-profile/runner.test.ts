@@ -1,13 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
-import {
-  DRIVER_PROFILE_DEFAULT_OUTPUT_TOKENS,
-  driverProfilePoolKey,
-  logDriverProfileFailure,
-  logDriverProfileOutput,
-  notifyDriverProfileLap,
-} from "../../server/driver-profile/runner";
+import { DRIVER_PROFILE_DEFAULT_OUTPUT_TOKENS, driverProfilePoolKey, logDriverProfileFailure, logDriverProfileOutput, notifyDriverProfileLap } from "../../server/driver-profile/runner";
 import { driverRoutes } from "../../server/routes/driver-routes";
 
 describe("driver profile runner", () => {
@@ -65,19 +59,24 @@ describe("driver profile runner", () => {
     expect((await driverRoutes.request("/api/drivers/profile", { method: "DELETE", headers })).status).toBe(404);
   });
 
-  test("pool key is versioned and includes only newest 60 IDs before sorting", () => {
-    const newest = Array.from({ length: 60 }, (_, index) => 1000 - index);
-    const withOldTail = [...newest, 1, 2, 3];
+  test("pool key includes quality identity for the newest 60 laps before sorting", () => {
+    const lap = (id: number, qualityGeneration = `sha256:quality-${id}`, qualityStale = false) => ({
+      id,
+      qualityGeneration,
+      qualityStale,
+    });
+    const newest = Array.from({ length: 60 }, (_, index) => lap(1000 - index));
+    const withOldTail = [...newest, lap(1), lap(2), lap(3)];
     expect(driverProfilePoolKey(newest)).toBe(driverProfilePoolKey(withOldTail));
-    expect(driverProfilePoolKey(newest)).not.toBe(driverProfilePoolKey([999, ...newest.slice(1)]));
+    expect(driverProfilePoolKey(newest)).not.toBe(driverProfilePoolKey([lap(999), ...newest.slice(1)]));
+    expect(driverProfilePoolKey(newest)).not.toBe(driverProfilePoolKey([{ ...newest[0]!, qualityGeneration: "sha256:rebuilt" }, ...newest.slice(1)]));
+    expect(driverProfilePoolKey(newest)).not.toBe(driverProfilePoolKey([{ ...newest[0]!, qualityStale: true }, ...newest.slice(1)]));
   });
   test("logs handled profile failures with run and model context", () => {
     const error = spyOn(console, "error").mockImplementation(() => {});
     try {
       logDriverProfileFailure(5, "qwen/qwen3.5-9b", "Model output did not match summary schema.");
-      expect(error).toHaveBeenCalledWith(
-        "[AI] Driver profile run 5 failed (model=qwen/qwen3.5-9b): Model output did not match summary schema.",
-      );
+      expect(error).toHaveBeenCalledWith("[AI] Driver profile run 5 failed (model=qwen/qwen3.5-9b): Model output did not match summary schema.");
     } finally {
       error.mockRestore();
     }
@@ -89,9 +88,7 @@ describe("driver profile runner", () => {
     const error = spyOn(console, "error").mockImplementation(() => {});
     try {
       logDriverProfileOutput(6, "qwen/qwen3.5-9b", { text: "", object: { headline: "x", extra: true } });
-      expect(error).toHaveBeenCalledWith(
-        '[AI] Driver profile run 6 raw output (model=qwen/qwen3.5-9b, finishReason=<unknown>, usage=<none>, resultKeys=text,object): {"headline":"x","extra":true}',
-      );
+      expect(error).toHaveBeenCalledWith('[AI] Driver profile run 6 raw output (model=qwen/qwen3.5-9b, finishReason=<unknown>, usage=<none>, resultKeys=text,object): {"headline":"x","extra":true}');
     } finally {
       error.mockRestore();
     }

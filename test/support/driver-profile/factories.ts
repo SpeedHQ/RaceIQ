@@ -2,25 +2,53 @@ import type { ProfileScope } from "../../../server/driver-profile/fingerprint";
 import type { LapStyleSummary } from "../../../shared/racing/analysis/laps/driving-style";
 import type { LapInsight } from "../../../shared/racing/analysis/laps/insights/types";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../../shared/racing/quality/contracts";
 
 export const SCOPE: ProfileScope = { kind: "car-track", gameId: "fm-2023", carOrdinal: 100, trackOrdinal: 200 };
 export const GLOBAL_SCOPE: ProfileScope = { kind: "global", gameId: "fm-2023", carOrdinal: null, trackOrdinal: null };
 
 export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
-  return {
+  const qualityGeneration = `sha256:test-quality-${id}`;
+  const value: LapMeta = {
     id,
     sessionId: 1,
     lapNumber: id,
     lapTime: 90 + (id % 5) * 0.1,
     isValid: true,
+    phase: "flying",
+    conditions: [],
+    paceEligibility: "eligible",
     createdAt: "2026-01-01T00:00:00.000Z",
     gameId: "fm-2023",
     carOrdinal: 100,
     trackOrdinal: 200,
+    quality: {
+      provenance: {
+        schemaVersion: QUALITY_SCHEMA_VERSION,
+        policyVersion: ELIGIBILITY_POLICY_VERSION,
+        configurationVersion: QUALITY_CONFIG_VERSION,
+        sourceGeneration: `sha256:test-source-${id}`,
+        outputGeneration: qualityGeneration,
+      },
+    } as unknown as LapQualitySummary,
+    qualityGeneration,
+    qualityStale: false,
     ...over,
-    phase: over.phase ?? "flying",
-    conditions: over.conditions ?? [],
-    paceEligibility: over.paceEligibility ?? "eligible",
+  };
+  if (over.eligibility) return value;
+  const usable = value.isValid && value.paceEligibility === "eligible";
+  return {
+    ...value,
+    eligibility: {
+      "normal-pace": {
+        status: usable ? "eligible" : "ineligible",
+        policyId: "normal-pace",
+        policyVersion: ELIGIBILITY_POLICY_VERSION,
+        confidence: { level: "high", score: 1 },
+        reasons: usable ? [] : [{ code: "structurally_invalid", severity: "error", evidenceIds: [`lap:${id}:validity`], timeRange: null, distanceRange: null, semanticIds: [] }],
+        evidenceIds: usable ? [] : [`lap:${id}:validity`],
+      },
+    } as unknown as EligibilityDecisionSet,
   };
 }
 
