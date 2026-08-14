@@ -14,6 +14,11 @@ import {
   telemetryCatalogSourceHash,
   assertTelemetryCatalogComplete,
 } from "../../support/telemetry/catalog";
+import {
+  ast,
+  interfaceFields,
+  interfaceLeafFields,
+} from "../../../scripts/catalog/ast-discovery";
 
 describe("semantic telemetry catalog artifacts", () => {
   test("generated artifact is current and structurally complete", async () => {
@@ -84,6 +89,21 @@ describe("semantic telemetry catalog artifacts", () => {
     const lf = "alpha\nbeta\n";
     expect(telemetryCatalogSourceHash(lf)).toBe(
       telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")),
+    );
+  });
+  test("normalizes line endings in discovered source types", () => {
+    const lf = `interface Sample {
+  value: [
+    [number, number, number],
+    [number, number, number],
+  ];
+}`;
+    const crlf = lf.replaceAll("\n", "\r\n");
+    expect(interfaceFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceFields(lf, ast(lf), "Sample"),
+    );
+    expect(interfaceLeafFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceLeafFields(lf, ast(lf), "Sample"),
     );
   });
   test("covers every normalized packet field and every parser source inventory", () => {

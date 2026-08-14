@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "1f34aeb938da59a4a16a9a1fca61351b878c01c2d8ece5b1cf36e478b0656171"
+      "sourceHash": "b8f5d73eba4eb87a6b521042a55d8d1d05af4e5f7290680d9142b214f13db420"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
@@ -18,7 +18,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "891ce3a5167300550134f31b14b9a1d0679de32fa6e5d16deb95a1e3c44bd4db"
+    "contentHash": "9967bf6be4f2d310dd6b9161425c718b6a880c8fa8b430f55853cb40090796c0"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -58761,7 +58761,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n  ]",
+        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",
@@ -61391,7 +61391,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n  ]",
+        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",
