@@ -99,6 +99,23 @@ test("Analyse opens the shared session importer", async ({ page }) => {
   await expect(dialog.locator('input[type="file"]')).toHaveAttribute("accept", ".zip,.bin,.bin.gz,.ibt,.ld");
 });
 
+test("Sessions matches Analyse import action placement and styling", async ({ page }) => {
+  await page.goto("/iracing/analyse", { waitUntil: "domcontentloaded" });
+  const analyseImport = page.getByRole("button", { name: "Import", exact: true });
+  const analyseClass = await analyseImport.getAttribute("class");
+
+  await page.goto("/iracing/sessions", { waitUntil: "domcontentloaded" });
+  const sessionsImport = page.getByRole("button", { name: "Import", exact: true });
+  await expect(sessionsImport).toHaveAttribute("class", analyseClass!);
+  const [searchBox, importBox] = await Promise.all([
+    page.getByRole("searchbox").boundingBox(),
+    sessionsImport.boundingBox(),
+  ]);
+  expect(searchBox).not.toBeNull();
+  expect(importBox).not.toBeNull();
+  expect(importBox!.x).toBeGreaterThan(searchBox!.x + searchBox!.width);
+});
+
 test("shared importer continues MoTeC files into setup", async ({ page }) => {
   await page.goto("/iracing/sessions", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Import", exact: true }).click();

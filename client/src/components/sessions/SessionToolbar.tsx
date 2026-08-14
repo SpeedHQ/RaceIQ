@@ -1,4 +1,5 @@
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import { Upload } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,6 @@ export function SessionToolbar({
           </Button>
         ))}
       </div>
-      <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
       <AppInput
         type="search"
         value={search}
@@ -76,7 +76,11 @@ export function SessionToolbar({
           </span>
         )}
       </h1>
-      <div className="flex items-center flex-wrap gap-2">
+      <div className="ml-auto flex items-center flex-wrap gap-2">
+        <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>
+          <Upload className="size-3.5" />
+          {m.sessions_import()}
+        </Button>
         {selectedLaps.size === 2 &&
           (() => {
             const ids = [...selectedLaps];
