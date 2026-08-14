@@ -1,5 +1,5 @@
 import { getGame } from "@shared/games/registry";
-import { getFuelAmount, getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { getFuelAmount, getFuelDisplay, getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { useEffect, useRef, useState } from "react";
 import { severityColor } from "@/lib/colors";
 import { client } from "@/lib/rpc";
@@ -115,10 +115,28 @@ export function FuelGauge({ packet, view }: { packet?: TelemetryPacket; view?: L
   }, [packet?.LapNumber, packet?.Fuel]);
 
   if (!packet && view) {
-    const amount = view.fuel.amount ?? 0;
-    const capacity = view.fuel.capacity;
-    const fill = capacity && capacity > 0 ? (amount / capacity) * 100 : undefined;
-    return <div className="flex-1"><div className="flex justify-between text-app-caption mb-0.5"><span className="font-mono font-bold">Fuel {amount.toFixed(1)}</span></div><div className="h-2 rounded-full overflow-hidden">{fill !== undefined && <div className="h-full rounded-full" style={{ width: `${fill}%` }} />}</div></div>;
+    const fuel = getFuelDisplaySemantic(view.fuel.amount ?? 0, view.fuel.capacity, fuelSpec);
+    const fillPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
+    const isCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
+    const isWarning = !isCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
+    const fuelColor = severityColor(isCritical ? 3 : isWarning ? 1 : 0);
+    return (
+      <div className="flex-1">
+        <div className="flex justify-between text-app-caption mb-0.5">
+          <span className="font-mono font-bold" style={{ color: fuelColor }}>
+            Fuel {fuel.amount.toFixed(1)}
+            {fuel.unit}
+          </span>
+        </div>
+        {fillPct === undefined ? (
+          <div className="h-2 rounded-full border border-dashed border-app-border" title="Fuel capacity unavailable" />
+        ) : (
+          <div className="h-2 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${isCritical ? "animate-pulse" : ""}`} style={{ backgroundColor: fuelColor, width: `${fillPct}%` }} />
+          </div>
+        )}
+      </div>
+    );
   }
   if (!packet) return null;
 

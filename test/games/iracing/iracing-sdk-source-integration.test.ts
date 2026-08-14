@@ -116,6 +116,7 @@ DriverInfo:
   DriverCarIdleRPM: 900
   DriverCarRedLine: 8500
   DriverCarEngCylinderCount: 8
+  DriverCarFuelMaxLtr: 105.0
   Drivers:
   - CarIdx: 7
     CarID: 42
@@ -155,6 +156,7 @@ DriverInfo:
     );
     expect(parsePacket(delivered!)).toMatchObject({
       gameId: "iracing",
+      FuelCapacity: 105,
       iracing: { sectorStarts: [0, 0.34, 0.67] },
     });
   });
