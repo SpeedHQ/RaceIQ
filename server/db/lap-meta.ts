@@ -1,4 +1,5 @@
 import type { GameId } from "../../shared/games/ids";
+import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 
 type StoredLapMetaRow = {
@@ -7,6 +8,9 @@ type StoredLapMetaRow = {
   lapNumber: number;
   lapTime: number;
   isValid: boolean | number;
+  phase: LapPhase;
+  conditions: LapCondition[];
+  paceEligibility: PaceEligibility;
   invalidReason: string | null;
   notes: string | null;
   pi: number | null;
@@ -39,6 +43,9 @@ type StoredLapMetaRow = {
 export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const {
     isValid,
+    phase,
+    conditions,
+    paceEligibility,
     invalidReason,
     notes,
     pi,
@@ -82,6 +89,9 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   return {
     ...base,
     isValid: Boolean(isValid),
+    phase,
+    conditions,
+    paceEligibility,
     invalidReason: invalidReason ?? undefined,
     notes: notes ?? undefined,
     pi: pi ?? 0,

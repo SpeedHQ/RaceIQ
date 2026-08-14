@@ -218,12 +218,17 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   const result: SessionMeta[] = [];
   for (const session of rows) {
     const lapRows = await db
-      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid })
+      .select({
+        id: laps.id,
+        lapTime: laps.lapTime,
+        isValid: laps.isValid,
+        paceEligibility: laps.paceEligibility,
+      })
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
 
-    const validLaps = lapRows.filter((l) => l.isValid && l.lapTime > 0);
+    const validLaps = lapRows.filter((l) => l.isValid && l.paceEligibility === "eligible" && l.lapTime > 0);
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
     const normalizedSession = {
       ...session,
@@ -316,6 +321,9 @@ export async function getSessionRecapData(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
       sectorTimes: laps.sectorTimes,
       invalidReason: laps.invalidReason,
     })
@@ -329,6 +337,7 @@ export async function getSessionRecapData(
     lapRows.find(
       (lap) =>
         Boolean(lap.isValid) &&
+        lap.paceEligibility === "eligible" &&
         lap.sectorTimes != null &&
         lap.sectorTimes.length >= 2 &&
         lap.sectorTimes.every((time) => time > 0),
@@ -361,6 +370,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        eq(laps.paceEligibility, "eligible"),
         sql`${laps.lapTime} > 0`,
       ),
     )
@@ -379,6 +389,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        eq(laps.paceEligibility, "eligible"),
         sql`${laps.lapTime} > 0`,
         sql`${laps.sectorTimes} IS NOT NULL`,
       ),

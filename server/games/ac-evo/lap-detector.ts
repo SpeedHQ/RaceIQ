@@ -4,10 +4,9 @@ import type { LapDetectorOptions } from "../../lap-detection/types";
 import { KunosLapDetector } from "../kunos/lap-detector";
 import { classifyKunosTrackLimits } from "../kunos/lap-rules";
 
-// v2: added track-limits invalidation from the per-frame is_valid_lap flag.
-// Bumping the id makes every previously-recorded AC Evo session stale so
-// /api/sessions/reprocess-stale backfills the new invalid reasons.
-export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v2";
+// v3: persist pace classification independently from telemetry validity.
+// Bumping the id makes recorded sessions eligible for classification backfill.
+export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v3";
 
 /** AC Evo policy hooks for the shared Kunos lap lifecycle. */
 export class LapDetectorAcEvo extends KunosLapDetector {

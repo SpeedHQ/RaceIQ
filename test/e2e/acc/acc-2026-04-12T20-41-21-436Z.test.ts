@@ -18,14 +18,16 @@ describe(recordingFile, () => {
     // 6 laps: pit lap + outlap + 2 valid + short invalid + incomplete
     expect(laps.length).toBe(6);
 
-    // Lap 0: pit lap — recording started mid-lap inside pit, sectors null
-    expect(laps[0].isValid).toBe(false);
-    expect(laps[0].invalidReason).toBe("pit lap");
+    // Lap 0: valid pit telemetry, non-pace classification, sectors null
+    expect(laps[0].isValid).toBe(true);
+    expect(laps[0]).toMatchObject({ phase: "pit", conditions: [], paceEligibility: "excluded" });
+    expect(laps[0].invalidReason).toBeNull();
     expect(laps[0].sectors).toBeNull();
 
-    // Lap 1: outlap with valid sectors
-    expect(laps[1].isValid).toBe(false);
-    expect(laps[1].invalidReason).toBe("outlap");
+    // Lap 1: valid out lap with valid sectors
+    expect(laps[1].isValid).toBe(true);
+    expect(laps[1]).toMatchObject({ phase: "out", conditions: [], paceEligibility: "excluded" });
+    expect(laps[1].invalidReason).toBeNull();
     assertBrandHatchSectorBounds(laps[1]);
 
     // Laps 2-3: clean laps

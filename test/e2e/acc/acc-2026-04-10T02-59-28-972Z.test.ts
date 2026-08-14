@@ -22,7 +22,7 @@ describe(recordingFile, () => {
     generateRecordingVisualizations(recordingFile, laps, rawPackets);
 
     expect(laps.length).toBe(5);
-    expect(laps.filter((l) => l.isValid).length).toBe(3);
+    expect(laps.filter((lap) => lap.isValid).length).toBe(4);
 
     // All laps belong to the same session
     const sessionIds = new Set(laps.map((l) => l.sessionId));
@@ -30,9 +30,10 @@ describe(recordingFile, () => {
     // ACC lap detector is 1-indexed (LapNumber = completedLaps + 1).
     expect(laps.map((l) => l.lapNumber)).toEqual([1, 2, 3, 4, 5]);
 
-    // Lap 1: joining lap (recording started mid-lap, from pit)
-    expect(laps[0].isValid).toBe(false);
-    expect(laps[0].invalidReason).toBe("outlap");
+    // Lap 1: valid telemetry classified as joining/out lap.
+    expect(laps[0].isValid).toBe(true);
+    expect(laps[0]).toMatchObject({ phase: "out", conditions: [], paceEligibility: "excluded" });
+    expect(laps[0].invalidReason).toBeNull();
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
     // Laps 2-4: valid clean laps
@@ -67,9 +68,10 @@ describe(recordingFile, () => {
     expect(laps[4].isValid).toBe(false);
     expect(laps[4].invalidReason).toBe("incomplete");
 
-    // lap-saved notifications: lap 1 invalid, laps 2-4 valid with best lap tracking
+    // Notifications preserve validity and expose non-pace classification.
     expect(lapSaved[0].lapNumber).toBe(1);
-    expect(lapSaved[0].isValid).toBe(false);
+    expect(lapSaved[0].isValid).toBe(true);
+    expect(lapSaved[0]).toMatchObject({ phase: "out", conditions: [], paceEligibility: "excluded" });
     expect(lapSaved[1].lapNumber).toBe(2);
     expect(lapSaved[1].isValid).toBe(true);
     expect(lapSaved[1].estimatedBestLapTime).toBe(lapSaved[1].lapTime);

@@ -1,6 +1,5 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { DbAdapter } from "../../telemetry/pipeline-ports";
-import { assessLapRecording } from "../../lap-analysis/quality";
 import { persistLapMetrics } from "../../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../../experiments/auto-exclude";
 import { computeLapSectors } from "../../lap-analysis/sectors";
@@ -11,7 +10,7 @@ import type {
   SessionState,
 } from "../../lap-detection/types";
 import { kunosFirstPacketIsMidLap } from "./lap-rules";
-import { classifyPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
+import { classifyLap } from "../../../shared/racing/laps/classification";
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
 export abstract class KunosLapDetector implements ILapDetector {
@@ -126,7 +125,7 @@ export abstract class KunosLapDetector implements ILapDetector {
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
-        const isPitOnly = classifyPitCycleLap(this.lapBuffer) === "pit lap";
+        const isPitOnly = classifyLap(this.lapBuffer).phase === "pit";
         if (bufDist < 100 || isPitOnly) {
           this.lapBuffer = [];
           this.peakCurrentLap = 0;
@@ -209,17 +208,9 @@ export abstract class KunosLapDetector implements ILapDetector {
     this._lapByteOffset = this._currentRawByteOffset;
     this._lapFrameCount = 0;
 
-    const quality = assessLapRecording(packets, lapTime);
-    let isValid = forcedInvalidReason ? false : quality.valid;
-    let invalidReason = forcedInvalidReason ?? quality.reason;
-
-    if (isValid) {
-      const pitReason = classifyPitCycleLap(packets);
-      if (pitReason) {
-        isValid = false;
-        invalidReason = pitReason;
-      }
-    }
+    const classification = classifyLap(packets);
+    let isValid = forcedInvalidReason === null;
+    let invalidReason = forcedInvalidReason;
 
     if (isValid) {
       const cutReason = this.classifyTrackLimits(packets);
@@ -237,7 +228,8 @@ export abstract class KunosLapDetector implements ILapDetector {
       undefined,
     );
 
-    if (isValid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
+    const normalPaceEligible = isValid && classification.paceEligibility === "eligible";
+    if (normalPaceEligible && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
       this.currentSession!.bestLapTime = lapTime;
     }
 
@@ -252,6 +244,8 @@ export abstract class KunosLapDetector implements ILapDetector {
       null,
       invalidReason,
       sectors,
+      undefined,
+      classification,
     );
     // Precompute fuel/tyre metrics now (frames already in memory) so
     // /lap-metrics never decodes on first open.
@@ -266,16 +260,20 @@ export abstract class KunosLapDetector implements ILapDetector {
         lapNumber: lapNum,
         lapTime,
         isValid,
+        ...classification,
         sectors,
         estimatedBestLapTime: this.currentSession!.bestLapTime,
       });
-      this.onLapComplete_?.({
-        packets,
-        lapDistStart: packets[0]?.DistanceTraveled ?? 0,
-        lapTime,
-        isValid,
-        sectors,
-      });
+      if (normalPaceEligible) {
+        this.onLapComplete_?.({
+          packets,
+          lapDistStart: packets[0]?.DistanceTraveled ?? 0,
+          lapTime,
+          isValid,
+          ...classification,
+          sectors,
+        });
+      }
     }
   }
 
