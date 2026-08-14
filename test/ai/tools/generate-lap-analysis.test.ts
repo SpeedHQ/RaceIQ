@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  QUALITY_CONFIG_VERSION,
+  QUALITY_SCHEMA_VERSION,
+  type LapQualitySummary,
+} from "../../../shared/racing/quality/contracts";
+import type { QualityCacheIdentity } from "../../../server/db/analysis-queries";
 import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
@@ -15,12 +21,41 @@ const validAnalysis = JSON.stringify({
   setup: [],
 });
 
+const QUALITY_GENERATION = "sha256:prompt-quality";
+
+function currentQuality(generation: string): LapQualitySummary {
+  return {
+    provenance: {
+      schemaVersion: QUALITY_SCHEMA_VERSION,
+      policyVersion: ELIGIBILITY_POLICY_VERSION,
+      configurationVersion: QUALITY_CONFIG_VERSION,
+      sourceGeneration: "sha256:prompt-source",
+      outputGeneration: generation,
+    },
+  } as LapQualitySummary;
+}
+
 const lap = {
   id: 7,
   lapTime: 91.2,
   gameId: "fm-2023" as const,
   trackOrdinal: 1,
   telemetry: [{ DistanceTraveled: 0 }, { DistanceTraveled: 100 }],
+  qualityGeneration: QUALITY_GENERATION,
+  qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+  qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+  qualityConfigVersion: QUALITY_CONFIG_VERSION,
+  quality: currentQuality(QUALITY_GENERATION),
+  eligibility: {
+    "corner-trace": {
+      status: "eligible" as const,
+      policyId: "corner-trace" as const,
+      policyVersion: ELIGIBILITY_POLICY_VERSION,
+      confidence: { level: "high" as const, score: 1 },
+      reasons: [],
+      evidenceIds: [],
+    },
+  },
 };
 
 function makeDeps(
@@ -28,11 +63,13 @@ function makeDeps(
     cached?: string;
     generated?: string;
     generateError?: Error;
-    onSave?: (analysis: string) => void;
+    onGenerate?: () => void;
+    onSave?: (analysis: string, identity: QualityCacheIdentity) => void;
   } = {},
-): GenerateLapAnalysisDeps & { generateCalls: number; saves: string[] } {
+): GenerateLapAnalysisDeps & { generateCalls: number; saves: string[]; saveIdentities: QualityCacheIdentity[] } {
   let generateCalls = 0;
   const saves: string[] = [];
+  const saveIdentities: QualityCacheIdentity[] = [];
   let cached = options.cached
     ? {
         analysis: options.cached,
@@ -46,16 +83,19 @@ function makeDeps(
   const deps: GenerateLapAnalysisDeps & {
     generateCalls: number;
     saves: string[];
+    saveIdentities: QualityCacheIdentity[];
   } = {
     generateCalls,
     saves,
+    saveIdentities,
     getLapById: async () => lap as never,
     getCorners: async () => [],
     detectCorners: () => [],
     getAnalysis: async () => cached,
-    saveAnalysis: async (_lapId, analysis) => {
+    saveAnalysis: async (_lapId, analysis, _usage, identity) => {
       saves.push(analysis);
-      options.onSave?.(analysis);
+      saveIdentities.push(identity);
+      options.onSave?.(analysis, identity);
       cached = {
         analysis,
         inputTokens: 1,
@@ -64,6 +104,7 @@ function makeDeps(
         durationMs: 3,
         model: "test-model",
       };
+      return true;
     },
     loadSettings: () =>
       ({
@@ -90,6 +131,7 @@ function makeDeps(
     }),
     runAiStructured: async () => {
       generateCalls++;
+      options.onGenerate?.();
       if (options.generateError) throw options.generateError;
       return {
         analysis: options.generated ?? validAnalysis,
@@ -200,6 +242,40 @@ describe("generateLapAnalysis", () => {
     expect(JSON.parse(result.analysis!).verdict).toBe("Regenerated");
     expect(deps.generateCalls).toBe(1);
     expect(deps.saves).toHaveLength(1);
+  });
+
+  test("passes prompt-load quality identity to save after model generation", async () => {
+    const loadedLap = {
+      ...lap,
+      quality: currentQuality(lap.qualityGeneration),
+    };
+    const deps = makeDeps({
+      onGenerate: () => {
+        loadedLap.qualityGeneration = "sha256:changed-during-model";
+        loadedLap.quality.provenance.policyVersion = "changed-policy";
+      },
+    });
+    deps.getLapById = async () => loadedLap as never;
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.error).toBeUndefined();
+    expect(deps.saveIdentities).toEqual([
+      {
+        generation: "sha256:prompt-quality",
+        policyVersion: "1",
+      },
+    ]);
+  });
+
+  test("rejects model output when save reports a stale prompt identity", async () => {
+    const deps = makeDeps();
+    deps.saveAnalysis = async () => false;
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.analysis).toBeNull();
+    expect(result.error).toBe("Lap quality changed during analysis generation. Analysis not cached.");
   });
 
   test("failed regeneration leaves prior valid cache untouched", async () => {

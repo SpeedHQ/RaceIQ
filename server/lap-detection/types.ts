@@ -5,6 +5,8 @@
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
+import type { EvidenceSourceKind, ParticipantEvidence, SourceChannelProfile } from "../../shared/racing/quality/contracts";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 
 // Re-export all event/state types so callers only need one import point
 export type {
@@ -31,6 +33,14 @@ export interface LapDetectorOptions {
   callbacks?: LapDetectorCallbacks;
   /** Bypass an implementation's packet-rate guard when supported (used in tests). */
   bypassPacketRateFilter?: boolean;
+  /** Evidence origin used while measuring quality; live capture is default. */
+  sourceKind?: EvidenceSourceKind;
+  /** Participant identity; local player is default. */
+  participant?: ParticipantEvidence;
+  /** Override parser/catalog identity for imports and deterministic rebuilds. */
+  versionIdentity?: TelemetryVersionIdentity;
+  /** Session-wide fidelity overrides supplied by transcoded evidence sources. */
+  sourceChannelProfile?: SourceChannelProfile;
 }
 
 /** Common interface implemented by all lap detector variants. */

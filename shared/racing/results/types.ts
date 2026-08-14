@@ -1,4 +1,5 @@
 import type { GameId } from "@shared/games/ids";
+import type { EligibilityDecision } from "@shared/racing/quality/contracts";
 
 export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
 export type RaceResultOutcomeStatus = "confirmed" | "provisional" | "unavailable";
@@ -150,6 +151,14 @@ export interface RaceResultEvidence {
   };
   conflicts: string[];
   decisions?: Record<string, RaceResultAuthorityDecision>;
+}
+
+export interface RaceResultLapQualityEvidence {
+  lapId: number;
+  lapNumber: number;
+  qualityGeneration: string | null;
+  officialTiming: EligibilityDecision;
+  normalPace: EligibilityDecision;
 }
 
 export interface RaceResult {

@@ -1,4 +1,12 @@
 import { computeRecap, type RecapLapInput, type RecapSessionInput } from "../../../server/lap-analysis/recap";
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  QUALITY_CONFIG_VERSION,
+  QUALITY_SCHEMA_VERSION,
+  type EligibilityDecisionSet,
+  type EligibilityStatus,
+  type LapQualitySummary,
+} from "../../../shared/racing/quality/contracts";
 
 export const baseSession: RecapSessionInput = {
   id: 1,
@@ -8,11 +16,52 @@ export const baseSession: RecapSessionInput = {
   createdAt: "2026-07-15T12:00:00.000Z",
 };
 
+export function normalPaceEligibility(status: EligibilityStatus): EligibilityDecisionSet {
+  return {
+    "normal-pace": {
+      policyId: "normal-pace",
+      policyVersion: "1",
+      status,
+      confidence: { level: status === "unknown" ? "unknown" : "high", score: status === "unknown" ? null : 1 },
+      reasons: [],
+      evidenceIds: [],
+    },
+  } as unknown as EligibilityDecisionSet;
+}
+export function currentQualityEvidence(generation = "sha256:recap-quality"): Pick<
+  RecapLapInput,
+  "quality" | "qualityGeneration" | "qualitySchemaVersion" | "qualityPolicyVersion" | "qualityConfigVersion"
+> {
+  return {
+    quality: {
+      provenance: {
+        schemaVersion: QUALITY_SCHEMA_VERSION,
+        policyVersion: ELIGIBILITY_POLICY_VERSION,
+        configurationVersion: QUALITY_CONFIG_VERSION,
+        sourceGeneration: "sha256:recap-source",
+        outputGeneration: generation,
+      },
+    } as unknown as LapQualitySummary,
+    qualityGeneration: generation,
+    qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+    qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+    qualityConfigVersion: QUALITY_CONFIG_VERSION,
+  };
+}
+
 export function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
+  const isValid = overrides.isValid ?? true;
+  const paceEligibility = overrides.paceEligibility ?? "eligible";
+  const eligibility = overrides.eligibility ?? normalPaceEligibility(isValid && paceEligibility === "eligible" ? "eligible" : "ineligible");
   const merged = {
     lapNumber: 1,
     lapTime: 100,
-    isValid: true,
+    isValid,
+    phase: "flying" as const,
+    conditions: [],
+    paceEligibility,
+    eligibility,
+    ...currentQualityEvidence(),
     sectorTimes: null,
     ...overrides,
   };

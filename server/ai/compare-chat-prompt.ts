@@ -9,6 +9,8 @@ import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
 import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 import { buildSegmentTimingTable, type PromptSegment } from "./inputs-compare-prompt";
 import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { buildQualityPromptContext } from "./quality-context";
 
 interface LapInfo {
   id: number;
@@ -18,6 +20,9 @@ interface LapInfo {
   carOrdinal?: number;
   trackOrdinal?: number;
   gameId?: GameId;
+  quality?: LapQualitySummary | null;
+  eligibility?: EligibilityDecisionSet | null;
+  qualityGeneration?: string | null;
 }
 
 function summarizeComparison(comp: ComparisonResult): string {
@@ -41,9 +46,7 @@ function summarizeComparison(comp: ComparisonResult): string {
   const distAtAhead = comp.distances[maxAheadIdx];
   const distAtBehind = comp.distances[maxBehindIdx];
 
-  const corners = [...comp.cornerDeltas]
-    .sort((a, b) => Math.abs(b.deltaSeconds) - Math.abs(a.deltaSeconds))
-    .slice(0, 8);
+  const corners = [...comp.cornerDeltas].sort((a, b) => Math.abs(b.deltaSeconds) - Math.abs(a.deltaSeconds)).slice(0, 8);
 
   let out = `--- COMPARISON SUMMARY ---\n`;
   out += `Final time delta (A − B): ${final >= 0 ? "+" : ""}${final.toFixed(3)}s `;
@@ -60,18 +63,11 @@ function summarizeComparison(comp: ComparisonResult): string {
   return `${out}\n`;
 }
 
-export function buildCompareChatContext(
-  lapA: LapInfo,
-  lapB: LapInfo,
-  comparison: ComparisonResult,
-  segments: PromptSegment[] | null = null,
-): string {
+export function buildCompareChatContext(lapA: LapInfo, lapB: LapInfo, comparison: ComparisonResult, segments: PromptSegment[] | null = null): string {
   const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
   const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
   const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
-  const finalDelta =
-    comparison.timeDelta[comparison.timeDelta.length - 1] ??
-    lapA.lapTime - lapB.lapTime;
+  const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? lapA.lapTime - lapB.lapTime;
   return `${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
 ${summarizeComparison(comparison)}
 
@@ -82,14 +78,7 @@ Use these computed deltas as authoritative. Explain why they differ using teleme
 Use the retrieved analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;
 }
 
-export function buildCompareChatSystemPrompt(
-  lapA: LapInfo,
-  lapB: LapInfo,
-  comparison: ComparisonResult,
-  unit?: UnitSystem,
-  temperatureUnit?: TemperatureUnit,
-  language?: string,
-): string;
+export function buildCompareChatSystemPrompt(lapA: LapInfo, lapB: LapInfo, comparison: ComparisonResult, unit?: UnitSystem, temperatureUnit?: TemperatureUnit, language?: string): string;
 export function buildCompareChatSystemPrompt(
   lapA: LapInfo,
   lapB: LapInfo,
@@ -110,29 +99,18 @@ export function buildCompareChatSystemPrompt(
   languageOrUnit: string | UnitSystem = "en",
   legacyTemperature?: TemperatureUnit,
   legacyLanguage = "en",
+  legacyPrecomputedInsights = "",
 ): string {
   const isCurrent = unitOrAnalysisA === "metric" || unitOrAnalysisA === "imperial";
-  const unit: UnitSystem = isCurrent
-    ? unitOrAnalysisA
-    : languageOrUnit === "imperial"
-      ? "imperial"
-      : "metric";
-  const temperatureUnit: TemperatureUnit = isCurrent
-    ? temperatureOrAnalysisB === "F"
-      ? "F"
-      : "C"
-    : legacyTemperature ?? (unit === "metric" ? "C" : "F");
-  const language = isCurrent
-    ? typeof languageOrUnit === "string" && languageOrUnit !== "metric" && languageOrUnit !== "imperial"
-      ? languageOrUnit
-      : "en"
-    : legacyLanguage;
+  const unit: UnitSystem = isCurrent ? unitOrAnalysisA : languageOrUnit === "imperial" ? "imperial" : "metric";
+  const temperatureUnit: TemperatureUnit = isCurrent ? (temperatureOrAnalysisB === "F" ? "F" : "C") : (legacyTemperature ?? (unit === "metric" ? "C" : "F"));
+  const language = isCurrent ? (typeof languageOrUnit === "string" && languageOrUnit !== "metric" && languageOrUnit !== "imperial" ? languageOrUnit : "en") : legacyLanguage;
   const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
   const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
   const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
-  const finalDelta =
-    comparison.timeDelta[comparison.timeDelta.length - 1] ??
-    lapA.lapTime - lapB.lapTime;
+  const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? lapA.lapTime - lapB.lapTime;
+  const qualityContextA = buildQualityPromptContext(lapA, ["lap-comparison", "corner-trace", "transient-event"]);
+  const qualityContextB = buildQualityPromptContext(lapB, ["lap-comparison", "corner-trace", "transient-event"]);
   return `${compareEngineerPersona(unit, temperatureUnit, language)}${TRACK_GUIDE_PROMPT}
 
 INITIALIZATION PROTOCOL — MUST COMPLETE BEFORE ANY TEXT
@@ -150,6 +128,11 @@ The required call order is: get_lap_analysis(${lapA.id}), get_lap_analysis(${lap
 This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers.
 
 ${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
+Lap A:
+${qualityContextA}
+Lap B:
+${qualityContextB}
+${legacyPrecomputedInsights}
 
 ${summarizeComparison(comparison)}
 Use the retrieved analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;

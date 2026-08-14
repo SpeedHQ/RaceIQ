@@ -119,26 +119,17 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 13,
     name: "add car setup to laps",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN car_setup TEXT`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN car_setup TEXT`],
   },
   {
     version: 14,
     name: "add notes to sessions and laps",
-    sql: [
-      `ALTER TABLE sessions ADD COLUMN notes TEXT`,
-      `ALTER TABLE laps ADD COLUMN notes TEXT`,
-    ],
+    sql: [`ALTER TABLE sessions ADD COLUMN notes TEXT`, `ALTER TABLE laps ADD COLUMN notes TEXT`],
   },
   {
     version: 15,
     name: "add sector times to laps",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN s1_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s2_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s3_time REAL`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN s1_time REAL`, `ALTER TABLE laps ADD COLUMN s2_time REAL`, `ALTER TABLE laps ADD COLUMN s3_time REAL`],
   },
   {
     version: 16,
@@ -163,9 +154,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 17,
     name: "drop sectors column from track_outlines",
-    sql: [
-      `ALTER TABLE track_outlines DROP COLUMN sectors`,
-    ],
+    sql: [`ALTER TABLE track_outlines DROP COLUMN sectors`],
   },
 
   // ── v18: drop DEFAULT 'fm-2023' from game_id columns ─────────────────
@@ -275,10 +264,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 21,
     name: "add game_id to tunes",
-    sql: [
-      `ALTER TABLE tunes ADD COLUMN game_id TEXT NOT NULL DEFAULT 'fm-2023'`,
-      `CREATE INDEX IF NOT EXISTS idx_tunes_game_car ON tunes(game_id, car_ordinal)`,
-    ],
+    sql: [`ALTER TABLE tunes ADD COLUMN game_id TEXT NOT NULL DEFAULT 'fm-2023'`, `CREATE INDEX IF NOT EXISTS idx_tunes_game_car ON tunes(game_id, car_ordinal)`],
   },
 
   // ── v22: scope tune_assignments by game_id ────────────────────────────
@@ -408,10 +394,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 26,
     name: "explicit lap to tuning-session link",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN tuning_session_id INTEGER`,
-      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_session ON laps(tuning_session_id)`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN tuning_session_id INTEGER`, `CREATE INDEX IF NOT EXISTS idx_laps_tuning_session ON laps(tuning_session_id)`],
   },
 
   // ── v27: per-game tuning-session display number ───────────────────────────
@@ -436,9 +419,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 28,
     name: "tuning-session head test id",
-    sql: [
-      `ALTER TABLE tuning_sessions ADD COLUMN head_test_id INTEGER`,
-    ],
+    sql: [`ALTER TABLE tuning_sessions ADD COLUMN head_test_id INTEGER`],
   },
 
   // ── v29: explicit lap → tuning-test link ──────────────────────────────────
@@ -448,10 +429,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 29,
     name: "explicit lap to tuning-test link",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN tuning_test_id INTEGER`,
-      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN tuning_test_id INTEGER`, `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`],
   },
 
   // ── v30: Setup Engineer flow — exclusions, F1 snapshot, action log ─────────
@@ -503,10 +481,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 32,
     name: "persisted per-lap fuel/tyre metrics",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN fuel_per_lap REAL`,
-      `ALTER TABLE laps ADD COLUMN tyre_wear REAL`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN fuel_per_lap REAL`, `ALTER TABLE laps ADD COLUMN tyre_wear REAL`],
   },
 
   // ── v33: Cached racing-line spread trace ───────────────────────────────────
@@ -544,10 +519,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 34,
     name: "auto-exclude source tracking for fastest-5 curation",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN tuning_excluded_source TEXT`,
-      `UPDATE laps SET tuning_excluded_source = 'manual' WHERE tuning_excluded = 1`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN tuning_excluded_source TEXT`, `UPDATE laps SET tuning_excluded_source = 'manual' WHERE tuning_excluded = 1`],
   },
 
   // ── v35: purge pre-v0.8.0 laps (no raw capture) ─────────────────────────────
@@ -1137,9 +1109,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 49,
     name: "version race result processor",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`],
   },
   // v50: Persist race timeline event types and position transitions.
   {
@@ -1184,9 +1154,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 52,
     name: "version race result processor",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`],
   },
   // v53: Persist race timeline event types and position transitions.
   {
@@ -1228,17 +1196,13 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 56,
     name: "persist race result outcome status",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`],
   },
   // v57: Persist structured race-result evidence.
   {
     version: 57,
     name: "persist race result evidence",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN evidence TEXT`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN evidence TEXT`],
   },
   // v58: Persist whether a session belongs to the user or another driver.
   {
@@ -1272,5 +1236,371 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE invalid_reason IN ('outlap', 'inlap', 'pit lap')`,
     ],
   },
+  // v60: Separate recording quality from policy-specific analysis eligibility.
+  {
+    version: 60,
+    name: "persist telemetry quality and eligibility",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN recording_quality TEXT`,
+      `ALTER TABLE sessions ADD COLUMN quality_schema_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN quality_policy_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN quality_config_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN quality_generation TEXT`,
+      `ALTER TABLE laps ADD COLUMN quality TEXT`,
+      `ALTER TABLE laps ADD COLUMN eligibility TEXT`,
+      `ALTER TABLE laps ADD COLUMN quality_schema_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN quality_policy_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN quality_config_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN quality_generation TEXT`,
+      `ALTER TABLE lap_analyses ADD COLUMN quality_generation TEXT`,
+      `ALTER TABLE lap_analyses ADD COLUMN quality_policy_version TEXT`,
+      `ALTER TABLE compare_analyses ADD COLUMN quality_generation TEXT`,
+      `ALTER TABLE compare_analyses ADD COLUMN quality_policy_version TEXT`,
+      `UPDATE sessions SET source = 'native-live' WHERE source IS NULL`,
+      `UPDATE sessions
+       SET recording_quality = json_object(
+         'lifecycleState', 'unavailable',
+         'gapSummary', json_object(
+           'expectedCount', 0,
+           'observedCount', 0,
+           'totalMissingCount', NULL,
+           'totalMissingFraction', NULL,
+           'largestContiguousGapMs', 0,
+           'countMethod', 'unavailable'
+         ),
+         'facts', json_array(
+           json_object(
+             'id', 'legacy:quality_not_rebuilt',
+             'code', 'quality_not_rebuilt',
+             'severity', 'warning',
+             'timeRange', NULL,
+             'distanceRange', NULL,
+             'semanticIds', json_array(),
+             'channelFamilies', json_array(),
+             'provenance', json_object(
+               'schemaVersion', 'legacy',
+               'policyVersion', 'legacy',
+               'configurationVersion', 'legacy',
+               'sourceGeneration', 'legacy',
+               'outputGeneration', 'legacy'
+             ),
+             'eventIds', json_array()
+           ),
+           json_object(
+             'id', 'legacy:provenance_missing',
+             'code', 'provenance_missing',
+             'severity', 'error',
+             'timeRange', NULL,
+             'distanceRange', NULL,
+             'semanticIds', json_array(),
+             'channelFamilies', json_array(),
+             'provenance', json_object(
+               'schemaVersion', 'legacy',
+               'policyVersion', 'legacy',
+               'configurationVersion', 'legacy',
+               'sourceGeneration', 'legacy',
+               'outputGeneration', 'legacy'
+             ),
+             'eventIds', json_array()
+           )
+         ),
+        'sourceKind', COALESCE(source, 'unknown'),
+         'participant', json_object(
+           'kind', 'player',
+           'sourceId', NULL,
+           'stableId', 'local-player',
+           'identityState', 'stable'
+         ),
+         'startTimestampMs', NULL,
+         'endTimestampMs', NULL,
+         'endReason', 'legacy-not-rebuilt',
+         'archiveVerification', json_object(
+           'state', 'unknown',
+           'sourceGeneration', NULL
+         ),
+         'thresholds', json_object(
+           'minorGapMaxMs', 250,
+           'minorMissingFractionMax', 0.01,
+           'degradedMissingFraction', 0.05,
+           'lapComparisonCoverage', 0.95,
+           'lapComparisonGapMaxMs', 1000,
+           'cornerTraceCoverage', 0.98,
+           'cornerTraceGapMaxMs', 250,
+           'transientCoverage', 0.995,
+           'transientGapFloorMs', 50,
+           'transientIntervalMultiplier', 2
+         ),
+         'versionIdentity', json_object(
+           'catalogVersion', 'legacy',
+           'catalogHash', 'legacy',
+           'catalogSchemaVersion', 'legacy',
+           'parserVersion', 'legacy',
+           'resolverVersion', 'legacy',
+           'derivationVersion', 'legacy'
+         ),
+         'provenance', json_object(
+           'schemaVersion', 'legacy',
+           'policyVersion', 'legacy',
+           'configurationVersion', 'legacy',
+           'sourceGeneration', 'legacy',
+           'outputGeneration', 'legacy'
+         )
+       ),
+       quality_schema_version = 'legacy',
+       quality_policy_version = 'legacy',
+       quality_config_version = 'legacy',
+       quality_generation = 'legacy'
+       WHERE recording_quality IS NULL`,
+      `UPDATE laps
+       SET quality = json_object(
+         'lifecycleState', 'unavailable',
+         'complete', json(CASE WHEN lap_time > 0 THEN 'true' ELSE 'false' END),
+         'structurallyValid', json(CASE WHEN is_valid = 1 THEN 'true' ELSE 'false' END),
+         'invalidReason', invalid_reason,
+         'timing', json_object(
+           'source', CASE WHEN lap_time > 0 THEN 'simulator-history' ELSE 'estimated' END,
+           'lapTimeMs', lap_time * 1000,
+           'peakTelemetryLapTimeMs', NULL,
+           'confirmed', json(CASE WHEN lap_time > 0 THEN 'true' ELSE 'false' END)
+         ),
+         'gapSummary', json_object(
+           'expectedCount', 0,
+           'observedCount', 0,
+           'totalMissingCount', NULL,
+           'totalMissingFraction', NULL,
+           'largestContiguousGapMs', 0,
+           'countMethod', 'unavailable'
+         ),
+         'trackDistanceCoverage', NULL,
+         'worldPositionCoverage', NULL,
+         'channelQuality', json_array(),
+         'facts', json_array(
+           json_object(
+             'id', 'legacy:quality_not_rebuilt',
+             'code', 'quality_not_rebuilt',
+             'severity', 'warning',
+             'timeRange', NULL,
+             'distanceRange', NULL,
+             'semanticIds', json_array(),
+             'channelFamilies', json_array(),
+             'provenance', json_object(
+               'schemaVersion', 'legacy',
+               'policyVersion', 'legacy',
+               'configurationVersion', 'legacy',
+               'sourceGeneration', 'legacy',
+               'outputGeneration', 'legacy'
+             ),
+             'eventIds', json_array()
+           ),
+           json_object(
+             'id', 'legacy:provenance_missing',
+             'code', 'provenance_missing',
+             'severity', 'error',
+             'timeRange', NULL,
+             'distanceRange', NULL,
+             'semanticIds', json_array(),
+             'channelFamilies', json_array(),
+             'provenance', json_object(
+               'schemaVersion', 'legacy',
+               'policyVersion', 'legacy',
+               'configurationVersion', 'legacy',
+               'sourceGeneration', 'legacy',
+               'outputGeneration', 'legacy'
+             ),
+             'eventIds', json_array()
+           )
+         ),
+         'sourceKind', COALESCE((SELECT source FROM sessions WHERE sessions.id = laps.session_id), 'unknown'),
+         'participant', json_object(
+           'kind', 'player',
+           'sourceId', NULL,
+           'stableId', 'local-player',
+           'identityState', 'stable'
+         ),
+         'classification', json_object(
+           'phase', phase,
+           'conditions', json(conditions),
+           'paceEligibility', pace_eligibility
+         ),
+         'thresholds', json_object(
+           'minorGapMaxMs', 250,
+           'minorMissingFractionMax', 0.01,
+           'degradedMissingFraction', 0.05,
+           'lapComparisonCoverage', 0.95,
+           'lapComparisonGapMaxMs', 1000,
+           'cornerTraceCoverage', 0.98,
+           'cornerTraceGapMaxMs', 250,
+           'transientCoverage', 0.995,
+           'transientGapFloorMs', 50,
+           'transientIntervalMultiplier', 2
+         ),
+         'versionIdentity', json_object(
+           'catalogVersion', COALESCE(catalog_version, 'legacy'),
+           'catalogHash', COALESCE(catalog_hash, 'legacy'),
+           'catalogSchemaVersion', COALESCE(catalog_schema_version, 'legacy'),
+           'parserVersion', COALESCE(parser_version, 'legacy'),
+           'resolverVersion', COALESCE(resolver_version, 'legacy'),
+           'derivationVersion', COALESCE(derivation_version, 'legacy')
+         ),
+         'provenance', json_object(
+           'schemaVersion', 'legacy',
+           'policyVersion', 'legacy',
+           'configurationVersion', 'legacy',
+           'sourceGeneration', 'legacy',
+           'outputGeneration', 'legacy'
+         )
+       ),
+       eligibility = json_object(
+         'official-timing', json_object(
+           'status', CASE WHEN lap_time > 0 THEN 'eligible_with_warning' ELSE 'ineligible' END,
+           'policyId', 'official-timing',
+           'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', CASE WHEN lap_time > 0 THEN 'quality_not_rebuilt' ELSE 'lap_time_unconfirmed' END,
+             'severity', CASE WHEN lap_time > 0 THEN 'warning' ELSE 'error' END,
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL,
+             'distanceRange', NULL,
+             'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'normal-pace', json_object(
+           'status', CASE
+             WHEN lap_time > 0 AND is_valid = 1 AND pace_eligibility = 'eligible'
+               THEN 'eligible_with_warning'
+             ELSE 'ineligible'
+           END,
+           'policyId', 'normal-pace',
+           'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', CASE
+               WHEN lap_time <= 0 THEN 'lap_time_unconfirmed'
+               WHEN is_valid != 1 THEN 'structurally_invalid'
+               WHEN pace_eligibility != 'eligible' THEN 'non_pace_classification'
+               ELSE 'quality_not_rebuilt'
+             END,
+             'severity', CASE
+               WHEN lap_time > 0 AND is_valid = 1 AND pace_eligibility = 'eligible' THEN 'warning'
+               ELSE 'error'
+             END,
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL,
+             'distanceRange', NULL,
+             'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'lap-comparison', json_object(
+           'status', 'unknown', 'policyId', 'lap-comparison', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'corner-trace', json_object(
+           'status', 'unknown', 'policyId', 'corner-trace', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'transient-event', json_object(
+           'status', 'unknown', 'policyId', 'transient-event', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'fuel-burn', json_object(
+           'status', 'unknown', 'policyId', 'fuel-burn', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'tire-analysis', json_object(
+           'status', 'unknown', 'policyId', 'tire-analysis', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'stint-falloff', json_object(
+           'status', 'unknown', 'policyId', 'stint-falloff', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'setup-analysis', json_object(
+           'status', 'unknown', 'policyId', 'setup-analysis', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'driver-profile', json_object(
+           'status', 'unknown', 'policyId', 'driver-profile', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'quality_not_rebuilt', 'severity', 'warning',
+             'evidenceIds', json_array('legacy:quality_not_rebuilt'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:quality_not_rebuilt')
+         ),
+         'ml-training', json_object(
+           'status', 'unknown', 'policyId', 'ml-training', 'policyVersion', 'legacy',
+           'confidence', json_object('level', 'unknown', 'score', NULL),
+           'reasons', json_array(json_object(
+             'code', 'provenance_missing', 'severity', 'error',
+             'evidenceIds', json_array('legacy:provenance_missing'),
+             'timeRange', NULL, 'distanceRange', NULL, 'semanticIds', json_array()
+           )),
+           'evidenceIds', json_array('legacy:provenance_missing')
+         )
+       ),
+       quality_schema_version = 'legacy',
+       quality_policy_version = 'legacy',
+       quality_config_version = 'legacy',
+       quality_generation = 'legacy'
+       WHERE quality IS NULL`,
+    ],
+  },
+  // v61: Persist source-authored channel fidelity for transcoded sessions.
+  {
+    version: 61,
+    name: "persist source channel profiles",
+    sql: [`ALTER TABLE sessions ADD COLUMN source_channel_profile TEXT`],
+  },
+  // v62: Tie derived lap metrics to exact quality evidence generation.
+  {
+    version: 62,
+    name: "version lap metrics by quality generation",
+    sql: [`ALTER TABLE lap_metrics ADD COLUMN quality_generation TEXT`],
+  },
 ];
-

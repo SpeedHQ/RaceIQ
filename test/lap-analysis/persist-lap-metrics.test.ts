@@ -4,10 +4,29 @@
  * first-open telemetry decode). Verifies derivation + that nothing is written
  * when no channel is usable.
  */
-import { describe, test, expect } from "bun:test";
-import { persistLapMetrics } from "../../server/lap-analysis/metrics-store";
+import { afterEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
+import { db } from "../../server/db";
+import { lapMetrics, laps, sessions } from "../../server/db/schema";
+import { _telemetryCacheForTest } from "../../server/db/telemetry-replay-storage";
+import { initServerGameAdapters } from "../../server/games/init";
+import { finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
+import { getOrComputeLapMetrics, getOrComputeLapMetricsBatch, persistLapMetrics } from "../../server/lap-analysis/metrics-store";
+import { LAP_METRICS_ALGO_VERSION } from "../../server/lap-analysis/metrics";
 import { CapturingDbAdapter } from "../../server/telemetry/pipeline-ports";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
+initServerGameAdapters();
+
+const createdSessionIds: number[] = [];
+
+afterEach(async () => {
+  for (const sessionId of createdSessionIds) {
+    await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+  }
+  createdSessionIds.length = 0;
+  _telemetryCacheForTest.clear();
+});
 
 
 function mkPackets(opts: { fuelPerLap?: number; tyreWear?: number[]; fuel?: [number, number] }): TelemetryPacket[] {
@@ -41,5 +60,139 @@ describe("persistLapMetrics", () => {
     const db = new CapturingDbAdapter();
     await persistLapMetrics(db, 9, mkPackets({}));
     expect(db.lapMetrics).toHaveLength(0);
+  });
+});
+
+describe("quality-versioned lap metrics cache", () => {
+  test("recomputes one cached row after lap quality generation changes", async () => {
+    const packets = qualityPackets(100);
+    const generated = finalizeLapQualityGeneration(summarize(packets), "legacy", {
+      lapNumber: 1,
+      rawByteOffset: 1_000,
+      rawFrameCount: packets.length,
+    });
+    const sessionId = (
+      await db
+        .insert(sessions)
+        .values({ carOrdinal: 301, trackOrdinal: 401, gameId: "f1-2025" })
+        .returning({ id: sessions.id })
+        .get()
+    ).id;
+    createdSessionIds.push(sessionId);
+    const lapId = (
+      await db
+        .insert(laps)
+        .values({
+          sessionId,
+          lapNumber: 1,
+          lapTime: 100,
+          rawByteOffset: 1_000,
+          rawFrameCount: packets.length,
+          quality: generated.quality,
+          eligibility: generated.eligibility,
+          qualitySchemaVersion: generated.quality.provenance.schemaVersion,
+          qualityPolicyVersion: generated.quality.provenance.policyVersion,
+          qualityConfigVersion: generated.quality.provenance.configurationVersion,
+          qualityGeneration: generated.quality.provenance.outputGeneration,
+        })
+        .returning({ id: laps.id })
+        .get()
+    ).id;
+    _telemetryCacheForTest.set(lapId, packets);
+    await db.insert(lapMetrics).values({
+      lapId,
+      algoVersion: LAP_METRICS_ALGO_VERSION,
+      qualityGeneration: "sha256:stale-quality",
+      insights: "[]",
+      segmentStats: "[]",
+      computedAt: "stale",
+    });
+
+    const metrics = await getOrComputeLapMetrics(lapId);
+
+    expect(metrics?.computedAt).not.toBe("stale");
+    const stored = await db
+      .select({ qualityGeneration: lapMetrics.qualityGeneration, computedAt: lapMetrics.computedAt })
+      .from(lapMetrics)
+      .where(eq(lapMetrics.lapId, lapId))
+      .get();
+    expect(stored).toEqual({
+      qualityGeneration: generated.quality.provenance.outputGeneration,
+      computedAt: metrics!.computedAt,
+    });
+  });
+
+  test("batch recomputes only rows with stale quality generations", async () => {
+    const packets = qualityPackets(100);
+    const generatedByLap = [1, 2].map((lapNumber) =>
+      finalizeLapQualityGeneration(summarize(packets), "legacy", {
+        lapNumber,
+        rawByteOffset: lapNumber * 1_000,
+        rawFrameCount: packets.length,
+      }),
+    );
+    const sessionId = (
+      await db
+        .insert(sessions)
+        .values({ carOrdinal: 302, trackOrdinal: 402, gameId: "f1-2025" })
+        .returning({ id: sessions.id })
+        .get()
+    ).id;
+    createdSessionIds.push(sessionId);
+    const insertedLaps = await db
+      .insert(laps)
+      .values(
+        generatedByLap.map((generated, index) => ({
+          sessionId,
+          lapNumber: index + 1,
+          lapTime: 100 + index,
+          rawByteOffset: (index + 1) * 1_000,
+          rawFrameCount: packets.length,
+          quality: generated.quality,
+          eligibility: generated.eligibility,
+          qualitySchemaVersion: generated.quality.provenance.schemaVersion,
+          qualityPolicyVersion: generated.quality.provenance.policyVersion,
+          qualityConfigVersion: generated.quality.provenance.configurationVersion,
+          qualityGeneration: generated.quality.provenance.outputGeneration,
+        })),
+      )
+      .returning({ id: laps.id, qualityGeneration: laps.qualityGeneration })
+      .all();
+    const [staleLap, currentLap] = insertedLaps;
+    _telemetryCacheForTest.set(staleLap!.id, packets);
+    _telemetryCacheForTest.set(currentLap!.id, packets);
+    await db.insert(lapMetrics).values([
+      {
+        lapId: staleLap!.id,
+        algoVersion: LAP_METRICS_ALGO_VERSION,
+        qualityGeneration: "sha256:stale-quality",
+        insights: "[]",
+        segmentStats: "[]",
+        computedAt: "stale",
+      },
+      {
+        lapId: currentLap!.id,
+        algoVersion: LAP_METRICS_ALGO_VERSION,
+        qualityGeneration: currentLap!.qualityGeneration,
+        insights: "[]",
+        segmentStats: "[]",
+        computedAt: "cached-current",
+      },
+    ]);
+
+    const metrics = await getOrComputeLapMetricsBatch(insertedLaps.map(({ id }) => id));
+
+    expect(metrics.get(staleLap!.id)?.computedAt).not.toBe("stale");
+    expect(metrics.get(currentLap!.id)?.computedAt).toBe("cached-current");
+    const stored = await db
+      .select({ lapId: lapMetrics.lapId, qualityGeneration: lapMetrics.qualityGeneration, computedAt: lapMetrics.computedAt })
+      .from(lapMetrics)
+      .where(eq(lapMetrics.lapId, staleLap!.id))
+      .get();
+    expect(stored).toEqual({
+      lapId: staleLap!.id,
+      qualityGeneration: staleLap!.qualityGeneration,
+      computedAt: metrics.get(staleLap!.id)!.computedAt,
+    });
   });
 });

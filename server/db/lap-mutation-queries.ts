@@ -2,15 +2,15 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { eq } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
-import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { LapClassification } from "../../shared/racing/laps/classification";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
   await db.update(laps).set({ notes }).where(eq(laps.id, id)).run();
 }
-
 
 export async function updateLapValidity(id: number, isValid: boolean, invalidReason: string | null, sectors?: number[] | null): Promise<void> {
   const values: Record<string, unknown> = { isValid, invalidReason };
@@ -33,45 +33,32 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
  * the fastest-5 rule silently re-excluding it on the next lap save.
  */
 
-export function insertLap(
-  sessionId: number,
-  lapNumber: number,
-  lapTime: number,
-  isValid: boolean,
-  rawByteOffset: number | null,
-  rawFrameCount: number,
-  profileId: number | null = null,
-  tuneId: number | null = null,
-  invalidReason: string | null = null,
-  sectors: number[] | null = null,
-  versionIdentity?: TelemetryVersionIdentity,
-  classification?: LapClassification,
-): Promise<number> {
-  return doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity, classification);
+export interface PersistLapInput {
+  sessionId: number;
+  lapNumber: number;
+  lapTime: number;
+  isValid: boolean;
+  rawByteOffset: number | null;
+  rawFrameCount: number;
+  profileId: number | null;
+  tuneId: number | null;
+  invalidReason: string | null;
+  sectors: number[] | null;
+  classification: LapClassification;
+  quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
+  versionIdentity?: TelemetryVersionIdentity;
 }
 
-async function doInsertLap(
-  sessionId: number,
-  lapNumber: number,
-  lapTime: number,
-  isValid: boolean,
-  rawByteOffset: number | null,
-  rawFrameCount: number,
-  profileId: number | null,
-  tuneId: number | null,
-  invalidReason: string | null,
-  sectors: number[] | null = null,
-  versionIdentity?: TelemetryVersionIdentity,
-  classification?: LapClassification,
-): Promise<number> {
+export async function insertLap(input: PersistLapInput): Promise<number> {
+  const { sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, quality, eligibility, versionIdentity } = input;
   // Stamp the lap with the active tuning session (if any). This is the single
   // choke point every live lap-detector funnels through (via the DbAdapter), so
   // reading the in-memory active id here links laps to a tuning session
   // independent of race sessionId — a tuning session can span many race
   // sessions. Cheap, unconditional on game; null when no session is active.
   const activeExperimentId = getActiveExperiment();
-  const activeExperimentVersionId =
-    activeExperimentId != null ? await resolveActiveTestId(activeExperimentId) : null;
+  const activeExperimentVersionId = activeExperimentId != null ? await resolveActiveTestId(activeExperimentId) : null;
   const result = await db
     .insert(laps)
     .values({
@@ -86,6 +73,12 @@ async function doInsertLap(
       tuneId,
       invalidReason,
       ...classification,
+      quality,
+      eligibility,
+      qualitySchemaVersion: quality?.provenance.schemaVersion ?? null,
+      qualityPolicyVersion: quality?.provenance.policyVersion ?? null,
+      qualityConfigVersion: quality?.provenance.configurationVersion ?? null,
+      qualityGeneration: quality?.provenance.outputGeneration ?? null,
       experimentId: activeExperimentId,
       experimentVersionId: activeExperimentVersionId,
       ...versionIdentity,
@@ -110,7 +103,6 @@ async function doInsertLap(
 export async function setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
   await db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run();
 }
-
 
 export async function deleteLap(id: number): Promise<boolean> {
   // Get session ID before deleting

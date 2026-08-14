@@ -11,6 +11,7 @@ import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
 import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from "../../../server/telemetry/replay";
 import { initGameAdapters } from "../../../shared/games/init";
 import { canonicalizeTelemetryScalar } from "../../../shared/telemetry/replay/canonicalize";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -115,7 +116,21 @@ test("semantic replay aligns native session frames and hashes decompressed captu
   const sessionId = await insertSession(42, 99, "iracing");
   try {
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
-    const lapId = await insertLap(sessionId, 1, 1, true, rawByteOffset, 2);
+    const lapId = await insertLap({
+      sessionId,
+      lapNumber: 1,
+      lapTime: 1,
+      isValid: true,
+      rawByteOffset,
+      rawFrameCount: 2,
+      profileId: null,
+      tuneId: null,
+      invalidReason: null,
+      sectors: null,
+      classification: DEFAULT_LAP_CLASSIFICATION,
+      quality: null,
+      eligibility: null,
+    });
 
     const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed"]);
     expect(replay?.envelopes).toHaveLength(2);

@@ -2,6 +2,7 @@
 
 ### Breaking
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
+- Persist versioned lap-quality evidence in primary database; databases upgraded by this release require builds that understand quality schema
 
 ### Features
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership

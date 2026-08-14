@@ -111,16 +111,23 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
       const existing = existingByLapNum.get(detected.lapNumber);
       if (!existing) continue;
       const sectors = detected.sectors ? [...detected.sectors] : null;
-      await updateLapRawIndex(
-        existing.id,
-        detected.rawByteOffset,
-        detected.rawFrameCount,
-        detected.lapTime,
-        detected.isValid,
-        detected.invalidReason,
+      await updateLapRawIndex({
+        lapId: existing.id,
+        rawByteOffset: detected.rawByteOffset,
+        rawFrameCount: detected.rawFrameCount,
+        lapTime: detected.lapTime,
+        isValid: detected.isValid,
+        invalidReason: detected.invalidReason,
         sectors,
+        classification: {
+          phase: detected.phase,
+          conditions: detected.conditions,
+          paceEligibility: detected.paceEligibility,
+        },
+        quality: detected.quality!,
+        eligibility: detected.eligibility!,
         versionIdentity,
-      );
+      });
       lapsUpdated++;
     }
   } else {
@@ -153,19 +160,26 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     await deleteLapsForSession(sessionId);
     for (const { detected, preserved } of replacements) {
       const sectors = detected.sectors ? [...detected.sectors] : null;
-      await insertReprocessedLap(
+      await insertReprocessedLap({
         sessionId,
-        detected.lapNumber,
-        detected.lapTime,
-        detected.isValid,
-        detected.rawByteOffset,
-        detected.rawFrameCount,
-        preserved?.tuneId ?? null,
-        preserved?.notes ?? null,
-        detected.invalidReason,
+        lapNumber: detected.lapNumber,
+        lapTime: detected.lapTime,
+        isValid: detected.isValid,
+        rawByteOffset: detected.rawByteOffset,
+        rawFrameCount: detected.rawFrameCount,
+        tuneId: preserved?.tuneId ?? null,
+        notes: preserved?.notes ?? null,
+        invalidReason: detected.invalidReason,
         sectors,
+        classification: {
+          phase: detected.phase,
+          conditions: detected.conditions,
+          paceEligibility: detected.paceEligibility,
+        },
+        quality: detected.quality!,
+        eligibility: detected.eligibility!,
         versionIdentity,
-      );
+      });
       lapsUpdated++;
     }
   }
