@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { client } from "@/lib/rpc";
+import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import type { SemanticMetricFrame } from "../../../../shared/racing/analysis/metric-values";
 
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
@@ -135,8 +136,8 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
     push4(h.slipAngle, angle.fl * (180 / Math.PI), angle.fr * (180 / Math.PI), angle.rl * (180 / Math.PI), angle.rr * (180 / Math.PI));
     push4(h.slipRatio, Math.abs(ratio.fl), Math.abs(ratio.fr), Math.abs(ratio.rl), Math.abs(ratio.rr));
     push4(h.suspension, suspension.fl, suspension.fr, suspension.rl, suspension.rr);
-    h.throttle.push(view ? (view.inputs.throttle ?? 0) * 100 : ((packet?.Accel ?? 0) / 255) * 100);
-    h.brake.push(view ? (view.inputs.brake ?? 0) * 100 : ((packet?.Brake ?? 0) / 255) * 100);
+    h.throttle.push(controlInputPercent(view?.inputs.throttle ?? packet?.Accel));
+    h.brake.push(controlInputPercent(view?.inputs.brake ?? packet?.Brake));
     h.speed.push(view?.motion.speedMps ?? packet?.DisplaySpeed ?? 0);
     if (h.throttle.length > GRIP_MAX_SAMPLES) {
       h.throttle.shift();

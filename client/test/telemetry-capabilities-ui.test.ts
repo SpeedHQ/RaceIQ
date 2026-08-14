@@ -12,6 +12,7 @@ import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
 import { PitEstimate } from "../src/components/telemetry/PitEstimate";
 import { SurfaceConditions } from "../src/components/telemetry/SurfaceConditions";
@@ -243,6 +244,43 @@ describe("telemetry capability UI", () => {
     expect(used).toContain("Fuel 60.0L");
     expect(used).toContain("width:60%");
     expect(used).toContain("background-color:");
+  });
+
+  test("scales pit crew semantic pedal inputs from 0–255 to percentages", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(LiveTelemetry, {
+          mode: "pitcrew",
+          view: {
+            simulator: "iracing",
+            streamId: "test",
+            sessionId: 1,
+            sequence: 1,
+            observedAtMs: 1,
+            identity: {},
+            motion: {},
+            inputs: { throttle: 64, brake: 32, gear: 3 },
+            engine: {},
+            fuel: {},
+            timing: {},
+            tires: {},
+            weather: {},
+            aero: {},
+            ers: {},
+            damage: {},
+            competitors: [],
+            stateBySemanticId: {},
+          },
+        }),
+      ),
+    );
+
+    expect(markup).toContain("width:25.098039215686274%");
+    expect(markup).toContain("width:12.549019607843137%");
+    expect(markup).not.toContain("width:6400%");
+    expect(markup).not.toContain("width:3200%");
   });
 
   test("renders the ACC live dashboard fuel fill from fixture capacity", () => {
