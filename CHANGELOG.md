@@ -7,6 +7,7 @@
 
 ### Fixes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
+- Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
 - Show actionable, neutral guidance when AI provider, credentials, or model configuration is incomplete
