@@ -10,4 +10,10 @@ Use direct `@/` imports across feature boundaries. Relative imports are for file
 
 Do not add barrel `index` files, compatibility exports, or deprecated aliases. During a move, update every caller to destination module directly and remove obsolete paths only after repository-wide usage checks. Persisted preferences belong in `src/lib/settings-storage.ts`, not in page modules or page re-exports.
 
+## Lap quality presentation
+
+`LapStatus.tsx` presents structural validity and lap classification. `LapQualityBadge.tsx` presents one named analysis-eligibility decision. Keep those concerns visually distinct and import policy results from `shared/racing/quality`; components must not recreate validity, pace, or channel-quality rules.
+
+Every compact indicator needs localized visible or assistive text plus a localized explanation. Actions use the same named policy displayed beside them, while destructive actions remain available for stored output even when current evidence is no longer eligible for regeneration.
+
 See [`client/README.md`](../../README.md), [`docs/contributing/frontend.md`](../../../docs/contributing/frontend.md), and [`DESIGN.md`](../../DESIGN.md) for package boundaries, frontend contracts, and visual tokens. Generated `src/routeTree.gen.ts` and `src/paraglide/` are outside component ownership and must not be edited by hand.

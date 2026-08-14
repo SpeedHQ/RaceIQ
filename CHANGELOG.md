@@ -10,6 +10,7 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Classify flying, out, in, pit, and grid-start phases independently from caution, slow-zone, and formation conditions so overlapping lap states stay visible and out of pace analysis
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Show telemetry quality, evidence limits, and analysis suitability per lap, with safe rebuild actions when source recordings remain available
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
@@ -18,6 +19,12 @@
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
 - Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Detect F1 race-start laps even when the first telemetry sample is stationary, keeping standing-start Lap 1 out of normal pace comparisons
+- Refresh lap quality, eligibility, metrics, and AI analysis when telemetry sources, pit classification, reprocessing, or policy versions change so stale results are never shown as current
+- Refresh quality badges and analysis controls after quality changes, keep unsuitable AI panels closed, and let users re-include excluded laps to rebuild a usable analysis pool
+- Keep quality-aware session summaries, localized lap insights, Track Focus statistics, rebuild status, and analysis controls accurate when evidence is stale, ranged, capped, or unavailable
+- Show an explicit Track Detail empty state when recorded laps do not qualify for pace statistics
+- Show complete evidence source, generation, and rebuild state in Track Detail quality badges
+- Refresh Track Detail, session recap, and experiment views after lap quality rebuilds or reprocessing
 - Measure telemetry coverage and cadence from each native source packet family so cached values cannot hide missed channel updates
 - Count isolated missing telemetry samples inside requested track ranges so strict analyses reject unreliable evidence without excluding unaffected ranges
 - Carry imported channel fidelity into eligibility reasons and confidence so strict analyses reject held, resampled, reconstructed, or assumed evidence

@@ -1,4 +1,5 @@
 import type { GameId } from "@shared/games/ids";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { Fragment } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
@@ -129,7 +130,8 @@ export function SessionDesktopTable({
             pageItems.map((session) => {
               const isExpanded = expandedSessions.has(session.id);
               const sessionLaps = lapsBySession.get(session.id) ?? [];
-              const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
+              const paceLaps = sessionLaps.filter((lap) => isTimedLapEligibilityUsable(lap));
+              const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
               return (
                 <Fragment key={session.id}>
                   <TRow onClick={() => toggleExpand(session.id)} selected={isExpanded}>

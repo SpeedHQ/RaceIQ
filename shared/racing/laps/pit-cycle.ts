@@ -6,15 +6,6 @@ import type { TelemetryPacket } from "../../telemetry/types";
  * Input packets are canonical packets emitted by each game normalizer.
  */
 export type PitCyclePhase = "out" | "in" | "pit";
-export interface PitCycleLap {
-  invalidReason?: string | null;
-}
-
-const LEGACY_PIT_CYCLE_REASON_LOOKUP: Readonly<Record<string, true>> = {
-  outlap: true,
-  inlap: true,
-  "pit lap": true,
-};
 
 const PIT_LAP = "pit" satisfies PitCyclePhase;
 
@@ -52,9 +43,4 @@ export function classifyPitCycle(packets: readonly TelemetryPacket[]): PitCycleP
   if (endInPit) return "in";
   if (anyInPit) return "out";
   return null;
-}
-
-/** Legacy-row compatibility until every consumer reads persisted classification. */
-export function isPitCycleLap(lap: PitCycleLap): boolean {
-  return lap.invalidReason != null && lap.invalidReason in LEGACY_PIT_CYCLE_REASON_LOOKUP;
 }

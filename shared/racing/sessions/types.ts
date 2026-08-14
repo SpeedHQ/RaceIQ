@@ -94,13 +94,14 @@ export interface SessionLapData extends Partial<LapClassification> {
   lapNumber: number;
   lapTimeSec: number;
   isValid: boolean;
+
   /** Persisted quality evidence and decisions used for recap selection. */
-  quality?: LapQualitySummary | null;
-  eligibility?: EligibilityDecisionSet | null;
-  qualityGeneration?: string | null;
-  qualitySchemaVersion?: string | null;
-  qualityPolicyVersion?: string | null;
-  qualityConfigVersion?: string | null;
+  quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
+  qualityGeneration: string | null;
+  qualitySchemaVersion: string | null;
+  qualityPolicyVersion: string | null;
+  qualityConfigVersion: string | null;
 }
 
 export interface SessionRecap {

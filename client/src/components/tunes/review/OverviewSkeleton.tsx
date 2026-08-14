@@ -48,7 +48,7 @@ export function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[]
         <div className="font-mono text-sm text-app-text-dim tabular-nums">{secondary.value}</div>
       </div>
       <div>
-        <div className="text-app-caption uppercase tracking-wider text-app-text-muted">Valid laps</div>
+        <div className="text-app-caption uppercase tracking-wider text-app-text-muted">Pace laps</div>
         <div className="font-mono text-sm text-app-text-dim tabular-nums">{times.length}</div>
       </div>
     </div>

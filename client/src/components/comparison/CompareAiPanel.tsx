@@ -8,11 +8,12 @@ import { PanelSectionHeader } from "../ui/panel-section-header";
 import { useComparisonAiSettings } from "./compare-ai-hooks";
 import { AnalysisModal, InputsModal } from "./compare-ai-modals";
 import { InputsSection, LapSection } from "./compare-ai-sections";
-import { type AnalysisSummary, type CompareAiPanelHandle, type CompareAiPanelProps, fetchCompareChatHistory, type InputsAnalysis } from "./compare-ai-types";
+import { comparisonAiStateKey, type AnalysisSummary, type CompareAiPanelHandle, type CompareAiPanelProps, fetchCompareChatHistory, type InputsAnalysis } from "./compare-ai-types";
 
 export type { CompareAiPanelHandle } from "./compare-ai-types";
 
 export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
+  const qualityStateKey = comparisonAiStateKey(lapA, lapB);
   const { aiConfigured } = useComparisonAiSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const [hasA, setHasA] = useState(false);
@@ -52,14 +53,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
               onAnalysisChange={setHasB}
               onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
             />
-            <InputsSection
-              lapAId={lapA.id}
-              lapBId={lapB.id}
-              panelOpen={panelOpen}
-              aiConfigured={aiConfigured}
-              configureAi={configureAi}
-              onView={(analysis) => setViewing({ kind: "inputs", analysis })}
-            />
+            <InputsSection lapA={lapA} lapB={lapB} panelOpen={panelOpen} aiConfigured={aiConfigured} configureAi={configureAi} onView={(analysis) => setViewing({ kind: "inputs", analysis })} />
             {!bothReady && <div className="rounded border border-dashed border-app-border-input/40 py-2 text-center text-app-caption text-app-text-muted">{m.compare_analyse_both_laps()}</div>}
           </>
         )}
@@ -72,12 +66,12 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             </Button>
           </div>
           <ChatPanel
-            key={chatRemountKey}
+            key={`${qualityStateKey}:${chatRemountKey}`}
             api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
             fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}
-            historyQueryKey={["compare-chat-history", lapA.id, lapB.id, chatRemountKey]}
-            remountKey={`${lapA.id}:${lapB.id}:${chatRemountKey}`}
-            compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
+            historyQueryKey={["compare-chat-history", lapA.id, lapB.id, qualityStateKey, chatRemountKey]}
+            remountKey={`${qualityStateKey}:${chatRemountKey}`}
+            compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}~q${qualityStateKey}`}
           />
         </div>
       )}

@@ -1,3 +1,6 @@
+import type { LapCondition, LapPhase, PaceEligibility } from "@shared/racing/laps/classification";
+import type { EligibilityDecisionSet, EvidenceSourceKind, LapQualitySummary } from "@shared/racing/quality/contracts";
+
 export interface TrackLap {
   lapId: number;
   lapNumber: number;
@@ -10,6 +13,14 @@ export interface TrackLap {
   sessionId?: number | null;
   sectorTimes?: number[] | null;
   isValid?: boolean;
+  phase: LapPhase;
+  conditions: LapCondition[];
+  paceEligibility: PaceEligibility;
+  eligibility?: EligibilityDecisionSet;
+  quality?: LapQualitySummary;
+  qualityGeneration?: string;
+  qualityStale?: boolean;
+  source?: EvidenceSourceKind;
   invalidReason?: string | null;
   division?: string | null;
   notes?: string | null;

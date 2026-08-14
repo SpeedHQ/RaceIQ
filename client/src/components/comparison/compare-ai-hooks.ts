@@ -14,7 +14,7 @@ function formatAnalysisStreamError(event: ChatStreamError): string {
 
 type AnalysisStatus = { status?: "none" | "active" | "finished" | "failed"; error?: string };
 
-export function useLapAnalysis(lapId: number, panelOpen: boolean) {
+export function useLapAnalysis(lapId: number, qualityStateKey: string, panelOpen: boolean) {
   const [summary, setSummary] = useState<AnalysisSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
     } catch {
       /* cache probing is best-effort */
     }
-  }, [lapId]);
+  }, [lapId, qualityStateKey]);
 
   const run = useCallback(
     async (regenerate = false) => {
@@ -69,11 +69,11 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
         setLoading(false);
       }
     },
-    [lapId],
+    [lapId, qualityStateKey],
   );
 
   const remove = useCallback(async () => {
-    if (loading || deleting || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    if (loading || deleting || !window.confirm(m.analysis_delete_lap_confirm())) return;
     setDeleting(true);
     setError(null);
     try {
@@ -85,11 +85,11 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
     } finally {
       setDeleting(false);
     }
-  }, [deleting, lapId, loading]);
+  }, [deleting, lapId, loading, qualityStateKey]);
 
   useEffect(() => {
     if (panelOpen) void loadCached();
-  }, [lapId, panelOpen, loadCached]);
+  }, [lapId, panelOpen, loadCached, qualityStateKey]);
   useEffect(() => {
     if (!panelOpen) return;
     let cancelled = false;
@@ -116,16 +116,16 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [lapId, panelOpen, loadCached]);
+  }, [lapId, panelOpen, loadCached, qualityStateKey]);
   useEffect(() => {
     setSummary(null);
     setError(null);
-  }, [lapId]);
+  }, [lapId, qualityStateKey]);
 
   return { summary, loading, error, deleting, run, remove };
 }
 
-export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
+export function useInputsAnalysis(lapAId: number, lapBId: number, qualityStateKey: string, panelOpen: boolean) {
   const [analysis, setAnalysis] = useState<InputsAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +141,7 @@ export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boo
     } catch {
       /* cache probing is best-effort */
     }
-  }, [lapAId, lapBId]);
+  }, [lapAId, lapBId, qualityStateKey]);
 
   const run = useCallback(
     async (regenerate = false) => {
@@ -163,11 +163,11 @@ export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boo
         setLoading(false);
       }
     },
-    [lapAId, lapBId],
+    [lapAId, lapBId, qualityStateKey],
   );
 
   const remove = useCallback(async () => {
-    if (loading || deleting || !window.confirm("Delete inputs comparison? This cannot be undone.")) return;
+    if (loading || deleting || !window.confirm(m.compare_delete_inputs_confirm())) return;
     setDeleting(true);
     setError(null);
     try {
@@ -179,11 +179,11 @@ export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boo
     } finally {
       setDeleting(false);
     }
-  }, [deleting, lapAId, lapBId, loading]);
+  }, [deleting, lapAId, lapBId, loading, qualityStateKey]);
 
   useEffect(() => {
     if (panelOpen) void loadCached();
-  }, [panelOpen, loadCached]);
+  }, [panelOpen, loadCached, qualityStateKey]);
   useEffect(() => {
     if (!panelOpen) return;
     let cancelled = false;
@@ -210,11 +210,11 @@ export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boo
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [lapAId, lapBId, panelOpen, loadCached]);
+  }, [lapAId, lapBId, panelOpen, loadCached, qualityStateKey]);
   useEffect(() => {
     setAnalysis(null);
     setError(null);
-  }, [lapAId, lapBId]);
+  }, [lapAId, lapBId, qualityStateKey]);
 
   return { analysis, loading, error, deleting, run, remove };
 }

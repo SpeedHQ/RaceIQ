@@ -93,9 +93,13 @@ const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.t
 const accOpts = {
   carOrdinal: accCm ? (getAccCarByModel(accCm)?.id ?? 0) : 0,
   trackOrdinal: accTn ? (getAccTrackByName(accTn)?.id ?? 0) : 0,
+  timestampMS: 0,
 };
 const accPackets = accFrames
-  .map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts))
+  .map((f) => {
+    accOpts.timestampMS = f.timestampMS;
+    return parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts);
+  })
   .filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
@@ -105,7 +109,7 @@ const acEvoFrames = readKunosFrames(ACEVO_DUMP, N_FRAMES);
 if (acEvoFrames.length === 0) throw new Error("No AC Evo frames found in dump");
 const acEvoCache = createAcEvoParserCache();
 const acEvoPackets = acEvoFrames
-  .map((f) => parseAcEvoBuffers(f.physics, f.graphics, f.staticData, acEvoCache))
+  .map((f) => parseAcEvoBuffers(f.physics, f.graphics, f.staticData, acEvoCache, f.timestampMS))
   .filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed()}`);
 
@@ -161,6 +165,7 @@ group("acc", () => {
   let i = 0;
   bench("parse", () => {
     const f = accFrames[i]; i = (i + 1) % accFrames.length;
+    accOpts.timestampMS = f.timestampMS;
     do_not_optimize(parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts));
   });
   let pi = 0;
@@ -175,7 +180,7 @@ group("ac-evo", () => {
   const parseCache = createAcEvoParserCache();
   bench("parse", () => {
     const f = acEvoFrames[i]; i = (i + 1) % acEvoFrames.length;
-    do_not_optimize(parseAcEvoBuffers(f.physics, f.graphics, f.staticData, parseCache));
+    do_not_optimize(parseAcEvoBuffers(f.physics, f.graphics, f.staticData, parseCache, f.timestampMS));
   });
   let pi = 0;
   bench("pipeline", async () => {

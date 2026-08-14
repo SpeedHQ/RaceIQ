@@ -1,5 +1,8 @@
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { Sparkles } from "lucide-react";
+import { isEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/quality/policies";
+import { lapStatusLabel } from "@/components/LapStatus";
+import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { formatLapTime } from "@/lib/format";
@@ -8,7 +11,7 @@ import { m } from "@/paraglide/messages";
 export function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
     value: String(lap.id),
-    label: `${m.compare_lap_label({}, { locale })} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " (inv)" : ""}`,
+    label: [`${m.compare_lap_label({}, { locale })} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " (inv)" : ""}`, lapStatusLabel(lap, "issues")].filter(Boolean).join(" · "),
   };
 }
 
@@ -53,6 +56,13 @@ export function ComparisonSelectors({
   aiPanelOpen: boolean;
   toggleAiPanel: () => void;
 }) {
+  const selectedLapA = carALaps.find((lap) => lap.id === lapAId);
+  const selectedLapB = carBLaps.find((lap) => lap.id === lapBId);
+  const analysisDecisions = {
+    lapA: selectedLapA ? resolveEligibilityDecision(selectedLapA, "corner-trace") : undefined,
+    lapB: selectedLapB ? resolveEligibilityDecision(selectedLapB, "corner-trace") : undefined,
+  };
+  const analysisUsable = isEligibilityUsable(analysisDecisions.lapA) && isEligibilityUsable(analysisDecisions.lapB);
   return (
     <div className="flex shrink-0 flex-wrap items-end gap-3">
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[140px] @sm/workspace:flex-1 @3xl/workspace:max-w-[260px]">
@@ -85,9 +95,12 @@ export function ComparisonSelectors({
         />
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[200px]">
-        <label htmlFor="compare-lap-a" className="text-app-caption text-app-text-muted uppercase tracking-wider">
-          {m.compare_lap_a()}
-        </label>
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="compare-lap-a" className="text-app-caption text-app-text-muted uppercase tracking-wider">
+            {m.compare_lap_a()}
+          </label>
+          {selectedLapA && <LapQualityBadge lap={selectedLapA} policyId="corner-trace" />}
+        </div>
         <div className="flex items-center gap-2">
           <SearchSelect
             id="compare-lap-a"
@@ -100,7 +113,7 @@ export function ComparisonSelectors({
           />
           {lapAId != null && (
             <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-              {carALaps.find((lap) => lap.id === lapAId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+              {selectedLapA?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
             </span>
           )}
         </div>
@@ -123,21 +136,25 @@ export function ComparisonSelectors({
         />
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[200px]">
-        <label htmlFor="compare-lap-b" className="text-app-caption text-app-text-muted uppercase tracking-wider">
-          {m.compare_lap_b()}
-        </label>
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="compare-lap-b" className="text-app-caption text-app-text-muted uppercase tracking-wider">
+            {m.compare_lap_b()}
+          </label>
+          {selectedLapB && <LapQualityBadge lap={selectedLapB} policyId="corner-trace" />}
+        </div>
         <div className="flex items-center gap-2">
           <SearchSelect
             id="compare-lap-b"
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
-            disabled={!carBOrd}
             options={carBLaps.map((lap) => buildComparisonLapOption(lap))}
+            placeholder={m.compare_search_laps()}
+            disabled={!carBOrd}
             focusColor="blue-500"
           />
           {lapBId != null && (
             <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-              {carBLaps.find((lap) => lap.id === lapBId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+              {selectedLapB?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
             </span>
           )}
         </div>
@@ -147,8 +164,18 @@ export function ComparisonSelectors({
           variant="app-outline"
           size="app-lg"
           onClick={toggleAiPanel}
-          disabled={!comparisonReady}
-          title={m.compare_toggle_ai()}
+          disabled={!comparisonReady || !analysisUsable}
+          title={
+            !analysisUsable
+              ? [
+                  { label: m.compare_lap_a(), decision: analysisDecisions.lapA },
+                  { label: m.compare_lap_b(), decision: analysisDecisions.lapB },
+                ]
+                  .filter(({ decision }) => !isEligibilityUsable(decision))
+                  .map(({ label, decision }) => `${label}: ${localizedEligibilityDecisionText(decision)}`)
+                  .join(" ")
+              : m.compare_toggle_ai()
+          }
           className={`w-full @3xl/workspace:w-auto ${aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}`}
         >
           <Sparkles className="size-3.5" />

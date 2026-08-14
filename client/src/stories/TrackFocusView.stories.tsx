@@ -41,6 +41,9 @@ const laps: LapMeta[] = LAP_TIMES.map((t, i) => ({
   lapNumber: i + 1,
   lapTime: t,
   isValid: i !== 3,
+  phase: "flying",
+  conditions: [],
+  paceEligibility: "eligible",
   createdAt: new Date().toISOString(),
   sectorTimes: [t * 0.32, t * 0.4, t * 0.28],
 }));

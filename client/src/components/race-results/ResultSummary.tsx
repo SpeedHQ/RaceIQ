@@ -1,10 +1,12 @@
 import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/racing/results/types";
+import { isEligibilityUsable } from "@shared/racing/quality/policies";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { GameId } from "../../../../shared/games/ids";
 import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
+import { localizedEligibilityDecisionText } from "../LapQualityBadge";
 
 const classificationLabels: Record<RaceResultStatus, string> = {
   finished: "Finished",
@@ -48,6 +50,8 @@ export function ResultAuthorityBadge({ status }: { status: RaceResultOutcomeStat
 }
 
 export function ResultAggregateGrid({ aggregate }: { aggregate: RaceResultAggregate }) {
+  const timingUsable = aggregate.lapQuality.officialTiming.statuses.eligible + aggregate.lapQuality.officialTiming.statuses.eligible_with_warning;
+  const paceUsable = aggregate.lapQuality.normalPace.statuses.eligible + aggregate.lapQuality.normalPace.statuses.eligible_with_warning;
   const rows: Array<[string, number | string]> = [
     ["Recorded results", aggregate.sessions],
     ["Confirmed", aggregate.confirmed],
@@ -62,6 +66,8 @@ export function ResultAggregateGrid({ aggregate }: { aggregate: RaceResultAggreg
     ["Recorded fastest laps", aggregate.fastestLaps],
     ["Recorded pit stops", aggregate.pitStops],
     ["Known pit time", aggregate.pitDurationSeconds == null ? "Not recorded" : `${aggregate.pitDurationSeconds.toFixed(1)}s`],
+    ["Timing-usable laps", aggregate.lapQuality.total === 0 ? "Not recorded" : `${timingUsable}/${aggregate.lapQuality.total}`],
+    ["Normal-pace laps", aggregate.lapQuality.total === 0 ? "Not recorded" : `${paceUsable}/${aggregate.lapQuality.total}`],
   ];
   return (
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -94,6 +100,10 @@ function RecentResult({ result }: { result: RaceResult }) {
       : result.qualifyingPosition != null && fieldStatus.qualifyingPosition !== "unavailable"
         ? { label: "Qualified", value: result.qualifyingPosition }
         : null;
+  const timingUsable = result.lapQuality.filter(({ officialTiming }) => isEligibilityUsable(officialTiming)).length;
+  const paceUsable = result.lapQuality.filter(({ normalPace }) => isEligibilityUsable(normalPace)).length;
+  const timingLimitation = result.lapQuality.find(({ officialTiming }) => !isEligibilityUsable(officialTiming))?.officialTiming;
+  const paceLimitation = result.lapQuality.find(({ normalPace }) => !isEligibilityUsable(normalPace))?.normalPace;
   return (
     <li className="border-t border-app-border py-3 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -114,6 +124,18 @@ function RecentResult({ result }: { result: RaceResult }) {
         </div>
       </div>
       {result.outcomeStatus === "unavailable" && <p className="mt-1 text-xs text-app-text-muted">No authoritative outcome was recorded for this session.</p>}
+      {result.lapQuality.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-app-text-muted">
+          <span>
+            Timing: {timingUsable}/{result.lapQuality.length} usable
+            {timingLimitation ? ` · ${localizedEligibilityDecisionText(timingLimitation)}` : ""}
+          </span>
+          <span>
+            Normal pace: {paceUsable}/{result.lapQuality.length} usable
+            {paceLimitation ? ` · ${localizedEligibilityDecisionText(paceLimitation)}` : ""}
+          </span>
+        </div>
+      )}
       {conflicts.length > 0 && (
         <div className="mt-2 rounded-lg border border-status-warning/30 bg-status-warning/5 px-3 py-2 text-xs text-status-warning" role="note">
           <div className="font-medium">Conflicting result evidence</div>

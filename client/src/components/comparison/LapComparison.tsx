@@ -1,5 +1,9 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
-const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => { const value = sample.values[id]; return typeof value === "number" ? value : undefined; }
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
+const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => {
+  const value = sample.values[id];
+  return typeof value === "number" ? value : undefined;
+};
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -171,6 +175,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     async function buildGroups() {
       const byTrack = new Map<number, LapMeta[]>();
       for (const lap of laps) {
+        if (!isTimedLapEligibilityUsable(lap)) continue;
         const t = lap.trackOrdinal!;
         if (!byTrack.has(t)) byTrack.set(t, []);
         byTrack.get(t)!.push(lap);
@@ -255,6 +260,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   // Laps filtered by car
   const carALaps = trackLaps.filter((l) => l.carOrdinal === carAOrd);
   const carBLaps = trackLaps.filter((l) => l.carOrdinal === carBOrd);
+  const selectedLapA = allLaps.find((lap) => lap.id === lapAId);
+  const selectedLapB = allLaps.find((lap) => lap.id === lapBId);
 
   // Fetch comparison when both laps selected
   const fetchComparison = useCallback(async () => {
@@ -437,17 +444,29 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} />
 
           {/* AI compare sidebar */}
-          {aiPanelOpen && (
+          {aiPanelOpen && selectedLapA && selectedLapB && (
             <CompareAiSidebar
               lapA={{
-                id: lapAId!,
-                label: `${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
+                id: selectedLapA.id,
+                label: `${carNames.get(comparison.lapA.carOrdinal ?? -1) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
                 lapTime: comparison.lapA.lapTime,
+                sessionId: selectedLapA.sessionId,
+                quality: selectedLapA.quality,
+                eligibility: selectedLapA.eligibility,
+                qualityGeneration: selectedLapA.qualityGeneration,
+                qualityStale: selectedLapA.qualityStale,
+                source: selectedLapA.source,
               }}
               lapB={{
-                id: lapBId!,
-                label: `${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
+                id: selectedLapB.id,
+                label: `${carNames.get(comparison.lapB.carOrdinal ?? -1) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
                 lapTime: comparison.lapB.lapTime,
+                sessionId: selectedLapB.sessionId,
+                quality: selectedLapB.quality,
+                eligibility: selectedLapB.eligibility,
+                qualityGeneration: selectedLapB.qualityGeneration,
+                qualityStale: selectedLapB.qualityStale,
+                source: selectedLapB.source,
               }}
               panelRef={aiPanelRef}
               onClose={toggleAiPanel}
@@ -456,7 +475,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             />
           )}
         </div>
-      ) : comparison ? <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div> : null}
+      ) : comparison ? (
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div>
+      ) : null}
     </div>
   );
 }
