@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { EligibilityDecision, EligibilityPolicyId, EligibilityStatus, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecision, type EligibilityPolicyId, type EligibilityStatus, type LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import { LapBreakdown } from "../src/components/tunes/experiment/LapBreakdown";
 
@@ -27,10 +27,18 @@ function decision(policyId: EligibilityPolicyId, status: EligibilityStatus, reas
   };
 }
 
+const qualityGeneration = "sha256:lap-breakdown-quality";
 const exactQuality = {
   lifecycleState: "exact",
   facts: [],
   channelQuality: [],
+  provenance: {
+    schemaVersion: QUALITY_SCHEMA_VERSION,
+    policyVersion: ELIGIBILITY_POLICY_VERSION,
+    configurationVersion: QUALITY_CONFIG_VERSION,
+    sourceGeneration: "sha256:lap-breakdown-source",
+    outputGeneration: qualityGeneration,
+  },
 } as unknown as LapQualitySummary;
 
 function lap(id: number, isValid: boolean, cornerDecision: EligibilityDecision = decision("corner-trace", "eligible"), experimentExcluded = false): LapMeta {
@@ -47,6 +55,10 @@ function lap(id: number, isValid: boolean, cornerDecision: EligibilityDecision =
       "corner-trace": cornerDecision,
     },
     quality: exactQuality,
+    qualityGeneration,
+    qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+    qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+    qualityConfigVersion: QUALITY_CONFIG_VERSION,
   } as unknown as LapMeta;
 }
 
