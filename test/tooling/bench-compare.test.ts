@@ -57,7 +57,14 @@ function makeReport(options: ReportOptions = {}): string {
   });
 }
 
-async function runComparator(baseline: string, current: string, failOnRegression = false, p99Threshold?: number, includePrefix?: string): Promise<{ code: number; output: string }> {
+async function runComparator(
+  baseline: string,
+  current: string,
+  failOnRegression = false,
+  p99Threshold?: number,
+  includePrefix?: string,
+  extraArgs: string[] = [],
+): Promise<{ code: number; output: string }> {
   const dir = makeTempDir();
   const baselinePath = join(dir, "baseline.json");
   const currentPath = join(dir, "current.json");
@@ -67,6 +74,7 @@ async function runComparator(baseline: string, current: string, failOnRegression
   if (failOnRegression) args.push("--fail-on-regression");
   if (p99Threshold !== undefined) args.push(`--p99-threshold=${p99Threshold}`);
   if (includePrefix !== undefined) args.push(`--include=${includePrefix}`);
+  args.push(...extraArgs);
   const proc = Bun.spawn(args, {
     cwd: process.cwd(),
     stdout: "pipe",
@@ -114,6 +122,28 @@ describe("Mitata benchmark comparison", () => {
     expect(result.output).not.toContain("legacy/pipeline");
   });
 
+  test("renders report-only microbenchmarks without deltas or judgments", async () => {
+    const result = await runComparator(makeReport(), makeReport({ legacyMedian: 200 }), false, undefined, undefined, ["--exclude=replay/", "--informational"]);
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("## Informational microbenchmarks");
+    expect(result.output).toContain("Report-only. Small timings can vary between runs.");
+    expect(result.output).toContain("legacy/pipeline");
+    expect(result.output).toContain("Baseline alloc / current alloc");
+    expect(result.output).not.toContain("replay/resolve");
+    expect(result.output).not.toContain("Δ median");
+    expect(result.output).not.toContain("%");
+    expect(result.output).not.toContain("Regressions");
+  });
+
+  test("keeps all three deltas in titled replay guardrails", async () => {
+    const result = await runComparator(makeReport(), makeReport(), false, undefined, "replay/", ["--title=Replay CPU guardrails"]);
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("## Replay CPU guardrails");
+    expect(result.output).toContain("Δ median | Δ p99 | Δ alloc");
+  });
+
   test("reports regressions without failing unless requested", async () => {
     const result = await runComparator(makeReport(), makeReport({ median: 110 }));
 
@@ -132,6 +162,7 @@ describe("Mitata benchmark comparison", () => {
     const result = await runComparator(makeReport({ includeReplay: false }), makeReport(), true);
 
     expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("_missing_");
+    expect(result.output).toContain("Baseline pending");
+    expect(result.output).toContain("Regression assessment starts after matching results exist on the base branch");
   });
 });

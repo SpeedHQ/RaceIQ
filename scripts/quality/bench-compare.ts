@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 /**
  * Compare two mitata bench-results.json files and emit a markdown diff.
- *
- * Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5] [--include=<prefix>]
+ * Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5] [--include=<prefix>] [--exclude=<prefix>] [--informational] [--title=<heading>]
  *
  * Thresholds (%) control what counts as a regression flag in the output.
+ * Informational reports show absolute measurements without deltas or judgments.
  */
-
 import { readFileSync } from "node:fs";
 
 type Stats = { p50: number; p99: number; heap?: { avg: number } };
@@ -22,9 +21,14 @@ const args = process.argv.slice(2);
 const threshold = Number(args.find((a) => a.startsWith("--threshold="))?.split("=")[1] ?? 5);
 const p99Threshold = Number(args.find((a) => a.startsWith("--p99-threshold="))?.split("=")[1] ?? threshold);
 const includePrefix = args.find((a) => a.startsWith("--include="))?.split("=")[1];
+const excludePrefix = args.find((a) => a.startsWith("--exclude="))?.split("=")[1];
+const informational = args.includes("--informational");
+const title = args.find((a) => a.startsWith("--title="))?.slice("--title=".length);
 const files = args.filter((a) => !a.startsWith("--"));
 if (files.length !== 2) {
-  console.error("Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5] [--include=<prefix>]");
+  console.error(
+    "Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5] [--include=<prefix>] [--exclude=<prefix>] [--informational] [--title=<heading>]",
+  );
   process.exit(1);
 }
 const [baselinePath, currentPath] = files;
@@ -46,9 +50,13 @@ function extract(r: Results): Map<string, Entry> {
 
 const base = extract(baseline);
 const cur = extract(current);
-const keys = [...new Set([...base.keys(), ...cur.keys()])].filter((key) => !includePrefix || key.startsWith(includePrefix)).sort();
-if (includePrefix && keys.length === 0) {
+const keys = [...new Set([...base.keys(), ...cur.keys()])].filter((key) => (!includePrefix || key.startsWith(includePrefix)) && (!excludePrefix || !key.startsWith(excludePrefix))).sort();
+if (keys.length === 0 && includePrefix) {
   console.error(`No benchmarks match --include=${includePrefix}`);
+  process.exit(1);
+}
+if (keys.length === 0 && excludePrefix) {
+  console.error(`No benchmarks remain after --exclude=${excludePrefix}`);
   process.exit(1);
 }
 
@@ -71,13 +79,28 @@ function sign(p: number): string {
 
 const rows: string[] = [];
 const regressions: string[] = [];
-rows.push(`| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Δ alloc |`);
-rows.push(`|---|---:|---:|---:|---:|---:|`);
+let baselinePending = false;
+if (informational) {
+  rows.push(`| Bench | Baseline median / p99 | Current median / p99 | Baseline alloc / current alloc |`);
+  rows.push(`|---|---:|---:|---:|`);
+} else {
+  rows.push(`| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Δ alloc |`);
+  rows.push(`|---|---:|---:|---:|---:|---:|`);
+}
 for (const key of keys) {
   const b = base.get(key);
   const c = cur.get(key);
+  if (informational) {
+    rows.push(
+      `| ${key} | ${b ? `${fmtTime(b.median)} / ${fmtTime(b.p99)}` : "—"} | ${c ? `${fmtTime(c.median)} / ${fmtTime(c.p99)}` : "—"} | ${b ? fmtBytes(b.heap) : "—"} / ${c ? fmtBytes(c.heap) : "—"} |`,
+    );
+    continue;
+  }
   if (!b || !c) {
-    rows.push(`| ${key} | ${b ? `${fmtTime(b.median)} / ${fmtTime(b.p99)}` : "—"} | ${c ? `${fmtTime(c.median)} / ${fmtTime(c.p99)}` : "—"} | _missing_ | | |`);
+    baselinePending ||= !b && c !== undefined;
+    rows.push(
+      `| ${key} | ${b ? `${fmtTime(b.median)} / ${fmtTime(b.p99)}` : "—"} | ${c ? `${fmtTime(c.median)} / ${fmtTime(c.p99)}` : "—"} | ${!b && c ? "Baseline pending" : "Current result missing"} | — | — |`,
+    );
     continue;
   }
   const medianChange = pct(c.median, b.median);
@@ -91,9 +114,19 @@ for (const key of keys) {
   if (heapChange > threshold && b.heap > 0) regressions.push(`- **${key}**: alloc +${heapChange.toFixed(1)}% (${fmtBytes(b.heap)} → ${fmtBytes(c.heap)})`);
 }
 
-const header = `## Bench comparison\n\nRuntime: \`${current.context.runtime ?? "?"}\` on \`${current.context.cpu.name ?? "?"}\`\nThresholds: median/allocation ±${threshold}%; p99 ±${p99Threshold}%${includePrefix ? `\nIncluded benchmarks: \`${includePrefix}*\`` : ""}`;
+const reportTitle = title ?? (informational ? "Informational microbenchmarks" : "Bench comparison");
+const reportNote = informational
+  ? "\n\n_Report-only. Small timings can vary between runs._"
+  : `\nThresholds: median/allocation ±${threshold}%; p99 ±${p99Threshold}%${includePrefix ? `\nIncluded benchmarks: \`${includePrefix}*\`` : ""}`;
+const header = `## ${reportTitle}\n\nRuntime: \`${current.context.runtime ?? "?"}\` on \`${current.context.cpu.name ?? "?"}\`${reportNote}`;
 const body = rows.join("\n");
-const footer = regressions.length ? `\n\n### Regressions\n${regressions.join("\n")}` : `\n\n_No regressions above configured thresholds._`;
+const footer = informational
+  ? ""
+  : regressions.length
+    ? `\n\n### Regressions\n${regressions.join("\n")}`
+    : baselinePending
+      ? "\n\n_Baseline pending. Regression assessment starts after matching results exist on the base branch._"
+      : `\n\n_No regressions above configured thresholds._`;
 
 console.log(`${header}\n\n${body}${footer}`);
 

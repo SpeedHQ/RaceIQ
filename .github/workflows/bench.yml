@@ -56,9 +56,10 @@ jobs:
       - name: Compare
         working-directory: pr
         run: |
-          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --threshold=10 --p99-threshold=25 > ../pipeline-comparison.md
+          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --exclude=replay/ --informational > ../microbenchmark-comparison.md
+          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --include=replay/ --title="Replay CPU guardrails" --threshold=10 --p99-threshold=25 > ../replay-comparison.md
           if [ -f ../base-replay-io-results.json ]; then
-            bun scripts/quality/bench-compare.ts ../base-replay-io-results.json ../pr-replay-io-results.json --threshold=25 > ../replay-io-comparison.md
+            bun scripts/quality/bench-compare.ts ../base-replay-io-results.json ../pr-replay-io-results.json --threshold=25 --title="Replay I/O benchmark" > ../replay-io-comparison.md
           else
             {
               echo "## Replay I/O benchmark"
@@ -67,11 +68,15 @@ jobs:
             } > ../replay-io-comparison.md
           fi
           {
-            cat ../pipeline-comparison.md
+            cat ../microbenchmark-comparison.md
             echo
-            cat ../replay-io-comparison.md
+            cat ../replay-comparison.md
           } | tee ../comparison.md
           cat ../comparison.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo
+            cat ../replay-io-comparison.md
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post fresh benchmark comment
         working-directory: pr
@@ -109,6 +114,7 @@ jobs:
             pr-results.json
             base-replay-io-results.json
             pr-replay-io-results.json
-            pipeline-comparison.md
+            microbenchmark-comparison.md
+            replay-comparison.md
             replay-io-comparison.md
             comparison.md
