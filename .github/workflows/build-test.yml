@@ -53,8 +53,15 @@ jobs:
             bun run telemetry:catalog:check
           fi
 
-      - name: Build client
-        run: cd client && bun install && bun run build
+      - name: Build RaceIQ
+        run: bun run build
+
+      - name: Upload Linux dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raceiq-dist-linux
+          path: dist/
+          retention-days: 1
 
       - name: Run tests
         run: bun run test

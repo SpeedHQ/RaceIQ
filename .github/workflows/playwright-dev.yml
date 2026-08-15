@@ -1,4 +1,4 @@
-name: Playwright E2E (dev server)
+name: Playwright E2E (compiled PR gate)
 
 on:
   workflow_call:
@@ -7,7 +7,8 @@ jobs:
   playwright-dev:
     uses: ./.github/workflows/playwright.yml
     with:
-      server-mode: dev
+      server-mode: compiled
       runs-on: blacksmith-4vcpu-ubuntu-2204
       projects: "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
-      artifact-name: playwright-dev-results
+      dist-artifact: raceiq-dist-linux
+      artifact-name: playwright-compiled-results
