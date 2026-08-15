@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      runs-on: blacksmith-4vcpu-ubuntu-2204
+      runs-on: whitesmith-windows-x64
       projects: "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
-      dist-artifact: raceiq-dist-linux
+      dist-artifact: raceiq-dist-windows
       artifact-name: playwright-compiled-results
