@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { LOCAL_PLAYER_EVIDENCE } from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, LOCAL_PLAYER_EVIDENCE, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
-import { evaluateAllEligibility, evaluateEligibility, evaluateGroupEligibility, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
+import { evaluateAllEligibility, evaluateEligibility, evaluateGroupEligibility, isQualitySnapshotCurrent, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
+import { finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { qualityPackets, summarize, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
 import { packet } from "../support/telemetry/resolver";
@@ -472,6 +473,41 @@ describe("versioned eligibility policies", () => {
     const decision = resolveEligibilityDecision({}, "corner-trace");
     expect(decision.status).toBe("unknown");
     expect(decision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+  });
+
+  test("keeps provisional quality unusable until finalized with canonical generations", () => {
+    const provisional = summarize(qualityPackets(200));
+    const provisionalEvidence = {
+      quality: provisional,
+      eligibility: evaluateAllEligibility(provisional),
+      qualityGeneration: provisional.provenance.outputGeneration,
+      qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+      qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+      qualityConfigVersion: QUALITY_CONFIG_VERSION,
+    };
+
+    expect(isQualitySnapshotCurrent(provisionalEvidence)).toBe(false);
+    expect(resolveEligibilityDecision(provisionalEvidence, "corner-trace")).toMatchObject({
+      status: "unknown",
+      reasons: [{ code: "quality_not_rebuilt" }],
+    });
+
+    const finalized = finalizeLapQualityGeneration(provisional, `sha256:${"a".repeat(64)}`, {
+      lapNumber: 1,
+      rawByteOffset: 0,
+      rawFrameCount: 200,
+    });
+    const finalizedEvidence = {
+      quality: finalized.quality,
+      eligibility: finalized.eligibility,
+      qualityGeneration: finalized.quality.provenance.outputGeneration,
+      qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+      qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+      qualityConfigVersion: QUALITY_CONFIG_VERSION,
+    };
+
+    expect(isQualitySnapshotCurrent(finalizedEvidence)).toBe(true);
+    expect(resolveEligibilityDecision(finalizedEvidence, "corner-trace")).toEqual(finalized.eligibility["corner-trace"]);
   });
 
   test("rejects persisted decisions from stale quality snapshots", () => {

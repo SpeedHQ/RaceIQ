@@ -43,9 +43,14 @@ export interface QualitySnapshotEvidence {
   qualityConfigVersion?: string | null;
 }
 
+function isFinalizedQualityGeneration(generation: string): boolean {
+  return /^sha256:[0-9a-f]{64}$/.test(generation);
+}
+
 export function isQualitySnapshotCurrent(evidence: QualitySnapshotEvidence): boolean {
   const provenance = evidence.quality?.provenance;
   if (!provenance || evidence.qualityStale === true) return false;
+  if (!isFinalizedQualityGeneration(provenance.sourceGeneration) || !isFinalizedQualityGeneration(provenance.outputGeneration)) return false;
   if (provenance.schemaVersion !== QUALITY_SCHEMA_VERSION || provenance.policyVersion !== ELIGIBILITY_POLICY_VERSION || provenance.configurationVersion !== QUALITY_CONFIG_VERSION) {
     return false;
   }

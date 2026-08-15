@@ -3,14 +3,8 @@ import { laps, sessions, tunes } from "./schema";
 import type { GameId } from "../../shared/games/ids";
 import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
-import {
-  ELIGIBILITY_POLICY_VERSION,
-  QUALITY_CONFIG_VERSION,
-  QUALITY_SCHEMA_VERSION,
-  type EligibilityDecisionSet,
-  type EvidenceSourceKind,
-  type LapQualitySummary,
-} from "../../shared/racing/quality/contracts";
+import type { EligibilityDecisionSet, EvidenceSourceKind, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 
 export const lapMetaProjection = {
   id: laps.id,
@@ -171,12 +165,13 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     quality: quality ?? undefined,
     eligibility: eligibility ?? undefined,
     qualityGeneration: qualityGeneration ?? undefined,
-    qualityStale:
-      !quality ||
-      !eligibility ||
-      qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
-      qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
-      qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
-      qualityGeneration !== quality.provenance.outputGeneration,
+    qualityStale: !isEligibilitySnapshotCurrent({
+      quality,
+      eligibility,
+      qualityGeneration,
+      qualitySchemaVersion,
+      qualityPolicyVersion,
+      qualityConfigVersion,
+    }),
   };
 }

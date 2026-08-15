@@ -6,11 +6,13 @@ import {
   QUALITY_SCHEMA_VERSION,
   type LapQualitySummary,
 } from "../../../shared/racing/quality/contracts";
+import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
 import type { QualityCacheIdentity } from "../../../server/db/analysis-queries";
 import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
 } from "../../../server/ai/generate-lap-analysis";
+import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",
@@ -21,20 +23,25 @@ const validAnalysis = JSON.stringify({
   setup: [],
 });
 
-const QUALITY_GENERATION = "sha256:prompt-quality";
+const QUALITY_GENERATION = `sha256:${"a".repeat(64)}`;
+const QUALITY_SOURCE_GENERATION = `sha256:${"b".repeat(64)}`;
 
 function currentQuality(generation: string): LapQualitySummary {
+  const measured = summarize(qualityPackets(100));
   return {
+    ...measured,
     provenance: {
+      ...measured.provenance,
       schemaVersion: QUALITY_SCHEMA_VERSION,
       policyVersion: ELIGIBILITY_POLICY_VERSION,
       configurationVersion: QUALITY_CONFIG_VERSION,
-      sourceGeneration: "sha256:prompt-source",
+      sourceGeneration: QUALITY_SOURCE_GENERATION,
       outputGeneration: generation,
     },
-  } as LapQualitySummary;
+  };
 }
 
+const quality = currentQuality(QUALITY_GENERATION);
 const lap = {
   id: 7,
   lapTime: 91.2,
@@ -45,8 +52,9 @@ const lap = {
   qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
   qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
   qualityConfigVersion: QUALITY_CONFIG_VERSION,
-  quality: currentQuality(QUALITY_GENERATION),
+  quality,
   eligibility: {
+    ...evaluateAllEligibility(quality),
     "corner-trace": {
       status: "eligible" as const,
       policyId: "corner-trace" as const,
@@ -262,7 +270,7 @@ describe("generateLapAnalysis", () => {
     expect(result.error).toBeUndefined();
     expect(deps.saveIdentities).toEqual([
       {
-        generation: "sha256:prompt-quality",
+        generation: QUALITY_GENERATION,
         policyVersion: "1",
       },
     ]);

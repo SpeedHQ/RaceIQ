@@ -8,6 +8,9 @@ import {
   type LapQualitySummary,
 } from "../../../shared/racing/quality/contracts";
 
+const RECAP_SOURCE_GENERATION = `sha256:${"a".repeat(64)}`;
+const RECAP_QUALITY_GENERATION = `sha256:${"b".repeat(64)}`;
+
 export const baseSession: RecapSessionInput = {
   id: 1,
   carOrdinal: 10,
@@ -28,7 +31,7 @@ export function normalPaceEligibility(status: EligibilityStatus): EligibilityDec
     },
   } as unknown as EligibilityDecisionSet;
 }
-export function currentQualityEvidence(generation = "sha256:recap-quality"): Pick<
+export function currentQualityEvidence(generation = RECAP_QUALITY_GENERATION): Pick<
   RecapLapInput,
   "quality" | "qualityGeneration" | "qualitySchemaVersion" | "qualityPolicyVersion" | "qualityConfigVersion"
 > {
@@ -38,7 +41,7 @@ export function currentQualityEvidence(generation = "sha256:recap-quality"): Pic
         schemaVersion: QUALITY_SCHEMA_VERSION,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         configurationVersion: QUALITY_CONFIG_VERSION,
-        sourceGeneration: "sha256:recap-source",
+        sourceGeneration: RECAP_SOURCE_GENERATION,
         outputGeneration: generation,
       },
     } as unknown as LapQualitySummary,
@@ -52,7 +55,7 @@ export function currentQualityEvidence(generation = "sha256:recap-quality"): Pic
 export function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
   const isValid = overrides.isValid ?? true;
   const paceEligibility = overrides.paceEligibility ?? "eligible";
-  const eligibility = overrides.eligibility ?? normalPaceEligibility(isValid && paceEligibility === "eligible" ? "eligible" : "ineligible");
+  const eligibility = overrides.eligibility ?? normalPaceEligibility(isValid && paceEligibility === "eligible" && overrides.invalidReason == null ? "eligible" : "ineligible");
   const merged = {
     lapNumber: 1,
     lapTime: 100,
