@@ -44,7 +44,7 @@ function makeReport(options: ReportOptions = {}): string {
   });
 }
 
-async function runComparator(baseline: string, current: string, failOnRegression = false): Promise<{ code: number; output: string }> {
+async function runComparator(baseline: string, current: string, failOnRegression = false, p99Threshold?: number): Promise<{ code: number; output: string }> {
   const dir = makeTempDir();
   const baselinePath = join(dir, "baseline.json");
   const currentPath = join(dir, "current.json");
@@ -52,6 +52,7 @@ async function runComparator(baseline: string, current: string, failOnRegression
 
   const args = [process.execPath, "scripts/quality/bench-compare.ts", baselinePath, currentPath];
   if (failOnRegression) args.push("--fail-on-regression");
+  if (p99Threshold !== undefined) args.push(`--p99-threshold=${p99Threshold}`);
   const proc = Bun.spawn(args, {
     cwd: process.cwd(),
     stdout: "pipe",
@@ -72,7 +73,7 @@ describe("Mitata benchmark comparison", () => {
 
     expect(result.code, result.output).toBe(0);
     expect(result.output).toContain("Baseline median / p99");
-    expect(result.output).toContain("No regressions above 5% threshold");
+    expect(result.output).toContain("No regressions above configured thresholds");
   });
 
   test("enforces median and p99 regressions beyond tolerance", async () => {
@@ -81,6 +82,14 @@ describe("Mitata benchmark comparison", () => {
     expect(result.code, result.output).toBe(1);
     expect(result.output).toContain("median +6.0%");
     expect(result.output).toContain("p99 +6.0%");
+  });
+
+  test("allows noisier p99 within its dedicated tolerance", async () => {
+    const result = await runComparator(makeReport(), makeReport({ p99: 140 }), true, 25);
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("p99 ±25%");
+    expect(result.output).toContain("No regressions above configured thresholds");
   });
 
   test("reports regressions without failing unless requested", async () => {

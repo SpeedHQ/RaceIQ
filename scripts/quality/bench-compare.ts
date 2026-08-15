@@ -2,9 +2,9 @@
 /**
  * Compare two mitata bench-results.json files and emit a markdown diff.
  *
- * Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5]
+ * Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5]
  *
- * Threshold (%) controls what counts as a regression flag in the output.
+ * Thresholds (%) control what counts as a regression flag in the output.
  */
 
 import { readFileSync } from "node:fs";
@@ -20,9 +20,10 @@ type Results = { layout: Layout; context: Context; benchmarks: Bench[] };
 
 const args = process.argv.slice(2);
 const threshold = Number(args.find((a) => a.startsWith("--threshold="))?.split("=")[1] ?? 5);
+const p99Threshold = Number(args.find((a) => a.startsWith("--p99-threshold="))?.split("=")[1] ?? threshold);
 const files = args.filter((a) => !a.startsWith("--"));
 if (files.length !== 2) {
-  console.error("Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5]");
+  console.error("Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5]");
   process.exit(1);
 }
 const [baselinePath, currentPath] = files;
@@ -81,13 +82,13 @@ for (const key of keys) {
     `| ${key} | ${fmtTime(b.median)} / ${fmtTime(b.p99)} | ${fmtTime(c.median)} / ${fmtTime(c.p99)} | ${sign(medianChange)} ${medianChange > 0 ? "+" : ""}${medianChange.toFixed(1)}% | ${sign(p99Change)} ${p99Change > 0 ? "+" : ""}${p99Change.toFixed(1)}% | ${sign(heapChange)} ${heapChange > 0 ? "+" : ""}${heapChange.toFixed(1)}% |`,
   );
   if (medianChange > threshold) regressions.push(`- **${key}**: median +${medianChange.toFixed(1)}% (${fmtTime(b.median)} → ${fmtTime(c.median)})`);
-  if (p99Change > threshold) regressions.push(`- **${key}**: p99 +${p99Change.toFixed(1)}% (${fmtTime(b.p99)} → ${fmtTime(c.p99)})`);
+  if (p99Change > p99Threshold) regressions.push(`- **${key}**: p99 +${p99Change.toFixed(1)}% (${fmtTime(b.p99)} → ${fmtTime(c.p99)})`);
   if (heapChange > threshold && b.heap > 0) regressions.push(`- **${key}**: alloc +${heapChange.toFixed(1)}% (${fmtBytes(b.heap)} → ${fmtBytes(c.heap)})`);
 }
 
-const header = `## Bench comparison\n\nRuntime: \`${current.context.runtime ?? "?"}\` on \`${current.context.cpu.name ?? "?"}\`\nThreshold: ±${threshold}%`;
+const header = `## Bench comparison\n\nRuntime: \`${current.context.runtime ?? "?"}\` on \`${current.context.cpu.name ?? "?"}\`\nThresholds: median/allocation ±${threshold}%; p99 ±${p99Threshold}%`;
 const body = rows.join("\n");
-const footer = regressions.length ? `\n\n### Regressions (>${threshold}%)\n${regressions.join("\n")}` : `\n\n_No regressions above ${threshold}% threshold._`;
+const footer = regressions.length ? `\n\n### Regressions\n${regressions.join("\n")}` : `\n\n_No regressions above configured thresholds._`;
 
 console.log(`${header}\n\n${body}${footer}`);
 
