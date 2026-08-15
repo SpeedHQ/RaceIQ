@@ -37,6 +37,7 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
         mimeType: "application/octet-stream",
         buffer: await exportResponse.body(),
       },
+      ownership: "mine",
     },
   });
   expect(importResponse.ok(), "disposable lap import").toBe(true);
