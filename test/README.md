@@ -15,48 +15,47 @@ bun run test
 bun test test/games/shared/parser.test.ts --timeout 30000
 bun run test:ai
 bun run bench
-bun run bench:telemetry
-bun run bench:telemetry:current --no-enforce --output=telemetry-benchmark-results.json
+bun run bench:replay-io
 ```
 
 `bun run test` is standard suite. Focused command runs one final-path file;
 Bun preload still isolates `DATA_DIR` in `.data-test`. `bun run test:ai` runs
 `test/ai/evals/ai-quality.ai-eval.ts` with its longer timeout. `bun run bench`
-runs parser/pipeline microbenchmarks. `bun run bench:telemetry` checks the current
-worktree against `main` (or `--base=<ref>`) on the same machine. It replays
-20,000 committed AC Evo frames and enforces relative throughput/memory plus hard
-memory budgets. When the base predates this benchmark, the command explicitly
-bootstraps hard memory budgets without fabricating a throughput comparison.
-`bun run bench:telemetry:current` produces one report without a base comparison.
-Benchmarks are explicit scripts, not ordinary tests.
+runs CI-gating Mitata parser/pipeline benchmarks, including 20,000-frame AC Evo
+raw-lap parsing and semantic resolver/canonical envelope transformation. File
+loading, decompression, and SQLite setup finish before measured work. `bun run
+bench:replay-io` separately measures end-to-end SQLite, file, gzip, parser,
+cache, and canonical replay paths in isolated temporary state. Mitata owns
+warmup and repeated sampling for both; I/O results stay report-only with wider
+tolerance. Benchmarks are explicit scripts, not ordinary tests.
 
 ## Top-level map
 
-| Path | Boundary and purpose |
-| --- | --- |
-| `ai/` | AI unit and prompt/provider tests; explicit evals under `ai/evals/` |
-| `client/` | Client-side logic and component contract tests |
-| `db/` | Database migrations, seeds, and persistence integration |
-| `driver-profile/` | Driver-profile domain tests |
-| `e2e/` | Recording-backed end-to-end checks and rendered outputs |
-| `experiments/` | Experiment and drill behavior |
-| `games/` | Per-game parsers, recorders, SDKs, and shared game contracts |
-| `lap-analysis/` | Lap quality, detection, recap, segments, and stint analysis |
-| `live-strategy/` | Live sector and pit strategy behavior |
-| `motec/` | MoTeC import and visualization behavior |
-| `race-results/` | Race-result capture, storage, source, and derivation |
-| `routes/` | Server route contracts and request behavior |
-| `runtime/` | Runtime options, settings, updates, and supervision |
-| `session-capture/` | Session recording, compression, and binary storage |
-| `setups/` | Setup formats, tuning, and setup engineering |
-| `telemetry/` | Telemetry models, pipelines, resolver, catalog, and catalog E2E |
-| `tooling/` | Developer tooling and UI-diff contracts |
-| `tracks/` | Track models, guides, coverage, and visualization |
-| `benchmarks/` | Explicit performance scripts (`*.bench.ts`) |
-| `support/` | Shared test-only helpers; no test cases |
-| `fixtures/` | Small committed deterministic inputs and golden files |
-| `ai-fixtures/` | Curated AI-eval inputs, packets, and score baselines |
-| `artifacts/` | Generated or captured local outputs; not source fixtures |
+| Path               | Boundary and purpose                                                |
+| ------------------ | ------------------------------------------------------------------- |
+| `ai/`              | AI unit and prompt/provider tests; explicit evals under `ai/evals/` |
+| `client/`          | Client-side logic and component contract tests                      |
+| `db/`              | Database migrations, seeds, and persistence integration             |
+| `driver-profile/`  | Driver-profile domain tests                                         |
+| `e2e/`             | Recording-backed end-to-end checks and rendered outputs             |
+| `experiments/`     | Experiment and drill behavior                                       |
+| `games/`           | Per-game parsers, recorders, SDKs, and shared game contracts        |
+| `lap-analysis/`    | Lap quality, detection, recap, segments, and stint analysis         |
+| `live-strategy/`   | Live sector and pit strategy behavior                               |
+| `motec/`           | MoTeC import and visualization behavior                             |
+| `race-results/`    | Race-result capture, storage, source, and derivation                |
+| `routes/`          | Server route contracts and request behavior                         |
+| `runtime/`         | Runtime options, settings, updates, and supervision                 |
+| `session-capture/` | Session recording, compression, and binary storage                  |
+| `setups/`          | Setup formats, tuning, and setup engineering                        |
+| `telemetry/`       | Telemetry models, pipelines, resolver, catalog, and catalog E2E     |
+| `tooling/`         | Developer tooling and UI-diff contracts                             |
+| `tracks/`          | Track models, guides, coverage, and visualization                   |
+| `benchmarks/`      | Explicit performance scripts (`*.bench.ts`)                         |
+| `support/`         | Shared test-only helpers; no test cases                             |
+| `fixtures/`        | Small committed deterministic inputs and golden files               |
+| `ai-fixtures/`     | Curated AI-eval inputs, packets, and score baselines                |
+| `artifacts/`       | Generated or captured local outputs; not source fixtures            |
 
 ## Test boundaries
 
@@ -68,8 +67,11 @@ Benchmarks are explicit scripts, not ordinary tests.
   and output boundaries. Put recording-driven suites in `e2e/`; telemetry catalog
   E2E suites stay in `telemetry/catalog/` with that domain.
 - **Benchmark:** performance measurement only. Keep setup and input stable; run
-  through `bun run bench` or `bun run bench:telemetry`, never as part of standard
-  discovery.
+  CPU guardrails through `bun run bench`, storage measurements through
+  `bun run bench:replay-io`, and post-GC retention through
+  `bun run bench:telemetry:soak`. Scheduled soak runs parser and replay for ten
+  minutes each; use `--iterations=<count>` only for focused local smoke checks.
+  Never include these entry points in standard test discovery.
 - **AI eval:** model-backed quality checks under `ai/evals/`; use explicit
   `*.ai-eval.ts` entry points and curated `ai-fixtures/` data.
 

@@ -2,7 +2,7 @@ name: Telemetry soak
 
 on:
   schedule:
-    - cron: "17 8 * * 1"
+    - cron: "0 8 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run telemetry soak
-        run: bun run bench:telemetry:soak --output=telemetry-soak-results.json
+        run: bun run bench:telemetry:soak --duration-minutes=10 --output=telemetry-soak-results.json
 
       - name: Upload telemetry soak report
         if: always()

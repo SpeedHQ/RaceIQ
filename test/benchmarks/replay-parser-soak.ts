@@ -22,6 +22,7 @@ export interface ReplayParserSoakMeasurement {
   readonly semanticCount: number;
   readonly warmupIterations: number;
   readonly measuredIterations: number;
+  readonly targetDurationMs: number | null;
   readonly durationMs: number;
   readonly samples: readonly ReplayParserSoakSample[];
 }
@@ -64,15 +65,22 @@ export const RETENTION_BUDGET: ReplayParserSoakBudget = {
   maxRssSlopeBytesPerIteration: MIB,
 };
 
+function retentionBudgetFor(sampleCount: number): ReplayParserSoakBudget {
+  const measuredIntervals = Math.max(1, sampleCount - 1);
+  return {
+    ...RETENTION_BUDGET,
+    maxHeapSlopeBytesPerIteration: Math.min(RETENTION_BUDGET.maxHeapSlopeBytesPerIteration, RETENTION_BUDGET.maxRetainedHeapGrowthBytes / measuredIntervals),
+    maxRssSlopeBytesPerIteration: Math.min(RETENTION_BUDGET.maxRssSlopeBytesPerIteration, RETENTION_BUDGET.maxRetainedRssGrowthBytes / measuredIntervals),
+  };
+}
+
 export function median(values: readonly number[]): number {
   if (values.length === 0 || values.some((value) => !Number.isFinite(value))) {
     throw new Error("Median requires at least one finite value");
   }
   const sorted = [...values].sort((left, right) => left - right);
   const midpoint = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[midpoint - 1]! + sorted[midpoint]!) / 2
-    : sorted[midpoint]!;
+  return sorted.length % 2 === 0 ? (sorted[midpoint - 1]! + sorted[midpoint]!) / 2 : sorted[midpoint]!;
 }
 
 export function leastSquaresSlope(values: readonly number[]): number {
@@ -93,16 +101,10 @@ export function leastSquaresSlope(values: readonly number[]): number {
 
 export function analyzeSoakResult(measurement: ReplayParserSoakMeasurement): ReplayParserSoakResult {
   if (measurement.samples.length !== measurement.measuredIterations || measurement.samples.length < 2) {
-    throw new Error(
-      `${measurement.name} expected ${measurement.measuredIterations} samples, received ${measurement.samples.length}`,
-    );
+    throw new Error(`${measurement.name} expected ${measurement.measuredIterations} samples, received ${measurement.samples.length}`);
   }
   for (const [index, sample] of measurement.samples.entries()) {
-    if (
-      sample.iteration !== index + 1 ||
-      !Number.isFinite(sample.postGcRssBytes) ||
-      !Number.isFinite(sample.postGcHeapBytes)
-    ) {
+    if (sample.iteration !== index + 1 || !Number.isFinite(sample.postGcRssBytes) || !Number.isFinite(sample.postGcHeapBytes)) {
       throw new Error(`${measurement.name} contains an invalid post-GC sample at iteration ${index + 1}`);
     }
   }
@@ -122,13 +124,9 @@ export function analyzeSoakResult(measurement: ReplayParserSoakMeasurement): Rep
     lastWindowMedianHeapBytes,
     retainedRssGrowthBytes: Math.max(0, lastWindowMedianRssBytes - firstWindowMedianRssBytes),
     retainedHeapGrowthBytes: Math.max(0, lastWindowMedianHeapBytes - firstWindowMedianHeapBytes),
-    rssSlopeBytesPerIteration: leastSquaresSlope(
-      measurement.samples.map((sample) => sample.postGcRssBytes),
-    ),
-    heapSlopeBytesPerIteration: leastSquaresSlope(
-      measurement.samples.map((sample) => sample.postGcHeapBytes),
-    ),
-    budget: RETENTION_BUDGET,
+    rssSlopeBytesPerIteration: leastSquaresSlope(measurement.samples.map((sample) => sample.postGcRssBytes)),
+    heapSlopeBytesPerIteration: leastSquaresSlope(measurement.samples.map((sample) => sample.postGcHeapBytes)),
+    budget: retentionBudgetFor(measurement.samples.length),
   };
 }
 
@@ -139,26 +137,20 @@ function formatBytes(bytes: number): string {
 export function retentionBudgetFailures(results: readonly ReplayParserSoakResult[]): string[] {
   const failures: string[] = [];
   for (const result of results) {
-    if (
-      result.retainedHeapGrowthBytes > result.budget.maxRetainedHeapGrowthBytes &&
-      result.heapSlopeBytesPerIteration > result.budget.maxHeapSlopeBytesPerIteration
-    ) {
+    if (result.retainedHeapGrowthBytes > result.budget.maxRetainedHeapGrowthBytes && result.heapSlopeBytesPerIteration > result.budget.maxHeapSlopeBytesPerIteration) {
       failures.push(
         `${result.name} post-GC heap retained growth ${formatBytes(result.retainedHeapGrowthBytes)} ` +
-        `(limit ${formatBytes(result.budget.maxRetainedHeapGrowthBytes)}) and slope ` +
-        `${formatBytes(result.heapSlopeBytesPerIteration)}/iteration ` +
-        `(limit ${formatBytes(result.budget.maxHeapSlopeBytesPerIteration)}/iteration)`,
+          `(limit ${formatBytes(result.budget.maxRetainedHeapGrowthBytes)}) and slope ` +
+          `${formatBytes(result.heapSlopeBytesPerIteration)}/iteration ` +
+          `(limit ${formatBytes(result.budget.maxHeapSlopeBytesPerIteration)}/iteration)`,
       );
     }
-    if (
-      result.retainedRssGrowthBytes > result.budget.maxRetainedRssGrowthBytes &&
-      result.rssSlopeBytesPerIteration > result.budget.maxRssSlopeBytesPerIteration
-    ) {
+    if (result.retainedRssGrowthBytes > result.budget.maxRetainedRssGrowthBytes && result.rssSlopeBytesPerIteration > result.budget.maxRssSlopeBytesPerIteration) {
       failures.push(
         `${result.name} post-GC RSS retained growth ${formatBytes(result.retainedRssGrowthBytes)} ` +
-        `(limit ${formatBytes(result.budget.maxRetainedRssGrowthBytes)}) and slope ` +
-        `${formatBytes(result.rssSlopeBytesPerIteration)}/iteration ` +
-        `(limit ${formatBytes(result.budget.maxRssSlopeBytesPerIteration)}/iteration)`,
+          `(limit ${formatBytes(result.budget.maxRetainedRssGrowthBytes)}) and slope ` +
+          `${formatBytes(result.rssSlopeBytesPerIteration)}/iteration ` +
+          `(limit ${formatBytes(result.budget.maxRssSlopeBytesPerIteration)}/iteration)`,
       );
     }
   }
@@ -186,7 +178,8 @@ function parseWorkerMeasurement(
   raw: string,
   scenario: ReplayParserSoakScenarioName,
   warmupIterations: number,
-  measuredIterations: number,
+  expectedIterations: number | undefined,
+  targetDurationMs: number | null,
 ): ReplayParserSoakMeasurement {
   const value = JSON.parse(raw) as Partial<ReplayParserSoakMeasurement>;
   if (
@@ -196,11 +189,14 @@ function parseWorkerMeasurement(
     value.framesPerIteration! <= 0 ||
     value.semanticCount !== (scenario === "replay" ? 8 : 0) ||
     value.warmupIterations !== warmupIterations ||
-    value.measuredIterations !== measuredIterations ||
+    !Number.isInteger(value.measuredIterations) ||
+    value.measuredIterations! < 20 ||
+    (expectedIterations !== undefined && value.measuredIterations !== expectedIterations) ||
+    value.targetDurationMs !== targetDurationMs ||
     !Number.isFinite(value.durationMs) ||
-    value.durationMs! < 0 ||
+    value.durationMs! < (targetDurationMs ?? 0) ||
     !Array.isArray(value.samples) ||
-    value.samples.length !== measuredIterations
+    value.samples.length !== value.measuredIterations
   ) {
     throw new Error(`${scenario} soak worker returned a malformed result`);
   }
@@ -211,15 +207,23 @@ function printResults(results: readonly ReplayParserSoakResult[]): void {
   for (const result of results) {
     console.log(
       `[telemetry-soak] ${result.name}: heap growth ${formatBytes(result.retainedHeapGrowthBytes)}, ` +
-      `heap slope ${formatBytes(result.heapSlopeBytesPerIteration)}/iteration, ` +
-      `RSS growth ${formatBytes(result.retainedRssGrowthBytes)}, ` +
-      `RSS slope ${formatBytes(result.rssSlopeBytesPerIteration)}/iteration`,
+        `heap slope ${formatBytes(result.heapSlopeBytesPerIteration)}/iteration, ` +
+        `RSS growth ${formatBytes(result.retainedRssGrowthBytes)}, ` +
+        `RSS slope ${formatBytes(result.rssSlopeBytesPerIteration)}/iteration`,
     );
   }
 }
 
 async function runController(): Promise<void> {
-  const measuredIterations = integerArgument("--iterations", 100, 20, 1_000);
+  const iterationsArgument = argumentValue("--iterations");
+  const durationArgument = argumentValue("--duration-minutes");
+  if (iterationsArgument !== undefined && durationArgument !== undefined) {
+    throw new Error("Use either --iterations or --duration-minutes, not both");
+  }
+  const measuredIterations = iterationsArgument === undefined ? undefined : integerArgument("--iterations", 100, 20, 1_000);
+  const durationMinutes = measuredIterations === undefined ? integerArgument("--duration-minutes", 10, 1, 60) : undefined;
+  const targetDurationMs = durationMinutes === undefined ? null : durationMinutes * 60_000;
+  const measurementArgument = measuredIterations === undefined ? `--duration-ms=${targetDurationMs}` : `--iterations=${measuredIterations}`;
   const warmupIterations = integerArgument("--warmup", 10, 1, 100);
   const outputArgument = argumentValue("--output") ?? "telemetry-soak-results.json";
   if (outputArgument.length === 0) throw new Error("--output requires a non-empty path");
@@ -230,18 +234,10 @@ async function runController(): Promise<void> {
   try {
     for (const scenario of SCENARIOS) {
       const dataDir = join(tempRoot, scenario, "data");
-      const resultPath = join(tempRoot, `${scenario}.json`);
       mkdirSync(dataDir, { recursive: true });
+      const resultPath = join(tempRoot, `${scenario}.json`);
       const child = Bun.spawn({
-        cmd: [
-          process.execPath,
-          resolve("test/benchmarks/replay-parser-worker.ts"),
-          `--scenario=${scenario}`,
-          `--result=${resultPath}`,
-          "--mode=soak",
-          `--iterations=${measuredIterations}`,
-          `--warmup=${warmupIterations}`,
-        ],
+        cmd: [process.execPath, resolve("test/benchmarks/replay-parser-worker.ts"), `--scenario=${scenario}`, `--result=${resultPath}`, measurementArgument, `--warmup=${warmupIterations}`],
         cwd: process.cwd(),
         env: {
           ...process.env,
@@ -254,12 +250,7 @@ async function runController(): Promise<void> {
       });
       const exitCode = await child.exited;
       if (exitCode !== 0) throw new Error(`${scenario} soak child exited with code ${exitCode}`);
-      const measurement = parseWorkerMeasurement(
-        readFileSync(resultPath, "utf8"),
-        scenario,
-        warmupIterations,
-        measuredIterations,
-      );
+      const measurement = parseWorkerMeasurement(readFileSync(resultPath, "utf8"), scenario, warmupIterations, measuredIterations, targetDurationMs);
       results.push(analyzeSoakResult(measurement));
     }
 

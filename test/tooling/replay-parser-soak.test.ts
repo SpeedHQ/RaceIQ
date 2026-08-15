@@ -1,21 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import {
-  analyzeSoakResult,
-  leastSquaresSlope,
-  median,
-  retentionBudgetFailures,
-  type ReplayParserSoakMeasurement,
-  type ReplayParserSoakScenarioName,
-} from "../benchmarks/replay-parser-soak";
+import { analyzeSoakResult, leastSquaresSlope, median, retentionBudgetFailures, type ReplayParserSoakMeasurement, type ReplayParserSoakScenarioName } from "../benchmarks/replay-parser-soak";
 
 const MIB = 1024 * 1024;
 const SAMPLE_COUNT = 100;
 
-function makeMeasurement(
-  heapValues: readonly number[],
-  rssValues: readonly number[],
-  name: ReplayParserSoakScenarioName = "parser",
-): ReplayParserSoakMeasurement {
+function makeMeasurement(heapValues: readonly number[], rssValues: readonly number[], name: ReplayParserSoakScenarioName = "parser"): ReplayParserSoakMeasurement {
   if (heapValues.length !== rssValues.length) throw new Error("Sample series lengths must match");
   return {
     name,
@@ -24,6 +13,7 @@ function makeMeasurement(
     semanticCount: name === "replay" ? 8 : 0,
     warmupIterations: 10,
     measuredIterations: heapValues.length,
+    targetDurationMs: null,
     durationMs: 1_000,
     samples: heapValues.map((postGcHeapBytes, index) => ({
       iteration: index + 1,
@@ -37,17 +27,13 @@ function constantSamples(value: number): number[] {
   return Array.from({ length: SAMPLE_COUNT }, () => value);
 }
 
-async function runCli(argument: string): Promise<{ code: number; output: string }> {
-  const proc = Bun.spawn([process.execPath, "test/benchmarks/replay-parser-soak.ts", argument], {
+async function runCli(...arguments_: string[]): Promise<{ code: number; output: string }> {
+  const proc = Bun.spawn([process.execPath, "test/benchmarks/replay-parser-soak.ts", ...arguments_], {
     cwd: process.cwd(),
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [code, stdout, stderr] = await Promise.all([
-    proc.exited,
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
+  const [code, stdout, stderr] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   return { code, output: `${stdout}\n${stderr}` };
 }
 
@@ -59,27 +45,15 @@ describe("replay/parser soak retention analysis", () => {
   });
 
   test("passes stable noisy post-GC samples", () => {
-    const heap = Array.from(
-      { length: SAMPLE_COUNT },
-      (_, index) => 32 * MIB + ((index % 5) - 2) * 64 * 1024,
-    );
-    const rss = Array.from(
-      { length: SAMPLE_COUNT },
-      (_, index) => 256 * MIB + ((index % 7) - 3) * 128 * 1024,
-    );
+    const heap = Array.from({ length: SAMPLE_COUNT }, (_, index) => 32 * MIB + ((index % 5) - 2) * 64 * 1024);
+    const rss = Array.from({ length: SAMPLE_COUNT }, (_, index) => 256 * MIB + ((index % 7) - 3) * 128 * 1024);
 
     expect(retentionBudgetFailures([analyzeSoakResult(makeMeasurement(heap, rss))])).toEqual([]);
   });
 
   test("passes bounded warm-up growth followed by a plateau", () => {
-    const heap = Array.from(
-      { length: SAMPLE_COUNT },
-      (_, index) => 32 * MIB + Math.min(index * 4 * MIB, 32 * MIB),
-    );
-    const rss = Array.from(
-      { length: SAMPLE_COUNT },
-      (_, index) => 256 * MIB + Math.min(index * 8 * MIB, 64 * MIB),
-    );
+    const heap = Array.from({ length: SAMPLE_COUNT }, (_, index) => 32 * MIB + Math.min(index * 4 * MIB, 32 * MIB));
+    const rss = Array.from({ length: SAMPLE_COUNT }, (_, index) => 256 * MIB + Math.min(index * 8 * MIB, 64 * MIB));
 
     expect(retentionBudgetFailures([analyzeSoakResult(makeMeasurement(heap, rss))])).toEqual([]);
   });
@@ -88,51 +62,44 @@ describe("replay/parser soak retention analysis", () => {
     const heap = Array.from({ length: SAMPLE_COUNT }, (_, index) => 32 * MIB + index * MIB);
     const result = analyzeSoakResult(makeMeasurement(heap, constantSamples(256 * MIB)));
 
-    expect(retentionBudgetFailures([result])).toEqual([
-      "parser post-GC heap retained growth 90.0 MiB (limit 64.0 MiB) and slope " +
-      "1.0 MiB/iteration (limit 0.5 MiB/iteration)",
-    ]);
+    expect(retentionBudgetFailures([result])).toEqual(["parser post-GC heap retained growth 90.0 MiB (limit 64.0 MiB) and slope " + "1.0 MiB/iteration (limit 0.5 MiB/iteration)"]);
   });
 
   test("fails sustained RSS growth above both limits", () => {
     const rss = Array.from({ length: SAMPLE_COUNT }, (_, index) => 256 * MIB + index * 2 * MIB);
     const result = analyzeSoakResult(makeMeasurement(constantSamples(32 * MIB), rss, "replay"));
 
-    expect(retentionBudgetFailures([result])).toEqual([
-      "replay post-GC RSS retained growth 180.0 MiB (limit 128.0 MiB) and slope " +
-      "2.0 MiB/iteration (limit 1.0 MiB/iteration)",
-    ]);
+    expect(retentionBudgetFailures([result])).toEqual(["replay post-GC RSS retained growth 180.0 MiB (limit 128.0 MiB) and slope " + "2.0 MiB/iteration (limit 1.0 MiB/iteration)"]);
   });
 
   test("passes when only growth or only slope exceeds its heap limit", () => {
     const growthOnly = constantSamples(32 * MIB);
     growthOnly.splice(90, 10, ...constantSamples(112 * MIB).slice(0, 10));
-    const slopeOnly = Array.from(
-      { length: SAMPLE_COUNT },
-      (_, index) => 32 * MIB + index * 0.6 * MIB,
-    );
+    const slopeOnly = Array.from({ length: SAMPLE_COUNT }, (_, index) => 32 * MIB + index * 0.6 * MIB);
 
-    const growthOnlyResult = analyzeSoakResult(
-      makeMeasurement(growthOnly, constantSamples(256 * MIB)),
-    );
-    expect(growthOnlyResult.retainedHeapGrowthBytes).toBeGreaterThan(
-      growthOnlyResult.budget.maxRetainedHeapGrowthBytes,
-    );
-    expect(growthOnlyResult.heapSlopeBytesPerIteration).toBeLessThan(
-      growthOnlyResult.budget.maxHeapSlopeBytesPerIteration,
-    );
+    const growthOnlyResult = analyzeSoakResult(makeMeasurement(growthOnly, constantSamples(256 * MIB)));
+    expect(growthOnlyResult.retainedHeapGrowthBytes).toBeGreaterThan(growthOnlyResult.budget.maxRetainedHeapGrowthBytes);
+    expect(growthOnlyResult.heapSlopeBytesPerIteration).toBeLessThan(growthOnlyResult.budget.maxHeapSlopeBytesPerIteration);
     expect(retentionBudgetFailures([growthOnlyResult])).toEqual([]);
 
-    const slopeOnlyResult = analyzeSoakResult(
-      makeMeasurement(slopeOnly, constantSamples(256 * MIB)),
-    );
-    expect(slopeOnlyResult.retainedHeapGrowthBytes).toBeLessThan(
-      slopeOnlyResult.budget.maxRetainedHeapGrowthBytes,
-    );
-    expect(slopeOnlyResult.heapSlopeBytesPerIteration).toBeGreaterThan(
-      slopeOnlyResult.budget.maxHeapSlopeBytesPerIteration,
-    );
+    const slopeOnlyResult = analyzeSoakResult(makeMeasurement(slopeOnly, constantSamples(256 * MIB)));
+    expect(slopeOnlyResult.retainedHeapGrowthBytes).toBeLessThan(slopeOnlyResult.budget.maxRetainedHeapGrowthBytes);
+    expect(slopeOnlyResult.heapSlopeBytesPerIteration).toBeGreaterThan(slopeOnlyResult.budget.maxHeapSlopeBytesPerIteration);
     expect(retentionBudgetFailures([slopeOnlyResult])).toEqual([]);
+  });
+
+  test("scales leak slope limits across long soak runs", () => {
+    const sampleCount = 5_000;
+    const heap = Array.from({ length: sampleCount }, (_, index) => 32 * MIB + index * 32 * 1024);
+    const result = analyzeSoakResult(
+      makeMeasurement(
+        heap,
+        Array.from({ length: sampleCount }, () => 256 * MIB),
+      ),
+    );
+
+    expect(result.budget.maxHeapSlopeBytesPerIteration).toBeLessThan(32 * 1024);
+    expect(retentionBudgetFailures([result])[0]).toContain("parser post-GC heap retained growth");
   });
 
   test("rejects invalid measured and warm-up iteration arguments before workers start", async () => {
@@ -141,6 +108,10 @@ describe("replay/parser soak retention analysis", () => {
       "--iterations=1001",
       "--iterations=20.5",
       "--iterations=invalid",
+      "--duration-minutes=0",
+      "--duration-minutes=61",
+      "--duration-minutes=1.5",
+      "--duration-minutes=invalid",
       "--warmup=0",
       "--warmup=101",
       "--warmup=1.5",
@@ -150,5 +121,12 @@ describe("replay/parser soak retention analysis", () => {
       expect(result.code, `${argument}\n${result.output}`).not.toBe(0);
       expect(result.output).toContain(`${argument.split("=")[0]} must be an integer`);
     }
+  });
+
+  test("rejects simultaneous iteration and duration limits", async () => {
+    const result = await runCli("--iterations=20", "--duration-minutes=1");
+
+    expect(result.code, result.output).not.toBe(0);
+    expect(result.output).toContain("Use either --iterations or --duration-minutes, not both");
   });
 });

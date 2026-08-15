@@ -14,6 +14,16 @@ describe("websocket message router", () => {
     expect(handleWebSocketMessage({ type: "telemetry-frame", protocolVersion: 1, schemaId: "s", streamId: "x", sessionId: null, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [] })).toBe(true);
     expect(useTelemetryStore.getState().telemetryFrame?.sequence).toBe(1);
   });
+  it("keeps current live view when server repeats its schema", () => {
+    useTelemetryStore.getState().clearTelemetry();
+    handleWebSocketMessage(schema);
+    handleWebSocketMessage({ type: "telemetry-frame", protocolVersion: 1, schemaId: "s", streamId: "x", sessionId: null, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [] });
+    const frame = useTelemetryStore.getState().telemetryFrame;
+    const view = useTelemetryStore.getState().telemetryView;
+    handleWebSocketMessage(schema);
+    expect(useTelemetryStore.getState().telemetryFrame).toBe(frame);
+    expect(useTelemetryStore.getState().telemetryView).toBe(view);
+  });
   it("routes dev packets only to isolated dev store and ignores legacy packets", () => {
     useDevTelemetryStore.getState().clear();
     useTelemetryStore.getState().clearTelemetry();

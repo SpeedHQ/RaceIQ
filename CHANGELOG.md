@@ -1,17 +1,24 @@
 ## Unreleased
 
 ### Breaking
+
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
 
 ### Features
+
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
+
 ### Fixes
-- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
+
+- Show iRacing live fuel bars using tank capacity reported by simulator session data
+- Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
+- Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
+- Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
@@ -66,10 +73,13 @@
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
+- Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
+
+- Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails, separate report-only storage I/O measurements, and a scheduled post-GC retention soak
 - Replace Biome with Oxc for repository linting and formatting
-- Consolidate coding-agent guidance in `AGENTS.md` and remove duplicate guidance file
+- Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs
@@ -93,6 +103,7 @@
 ## v0.14.0 - 2026-08-05
 
 ### Features
+
 - Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
 - Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
 - Import MoTeC logs as normal sessions for analysis, comparison, and experiments
@@ -107,6 +118,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+
 - Keep unfinished game integrations and experiments out of production releases
 - Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
 - Show actionable guidance when AI provider, credentials, or model configuration is incomplete
@@ -119,6 +131,7 @@
 - Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
 
 ### Internal
+
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
 - Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
@@ -139,6 +152,7 @@
 ## v0.13.0 - 2026-07-16
 
 ### Features
+
 - New lap insight detectors and server-side computation
 - Static corner names and sector data from track geometry
 - Session recap card with sector-coloured track map
@@ -146,9 +160,11 @@
 - AC Evo car and track extraction updates
 
 ### Fixes
+
 - Separate Power and Torque rows in analysis
 - Correct ACC centreline for corner detection
 - Correct AC Evo track and car resolution
 
 ### Internal
+
 - Backfilled from the pre-changelog GitHub release body
