@@ -7,6 +7,14 @@ This file provides guidance to coding agents working in this repository.
 
 RaceIQ is a full-stack racing telemetry analysis app for Forza Motorsport 2023, F1 25, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing. UDP and native Windows telemetry sources feed a Bun server, SQLite storage, and a React dashboard. See [architecture overview](docs/architecture/overview.md).
 
+## Codebase Discovery
+
+When available, try the DeepWiki MCP first (`read_wiki_structure`,
+`read_wiki_contents`, or `ask_question`) to learn the app's architecture and
+feature flows before broad code searches. Use DeepWiki for orientation, then
+verify implementation details against the current checkout because its content
+may be stale or unavailable. Fall back to repository search when needed.
+
 ## Commands
 
 ```bash
@@ -212,7 +220,7 @@ ran v39 before the `car`/`driver` rename.
 - Client proxies `/api` and `/ws` requests to `localhost:3117` via Vite dev server config
 - **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes/index.ts`) — do not use raw `fetch` for API routes
 - **gameId travels via `X-Game-Id` header** — not query params or effect-populated stores
-- Database file: `data/forza-telemetry.db` (SQLite)
+- Database file: `<DATA_DIR>/app.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4
 - **Theme contract:** client UI must use semantic `text-app-*`, `tracking-app-*`, `bg-*`, `border-*`, and `shadow-*` tokens; do not add arbitrary typography utilities or raw/palette colors. Run `bun test test/theme-contract.test.ts --timeout 60000` after styling changes.
@@ -336,7 +344,7 @@ When creating or updating a pull request:
 
 ### Pull Request Changelog
 
-Every pull request must include a concise bullet in `CHANGELOG.md` under `## Unreleased`. Use `### Internal` for implementation, CI, tooling, and maintenance changes that are not user-visible; keep `### Breaking`, `### Features`, and `### Fixes` for user-facing changes. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
+Every pull request must include a concise user-facing bullet in `CHANGELOG.md` under `## Unreleased`; do not omit it for implementation, CI, tooling, or maintenance work. Describe the observable benefit in `### Breaking`, `### Features`, or `### Fixes` rather than documenting internal mechanics. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
 
 ### AI Evaluators
 
