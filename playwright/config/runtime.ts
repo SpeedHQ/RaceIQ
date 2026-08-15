@@ -11,6 +11,7 @@ export interface E2ERuntime {
   seededScreenshots: boolean;
   parallelScreenshotRun: boolean;
   screenshotWorkers: number;
+  testWorkers: number;
   appRoot?: string;
   needsFreshServer: boolean;
   needsTunesServer: boolean;
@@ -58,6 +59,10 @@ const serverSet = readServerSet();
 const screenshotOnly = process.env.PW_SCREENSHOT_ONLY === "1";
 const seededScreenshots = process.env.PW_SEED_SCREENSHOTS === "1";
 
+const defaultTestWorkers = serverSet === "seeded" ? 2 : 1;
+const requestedTestWorkers = Number.parseInt(process.env.PW_WORKERS ?? String(defaultTestWorkers), 10);
+const testWorkers = Number.isFinite(requestedTestWorkers) && requestedTestWorkers > 0 ? requestedTestWorkers : defaultTestWorkers;
+
 export const runtime: E2ERuntime = {
   serverMode,
   serverSet,
@@ -66,7 +71,7 @@ export const runtime: E2ERuntime = {
   seededScreenshots,
   parallelScreenshotRun: screenshotOnly && seededScreenshots,
   screenshotWorkers: readPositiveWorkers(),
-  ...(process.env.RACEIQ_APP_ROOT ? { appRoot: process.env.RACEIQ_APP_ROOT } : {}),
+  testWorkers,
   needsFreshServer: serverSet === "all" || serverSet === "fresh",
   needsTunesServer: serverSet === "all" || serverSet === "tunes",
   needsSeededServer: serverSet === "all" || serverSet === "seeded",
