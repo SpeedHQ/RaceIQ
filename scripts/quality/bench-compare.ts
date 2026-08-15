@@ -9,7 +9,7 @@
 
 import { readFileSync } from "node:fs";
 
-type Stats = { avg: number; min: number; p50: number; p99: number; heap?: { avg: number } };
+type Stats = { p50: number; p99: number; heap?: { avg: number } };
 type Bench = { alias: string; group: number; runs: { stats?: Stats }[] };
 type Layout = { name: string | null }[];
 type Context = {
@@ -30,14 +30,14 @@ const [baselinePath, currentPath] = files;
 const baseline = JSON.parse(readFileSync(baselinePath, "utf-8")) as Results;
 const current = JSON.parse(readFileSync(currentPath, "utf-8")) as Results;
 
-type Entry = { key: string; avg: number; heap: number };
+type Entry = { key: string; median: number; p99: number; heap: number };
 function extract(r: Results): Map<string, Entry> {
   const out = new Map<string, Entry>();
   for (const b of r.benchmarks) {
     const groupName = r.layout[b.group]?.name ?? "root";
     const stats = b.runs[0]?.stats;
     if (!stats) continue;
-    out.set(`${groupName}/${b.alias}`, { key: `${groupName}/${b.alias}`, avg: stats.avg, heap: stats.heap?.avg ?? 0 });
+    out.set(`${groupName}/${b.alias}`, { key: `${groupName}/${b.alias}`, median: stats.p50, p99: stats.p99, heap: stats.heap?.avg ?? 0 });
   }
   return out;
 }
@@ -55,7 +55,9 @@ function fmtBytes(b: number): string {
   if (b < 1024) return `${b.toFixed(0)} b`;
   return `${(b / 1024).toFixed(2)} kb`;
 }
-function pct(a: number, b: number): number { return b === 0 ? 0 : ((a - b) / b) * 100; }
+function pct(a: number, b: number): number {
+  return b === 0 ? 0 : ((a - b) / b) * 100;
+}
 function sign(p: number): string {
   if (Math.abs(p) < 0.5) return "≈";
   return p > 0 ? "🔴" : "🟢";
@@ -63,27 +65,29 @@ function sign(p: number): string {
 
 const rows: string[] = [];
 const regressions: string[] = [];
-rows.push(`| Bench | Baseline | Current | Δ time | Δ alloc |`);
-rows.push(`|---|---:|---:|---:|---:|`);
+rows.push(`| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Δ alloc |`);
+rows.push(`|---|---:|---:|---:|---:|---:|`);
 for (const key of keys) {
   const b = base.get(key);
   const c = cur.get(key);
   if (!b || !c) {
-    rows.push(`| ${key} | ${b ? fmtTime(b.avg) : "—"} | ${c ? fmtTime(c.avg) : "—"} | _missing_ | |`);
+    rows.push(`| ${key} | ${b ? `${fmtTime(b.median)} / ${fmtTime(b.p99)}` : "—"} | ${c ? `${fmtTime(c.median)} / ${fmtTime(c.p99)}` : "—"} | _missing_ | | |`);
     continue;
   }
-  const dt = pct(c.avg, b.avg);
-  const dh = pct(c.heap, b.heap);
-  rows.push(`| ${key} | ${fmtTime(b.avg)} / ${fmtBytes(b.heap)} | ${fmtTime(c.avg)} / ${fmtBytes(c.heap)} | ${sign(dt)} ${dt > 0 ? "+" : ""}${dt.toFixed(1)}% | ${sign(dh)} ${dh > 0 ? "+" : ""}${dh.toFixed(1)}% |`);
-  if (dt > threshold) regressions.push(`- **${key}**: time +${dt.toFixed(1)}% (${fmtTime(b.avg)} → ${fmtTime(c.avg)})`);
-  if (dh > threshold && b.heap > 0) regressions.push(`- **${key}**: alloc +${dh.toFixed(1)}% (${fmtBytes(b.heap)} → ${fmtBytes(c.heap)})`);
+  const medianChange = pct(c.median, b.median);
+  const p99Change = pct(c.p99, b.p99);
+  const heapChange = pct(c.heap, b.heap);
+  rows.push(
+    `| ${key} | ${fmtTime(b.median)} / ${fmtTime(b.p99)} | ${fmtTime(c.median)} / ${fmtTime(c.p99)} | ${sign(medianChange)} ${medianChange > 0 ? "+" : ""}${medianChange.toFixed(1)}% | ${sign(p99Change)} ${p99Change > 0 ? "+" : ""}${p99Change.toFixed(1)}% | ${sign(heapChange)} ${heapChange > 0 ? "+" : ""}${heapChange.toFixed(1)}% |`,
+  );
+  if (medianChange > threshold) regressions.push(`- **${key}**: median +${medianChange.toFixed(1)}% (${fmtTime(b.median)} → ${fmtTime(c.median)})`);
+  if (p99Change > threshold) regressions.push(`- **${key}**: p99 +${p99Change.toFixed(1)}% (${fmtTime(b.p99)} → ${fmtTime(c.p99)})`);
+  if (heapChange > threshold && b.heap > 0) regressions.push(`- **${key}**: alloc +${heapChange.toFixed(1)}% (${fmtBytes(b.heap)} → ${fmtBytes(c.heap)})`);
 }
 
 const header = `## Bench comparison\n\nRuntime: \`${current.context.runtime ?? "?"}\` on \`${current.context.cpu.name ?? "?"}\`\nThreshold: ±${threshold}%`;
 const body = rows.join("\n");
-const footer = regressions.length
-  ? `\n\n### Regressions (>${threshold}%)\n${regressions.join("\n")}`
-  : `\n\n_No regressions above ${threshold}% threshold._`;
+const footer = regressions.length ? `\n\n### Regressions (>${threshold}%)\n${regressions.join("\n")}` : `\n\n_No regressions above ${threshold}% threshold._`;
 
 console.log(`${header}\n\n${body}${footer}`);
 

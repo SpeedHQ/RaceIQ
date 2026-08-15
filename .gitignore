@@ -32,7 +32,7 @@ laps.json
 client/debug-storybook.log
 client/src/stories/__snapshots__/results/
 bench-results.json
-telemetry-benchmark-results.json
+replay-io-results.json
 client/storybook-static/
 .superset/
 
