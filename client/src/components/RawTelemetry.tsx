@@ -66,7 +66,7 @@ function flatten(obj: unknown, prefix = "", out: Record<string, unknown> = {}): 
 
 export function RawTelemetry({ packet }: Props) {
   if (!packet) {
-    return <div data-telemetry-raw="true" className="p-4 text-app-text-dim">{m.rawtel_waiting()}</div>;
+    return <div className="p-4 text-app-text-dim">{m.rawtel_waiting()}</div>;
   }
 
   const flattened = flatten(packet);
@@ -81,7 +81,7 @@ export function RawTelemetry({ packet }: Props) {
   const entries = [...Object.entries(flattened), ...unsupportedFields.map((field) => [field, undefined] as const)].sort(([a], [b]) => a.localeCompare(b));
 
   return (
-    <div data-telemetry-raw="true" className="p-4 overflow-auto h-full">
+    <div className="p-4 overflow-auto h-full">
       <div className="text-xs text-app-text-muted uppercase tracking-wider mb-3">
         {m.rawtel_title()} ({entries.length} fields)
       </div>

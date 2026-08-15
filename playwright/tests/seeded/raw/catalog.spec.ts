@@ -35,11 +35,20 @@ function fieldRow(page: Page, field: string) {
   return page.locator(`[data-telemetry-field="${field}"]`);
 }
 async function replayRawRecording(page: Page, request: APIRequestContext, game: SeededGame): Promise<void> {
-  await expect(page.locator("[data-telemetry-raw='true']")).toBeVisible();
   const replayResponsePromise = request.post(`/api/dev/replay/${RECORDING_BY_GAME[game.gameId]}?packets=240&intervalMs=12`);
   const row = fieldRow(page, "CurrentLap");
+  await expect(row, `${game.name} CurrentLap raw row`).toBeVisible({ timeout: 20_000 });
   const value = row.locator("span.font-mono");
-  await expect(value, `${game.name} CurrentLap value`).toBeVisible();
+  const observed = new Set<string>();
+  await expect
+    .poll(
+      async () => {
+        observed.add(await value.innerText());
+        return observed.size;
+      },
+      { timeout: 20_000, intervals: [60, 80, 100] },
+    )
+    .toBeGreaterThan(1);
   const response = await replayResponsePromise;
   expect(response.ok(), `${game.name} raw replay response`).toBe(true);
   const payload = (await response.json()) as { ok: boolean; recordingName: string; replayedPacketCount: number };
