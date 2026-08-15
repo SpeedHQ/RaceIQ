@@ -24,7 +24,9 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const adapter = getGame(gameId);
   const telemetryModel = adapter.telemetry;
   const analysis = resolveAnalysisTelemetry(adapter);
-  const wears = view?.tires.wear ? [view.tires.wear.fl, view.tires.wear.fr, view.tires.wear.rl, view.tires.wear.rr] : [packet?.TireWearFL ?? 0, packet?.TireWearFR ?? 0, packet?.TireWearRL ?? 0, packet?.TireWearRR ?? 0];
+  const wears = view?.tires.wear
+    ? [view.tires.wear.fl, view.tires.wear.fr, view.tires.wear.rl, view.tires.wear.rr]
+    : [packet?.TireWearFL ?? 0, packet?.TireWearFR ?? 0, packet?.TireWearRL ?? 0, packet?.TireWearRR ?? 0];
   const healthAvailable = view ? hasTireHealthDataSemantic(wears, analysis.tireHealth) : hasTireHealthData(packet!, analysis.tireHealth);
   const fuel = view ? getFuelDisplay({ Fuel: view.fuel.amount ?? 0, FuelCapacity: view.fuel.capacity }, telemetryModel.fuel) : getFuelDisplay(packet!, telemetryModel.fuel);
   const fuelPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
@@ -34,10 +36,11 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
 
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
+  const canEstimateWear = analysis.tireWearRate.source !== "unavailable";
+  const showTireSection = analysis.tireHealth.source !== "unavailable" || canEstimateWear;
   // Per-tire display
   const tireData = tireLabels.map((label, i) => {
     const health = healthAvailable ? (1 - wears[i]) * 100 : null;
-    const canEstimateWear = analysis.tireWearRate.source !== "unavailable";
     const wpl = canEstimateWear ? (pit?.tireEstimates?.wearPerLap[i] ?? 0) : 0;
     return {
       label,
@@ -91,48 +94,49 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
           </div>
         </div>
 
-        {/* Tire section */}
-        <div className="py-1">
-          <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">
-            {analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? m.analyse_wheels_pit_health() : m.label_tires()}
-          </div>
+        {showTireSection && (
+          <div className="py-1">
+            <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">
+              {analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? m.analyse_wheels_pit_health() : m.label_tires()}
+            </div>
 
-          {/* Column headers */}
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center mb-1 px-0.5">
-            <div className="w-6" />
-            <div />
-            <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
-            <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
-            <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-caution)/70">
-              {m.pit_cliff()}
-              {pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}
+            {/* Column headers */}
+            <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center mb-1 px-0.5">
+              <div className="w-6" />
+              <div />
+              <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
+              <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
+              <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-caution)/70">
+                {m.pit_cliff()}
+                {pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}
+              </div>
+              <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-critical)/70">
+                {m.pit_dead()}
+                {pit?.deadPct ? ` ${pit.deadPct}%` : ""}
+              </div>
             </div>
-            <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-critical)/70">
-              {m.pit_dead()}
-              {pit?.deadPct ? ` ${pit.deadPct}%` : ""}
-            </div>
+            {tireData.map((t) => (
+              <div key={t.label} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center py-1.5 px-0.5">
+                <div className="text-sm font-bold text-app-text-muted w-6">{t.label}</div>
+                <div className="h-3 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ backgroundColor: t.healthColor, width: t.health === null ? 0 : `${t.health}%` }} />
+                </div>
+                <div className="text-lg font-mono font-black tabular-nums leading-none text-right w-12" style={{ color: t.healthColor }}>
+                  {t.health === null ? "—" : `${t.health.toFixed(0)}%`}
+                </div>
+                <div className={`text-sm font-mono font-bold tabular-nums leading-none text-right w-14 ${t.wearPerLap ? "text-app-text-secondary" : "text-app-text-dim"}`}>
+                  {t.wearPerLap ? `${t.wearPerLap}%` : "—"}
+                </div>
+                <div className="text-lg font-mono font-bold tabular-nums leading-none text-right w-12" style={{ color: t.toCliff != null ? "var(--severity-caution)" : "var(--app-text-dim)" }}>
+                  {t.toCliff != null ? t.toCliff.toFixed(1) : "—"}
+                </div>
+                <div className="text-lg font-mono font-bold tabular-nums leading-none text-right w-12" style={{ color: t.toDead != null ? "var(--severity-critical)" : "var(--app-text-dim)" }}>
+                  {t.toDead != null ? t.toDead.toFixed(1) : "—"}
+                </div>
+              </div>
+            ))}
           </div>
-          {tireData.map((t) => (
-            <div key={t.label} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center py-1.5 px-0.5">
-              <div className="text-sm font-bold text-app-text-muted w-6">{t.label}</div>
-              <div className="h-3 rounded-full overflow-hidden">
-                <div className="h-full rounded-full" style={{ backgroundColor: t.healthColor, width: t.health === null ? 0 : `${t.health}%` }} />
-              </div>
-              <div className="text-lg font-mono font-black tabular-nums leading-none text-right w-12" style={{ color: t.healthColor }}>
-                {t.health === null ? "—" : `${t.health.toFixed(0)}%`}
-              </div>
-              <div className={`text-sm font-mono font-bold tabular-nums leading-none text-right w-14 ${t.wearPerLap ? "text-app-text-secondary" : "text-app-text-dim"}`}>
-                {t.wearPerLap ? `${t.wearPerLap}%` : "—"}
-              </div>
-              <div className="text-lg font-mono font-bold tabular-nums leading-none text-right w-12" style={{ color: t.toCliff != null ? "var(--severity-caution)" : "var(--app-text-dim)" }}>
-                {t.toCliff != null ? t.toCliff.toFixed(1) : "—"}
-              </div>
-              <div className="text-lg font-mono font-bold tabular-nums leading-none text-right w-12" style={{ color: t.toDead != null ? "var(--severity-critical)" : "var(--app-text-dim)" }}>
-                {t.toDead != null ? t.toDead.toFixed(1) : "—"}
-              </div>
-            </div>
-          ))}
-        </div>
+        )}
       </div>
     </div>
   );
