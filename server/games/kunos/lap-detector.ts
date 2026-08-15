@@ -25,6 +25,7 @@ export abstract class KunosLapDetector implements ILapDetector {
   protected readonly db: DbAdapter;
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
+  private readonly onLapEvaluated?: LapDetectorCallbacks["onLapEvaluated"];
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
 
   private currentSession: SessionState | null = null;
@@ -54,6 +55,7 @@ export abstract class KunosLapDetector implements ILapDetector {
     this.sourceChannelProfile = opts.sourceChannelProfile;
     this.onLapSaved = opts.callbacks?.onLapSaved;
     this.onSessionStart = opts.callbacks?.onSessionStart;
+    this.onLapEvaluated = opts.callbacks?.onLapEvaluated;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.detectorId = detectorId;
     this.loggerLabel = loggerLabel;
@@ -187,6 +189,8 @@ export abstract class KunosLapDetector implements ILapDetector {
   }
 
   private async emitLap(forcedInvalidReason: string | null, opts?: { silent?: boolean; trigger?: TelemetryPacket }): Promise<void> {
+    if (!this.currentSession) return;
+    const session = this.currentSession;
     // Kunos publishes LastLap around the timer reset. Use it only when the
     // trigger's value is fresh relative to the last buffered frame.
     const lastBufferedLastLap = this.lapBuffer[this.lapBuffer.length - 1]?.LastLap ?? 0;
@@ -220,7 +224,7 @@ export abstract class KunosLapDetector implements ILapDetector {
         invalidReason = cutReason;
       }
     }
-    const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(this.currentSession!.gameId);
+    const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
     const quality = summarizeLapQuality({
       packets,
       lapTime,
@@ -239,14 +243,32 @@ export abstract class KunosLapDetector implements ILapDetector {
       isValid &&
       classification.paceEligibility === "eligible" &&
       isEligibilityUsable(eligibility["normal-pace"]);
-    const sectors = await computeLapSectors(this.currentSession!.trackOrdinal, this.currentSession!.gameId, packets, lapTime, undefined);
+    const sectors = await computeLapSectors(session.trackOrdinal, session.gameId, packets, lapTime, undefined);
 
-    if (normalPaceEligible && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
-      this.currentSession!.bestLapTime = lapTime;
+    if (normalPaceEligible && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) {
+      session.bestLapTime = lapTime;
+    }
+
+    const event = {
+      packets,
+      lapDistStart: packets[0]?.DistanceTraveled ?? 0,
+      lapTime,
+      isValid,
+      ...classification,
+      sectors,
+      quality,
+      eligibility,
+    };
+    const context = {
+      session: { ...session },
+      lapNumber: lapNum,
+    };
+    if (complete) {
+      this.onLapEvaluated?.(event, context);
     }
 
     const lapId = await this.db.insertLap({
-      sessionId: this.currentSession!.sessionId,
+      sessionId: context.session.sessionId,
       lapNumber: lapNum,
       lapTime,
       isValid,
@@ -269,29 +291,23 @@ export abstract class KunosLapDetector implements ILapDetector {
     await reconcileAutoExclusionsForLap(this.db, lapId);
     if (!opts?.silent) {
       if (normalPaceEligible) {
-        this.onLapComplete_?.({
-          packets,
-          lapDistStart: packets[0]?.DistanceTraveled ?? 0,
+        this.onLapComplete_?.(event, context);
+      }
+      this.onLapSaved?.(
+        {
+          type: "lap-saved",
+          lapId,
+          lapNumber: lapNum,
           lapTime,
           isValid,
           ...classification,
           sectors,
+          estimatedBestLapTime: context.session.bestLapTime,
           quality,
           eligibility,
-        });
-      }
-      this.onLapSaved?.({
-        type: "lap-saved",
-        lapId,
-        lapNumber: lapNum,
-        lapTime,
-        isValid,
-        ...classification,
-        sectors,
-        estimatedBestLapTime: this.currentSession!.bestLapTime,
-        quality,
-        eligibility,
-      });
+        },
+        context,
+      );
     }
   }
 

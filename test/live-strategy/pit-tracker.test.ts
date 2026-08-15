@@ -140,6 +140,46 @@ describe("PitTracker", () => {
     expect(result.tireWearPerLap).toBe(0);
   });
 
+  test("applies fuel and tire policies independently from normal pace", () => {
+    const measure = (eligibility: EligibilityDecisionSet) => {
+      const tracker = new PitTracker();
+      tracker.feed(
+        pkt({ LapNumber: 1, Fuel: 1, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0 }),
+        5_000,
+      );
+      completeLap(tracker, 1, {
+        fuel: 0.9,
+        wearFL: 0.1,
+        wearFR: 0.1,
+        wearRL: 0.1,
+        wearRR: 0.1,
+        eligibility,
+      });
+      return tracker.feed(
+        pkt({ LapNumber: 2, Fuel: 0.9, TireWearFL: 0.1, TireWearFR: 0.1, TireWearRL: 0.1, TireWearRR: 0.1, CurrentLap: 5 }),
+        5_000,
+      );
+    };
+
+    const normalPaceRejected = measure(pitEligibility({
+      "normal-pace": policyDecision("normal-pace", "ineligible"),
+    }));
+    expect(normalPaceRejected.fuelPerLap).toBeCloseTo(0.1, 2);
+    expect(normalPaceRejected.tireWearPerLap).toBeCloseTo(0.1, 2);
+
+    const fuelRejected = measure(pitEligibility({
+      "fuel-burn": policyDecision("fuel-burn", "ineligible"),
+    }));
+    expect(fuelRejected.fuelPerLap).toBe(0);
+    expect(fuelRejected.tireWearPerLap).toBeCloseTo(0.1, 2);
+
+    const tireRejected = measure(pitEligibility({
+      "tire-analysis": policyDecision("tire-analysis", "unknown"),
+    }));
+    expect(tireRejected.fuelPerLap).toBeCloseTo(0.1, 2);
+    expect(tireRejected.tireWearPerLap).toBe(0);
+  });
+
   test("tire: per-tire rolling average of last 3 laps, worst governs", () => {
     const tracker = new PitTracker();
     tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0 }), 5000);
