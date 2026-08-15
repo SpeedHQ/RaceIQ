@@ -54,7 +54,6 @@ jobs:
           bun scripts/quality/replay-io-bench.ts --output=../pr-replay-io-results.json
 
       - name: Compare
-        id: compare
         working-directory: pr
         run: |
           bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --threshold=10 --p99-threshold=25 > ../pipeline-comparison.md
@@ -73,26 +72,28 @@ jobs:
             cat ../replay-io-comparison.md
           } | tee ../comparison.md
           cat ../comparison.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post fresh benchmark comment
+        working-directory: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          marker='<!-- bench-comparison -->'
           {
-            echo 'body<<EOF'
+            echo "$marker"
             cat ../comparison.md
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
+          } > ../benchmark-comment.md
 
-      - name: Find existing comment
-        id: find
-        uses: peter-evans/find-comment@v3
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-includes: "## Bench comparison"
-
-      - name: Comment on PR (create or update)
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find.outputs.comment-id }}
-          body: ${{ steps.compare.outputs.body }}
-          edit-mode: replace
+          # Match screenshot-comment behavior: delete stale reports, then post
+          # a fresh comment so the current result appears at the bottom.
+          gh api --paginate "repos/${REPO}/issues/${PR}/comments" \
+            --jq '.[] | select((.body | contains("<!-- bench-comparison -->")) or (.body | startswith("## Bench comparison"))) | .id' |
+            while read -r comment_id; do
+              gh api --method DELETE "repos/${REPO}/issues/comments/${comment_id}"
+            done
+          gh api "repos/${REPO}/issues/${PR}/comments" -F body=@../benchmark-comment.md
 
       - name: Enforce CPU benchmark guardrails
         working-directory: pr
