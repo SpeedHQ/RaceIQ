@@ -67,8 +67,11 @@ tolerance. Benchmarks are explicit scripts, not ordinary tests.
   and output boundaries. Put recording-driven suites in `e2e/`; telemetry catalog
   E2E suites stay in `telemetry/catalog/` with that domain.
 - **Benchmark:** performance measurement only. Keep setup and input stable; run
-  CPU guardrails through `bun run bench` and storage measurements through
-  `bun run bench:replay-io`, never as part of standard discovery.
+  CPU guardrails through `bun run bench`, storage measurements through
+  `bun run bench:replay-io`, and post-GC retention through
+  `bun run bench:telemetry:soak`. Scheduled soak runs parser and replay for ten
+  minutes each; use `--iterations=<count>` only for focused local smoke checks.
+  Never include these entry points in standard test discovery.
 - **AI eval:** model-backed quality checks under `ai/evals/`; use explicit
   `*.ai-eval.ts` entry points and curated `ai-fixtures/` data.
 

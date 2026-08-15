@@ -14,6 +14,7 @@
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
 ### Fixes
+
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
@@ -76,7 +77,7 @@
 
 ### Internal
 
-- Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
+- Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails, separate report-only storage I/O measurements, and a scheduled post-GC retention soak
 - Replace Biome with Oxc for repository linting and formatting
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
