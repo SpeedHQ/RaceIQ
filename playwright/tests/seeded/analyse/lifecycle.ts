@@ -23,12 +23,15 @@ export async function exportImportAndDelete(page: Page, request: APIRequestConte
 
   await page.getByRole("button", { name: "Export / Import" }).click();
   await page.getByRole("menuitem", { name: "Import session (.bin or .ibt)" }).click();
-  const importResponsePromise = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/laps/import"), { timeout: 120_000 });
   await page.locator('input[type="file"][accept*=".bin"]').setInputFiles({
     name: binDownload.suggestedFilename(),
     mimeType: "application/octet-stream",
     buffer: readFileSync(binPath),
   });
+  const ownershipDialog = page.getByRole("dialog", { name: "Choose lap ownership" });
+  await expect(ownershipDialog).toBeVisible();
+  const importResponsePromise = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/laps/import"), { timeout: 120_000 });
+  await ownershipDialog.getByRole("button", { name: "Import", exact: true }).click();
   const importResponse = await importResponsePromise;
   expect(importResponse.ok()).toBe(true);
   const importPayload = z.object({ laps: z.array(z.object({ lapId: z.number() })) }).parse(await importResponse.json());
