@@ -35,9 +35,13 @@ function fieldRow(page: Page, field: string) {
   return page.locator(`[data-telemetry-field="${field}"]`);
 }
 async function replayRawRecording(page: Page, request: APIRequestContext, game: SeededGame): Promise<void> {
+  await expect(page.getByTestId(game.gameId === "ac-evo" ? "dev-telemetry-page" : "raw-telemetry-page")).toHaveAttribute(
+    game.gameId === "ac-evo" ? "data-subscribed" : "data-subscribed",
+    "true",
+    { timeout: 20_000 },
+  );
   const replayResponsePromise = request.post(`/api/dev/replay/${RECORDING_BY_GAME[game.gameId]}?packets=240&intervalMs=12`);
   const row = fieldRow(page, "CurrentLap");
-  await expect(row, `${game.name} CurrentLap raw row`).toBeVisible({ timeout: 20_000 });
   const value = row.locator("span.font-mono");
   const observed = new Set<string>();
   await expect

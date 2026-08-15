@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { RawTelemetry } from "../../components/RawTelemetry";
+import { gameIdForRoutePrefix } from "../../lib/game-routes";
 import { useDevTelemetryStore } from "../../stores/dev-telemetry";
 
 type PageKey = "physics" | "graphics" | "staticData";
@@ -101,8 +102,28 @@ interface VerifyResp {
   static: VerifyRow[];
 }
 
-function RawPage() {
+function GenericRawPage() {
+  const subscribed = useDevTelemetryStore((s) => s.subscribed);
   const packet = useDevTelemetryStore((s) => s.packet);
+  useEffect(() => {
+    useDevTelemetryStore.getState().setSubscriptionWanted(true);
+    return () => useDevTelemetryStore.getState().setSubscriptionWanted(false);
+  }, []);
+  return (
+    <div className="flex-1 overflow-hidden" data-testid="raw-telemetry-page" data-subscribed={subscribed ? "true" : "false"}>
+      <RawTelemetry packet={packet} />
+    </div>
+  );
+}
+
+function RawPage() {
+  const { gameid } = Route.useParams();
+  return gameIdForRoutePrefix(gameid) === "ac-evo" ? <AcEvoRawPage /> : <GenericRawPage />;
+}
+
+function AcEvoRawPage() {
+  const packet = useDevTelemetryStore((s) => s.packet);
+  const subscribed = useDevTelemetryStore((s) => s.subscribed);
   useEffect(() => {
     useDevTelemetryStore.getState().setSubscriptionWanted(true);
     return () => useDevTelemetryStore.getState().setSubscriptionWanted(false);
@@ -172,7 +193,7 @@ function RawPage() {
   const pollAgeMs = lastPollAt ? Date.now() - lastPollAt : null;
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col">
+    <div className="flex-1 overflow-hidden flex flex-col" data-testid="dev-telemetry-page" data-subscribed={subscribed ? "true" : "false"}>
       <div className="flex gap-2 p-2 border-b border-app-border items-center">
         <Button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
           {m.dev_parsed_packet()}
@@ -288,6 +309,11 @@ function FieldTable({ title, obj }: { title: string; obj: Record<string, unknown
   );
 }
 
-export const Route = createFileRoute("/ac-evo/raw")({
+export const Route = createFileRoute("/$gameid/raw")({
   component: RawPage,
+  beforeLoad: ({ params }) => {
+    if (!gameIdForRoutePrefix(params.gameid)) {
+      throw new Error(`Unknown game route prefix: ${params.gameid}`);
+    }
+  },
 });
