@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { memoryUsage } from "bun:jsc";
+import { heapStats } from "bun:jsc";
 import { gunzipSync } from "node:zlib";
 
 import { parseRawLapFramesFromBuffer, type LapReplaySource } from "../../server/db/telemetry-replay-storage";
@@ -54,7 +54,7 @@ async function postGcSample(iteration: number): Promise<ReplayParserSoakSample> 
   return {
     iteration,
     postGcRssBytes: process.memoryUsage.rss(),
-    postGcHeapBytes: memoryUsage().current,
+    postGcHeapBytes: heapStats().heapSize,
   };
 }
 
