@@ -15,7 +15,10 @@ jobs:
   build-test:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
-    runs-on: whitesmith-windows-x64
+    runs-on: 
+      - whitesmith-windows-x64
+      - 10VCPU
+      - 6G
 
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +70,10 @@ jobs:
 
   e2e-windows-build:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
-    runs-on: whitesmith-windows-x64
+    runs-on: 
+      - whitesmith-windows-x64
+      - 10VCPU
+      - 6G
     steps:
       - uses: actions/checkout@v4
 
