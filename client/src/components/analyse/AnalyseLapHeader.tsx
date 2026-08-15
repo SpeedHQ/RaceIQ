@@ -144,7 +144,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             placeholder={m.analyse_search_laps_placeholder()}
             disabled={selectedCar == null}
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
-            fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
+            fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
           {selectedLapId != null && (
             <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
@@ -157,7 +157,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           F1 25 laps capture the full car setup on-packet, surfaced via the
           Car Setup modal — the Forza-style tune picker doesn't apply there,
           so we hide it and render only the Car Setup button. */}
-        {selectedLapId && hasTelemetry && (
+        {selectedLapId && (hasTelemetry || hasF1Setup) && (
           <div className="flex items-center gap-2 text-sm">
             {hasF1Setup ? (
               <Button variant="app-outline" size="app-md" onClick={onShowSetup}>

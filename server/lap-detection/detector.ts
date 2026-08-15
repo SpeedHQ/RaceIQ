@@ -21,6 +21,7 @@ import { lapPath } from "../../shared/racing/tracks/path";
 import { classifyPitCycleLap } from "../../shared/racing/laps/pit-cycle";
 import { assessLapRecording } from "../lap-analysis/quality";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
+import { updateLapCarSetup } from "../db/lap-mutation-queries";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
@@ -611,6 +612,14 @@ export class LapDetector implements ILapDetector {
     lapId: number,
     lapPackets: TelemetryPacket[],
   ): Promise<void> {
+    const setup = lapPackets.find((packet) => packet.f1?.setup)?.f1?.setup;
+    if (setup) {
+      try {
+        await updateLapCarSetup(lapId, setup);
+      } catch (error) {
+        console.error("[Lap] updateLapCarSetup failed:", error);
+      }
+    }
     try {
       await persistLapMetrics(this.db, lapId, lapPackets);
     } catch (error) {

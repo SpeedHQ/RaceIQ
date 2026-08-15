@@ -33,7 +33,7 @@ test("Analyse supports selection, playback, notes, export, import, and delete ca
   if (!selectedLap) throw new Error(`Selected lap ${selectedLapId} not found`);
   const originalTuneId = selectedLap.tuneId ?? null;
   let tuneChanged = false;
-  await assertLapSelectors(page);
+  await assertLapSelectors(page, selectedLap.lapNumber);
   const tuneSelector = page.getByRole("combobox", { name: "Tune:" });
   if (await tuneSelector.count()) {
     await tuneSelector.click();

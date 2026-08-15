@@ -27,6 +27,14 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
   const [selectedCar, setSelectedCar] = useState<number | null>(search.car ?? null);
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
+  const routeSelectionKey = `${gameId}:${search.track ?? ""}:${search.car ?? ""}:${search.lap ?? ""}`;
+  const pendingRouteSelectionKey = useRef<string | null>(null);
+  useEffect(() => {
+    pendingRouteSelectionKey.current = routeSelectionKey;
+    setSelectedTrack(search.track ?? null);
+    setSelectedCar(search.car ?? null);
+    setSelectedLapId(search.lap ?? null);
+  }, [routeSelectionKey]);
   const { data: allLaps = emptyLaps } = useLapsQuery();
   const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
   const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
@@ -142,11 +150,21 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (resolvedNames.carNames) setCarNames((p) => mergeNameCache(p, resolvedNames.carNames));
   }, [resolvedNames]);
   useEffect(() => {
+    const pendingKey = pendingRouteSelectionKey.current;
+    if (pendingKey != null) {
+      const routeMatchesState =
+        selectedTrack === (search.track ?? null) &&
+        selectedCar === (search.car ?? null) &&
+        selectedLapId === (search.lap ?? null);
+      if (!routeMatchesState) return;
+      pendingRouteSelectionKey.current = null;
+      return;
+    }
     void navigate({
       search: (prev: Record<string, unknown>) => ({ ...prev, track: selectedTrack ?? undefined, car: selectedCar ?? undefined, lap: selectedLapId ?? undefined }) as never,
       replace: true,
     });
-  }, [selectedTrack, selectedCar, selectedLapId, navigate]);
+  }, [search.track, search.car, search.lap, selectedTrack, selectedCar, selectedLapId, navigate]);
   const handleTrackChange = useCallback((value: number | null) => {
     setSelectedTrack(value);
     setSelectedCar(null);

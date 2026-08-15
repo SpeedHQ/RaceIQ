@@ -21,6 +21,7 @@ import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analys
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 export function semanticReplayIds(): readonly string[] {
@@ -114,6 +115,13 @@ export const resourceRoutes = new Hono()
       if (trace) traces.push(encodeLapTrace(trace));
     }
     return c.json({ traces });
+  })
+  .get("/api/laps/:id/setup", zValidator("param", IdParamSchema), async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    const lap = await getLapById(Number(c.req.valid("param").id));
+    if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
+    return c.json({ setup: gameIdResult.data === "f1-2025" ? resolveLapF1Setup({ carSetup: lap.carSetup, telemetry: lap.telemetry }) : null });
   })
 
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
