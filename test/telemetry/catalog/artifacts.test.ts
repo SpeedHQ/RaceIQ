@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import {
   buildTelemetryCatalog,
@@ -14,11 +15,20 @@ import {
   telemetryCatalogSourceHash,
   assertTelemetryCatalogComplete,
 } from "../../support/telemetry/catalog";
-
 describe("semantic telemetry catalog artifacts", () => {
+
   test("generated artifact is current and structurally complete", async () => {
+    const generatedArtifact = JSON.parse(
+      await readFile(
+        new URL(
+          "../../../shared/telemetry/catalog/generated/telemetry-catalog.generated.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
     expect(JSON.stringify(await buildTelemetryCatalog())).toBe(
-      JSON.stringify(TELEMETRY_CATALOG),
+      JSON.stringify(generatedArtifact),
     );
     expect(() => assertTelemetryCatalogComplete()).not.toThrow();
   });
