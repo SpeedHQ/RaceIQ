@@ -25,8 +25,6 @@
 - Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
 - Record reconnect and timeout quality warnings only for accepted telemetry from same game and session, preventing stale UDP traffic from degrading another recording
 - Replace provisional live lap evidence with finalized quality in current and newly connected clients
-- Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
-- Clear stale degraded lap-quality states after a clean recording rebuild
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup

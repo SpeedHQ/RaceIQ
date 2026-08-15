@@ -60,10 +60,12 @@ function packet(scenario: LapScenario, index: number, overrides: Partial<Telemet
 async function completeLap(scenario: LapScenario) {
   const db = new CapturingDbAdapter();
   const completed: LapCompleteEvent[] = [];
+  const evaluated: LapCompleteEvent[] = [];
   const detector = new LapDetector({
     db,
     bypassPacketRateFilter: true,
     callbacks: {
+      onLapEvaluated: (event) => evaluated.push(event),
       onLapComplete: (event) => completed.push(event),
     },
   });
@@ -79,7 +81,7 @@ async function completeLap(scenario: LapScenario) {
     }),
   );
 
-  return { completed, db, detector };
+  return { completed, evaluated, db, detector };
 }
 
 function recordingSpies() {
@@ -106,6 +108,7 @@ describe("LapDetector normal-pace geometry recording gates", () => {
         paceEligibility: "excluded",
       });
       expect(result.completed).toHaveLength(0);
+      expect(result.evaluated).toHaveLength(1);
       expect(result.detector.session?.bestLapTime).toBe(0);
       expect(spies.outline).not.toHaveBeenCalled();
       expect(spies.curb).not.toHaveBeenCalled();
@@ -131,6 +134,7 @@ describe("LapDetector normal-pace geometry recording gates", () => {
         paceEligibility: "excluded",
       });
       expect(result.completed).toHaveLength(0);
+      expect(result.evaluated).toHaveLength(1);
       expect(result.detector.session?.bestLapTime).toBe(0);
       expect(spies.curb).not.toHaveBeenCalled();
     } finally {
@@ -156,6 +160,7 @@ describe("LapDetector normal-pace geometry recording gates", () => {
         paceEligibility: "excluded",
       });
       expect(result.completed).toHaveLength(0);
+      expect(result.evaluated).toHaveLength(1);
       expect(result.detector.session?.bestLapTime).toBe(0);
       expect(spies.curb).not.toHaveBeenCalled();
     } finally {

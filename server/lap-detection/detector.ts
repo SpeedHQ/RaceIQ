@@ -47,6 +47,11 @@ export interface SessionState {
   bestLapTime: number; // best valid pace lap in current session (0 = none yet)
 }
 
+export interface LapEventContext {
+  session: Readonly<SessionState>;
+  lapNumber: number;
+}
+
 export interface LapFuelData {
   lap: number;
   fuelStart: number;
@@ -98,8 +103,9 @@ export class LapDetector implements ILapDetector {
   private db: LapDetectorOptions["db"];
 
   onSessionStart?: (session: SessionState) => void | Promise<void>;
-  onLapComplete_?: (event: LapCompleteEvent) => void;
-  onLapSaved?: (event: LapSavedEvent) => void;
+  onLapEvaluated?: (event: LapCompleteEvent, context: LapEventContext) => void;
+  onLapComplete_?: (event: LapCompleteEvent, context: LapEventContext) => void;
+  onLapSaved?: (event: LapSavedEvent, context: LapEventContext) => void;
 
   constructor(opts: LapDetectorOptions) {
     this.db = opts.db;
@@ -109,6 +115,7 @@ export class LapDetector implements ILapDetector {
     this.versionIdentity = opts.versionIdentity;
     this.sourceChannelProfile = opts.sourceChannelProfile;
     this.onSessionStart = opts.callbacks?.onSessionStart;
+    this.onLapEvaluated = opts.callbacks?.onLapEvaluated;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.onLapSaved = opts.callbacks?.onLapSaved;
   }
@@ -133,8 +140,8 @@ export class LapDetector implements ILapDetector {
   private _lapByteOffset: number | null = null;
   private _lapFrameCount: number = 0;
   private _currentRawByteOffset: number | null = null;
-  private readonly _pendingLapWrites = new Set<Promise<void>>();
-  private _lapWriteFailure: { error: unknown } | null = null;
+  private readonly _pendingLapWrites = new Map<number, Set<Promise<void>>>();
+  private readonly _lapWriteFailures = new Map<number, { error: unknown }>();
 
   get session(): SessionState | null {
     return this.currentSession;
@@ -309,6 +316,7 @@ export class LapDetector implements ILapDetector {
       this.resetLapState(newLapFirstPacket);
       return;
     }
+    const session = this.currentSession;
 
     // Record fuel usage
     const fuelEnd = this.lapBuffer[this.lapBuffer.length - 1].Fuel;
@@ -356,7 +364,7 @@ export class LapDetector implements ILapDetector {
     }
 
     {
-      const tuneAssignment = await this.db.getTuneAssignment(this.currentSession.gameId, this.currentSession.carOrdinal, this.currentSession.trackOrdinal);
+      const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
       const tuneId = tuneAssignment?.tuneId ?? null;
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
@@ -366,7 +374,7 @@ export class LapDetector implements ILapDetector {
       const classification = classifyLap(this.lapBuffer);
       const valid = this.lapIsValid && recordingAssessment.valid;
       const invalidReason = this.invalidReason ?? recordingAssessment.reason;
-      const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(this.currentSession.gameId);
+      const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
       const quality = summarizeLapQuality({
         packets: this.lapBuffer,
         lapTime,
@@ -382,7 +390,27 @@ export class LapDetector implements ILapDetector {
       });
       const eligibility = evaluateAllEligibility(quality);
       const normalPaceEligible = valid && classification.paceEligibility === "eligible" && isEligibilityUsable(eligibility["normal-pace"]);
-      const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
+      const sectors = await this.computeLapSectors(session, this.lapBuffer, lapTime);
+
+      if (normalPaceEligible && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) {
+        session.bestLapTime = lapTime;
+      }
+
+      const event: LapCompleteEvent = {
+        packets: this.lapBuffer,
+        lapDistStart: this.lapBuffer[0].DistanceTraveled,
+        lapTime,
+        isValid: valid,
+        ...classification,
+        sectors,
+        quality,
+        eligibility,
+      };
+      const context: LapEventContext = {
+        session: { ...session },
+        lapNumber: lapNum,
+      };
+      this.onLapEvaluated?.(event, context);
 
       // iRacing exposes heading, speed, and native LapDistPct but no public
       // world position. Keep RaceIQ's existing recorded-outline fallback warm
@@ -391,42 +419,30 @@ export class LapDetector implements ILapDetector {
       // outline resolver.
       if (
         normalPaceEligible &&
-        this.currentSession.gameId === "iracing" &&
-        this.currentSession.trackOrdinal > 0 &&
-        !getIRacingSharedTrackName(this.currentSession.trackOrdinal)
+        session.gameId === "iracing" &&
+        session.trackOrdinal > 0 &&
+        !getIRacingSharedTrackName(session.trackOrdinal)
       ) {
         const path = lapPath(this.lapBuffer);
         const trace = path.x.map((x, index) => ({
           x,
           z: path.z[index],
         }));
-        recordLapTrace(this.currentSession.trackOrdinal, trace, trace[0] ?? null, this.lapBuffer[0]?.Yaw ?? null, "iracing");
-      }
-
-      if (normalPaceEligible && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
-        this.currentSession!.bestLapTime = lapTime;
+        recordLapTrace(session.trackOrdinal, trace, trace[0] ?? null, this.lapBuffer[0]?.Yaw ?? null, "iracing");
       }
 
       if (normalPaceEligible) {
-        this.onLapComplete_?.({
-          packets: this.lapBuffer,
-          lapDistStart: this.lapBuffer[0].DistanceTraveled,
-          lapTime,
-          isValid: valid,
-          ...classification,
-          sectors,
-          quality,
-          eligibility,
-        });
+        this.onLapComplete_?.(event, context);
       }
 
       // Capture the frame buffer before resetLapState reassigns it — the insert
       // below is fire-and-forget, so persistLapMetrics runs after the reset.
       const lapPackets = this.lapBuffer;
       this.trackLapWrite(
+        context.session.sessionId,
         this.db
           .insertLap({
-            sessionId: this.currentSession.sessionId,
+            sessionId: context.session.sessionId,
             lapNumber: lapNum,
             lapTime,
             isValid: valid,
@@ -446,26 +462,29 @@ export class LapDetector implements ILapDetector {
             // never decodes on first open.
             await this.persistLapFollowups(lapId, lapPackets);
             console.log(`[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`);
-            this.onLapSaved?.({
-              lapId,
-              lapNumber: lapNum,
-              lapTime,
-              isValid: valid,
-              ...classification,
-              sectors,
-              estimatedBestLapTime: this.currentSession!.bestLapTime,
-              quality,
-              eligibility,
-            });
+            this.onLapSaved?.(
+              {
+                lapId,
+                lapNumber: lapNum,
+                lapTime,
+                isValid: valid,
+                ...classification,
+                sectors,
+                estimatedBestLapTime: context.session.bestLapTime,
+                quality,
+                eligibility,
+              },
+              context,
+            );
           }),
         `[Lap] Failed to save lap ${lapNum}:`,
       );
 
       // Extract and record curb data from laps allowed for normal-pace geometry seeding.
-      if (normalPaceEligible && this.currentSession.trackOrdinal > 0 && this.lapBuffer.length > 50) {
+      if (normalPaceEligible && session.trackOrdinal > 0 && this.lapBuffer.length > 50) {
         const curbSegments = extractCurbSegments(this.lapBuffer);
         if (curbSegments.length > 0) {
-          recordCurbData(this.currentSession.trackOrdinal, curbSegments, this.currentSession.gameId);
+          recordCurbData(session.trackOrdinal, curbSegments, session.gameId);
         }
       }
     }
@@ -479,15 +498,17 @@ export class LapDetector implements ILapDetector {
   private async finalizeLapIfNeeded(): Promise<void> {
     // Try to save current in-progress lap when session changes
     if (this.currentSession && this.lapBuffer.length > 0 && this.currentLapNumber >= 0) {
+      const session = this.currentSession;
+      const lapNumber = this.currentLapNumber;
       this.trimRunningStartPackets();
       // Use the last known CurrentLap as time estimate (not ideal but best we have)
       const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
       const lapTime = lastPacket.CurrentLap;
       if (lapTime >= 10) {
-        const tuneAssignment = await this.db.getTuneAssignment(this.currentSession.gameId, this.currentSession.carOrdinal, this.currentSession.trackOrdinal);
+        const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
         const lapPackets = this.lapBuffer;
         const classification = classifyLap(lapPackets);
-        const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(this.currentSession.gameId);
+        const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
         const quality = summarizeLapQuality({
           packets: lapPackets,
           lapTime,
@@ -503,10 +524,11 @@ export class LapDetector implements ILapDetector {
         });
         const eligibility = evaluateAllEligibility(quality);
         this.trackLapWrite(
+          session.sessionId,
           this.db
             .insertLap({
-              sessionId: this.currentSession.sessionId,
-              lapNumber: this.currentLapNumber,
+              sessionId: session.sessionId,
+              lapNumber,
               lapTime,
               isValid: false,
               rawByteOffset: this._lapByteOffset,
@@ -537,6 +559,7 @@ export class LapDetector implements ILapDetector {
    */
   async flushStaleLap(): Promise<void> {
     if (!this.currentSession || this.lapBuffer.length < 30 || this.currentLapNumber < 0 || this.lastPacketTime === 0) return;
+    const session = this.currentSession;
 
     const silenceMs = Date.now() - this.lastPacketTime;
     if (silenceMs < 10_000) return;
@@ -556,7 +579,7 @@ export class LapDetector implements ILapDetector {
     const isComplete = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap;
 
     {
-      const tuneAssignment = await this.db.getTuneAssignment(this.currentSession.gameId, this.currentSession.carOrdinal, this.currentSession.trackOrdinal);
+      const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
       const lapPackets = this.lapBuffer;
@@ -564,7 +587,7 @@ export class LapDetector implements ILapDetector {
       const classification = classifyLap(lapPackets);
       const valid = isComplete && this.lapIsValid && recordingAssessment.valid;
       const invalidReason = isComplete ? (this.invalidReason ?? recordingAssessment.reason) : "incomplete";
-      const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(this.currentSession.gameId);
+      const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
       const quality = summarizeLapQuality({
         packets: lapPackets,
         lapTime,
@@ -579,10 +602,30 @@ export class LapDetector implements ILapDetector {
         sourceChannelProfile: this.sourceChannelProfile,
       });
       const eligibility = evaluateAllEligibility(quality);
+      if (isComplete) {
+        const context: LapEventContext = {
+          session: { ...session },
+          lapNumber: lapNum,
+        };
+        this.onLapEvaluated?.(
+          {
+            packets: lapPackets,
+            lapDistStart: lapPackets[0].DistanceTraveled,
+            lapTime,
+            isValid: valid,
+            ...classification,
+            sectors: null,
+            quality,
+            eligibility,
+          },
+          context,
+        );
+      }
       this.trackLapWrite(
+        session.sessionId,
         this.db
           .insertLap({
-            sessionId: this.currentSession.sessionId,
+            sessionId: session.sessionId,
             lapNumber: lapNum,
             lapTime,
             isValid: valid,
@@ -636,9 +679,8 @@ export class LapDetector implements ILapDetector {
   }
 
   /** Compute s1/s2/s3 sector times from a lap's telemetry buffer. */
-  private async computeLapSectors(packets: TelemetryPacket[], lapTime: number): Promise<number[] | null> {
-    if (!this.currentSession) return null;
-    const { trackOrdinal, gameId } = this.currentSession;
+  private async computeLapSectors(session: Readonly<SessionState>, packets: TelemetryPacket[], lapTime: number): Promise<number[] | null> {
+    const { trackOrdinal, gameId } = session;
     return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime);
   }
 
@@ -655,24 +697,30 @@ export class LapDetector implements ILapDetector {
     }
   }
 
-  private trackLapWrite(pending: Promise<void>, failureMessage: string): void {
-    this._pendingLapWrites.add(pending);
+  private trackLapWrite(sessionId: number, pending: Promise<void>, failureMessage: string): void {
+    const pendingWrites = this._pendingLapWrites.get(sessionId) ?? new Set<Promise<void>>();
+    pendingWrites.add(pending);
+    this._pendingLapWrites.set(sessionId, pendingWrites);
     void pending.then(
-      () => this._pendingLapWrites.delete(pending),
+      () => pendingWrites.delete(pending),
       (error) => {
-        this._pendingLapWrites.delete(pending);
-        this._lapWriteFailure ??= { error };
+        pendingWrites.delete(pending);
+        if (!this._lapWriteFailures.has(sessionId)) {
+          this._lapWriteFailures.set(sessionId, { error });
+        }
         console.error(failureMessage, error);
       },
     );
   }
 
-  async waitForPendingLapWrites(): Promise<void> {
-    while (this._pendingLapWrites.size > 0) {
-      await Promise.allSettled([...this._pendingLapWrites]);
+  async waitForPendingLapWrites(sessionId: number): Promise<void> {
+    const pendingWrites = this._pendingLapWrites.get(sessionId);
+    while (pendingWrites && pendingWrites.size > 0) {
+      await Promise.allSettled([...pendingWrites]);
     }
-    const failure = this._lapWriteFailure;
-    this._lapWriteFailure = null;
+    this._pendingLapWrites.delete(sessionId);
+    const failure = this._lapWriteFailures.get(sessionId);
+    this._lapWriteFailures.delete(sessionId);
     if (failure) throw failure.error;
   }
 

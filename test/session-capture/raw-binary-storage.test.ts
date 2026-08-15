@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionRecorder } from "../../server/session-capture/recorder";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
+import { encodeFrameLength, encodeMetaFrame, META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
@@ -17,11 +17,17 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
 import { QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
 import { sessionRoutes } from "../../server/routes/session-routes";
+import { sha256ContentHash } from "../../server/session-capture/identity";
+import { verifySessionCaptureFile } from "../../server/session-capture/verification";
 
 initGameAdapters();
 initServerGameAdapters();
 
 // ── SessionRecorder: meta frame + byte offset ─────────────────────────────────────
+
+function encodeRecord(payload: Buffer): Buffer {
+  return Buffer.concat([encodeFrameLength(payload.length), payload]);
+}
 
 describe("SessionRecorder meta frame", () => {
   let tmpDir: string;
@@ -45,7 +51,78 @@ describe("SessionRecorder meta frame", () => {
     expect(buf.readUInt32LE(4)).toBe(4); // payload length always 4
     expect(buf.readUInt32LE(8)).toBe(2); // frame count patched on stop()
     expect(verification.state).toBe("verified");
-    expect(verification.sourceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(verification.sourceGeneration).toBe(sha256ContentHash(buf));
+  });
+
+  test("verifies large records across stream chunk boundaries with canonical generation", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
+    const path = join(tmpDir, "large-session.bin");
+    const recorder = new SessionRecorder();
+    const records = [
+      Buffer.alloc(65_518, 0x11),
+      Buffer.alloc(128 * 1024 + 37, 0x22),
+      Buffer.from([0x33, 0x44, 0x55]),
+    ];
+    recorder.start(path);
+    recorder.writeMetaFrame();
+    for (const record of records) recorder.writeRecord(record);
+
+    const verification = await recorder.stop();
+    const fileBytes = Buffer.from(await Bun.file(path).arrayBuffer());
+
+    expect(fileBytes.readUInt32LE(8)).toBe(records.length);
+    expect(verification.state).toBe("verified");
+    expect(verification.sourceGeneration).toBe(sha256ContentHash(fileBytes));
+  });
+
+  test("classifies streaming metadata, payload, count, and digest failures", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
+    const payload = Buffer.from([1, 2, 3, 4, 5]);
+    const record = encodeRecord(payload);
+    const validRecordGeneration = sha256ContentHash(record);
+    const fixtures = [
+      {
+        name: "truncated-metadata",
+        bytes: encodeMetaFrame(1).subarray(0, 10),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: sha256ContentHash(Buffer.alloc(0)),
+        expectedState: "truncated",
+      },
+      {
+        name: "truncated-payload",
+        bytes: Buffer.concat([encodeMetaFrame(1), encodeFrameLength(payload.length), payload.subarray(0, 3)]),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: validRecordGeneration,
+        expectedState: "truncated",
+      },
+      {
+        name: "wrong-declared-count",
+        bytes: Buffer.concat([encodeMetaFrame(2), record]),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: validRecordGeneration,
+        expectedState: "corrupt",
+      },
+      {
+        name: "record-digest-mismatch",
+        bytes: Buffer.concat([encodeMetaFrame(1), record]),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: `sha256:${"0".repeat(64)}`,
+        expectedState: "corrupt",
+      },
+    ] as const;
+
+    for (const fixture of fixtures) {
+      const path = join(tmpDir, `${fixture.name}.bin`);
+      writeFileSync(path, fixture.bytes);
+      const verification = await verifySessionCaptureFile(path, {
+        expectedBytes: fixture.bytes.length,
+        expectedFrameCount: fixture.expectedFrameCount,
+        hasMetadata: true,
+        expectedRecordGeneration: fixture.expectedRecordGeneration,
+      });
+      expect(verification.state).toBe(fixture.expectedState);
+      expect(verification.sourceGeneration).toBe(sha256ContentHash(fixture.bytes));
+    }
   });
 
   test("getCurrentByteOffset starts at 0 before any writes", async () => {
@@ -135,10 +212,7 @@ describe("reprocessSession", () => {
 
   function emptyBin(path: string): void {
     // A valid .bin with only an empty meta frame, no real packets
-    const buf = Buffer.alloc(8);
-    buf.writeUInt32LE(META_FRAME_MAGIC, 0);
-    buf.writeUInt32LE(0, 4);
-    writeFileSync(path, buf);
+    writeFileSync(path, encodeMetaFrame());
   }
 
   test("throws if session has no raw file", async () => {
@@ -206,12 +280,8 @@ describe("reprocessSession", () => {
   test("skips additional meta frames inside bin during replay", async () => {
     // Build a bin with: meta frame + another meta frame (should be skipped gracefully)
     const binPath = join(tmpDir, "session.bin");
-    const meta1 = Buffer.alloc(8);
-    meta1.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta1.writeUInt32LE(0, 4);
-    const meta2 = Buffer.alloc(8);
-    meta2.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta2.writeUInt32LE(0, 4);
+    const meta1 = encodeMetaFrame();
+    const meta2 = encodeMetaFrame();
     writeFileSync(binPath, Buffer.concat([meta1, meta2]));
 
     sessionId = await insertTestSession(binPath, "0.9.0");
@@ -223,9 +293,7 @@ describe("reprocessSession", () => {
   test("handles truncated frame at end of file gracefully", async () => {
     const binPath = join(tmpDir, "session.bin");
     // meta frame + a truncated packet (declares 10 bytes, only 2 present)
-    const meta = Buffer.alloc(8);
-    meta.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta.writeUInt32LE(0, 4);
+    const meta = encodeMetaFrame();
     const truncated = Buffer.alloc(6);
     truncated.writeUInt32LE(10, 0); // claims 10 bytes
     truncated.writeUInt8(0xAA, 4);
