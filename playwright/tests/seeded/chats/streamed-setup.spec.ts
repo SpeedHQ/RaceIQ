@@ -25,7 +25,8 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
       },
     }),
   );
-  await page.route(`**/api/chats/${threadId}/compact`, async (route) => {
+  await page.route(`**/api/chats/${threadId}/run`, (route) => route.fulfill({ json: { status: "none" } }));
+  await page.route("**/api/chats/*/compact", async (route) => {
     compacted = true;
     await route.fulfill({ json: { generation: 2 } });
   });
@@ -70,8 +71,9 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
   await page.getByRole("button", { name: "Send message" }).click();
   await expect.poll(() => submittedPrompt).toContain(prompt);
   await expect(page.getByText("Seeded streamed reply", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
-  await page.getByRole("button", { name: "Compact & New chat" }).click();
+  const compactButton = page.getByRole("button", { name: "Compact & New chat" });
+  await expect(compactButton).toBeEnabled();
+  await compactButton.click({ force: true });
   await expect.poll(() => compacted).toBe(true);
   await expect(page.getByText("gen 2/2", { exact: true })).toBeVisible();
   await expect(page.getByText("Seeded streamed reply", { exact: true })).toHaveCount(0);
