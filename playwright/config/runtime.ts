@@ -72,6 +72,7 @@ export const runtime: E2ERuntime = {
   parallelScreenshotRun: screenshotOnly && seededScreenshots,
   screenshotWorkers: readPositiveWorkers(),
   testWorkers,
+  ...(process.env.RACEIQ_APP_ROOT ? { appRoot: process.env.RACEIQ_APP_ROOT } : {}),
   needsFreshServer: serverSet === "all" || serverSet === "fresh",
   needsTunesServer: serverSet === "all" || serverSet === "tunes",
   needsSeededServer: serverSet === "all" || serverSet === "seeded",
