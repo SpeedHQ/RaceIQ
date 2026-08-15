@@ -2,7 +2,7 @@
 /**
  * Compare two mitata bench-results.json files and emit a markdown diff.
  *
- * Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5]
+ * Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5] [--include=<prefix>]
  *
  * Thresholds (%) control what counts as a regression flag in the output.
  */
@@ -21,9 +21,10 @@ type Results = { layout: Layout; context: Context; benchmarks: Bench[] };
 const args = process.argv.slice(2);
 const threshold = Number(args.find((a) => a.startsWith("--threshold="))?.split("=")[1] ?? 5);
 const p99Threshold = Number(args.find((a) => a.startsWith("--p99-threshold="))?.split("=")[1] ?? threshold);
+const includePrefix = args.find((a) => a.startsWith("--include="))?.split("=")[1];
 const files = args.filter((a) => !a.startsWith("--"));
 if (files.length !== 2) {
-  console.error("Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5]");
+  console.error("Usage: bun scripts/quality/bench-compare.ts <baseline.json> <current.json> [--threshold=5] [--p99-threshold=5] [--include=<prefix>]");
   process.exit(1);
 }
 const [baselinePath, currentPath] = files;
@@ -45,7 +46,11 @@ function extract(r: Results): Map<string, Entry> {
 
 const base = extract(baseline);
 const cur = extract(current);
-const keys = [...new Set([...base.keys(), ...cur.keys()])].sort();
+const keys = [...new Set([...base.keys(), ...cur.keys()])].filter((key) => !includePrefix || key.startsWith(includePrefix)).sort();
+if (includePrefix && keys.length === 0) {
+  console.error(`No benchmarks match --include=${includePrefix}`);
+  process.exit(1);
+}
 
 function fmtTime(ns: number): string {
   if (ns < 1000) return `${ns.toFixed(0)} ns`;
@@ -86,7 +91,7 @@ for (const key of keys) {
   if (heapChange > threshold && b.heap > 0) regressions.push(`- **${key}**: alloc +${heapChange.toFixed(1)}% (${fmtBytes(b.heap)} → ${fmtBytes(c.heap)})`);
 }
 
-const header = `## Bench comparison\n\nRuntime: \`${current.context.runtime ?? "?"}\` on \`${current.context.cpu.name ?? "?"}\`\nThresholds: median/allocation ±${threshold}%; p99 ±${p99Threshold}%`;
+const header = `## Bench comparison\n\nRuntime: \`${current.context.runtime ?? "?"}\` on \`${current.context.cpu.name ?? "?"}\`\nThresholds: median/allocation ±${threshold}%; p99 ±${p99Threshold}%${includePrefix ? `\nIncluded benchmarks: \`${includePrefix}*\`` : ""}`;
 const body = rows.join("\n");
 const footer = regressions.length ? `\n\n### Regressions\n${regressions.join("\n")}` : `\n\n_No regressions above configured thresholds._`;
 

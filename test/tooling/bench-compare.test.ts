@@ -9,6 +9,7 @@ interface ReportOptions {
   readonly median?: number;
   readonly p99?: number;
   readonly heap?: number;
+  readonly legacyMedian?: number;
   readonly includeReplay?: boolean;
 }
 
@@ -19,32 +20,44 @@ function makeTempDir(): string {
 }
 
 function makeReport(options: ReportOptions = {}): string {
-  const benchmarks =
-    options.includeReplay === false
-      ? []
-      : [
-          {
-            alias: "resolve 20,000 canonical envelopes",
-            group: 0,
-            runs: [
-              {
-                stats: {
-                  p50: options.median ?? 100,
-                  p99: options.p99 ?? 120,
-                  heap: { avg: options.heap ?? 1_024 },
-                },
-              },
-            ],
+  const benchmarks = [
+    {
+      alias: "pipeline",
+      group: 1,
+      runs: [
+        {
+          stats: {
+            p50: options.legacyMedian ?? 100,
+            p99: 120,
+            heap: { avg: 1_024 },
           },
-        ];
+        },
+      ],
+    },
+  ];
+  if (options.includeReplay !== false) {
+    benchmarks.push({
+      alias: "resolve 20,000 canonical envelopes",
+      group: 0,
+      runs: [
+        {
+          stats: {
+            p50: options.median ?? 100,
+            p99: options.p99 ?? 120,
+            heap: { avg: options.heap ?? 1_024 },
+          },
+        },
+      ],
+    });
+  }
   return JSON.stringify({
-    layout: [{ name: "replay" }],
+    layout: [{ name: "replay" }, { name: "legacy" }],
     context: { runtime: "bun", cpu: { name: "Test CPU" } },
     benchmarks,
   });
 }
 
-async function runComparator(baseline: string, current: string, failOnRegression = false, p99Threshold?: number): Promise<{ code: number; output: string }> {
+async function runComparator(baseline: string, current: string, failOnRegression = false, p99Threshold?: number, includePrefix?: string): Promise<{ code: number; output: string }> {
   const dir = makeTempDir();
   const baselinePath = join(dir, "baseline.json");
   const currentPath = join(dir, "current.json");
@@ -53,6 +66,7 @@ async function runComparator(baseline: string, current: string, failOnRegression
   const args = [process.execPath, "scripts/quality/bench-compare.ts", baselinePath, currentPath];
   if (failOnRegression) args.push("--fail-on-regression");
   if (p99Threshold !== undefined) args.push(`--p99-threshold=${p99Threshold}`);
+  if (includePrefix !== undefined) args.push(`--include=${includePrefix}`);
   const proc = Bun.spawn(args, {
     cwd: process.cwd(),
     stdout: "pipe",
@@ -90,6 +104,14 @@ describe("Mitata benchmark comparison", () => {
     expect(result.code, result.output).toBe(0);
     expect(result.output).toContain("p99 ±25%");
     expect(result.output).toContain("No regressions above configured thresholds");
+  });
+
+  test("limits enforcement to selected benchmark prefix", async () => {
+    const result = await runComparator(makeReport(), makeReport({ legacyMedian: 200 }), true, 25, "replay/");
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("Included benchmarks: `replay/*`");
+    expect(result.output).not.toContain("legacy/pipeline");
   });
 
   test("reports regressions without failing unless requested", async () => {

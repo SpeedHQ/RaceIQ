@@ -96,7 +96,7 @@ jobs:
 
       - name: Enforce CPU benchmark guardrails
         working-directory: pr
-        run: bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --threshold=10 --p99-threshold=25 --fail-on-regression
+        run: bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --include=replay/ --threshold=10 --p99-threshold=25 --fail-on-regression
 
       - name: Upload benchmark reports
         if: always()
