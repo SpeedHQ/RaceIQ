@@ -72,6 +72,17 @@ export const resourceRoutes = new Hono()
     try {
       const lap = await getLapById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
+      if (lap.parseError) {
+        return c.json({
+          lapId: id,
+          requestedSemanticIds: [],
+          sectorTimes: lap.sectorTimes ?? null,
+          sectorStarts: null,
+          insights: [],
+          parseError: lap.parseError,
+          envelopes: [],
+        });
+      }
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
@@ -81,6 +92,7 @@ export const resourceRoutes = new Hono()
         sectorTimes: lap.sectorTimes ?? null,
         sectorStarts: nativeLayout?.starts ?? null,
         insights: analyzeLap(lap.telemetry, lap.gameId),
+        parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },

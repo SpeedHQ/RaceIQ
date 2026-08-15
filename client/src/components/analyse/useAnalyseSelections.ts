@@ -52,8 +52,8 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const displayTelemetry = semanticFrames;
   const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
   const lapLoading = semanticLoading;
-  const parseError = null;
-  const lapError = semanticError;
+  const parseError = semanticError instanceof Error && "parseError" in semanticError ? String((semanticError as Error & { parseError?: unknown }).parseError ?? "") : null;
+  const lapError = parseError ? null : semanticError;
   useEffect(() => {
     if (selectedTrack == null && selectedLap?.trackOrdinal != null) setSelectedTrack(selectedLap.trackOrdinal);
     if (selectedCar == null && selectedLap?.carOrdinal != null) setSelectedCar(selectedLap.carOrdinal);
