@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import { useUnits } from "../hooks/useUnits";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { client } from "../lib/rpc";
+import { controlInputPercent } from "../lib/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
@@ -50,8 +51,8 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   }
 
   const speed = units.speed(view.motion.speedMps ?? 0);
-  const throttlePct = (view.inputs.throttle ?? 0) * 100;
-  const brakePct = (view.inputs.brake ?? 0) * 100;
+  const throttlePct = controlInputPercent(view.inputs.throttle);
+  const brakePct = controlInputPercent(view.inputs.brake);
   const currentRpm = view.engine.rpm ?? 0;
   const idleRpm = view.engine.idleRpm ?? 0;
   const maxRpm = view.engine.maxRpm ?? 0;
