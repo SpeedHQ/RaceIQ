@@ -2,7 +2,7 @@ import { readKunosFrames } from "../kunos/frame-reader";
 import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
-import { processPacket } from "../../telemetry/live-pipeline";
+import { lapDetector, processPacket } from "../../telemetry/live-pipeline";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 
@@ -69,6 +69,9 @@ export async function replayRecording(
         }
 
         await processPacket(packet);
+      }
+      if (loop && !cancelled) {
+        await lapDetector.finalizeCurrentSession();
       }
     } while (loop && !cancelled);
 

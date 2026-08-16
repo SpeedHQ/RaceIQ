@@ -66,6 +66,7 @@ export class F1StateAccumulator {
     this.session = null;
     this.participants = [];
     this.driverHistory = new Map();
+    this.driverLapSectors = new Map();
     this.playerCarIndex = 0;
   }
 

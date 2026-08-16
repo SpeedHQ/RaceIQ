@@ -50,7 +50,7 @@ export async function importSessionBin(bytes: Buffer, gameId: GameId, options: I
   }
   const sourceArchiveVerification = options.sourceArchiveVerification ?? {
     state: "verified" as const,
-    sourceGeneration: sha256ContentHash(bytes),
+    sourceGeneration: sha256ContentHash(buf),
   };
   const { packetCount, laps } = await importSessionFrames(iterateSessionFrames(buf), gameId, {
     ...options,

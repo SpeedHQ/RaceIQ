@@ -106,10 +106,12 @@ export interface MotecImportOptions {
  * honest reading, since lap beacons live only in the `.ldx`, and AC Evo's
  * exporter writes an empty beacon group for a standalone hotlap anyway.
  */
-export async function importMotec(ldBytes: Buffer, ldxText?: string, options?: MotecImportOptions): Promise<MotecImportResult> {
+export async function importMotec(ldBytes: Buffer, ldxBytes?: Buffer, options?: MotecImportOptions): Promise<MotecImportResult> {
   const target = resolveMotecTarget(options?.gameId);
   const log = parseLd(ldBytes);
-  const beacons = ldxText ? parseLdxBeacons(ldxText) : [];
+  const beacons = ldxBytes === undefined
+    ? []
+    : parseLdxBeacons(ldxBytes.toString("utf8"));
 
   const capture = target.synthesize(log, beacons, {
     carOrdinal: options?.carOrdinal,
@@ -120,7 +122,10 @@ export async function importMotec(ldBytes: Buffer, ldxText?: string, options?: M
     sourceKind: "motec",
     sourceArchiveVerification: {
       state: "verified",
-      sourceGeneration: sha256SourceArtifacts([{ name: "source.ld", bytes: ldBytes }, ...(ldxText === undefined ? [] : [{ name: "source.ldx", bytes: Buffer.from(ldxText) }])]),
+      sourceGeneration: sha256SourceArtifacts([
+        { name: "source.ld", bytes: ldBytes },
+        ...(ldxBytes === undefined ? [] : [{ name: "source.ldx", bytes: ldxBytes }]),
+      ]),
     },
     sourceChannelProfile: capture.sourceChannelProfile,
   });

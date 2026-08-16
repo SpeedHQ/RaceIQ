@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionRecorder } from "../../server/session-capture/recorder";
 import { readIRacingFrames } from "../../server/games/iracing/recorder";
-import { encodeMetaFrame, META_FRAME_MAGIC } from "../../server/session-capture/framing";
+import { encodeFrameLength, encodeMetaFrame, META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import { db } from "../../server/db/index";
 import { sessions, laps, pitEvents, sessionResults } from "../../server/db/schema";
@@ -23,11 +23,17 @@ import { LOCAL_PLAYER_EVIDENCE } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
 import { qualityPackets, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
 import { getRecordingFixture } from "../support/recordings/fixtures";
+import { sha256ContentHash } from "../../server/session-capture/identity";
+import { verifySessionCaptureFile } from "../../server/session-capture/verification";
 
 initGameAdapters();
 initServerGameAdapters();
 
 // ── SessionRecorder: meta frame + byte offset ─────────────────────────────────────
+
+function encodeRecord(payload: Buffer): Buffer {
+  return Buffer.concat([encodeFrameLength(payload.length), payload]);
+}
 
 describe("SessionRecorder meta frame", () => {
   let tmpDir: string;
@@ -51,7 +57,78 @@ describe("SessionRecorder meta frame", () => {
     expect(buf.readUInt32LE(4)).toBe(4); // payload length always 4
     expect(buf.readUInt32LE(8)).toBe(2); // frame count patched on stop()
     expect(verification.state).toBe("verified");
-    expect(verification.sourceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(verification.sourceGeneration).toBe(sha256ContentHash(buf));
+  });
+
+  test("verifies large records across stream chunk boundaries with canonical generation", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
+    const path = join(tmpDir, "large-session.bin");
+    const recorder = new SessionRecorder();
+    const records = [
+      Buffer.alloc(65_518, 0x11),
+      Buffer.alloc(128 * 1024 + 37, 0x22),
+      Buffer.from([0x33, 0x44, 0x55]),
+    ];
+    recorder.start(path);
+    recorder.writeMetaFrame();
+    for (const record of records) recorder.writeRecord(record);
+
+    const verification = await recorder.stop();
+    const fileBytes = Buffer.from(await Bun.file(path).arrayBuffer());
+
+    expect(fileBytes.readUInt32LE(8)).toBe(records.length);
+    expect(verification.state).toBe("verified");
+    expect(verification.sourceGeneration).toBe(sha256ContentHash(fileBytes));
+  });
+
+  test("classifies streaming metadata, payload, count, and digest failures", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
+    const payload = Buffer.from([1, 2, 3, 4, 5]);
+    const record = encodeRecord(payload);
+    const validRecordGeneration = sha256ContentHash(record);
+    const fixtures = [
+      {
+        name: "truncated-metadata",
+        bytes: encodeMetaFrame(1).subarray(0, 10),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: sha256ContentHash(Buffer.alloc(0)),
+        expectedState: "truncated",
+      },
+      {
+        name: "truncated-payload",
+        bytes: Buffer.concat([encodeMetaFrame(1), encodeFrameLength(payload.length), payload.subarray(0, 3)]),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: validRecordGeneration,
+        expectedState: "truncated",
+      },
+      {
+        name: "wrong-declared-count",
+        bytes: Buffer.concat([encodeMetaFrame(2), record]),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: validRecordGeneration,
+        expectedState: "corrupt",
+      },
+      {
+        name: "record-digest-mismatch",
+        bytes: Buffer.concat([encodeMetaFrame(1), record]),
+        expectedFrameCount: 1,
+        expectedRecordGeneration: `sha256:${"0".repeat(64)}`,
+        expectedState: "corrupt",
+      },
+    ] as const;
+
+    for (const fixture of fixtures) {
+      const path = join(tmpDir, `${fixture.name}.bin`);
+      writeFileSync(path, fixture.bytes);
+      const verification = await verifySessionCaptureFile(path, {
+        expectedBytes: fixture.bytes.length,
+        expectedFrameCount: fixture.expectedFrameCount,
+        hasMetadata: true,
+        expectedRecordGeneration: fixture.expectedRecordGeneration,
+      });
+      expect(verification.state).toBe(fixture.expectedState);
+      expect(verification.sourceGeneration).toBe(sha256ContentHash(fixture.bytes));
+    }
   });
 
   test("getCurrentByteOffset starts at 0 before any writes", async () => {
@@ -230,7 +307,9 @@ describe("reprocessSession", () => {
     });
     const canonicalGeneration =
       row?.recordingQuality?.canonicalVerification?.sourceGeneration;
-    expect(canonicalGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(canonicalGeneration).toBe(
+      sha256ContentHash(Buffer.from(await Bun.file(binPath).arrayBuffer())),
+    );
     expect(canonicalGeneration).not.toBe(sourceVerification.sourceGeneration);
   });
 
@@ -325,17 +404,44 @@ describe("reprocessSession", () => {
     expect(updated?.v).toBeTruthy();
   });
 
-  test("skips additional meta frames inside bin during replay", async () => {
+  test("validates declared telemetry count while skipping internal metadata frames", async () => {
     const binPath = join(tmpDir, "session.bin");
-    writeFileSync(binPath, Buffer.concat([encodeMetaFrame(0), encodeMetaFrame(0)]));
+    writeFileSync(
+      binPath,
+      Buffer.concat([
+        encodeMetaFrame(1),
+        encodeMetaFrame(0),
+        encodeRecord(Buffer.from([0])),
+      ]),
+    );
 
     sessionId = await insertTestSession(binPath, "0.9.0");
     const result = await reprocessSession(sessionId);
     expect(result.lapsDetected).toBe(0);
   });
+  test("rejects a declared telemetry count mismatch without changing stored rows", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    writeFileSync(
+      binPath,
+      Buffer.concat([encodeMetaFrame(2), encodeRecord(Buffer.from([0]))]),
+    );
+    sessionId = await insertTestSession(binPath, "0.9.0");
+    await insertTestLap(sessionId, 1, "must survive");
+    const beforeSession = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    const beforeLaps = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+
+    await expect(reprocessSession(sessionId)).rejects.toThrow(
+      "Declared 2 telemetry frames, found 1",
+    );
+
+    expect(await db.select().from(sessions).where(eq(sessions.id, sessionId)).get()).toEqual(beforeSession);
+    expect(await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all()).toEqual(beforeLaps);
+  });
+
 
   test("rejects truncated framing during reprocessing", async () => {
     const binPath = join(tmpDir, "session.bin");
+
     const truncated = Buffer.alloc(6);
     truncated.writeUInt32LE(10, 0);
     truncated.writeUInt8(0xaa, 4);

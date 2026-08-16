@@ -57,6 +57,13 @@ interface SessionFrameIterationOptions {
   skipMetaFrames?: boolean;
   allowEmptyFrames?: boolean;
   strict?: boolean;
+  validateDeclaredFrameCount?: boolean;
+}
+
+function validateDeclaredTelemetryFrameCount(declared: number, actual: number): void {
+  if (declared !== 0 && declared !== actual) {
+    throw new InvalidSessionFrameError(`Declared ${declared} telemetry frames, found ${actual}`);
+  }
 }
 
 /**
@@ -64,7 +71,15 @@ interface SessionFrameIterationOptions {
  * Options retain reprocessor behavior; normal imports use strict framing.
  */
 export function* iterateSessionFrameRecords(bytes: Buffer, offset?: number, options?: SessionFrameIterationOptions): Generator<SessionFrameRecord> {
-  offset ??= readFrameStreamStart(bytes);
+  const validateDeclaredFrameCount = options?.validateDeclaredFrameCount === true;
+  const frameStreamStart = offset === undefined || validateDeclaredFrameCount
+    ? readFrameStreamStart(bytes)
+    : 0;
+  offset ??= frameStreamStart;
+  const declaredFrameCount = validateDeclaredFrameCount && frameStreamStart === META_FRAME_BYTES
+    ? bytes.readUInt32LE(8)
+    : 0;
+  let actualFrameCount = 0;
   while (offset + 4 <= bytes.length) {
     const frameOffset = offset;
     const length = bytes.readUInt32LE(offset);
@@ -93,6 +108,7 @@ export function* iterateSessionFrameRecords(bytes: Buffer, offset?: number, opti
       if (options?.strict) throw new InvalidSessionFrameError(`Truncated frame payload at byte ${frameOffset}`);
       break;
     }
+    actualFrameCount++;
     yield {
       offset: frameOffset,
       frame: bytes.subarray(offset, offset + length),
@@ -102,35 +118,20 @@ export function* iterateSessionFrameRecords(bytes: Buffer, offset?: number, opti
   if (options?.strict && offset !== bytes.length) {
     throw new InvalidSessionFrameError(`Truncated frame length at byte ${offset}`);
   }
+  if (validateDeclaredFrameCount) {
+    validateDeclaredTelemetryFrameCount(declaredFrameCount, actualFrameCount);
+  }
 }
 
 /** Iterate strict length-prefixed telemetry frames. Truncated or empty records are invalid. */
 export function* iterateSessionFrames(bytes: Buffer, offset?: number): Generator<Buffer> {
-  const validateDeclaredCount = offset === undefined;
-  offset ??= readFrameStreamStart(bytes);
-  const declaredFrameCount = validateDeclaredCount && offset === META_FRAME_BYTES
-    ? bytes.readUInt32LE(8)
-    : 0;
-  let actualFrameCount = 0;
-  while (offset < bytes.length) {
-    if (offset + 4 > bytes.length) {
-      throw new InvalidSessionFrameError(`Truncated frame length at byte ${offset}`);
-    }
-    const length = bytes.readUInt32LE(offset);
-    if (length === 0) {
-      throw new InvalidSessionFrameError(`Empty frame at byte ${offset}`);
-    }
-    if (offset + 4 + length > bytes.length) {
-      throw new InvalidSessionFrameError(`Truncated frame payload at byte ${offset}`);
-    }
-    actualFrameCount++;
-    yield bytes.subarray(offset + 4, offset + 4 + length);
-    offset += 4 + length;
-  }
-  if (declaredFrameCount !== 0 && actualFrameCount !== declaredFrameCount) {
-    throw new InvalidSessionFrameError(
-      `Recorder metadata declares ${declaredFrameCount} frames, but capture contains ${actualFrameCount}`,
-    );
+  const validateDeclaredFrameCount = offset === undefined;
+  for (const { frame } of iterateSessionFrameRecords(bytes, offset, {
+    skipMetaFrames: true,
+    strict: true,
+    validateDeclaredFrameCount,
+  })) {
+    yield frame;
   }
 }
 

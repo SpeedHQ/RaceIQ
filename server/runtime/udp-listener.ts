@@ -39,7 +39,7 @@ export class UdpListener {
   private _receiving = false;
   private _packetsInWindow = 0;
   private _packetsPerSec = 0;
-  private _socket: { stop(): void } | null = null;
+  private _socket: { stop(): Promise<void> } | null = null;
   private _port = 5301;
   private _hostname = "0.0.0.0";
   private _recorder: SessionRecorder | null = null;
@@ -55,9 +55,27 @@ export class UdpListener {
   private _activeSourceSessionId: number | null = null;
   private _timedOutSourceSessionId: number | null = null;
   private readonly dependencies: UdpListenerDependencies;
+  private _operationQueue = Promise.resolve();
+  private _stopping = false;
 
   constructor(dependencies: UdpListenerDependencies = DEFAULT_DEPENDENCIES) {
     this.dependencies = dependencies;
+  }
+
+  private _enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this._operationQueue;
+    let release!: () => void;
+    this._operationQueue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return previous.then(operation).finally(release);
+  }
+
+  protected _enqueuePacket(sourceFrame: Buffer): Promise<void> {
+    if (this._stopping) return Promise.resolve();
+    return this._enqueueOperation(() => this.handlePacket(sourceFrame)).catch((error) => {
+      console.error("[UDP] Packet processing failed:", error);
+    });
   }
 
   get droppedPackets(): number {
@@ -88,6 +106,7 @@ export class UdpListener {
   }
 
   async start(port: number = 5301, hostname: string = "0.0.0.0"): Promise<void> {
+    this._stopping = false;
     this._port = port;
     this._hostname = hostname;
     console.log(`[UDP] Starting listener on ${hostname}:${port}...`);
@@ -103,7 +122,7 @@ export class UdpListener {
     // Use dgram for socket buffer tuning — Bun.udpSocket doesn't expose setsockopt
     const dgram = require("node:dgram");
     const sock = dgram.createSocket("udp4");
-    sock.on("message", (sourceFrame: Buffer) => this.handlePacket(sourceFrame));
+    sock.on("message", (sourceFrame: Buffer) => void this._enqueuePacket(sourceFrame));
     await new Promise<void>((resolve, reject) => {
       sock.bind(port, hostname, () => {
         try {
@@ -117,10 +136,14 @@ export class UdpListener {
       });
       sock.on("error", reject);
     });
-    this._socket = { stop: () => sock.close() };
+    this._socket = {
+      stop: () => new Promise<void>((resolve, reject) => {
+        sock.close((error?: Error) => error ? reject(error) : resolve());
+      }),
+    };
 
     console.log(`[UDP] Listening on ${hostname}:${port}`);
-    this.dependencies.noteSourceLifecycle({
+    await this.dependencies.noteSourceLifecycle({
       kind: "start",
       timestampMs: Date.now(),
       eventId: `udp-start:${hostname}:${port}`,
@@ -146,26 +169,37 @@ export class UdpListener {
 
       // Only accepted UDP telemetry owns this timeout. Raw invalid/menu traffic
       // cannot keep a previously active source alive.
-      if (
-        this._packetsPerSec === 0 &&
-        this._receiving &&
-        this._activeSourceGame &&
-        this._activeSourceSessionId !== null
-      ) {
-        const gameId = this._activeSourceGame;
-        const sessionId = this._activeSourceSessionId;
-        this._receiving = false;
-        this._timedOut = true;
-        this._timedOutSourceGame = gameId;
-        this._timedOutSourceSessionId = sessionId;
-        this.dependencies.noteSourceLifecycle(
-          {
-            kind: "timeout",
-            timestampMs: Date.now(),
-            eventId: `udp-timeout:${Date.now()}`,
-          },
-          { kind: "udp", gameId, sessionId },
-        );
+      if (this._packetsPerSec === 0) {
+        void this._enqueueOperation(async () => {
+          if (
+            this._packetsInWindow !== 0 ||
+            !this._receiving ||
+            !this._activeSourceGame ||
+            this._activeSourceSessionId === null
+          ) {
+            return;
+          }
+          const gameId = this._activeSourceGame;
+          const sessionId = this._activeSourceSessionId;
+          this._receiving = false;
+          this._timedOut = true;
+          this._timedOutSourceGame = gameId;
+          this._timedOutSourceSessionId = sessionId;
+          try {
+            await this.dependencies.noteSourceLifecycle(
+              {
+                kind: "timeout",
+                timestampMs: Date.now(),
+                eventId: `udp-timeout:${Date.now()}`,
+              },
+              { kind: "udp", gameId, sessionId },
+            );
+          } catch (error) {
+            console.error("[UDP] Timeout lifecycle failed:", error);
+          }
+        }).catch((error) => {
+          console.error("[UDP] Timeout processing failed:", error);
+        });
       }
 
       // Stream-wide activity: count packets handed to wsManager from any
@@ -245,7 +279,7 @@ export class UdpListener {
       this._timedOutSourceGame = null;
       this._timedOutSourceSessionId = null;
       if (timedOutGame === gameId && timedOutSessionId !== null) {
-        this.dependencies.noteSourceLifecycle(
+        await this.dependencies.noteSourceLifecycle(
           {
             kind: "reconnect",
             timestampMs: Date.now(),
@@ -264,24 +298,39 @@ export class UdpListener {
   }
 
   async stop(): Promise<void> {
-    this.dependencies.noteSourceLifecycle({
-      kind: "stop",
-      timestampMs: Date.now(),
-      eventId: `udp-stop:${this._hostname}:${this._port}`,
-    });
+    this._stopping = true;
+    const socket = this._socket;
+    this._socket = null;
+    if (socket) {
+      try {
+        await socket.stop();
+      } catch (error) {
+        console.error("[UDP] Listener stop failed:", error);
+      }
+      console.log("[UDP] Listener stopped");
+    }
     if (this._statusTimer) {
       clearInterval(this._statusTimer);
       this._statusTimer = null;
     }
-    if (this._socket) {
-      this._socket.stop();
-      this._socket = null;
-      console.log("[UDP] Listener stopped");
+
+    await this._operationQueue;
+    const source = this._activeSourceGame && this._activeSourceSessionId !== null
+      ? { kind: "udp" as const, gameId: this._activeSourceGame, sessionId: this._activeSourceSessionId }
+      : undefined;
+    try {
+      await this.dependencies.noteSourceLifecycle(
+        {
+          kind: "stop",
+          timestampMs: Date.now(),
+          eventId: `udp-stop:${this._hostname}:${this._port}`,
+        },
+        source,
+      );
+    } catch (error) {
+      console.error("[UDP] Stop lifecycle failed:", error);
     }
     if (this._recorder) {
-      // Await the flush on a clean shutdown. The format is append-only, so
-      // even a hard kill only risks the last packet being truncated — but
-      // waiting here means `Ctrl+C` produces a complete file.
       await this._recorder.stop();
       this._recorder = null;
     }

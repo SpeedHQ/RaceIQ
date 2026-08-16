@@ -30,7 +30,7 @@ import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { GameIdSchema, type GameId } from "../../shared/games/ids";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
-export const LAPS_ZIP_VERSION = 2;
+export const LAPS_ZIP_VERSION = 3;
 
 export interface ManifestLap {
   lapNumber: number;
@@ -173,7 +173,6 @@ function parseManifestFile(files: Record<string, Uint8Array>): LapsZipManifest |
   if (!Number.isInteger(manifest.version) || typeof manifest.exportedAt !== "string" || !Array.isArray(manifest.entries)) {
     throw new Error("Invalid RaceIQ archive manifest");
   }
-  const entryFiles = new Set<string>();
   for (const entryValue of manifest.entries) {
     if (!entryValue || typeof entryValue !== "object" || Array.isArray(entryValue)) {
       throw new Error("Invalid RaceIQ archive manifest");
@@ -191,7 +190,6 @@ function parseManifestFile(files: Record<string, Uint8Array>): LapsZipManifest |
       typeof entry.trackName !== "string" ||
       typeof entry.createdAt !== "string" ||
       !Array.isArray(entry.laps) ||
-      entryFiles.has(entry.file) ||
       (entry.sourceKind !== undefined && !isEvidenceSourceKind(entry.sourceKind)) ||
       (entry.sourceVerification !== undefined && !isArchiveVerification(entry.sourceVerification)) ||
       (entry.sourceChannelProfile !== undefined && (!isSourceChannelProfile(entry.sourceChannelProfile) || entry.sourceKind !== entry.sourceChannelProfile.sourceKind))
@@ -207,9 +205,56 @@ function parseManifestFile(files: Record<string, Uint8Array>): LapsZipManifest |
         throw new Error("Invalid RaceIQ archive manifest");
       }
     }
-    entryFiles.add(entry.file);
   }
   return manifest as unknown as LapsZipManifest;
+}
+
+
+function validateStrictArchiveLayout(
+  files: Record<string, Uint8Array>,
+  manifest: LapsZipManifest,
+): void {
+  const entryFiles = new Set<string>();
+  for (const entry of manifest.entries) {
+    if (!entry.file.endsWith(".bin") && !entry.file.endsWith(".bin.gz")) {
+      throw new Error(
+        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout only allows .bin/.bin.gz capture entries`,
+      );
+    }
+    if (entryFiles.has(entry.file)) {
+      throw new Error(
+        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout contains duplicate member names`,
+      );
+    }
+    entryFiles.add(entry.file);
+    if (!Object.hasOwn(files, entry.file)) {
+      throw new Error(
+        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout declares a missing capture member`,
+      );
+    }
+    if (!entry.memberSha256 || !/^sha256:[0-9a-f]{64}$/.test(entry.memberSha256)) {
+      throw new Error(
+        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout capture member is missing a valid checksum`,
+      );
+    }
+  }
+
+  for (const name of Object.keys(files)) {
+    if (name !== MANIFEST_FILE_NAME && !entryFiles.has(name)) {
+      throw new Error(
+        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout contains an undeclared member`,
+      );
+    }
+  }
+
+  for (const entry of manifest.entries) {
+    const member = files[entry.file];
+    if (sha256ContentHash(Buffer.from(member.buffer, member.byteOffset, member.byteLength)) !== entry.memberSha256) {
+      throw new Error(
+        `Invalid RaceIQ archive manifest: version ${manifest.version} capture member checksum mismatch`,
+      );
+    }
+  }
 }
 
 function encodeManifestFile(manifest: LapsZipManifest): Uint8Array {
@@ -436,7 +481,7 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
   const files = unzipSync(zipData);
 
   const manifest = parseManifestFile(files);
-  if (manifest && manifest.version !== 1 && manifest.version !== LAPS_ZIP_VERSION) {
+  if (manifest && manifest.version !== 1 && manifest.version !== 2 && manifest.version !== LAPS_ZIP_VERSION) {
     throw new Error(`Unsupported RaceIQ archive version ${manifest.version}`);
   }
   const manifestGame = new Map<string, GameId>();
@@ -452,23 +497,11 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
 
   const names = fileNamesForZip(files);
 
+  if (manifest?.version === LAPS_ZIP_VERSION) {
+    validateStrictArchiveLayout(files, manifest);
+  }
   if (names.length === 0) {
     throw new Error("Zip contains no session captures (.bin/.bin.gz). Exports from an older RaceIQ version can't be imported.");
-  }
-  if (manifest?.version === LAPS_ZIP_VERSION) {
-    for (const entry of manifest.entries) {
-      if (!Object.hasOwn(files, entry.file)) {
-        throw new Error("Invalid RaceIQ archive manifest: v2 manifest declares a missing capture member");
-      }
-      if (!entry.memberSha256 || !/^sha256:[0-9a-f]{64}$/.test(entry.memberSha256)) {
-        throw new Error("Invalid RaceIQ archive manifest: v2 capture member is missing a valid checksum");
-      }
-    }
-    for (const name of names) {
-      if (!manifestEntries.has(name)) {
-        throw new Error("Invalid RaceIQ archive manifest: v2 capture member has no manifest entry");
-      }
-    }
   }
 
   for (const name of names) {
@@ -476,9 +509,6 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
     const bytes = Buffer.from(memberBytes.buffer, memberBytes.byteOffset, memberBytes.byteLength);
     const entry = manifestEntries.get(name);
     try {
-      if (manifest?.version === LAPS_ZIP_VERSION && sha256ContentHash(bytes) !== entry!.memberSha256) {
-        throw new Error("member checksum mismatch");
-      }
       const gameId = parseCaptureGameId(name, bytes, manifestGame);
       if (!gameId) {
         throw new Error("could not determine which game this capture came from");

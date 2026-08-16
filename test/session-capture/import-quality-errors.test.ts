@@ -98,7 +98,7 @@ describe("telemetry import quality errors", () => {
         lifecycleState: "corrupt",
         reasons: ["recording_corrupt"],
         cause: {
-          message: `Recorder metadata declares ${declaredCount} frames, but capture contains ${actualCount}`,
+          message: `Declared ${declaredCount} telemetry frames, found ${actualCount}`,
         },
       });
     }
