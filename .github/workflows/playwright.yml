@@ -58,7 +58,27 @@ jobs:
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           RACEIQ_DISABLE_TRAY: "1"
-        run: bunx playwright test ${{ inputs.projects }}
+          PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
+        shell: powershell
+        run: |
+          $defaultProjects = "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
+          if ($env:PLAYWRIGHT_PROJECTS -eq $defaultProjects) {
+            # Keep Bun's TypeScript compiler from holding all three server graphs and 221 test files at once.
+            $groups = @(
+              @{ ServerSet = "fresh"; Projects = @("--project=fresh-install") },
+              @{ ServerSet = "tunes"; Projects = @("--project=tunes") },
+              @{ ServerSet = "seeded"; Projects = @("--project=seeded-e2e", "--project=mobile-device", "--project=tablet-device") }
+            )
+            foreach ($group in $groups) {
+              $env:PW_SERVER_SET = $group.ServerSet
+              bunx playwright test $group.Projects
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          } else {
+            $projectArgs = $env:PLAYWRIGHT_PROJECTS -split "\s+"
+            bunx playwright test $projectArgs
+            exit $LASTEXITCODE
+          }
 
       - name: Upload Playwright artifacts
         if: always()
