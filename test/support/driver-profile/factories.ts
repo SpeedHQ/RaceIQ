@@ -37,19 +37,20 @@ export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
   };
   if (over.eligibility) return value;
   const usable = value.isValid && value.paceEligibility === "eligible";
-  return {
-    ...value,
-    eligibility: {
-      "normal-pace": {
+  const eligibility = Object.fromEntries(
+    (["normal-pace", "lap-comparison"] as const).map((policyId) => [
+      policyId,
+      {
         status: usable ? "eligible" : "ineligible",
-        policyId: "normal-pace",
+        policyId,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         confidence: { level: "high", score: 1 },
         reasons: usable ? [] : [{ code: "structurally_invalid", severity: "error", evidenceIds: [`lap:${id}:validity`], timeRange: null, distanceRange: null, semanticIds: [] }],
         evidenceIds: usable ? [] : [`lap:${id}:validity`],
       },
-    } as unknown as EligibilityDecisionSet,
-  };
+    ]),
+  ) as unknown as EligibilityDecisionSet;
+  return { ...value, eligibility };
 }
 
 export function insight(id: string, over: Partial<LapInsight> = {}): LapInsight {

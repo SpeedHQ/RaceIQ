@@ -41,6 +41,7 @@
 - Clear displayed comparison analysis and conversations when either lap quality generation changes
 - Collect recent fuel and tire history independently so several fuel-only laps cannot prevent older tire data from seeding strategy estimates, and vice versa
 - Regenerate cached driver profiles when underlying lap quality or eligibility changes
+- Keep race-result summaries stable across repeated reconciliation while repairing missing lap-quality links
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getRecentSessionResults, loadRaceResultLapQuality } from "../db/session-result-queries";
 import type { RaceResult, RaceResultEligibilityStatusCounts, RaceResultLapQualityEvidence, RaceResultPolicyQualityAggregate } from "../../shared/racing/results/types";
 import { and, eq, sql } from "drizzle-orm";
@@ -13,7 +14,11 @@ export interface ResultAggregateScope {
   carOrdinal?: number;
   trackOrdinal?: number;
 }
-function summarizePolicyQuality(evidence: readonly RaceResultLapQualityEvidence[], policy: "officialTiming" | "normalPace"): RaceResultPolicyQualityAggregate {
+function summarizePolicyQuality(
+  evidence: readonly RaceResultLapQualityEvidence[],
+  policyId: "official-timing" | "normal-pace",
+): RaceResultPolicyQualityAggregate {
+  const policy = policyId === "official-timing" ? "officialTiming" : "normalPace";
   const statuses: RaceResultEligibilityStatusCounts = {
     eligible: 0,
     eligible_with_warning: 0,
@@ -21,14 +26,44 @@ function summarizePolicyQuality(evidence: readonly RaceResultLapQualityEvidence[
     unknown: 0,
   };
   const reasons: RaceResultPolicyQualityAggregate["reasons"] = {};
+  const policyVersions = new Set<string>();
   for (const lap of evidence) {
     const decision = lap[policy];
     statuses[decision.status] += 1;
+    policyVersions.add(decision.policyVersion);
     for (const reason of decision.reasons) {
       reasons[reason.code] = (reasons[reason.code] ?? 0) + 1;
     }
   }
-  return { statuses, reasons };
+  return { policyId, policyVersions: [...policyVersions].sort(), statuses, reasons };
+}
+
+function raceResultQualityEvidenceGeneration(evidence: readonly RaceResultLapQualityEvidence[]): string | null {
+  if (evidence.length === 0) return null;
+  const identity = [...evidence]
+    .sort((left, right) => left.lapId - right.lapId)
+    .map((lap) => [
+      lap.lapId,
+      lap.qualityGeneration,
+      [
+        lap.officialTiming.policyId,
+        lap.officialTiming.policyVersion,
+        lap.officialTiming.status,
+        lap.officialTiming.reasons.map(({ code }) => code).sort(),
+        [...lap.officialTiming.evidenceIds].sort(),
+      ],
+      [
+        lap.normalPace.policyId,
+        lap.normalPace.policyVersion,
+        lap.normalPace.status,
+        lap.normalPace.reasons.map(({ code }) => code).sort(),
+        [...lap.normalPace.evidenceIds].sort(),
+      ],
+    ]);
+  const digest = createHash("sha256")
+    .update(`race-result-quality-aggregate-v1|${JSON.stringify(identity)}`)
+    .digest("hex");
+  return `sha256:${digest}`;
 }
 
 export async function getRaceResultAggregate(scope: ResultAggregateScope): Promise<RaceResultAggregate> {
@@ -96,8 +131,9 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
     fuelStrategyAvailable: value(row?.fuelAvailable) > 0,
     lapQuality: {
       total: lapQuality.length,
-      officialTiming: summarizePolicyQuality(lapQuality, "officialTiming"),
-      normalPace: summarizePolicyQuality(lapQuality, "normalPace"),
+      evidenceGeneration: raceResultQualityEvidenceGeneration(lapQuality),
+      officialTiming: summarizePolicyQuality(lapQuality, "official-timing"),
+      normalPace: summarizePolicyQuality(lapQuality, "normal-pace"),
     },
   };
 }

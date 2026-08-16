@@ -1,18 +1,21 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { and, eq, inArray } from "drizzle-orm";
 import { insertSession } from "../../server/db/session-queries";
 import { db } from "../../server/db";
-import { compareAnalyses, lapAnalyses, laps } from "../../server/db/schema";
-import { finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
+import { compareAnalyses, lapAnalyses, laps, sessionResults, sessions } from "../../server/db/schema";
+import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration } from "../../server/lap-analysis/quality-generation";
 import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, replacePitEvents, upsertSessionResult, type SessionResultInput } from "../../server/db/session-result-queries";
 import { getRaceResultAggregate, getRecentRaceResults } from "../../server/race-results/aggregates";
 import { initServerGameAdapters } from "../../server/games/init";
 import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "../../server/race-results/reconcile";
+import * as RaceResultDerive from "../../server/race-results/derive";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
 import type { LapCondition, LapPhase } from "../../shared/racing/laps/classification";
-import type { EligibilityDecision, QualityReasonCode } from "../../shared/racing/quality/contracts";
-import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
+import { ELIGIBILITY_POLICY_VERSION, LOCAL_PLAYER_EVIDENCE, type EligibilityDecision, type QualityReasonCode } from "../../shared/racing/quality/contracts";
+import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
+import { qualityPackets, summarize, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
+import type { DerivedRaceResult } from "../../server/race-results/types";
 
 const evidence: RaceResultEvidence = {
   fieldStatus: {
@@ -199,6 +202,34 @@ describe("persisted race result metadata", () => {
         reasons: { caution_context: 1, non_pace_classification: 1 },
       },
     });
+    expect(aggregate.lapQuality.officialTiming).toMatchObject({
+      policyId: "official-timing",
+      policyVersions: [ELIGIBILITY_POLICY_VERSION],
+    });
+    expect(aggregate.lapQuality.normalPace).toMatchObject({
+      policyId: "normal-pace",
+      policyVersions: [ELIGIBILITY_POLICY_VERSION],
+    });
+    expect(aggregate.lapQuality.evidenceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect((await getRaceResultAggregate({ gameId: "f1-2025", carOrdinal: 99, trackOrdinal: 88 })).lapQuality.evidenceGeneration).toBe(
+      aggregate.lapQuality.evidenceGeneration,
+    );
+
+    const qualityRow = await db.select({ id: laps.id, quality: laps.quality }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.id).get();
+    const changedGeneration = "sha256:aggregate-quality-changed";
+    await db
+      .update(laps)
+      .set({
+        quality: {
+          ...qualityRow!.quality!,
+          provenance: { ...qualityRow!.quality!.provenance, outputGeneration: changedGeneration },
+        },
+        qualityGeneration: changedGeneration,
+      })
+      .where(eq(laps.id, qualityRow!.id))
+      .run();
+    const changedAggregate = await getRaceResultAggregate({ gameId: "f1-2025", carOrdinal: 99, trackOrdinal: 88 });
+    expect(changedAggregate.lapQuality.evidenceGeneration).not.toBe(aggregate.lapQuality.evidenceGeneration);
     const pitLaps = await db
       .select({ lapNumber: laps.lapNumber, isValid: laps.isValid, phase: laps.phase, conditions: laps.conditions, paceEligibility: laps.paceEligibility, invalidReason: laps.invalidReason })
       .from(laps)
@@ -334,6 +365,155 @@ describe("persisted race result metadata", () => {
       .all();
     expect(cachedComparisons).toEqual([{ lapAId: byLapNumber.get(3)!.id, lapBId: byLapNumber.get(4)!.id }]);
   });
+
+  test("identical reconciliation preserves result events, quality linkage, and dependent caches", async () => {
+    const packets = qualityPackets(100, [20]);
+    const recording = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
+    for (const packet of packets) recording.observe(packet);
+    const recordingQuality = finalizeRecordingQualityGeneration(
+      recording.finalize("complete", { state: "verified", sourceGeneration: "sha256:reconcile-idempotency-source" }),
+    );
+    const generated = [1, 2].map((lapNumber) =>
+      finalizeLapQualityGeneration(
+        summarize(packets, { eventIds: ["pit:ephemeral"] }),
+        recordingQuality.provenance.sourceGeneration,
+        { lapNumber, rawByteOffset: null, rawFrameCount: packets.length },
+      ),
+    );
+    const sessionId = (
+      await db
+        .insert(sessions)
+        .values({
+          carOrdinal: 701,
+          trackOrdinal: 702,
+          gameId: "f1-2025",
+          sessionType: "race",
+          source: "native-live",
+          recordingQuality,
+          qualitySchemaVersion: recordingQuality.provenance.schemaVersion,
+          qualityPolicyVersion: recordingQuality.provenance.policyVersion,
+          qualityConfigVersion: recordingQuality.provenance.configurationVersion,
+          qualityGeneration: recordingQuality.provenance.outputGeneration,
+        })
+        .returning({ id: sessions.id })
+        .get()
+    ).id;
+    const insertedLaps = await db
+      .insert(laps)
+      .values(
+        generated.map((quality, index) => ({
+          sessionId,
+          lapNumber: index + 1,
+          lapTime: 90 + index,
+          isValid: true,
+          rawFrameCount: packets.length,
+          quality: quality.quality,
+          eligibility: quality.eligibility,
+          qualitySchemaVersion: quality.quality.provenance.schemaVersion,
+          qualityPolicyVersion: quality.quality.provenance.policyVersion,
+          qualityConfigVersion: quality.quality.provenance.configurationVersion,
+          qualityGeneration: quality.quality.provenance.outputGeneration,
+        })),
+      )
+      .returning({ id: laps.id })
+      .all();
+    const derived: DerivedRaceResult = {
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 2,
+      qualifyingPosition: 3,
+      isPodium: true,
+      isFastestLap: false,
+      pitCount: 1,
+      events: [
+        {
+          sequence: 1,
+          eventType: "pit",
+          lapNumber: 1,
+          elapsedSeconds: null,
+          durationSeconds: 20,
+          service: "tyres",
+          tyreChange: { to: "medium" },
+          fuelAdded: null,
+          fuelBefore: null,
+          fuelAfter: null,
+          linkage: "linked",
+          source: { fixture: "idempotency" },
+        },
+      ],
+      tyreStrategy: { compounds: ["soft", "medium"] },
+      fuelStrategy: null,
+      provenance: { ...provenance, rawInput: null, canonicalInput: null },
+      evidence,
+      reasons: [],
+    };
+    const derive = spyOn(RaceResultDerive, "deriveRaceResult").mockReturnValue(derived);
+
+    try {
+      expect((await reconcileSessionResult(sessionId, "f1-2025")).status).toBe("enriched");
+      const first = (await getSessionResult(sessionId, "f1-2025"))!;
+      const firstGenerations = await db
+        .select({ id: laps.id, qualityGeneration: laps.qualityGeneration })
+        .from(laps)
+        .where(eq(laps.sessionId, sessionId))
+        .orderBy(laps.id)
+        .all();
+      expect(firstGenerations[0]?.qualityGeneration).not.toBe(generated[0]?.quality.provenance.outputGeneration);
+      await db.insert(lapAnalyses).values({ lapId: insertedLaps[0]!.id, analysis: "survives identical reconcile" }).run();
+      await db
+        .insert(compareAnalyses)
+        .values({ lapAId: insertedLaps[0]!.id, lapBId: insertedLaps[1]!.id, kind: "inputs", analysis: "survives identical reconcile" })
+        .run();
+      await db.update(sessionResults).set({ updatedAt: "2000-01-01T00:00:00.000Z" }).where(eq(sessionResults.id, first.id)).run();
+      const beforeRepeat = (await getSessionResult(sessionId, "f1-2025"))!;
+
+      expect((await reconcileSessionResult(sessionId, "f1-2025")).status).toBe("unchanged");
+      const repeated = (await getSessionResult(sessionId, "f1-2025"))!;
+      const repeatedGenerations = await db
+        .select({ id: laps.id, qualityGeneration: laps.qualityGeneration })
+        .from(laps)
+        .where(eq(laps.sessionId, sessionId))
+        .orderBy(laps.id)
+        .all();
+      expect(repeated.events.map(({ id }) => id)).toEqual(beforeRepeat.events.map(({ id }) => id));
+      expect(repeated.updatedAt).toBe(beforeRepeat.updatedAt);
+      expect(repeatedGenerations).toEqual(firstGenerations);
+      expect(await db.select({ id: lapAnalyses.id }).from(lapAnalyses).where(eq(lapAnalyses.lapId, insertedLaps[0]!.id)).all()).toHaveLength(1);
+      expect(
+        await db.select({ id: compareAnalyses.id }).from(compareAnalyses).where(eq(compareAnalyses.lapAId, insertedLaps[0]!.id)).all(),
+      ).toHaveLength(1);
+    } finally {
+      derive.mockRestore();
+    }
+  });
+
+  test("aggregate quality generation is null without lap evidence", async () => {
+    const sessionId = await insertSession(703, 704, "f1-2025", "race");
+    await upsertSessionResult({
+      sessionId,
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: false,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    });
+    const aggregate = await getRaceResultAggregate({ gameId: "f1-2025", carOrdinal: 703, trackOrdinal: 704 });
+    expect(aggregate.lapQuality).toMatchObject({
+      total: 0,
+      evidenceGeneration: null,
+      officialTiming: { policyId: "official-timing", policyVersions: [] },
+      normalPace: { policyId: "normal-pace", policyVersions: [] },
+    });
+  });
   test("counts and lists only results from older processor versions", async () => {
     const staleSessionId = await insertSession(12, 13, "f1-2025", "race");
     const resultlessSessionId = await insertSession(12, 13, "f1-2025", "race");
@@ -394,7 +574,7 @@ describe("persisted race result metadata", () => {
     const sessionId = await insertSession(77, 66, "f1-2025", "race");
     await upsertSessionResult({
       sessionId,
-      processorVersion: "race-result-v0",
+      processorVersion: "race-result-v2",
       sessionType: "race",
       classification: "finished",
       outcomeStatus: "confirmed",
@@ -409,8 +589,11 @@ describe("persisted race result metadata", () => {
       evidence,
       reasons: [],
     });
-    await reconcileSessionResult(sessionId, "f1-2025");
+    expect(await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID)).toContain(sessionId);
+    const report = await backfillStaleRaceResults({ gameId: "f1-2025", limit: 1, afterSessionId: sessionId - 1 });
+    expect(report.processed).toBe(1);
     expect((await getSessionResult(sessionId, "f1-2025"))?.processorVersion).toBe(RACE_RESULT_PROCESSOR_ID);
+    expect(await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID)).not.toContain(sessionId);
   });
 
   test("backfills historical sessions across registered game adapters", async () => {

@@ -73,6 +73,36 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
 
   return rows.map(toLapMeta);
 }
+export async function getLapMetaForPitHistory(
+  trackOrdinal: number,
+  carOrdinal: number,
+  pi: number,
+  gameId: GameId,
+  limit: number,
+): Promise<LapMeta[]> {
+  const rows = await db
+    .select(lapMetaProjection)
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(
+      and(
+        eq(sessions.gameId, gameId),
+        eq(sessions.trackOrdinal, trackOrdinal),
+        eq(sessions.carOrdinal, carOrdinal),
+        eq(laps.pi, pi),
+        sql`${laps.lapTime} > 10`,
+        sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`,
+        sql`NOT (COALESCE(${laps.experimentExcluded}, 0) = 1 AND COALESCE(${laps.experimentExcludedSource}, '') = 'manual')`,
+      ),
+    )
+    .orderBy(desc(laps.id))
+    .limit(limit)
+    .all();
+
+  return rows.map(toLapMeta);
+}
+
 
 /**
  * Every lap in a driver-profile scope, newest first — deliberately unlimited.
@@ -85,7 +115,11 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
  * separately by MAX_PROFILE_LAPS in driver-profile-aggregate.ts.
  */
 export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: number, trackOrdinal?: number): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`];
+  const filters = [
+    eq(sessions.gameId, gameId),
+    sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`,
+    sql`NOT (COALESCE(${laps.experimentExcluded}, 0) = 1 AND COALESCE(${laps.experimentExcludedSource}, '') = 'manual')`,
+  ];
   if (carOrdinal != null) filters.push(eq(sessions.carOrdinal, carOrdinal));
   if (trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal));
 
