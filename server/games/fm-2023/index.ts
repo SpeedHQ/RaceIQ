@@ -4,7 +4,7 @@ import { parseForzaPacket } from "./parser";
 import { fmCarCatalog } from "../../../shared/racing/cars/fm";
 import { fmTrackCatalog } from "../../../shared/racing/tracks/catalogs/fm";
 import { getForzaSharedOutline } from "../../../shared/racing/tracks/geometry/outlines";
-import { LapDetector } from "../../lap-detection/detector";
+import { LAP_DETECTOR_ID, LapDetector } from "../../lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
@@ -75,6 +75,8 @@ export const forzaServerAdapter: ServerGameAdapter = {
 	createParserState() {
 		return null;
 	},
+
+	lapDetectorId: LAP_DETECTOR_ID,
 
 	createLapDetector: (opts) => new LapDetector(opts),
 

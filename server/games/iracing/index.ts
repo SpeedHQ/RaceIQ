@@ -4,7 +4,7 @@ getIRacingTrackName,
 getIRacingTrackOrdinalByName, } from "../../../shared/racing/tracks/catalogs/iracing"
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
-import { LapDetectorIRacing } from "./lap-detector";
+import { LAP_DETECTOR_IRACING_ID, LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "../types";
 import {
   createIRacingParserState,
@@ -74,6 +74,8 @@ export const iracingServerAdapter: ServerGameAdapter = {
   createParserState(): IRacingParserState {
     return createIRacingParserState();
   },
+
+  lapDetectorId: LAP_DETECTOR_IRACING_ID,
 
   createLapDetector: (opts) => new LapDetectorIRacing(opts),
   aiSystemPrompt: IRACING_SYSTEM_PROMPT,

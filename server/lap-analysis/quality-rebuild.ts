@@ -5,12 +5,14 @@ import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERS
 import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { updateSessionQuality } from "../db/session-queries";
+import { tryGetServerGame } from "../games/registry";
 
 export type QualityRebuildAction = "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
 
 export interface QualityRebuildStatus {
   sessionId: number;
   action: QualityRebuildAction;
+  currentDetectorId: string | null;
   rawAvailable: boolean;
   lapCount: number;
   recordingQuality: RecordingQualitySummary | null;
@@ -23,9 +25,10 @@ export interface QualityRebuildStatus {
   };
 }
 
-export async function getQualityRebuildStatus(sessionId: number, currentDetectorIds: readonly string[] = []): Promise<QualityRebuildStatus> {
+export async function getQualityRebuildStatus(sessionId: number): Promise<QualityRebuildStatus> {
   const session = await db
     .select({
+      gameId: sessions.gameId,
       detectorVersion: sessions.lapDetectorVersion,
       rawFile: sessions.rawFile,
       recordingQuality: sessions.recordingQuality,
@@ -40,16 +43,24 @@ export async function getQualityRebuildStatus(sessionId: number, currentDetector
   if (!session) throw new Error(`Session ${sessionId} not found`);
   const lapRows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
   const rawAvailable = session.rawFile != null && existsSync(session.rawFile);
+  const currentDetectorId = tryGetServerGame(session.gameId)?.lapDetectorId ?? null;
   const stale = {
-    detector: currentDetectorIds.length > 0 && (session.detectorVersion == null || !currentDetectorIds.includes(session.detectorVersion)),
+    detector: currentDetectorId === null || session.detectorVersion === null || session.detectorVersion !== currentDetectorId,
     schema: session.schemaVersion !== QUALITY_SCHEMA_VERSION,
     policy: session.policyVersion !== ELIGIBILITY_POLICY_VERSION,
     configuration: session.configurationVersion !== QUALITY_CONFIG_VERSION,
   };
   const measurementStale = !session.recordingQuality || stale.schema || stale.detector || stale.configuration;
-  const action: QualityRebuildAction = measurementStale ? (rawAvailable ? "reprocess" : "unavailable") : stale.policy ? "rebuild_eligibility" : "current";
+  const action: QualityRebuildAction = measurementStale
+    ? rawAvailable && currentDetectorId !== null
+      ? "reprocess"
+      : "unavailable"
+    : stale.policy
+      ? "rebuild_eligibility"
+      : "current";
   return {
     sessionId,
+    currentDetectorId,
     action,
     rawAvailable,
     lapCount: lapRows.length,

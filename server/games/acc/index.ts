@@ -4,7 +4,7 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName, getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
-import { LapDetectorAcc } from "./lap-detector"
+import { LAP_DETECTOR_ACC_ID, LapDetectorAcc } from "./lap-detector"
 import { parseAccBuffers } from "./parser";
 import { PHYSICS, STATIC } from "./structs";
 import { readWString } from "./utils";
@@ -129,6 +129,8 @@ export const accServerAdapter: ServerGameAdapter = {
   createParserState(): KunosReplayClock {
     return createKunosReplayClock();
   },
+
+  lapDetectorId: LAP_DETECTOR_ACC_ID,
 
   createLapDetector: (opts) => new LapDetectorAcc(opts),
 

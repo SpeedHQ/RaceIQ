@@ -307,7 +307,9 @@ describe("reprocessSession", () => {
     });
     const canonicalGeneration =
       row?.recordingQuality?.canonicalVerification?.sourceGeneration;
-    expect(canonicalGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(canonicalGeneration).toBe(
+      sha256ContentHash(Buffer.from(await Bun.file(binPath).arrayBuffer())),
+    );
     expect(canonicalGeneration).not.toBe(sourceVerification.sourceGeneration);
   });
 
@@ -402,14 +404,40 @@ describe("reprocessSession", () => {
     expect(updated?.v).toBeTruthy();
   });
 
-  test("skips additional meta frames inside bin during replay", async () => {
+  test("validates declared telemetry count while skipping internal metadata frames", async () => {
     const binPath = join(tmpDir, "session.bin");
-    writeFileSync(binPath, Buffer.concat([encodeMetaFrame(0), encodeMetaFrame(0)]));
+    writeFileSync(
+      binPath,
+      Buffer.concat([
+        encodeMetaFrame(1),
+        encodeMetaFrame(0),
+        encodeRecord(Buffer.from([0])),
+      ]),
+    );
 
     sessionId = await insertTestSession(binPath, "0.9.0");
     const result = await reprocessSession(sessionId);
     expect(result.lapsDetected).toBe(0);
   });
+  test("rejects a declared telemetry count mismatch without changing stored rows", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    writeFileSync(
+      binPath,
+      Buffer.concat([encodeMetaFrame(2), encodeRecord(Buffer.from([0]))]),
+    );
+    sessionId = await insertTestSession(binPath, "0.9.0");
+    await insertTestLap(sessionId, 1, "must survive");
+    const beforeSession = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    const beforeLaps = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+
+    await expect(reprocessSession(sessionId)).rejects.toThrow(
+      "Declared 2 telemetry frames, found 1",
+    );
+
+    expect(await db.select().from(sessions).where(eq(sessions.id, sessionId)).get()).toEqual(beforeSession);
+    expect(await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all()).toEqual(beforeLaps);
+  });
+
 
   test("rejects truncated framing during reprocessing", async () => {
     const binPath = join(tmpDir, "session.bin");
