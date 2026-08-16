@@ -5,6 +5,7 @@ import { createSessionRoutes, type SessionRouteDependencies } from "../../server
 function status(sessionId: number, action: QualityRebuildAction): QualityRebuildStatus {
   return {
     sessionId,
+    currentDetectorId: action === "unavailable" ? null : "test-detector",
     action,
     rawAvailable: action === "reprocess",
     lapCount: 1,
@@ -110,6 +111,28 @@ describe("session quality route semantics", () => {
     });
     expect(setStaleSessionsNotification).toHaveBeenCalledTimes(1);
     expect(setStaleSessionsNotification).not.toHaveBeenCalledWith(null);
+  });
+
+  test("routes a no-raw policy-only stale session through eligibility rebuild", async () => {
+    const rebuildSessionEligibility = mock(async (sessionId: number) => status(sessionId, "current"));
+    const reprocessSession = mock(async (sessionId: number) => ({ sessionId, lapsDetected: 1, lapsUpdated: 1, strategy: "in-place" as const }));
+    const response = await routes({
+      getStaleSessions: async () => [42],
+      getQualityRebuildStatus: async (sessionId) => status(sessionId, "rebuild_eligibility"),
+      rebuildSessionEligibility,
+      reprocessSession,
+      countStaleSessions: async () => 0,
+    }).request("/api/sessions/reprocess-stale", { method: "POST" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      reprocessed: 0,
+      failed: 0,
+      remaining: 0,
+      results: [{ sessionId: 42, strategy: "eligibility" }],
+    });
+    expect(rebuildSessionEligibility).toHaveBeenCalledWith(42);
+    expect(reprocessSession).not.toHaveBeenCalled();
   });
 
   test("clears stale health only after every bulk rebuild succeeds", async () => {

@@ -1,8 +1,22 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
-import { DRIVER_PROFILE_DEFAULT_OUTPUT_TOKENS, driverProfilePoolKey, logDriverProfileFailure, logDriverProfileOutput, notifyDriverProfileLap } from "../../server/driver-profile/runner";
+import { driverProfilerAgent } from "../../server/ai/agents";
+import * as DriverProfileQueries from "../../server/db/driver-profile-queries";
+import type { DriverProfileRunRow } from "../../server/db/driver-profile-queries";
+import * as LapReadQueries from "../../server/db/lap-read-queries";
+import {
+  DRIVER_PROFILE_DEFAULT_OUTPUT_TOKENS,
+  driverProfilePoolKey,
+  getDriverProfileRunStatus,
+  logDriverProfileFailure,
+  logDriverProfileOutput,
+  notifyDriverProfileLap,
+  resetDriverProfileRunnerForTests,
+  runDriverProfile,
+} from "../../server/driver-profile/runner";
 import { driverRoutes } from "../../server/routes/driver-routes";
+import { lap } from "../support/driver-profile/factories";
 
 describe("driver profile runner", () => {
   test("background lap notification accepts only game scope", () => {
@@ -59,18 +73,87 @@ describe("driver profile runner", () => {
     expect((await driverRoutes.request("/api/drivers/profile", { method: "DELETE", headers })).status).toBe(404);
   });
 
-  test("pool key includes quality identity for the newest 60 laps before sorting", () => {
-    const lap = (id: number, qualityGeneration = `sha256:quality-${id}`, qualityStale = false) => ({
+  test("pool key covers the full current evidence identity independent of order", () => {
+    const pool = Array.from({ length: 65 }, (_, index) => lap(1000 - index));
+    const replaceGeneration = (index: number) => {
+      const source = pool[index]!;
+      const qualityGeneration = `sha256:rebuilt-${source.id}`;
+      return {
+        ...source,
+        qualityGeneration,
+        quality: {
+          ...source.quality!,
+          provenance: { ...source.quality!.provenance, outputGeneration: qualityGeneration },
+        },
+      };
+    };
+
+    expect(driverProfilePoolKey(pool, "fm-2023")).toBe(driverProfilePoolKey([...pool].reverse(), "fm-2023"));
+    expect(driverProfilePoolKey(pool, "fm-2023")).not.toBe(driverProfilePoolKey([replaceGeneration(0), ...pool.slice(1)], "fm-2023"));
+    expect(driverProfilePoolKey(pool, "fm-2023")).not.toBe(driverProfilePoolKey([...pool.slice(0, 64), replaceGeneration(64)], "fm-2023"));
+  });
+
+  test("pool key changes when stale or manual evidence becomes current again", () => {
+    const current = lap(1);
+    const stale = { ...current, qualityStale: true };
+    const manualExcluded = { ...current, experimentExcluded: true, experimentExcludedSource: "manual" as const };
+    const manuallyIncluded = { ...current, experimentExcluded: false, experimentExcludedSource: "manual" as const };
+
+    expect(driverProfilePoolKey([stale], "fm-2023")).not.toBe(driverProfilePoolKey([current], "fm-2023"));
+    expect(driverProfilePoolKey([manualExcluded], "fm-2023")).not.toBe(driverProfilePoolKey([manuallyIncluded], "fm-2023"));
+  });
+
+  test("status hides stale success and lazily schedules current pool without calling model", async () => {
+    const settingsPath = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
+    const original = existsSync(settingsPath) ? readFileSync(settingsPath, "utf8") : null;
+    const currentLaps = Array.from({ length: 4 }, (_, index) => lap(index + 1));
+    const currentPoolKey = driverProfilePoolKey(currentLaps, "fm-2023");
+    const row = (id: number, poolKey: string, status: DriverProfileRunRow["status"]): DriverProfileRunRow => ({
       id,
-      qualityGeneration,
-      qualityStale,
+      scopeKey: "fm-2023|*|*",
+      gameId: "fm-2023",
+      carOrdinal: null,
+      trackOrdinal: null,
+      poolKey,
+      status,
+      fingerprint: null,
+      plan: null,
+      error: null,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      durationMs: 0,
+      model: "test-model",
+      createdAt: "2026-08-16T00:00:00.000Z",
+      startedAt: null,
+      completedAt: null,
     });
-    const newest = Array.from({ length: 60 }, (_, index) => lap(1000 - index));
-    const withOldTail = [...newest, lap(1), lap(2), lap(3)];
-    expect(driverProfilePoolKey(newest)).toBe(driverProfilePoolKey(withOldTail));
-    expect(driverProfilePoolKey(newest)).not.toBe(driverProfilePoolKey([lap(999), ...newest.slice(1)]));
-    expect(driverProfilePoolKey(newest)).not.toBe(driverProfilePoolKey([{ ...newest[0]!, qualityGeneration: "sha256:rebuilt" }, ...newest.slice(1)]));
-    expect(driverProfilePoolKey(newest)).not.toBe(driverProfilePoolKey([{ ...newest[0]!, qualityStale: true }, ...newest.slice(1)]));
+    const staleSuccess = row(1, "old-pool", "succeeded");
+    const queuedCurrent = row(2, currentPoolKey, "queued");
+    const listRuns = spyOn(DriverProfileQueries, "listDriverProfileRuns").mockResolvedValue([staleSuccess]);
+    const findRun = spyOn(DriverProfileQueries, "findDriverProfileRunByScopePool")
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(queuedCurrent);
+    const getLaps = spyOn(LapReadQueries, "getLapMetaForProfileScope").mockResolvedValue(currentLaps);
+    const generate = spyOn(driverProfilerAgent, "generate");
+    writeFileSync(settingsPath, JSON.stringify({ driverProfileProvider: "local", driverProfileModel: "test-model", driverProfileBackgroundEnabled: true }));
+    resetDriverProfileRunnerForTests();
+
+    try {
+      const status = await getDriverProfileRunStatus({ gameId: "fm-2023" });
+      expect(status).toMatchObject({ state: "queued", enabled: true, configured: true, latest: null });
+      expect(status.runs).toEqual([staleSuccess]);
+      await runDriverProfile({ gameId: "fm-2023" });
+      expect(generate).not.toHaveBeenCalled();
+    } finally {
+      resetDriverProfileRunnerForTests();
+      listRuns.mockRestore();
+      findRun.mockRestore();
+      getLaps.mockRestore();
+      generate.mockRestore();
+      if (original === null) writeFileSync(settingsPath, "{}\n");
+      else writeFileSync(settingsPath, original);
+    }
   });
   test("logs handled profile failures with run and model context", () => {
     const error = spyOn(console, "error").mockImplementation(() => {});

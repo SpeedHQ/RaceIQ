@@ -73,6 +73,36 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
 
   return rows.map(toLapMeta);
 }
+export async function getLapMetaForPitHistory(
+  trackOrdinal: number,
+  carOrdinal: number,
+  pi: number,
+  gameId: GameId,
+  limit: number,
+): Promise<LapMeta[]> {
+  const rows = await db
+    .select(lapMetaProjection)
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(
+      and(
+        eq(sessions.gameId, gameId),
+        eq(sessions.trackOrdinal, trackOrdinal),
+        eq(sessions.carOrdinal, carOrdinal),
+        eq(laps.pi, pi),
+        sql`${laps.lapTime} > 10`,
+        sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`,
+        sql`NOT (COALESCE(${laps.experimentExcluded}, 0) = 1 AND COALESCE(${laps.experimentExcludedSource}, '') = 'manual')`,
+      ),
+    )
+    .orderBy(desc(laps.id))
+    .limit(limit)
+    .all();
+
+  return rows.map(toLapMeta);
+}
+
 
 /**
  * Every lap in a driver-profile scope, newest first — deliberately unlimited.
@@ -85,7 +115,11 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
  * separately by MAX_PROFILE_LAPS in driver-profile-aggregate.ts.
  */
 export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: number, trackOrdinal?: number): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`];
+  const filters = [
+    eq(sessions.gameId, gameId),
+    sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`,
+    sql`NOT (COALESCE(${laps.experimentExcluded}, 0) = 1 AND COALESCE(${laps.experimentExcludedSource}, '') = 'manual')`,
+  ];
   if (carOrdinal != null) filters.push(eq(sessions.carOrdinal, carOrdinal));
   if (trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal));
 
@@ -134,6 +168,7 @@ type LapSummary = {
   qualityGeneration: string | null;
   qualityStale: boolean;
   source: LapMeta["source"];
+  ownership: LapMeta["ownership"];
 };
 
 export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: GameId): Promise<LapSummary[]> {
@@ -161,6 +196,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       source: sessions.source,
+      ownership: sessions.ownership,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -197,8 +233,11 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
         r.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
         r.qualityGeneration !== r.quality.provenance.outputGeneration,
       source: (r.source as LapMeta["source"] | null) ?? "unknown",
+      ownership: r.ownership === "others" ? "others" : "mine",
     }));
 }
+
+export type LoadedLap = LapMeta & { telemetry: TelemetryPacket[]; parseError?: string };
 
 export async function getLapById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
   const row = await db
@@ -236,6 +275,7 @@ export async function getLapById(id: number): Promise<(LapMeta & { telemetry: Te
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       qualityGeneration: laps.qualityGeneration,
+      experimentId: laps.experimentId,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -292,6 +332,7 @@ type LapResultRow = {
   tuneId: number | null;
   tuneName: string | null;
   gameId: string;
+  experimentId: number | null;
   carSetup: string | null;
   sectorTimes: number[] | null;
   catalogVersion: string | null;
@@ -328,6 +369,7 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
+    experimentId: row.experimentId ?? null,
     carSetup: row.carSetup ?? undefined,
     sectorTimes: row.sectorTimes ?? undefined,
     catalogVersion: row.catalogVersion ?? undefined,
@@ -398,6 +440,7 @@ export async function getLapsByIds(ids: number[]): Promise<(LapMeta & { telemetr
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       qualityGeneration: laps.qualityGeneration,
+      experimentId: laps.experimentId,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))

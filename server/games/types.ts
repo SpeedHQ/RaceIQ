@@ -54,6 +54,9 @@ export interface ServerGameAdapter extends GameAdapter {
   /** Process names to check if this game is running (e.g. ["acc.exe"]) */
   processNames?: string[];
 
+  /** Stable identity of the detector produced by this adapter. */
+  readonly lapDetectorId: string;
+
   /** Factory that creates the lap detector implementation for this game. */
   createLapDetector: LapDetectorFactory;
 

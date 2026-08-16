@@ -1,5 +1,5 @@
 import type { GameId } from "@shared/games/ids";
-import type { EligibilityDecision, EligibilityStatus, QualityReasonCode } from "@shared/racing/quality/contracts";
+import type { EligibilityDecision, EligibilityPolicyId, EligibilityStatus, QualityReasonCode } from "@shared/racing/quality/contracts";
 
 export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
 export type RaceResultOutcomeStatus = "confirmed" | "provisional" | "unavailable";
@@ -152,11 +152,14 @@ export interface RaceResultLapQualityEvidence {
 export type RaceResultEligibilityStatusCounts = Record<EligibilityStatus, number>;
 
 export interface RaceResultPolicyQualityAggregate {
+  policyId: EligibilityPolicyId;
+  policyVersions: string[];
   statuses: RaceResultEligibilityStatusCounts;
   reasons: Partial<Record<QualityReasonCode, number>>;
 }
 
 export interface RaceResultLapQualityAggregate {
+  evidenceGeneration: string | null;
   total: number;
   officialTiming: RaceResultPolicyQualityAggregate;
   normalPace: RaceResultPolicyQualityAggregate;

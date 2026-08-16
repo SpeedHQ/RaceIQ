@@ -21,8 +21,9 @@
  * single-lap one.
  */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { EligibilityDecision, QualityReasonCode } from "../../../shared/racing/quality/contracts";
-import { selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
+import type { EligibilityDecision, EligibilityReason, EligibilityStatus, QualityReasonCode } from "../../../shared/racing/quality/contracts";
+import { selectEvaluationLaps, type EvaluationReason, type EvaluationSelection } from "../../../shared/racing/laps/review-selection";
+import { resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { Corner } from "../../lap-analysis/corners";
 import { detectCorners } from "../../lap-analysis/corners";
@@ -57,6 +58,11 @@ export interface ConsistencyReport {
   lineSpread: LineSpreadTrace | null;
 }
 
+export interface LapPolicyProvenance {
+  status: EligibilityStatus;
+  reasons: EligibilityReason[];
+}
+
 export interface LapBreakdownRow {
   lapId: number;
   lapTimeSec: number;
@@ -64,6 +70,11 @@ export interface LapBreakdownRow {
   reason: "clean" | "invalid" | "non-pace" | "user-excluded" | "auto-outlier";
   /** Exact policy reasons; empty for manual, structural, and statistical drops. */
   reasonCodes: QualityReasonCode[];
+  qualityGeneration: string | null;
+  normalPace: LapPolicyProvenance;
+  cornerTrace: LapPolicyProvenance;
+  selectionReason: EvaluationReason;
+  selectionReasonCodes: QualityReasonCode[];
   imported: boolean;
 }
 
@@ -100,6 +111,24 @@ export function baselineFallbackNote(agg: Pick<CleanLapAggregate, "sourceScope" 
 // worth it.
 const MAX_CLEAN_LAPS = 8;
 
+function lapBreakdownRow(lap: LapMeta, reason: LapBreakdownRow["reason"], reasonCodes: QualityReasonCode[], selection: EvaluationSelection<LapMeta>): LapBreakdownRow {
+  const normalPace = resolveEligibilityDecision(lap, "normal-pace");
+  const cornerTrace = resolveEligibilityDecision(lap, "corner-trace");
+  return {
+    lapId: lap.id,
+    lapTimeSec: lap.lapTime,
+    valid: lap.isValid,
+    reason,
+    reasonCodes,
+    imported: lap.experimentVersionId == null,
+    qualityGeneration: lap.qualityGeneration ?? lap.quality?.provenance.outputGeneration ?? null,
+    normalPace: { status: normalPace.status, reasons: normalPace.reasons },
+    cornerTrace: { status: cornerTrace.status, reasons: cornerTrace.reasons },
+    selectionReason: selection.reasonById.get(lap.id) ?? "invalid",
+    selectionReasonCodes: [...(selection.reasonCodesById.get(lap.id) ?? [])],
+  };
+}
+
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
   return medianSorted([...values].sort((a, b) => a - b));
@@ -124,39 +153,17 @@ export function selectCleanLaps(laps: LapMeta[]): {
   const breakdown: LapBreakdownRow[] = [];
 
   for (const lap of laps) {
-    const imported = lap.experimentVersionId == null;
     const selectionReason = selection.reasonById.get(lap.id);
     if (selectionReason === "manual") {
-      breakdown.push({
-        lapId: lap.id,
-        lapTimeSec: lap.lapTime,
-        valid: lap.isValid,
-        reason: "user-excluded",
-        reasonCodes: [],
-        imported,
-      });
+      breakdown.push(lapBreakdownRow(lap, "user-excluded", [], selection));
       continue;
     }
     if (selectionReason === "invalid") {
-      breakdown.push({
-        lapId: lap.id,
-        lapTimeSec: lap.lapTime,
-        valid: lap.isValid,
-        reason: "invalid",
-        reasonCodes: [],
-        imported,
-      });
+      breakdown.push(lapBreakdownRow(lap, "invalid", [], selection));
       continue;
     }
     if (!selection.chosenIds.has(lap.id)) {
-      breakdown.push({
-        lapId: lap.id,
-        lapTimeSec: lap.lapTime,
-        valid: lap.isValid,
-        reason: "non-pace",
-        reasonCodes: [...(selection.reasonCodesById.get(lap.id) ?? [])],
-        imported,
-      });
+      breakdown.push(lapBreakdownRow(lap, "non-pace", [...(selection.reasonCodesById.get(lap.id) ?? [])], selection));
       continue;
     }
     candidates.push(lap);
@@ -174,27 +181,12 @@ export function selectCleanLaps(laps: LapMeta[]): {
   const clean: LapMeta[] = [];
   const dropped: LapMeta[] = [];
   for (const lap of candidates) {
-    const imported = lap.experimentVersionId == null;
     if (times.length > 1 && lap.lapTime > threshold) {
-      breakdown.push({
-        lapId: lap.id,
-        lapTimeSec: lap.lapTime,
-        valid: lap.isValid,
-        reason: "auto-outlier",
-        reasonCodes: [],
-        imported,
-      });
+      breakdown.push(lapBreakdownRow(lap, "auto-outlier", [], selection));
       dropped.push(lap);
       continue;
     }
-    breakdown.push({
-      lapId: lap.id,
-      lapTimeSec: lap.lapTime,
-      valid: lap.isValid,
-      reason: "clean",
-      reasonCodes: [],
-      imported,
-    });
+    breakdown.push(lapBreakdownRow(lap, "clean", [], selection));
     clean.push(lap);
   }
 

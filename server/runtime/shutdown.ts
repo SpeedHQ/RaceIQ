@@ -19,18 +19,18 @@ export function installShutdown({
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
     stopSessionCompressor();
     try {
-      const tasks: Promise<unknown>[] = [flushSessionRecorder()];
+      const sourceStops: Promise<unknown>[] = [udpListener.stop()];
       const nativeSources = getNativeSources();
-      if (nativeSources) tasks.push(nativeSources.stop());
+      if (nativeSources) sourceStops.push(nativeSources.stop());
       if (recordingGameId) {
-        tasks.push(
-          udpListener.stop(),
+        sourceStops.push(
           accRecorder.stop(),
           acEvoRecorder.stop(),
           iracingRecorder.stop(),
         );
       }
-      await Promise.allSettled(tasks);
+      await Promise.allSettled(sourceStops);
+      await flushSessionRecorder();
     } finally {
       process.exit(0);
     }

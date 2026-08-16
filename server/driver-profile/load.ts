@@ -2,7 +2,8 @@ import { summariseLapStyle, type LapStyleSummary } from "../../shared/racing/ana
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../shared/games/ids";
-import { evaluateGroupEligibility, isEligibilityUsable, selectDriverProfileEligibleLaps } from "../../shared/racing/quality/policies";
+import { evaluateGroupEligibility, isEligibilitySnapshotCurrent, isEligibilityUsable, selectDriverProfileEligibleLaps } from "../../shared/racing/quality/policies";
+import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import { getLapMetaForProfileScope, getLapsByIds } from "../db/lap-read-queries";
 import { buildDriverFingerprint, emptyFingerprint, type DriverFingerprint, type ProfileScope } from "./fingerprint";
@@ -10,32 +11,46 @@ import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "./trend";
 
 /** Minimum decoded frames for a lap to be worth running detectors over. */
 const MIN_TELEMETRY_FRAMES = 30;
-
-/** Load and reduce all driver laps for one selected game to a global fingerprint. */
-export async function loadDriverProfile(opts: { gameId: GameId }): Promise<DriverFingerprint> {
-  const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carOrdinal: null, trackOrdinal: null };
-  const pool = await getLapMetaForProfileScope(opts.gameId);
-  const groupPool = pool.flatMap((lap) =>
+export function selectCurrentDriverProfileEvidence(
+  pool: readonly LapMeta[],
+  gameId: GameId,
+): { currentPool: LapMeta[]; decision: EligibilityDecision; candidates: LapMeta[] } {
+  const currentPool = pool.filter(
+    (lap) =>
+      isEligibilitySnapshotCurrent(lap, ["normal-pace", "lap-comparison"]) &&
+      !(lap.experimentExcluded && lap.experimentExcludedSource === "manual"),
+  );
+  const groupPool = currentPool.flatMap((lap) =>
     lap.quality && lap.eligibility
       ? [
           {
             lapId: lap.id,
             lapTime: lap.lapTime,
             createdAt: lap.createdAt,
-            carTrackKey: `${lap.gameId ?? opts.gameId}:${lap.carOrdinal ?? "unknown"}:${lap.trackOrdinal ?? "unknown"}`,
+            carTrackKey: `${lap.gameId ?? gameId}:${lap.carOrdinal ?? "unknown"}:${lap.trackOrdinal ?? "unknown"}`,
             quality: lap.quality,
             eligibility: lap.eligibility,
           },
         ]
       : [],
   );
-  const profileDecision = evaluateGroupEligibility("driver-profile", groupPool);
+  const decision = evaluateGroupEligibility("driver-profile", groupPool);
   const selectedIds = new Set(selectDriverProfileEligibleLaps(groupPool).map((lap) => lap.lapId));
-  const candidates = isEligibilityUsable(profileDecision) ? pool.filter((lap) => selectedIds.has(lap.id)) : [];
-  const trend = buildDriverTrend(pool);
+  const candidates = isEligibilityUsable(decision) ? currentPool.filter((lap) => selectedIds.has(lap.id)) : [];
+  return { currentPool, decision, candidates };
+}
+
+
+/** Load and reduce all driver laps for one selected game to a global fingerprint. */
+export async function loadDriverProfile(opts: { gameId: GameId }): Promise<DriverFingerprint> {
+  const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carOrdinal: null, trackOrdinal: null };
+  const pool = await getLapMetaForProfileScope(opts.gameId);
+  const { currentPool, decision: profileDecision, candidates } = selectCurrentDriverProfileEvidence(pool, opts.gameId);
+  const trend = buildDriverTrend(currentPool);
   if (candidates.length === 0) {
     return {
       ...emptyFingerprint(scope, { candidates: 0 }, ["No policy-eligible laps recorded for this scope."], trend),
+      ok: false,
       eligibility: profileDecision,
     };
   }

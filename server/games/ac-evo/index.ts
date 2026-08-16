@@ -4,7 +4,7 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/racing/cars/ac-evo"
 import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
-import { LapDetectorAcEvo } from "./lap-detector"
+import { LAP_DETECTOR_AC_EVO_ID, LapDetectorAcEvo } from "./lap-detector"
 import { parseAcEvoBuffers, createAcEvoParserCache, type AcEvoParserCache } from "./parser";
 import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
@@ -96,6 +96,8 @@ export const acEvoServerAdapter: ServerGameAdapter = {
   createParserState(): AcEvoParserCache {
     return createAcEvoParserCache();
   },
+
+  lapDetectorId: LAP_DETECTOR_AC_EVO_ID,
 
   createLapDetector: (opts) => new LapDetectorAcEvo(opts),
 

@@ -31,7 +31,7 @@ import {
   setExperimentVersionNote,
   setExperimentVersionNotes,
 } from "../../server/db/experiment-version-queries";
-import { setSessionHead } from "../../server/db/experiment-queries";
+import { getExperiment, setSessionHead } from "../../server/db/experiment-queries";
 import { changeSlug, computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
 import { wsManager } from "../../server/runtime/websocket-manager";
@@ -40,13 +40,15 @@ import { buildAppliedChangesMarkdown } from "../../server/setups/applied-change-
 import { formatTrackConditions } from "../../server/ai/track-conditions";
 import { gameHasSetupFile, loadActiveExperimentContext } from "../../server/experiments/setup-lineage";
 import { readActiveSetup, writeAppliedSetup } from "../../server/setups/io";
-import { readSetupEngineerContext } from "./setup-engineer-request-context";
+import { readSetupEngineerContext, type SetupEngineerRequestContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../server/experiments/lap-evidence/aggregate";
 import { selectEvaluationLaps } from "../../shared/racing/laps/review-selection";
 import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
+import type { EligibilityPolicyId } from "../../shared/racing/quality/contracts";
 import { setLapExperimentExcluded, getLapsForExperiment } from "../../server/db/experiment-lap-queries";
-import { getLapById } from "../../server/db/lap-read-queries";
+import { getLapById, type LoadedLap } from "../../server/db/lap-read-queries";
 import { resolveTrack } from "../../server/tracks/info";
 import { recordAction } from "../../server/db/experiment-action-queries";
 import { undoLastAction } from "../../server/experiments/undo";
@@ -56,10 +58,24 @@ import { symptomsToIssues } from "../../server/ai/tune-issues";
 import { compareLaps } from "../../server/lap-analysis/comparison";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
 const EligibilityStatusEnum = z.enum(["eligible", "eligible_with_warning", "ineligible", "unknown"]);
+const EligibilityReasonShape = z.object({
+  code: z.string(),
+  severity: z.enum(["info", "warning", "error"]),
+  evidenceIds: z.array(z.string()),
+  timeRange: z.object({ startMs: z.number(), endMs: z.number() }).nullable(),
+  distanceRange: z.object({ startFraction: z.number(), endFraction: z.number() }).nullable(),
+  semanticIds: z.array(z.string()),
+});
+
+const LocalEligibilityShape = z.object({
+  status: EligibilityStatusEnum,
+  reasons: z.array(EligibilityReasonShape),
+});
 
 // Per-session binding (gameId, sessionId) comes from Mastra requestContext, set
 // once per turn by the chat route — NOT a model-supplied tool arg. Weak local
@@ -118,27 +134,101 @@ const MAX_ISSUE_LAPS = 8;
 // Matches loadRepresentativeLap's/clean-lap-aggregate's analysable-lap gate.
 const MIN_TELEMETRY_FRAMES = 30;
 
+type FullLap = LoadedLap;
+
+interface SetupEngineerLapScope {
+  experimentId: number;
+  gameId: SetupEngineerRequestContext["gameId"];
+  trackOrdinal: number;
+  lapsById: Map<number, LapMeta>;
+}
+
+type SetupEngineerScopeResult = { ok: true; scope: SetupEngineerLapScope } | { ok: false; error: string };
+type SetupEngineerLapResult = { ok: true; meta: LapMeta; lap: FullLap } | { ok: false; error: string };
+
+async function loadSetupEngineerLapScope(context: SetupEngineerRequestContext): Promise<SetupEngineerScopeResult> {
+  const experiment = await getExperiment(context.sessionId);
+  if (!experiment || experiment.gameId !== context.gameId) {
+    return { ok: false, error: `Experiment ${context.sessionId} is not available for game ${context.gameId}.` };
+  }
+  if (experiment.trackOrdinal == null) {
+    return { ok: false, error: `Experiment ${context.sessionId} has no track scope.` };
+  }
+
+  const linkedLaps = (await getLapsForExperiment(context.sessionId)).filter(
+    (lap) => lap.experimentId === context.sessionId && lap.gameId === context.gameId && lap.trackOrdinal === experiment.trackOrdinal && lap.ownership === "mine",
+  );
+  return {
+    ok: true,
+    scope: {
+      experimentId: context.sessionId,
+      gameId: context.gameId,
+      trackOrdinal: experiment.trackOrdinal,
+      lapsById: new Map(linkedLaps.map((lap) => [lap.id, lap])),
+    },
+  };
+}
+
+async function loadSetupEngineerLap(scope: SetupEngineerLapScope, lapId: number): Promise<SetupEngineerLapResult> {
+  const meta = scope.lapsById.get(lapId);
+  if (!meta || meta.experimentId !== scope.experimentId || meta.gameId !== scope.gameId || meta.trackOrdinal !== scope.trackOrdinal || meta.ownership !== "mine") {
+    return { ok: false, error: `Lap ${lapId} is not accessible in this experiment.` };
+  }
+
+  const lap = await getLapById(lapId);
+  if (!lap || lap.experimentId !== scope.experimentId || lap.gameId !== scope.gameId || lap.trackOrdinal !== scope.trackOrdinal || lap.ownership !== "mine") {
+    return { ok: false, error: `Lap ${lapId} is not accessible in this experiment.` };
+  }
+  return { ok: true, meta, lap };
+}
+
+function lapPolicyRejection(lap: LapMeta, policyIds: readonly EligibilityPolicyId[]) {
+  for (const policyId of policyIds) {
+    const decision = resolveEligibilityDecision(lap, policyId);
+    if (!isEligibilityUsable(decision)) {
+      return {
+        ok: false as const,
+        error: `Lap ${lap.id} cannot support ${policyId}: ${eligibilityDecisionText(decision)}`,
+        eligibilityStatus: decision.status,
+        reasonCodes: decision.reasons.map((reason) => reason.code),
+      };
+    }
+  }
+  return null;
+}
+
 export function buildSetupEngineerLapSummaries(laps: LapMeta[]) {
   const selection = selectEvaluationLaps(laps, Number.POSITIVE_INFINITY);
   const bestLapTime = selection.chosen[0]?.lapTime ?? null;
-  return laps.map((lap) => {
-    const decision = selection.rejectionDecisionById.get(lap.id) ?? selection.setupDecision;
-    const analysisEligible = selection.chosenIds.has(lap.id);
-    return {
-      lapId: lap.id,
-      lapNumber: lap.lapNumber,
-      lapTime: lap.lapTime,
-      isValid: lap.isValid,
-      excluded: Boolean(lap.experimentExcluded),
-      analysisEligible,
-      eligibilityStatus: decision.status,
-      reasonCodes: analysisEligible ? decision.reasons.map(({ code }) => code) : [...(selection.reasonCodesById.get(lap.id) ?? [])],
-      s1Time: lap.sectorTimes?.[0] ?? null,
-      s2Time: lap.sectorTimes?.[1] ?? null,
-      s3Time: lap.sectorTimes?.[2] ?? null,
-      deltaToBestSec: bestLapTime != null && analysisEligible ? lap.lapTime - bestLapTime : null,
-    };
-  });
+  return {
+    setupAnalysis: {
+      status: selection.setupDecision.status,
+      reasons: selection.setupDecision.reasons,
+      summary: eligibilityDecisionText(selection.setupDecision),
+    },
+    laps: laps.map((lap) => {
+      const normalPace = resolveEligibilityDecision(lap, "normal-pace");
+      const cornerTrace = resolveEligibilityDecision(lap, "corner-trace");
+      const analysisEligible = selection.chosenIds.has(lap.id);
+      return {
+        lapId: lap.id,
+        lapNumber: lap.lapNumber,
+        lapTime: lap.lapTime,
+        isValid: lap.isValid,
+        excluded: Boolean(lap.experimentExcluded),
+        analysisEligible,
+        qualityGeneration: lap.qualityGeneration ?? lap.quality?.provenance.outputGeneration ?? null,
+        normalPace: { status: normalPace.status, reasons: normalPace.reasons },
+        cornerTrace: { status: cornerTrace.status, reasons: cornerTrace.reasons },
+        selectionReason: selection.reasonById.get(lap.id) ?? "invalid",
+        selectionReasonCodes: [...(selection.reasonCodesById.get(lap.id) ?? [])],
+        s1Time: lap.sectorTimes?.[0] ?? null,
+        s2Time: lap.sectorTimes?.[1] ?? null,
+        s3Time: lap.sectorTimes?.[2] ?? null,
+        deltaToBestSec: bestLapTime != null && analysisEligible ? lap.lapTime - bestLapTime : null,
+      };
+    }),
+  };
 }
 
 export function buildSetupEngineerTools() {
@@ -595,15 +685,15 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const { ok, prev } = await setLapExperimentExcluded(inputData.lapId, inputData.excluded);
-      if (!ok) return { ok: false, error: `No lap ${inputData.lapId} found.` };
+      const result = await setLapExperimentExcluded(inputData.lapId, sessionId, inputData.excluded);
+      if (!result.ok) return { ok: false, error: `No lap ${inputData.lapId} found in this experiment.` };
 
       // Best-effort: an action-log write failure must not fail the tool — the
       // lap flag is already committed.
       try {
-        await recordAction(sessionId, "set-lap-excluded", { lapId: inputData.lapId, prevExcluded: prev });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log set-lap-excluded action:", err?.message);
+        await recordAction(sessionId, "set-lap-excluded", { lapId: inputData.lapId, prevExcluded: result.prev });
+      } catch (error: unknown) {
+        console.error("[SetupEngineer] Failed to log set-lap-excluded action:", error instanceof Error ? error.message : String(error));
       }
 
       return { ok: true, lapId: inputData.lapId, excluded: inputData.excluded };
@@ -770,13 +860,18 @@ export function buildSetupEngineerTools() {
   const listLapsTool = createTool({
     id: "list-laps",
     description:
-      "Read-only. List every lap in this tuning session with structural validity, shared setup-analysis " +
-      "eligibility status, exact machine-readable reason codes, and delta to best policy-selected lap. " +
-      "Compact — no telemetry arrays. Use before inspecting or comparing specific laps.",
+      "Read-only. List every lap in this tuning session with structural validity, local normal-pace and " +
+      "corner-trace decisions, exact selection provenance, quality generation, and delta to best selected lap. " +
+      "The setup-analysis group decision is returned once at top level. Compact — no telemetry arrays.",
     inputSchema: NoInput,
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
+      setupAnalysis: z.object({
+        status: EligibilityStatusEnum,
+        reasons: z.array(EligibilityReasonShape),
+        summary: z.string(),
+      }),
       laps: z
         .array(
           z.object({
@@ -786,8 +881,11 @@ export function buildSetupEngineerTools() {
             isValid: z.boolean(),
             excluded: z.boolean(),
             analysisEligible: z.boolean(),
-            eligibilityStatus: EligibilityStatusEnum,
-            reasonCodes: z.array(z.string()),
+            qualityGeneration: z.string().nullable(),
+            normalPace: LocalEligibilityShape,
+            cornerTrace: LocalEligibilityShape,
+            selectionReason: z.enum(["chosen", "invalid", "non-pace", "manual", "auto", "slower-than-cap"]),
+            selectionReasonCodes: z.array(z.string()),
             s1Time: z.number().nullable(),
             s2Time: z.number().nullable(),
             s3Time: z.number().nullable(),
@@ -801,7 +899,7 @@ export function buildSetupEngineerTools() {
       const laps = await getLapsForExperiment(sessionId);
       return {
         ok: true,
-        laps: buildSetupEngineerLapSummaries(laps),
+        ...buildSetupEngineerLapSummaries(laps),
       };
     },
   });
@@ -817,6 +915,8 @@ export function buildSetupEngineerTools() {
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
+      eligibilityStatus: EligibilityStatusEnum.optional(),
+      reasonCodes: z.array(z.string()).optional(),
       lapNumber: z.number().optional(),
       lapTime: z.number().optional(),
       isValid: z.boolean().optional(),
@@ -851,13 +951,14 @@ export function buildSetupEngineerTools() {
         .optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForExperiment(sessionId);
-      const meta = sessionLaps.find((l) => l.id === inputData.lapId);
-      if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.` };
-
-      const lap = await getLapById(inputData.lapId);
-      if (!lap) return { ok: false, error: `Lap ${inputData.lapId} not found.` };
+      const context = readSetupEngineerContext(execCtx?.requestContext);
+      const scopeResult = await loadSetupEngineerLapScope(context);
+      if (!scopeResult.ok) return scopeResult;
+      const lapResult = await loadSetupEngineerLap(scopeResult.scope, inputData.lapId);
+      if (!lapResult.ok) return lapResult;
+      const { meta, lap } = lapResult;
+      const policyRejection = lapPolicyRejection(lap, ["corner-trace", "tire-analysis"]);
+      if (policyRejection) return policyRejection;
 
       const telemetry = lap.telemetry;
       if (telemetry.length === 0) {
@@ -922,21 +1023,25 @@ export function buildSetupEngineerTools() {
         .default([]),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForExperiment(sessionId);
+      const context = readSetupEngineerContext(execCtx?.requestContext);
+      const scopeResult = await loadSetupEngineerLapScope(context);
+      if (!scopeResult.ok) return { ...scopeResult, laps: [] };
+      const { scope } = scopeResult;
+      const sessionLaps = [...scope.lapsById.values()];
       const selection = selectEvaluationLaps(sessionLaps, Number.POSITIVE_INFINITY);
 
-      const issuesForLap = async (meta: (typeof sessionLaps)[number]) => {
-        const lap = await getLapById(meta.id);
-        if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
-        const corners = detectCorners(lap.telemetry);
-        const symptoms = telemetryToSymptoms(lap.telemetry, corners);
+      const issuesForLap = async (meta: LapMeta, loadedLap?: FullLap) => {
+        const lapResult = loadedLap ? { ok: true as const, meta, lap: loadedLap } : await loadSetupEngineerLap(scope, meta.id);
+        if (!lapResult.ok || lapResult.lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
+        const corners = detectCorners(lapResult.lap.telemetry);
+        const symptoms = telemetryToSymptoms(lapResult.lap.telemetry, corners);
         return symptomsToIssues(symptoms, meta.lapNumber);
       };
 
       if (inputData.lapId != null) {
-        const meta = sessionLaps.find((l) => l.id === inputData.lapId);
-        if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.`, laps: [] };
+        const lapResult = await loadSetupEngineerLap(scope, inputData.lapId);
+        if (!lapResult.ok) return { ...lapResult, laps: [] };
+        const { meta } = lapResult;
         const selectionReason = selection.reasonById.get(meta.id);
         if (selectionReason === "invalid") {
           return {
@@ -961,7 +1066,7 @@ export function buildSetupEngineerTools() {
             laps: [],
           };
         }
-        const issues = await issuesForLap(meta);
+        const issues = await issuesForLap(meta, lapResult.lap);
         if (issues == null) return { ok: false, error: `Lap ${inputData.lapId} has no analysable telemetry.`, laps: [] };
         return { ok: true, laps: [{ lapId: meta.id, lapNumber: meta.lapNumber, issues }] };
       }
@@ -969,7 +1074,7 @@ export function buildSetupEngineerTools() {
       const analysable = selection.chosen;
       const truncated = analysable.length > MAX_ISSUE_LAPS;
       const scoped = analysable.slice(0, MAX_ISSUE_LAPS);
-      const laps: { lapId: number; lapNumber: number; issues: ReturnType<typeof symptomsToIssues> }[] = [];
+      const laps: { lapId: number; lapNumber: number; issues: TuneIssue[] }[] = [];
       for (const meta of scoped) {
         const issues = await issuesForLap(meta);
         if (issues != null) laps.push({ lapId: meta.id, lapNumber: meta.lapNumber, issues });
@@ -991,6 +1096,8 @@ export function buildSetupEngineerTools() {
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
+      eligibilityStatus: EligibilityStatusEnum.optional(),
+      reasonCodes: z.array(z.string()).optional(),
       lapA: z.object({ lapId: z.number(), lapNumber: z.number(), lapTime: z.number() }).optional(),
       lapB: z.object({ lapId: z.number(), lapNumber: z.number(), lapTime: z.number() }).optional(),
       timeDeltaSec: z.number().optional().describe("Final cumulative delta: positive = lap A slower overall."),
@@ -1006,18 +1113,23 @@ export function buildSetupEngineerTools() {
         .optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const context = readSetupEngineerContext(execCtx?.requestContext);
       if (inputData.lapId1 === inputData.lapId2) return { ok: false, error: "Cannot compare a lap with itself." };
 
-      const sessionLaps = await getLapsForExperiment(sessionId);
-      const metaA = sessionLaps.find((l) => l.id === inputData.lapId1);
-      const metaB = sessionLaps.find((l) => l.id === inputData.lapId2);
-      if (!metaA) return { ok: false, error: `Lap ${inputData.lapId1} is not in this session.` };
-      if (!metaB) return { ok: false, error: `Lap ${inputData.lapId2} is not in this session.` };
-
-      const lapA = await getLapById(inputData.lapId1);
-      const lapB = await getLapById(inputData.lapId2);
-      if (!lapA || !lapB) return { ok: false, error: "One or both laps could not be loaded." };
+      const scopeResult = await loadSetupEngineerLapScope(context);
+      if (!scopeResult.ok) return scopeResult;
+      const [resultA, resultB] = await Promise.all([loadSetupEngineerLap(scopeResult.scope, inputData.lapId1), loadSetupEngineerLap(scopeResult.scope, inputData.lapId2)]);
+      if (!resultA.ok) return resultA;
+      if (!resultB.ok) return resultB;
+      const { meta: metaA, lap: lapA } = resultA;
+      const { meta: metaB, lap: lapB } = resultB;
+      if (lapA.gameId !== lapB.gameId || lapA.trackOrdinal !== lapB.trackOrdinal) {
+        return { ok: false, error: "Laps must belong to the same game and track." };
+      }
+      const policyRejectionA = lapPolicyRejection(lapA, ["lap-comparison"]);
+      if (policyRejectionA) return policyRejectionA;
+      const policyRejectionB = lapPolicyRejection(lapB, ["lap-comparison"]);
+      if (policyRejectionB) return policyRejectionB;
       if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) {
         return { ok: false, error: "One or both laps have no telemetry data." };
       }

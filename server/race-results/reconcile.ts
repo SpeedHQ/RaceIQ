@@ -14,7 +14,7 @@ import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } fro
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v2";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v3";
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
   if (packets.length === 0) return null;
@@ -152,26 +152,28 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
         JSON.stringify(event.source) === JSON.stringify(expected.source)
       );
     });
-  await upsertSessionResult(
-    {
-      sessionId,
-      processorVersion: RACE_RESULT_PROCESSOR_ID,
-      sessionType: derived.sessionType,
-      classification: derived.classification,
-      outcomeStatus: derived.outcomeStatus,
-      finishingPosition: derived.finishingPosition,
-      qualifyingPosition: derived.qualifyingPosition,
-      isPodium: derived.isPodium,
-      isFastestLap: derived.isFastestLap,
-      pitCount: derived.pitCount,
-      tyreStrategy: derived.tyreStrategy,
-      fuelStrategy: derived.fuelStrategy,
-      provenance: derived.provenance,
-      evidence: derived.evidence,
-      reasons: derived.reasons,
-    },
-    derived.events.map(toStoredPitEvent),
-  );
+  if (!unchanged) {
+    await upsertSessionResult(
+      {
+        sessionId,
+        processorVersion: RACE_RESULT_PROCESSOR_ID,
+        sessionType: derived.sessionType,
+        classification: derived.classification,
+        outcomeStatus: derived.outcomeStatus,
+        finishingPosition: derived.finishingPosition,
+        qualifyingPosition: derived.qualifyingPosition,
+        isPodium: derived.isPodium,
+        isFastestLap: derived.isFastestLap,
+        pitCount: derived.pitCount,
+        tyreStrategy: derived.tyreStrategy,
+        fuelStrategy: derived.fuelStrategy,
+        provenance: derived.provenance,
+        evidence: derived.evidence,
+        reasons: derived.reasons,
+      },
+      derived.events.map(toStoredPitEvent),
+    );
+  }
   await linkSessionQualityEvents(sessionId);
 
   const status = unchanged ? "unchanged" : derived.outcomeStatus === "confirmed" ? "enriched" : "ambiguous";

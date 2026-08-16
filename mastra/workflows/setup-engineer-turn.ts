@@ -31,10 +31,11 @@ import { describeKnobs } from "../../server/setups/rules/engine";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import { formatTrackConditions } from "../../server/ai/track-conditions";
 import { loadActiveExperimentContext } from "../../server/experiments/setup-lineage";
-import { loadCleanLapAggregate, baselineFallbackNote } from "../../server/experiments/lap-evidence/aggregate";
+import { loadCleanLapAggregate, baselineFallbackNote, type CleanLapAggregate, type LapPolicyProvenance } from "../../server/experiments/lap-evidence/aggregate";
 import { formatLapObservations } from "../../server/ai/lap-observations";
 import { getOrComputeLapMetricsBatch } from "../../server/lap-analysis/metrics-store";
-import { eligibilityDecisionText, qualityReasonText } from "../../shared/racing/quality/display";
+import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import { formatQualityPromptReason } from "../../server/ai/quality-context";
 import { listExperimentVersions } from "../../server/db/experiment-version-queries";
 
 const InputSchema = z.object({
@@ -43,6 +44,34 @@ const InputSchema = z.object({
 const OutputSchema = z.object({
   context: z.string().describe("Assembled, human-readable prerequisite context for the engineer prompt."),
 });
+
+function renderLocalPolicy(name: "normal-pace" | "corner-trace", policy: LapPolicyProvenance): string[] {
+  return [`  ${name}: ${policy.status}`, ...policy.reasons.map((reason) => `    - ${formatQualityPromptReason(reason)}`)];
+}
+
+export function renderSetupEngineerQualityProvenance(aggregate: Pick<CleanLapAggregate, "setupDecision" | "lapBreakdown">): { confidenceLines: string[]; lapBreakdown: string } {
+  const confidenceLines = [
+    `setup-analysis policy: ${aggregate.setupDecision.status}; ${eligibilityDecisionText(aggregate.setupDecision)}`,
+    ...aggregate.setupDecision.reasons.map((reason) => `- ${formatQualityPromptReason(reason)}`),
+  ];
+  const lapBreakdown =
+    aggregate.lapBreakdown.length > 0
+      ? aggregate.lapBreakdown
+          .map((row) => {
+            const selectionCodes = row.selectionReasonCodes.length > 0 ? ` [${row.selectionReasonCodes.join(", ")}]` : "";
+            const aggregateCodes = row.reasonCodes.length > 0 ? ` [aggregate: ${row.reasonCodes.join(", ")}]` : "";
+            return [
+              `lap ${row.lapId}: ${row.lapTimeSec.toFixed(3)}s — ${row.reason}${aggregateCodes}${row.imported ? " (imported)" : ""}`,
+              `  quality-generation: ${row.qualityGeneration ?? "unknown"}`,
+              `  selection: ${row.selectionReason}${selectionCodes}`,
+              ...renderLocalPolicy("normal-pace", row.normalPace),
+              ...renderLocalPolicy("corner-trace", row.cornerTrace),
+            ].join("\n");
+          })
+          .join("\n")
+      : "No laps recorded for this session yet.";
+  return { confidenceLines, lapBreakdown };
+}
 
 const gatherPrereqs = createStep({
   id: "gather-prereqs",
@@ -84,10 +113,8 @@ const gatherPrereqs = createStep({
       `fallback to single lap: ${agg.fallbackSingleLap}`,
       `source: ${agg.sourceScope}`,
     ];
-    confidenceLines.push(`setup-analysis policy: ${agg.setupDecision.status}; ${eligibilityDecisionText(agg.setupDecision)}`);
-    for (const reason of agg.setupDecision.reasons) {
-      confidenceLines.push(`- ${reason.code}: ${qualityReasonText(reason.code, reason.timeRange, reason.distanceRange)}`);
-    }
+    const qualityProvenance = renderSetupEngineerQualityProvenance(agg);
+    confidenceLines.push(...qualityProvenance.confidenceLines);
     if (agg.setupDecision.status === "unknown" || agg.setupDecision.status === "ineligible") {
       confidenceLines.push("SETUP EVIDENCE BLOCKED: do not draw handling or setup conclusions from these laps.");
     }
@@ -103,17 +130,7 @@ const gatherPrereqs = createStep({
     }
     sections.push(`--- CONFIDENCE ---\n${confidenceLines.join("\n")}`);
 
-    sections.push(
-      "--- LAP BREAKDOWN ---\n" +
-        (agg.lapBreakdown.length
-          ? agg.lapBreakdown
-              .map((r) => {
-                const policyReasons = r.reasonCodes.length > 0 ? ` [policy: ${r.reasonCodes.join(", ")}]` : "";
-                return `lap ${r.lapId}: ${r.lapTimeSec.toFixed(3)}s — ${r.reason}${policyReasons}${r.imported ? " (imported)" : ""}`;
-              })
-              .join("\n")
-          : "No laps recorded for this session yet."),
-    );
+    sections.push(`--- LAP BREAKDOWN ---\n${qualityProvenance.lapBreakdown}`);
 
     sections.push(
       "--- CONSISTENCY BY CORNER ---\n" +

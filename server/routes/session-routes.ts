@@ -141,7 +141,7 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
     const canonicalArchive = await getSessionCanonicalAvailability(id);
     if (!canonicalArchive) return c.json({ error: "Session not found" }, 404);
 
-    const status = await getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+    const status = await getQualityRebuildStatus(id);
     return c.json(
       await assessEvidenceRetention(id, {
         rawCapture: status.rawAvailable,
@@ -153,7 +153,7 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
     const { id } = c.req.valid("param");
     if (!(await dependencies.sessionExists(id))) return c.json({ error: "Session not found" }, 404);
 
-    const status = await dependencies.getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+    const status = await dependencies.getQualityRebuildStatus(id);
     const laps = await dependencies.getLapsForSession(id);
     return c.json({
       ...status,
@@ -170,14 +170,14 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
     const { id } = c.req.valid("param");
     if (!(await dependencies.sessionExists(id))) return c.json({ error: "Session not found" }, 404);
 
-    const status = await dependencies.getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+    const status = await dependencies.getQualityRebuildStatus(id);
     if (status.action === "unavailable") {
       return c.json({ error: "Source recording unavailable", status }, 409);
     }
     if (status.action === "reprocess") {
       const result = await dependencies.reprocessSession(id);
       dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
-      return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id, ALL_DETECTOR_IDS), result });
+      return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
     }
     const rebuilt = await dependencies.rebuildSessionEligibility(id);
     dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
@@ -212,7 +212,7 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
     const skipped: { sessionId: number; reason: "raw-file-missing" }[] = [];
     for (const id of staleIds) {
       try {
-        const status = await dependencies.getQualityRebuildStatus(id, ALL_DETECTOR_IDS);
+        const status = await dependencies.getQualityRebuildStatus(id);
         if (status.action === "reprocess") {
           const result = await dependencies.reprocessSession(id);
           dependencies.broadcastNotification({ type: "lap-reprocessed", ...result });

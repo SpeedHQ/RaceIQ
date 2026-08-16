@@ -140,6 +140,46 @@ describe("PitTracker", () => {
     expect(result.tireWearPerLap).toBe(0);
   });
 
+  test("applies fuel and tire policies independently from normal pace", () => {
+    const measure = (eligibility: EligibilityDecisionSet) => {
+      const tracker = new PitTracker();
+      tracker.feed(
+        pkt({ LapNumber: 1, Fuel: 1, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0 }),
+        5_000,
+      );
+      completeLap(tracker, 1, {
+        fuel: 0.9,
+        wearFL: 0.1,
+        wearFR: 0.1,
+        wearRL: 0.1,
+        wearRR: 0.1,
+        eligibility,
+      });
+      return tracker.feed(
+        pkt({ LapNumber: 2, Fuel: 0.9, TireWearFL: 0.1, TireWearFR: 0.1, TireWearRL: 0.1, TireWearRR: 0.1, CurrentLap: 5 }),
+        5_000,
+      );
+    };
+
+    const normalPaceRejected = measure(pitEligibility({
+      "normal-pace": policyDecision("normal-pace", "ineligible"),
+    }));
+    expect(normalPaceRejected.fuelPerLap).toBeCloseTo(0.1, 2);
+    expect(normalPaceRejected.tireWearPerLap).toBeCloseTo(0.1, 2);
+
+    const fuelRejected = measure(pitEligibility({
+      "fuel-burn": policyDecision("fuel-burn", "ineligible"),
+    }));
+    expect(fuelRejected.fuelPerLap).toBe(0);
+    expect(fuelRejected.tireWearPerLap).toBeCloseTo(0.1, 2);
+
+    const tireRejected = measure(pitEligibility({
+      "tire-analysis": policyDecision("tire-analysis", "unknown"),
+    }));
+    expect(tireRejected.fuelPerLap).toBeCloseTo(0.1, 2);
+    expect(tireRejected.tireWearPerLap).toBe(0);
+  });
+
   test("tire: per-tire rolling average of last 3 laps, worst governs", () => {
     const tracker = new PitTracker();
     tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0 }), 5000);
@@ -235,6 +275,33 @@ describe("PitTracker", () => {
     // Should only have the first lap's 0.10 usage, pit lap excluded
     expect(r.fuelPerLap).toBeCloseTo(0.1, 2);
   });
+
+  test("refuel and zero-fuel laps retain tire evidence without changing fuel history", () => {
+    const tracker = new PitTracker();
+    tracker.feed(pkt({ LapNumber: 1, Fuel: 0.5, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0 }), 5000);
+    completeLap(tracker, 1, { fuel: 0.4, wearFL: 0.1, wearFR: 0.1, wearRL: 0.1, wearRR: 0.1 });
+    expect(tracker.getDebugState()).toMatchObject({ fuelHistoryLength: 1, tireWearHistoryLength: 1 });
+
+    completeLap(tracker, 2, { fuel: 0.9, wearFL: 0.2, wearFR: 0.2, wearRL: 0.2, wearRR: 0.2 });
+    expect(tracker.getDebugState()).toMatchObject({ fuelHistoryLength: 1, tireWearHistoryLength: 2 });
+
+    completeLap(tracker, 3, { fuel: 0.9, wearFL: 0.3, wearFR: 0.3, wearRL: 0.3, wearRR: 0.3 });
+    expect(tracker.getDebugState()).toMatchObject({ fuelHistoryLength: 1, tireWearHistoryLength: 3 });
+  });
+
+  test("long and short lap-time outliers reject both fuel and tire evidence", () => {
+    const tracker = new PitTracker();
+    tracker.feed(pkt({ LapNumber: 1, Fuel: 1, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0 }), 5000);
+    completeLap(tracker, 1, { fuel: 0.9, wearFL: 0.05, wearFR: 0.05, wearRL: 0.05, wearRR: 0.05, lapTime: 90 });
+    completeLap(tracker, 2, { fuel: 0.8, wearFL: 0.1, wearFR: 0.1, wearRL: 0.1, wearRR: 0.1, lapTime: 90 });
+    expect(tracker.getDebugState()).toMatchObject({ fuelHistoryLength: 2, tireWearHistoryLength: 2 });
+
+    completeLap(tracker, 3, { fuel: 0.7, wearFL: 0.15, wearFR: 0.15, wearRL: 0.15, wearRR: 0.15, lapTime: 200 });
+    expect(tracker.getDebugState()).toMatchObject({ fuelHistoryLength: 2, tireWearHistoryLength: 2 });
+
+    completeLap(tracker, 4, { fuel: 0.6, wearFL: 0.2, wearFR: 0.2, wearRL: 0.2, wearRR: 0.2, lapTime: 20 });
+    expect(tracker.getDebugState()).toMatchObject({ fuelHistoryLength: 2, tireWearHistoryLength: 2 });
+  });
 });
 
 describe("PitTracker history seeding policy", () => {
@@ -294,7 +361,7 @@ describe("PitTracker history seeding policy", () => {
       historicalLap(1, "ineligible", "eligible"),
     ];
     const reads: number[] = [];
-    const getLaps = spyOn(LapReadQueries, "getLaps").mockResolvedValue(candidates);
+    const getPitHistory = spyOn(LapReadQueries, "getLapMetaForPitHistory").mockResolvedValue(candidates);
     const getLapById = spyOn(LapReadQueries, "getLapById").mockImplementation(async (id) => {
       reads.push(id);
       const metadata = candidates.find((lap) => lap.id === id);
@@ -319,10 +386,11 @@ describe("PitTracker history seeding policy", () => {
     try {
       const tracker = new PitTracker();
       await tracker.seedFromHistory(902, 901, 900, "acc", accServerAdapter.runtime.pit);
+      expect(getPitHistory).toHaveBeenCalledWith(902, 901, 900, "acc", 200);
       expect(tracker.getDebugState()).toMatchObject({ fuelHistoryLength: 2, tireWearHistoryLength: 1 });
       expect(reads).toEqual([6, 5, 1]);
     } finally {
-      getLaps.mockRestore();
+      getPitHistory.mockRestore();
       getLapById.mockRestore();
     }
   });

@@ -164,10 +164,12 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     });
   });
 
-  test("waits for lap persistence before finalizing rotated session quality", async () => {
+  test("keeps delayed old-session lap ownership out of current live state", async () => {
     const db = new CapturingDbAdapter();
+    const ws = new CapturingWsAdapter();
     const insertLap = db.insertLap.bind(db);
     const updateSessionQuality = db.updateSessionQuality.bind(db);
+    const reconciled: Array<{ sessionId: number; gameId: string }> = [];
     let releaseLapWrite!: () => void;
     let markLapWriteStarted!: () => void;
     const lapWriteGate = new Promise<void>((resolve) => {
@@ -183,52 +185,54 @@ describe("LiveTelemetryPipeline live issue gating", () => {
       return insertLap(input);
     };
     db.updateSessionQuality = async (sessionId, quality) => {
-      qualityUpdated = true;
+      if (sessionId === 1) qualityUpdated = true;
       return updateSessionQuality(sessionId, quality);
     };
-    const recorder = new NullSessionRecorderAdapter();
-    const stopRecorder = recorder.stop.bind(recorder);
-    let recorderStopCount = 0;
-    let markRotatedRecorderStopped!: () => void;
-    const rotatedRecorderStopped = new Promise<void>((resolve) => {
-      markRotatedRecorderStopped = resolve;
-    });
-    recorder.stop = () => {
-      recorderStopCount++;
-      if (recorderStopCount === 2) markRotatedRecorderStopped();
-      return stopRecorder();
-    };
-    const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), {
+    const pipeline = new LiveTelemetryPipeline(db, ws, {
       bypassPacketRateFilter: true,
       skipHistorySeeding: true,
       skipDevState: true,
-      recorder,
+      recorder: new NullSessionRecorderAdapter(),
+      onSessionFinalized: async (sessionId, gameId) => {
+        reconciled.push({ sessionId, gameId });
+      },
     });
 
-    await pipeline.processPacket(pkt());
+    await pipeline.processPacket(pkt({ TimestampMS: 1_000, LapNumber: 1, CurrentLap: 30, DistanceTraveled: 2_000 }));
+    await pipeline.processPacket(pkt({ TimestampMS: 2_000, LapNumber: 2, CurrentLap: 0.1, LastLap: 90, DistanceTraveled: 5_000 }));
+    await lapWriteStarted;
+
     let rotationSettled = false;
     const rotation = pipeline
       .processPacket(
         pkt({
-          TimestampMS: 2_000,
-          CurrentLap: 31,
-          DistanceTraveled: 2_100,
+          TimestampMS: 3_000,
+          LapNumber: 1,
+          CurrentLap: 0.1,
+          LastLap: 0,
+          DistanceTraveled: 100,
           CarOrdinal: 101,
         }),
       )
       .then(() => {
         rotationSettled = true;
       });
-    await Promise.all([lapWriteStarted, rotatedRecorderStopped]);
-    await Promise.resolve();
-
-    expect(rotationSettled).toBe(false);
-    expect(qualityUpdated).toBe(false);
-    releaseLapWrite();
     await rotation;
 
+    expect(rotationSettled).toBe(true);
+    expect(qualityUpdated).toBe(false);
+    expect(pipeline.lapDetector?.session).toMatchObject({ sessionId: 2, carOrdinal: 101 });
+
+    releaseLapWrite();
+    await pipeline.flushStaleSession();
+
     expect(db.laps).toHaveLength(1);
-    expect(db.sessionQuality.has(1)).toBe(true);
+    expect(db.laps[0].sessionId).toBe(1);
+    expect(reconciled).toContainEqual({ sessionId: 1, gameId: "fm-2023" });
     expect(qualityUpdated).toBe(true);
+    expect(pipeline.sessionLaps).toEqual([]);
+    expect(ws.broadcastedNotifications.filter(({ type }) => type === "lap-saved")).toEqual([]);
+
+    await pipeline.finalizeCurrentSession();
   });
 });

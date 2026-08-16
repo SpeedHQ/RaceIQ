@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  ELIGIBILITY_POLICY_VERSION,
-  QUALITY_CONFIG_VERSION,
-  QUALITY_SCHEMA_VERSION,
-  type EligibilityDecisionSet,
-  type LapQualitySummary,
-} from "../../../shared/racing/quality/contracts";
-import { buildQualityPromptContext } from "../../../server/ai/quality-context";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../../shared/racing/quality/contracts";
+import { buildQualityPromptContext, formatQualityPromptReason } from "../../../server/ai/quality-context";
+import { qualityReasonText } from "../../../shared/racing/quality/display";
 
 function decisions(): Partial<EligibilityDecisionSet> {
   return {
@@ -45,17 +40,39 @@ function quality(generation: string): LapQualitySummary {
 describe("AI quality prompt context", () => {
   test("includes persisted decision, reason code, affected range, and generation", () => {
     const generation = "sha256:quality-generation";
-    const context = buildQualityPromptContext(
-      { quality: quality(generation), eligibility: decisions(), qualityGeneration: generation },
-      ["corner-trace"],
-    );
+    const context = buildQualityPromptContext({ quality: quality(generation), eligibility: decisions(), qualityGeneration: generation }, ["corner-trace"]);
 
     expect(context).toContain("corner-trace: eligible_with_warning; confidence=medium");
-    expect(context).toContain("telemetry_gap_minor: Telemetry contains a short gap. (40-45% of lap)");
+    expect(context).toContain(
+      'code=telemetry_gap_minor; evidenceIds=["gap:turn-5"]; semanticIds=["motion.speed","inputs.brake"]; timeRange={"startMs":12000,"endMs":12200}; distanceRange={"startFraction":0.4,"endFraction":0.45}; message=Telemetry contains a short gap. (12.0-12.2s, 40-45% of lap)',
+    );
     expect(context).toContain("quality-generation: sha256:quality-generation");
     expect(context).toContain("avoid claims inside affected ranges");
   });
 
+  test("serializes complete reason provenance without changing ids, ranges, or precision", () => {
+    expect(
+      formatQualityPromptReason({
+        code: "traffic_context",
+        evidenceIds: ["event:z", "event:a"],
+        semanticIds: ["motion.speed", "inputs.brake"],
+        timeRange: { startMs: 12000.125, endMs: 12200.875 },
+        distanceRange: { startFraction: 0.40001, endFraction: 0.45009 },
+      }),
+    ).toBe(
+      'code=traffic_context; evidenceIds=["event:z","event:a"]; semanticIds=["motion.speed","inputs.brake"]; timeRange={"startMs":12000.125,"endMs":12200.875}; distanceRange={"startFraction":0.40001,"endFraction":0.45009}; message=Traffic evidence affects this range. (12.0-12.2s, 40-45% of lap)',
+    );
+    expect(formatQualityPromptReason({ code: "traffic_context", timeRange: { startMs: 1000, endMs: 2500 } })).toBe(
+      'code=traffic_context; evidenceIds=[]; semanticIds=[]; timeRange={"startMs":1000,"endMs":2500}; distanceRange=null; message=Traffic evidence affects this range. (1.0-2.5s)',
+    );
+    expect(formatQualityPromptReason({ code: "traffic_context", distanceRange: { startFraction: 0.1, endFraction: 0.2 } })).toBe(
+      'code=traffic_context; evidenceIds=[]; semanticIds=[]; timeRange=null; distanceRange={"startFraction":0.1,"endFraction":0.2}; message=Traffic evidence affects this range. (10-20% of lap)',
+    );
+    expect(formatQualityPromptReason({ code: "traffic_context" })).toBe(
+      "code=traffic_context; evidenceIds=[]; semanticIds=[]; timeRange=null; distanceRange=null; message=Traffic evidence affects this range.",
+    );
+    expect(qualityReasonText("traffic_context", { startMs: 1000, endMs: 2500 }, { startFraction: 0.1, endFraction: 0.2 })).toBe("Traffic evidence affects this range. (1.0-2.5s, 10-20% of lap)");
+  });
   test("marks missing policy evidence unknown instead of silently allowing it", () => {
     const context = buildQualityPromptContext({}, ["transient-event"]);
 

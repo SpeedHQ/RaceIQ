@@ -1,10 +1,9 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LivePitData } from "../../shared/racing/live/types";
-import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
 import { isEligibilityUsable, isTimedLapEligibilityUsable } from "../../shared/racing/quality/policies";
-import { getLaps, getLapById } from "../db/lap-read-queries";
+import { getLapMetaForPitHistory, getLapById } from "../db/lap-read-queries";
 import type { ServerGameRuntimePolicy } from "../games/types";
 import { appendWithCap, interpolateGrid, lapsUntilThreshold, linearInterpolate, rollingAverage } from "./tracker-math";
 
@@ -82,16 +81,7 @@ export class PitTracker {
     const seedFuel = policy.seedFuelFromHistory;
     const seedTires = policy.seedTireWearFromHistory;
     try {
-      const allLaps = await getLaps(gameId, 200);
-      const matching = allLaps
-        .filter(
-          (lap: LapMeta) =>
-            lap.trackOrdinal === trackOrdinal &&
-            lap.carOrdinal === carOrdinal &&
-            lap.pi === pi &&
-            lap.lapTime > 10,
-        )
-        .sort((a: LapMeta, b: LapMeta) => b.id - a.id); // newest first
+      const matching = await getLapMetaForPitHistory(trackOrdinal, carOrdinal, pi, gameId, 200);
 
       const fuelRates: number[] = [];
       const wearRates: { fl: number; fr: number; rl: number; rr: number }[] = [];
@@ -143,18 +133,16 @@ export class PitTracker {
     this.completedLapEligibility = eligibility;
   }
 
-  /** Check if a lap's data should be excluded (formation lap, pit lap, etc.) */
-  private isOutlier(fuelUsed: number, lapTime: number): boolean {
-    // Fuel increased (refueled during pit stop)
-    if (fuelUsed <= 0) return true;
-    // Abnormally long lap (>2x rolling average = formation/safety car/pit lap)
+  private isLapTimeOutlier(lapTime: number): boolean {
     if (this.lapTimeHistory.length >= 2) {
       const avg = rollingAverage(this.lapTimeHistory, 5);
-      // Abnormally long = formation/safety car/pit lap; abnormally short =
-      // cut-track or rewind artifact.
       if (lapTime > avg * 2 || lapTime < avg * 0.3) return true;
     }
     return false;
+  }
+
+  private isFuelOutlier(fuelUsed: number, lapTime: number): boolean {
+    return fuelUsed <= 0 || this.isLapTimeOutlier(lapTime);
   }
 
   feed(packet: TelemetryPacket, trackLength: number, lapDistStart: number = 0): LivePitData {
@@ -168,16 +156,17 @@ export class PitTracker {
 
       // Fuel
       const fuelUsed = this.fuelAtLapStart >= 0 ? this.fuelAtLapStart - packet.Fuel : 0;
-      const outlier = this.isOutlier(fuelUsed, lapTime);
+      const lapTimeOutlier = this.isLapTimeOutlier(lapTime);
+      const fuelOutlier = this.isFuelOutlier(fuelUsed, lapTime);
 
-      if (fuelUsable && !outlier && fuelUsed > 0) {
+      if (fuelUsable && fuelUsed > 0 && !fuelOutlier) {
         appendWithCap(this.fuelHistory, fuelUsed, 50);
         this.sessionLapCount++;
       }
       this.fuelAtLapStart = packet.Fuel;
 
       // Per-tire wear
-      if (tireUsable && !outlier && this.wearAtLapStart.fl >= 0) {
+      if (tireUsable && !lapTimeOutlier && this.wearAtLapStart.fl >= 0) {
         const worn = {
           fl: packet.TireWearFL - this.wearAtLapStart.fl,
           fr: packet.TireWearFR - this.wearAtLapStart.fr,
