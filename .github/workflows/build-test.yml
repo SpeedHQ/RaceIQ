@@ -14,6 +14,8 @@ concurrency:
 jobs:
   build-test:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    env:
+      UPLOAD_E2E_ARTIFACT: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
     runs-on: 
       - whitesmith-windows-x64
@@ -65,36 +67,18 @@ jobs:
       - name: Build RaceIQ
         run: bun run build
 
-      - name: Run tests
-        run: bun run test
-
-  e2e-windows-build:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
-    runs-on: 
-      - whitesmith-windows-x64
-      - 10VCPU
-      - 10G
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build RaceIQ for Windows E2E
-        run: bun run build
-
-      - name: Upload Windows dist artifact
+      - name: Upload Windows E2E dist artifact
+        if: env.UPLOAD_E2E_ARTIFACT == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: raceiq-dist-windows
           path: dist/
           retention-days: 1
 
+      - name: Run tests
+        run: bun run test
+
   playwright-dev:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
-    needs: [build-test, e2e-windows-build]
+    needs: build-test
     uses: ./.github/workflows/playwright-dev.yml
