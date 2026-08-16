@@ -67,8 +67,10 @@ jobs:
         shell: powershell
         run: |
           $projectArgs = $env:PLAYWRIGHT_PROJECTS -split "\s+"
-          $listOutput = bunx playwright test --list $projectArgs 2>&1 | Out-String
+          $listPath = Join-Path $env:RUNNER_TEMP "playwright-list.txt"
+          & bunx playwright test --list $projectArgs *> $listPath
           $status = $LASTEXITCODE
+          $listOutput = Get-Content $listPath -Raw
           Write-Output $listOutput
           if ($status -ne 0) { exit $status }
           if ($listOutput -match "Total: 0 tests") {
