@@ -154,13 +154,30 @@ jobs:
   playwright-test:
     if: github.event_name == 'workflow_dispatch'
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fresh
+            server-set: fresh
+            projects: "--project=fresh-install"
+            artifact: playwright-compiled-fresh
+          - name: tunes
+            server-set: tunes
+            projects: "--project=tunes"
+            artifact: playwright-compiled-tunes
+          - name: seeded
+            server-set: seeded
+            projects: "--project=seeded-e2e --project=mobile-device --project=tablet-device"
+            artifact: playwright-compiled-seeded
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
+      server-set: ${{ matrix.server-set }}
       runs-on: blacksmith-4vcpu-windows-2025
-      projects: "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
+      projects: ${{ matrix.projects }}
       dist-artifact: raceiq-dist-windows
-      artifact-name: playwright-compiled-results
+      artifact-name: ${{ matrix.artifact }}
   draft-release:
     if: github.event_name == 'workflow_dispatch'
     needs: [compute-version, build, playwright-test]

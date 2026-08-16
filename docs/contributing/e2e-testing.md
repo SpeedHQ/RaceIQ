@@ -130,7 +130,31 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-`test:e2e` selects `fresh-install`, `tunes`, `seeded-e2e`, `mobile-device`, and `tablet-device`. Reusable `.github/workflows/playwright.yml` accepts the same project flags, server mode, runner, optional `dist` artifact, and result artifact name. `playwright-dev.yml` invokes it on Linux in dev mode; release workflow invokes it on Windows in compiled mode. Both upload `playwright/test-results/` and `playwright/screenshots/` with `if: always()`, avoiding a duplicate per-project job matrix.
+Playwright projects are CI boundaries, not individual test files:
+
+| CI project job | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
+| --- | --- | --- | --- |
+| Fresh | `fresh` | `fresh-install` | `fresh-install/**/*.spec.ts` and `responsive/workspaces.spec.ts` |
+| Tunes | `tunes` | `tunes` | `tunes/**/*.spec.ts` |
+| Seeded | `seeded` | `seeded-e2e`, `mobile-device`, `tablet-device` | `seeded/**/*.spec.ts` and `responsive/device.spec.ts` |
+
+`.github/workflows/playwright-dev.yml` and the release workflow run these
+three reusable jobs through a matrix. Each job gets its own runner, starts
+only its server set, and uploads a unique result artifact. This avoids Bun
+compiling all server graphs and test files in one Windows process while
+keeping jobs independently attributable. `bunx playwright test` remains the
+CI command.
+
+New `.spec.ts` files matching an existing `testMatch` pattern are included
+automatically; no workflow edit is needed. Adding a new Playwright project
+or changing a `testMatch` boundary requires updating both workflow matrices
+and this table. Each reusable job runs `bunx playwright test --list` first
+and fails if its project selection discovers zero tests.
+
+The reusable `.github/workflows/playwright.yml` accepts project flags, server
+mode, server set, runner, optional `dist` artifact, and result artifact name.
+Both PR and release lanes upload `playwright/test-results/` and
+`playwright/screenshots/` with `if: always()`.
 
 Diagnose only seeded behavior with:
 
@@ -138,11 +162,23 @@ Diagnose only seeded behavior with:
 cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded bunx playwright test --project=seeded-e2e -g "Forza Motorsport 2023"
 ```
 
-Compiled-server lane uses `dist/raceiq.exe` on Windows (`dist/raceiq` elsewhere). Build first, leave `E2E_SERVER_MODE` unset or set it to `compiled`, and select `PW_SERVER_SET=fresh` or `tunes` when isolating one server. `RACEIQ_E2E=1` is set only for seeded harness server so fixture import/replay routes stay unavailable in normal production.
+Compiled-server lane uses `dist/raceiq.exe` on Windows (`dist/raceiq` elsewhere).
+Build first, leave `E2E_SERVER_MODE` unset or set it to `compiled`, and select
+`PW_SERVER_SET=fresh`, `tunes`, or `seeded` when isolating one server.
+`RACEIQ_E2E=1` is set only for seeded harness server so fixture import/replay
+routes stay unavailable in normal production.
 
-Seeded runtime data defaults under ignored `playwright/test-results/test-data-seeded`; launchers wipe it before each run. Never point seeded E2E at tracked fixtures or user data. Tests use committed recordings plus production parser/import paths and must restore any note/import/delete mutation in `finally`.
+Seeded runtime data defaults under ignored `playwright/test-results/test-data-seeded`;
+launchers wipe it before each run. Never point seeded E2E at tracked fixtures or
+user data. Tests use committed recordings plus production parser/import paths
+and must restore any note/import/delete mutation in `finally`.
 
-CI reality: non-draft pull requests call dev-server gate through `playwright-dev.yml`; release/manual workflow calls compiled Windows gate with `raceiq-dist-windows`. Local workflow inspection confirms project selection and artifact paths, but only an observed GitHub run confirms runner behavior. Mobile/tablet projects use real Playwright touch/user-agent emulation in Chromium; they are not physical-device tests.
+CI reality: non-draft pull requests call the three isolated compiled jobs
+through `playwright-dev.yml`; release/manual workflow calls the same matrix
+with `raceiq-dist-windows`. Local workflow inspection confirms project
+selection and artifact paths, but only an observed GitHub run confirms runner
+behavior. Mobile/tablet projects use real Playwright touch/user-agent emulation
+in Chromium; they are not physical-device tests.
 
 ### Recorded same-lap telemetry contract
 
@@ -216,7 +252,7 @@ Replay through existing parser/lap assertions and retain game id in filename. Na
 - [x] Cover Settings, navigation, Chats, Sessions, Analyse, Compare, Tracks, Cars, Setups, Experiments, Raw, Dash, and Dev interactions listed in the matrix.
 - [x] Run responsive screenshot registry: 97/97 phone, tablet-boundary, desktop, and interaction captures passed on 2026-08-04.
 - [x] Run Chromium device emulation: Pixel 7 and iPad (gen 7) owned cases passed; cross-project copies skipped by ownership as designed.
-- [x] Validate reusable workflow project selection and unconditional result/screenshot artifact upload without redundant project matrix jobs.
+- [x] Validate reusable workflow project selection, per-job discovery guard, and unconditional result/screenshot artifact upload.
 - [x] Keep telemetry catalog generated artifacts and hard-coded inventory counts current.
 
 ### Cannot confirm locally — physical fixture capture
