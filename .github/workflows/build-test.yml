@@ -18,7 +18,7 @@ jobs:
     runs-on: 
       - whitesmith-windows-x64
       - 10VCPU
-      - 6G
+      - 10G
 
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +73,7 @@ jobs:
     runs-on: 
       - whitesmith-windows-x64
       - 10VCPU
-      - 6G
+      - 10G
     steps:
       - uses: actions/checkout@v4
 
