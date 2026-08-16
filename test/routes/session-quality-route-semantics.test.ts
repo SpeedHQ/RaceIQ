@@ -5,6 +5,7 @@ import { createSessionRoutes, type SessionRouteDependencies } from "../../server
 function status(sessionId: number, action: QualityRebuildAction): QualityRebuildStatus {
   return {
     sessionId,
+    currentDetectorId: action === "unavailable" ? null : "test-detector",
     action,
     rawAvailable: action === "reprocess",
     lapCount: 1,
