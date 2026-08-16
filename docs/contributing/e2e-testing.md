@@ -132,24 +132,19 @@ $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 
 Playwright projects are CI boundaries, not individual test files:
 
-| CI project job | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
+| CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
-| Fresh | `fresh` | `fresh-install` | `fresh-install/**/*.spec.ts` and `responsive/workspaces.spec.ts` |
-| Tunes | `tunes` | `tunes` | `tunes/**/*.spec.ts` |
-| Seeded | `seeded` | `seeded-e2e`, `mobile-device`, `tablet-device` | `seeded/**/*.spec.ts` and `responsive/device.spec.ts` |
+| Compiled E2E | `all` | `fresh-install`, `tunes`, `seeded-e2e`, `mobile-device`, `tablet-device` | All functional, responsive, and Chromium device projects |
 
-`.github/workflows/playwright-dev.yml` and the release workflow run these
-three reusable jobs through a matrix. Each job gets its own runner, starts
-only its server set, and uploads a unique result artifact. This avoids Bun
-compiling all server graphs and test files in one Windows process while
-keeping jobs independently attributable. `bunx playwright test` remains the
-CI command.
+`.github/workflows/playwright-dev.yml` and the release workflow each invoke
+the reusable workflow once. The invocation starts the `all` server set and
+runs every configured E2E project in one `bunx playwright test` process.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
-automatically; no workflow edit is needed. Adding a new Playwright project
-or changing a `testMatch` boundary requires updating both workflow matrices
-and this table. Each reusable job runs `bunx playwright test --list` first
-and fails if its project selection discovers zero tests.
+automatically; no workflow edit is needed. Adding a new Playwright project or
+changing a `testMatch` boundary requires updating the reusable workflow inputs
+and this table. The reusable job runs `bunx playwright test --list` first and
+fails if its project selection discovers zero tests.
 
 The reusable `.github/workflows/playwright.yml` accepts project flags, server
 mode, server set, runner, optional `dist` artifact, and result artifact name.
@@ -173,12 +168,11 @@ launchers wipe it before each run. Never point seeded E2E at tracked fixtures or
 user data. Tests use committed recordings plus production parser/import paths
 and must restore any note/import/delete mutation in `finally`.
 
-CI reality: non-draft pull requests call the three isolated compiled jobs
-through `playwright-dev.yml`; release/manual workflow calls the same matrix
-with `raceiq-dist-windows`. Local workflow inspection confirms project
-selection and artifact paths, but only an observed GitHub run confirms runner
-behavior. Mobile/tablet projects use real Playwright touch/user-agent emulation
-in Chromium; they are not physical-device tests.
+CI reality: non-draft pull requests and release/manual workflows each invoke
+one compiled Playwright job with `raceiq-dist-windows`. Local workflow
+inspection confirms project selection and artifact paths, but only an observed
+GitHub run confirms runner behavior. Mobile/tablet projects use real Playwright
+touch/user-agent emulation in Chromium; they are not physical-device tests.
 
 ### Recorded same-lap telemetry contract
 
@@ -252,8 +246,8 @@ Replay through existing parser/lap assertions and retain game id in filename. Na
 - [x] Cover Settings, navigation, Chats, Sessions, Analyse, Compare, Tracks, Cars, Setups, Experiments, Raw, Dash, and Dev interactions listed in the matrix.
 - [x] Run responsive screenshot registry: 97/97 phone, tablet-boundary, desktop, and interaction captures passed on 2026-08-04.
 - [x] Run Chromium device emulation: Pixel 7 and iPad (gen 7) owned cases passed; cross-project copies skipped by ownership as designed.
-- [x] Validate reusable workflow project selection, per-job discovery guard, and unconditional result/screenshot artifact upload.
 - [x] Keep telemetry catalog generated artifacts and hard-coded inventory counts current.
+- [x] Validate single reusable workflow invocation, explicit project selection, and unconditional result/screenshot artifact upload.
 
 ### Cannot confirm locally — physical fixture capture
 
