@@ -54,15 +54,16 @@ export const RECORDING_LIFECYCLE_LABEL = {
 } as const satisfies Record<RecordingLifecycleState, string>;
 
 function rangeText(timeRange?: QualityTimeRange | null, distanceRange?: QualityDistanceRange | null): string {
+  const ranges: string[] = [];
+  if (timeRange) {
+    ranges.push(`${(timeRange.startMs / 1000).toFixed(1)}-${(timeRange.endMs / 1000).toFixed(1)}s`);
+  }
   if (distanceRange) {
     const start = Math.round(distanceRange.startFraction * 100);
     const end = Math.round(distanceRange.endFraction * 100);
-    return ` (${start}-${end}% of lap)`;
+    ranges.push(`${start}-${end}% of lap`);
   }
-  if (timeRange) {
-    return ` (${(timeRange.startMs / 1000).toFixed(1)}-${(timeRange.endMs / 1000).toFixed(1)}s)`;
-  }
-  return "";
+  return ranges.length > 0 ? ` (${ranges.join(", ")})` : "";
 }
 
 export function qualityReasonText(code: QualityReasonCode, timeRange?: QualityTimeRange | null, distanceRange?: QualityDistanceRange | null): string {

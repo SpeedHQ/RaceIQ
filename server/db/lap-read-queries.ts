@@ -134,6 +134,7 @@ type LapSummary = {
   qualityGeneration: string | null;
   qualityStale: boolean;
   source: LapMeta["source"];
+  ownership: LapMeta["ownership"];
 };
 
 export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: GameId): Promise<LapSummary[]> {
@@ -161,6 +162,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       source: sessions.source,
+      ownership: sessions.ownership,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -197,8 +199,11 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
         r.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
         r.qualityGeneration !== r.quality.provenance.outputGeneration,
       source: (r.source as LapMeta["source"] | null) ?? "unknown",
+      ownership: r.ownership === "others" ? "others" : "mine",
     }));
 }
+
+export type LoadedLap = LapMeta & { telemetry: TelemetryPacket[]; parseError?: string };
 
 export async function getLapById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
   const row = await db
@@ -236,6 +241,7 @@ export async function getLapById(id: number): Promise<(LapMeta & { telemetry: Te
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       qualityGeneration: laps.qualityGeneration,
+      experimentId: laps.experimentId,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -292,6 +298,7 @@ type LapResultRow = {
   tuneId: number | null;
   tuneName: string | null;
   gameId: string;
+  experimentId: number | null;
   carSetup: string | null;
   sectorTimes: number[] | null;
   catalogVersion: string | null;
@@ -328,6 +335,7 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
+    experimentId: row.experimentId ?? null,
     carSetup: row.carSetup ?? undefined,
     sectorTimes: row.sectorTimes ?? undefined,
     catalogVersion: row.catalogVersion ?? undefined,
@@ -398,6 +406,7 @@ export async function getLapsByIds(ids: number[]): Promise<(LapMeta & { telemetr
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       qualityGeneration: laps.qualityGeneration,
+      experimentId: laps.experimentId,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))

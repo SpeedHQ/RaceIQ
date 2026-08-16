@@ -220,46 +220,58 @@ export async function updateSessionRawFile(sessionId: number, rawFile: string, l
  * cards and per-game pages now both report the full picture.
  */
 
-async function getAvailableStaleSessionRows(
-  currentIds: string | string[],
-): Promise<{ id: number; rawFile: string }[]> {
-  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
+async function getMeasurementStaleSessionIds(currentIds: string[]): Promise<number[]> {
   const rows = await db
     .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
     .where(
-      or(
-        and(
-          sql`${sessions.rawFile} IS NOT NULL`,
-          or(
-            isNull(sessions.lapDetectorVersion),
-            notInArray(sessions.lapDetectorVersion, ids),
-            sql`${sessions.qualitySchemaVersion} IS NULL OR ${sessions.qualitySchemaVersion} <> ${QUALITY_SCHEMA_VERSION}`,
-          ),
-        ),
-        and(
-          sql`${sessions.recordingQuality} IS NOT NULL`,
-          sql`(${sessions.qualityPolicyVersion} IS NULL OR ${sessions.qualityPolicyVersion} <> ${ELIGIBILITY_POLICY_VERSION}
-            OR ${sessions.qualityConfigVersion} IS NULL OR ${sessions.qualityConfigVersion} <> ${QUALITY_CONFIG_VERSION})`,
+      and(
+        sql`${sessions.rawFile} IS NOT NULL`,
+        or(
+          isNull(sessions.lapDetectorVersion),
+          notInArray(sessions.lapDetectorVersion, currentIds),
+          sql`${sessions.qualitySchemaVersion} IS NULL OR ${sessions.qualitySchemaVersion} <> ${QUALITY_SCHEMA_VERSION}`,
+          sql`${sessions.qualityConfigVersion} IS NULL OR ${sessions.qualityConfigVersion} <> ${QUALITY_CONFIG_VERSION}`,
         ),
       ),
     )
     .all();
-  return rows.filter(
-    (row): row is { id: number; rawFile: string } =>
-      row.rawFile != null && existsSync(row.rawFile),
-  );
+  return rows.filter((row) => row.rawFile != null && existsSync(row.rawFile)).map((row) => row.id);
+}
+
+async function getEligibilityOnlyStaleSessionIds(currentIds: string[]): Promise<number[]> {
+  const rows = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(
+      and(
+        sql`${sessions.recordingQuality} IS NOT NULL`,
+        sql`${sessions.qualityPolicyVersion} IS NULL OR ${sessions.qualityPolicyVersion} <> ${ELIGIBILITY_POLICY_VERSION}`,
+        inArray(sessions.lapDetectorVersion, currentIds),
+        eq(sessions.qualitySchemaVersion, QUALITY_SCHEMA_VERSION),
+        eq(sessions.qualityConfigVersion, QUALITY_CONFIG_VERSION),
+      ),
+    )
+    .all();
+  return rows.map((row) => row.id);
+}
+
+async function getAvailableStaleSessionIds(currentIds: string | string[]): Promise<number[]> {
+  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
+  const [measurementStale, eligibilityOnlyStale] = await Promise.all([getMeasurementStaleSessionIds(ids), getEligibilityOnlyStaleSessionIds(ids)]);
+  return [...new Set([...measurementStale, ...eligibilityOnlyStale])];
 }
 
 export async function countStaleSessions(currentIds: string | string[]): Promise<number> {
-  return (await getAvailableStaleSessionRows(currentIds)).length;
+  return (await getAvailableStaleSessionIds(currentIds)).length;
 }
 
 /**
- * Get IDs of sessions with stale lap detector versions and available raw files.
+ * Get session IDs whose measurement evidence can be rebuilt from raw capture,
+ * plus policy-only stale sessions rebuildable from persisted quality.
  */
 export async function getStaleSessions(currentIds: string | string[]): Promise<number[]> {
-  return (await getAvailableStaleSessionRows(currentIds)).map((row) => row.id);
+  return getAvailableStaleSessionIds(currentIds);
 }
 
 /**
@@ -506,10 +518,7 @@ export async function getSessionRecapData(
 
   const trackLengthM = getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
   const sessionSectorCount =
-    lapRows.find(
-      (lap) =>
-        isTimedLapEligibilityUsable(lap) && lap.sectorTimes != null && lap.sectorTimes.length >= 2 && lap.sectorTimes.every((time) => time > 0),
-    )?.sectorTimes?.length ?? 0;
+    lapRows.find((lap) => isTimedLapEligibilityUsable(lap) && lap.sectorTimes != null && lap.sectorTimes.length >= 2 && lap.sectorTimes.every((time) => time > 0))?.sectorTimes?.length ?? 0;
 
   let sectorStarts: number[] | null = null;
   const gameAdapter = tryGetGame(gameId);

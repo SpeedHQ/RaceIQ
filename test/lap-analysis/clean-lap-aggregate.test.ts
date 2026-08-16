@@ -18,9 +18,7 @@ function eligibility(normalStatus: EligibilityDecision["status"] = "eligible", n
       ...normalPace,
       status: normalStatus,
       confidence: { level: normalStatus === "unknown" ? "unknown" : "high", score: normalStatus === "unknown" ? null : 1 },
-      reasons: normalReason
-        ? [{ code: normalReason, severity: QUALITY_REASON_META[normalReason].defaultSeverity, evidenceIds: [], timeRange: null, distanceRange: null, semanticIds: [] }]
-        : [],
+      reasons: normalReason ? [{ code: normalReason, severity: QUALITY_REASON_META[normalReason].defaultSeverity, evidenceIds: [], timeRange: null, distanceRange: null, semanticIds: [] }] : [],
       evidenceIds: [],
     },
   };
@@ -111,10 +109,18 @@ describe("selectCleanLaps", () => {
     ];
     const { clean, breakdown, setupDecision } = selectCleanLaps(laps);
     const rejected = breakdown.find((row) => row.lapId === 1);
-    expect(rejected?.reason).toBe("non-pace");
-    expect(rejected?.reasonCodes).toEqual(["traffic_context"]);
+    expect(rejected).toMatchObject({
+      reason: "non-pace",
+      reasonCodes: ["traffic_context"],
+      selectionReason: "non-pace",
+      selectionReasonCodes: ["traffic_context"],
+      normalPace: { status: "ineligible" },
+      qualityGeneration: quality.provenance.outputGeneration,
+    });
+    expect(rejected?.normalPace.reasons.map((reason) => reason.code)).toEqual(["traffic_context"]);
     expect(setupDecision.status).toBe("eligible");
     expect(clean.map((item) => item.id)).toEqual([2, 3, 4]);
+    expect(breakdown.filter((row) => row.reason === "clean").every((row) => row.normalPace.reasons.length === 0)).toBe(true);
   });
 });
 

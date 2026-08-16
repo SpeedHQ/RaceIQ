@@ -16,10 +16,9 @@ import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
-import { QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, LOCAL_PLAYER_EVIDENCE, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type RecordingQualitySummary } from "../../shared/racing/quality/contracts";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import { finalizeRecordingQualityGeneration } from "../../server/lap-analysis/quality-generation";
-import { LOCAL_PLAYER_EVIDENCE } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
 import { qualityPackets, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
 import { getRecordingFixture } from "../support/recordings/fixtures";
@@ -64,11 +63,7 @@ describe("SessionRecorder meta frame", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
     const path = join(tmpDir, "large-session.bin");
     const recorder = new SessionRecorder();
-    const records = [
-      Buffer.alloc(65_518, 0x11),
-      Buffer.alloc(128 * 1024 + 37, 0x22),
-      Buffer.from([0x33, 0x44, 0x55]),
-    ];
+    const records = [Buffer.alloc(65_518, 0x11), Buffer.alloc(128 * 1024 + 37, 0x22), Buffer.from([0x33, 0x44, 0x55])];
     recorder.start(path);
     recorder.writeMetaFrame();
     for (const record of records) recorder.writeRecord(record);
@@ -283,21 +278,11 @@ describe("reprocessSession", () => {
       details: "Original import could not verify the source artifact",
     };
     const priorAccumulator = new RecordingQualityAccumulator("motec", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
-    const previous = finalizeRecordingQualityGeneration(
-      priorAccumulator.finalize("imported", sourceVerification),
-    );
-    await db
-      .update(sessions)
-      .set({ source: "motec", recordingQuality: previous })
-      .where(eq(sessions.id, sessionId))
-      .run();
+    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("imported", sourceVerification));
+    await db.update(sessions).set({ source: "motec", recordingQuality: previous }).where(eq(sessions.id, sessionId)).run();
 
     await reprocessSession(sessionId);
-    const row = await db
-      .select({ recordingQuality: sessions.recordingQuality })
-      .from(sessions)
-      .where(eq(sessions.id, sessionId))
-      .get();
+    const row = await db.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sessionId)).get();
 
     expect(row?.recordingQuality?.archiveVerification).toEqual(sourceVerification);
     expect(row?.recordingQuality).toMatchObject({
@@ -305,11 +290,8 @@ describe("reprocessSession", () => {
         state: "verified",
       },
     });
-    const canonicalGeneration =
-      row?.recordingQuality?.canonicalVerification?.sourceGeneration;
-    expect(canonicalGeneration).toBe(
-      sha256ContentHash(Buffer.from(await Bun.file(binPath).arrayBuffer())),
-    );
+    const canonicalGeneration = row?.recordingQuality?.canonicalVerification?.sourceGeneration;
+    expect(canonicalGeneration).toBe(sha256ContentHash(Buffer.from(await Bun.file(binPath).arrayBuffer())));
     expect(canonicalGeneration).not.toBe(sourceVerification.sourceGeneration);
   });
 
@@ -320,9 +302,7 @@ describe("reprocessSession", () => {
 
     const priorAccumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
     priorAccumulator.noteSourceLifecycle({ kind: "reconnect", timestampMs: 2_000, eventId: "lifecycle:reconnect:1" });
-    const previous = finalizeRecordingQualityGeneration(
-      priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: "sha256:prior-reconnect-only" }),
-    );
+    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: "sha256:prior-reconnect-only" }));
     await db.update(sessions).set({ source: "native-live", recordingQuality: previous }).where(eq(sessions.id, sessionId)).run();
 
     await reprocessSession(sessionId);
@@ -406,14 +386,7 @@ describe("reprocessSession", () => {
 
   test("validates declared telemetry count while skipping internal metadata frames", async () => {
     const binPath = join(tmpDir, "session.bin");
-    writeFileSync(
-      binPath,
-      Buffer.concat([
-        encodeMetaFrame(1),
-        encodeMetaFrame(0),
-        encodeRecord(Buffer.from([0])),
-      ]),
-    );
+    writeFileSync(binPath, Buffer.concat([encodeMetaFrame(1), encodeMetaFrame(0), encodeRecord(Buffer.from([0]))]));
 
     sessionId = await insertTestSession(binPath, "0.9.0");
     const result = await reprocessSession(sessionId);
@@ -421,23 +394,17 @@ describe("reprocessSession", () => {
   });
   test("rejects a declared telemetry count mismatch without changing stored rows", async () => {
     const binPath = join(tmpDir, "session.bin");
-    writeFileSync(
-      binPath,
-      Buffer.concat([encodeMetaFrame(2), encodeRecord(Buffer.from([0]))]),
-    );
+    writeFileSync(binPath, Buffer.concat([encodeMetaFrame(2), encodeRecord(Buffer.from([0]))]));
     sessionId = await insertTestSession(binPath, "0.9.0");
     await insertTestLap(sessionId, 1, "must survive");
     const beforeSession = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     const beforeLaps = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
 
-    await expect(reprocessSession(sessionId)).rejects.toThrow(
-      "Declared 2 telemetry frames, found 1",
-    );
+    await expect(reprocessSession(sessionId)).rejects.toThrow("Declared 2 telemetry frames, found 1");
 
     expect(await db.select().from(sessions).where(eq(sessions.id, sessionId)).get()).toEqual(beforeSession);
     expect(await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all()).toEqual(beforeLaps);
   });
-
 
   test("rejects truncated framing during reprocessing", async () => {
     const binPath = join(tmpDir, "session.bin");
@@ -464,10 +431,7 @@ describe("reprocessSession", () => {
     const binPath = join(tmpDir, "does-not-exist.bin");
     sessionId = await insertTestSession(binPath, "0.9.0");
 
-    const response = await sessionRoutes.request(
-      `/api/sessions/${sessionId}/reprocess`,
-      { method: "POST" },
-    );
+    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/reprocess`, { method: "POST" });
 
     expect(response.status).toBe(410);
     expect(await response.json()).toEqual({
@@ -478,10 +442,7 @@ describe("reprocessSession", () => {
   test("returns 410 when session has no raw capture", async () => {
     sessionId = await insertTestSession(null, "0.9.0");
 
-    const response = await sessionRoutes.request(
-      `/api/sessions/${sessionId}/reprocess`,
-      { method: "POST" },
-    );
+    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/reprocess`, { method: "POST" });
 
     expect(response.status).toBe(410);
     expect(await response.json()).toEqual({
@@ -495,10 +456,7 @@ describe("reprocessSession", () => {
     await db.delete(sessions).where(eq(sessions.id, missingSessionId)).run();
     sessionId = 0;
 
-    const response = await sessionRoutes.request(
-      `/api/sessions/${missingSessionId}/reprocess`,
-      { method: "POST" },
-    );
+    const response = await sessionRoutes.request(`/api/sessions/${missingSessionId}/reprocess`, { method: "POST" });
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({
@@ -554,6 +512,9 @@ describe("countStaleSessions", () => {
     rawFile: string | null,
     lapDetectorVersion: string | null,
     qualitySchemaVersion: string | null = QUALITY_SCHEMA_VERSION,
+    qualityConfigVersion: string | null = QUALITY_CONFIG_VERSION,
+    qualityPolicyVersion: string | null = ELIGIBILITY_POLICY_VERSION,
+    recordingQuality: RecordingQualitySummary | null = null,
   ): Promise<number> {
     const row = await db
       .insert(sessions)
@@ -564,6 +525,9 @@ describe("countStaleSessions", () => {
         rawFile,
         lapDetectorVersion,
         qualitySchemaVersion,
+        qualityConfigVersion,
+        qualityPolicyVersion,
+        recordingQuality,
       })
       .returning({ id: sessions.id })
       .get();
@@ -616,5 +580,33 @@ describe("countStaleSessions", () => {
     expect(insertedIdsOnly).not.toContain(missingRaw);
     expect(insertedIdsOnly).toContain(staleQualitySchema);
     expect(insertedIdsOnly).not.toContain(noRaw);
+  });
+
+  test("includes no-raw policy-only staleness but gates measurement staleness on an existing raw file", async () => {
+    const baselineIds = new Set(await getStaleSessions(detectorId));
+    const accumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
+    for (const sample of qualityPackets(60)) accumulator.observe(sample);
+    const recordingQuality = finalizeRecordingQualityGeneration(accumulator.finalize("complete", { state: "verified", sourceGeneration: "sha256:stale-discovery-source" }));
+
+    const policyOnlyNoRaw = await insertSession(null, detectorId, QUALITY_SCHEMA_VERSION, QUALITY_CONFIG_VERSION, "stale-policy", recordingQuality);
+    const detectorNoRaw = await insertSession(null, "stale-detector");
+    const schemaNoRaw = await insertSession(null, detectorId, "stale-schema");
+    const configNoRaw = await insertSession(null, detectorId, QUALITY_SCHEMA_VERSION, "stale-config");
+
+    const detectorRawPath = join(tmpDir, "detector-stale.bin");
+    const schemaRawPath = join(tmpDir, "schema-stale.bin");
+    const configRawPath = join(tmpDir, "config-stale.bin");
+    for (const path of [detectorRawPath, schemaRawPath, configRawPath]) writeFileSync(path, Buffer.alloc(16));
+    const detectorWithRaw = await insertSession(detectorRawPath, "stale-detector");
+    const schemaWithRaw = await insertSession(schemaRawPath, detectorId, "stale-schema");
+    const configWithRaw = await insertSession(configRawPath, detectorId, QUALITY_SCHEMA_VERSION, "stale-config");
+
+    const discovered = (await getStaleSessions(detectorId)).filter((id) => !baselineIds.has(id));
+    expect(discovered).toEqual(expect.arrayContaining([policyOnlyNoRaw, detectorWithRaw, schemaWithRaw, configWithRaw]));
+    expect(discovered).toHaveLength(4);
+    expect(discovered).not.toContain(detectorNoRaw);
+    expect(discovered).not.toContain(schemaNoRaw);
+    expect(discovered).not.toContain(configNoRaw);
+    expect((await countStaleSessions(detectorId)) - baselineIds.size).toBe(4);
   });
 });
