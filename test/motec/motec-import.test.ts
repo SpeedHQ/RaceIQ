@@ -424,11 +424,19 @@ describe("importMotec end to end", () => {
   test("lands laps in the DB and marks the session as MoTeC-sourced", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
     const ldBytes = buildLd(spec);
-    const ldxBytes = buildLdx(beacons);
+    const ldxBytes = Buffer.concat([
+      Buffer.from(buildLdx(beacons), "utf8"),
+      Buffer.from([0xff]),
+    ]);
     const sourceGeneration = sha256SourceArtifacts([
       { name: "source.ld", bytes: ldBytes },
-      { name: "source.ldx", bytes: Buffer.from(ldxBytes) },
+      { name: "source.ldx", bytes: ldxBytes },
     ]);
+    const decodedGeneration = sha256SourceArtifacts([
+      { name: "source.ld", bytes: ldBytes },
+      { name: "source.ldx", bytes: Buffer.from(ldxBytes.toString("utf8"), "utf8") },
+    ]);
+    expect(decodedGeneration).not.toBe(sourceGeneration);
     const result = await importMotec(ldBytes, ldxBytes);
 
     // Three windows, but the last is still open when the log ends, so the
@@ -448,6 +456,7 @@ describe("importMotec end to end", () => {
       expect(row?.source).toBe(MOTEC_SESSION_SOURCE);
       expect(row?.recordingQuality?.sourceKind).toBe("motec");
       expect(row?.recordingQuality?.archiveVerification.sourceGeneration).toBe(sourceGeneration);
+      expect(row?.recordingQuality?.archiveVerification.sourceGeneration).not.toBe(decodedGeneration);
       expect(row?.sourceChannelProfile).toMatchObject({
         schemaVersion: "1",
         sourceKind: "motec",
@@ -481,7 +490,7 @@ describe("importMotec end to end", () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
     // Header says spa (see syntheticStint); import it as Monza instead.
     const monza = getAcEvoTrackByName("monza")!;
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       carOrdinal: 0,
       trackOrdinal: monza.id,
     });
@@ -504,7 +513,7 @@ describe("importMotec end to end", () => {
       })
       .returning({ id: tunes.id });
     const tuneId = tune!.id;
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
       tuneId,
@@ -519,7 +528,7 @@ describe("importMotec end to end", () => {
 
   test("omitting the setup leaves laps unassigned rather than guessing one", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
     });

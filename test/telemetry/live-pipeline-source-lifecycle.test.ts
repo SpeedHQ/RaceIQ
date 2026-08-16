@@ -149,15 +149,14 @@ describe("LiveTelemetryPipeline source lifecycle scoping", () => {
     });
 
     await pipeline.processPacket(telemetryPacket("acc", 1_000));
-    pipeline.noteSourceLifecycle(
+    await pipeline.noteSourceLifecycle(
       {
         kind: "timeout",
         timestampMs: Date.now(),
         eventId: "udp-timeout:stale",
       },
-      { kind: "udp", gameId: "fm-2023", sessionId: 99 },
+      { kind: "udp", gameId: "fm-2023", sessionId: 1 },
     );
-    await pipeline.processPacket(telemetryPacket("acc", 1_100));
     await pipeline.finalizeCurrentSession();
 
     const quality = db.sessionQuality.get(1);
@@ -176,7 +175,7 @@ describe("LiveTelemetryPipeline source lifecycle scoping", () => {
     });
 
     await pipeline.processPacket(telemetryPacket("fm-2023", 1_000));
-    pipeline.noteSourceLifecycle(
+    await pipeline.noteSourceLifecycle(
       {
         kind: "reconnect",
         timestampMs: Date.now(),
@@ -184,7 +183,6 @@ describe("LiveTelemetryPipeline source lifecycle scoping", () => {
       },
       { kind: "udp", gameId: "fm-2023", sessionId: 1 },
     );
-    await pipeline.processPacket(telemetryPacket("fm-2023", 1_100));
     await pipeline.finalizeCurrentSession();
 
     expect(db.sessionQuality.get(1)?.facts.find(({ code }) => code === "source_reconnect")?.eventIds).toEqual(["udp-reconnect:accepted"]);
@@ -258,12 +256,13 @@ describe("LiveTelemetryPipeline source lifecycle scoping", () => {
 
     const activeDuringFinalization = recorder.active;
     const concurrentPacket = pipeline.processPacket(telemetryPacket("ac-evo", 1_200), concurrentFrame);
-    const recordsBeforeRelease = recorder.sessions[1]?.records.map((record) => record.toString()) ?? [];
-
-    db.release();
     await Promise.all([rotation, concurrentPacket]);
+    const recordsBeforeRelease = recorder.sessions[1]?.records.map((record) => record.toString()) ?? [];
 
     expect(activeDuringFinalization).toBe(true);
     expect(recordsBeforeRelease).toContain("during-finalization");
+
+    db.release();
+    await pipeline.finalizeCurrentSession();
   });
 });

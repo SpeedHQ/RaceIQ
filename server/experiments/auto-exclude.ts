@@ -24,6 +24,10 @@ export interface ExclusionScopeLap {
   experimentExcludedSource: "auto" | "manual" | null;
   quality: LapQualitySummary | null;
   eligibility: EligibilityDecisionSet | null;
+  qualityGeneration: string | null;
+  qualitySchemaVersion: string | null;
+  qualityPolicyVersion: string | null;
+  qualityConfigVersion: string | null;
 }
 
 /** Minimal DB surface `reconcileAutoExclusions` needs. */

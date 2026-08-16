@@ -28,13 +28,16 @@
 - Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
 - Clear stale degraded lap-quality states after a clean recording rebuild
 - Validate RaceIQ canonical recording and every archive manifest/member separately from imported-source provenance so valid source cannot hide corrupt local evidence
-- Reject RaceIQ archives that omit session captures declared by their v2 manifest
+- Reject RaceIQ v3 archives when declared captures are missing, checksums differ, or undeclared members remain, while retaining v1, v2, and manifestless import compatibility
+- Clear F1 lap-sector history when the session changes so repeated lap numbers cannot reuse stale splits
+- Finalize ACC replay sessions between loop passes so each pass starts with independent lap and quality state
 - Preserve native-live provenance when migrating legacy sessions while retaining explicit imported-source labels
 - Mark analysis unsuitable when imported recording omits required controls or continuous tire channel contains only isolated samples instead of treating filled zeroes as real telemetry
 - Keep valid timed laps in lap-time experiment metrics when unrelated steering or input trace channels are unavailable
 - Reject stale eligibility snapshots in policy consumers, AI cache reads, and raw-recording cleanup decisions
 - Keep every recorded experiment lap available for inspection in Tune Review while limiting aggregate setup evaluation to its curated evidence pool
 - Preserve telemetry warning reasons in setup-analysis decisions and Setup Engineer lap summaries
+- Keep lap exclusions, detailed telemetry, comparisons, and track outlines scoped to matching owned experiments and current quality evidence
 - Clear displayed comparison analysis and conversations when either lap quality generation changes
 - Collect recent fuel and tire history independently so several fuel-only laps cannot prevent older tire data from seeding strategy estimates, and vice versa
 - Regenerate cached driver profiles when underlying lap quality or eligibility changes

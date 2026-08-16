@@ -1,8 +1,9 @@
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, writeSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, writeSync } from "node:fs";
 import { createHash } from "node:crypto";
 import type { ArchiveVerification } from "../../shared/racing/quality/contracts";
 import { dirname } from "node:path";
-import { encodeFrameLength, encodeMetaFrame, iterateSessionFrameRecords, META_FRAME_BYTES, META_FRAME_MAGIC } from "./framing";
+import { encodeFrameLength, encodeMetaFrame, META_FRAME_BYTES } from "./framing";
+import { verifySessionCaptureFile } from "./verification";
 
 /**
  * Appends raw telemetry records to a binary dump file.
@@ -127,18 +128,13 @@ export class SessionRecorder {
       return { state: "unavailable", sourceGeneration: null, details: "No records were written" };
     }
 
-    let closeFailure: unknown;
     try {
       await file.end();
     } catch (error) {
-      closeFailure = error;
-    }
-    const sourceGeneration = `sha256:${this._hasher.digest("hex")}`;
-    if (closeFailure) {
       return {
         state: "corrupt",
-        sourceGeneration,
-        details: closeFailure instanceof Error ? closeFailure.message : String(closeFailure),
+        sourceGeneration: null,
+        details: error instanceof Error ? error.message : String(error),
       };
     }
 
@@ -154,54 +150,19 @@ export class SessionRecorder {
       } catch (error) {
         return {
           state: "corrupt",
-          sourceGeneration,
+          sourceGeneration: null,
           details: error instanceof Error ? error.message : String(error),
         };
       }
     }
 
-    let verification: ArchiveVerification;
-    try {
-      if (!existsSync(path)) {
-        verification = { state: "unavailable", sourceGeneration: null, details: "Recording file disappeared before verification" };
-      } else {
-        const bytes = readFileSync(path);
-        if (bytes.length < expectedBytes) {
-          verification = { state: "truncated", sourceGeneration, details: `Expected ${expectedBytes} bytes, found ${bytes.length}` };
-        } else if (bytes.length > expectedBytes) {
-          verification = { state: "corrupt", sourceGeneration, details: `Expected ${expectedBytes} bytes, found ${bytes.length}` };
-        } else if (
-          hadMeta &&
-          (bytes.length < META_FRAME_BYTES ||
-            bytes.readUInt32LE(0) !== META_FRAME_MAGIC ||
-            bytes.readUInt32LE(4) !== META_FRAME_BYTES - 8 ||
-            bytes.readUInt32LE(8) !== count)
-        ) {
-          verification = { state: "corrupt", sourceGeneration, details: "Recording metadata frame does not match written frame count" };
-        } else {
-          const actualHash = createHash("sha256");
-          let actualCount = 0;
-          for (const record of iterateSessionFrameRecords(bytes, hadMeta ? META_FRAME_BYTES : 0, { strict: true })) {
-            actualHash.update(bytes.subarray(record.offset, record.offset + 4 + record.frame.length));
-            actualCount++;
-          }
-          if (actualCount !== count) {
-            verification = { state: "corrupt", sourceGeneration, details: `Expected ${count} frames, found ${actualCount}` };
-          } else if (`sha256:${actualHash.digest("hex")}` !== sourceGeneration) {
-            verification = { state: "corrupt", sourceGeneration, details: "Recording digest does not match written frames" };
-          } else {
-            verification = { state: "verified", sourceGeneration };
-          }
-        }
-      }
-    } catch (error) {
-      const details = error instanceof Error ? error.message : String(error);
-      verification = {
-        state: /truncated/i.test(details) ? "truncated" : "corrupt",
-        sourceGeneration,
-        details,
-      };
-    }
+    const expectedRecordGeneration = `sha256:${this._hasher.digest("hex")}`;
+    const verification = await verifySessionCaptureFile(path, {
+      expectedBytes,
+      expectedFrameCount: count,
+      hasMetadata: hadMeta,
+      expectedRecordGeneration,
+    });
     console.log(`[SessionRecorder] Stopped. ${count} records written to ${path}`);
     return verification;
   }

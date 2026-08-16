@@ -94,7 +94,12 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   });
   const parserState = serverGame.createParserState?.() ?? null;
 
-  for (const { offset, frame } of iterateSessionFrameRecords(buf, frameStreamStart, { skipMetaFrames: true, allowEmptyFrames: false, strict: true })) {
+  for (const { offset, frame } of iterateSessionFrameRecords(buf, frameStreamStart, {
+    skipMetaFrames: true,
+    allowEmptyFrames: false,
+    strict: true,
+    validateDeclaredFrameCount: true,
+  })) {
     const packet = serverGame.tryParse(frame, parserState);
     if (packet) {
       recordingQuality.observe(packet);
@@ -193,7 +198,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     transportVerification: session.recordingQuality?.transportVerification,
     canonicalVerification: {
       state: "verified",
-      sourceGeneration: sha256ContentHash(buf.subarray(frameStreamStart)),
+      sourceGeneration: sha256ContentHash(buf),
     },
   });
   await updateSessionQuality(

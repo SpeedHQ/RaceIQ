@@ -5,7 +5,7 @@ import { F1StateAccumulator } from "./f1-state";
 import { parseF1Header } from "./f1-wire";
 import { getF1CarName } from "../../../shared/racing/cars/f1"
 import { getF1TrackName, getF1TrackInfo } from "../../../shared/racing/tracks/catalogs/f1"
-import { LapDetector } from "../../lap-detection/detector";
+import { LAP_DETECTOR_ID, LapDetector } from "../../lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const F1_SYSTEM_PROMPT = `You are an expert Formula 1 racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
@@ -154,6 +154,8 @@ export const f1ServerAdapter: ServerGameAdapter = {
 
     return context;
   },
+
+  lapDetectorId: LAP_DETECTOR_ID,
 
   createLapDetector: (opts) => new LapDetector(opts),
 };

@@ -1,6 +1,6 @@
 import type { LapCondition, LapPhase, PaceEligibility } from "./classification";
 import type { EligibilityDecision, EligibilityDecisionSet, EligibilityPolicyId, LapQualitySummary, QualityReasonCode } from "../quality/contracts";
-import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecision } from "../quality/policies";
+import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecision, type QualitySnapshotEvidence } from "../quality/policies";
 
 /**
  * Review lap curation. The Track Focus review analyses a stint's telemetry
@@ -17,7 +17,6 @@ import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecisi
  */
 export const REVIEW_LAP_CAP = 5;
 const REVIEW_REQUIRED_POLICY_IDS = ["normal-pace", "corner-trace"] as const satisfies readonly EligibilityPolicyId[];
-
 
 /** The `n` fastest laps by lap time. Input is expected to be pre-filtered to
  *  clean/eligible laps; this only ranks + trims. */
@@ -52,7 +51,7 @@ export interface EvaluationSelection<T> {
 
 /** Minimal lap shape the selector needs. Satisfied by both `LapMeta` (client)
  *  and the server's `ExclusionScopeLap` row projection. */
-export interface EvaluableLap {
+export interface EvaluableLap extends QualitySnapshotEvidence {
   id: number;
   lapTime: number;
   isValid: boolean;
@@ -140,9 +139,7 @@ export function selectEvaluationLaps<T extends EvaluableLap>(
       reasonById.set(lap.id, "invalid");
       reasonCodesById.set(lap.id, []);
     } else {
-      const policyFailures = requiredPolicyIds
-        .map((policyId) => resolveEligibilityDecision(lap, policyId))
-        .filter((decision) => !isEligibilityUsable(decision));
+      const policyFailures = requiredPolicyIds.map((policyId) => resolveEligibilityDecision(lap, policyId)).filter((decision) => !isEligibilityUsable(decision));
       if ((options.requireSetupEligibility !== false && !isEligibilityUsable(setupDecision)) || policyFailures.length > 0) {
         rejectionDecisionById.set(lap.id, policyFailures[0] ?? setupDecision);
         reasonById.set(lap.id, "non-pace");

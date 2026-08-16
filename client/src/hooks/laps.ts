@@ -19,7 +19,6 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-
 export interface SemanticReplayFrame {
   sequence: number;
   observedAt: { domain: string; milliseconds: number };
@@ -85,10 +84,10 @@ export function useBulkDeleteLaps() {
 export function useSetLapExcluded() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ lapId, excluded }: { lapId: number; excluded: boolean; experimentId?: number | null }) => {
-      const res = await (client.api.laps as any)[":id"]["experiment-excluded"].$post({
+    mutationFn: async ({ lapId, excluded, experimentId }: { lapId: number; excluded: boolean; experimentId: number }) => {
+      const res = await client.api.laps[":id"]["experiment-excluded"].$post({
         param: { id: String(lapId) },
-        json: { excluded },
+        json: { experimentId, excluded },
       });
       if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: true; lapId: number; excluded: boolean };

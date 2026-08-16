@@ -160,6 +160,14 @@ describe("selectEvaluationLaps", () => {
     expect(sel.setupDecision.status).toBe("eligible");
   });
 
+  test("stale quality evidence cannot select a valid-looking persisted decision", () => {
+    const laps = [lap(1, 90, { qualityStale: true }), lap(2, 91), lap(3, 92), lap(4, 93)];
+    const sel = selectEvaluationLaps(laps);
+    expect(sel.chosen.map((candidate) => candidate.id)).toEqual([2, 3, 4]);
+    expect(sel.rejectionDecisionById.get(1)?.status).toBe("unknown");
+    expect(sel.reasonCodesById.get(1)).toContain("quality_not_rebuilt");
+  });
+
   test("empty input yields an empty selection", () => {
     const sel = selectEvaluationLaps([]);
     expect(sel.chosen).toEqual([]);

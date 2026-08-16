@@ -27,13 +27,7 @@ import { getLapById } from "../../db/lap-read-queries";
 import { getLapMetaForExperimentVersion } from "../../db/experiment-lap-queries";
 import { getExperiment } from "../../db/experiment-queries";
 import { getExperimentVersion } from "../../db/experiment-version-queries";
-import {
-  type ArmComparison,
-  compareArmSamples,
-  type CompareArmsOptions,
-  prepareArm,
-  type PreparedArm,
-} from "./compare";
+import { type ArmComparison, compareArmSamples, type CompareArmsOptions, prepareArm, type PreparedArm } from "./compare";
 import { type FrameLapMeta, type LapFrameLoader, streamArmSamples } from "./stream";
 import { comparisonFences, getOutcomeMetric, type OutcomeMetricId } from "./metrics";
 
@@ -54,9 +48,16 @@ function toEvaluable(meta: LapMeta): EvaluableLap {
     id: meta.id,
     lapTime: meta.lapTime,
     isValid: meta.isValid,
+    phase: meta.phase,
+    conditions: meta.conditions,
+    paceEligibility: meta.paceEligibility,
     invalidReason: meta.invalidReason ?? null,
     experimentExcluded: meta.experimentExcluded ?? false,
     experimentExcludedSource: meta.experimentExcludedSource ?? null,
+    quality: meta.quality,
+    eligibility: meta.eligibility,
+    qualityGeneration: meta.qualityGeneration,
+    qualityStale: meta.qualityStale,
   };
 }
 
@@ -80,11 +81,7 @@ async function armLabel(versionId: number): Promise<string> {
  * `computeLapConsistencyDelta` returns an all-zero delta when there are no
  * corners — no corners means no samples, not a "perfect" arm.
  */
-async function resolveCornersFor(
-  sessionId: number,
-  metas: LapMeta[],
-  referenceTelemetry: TelemetryPacket[],
-): Promise<Corner[]> {
+async function resolveCornersFor(sessionId: number, metas: LapMeta[], referenceTelemetry: TelemetryPacket[]): Promise<Corner[]> {
   const session = await getExperiment(sessionId);
   const trackOrdinal = session?.trackOrdinal ?? metas.find((m) => m.trackOrdinal != null)?.trackOrdinal ?? null;
   const gameId = (session?.gameId ?? metas.find((m) => m.gameId != null)?.gameId ?? null) as GameId | null;
@@ -101,20 +98,9 @@ async function resolveCornersFor(
  * Curation is the metric's own policy (`server/experiments/comparison/metrics.ts`), applied
  * to the RAW pool — this loader never pre-trims by lap time.
  */
-export async function loadArmComparison(
-  sessionId: number,
-  aTestId: number,
-  bTestId: number,
-  metricId: OutcomeMetricId,
-  opts?: CompareArmsOptions,
-): Promise<ArmComparison> {
+export async function loadArmComparison(sessionId: number, aTestId: number, bTestId: number, metricId: OutcomeMetricId, opts?: CompareArmsOptions): Promise<ArmComparison> {
   const metric = getOutcomeMetric(metricId);
-  const [aMetas, bMetas, aLabel, bLabel] = await Promise.all([
-    getLapMetaForExperimentVersion(aTestId),
-    getLapMetaForExperimentVersion(bTestId),
-    armLabel(aTestId),
-    armLabel(bTestId),
-  ]);
+  const [aMetas, bMetas, aLabel, bLabel] = await Promise.all([getLapMetaForExperimentVersion(aTestId), getLapMetaForExperimentVersion(bTestId), armLabel(aTestId), armLabel(bTestId)]);
 
   // Compute the shared fence policy before choosing metadata or streaming;
   // both paths must censor identical lap pools.

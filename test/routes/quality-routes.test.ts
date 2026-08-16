@@ -175,15 +175,22 @@ async function seedQualitySession(): Promise<{ sessionId: number; lapId: number 
 }
 
 describe("quality diagnostics API", () => {
-  test("returns persisted lap evidence and policy decisions", async () => {
-    const { lapId } = await seedQualitySession();
-    const response = await lapRoutes.request(`/api/laps/${lapId}/quality`);
+  test("requires matching game scope before returning persisted lap evidence", async () => {
+    const { sessionId, lapId } = await seedQualitySession();
+    expect((await lapRoutes.request(`/api/laps/${lapId}/quality`)).status).toBe(400);
+    expect((await lapRoutes.request(`/api/laps/${lapId}/quality`, { headers: { "X-Game-Id": "invalid" } })).status).toBe(400);
+    expect((await lapRoutes.request(`/api/laps/${lapId}/quality`, { headers: { "X-Game-Id": "acc" } })).status).toBe(404);
+
+    const response = await lapRoutes.request(`/api/laps/${lapId}/quality`, { headers: { "X-Game-Id": "iracing" } });
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.lapId).toBe(lapId);
     expect(body.quality.provenance.schemaVersion).toBe(QUALITY_SCHEMA_VERSION);
     expect(body.eligibility["normal-pace"].policyVersion).toBe(ELIGIBILITY_POLICY_VERSION);
     expect(body.qualityGeneration).toBe(body.quality.provenance.outputGeneration);
+
+    await db.update(sessions).set({ ownership: "others" }).where(eq(sessions.id, sessionId)).run();
+    expect((await lapRoutes.request(`/api/laps/${lapId}/quality`, { headers: { "X-Game-Id": "iracing" } })).status).toBe(404);
   });
 
   test("returns session recording evidence, rebuild state, and lap generations", async () => {

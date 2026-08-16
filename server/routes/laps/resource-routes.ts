@@ -25,37 +25,39 @@ import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 export function semanticReplayIds(): readonly string[] {
-  return [...new Set([
-    ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
-    "engine.current-engine-rpm",
-    "inputs.gear",
-    "inputs.accel",
-    "inputs.brake",
-    "inputs.steer",
-    "motion.speed",
-    "motion.acceleration-x",
-    "motion.angular-velocity-y",
-    "motion.position-x",
-    "motion.position-z",
-    "motion.yaw",
-    "timing.current-lap",
-    "timing.current-race-time",
-    "timing.distance-traveled",
-    "aero.drs-active",
-    "weather.air-temp",
-    "fuel.ers-store-energy",
-    "fuel.ers-deploy-mode",
-    "brakes.brake-bias",
-    "fuel.ers-deployed",
-    "fuel.ers-harvested",
-    "fuel.fuel-capacity",
-    "identity.car-ordinal",
-    "identity.player-track-surface",
-    "tires.tire-radius",
-  ])];
+  return [
+    ...new Set([
+      ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
+      "engine.current-engine-rpm",
+      "inputs.gear",
+      "inputs.accel",
+      "inputs.brake",
+      "inputs.steer",
+      "motion.speed",
+      "motion.acceleration-x",
+      "motion.angular-velocity-y",
+      "motion.position-x",
+      "motion.position-z",
+      "motion.yaw",
+      "timing.current-lap",
+      "timing.current-race-time",
+      "timing.distance-traveled",
+      "aero.drs-active",
+      "weather.air-temp",
+      "fuel.ers-store-energy",
+      "fuel.ers-deploy-mode",
+      "brakes.brake-bias",
+      "fuel.ers-deployed",
+      "fuel.ers-harvested",
+      "fuel.fuel-capacity",
+      "identity.car-ordinal",
+      "identity.player-track-surface",
+      "tires.tire-radius",
+    ]),
+  ];
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
-  timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
+  timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : (timestamp.milliseconds ?? 0);
 const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
@@ -127,9 +129,15 @@ export const resourceRoutes = new Hono()
     return c.json({ traces, decisions });
   })
   .get("/api/laps/:id/quality", zValidator("param", IdParamSchema), async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) {
+      return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    }
     const { id } = c.req.valid("param");
     const lap = await getLapById(id);
-    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    if (!lap || lap.gameId !== gameIdResult.data || lap.ownership !== "mine") {
+      return c.json({ error: "Lap not found" }, 404);
+    }
     return c.json({
       lapId: lap.id,
       sessionId: lap.sessionId,
@@ -266,21 +274,18 @@ export const resourceRoutes = new Hono()
     return c.json({ ok: true });
   })
 
-  .post("/api/laps/:id/experiment-excluded", zValidator("param", IdParamSchema), zValidator("json", z.object({ excluded: z.boolean() })), async (c) => {
+  .post("/api/laps/:id/experiment-excluded", zValidator("param", IdParamSchema), zValidator("json", z.object({ experimentId: z.number().int().positive(), excluded: z.boolean() })), async (c) => {
     const { id } = c.req.valid("param");
-    const { excluded } = c.req.valid("json");
-    const { ok, prev, experimentId } = await setLapExperimentExcluded(id, excluded);
-    if (!ok) return c.json({ error: "Lap not found" }, 404);
+    const { experimentId, excluded } = c.req.valid("json");
+    const result = await setLapExperimentExcluded(id, experimentId, excluded);
+    if (!result.ok) return c.json({ error: "Lap not found" }, 404);
 
     // Best-effort: an action-log write failure must not fail the request —
-    // the lap flag is already committed. Only log when the lap is linked
-    // to a tuning session (laps outside a tuning session have nothing to undo into).
-    if (experimentId != null) {
-      try {
-        await recordAction(experimentId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
-      } catch (err: any) {
-        console.error("[LapRoutes] Failed to log set-lap-excluded action:", err?.message);
-      }
+    // the lap flag is already committed.
+    try {
+      await recordAction(experimentId, "set-lap-excluded", { lapId: id, prevExcluded: result.prev });
+    } catch (error: unknown) {
+      console.error("[LapRoutes] Failed to log set-lap-excluded action:", error instanceof Error ? error.message : String(error));
     }
 
     return c.json({ ok: true, lapId: id, excluded });

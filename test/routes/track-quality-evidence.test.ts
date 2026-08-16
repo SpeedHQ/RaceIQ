@@ -5,21 +5,17 @@ import {
   QUALITY_CONFIG_VERSION,
   QUALITY_SCHEMA_VERSION,
   type EligibilityDecisionSet,
+  type EligibilityStatus,
   type LapQualitySummary,
 } from "../../shared/racing/quality/contracts";
-import {
-  deleteRecordedOutline,
-} from "../../shared/racing/tracks/recording/outlines";
+import { deleteRecordedOutline, getRecordedOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
 import { db } from "../../server/db";
 import { laps, sessions } from "../../server/db/schema";
-import {
-  cacheDelete,
-  cacheSet,
-} from "../../server/db/telemetry-replay-storage";
+import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
 import { trackRoutes } from "../../server/routes/tracks";
 import { resolveTrackOutline } from "../../server/routes/tracks/support";
-import { normalPaceEligibility } from "../support/lap-analysis/recap";
 
 const createdSessionIds: number[] = [];
 const cachedLapIds: number[] = [];
@@ -35,6 +31,19 @@ function quality(generation: string): LapQualitySummary {
       outputGeneration: generation,
     },
   } as LapQualitySummary;
+}
+
+function cornerTraceEligibility(status: EligibilityStatus): EligibilityDecisionSet {
+  return {
+    "corner-trace": {
+      policyId: "corner-trace",
+      policyVersion: ELIGIBILITY_POLICY_VERSION,
+      status,
+      confidence: { level: status === "unknown" ? "unknown" : "high", score: status === "unknown" ? null : 1 },
+      reasons: [],
+      evidenceIds: [],
+    },
+  } as unknown as EligibilityDecisionSet;
 }
 
 function outlineTelemetry(): TelemetryPacket[] {
@@ -56,6 +65,10 @@ async function insertOutlineCandidate(
   options: {
     eligibility: EligibilityDecisionSet | null;
     storedGeneration?: string;
+    gameId?: GameId;
+    sessionTrackOrdinal?: number;
+    ownership?: "mine" | "others";
+    lapTime?: number;
   },
 ): Promise<number> {
   const generation = `sha256:outline-${trackOrdinal}`;
@@ -63,10 +76,11 @@ async function insertOutlineCandidate(
     await db
       .insert(sessions)
       .values({
-        gameId: "iracing",
+        gameId: options.gameId ?? "iracing",
         carOrdinal: trackOrdinal + 1,
-        trackOrdinal,
+        trackOrdinal: options.sessionTrackOrdinal ?? trackOrdinal,
         source: "native-live",
+        ownership: options.ownership ?? "mine",
       })
       .returning({ id: sessions.id })
       .get()
@@ -78,7 +92,7 @@ async function insertOutlineCandidate(
       .values({
         sessionId,
         lapNumber: 1,
-        lapTime: 90,
+        lapTime: options.lapTime ?? 90,
         isValid: true,
         quality: quality(generation),
         eligibility: options.eligibility,
@@ -145,11 +159,65 @@ describe("GET /api/tracks/:trackOrdinal/all-laps", () => {
   });
 });
 
+describe("POST /api/tracks/:trackOrdinal/recompute-outline", () => {
+  const recompute = (trackOrdinal: number, lapId?: number) =>
+    trackRoutes.request(`/api/tracks/${trackOrdinal}/recompute-outline?gameId=iracing${lapId == null ? "" : `&lapId=${lapId}`}`, { method: "POST" });
+
+  test("explicit mode writes only owned matching current corner-trace evidence", async () => {
+    const acceptedTrack = 9_231_210;
+    const acceptedLap = await insertOutlineCandidate(acceptedTrack, { eligibility: cornerTraceEligibility("eligible") });
+    expect((await recompute(acceptedTrack, acceptedLap)).status).toBe(200);
+    expect(getRecordedOutlineByOrdinal(acceptedTrack, "iracing")?.length).toBeGreaterThanOrEqual(50);
+
+    const rejected = [
+      { track: 9_231_211, options: { eligibility: cornerTraceEligibility("eligible"), gameId: "acc" as const }, status: 404 },
+      { track: 9_231_212, options: { eligibility: cornerTraceEligibility("eligible"), sessionTrackOrdinal: 9_231_999 }, status: 404 },
+      { track: 9_231_213, options: { eligibility: cornerTraceEligibility("eligible"), ownership: "others" as const }, status: 404 },
+      { track: 9_231_214, options: { eligibility: cornerTraceEligibility("eligible"), lapTime: 0 }, status: 404 },
+      { track: 9_231_215, options: { eligibility: cornerTraceEligibility("eligible"), storedGeneration: "sha256:stale" }, status: 422 },
+      { track: 9_231_216, options: { eligibility: cornerTraceEligibility("ineligible") }, status: 422 },
+      { track: 9_231_217, options: { eligibility: null }, status: 422 },
+    ];
+
+    for (const candidate of rejected) {
+      const lapId = await insertOutlineCandidate(candidate.track, candidate.options);
+      expect((await recompute(candidate.track, lapId)).status).toBe(candidate.status);
+      expect(getRecordedOutlineByOrdinal(candidate.track, "iracing")).toBeNull();
+    }
+  });
+
+  test("pooled mode keeps fastest matching evidence and writes nothing when every candidate is rejected", async () => {
+    const acceptedTrack = 9_231_220;
+    await insertOutlineCandidate(acceptedTrack, { eligibility: cornerTraceEligibility("eligible"), lapTime: 91 });
+    await insertOutlineCandidate(acceptedTrack, { eligibility: cornerTraceEligibility("eligible"), ownership: "others", lapTime: 80 });
+    await insertOutlineCandidate(acceptedTrack, { eligibility: cornerTraceEligibility("ineligible"), lapTime: 81 });
+    await insertOutlineCandidate(acceptedTrack, {
+      eligibility: cornerTraceEligibility("eligible"),
+      storedGeneration: "sha256:stale",
+      lapTime: 82,
+    });
+    const accepted = await recompute(acceptedTrack);
+    expect(accepted.status).toBe(200);
+    expect(await accepted.json()).toMatchObject({ lapsUsed: 1 });
+    expect(getRecordedOutlineByOrdinal(acceptedTrack, "iracing")?.length).toBeGreaterThanOrEqual(50);
+
+    const rejectedTrack = 9_231_221;
+    await insertOutlineCandidate(rejectedTrack, { eligibility: cornerTraceEligibility("ineligible") });
+    await insertOutlineCandidate(rejectedTrack, { eligibility: cornerTraceEligibility("eligible"), ownership: "others" });
+    await insertOutlineCandidate(rejectedTrack, { eligibility: cornerTraceEligibility("eligible"), storedGeneration: "sha256:stale" });
+    await insertOutlineCandidate(rejectedTrack, { eligibility: cornerTraceEligibility("eligible"), gameId: "acc" });
+    await insertOutlineCandidate(rejectedTrack, { eligibility: cornerTraceEligibility("eligible"), sessionTrackOrdinal: rejectedTrack + 1 });
+
+    expect((await recompute(rejectedTrack)).status).toBe(404);
+    expect(getRecordedOutlineByOrdinal(rejectedTrack, "iracing")).toBeNull();
+  });
+});
+
 describe("resolveTrackOutline iRacing persistence fallback", () => {
-  test("seeds generated outline from current normal-pace-eligible evidence", async () => {
+  test("seeds generated outline from current corner-trace evidence", async () => {
     const trackOrdinal = 9_231_201;
     await insertOutlineCandidate(trackOrdinal, {
-      eligibility: normalPaceEligibility("eligible"),
+      eligibility: cornerTraceEligibility("eligible"),
     });
 
     const resolved = await resolveTrackOutline(trackOrdinal, "iracing");
@@ -164,19 +232,32 @@ describe("resolveTrackOutline iRacing persistence fallback", () => {
     expect(resolved?.points.length).toBeGreaterThanOrEqual(50);
   });
 
-  test("rejects missing, stale, and normal-pace-ineligible persisted evidence", async () => {
+  test("rejects wrong-scope, stale, missing, and corner-trace-ineligible fallback candidates without writing", async () => {
     const trackOrdinal = 9_231_202;
     await insertOutlineCandidate(trackOrdinal, {
-      eligibility: normalPaceEligibility("ineligible"),
+      eligibility: cornerTraceEligibility("ineligible"),
     });
     await insertOutlineCandidate(trackOrdinal, {
-      eligibility: normalPaceEligibility("eligible"),
+      eligibility: cornerTraceEligibility("eligible"),
       storedGeneration: "sha256:stale-outline-generation",
+    });
+    await insertOutlineCandidate(trackOrdinal, {
+      eligibility: cornerTraceEligibility("eligible"),
+      ownership: "others",
     });
     await insertOutlineCandidate(trackOrdinal, {
       eligibility: null,
     });
+    await insertOutlineCandidate(trackOrdinal, {
+      eligibility: cornerTraceEligibility("eligible"),
+      gameId: "acc",
+    });
+    await insertOutlineCandidate(trackOrdinal, {
+      eligibility: cornerTraceEligibility("eligible"),
+      sessionTrackOrdinal: trackOrdinal + 1,
+    });
 
     expect(await resolveTrackOutline(trackOrdinal, "iracing")).toBeNull();
+    expect(getRecordedOutlineByOrdinal(trackOrdinal, "iracing")).toBeNull();
   });
 });

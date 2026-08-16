@@ -1,22 +1,40 @@
-import { eq, desc, and, inArray, isNull } from "drizzle-orm";
+import { eq, desc, and, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { db } from "./index";
 import { lapMetaProjection, toLapMeta } from "./lap-meta";
-import { sessions, laps, tunes } from "./schema";
+import { experiments, sessions, laps, tunes } from "./schema";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { LapClassification } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 
-export async function setLapExperimentExcluded(lapId: number, excluded: boolean): Promise<{ ok: boolean; prev: boolean; experimentId: number | null }> {
-  const row = await db.select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId }).from(laps).where(eq(laps.id, lapId)).get();
-  if (!row) return { ok: false, prev: false, experimentId: null };
-  const prev = Boolean(row.experimentExcluded);
-  await db
-    .update(laps)
-    .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
-    .where(eq(laps.id, lapId))
-    .run();
-  return { ok: true, prev, experimentId: row.experimentId };
+export async function setLapExperimentExcluded(lapId: number, experimentId: number, excluded: boolean): Promise<{ ok: true; prev: boolean } | { ok: false }> {
+  return db.transaction(async (tx) => {
+    const row = await tx
+      .select({ experimentExcluded: laps.experimentExcluded })
+      .from(laps)
+      .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+      .innerJoin(experiments, eq(laps.experimentId, experiments.id))
+      .where(
+        and(
+          eq(laps.id, lapId),
+          eq(laps.experimentId, experimentId),
+          eq(experiments.id, experimentId),
+          eq(sessions.gameId, experiments.gameId),
+          isNotNull(experiments.trackOrdinal),
+          eq(sessions.trackOrdinal, experiments.trackOrdinal),
+          ne(sessions.ownership, "others"),
+        ),
+      )
+      .get();
+    if (!row) return { ok: false };
+
+    await tx
+      .update(laps)
+      .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
+      .where(and(eq(laps.id, lapId), eq(laps.experimentId, experimentId)))
+      .run();
+    return { ok: true, prev: Boolean(row.experimentExcluded) };
+  });
 }
 
 /**
@@ -35,6 +53,10 @@ export async function getLapsForExclusionScope(
     isValid: boolean;
     quality: LapQualitySummary | null;
     eligibility: EligibilityDecisionSet | null;
+    qualityGeneration: string | null;
+    qualitySchemaVersion: string | null;
+    qualityPolicyVersion: string | null;
+    qualityConfigVersion: string | null;
     invalidReason: string | null;
     experimentExcluded: boolean;
     experimentExcludedSource: "auto" | "manual" | null;
@@ -50,6 +72,10 @@ export async function getLapsForExclusionScope(
       paceEligibility: laps.paceEligibility,
       quality: laps.quality,
       eligibility: laps.eligibility,
+      qualityGeneration: laps.qualityGeneration,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
       invalidReason: laps.invalidReason,
       experimentExcluded: laps.experimentExcluded,
       experimentExcludedSource: laps.experimentExcludedSource,
@@ -66,6 +92,10 @@ export async function getLapsForExclusionScope(
     paceEligibility: r.paceEligibility,
     quality: r.quality,
     eligibility: r.eligibility,
+    qualityGeneration: r.qualityGeneration,
+    qualitySchemaVersion: r.qualitySchemaVersion,
+    qualityPolicyVersion: r.qualityPolicyVersion,
+    qualityConfigVersion: r.qualityConfigVersion,
     invalidReason: r.invalidReason,
     experimentExcluded: Boolean(r.experimentExcluded),
     experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
