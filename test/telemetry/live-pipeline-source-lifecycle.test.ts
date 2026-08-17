@@ -6,8 +6,10 @@ import {
   ELIGIBILITY_POLICY_VERSION,
   QUALITY_CONFIG_VERSION,
   QUALITY_SCHEMA_VERSION,
+  LOCAL_PLAYER_EVIDENCE,
   type ArchiveVerification,
   type LapQualitySummary,
+  type ParticipantEvidence,
   type RecordingQualitySummary,
 } from "../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
@@ -135,9 +137,55 @@ class FinalizingSnapshotDb extends CapturingDbAdapter {
   }
 }
 
+async function captureParticipant(participant?: ParticipantEvidence) {
+  const db = new CapturingDbAdapter();
+  const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
+    bypassPacketRateFilter: true,
+    skipHistorySeeding: true,
+    skipDevState: true,
+    recorder: new NullSessionRecorderAdapter(),
+    ...(participant ? { participant } : {}),
+  });
+
+  await pipeline.processPacket({
+    ...telemetryPacket("fm-2023", 1_000),
+    CurrentLap: 30,
+    DistanceTraveled: 2_000,
+  });
+  await pipeline.processPacket({
+    ...telemetryPacket("fm-2023", 2_000),
+    LapNumber: 2,
+    CurrentLap: 0.1,
+    LastLap: 90,
+    DistanceTraveled: 5_000,
+  });
+  await pipeline.finalizeCurrentSession();
+
+  return {
+    sessionQuality: db.sessionQuality.get(1),
+    lapQuality: db.laps[0]?.quality,
+  };
+}
+
 describe("LiveTelemetryPipeline source lifecycle scoping", () => {
   afterAll(() => {
     stopMaintenanceTasks();
+  });
+  test("preserves participant evidence across recording and emitted laps", async () => {
+    const participant: ParticipantEvidence = {
+      kind: "opponent",
+      sourceId: "car-17",
+      stableId: "driver-17",
+      identityState: "stable",
+    };
+
+    const explicit = await captureParticipant(participant);
+    expect(explicit.sessionQuality?.participant).toEqual(participant);
+    expect(explicit.lapQuality?.participant).toEqual(participant);
+
+    const defaulted = await captureParticipant();
+    expect(defaulted.sessionQuality?.participant).toEqual(LOCAL_PLAYER_EVIDENCE);
+    expect(defaulted.lapQuality?.participant).toEqual(LOCAL_PLAYER_EVIDENCE);
   });
   test("drops stale UDP timeout evidence while ACC session is active", async () => {
     const db = new CapturingDbAdapter();
