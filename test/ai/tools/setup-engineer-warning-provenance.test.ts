@@ -6,6 +6,7 @@ import type { LapMeta } from "../../../shared/racing/sessions/types";
 import { ELIGIBILITY_POLICY_VERSION, type EligibilityReason } from "../../../shared/racing/quality/contracts";
 import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
+import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quality-generation";
 
 const warning: EligibilityReason = {
   code: "channel_simplified",
@@ -17,8 +18,13 @@ const warning: EligibilityReason = {
 };
 
 function lapEvidence(id: number, lapTime: number, warned = false): LapMeta {
-  const quality = summarize(qualityPackets(100));
-  const eligibility = evaluateAllEligibility(quality);
+  const generated = finalizeLapQualityGeneration(summarize(qualityPackets(100)), `sha256:${"b".repeat(64)}`, {
+    lapNumber: id,
+    rawByteOffset: null,
+    rawFrameCount: 100,
+  });
+  const quality = generated.quality;
+  const eligibility = generated.eligibility;
   for (const policyId of ["normal-pace", "corner-trace"] as const) {
     eligibility[policyId] = {
       ...eligibility[policyId],
