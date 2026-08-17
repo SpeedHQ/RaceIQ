@@ -2,13 +2,14 @@ import { Trash2 } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
+import { comparisonAiStateKey } from "../../lib/lap-ai-state-key";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
 import { PanelSectionHeader } from "../ui/panel-section-header";
 import { useComparisonAiSettings } from "./compare-ai-hooks";
 import { AnalysisModal, InputsModal } from "./compare-ai-modals";
 import { InputsSection, LapSection } from "./compare-ai-sections";
-import { comparisonAiStateKey, type AnalysisSummary, type CompareAiPanelHandle, type CompareAiPanelProps, fetchCompareChatHistory, type InputsAnalysis } from "./compare-ai-types";
+import { type AnalysisSummary, type CompareAiPanelHandle, type CompareAiPanelProps, fetchCompareChatHistory, type InputsAnalysis } from "./compare-ai-types";
 
 export type { CompareAiPanelHandle } from "./compare-ai-types";
 
@@ -71,7 +72,6 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}
             historyQueryKey={["compare-chat-history", lapA.id, lapB.id, qualityStateKey, chatRemountKey]}
             remountKey={`${qualityStateKey}:${chatRemountKey}`}
-            compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}~q${qualityStateKey}`}
           />
         </div>
       )}

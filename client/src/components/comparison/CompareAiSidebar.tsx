@@ -2,8 +2,9 @@ import { Sparkles, X } from "lucide-react";
 import type { RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
+import { comparisonAiStateKey } from "@/lib/lap-ai-state-key";
 import { CompareAiPanel, type CompareAiPanelHandle } from "./CompareAiPanel";
-import { comparisonAiStateKey, type LapHeader } from "./compare-ai-types";
+import type { LapHeader } from "./compare-ai-types";
 
 interface CompareAiSidebarProps {
   lapA: LapHeader;

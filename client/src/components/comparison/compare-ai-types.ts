@@ -1,5 +1,6 @@
 import type { UIMessage } from "ai";
 import type { AnalysisData } from "@/components/ai/analysis-types";
+import type { ChatHistoryResult } from "../ai-chat/ChatPanel";
 import type { LapMeta } from "@shared/racing/sessions/types";
 
 export type ParsedAnalysis = Partial<AnalysisData>;
@@ -16,23 +17,6 @@ export interface CompareAiPanelProps {
   panelOpen?: boolean;
   segments?: { name: string; startFrac: number; endFrac: number }[];
   onJumpToFrac?: (frac: number) => void;
-}
-
-export function lapAiStateKey(lap: LapHeader): string {
-  const provenance = lap.quality?.provenance;
-  return [
-    lap.id,
-    lap.qualityGeneration ?? "missing",
-    lap.qualityStale ? "stale" : "current",
-    provenance?.schemaVersion ?? "missing",
-    provenance?.policyVersion ?? "missing",
-    provenance?.configurationVersion ?? "missing",
-    provenance?.outputGeneration ?? "missing",
-  ].join(":");
-}
-
-export function comparisonAiStateKey(lapA: LapHeader, lapB: LapHeader): string {
-  return [lapAiStateKey(lapA), lapAiStateKey(lapB)].sort().join("|");
 }
 
 export interface InputsSegment {
@@ -67,12 +51,15 @@ export interface AnalysisSummary {
   raw: ParsedAnalysis;
 }
 
-export async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}` : `/api/laps/${lapAId}/compare/${lapBId}/chat`;
+export async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<ChatHistoryResult> {
+  const url = gen === undefined ? `/api/laps/${lapAId}/compare/${lapBId}/chat` : `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
-  const data = (await res.json()) as { messages?: UIMessage[] };
-  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+  const data = (await res.json()) as { messages?: UIMessage[]; threadId?: string | null };
+  return {
+    messages: (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant"),
+    threadId: data.threadId,
+  };
 }
 
 export function summarize(parsed: ParsedAnalysis): AnalysisSummary {

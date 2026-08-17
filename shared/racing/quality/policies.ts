@@ -703,6 +703,17 @@ export function resolveEligibilityDecision(
   policyId: EligibilityPolicyId,
   options: EligibilityEvaluationOptions = {},
 ): EligibilityDecision {
+  if (evidence.qualityStale === true) {
+    const reason = syntheticReason("quality_stale");
+    return {
+      status: "unknown",
+      policyId,
+      policyVersion: ELIGIBILITY_POLICY_VERSION,
+      confidence: { level: "unknown", score: null },
+      reasons: [reason],
+      evidenceIds: reason.evidenceIds,
+    };
+  }
   const snapshotCurrent = isQualitySnapshotCurrent(evidence);
   const persisted = evidence.eligibility?.[policyId];
   if (snapshotCurrent && persisted?.policyId === policyId && persisted.policyVersion === ELIGIBILITY_POLICY_VERSION) return persisted;

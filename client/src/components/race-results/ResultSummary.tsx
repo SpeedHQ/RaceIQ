@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { GameId } from "../../../../shared/games/ids";
 import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
+import { m } from "../../paraglide/messages";
 import { localizedEligibilityDecisionText } from "../LapQualityBadge";
 
 const classificationLabels: Record<RaceResultStatus, string> = {
@@ -66,8 +67,8 @@ export function ResultAggregateGrid({ aggregate }: { aggregate: RaceResultAggreg
     ["Recorded fastest laps", aggregate.fastestLaps],
     ["Recorded pit stops", aggregate.pitStops],
     ["Known pit time", aggregate.pitDurationSeconds == null ? "Not recorded" : `${aggregate.pitDurationSeconds.toFixed(1)}s`],
-    ["Timing-usable laps", aggregate.lapQuality.total === 0 ? "Not recorded" : `${timingUsable}/${aggregate.lapQuality.total}`],
-    ["Normal-pace laps", aggregate.lapQuality.total === 0 ? "Not recorded" : `${paceUsable}/${aggregate.lapQuality.total}`],
+    [m.race_quality_timing_usable_laps(), aggregate.lapQuality.total === 0 ? m.race_quality_not_recorded() : `${timingUsable}/${aggregate.lapQuality.total}`],
+    [m.race_quality_normal_pace_laps(), aggregate.lapQuality.total === 0 ? m.race_quality_not_recorded() : `${paceUsable}/${aggregate.lapQuality.total}`],
   ];
   return (
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -127,11 +128,11 @@ function RecentResult({ result }: { result: RaceResult }) {
       {result.lapQuality.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-app-text-muted">
           <span>
-            Timing: {timingUsable}/{result.lapQuality.length} usable
+            {m.race_quality_timing_summary({ usable: timingUsable, total: result.lapQuality.length })}
             {timingLimitation ? ` · ${localizedEligibilityDecisionText(timingLimitation)}` : ""}
           </span>
           <span>
-            Normal pace: {paceUsable}/{result.lapQuality.length} usable
+            {m.race_quality_normal_pace_summary({ usable: paceUsable, total: result.lapQuality.length })}
             {paceLimitation ? ` · ${localizedEligibilityDecisionText(paceLimitation)}` : ""}
           </span>
         </div>

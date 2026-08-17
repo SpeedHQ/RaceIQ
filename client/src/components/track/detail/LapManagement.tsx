@@ -1,8 +1,8 @@
-import { isEligibilityUsable, isTimedLapEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/quality/policies";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { LapStatus } from "@/components/LapStatus";
-import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
+import { LapQualityBadge } from "@/components/LapQualityBadge";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
@@ -239,7 +239,7 @@ export function LapManagement(props: LapManagementProps) {
                   style={carouselHeight ? { height: carouselHeight } : undefined}
                 >
                   <div className="snap-center shrink-0 w-full">
-                    <LapStatsPanel laps={filteredLaps.filter((lap) => isTimedLapEligibilityUsable(lap))} sectorCount={sectorCount} showSessionFilter={isF125} />
+                    <LapStatsPanel laps={filteredLaps} sectorCount={sectorCount} showSessionFilter={isF125} />
                   </div>
                   <div className="snap-center shrink-0 w-full flex flex-col gap-2">
                     {(() => {
@@ -313,7 +313,7 @@ export function LapManagement(props: LapManagementProps) {
 
               {/* Desktop: stats + table side-by-side */}
               <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden @3xl/workspace:flex">
-                <LapStatsPanel laps={filteredLaps.filter((lap) => isTimedLapEligibilityUsable(lap))} sectorCount={sectorCount} showSessionFilter={isF125} />
+                <LapStatsPanel laps={filteredLaps} sectorCount={sectorCount} showSessionFilter={isF125} />
                 {/* Lap table (md+) */}
                 <div className="flex-1 min-w-0 overflow-y-auto">
                   <Table fit>
@@ -345,7 +345,6 @@ export function LapManagement(props: LapManagementProps) {
                         const fastestTime = paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : null;
                         return filteredLaps.map((lap) => {
                           const isFastest = fastestTime !== null && lap.lapTime === fastestTime && isTimedLapEligibilityUsable(lap);
-                          const analysisDecision = resolveEligibilityDecision(lap, "corner-trace");
                           return (
                             <TRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} selected={selectedLaps.has(lap.lapId)}>
                               <TD>
@@ -386,8 +385,7 @@ export function LapManagement(props: LapManagementProps) {
                                   variant="app-outline"
                                   size="app-sm"
                                   className="bg-app-accent/10 !border-app-accent/40 text-app-accent hover:bg-app-accent/20"
-                                  disabled={!isEligibilityUsable(analysisDecision)}
-                                  title={isEligibilityUsable(analysisDecision) ? m.trackdetail_analyse() : localizedEligibilityDecisionText(analysisDecision)}
+                                  title={m.trackdetail_analyse()}
                                   onClick={() => {
                                     if (!gameId) return;
                                     navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);

@@ -3,8 +3,9 @@ import { isEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/
 import { AnalysisResultCard, AnalysisSummaryRow } from "@/components/ai/analysis-summary";
 import { m } from "@/paraglide/messages";
 import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
+import { comparisonAiStateKey, lapAiStateKey } from "@/lib/lap-ai-state-key";
 import { useAiRunAction, useInputsAnalysis, useLapAnalysis } from "./compare-ai-hooks";
-import { comparisonAiStateKey, lapAiStateKey, type AnalysisSummary, type InputsAnalysis, type LapHeader } from "./compare-ai-types";
+import type { AnalysisSummary, InputsAnalysis, LapHeader } from "./compare-ai-types";
 
 export function InputsSection({
   lapA,

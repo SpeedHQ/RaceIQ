@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { EligibilityDecision, LapQualitySummary, QualityFact } from "../../shared/racing/quality/contracts";
+import { resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { diagnosticReasons, localizedEligibilityDecisionPresentation, localizedEligibilityDecisionText, resolveLapQualityLevel } from "../../client/src/components/LapQualityBadge";
 
 function quality(lifecycleState: LapQualitySummary["lifecycleState"]): LapQualitySummary {
@@ -25,6 +26,17 @@ describe("lap quality badge state", () => {
     expect(resolveLapQualityLevel(quality("exact"), decision("ineligible"))).toBe("unsuitable");
     expect(resolveLapQualityLevel(quality("exact"), decision("unknown"))).toBe("unknown");
     expect(resolveLapQualityLevel(null, null)).toBe("unknown");
+  });
+
+  test("distinguishes stale snapshots from missing quality evidence", () => {
+    const stale = resolveEligibilityDecision({ qualityStale: true }, "corner-trace");
+    const missing = resolveEligibilityDecision({}, "corner-trace");
+
+    expect(stale.status).toBe("unknown");
+    expect(stale.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
+    expect(missing.status).toBe("unknown");
+    expect(missing.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+    expect(resolveLapQualityLevel(null, stale)).toBe("stale");
   });
 
   test("exposes persisted status and first decisive localized reason for blocked actions", () => {

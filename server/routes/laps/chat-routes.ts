@@ -7,7 +7,7 @@ import type { Tune } from "../../../shared/racing/tuning/types";
 import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 import { getLapById } from "../../db/lap-read-queries";
-import { deleteAnalysis as deleteAnalysisQuery, getAnalysis } from "../../db/analysis-queries";
+import { deleteAnalysis as deleteAnalysisQuery, getAnalysis, getLapQualityIdentity } from "../../db/analysis-queries";
 import { getCorners } from "../../db/track-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { detectCorners } from "../../lap-analysis/corners";
@@ -24,13 +24,16 @@ import { parseTuneRow } from "../tune-shared";
 export const chatRoutes = new Hono()
   .get("/api/laps/:id/chat", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
+    let base: string | null = null;
     try {
+      const identity = await getLapQualityIdentity(id);
+      if (!identity) return c.json({ messages: [], threadId: null });
+      base = chatThreadId(id, `${identity.policyVersion}:${identity.generation}`);
       const memory = getChatMemory();
-      const base = chatThreadId(id);
       const genParam = Number(c.req.query("gen"));
       const threadId = Number.isInteger(genParam) && genParam >= 1 ? generationThreadId(base, genParam) : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
-      if (!thread) return c.json({ messages: [] });
+      if (!thread) return c.json({ messages: [], threadId: base });
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
 
@@ -38,10 +41,10 @@ export const chatRoutes = new Hono()
       list.add(raw, "memory");
       const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
 
-      return c.json({ messages: uiMessages });
+      return c.json({ messages: uiMessages, threadId: base });
     } catch (err: any) {
       console.error("[Chat] Failed to load messages:", err.message);
-      return c.json({ messages: [] });
+      return c.json({ messages: [], threadId: base });
     }
   })
 
@@ -55,6 +58,8 @@ export const chatRoutes = new Hono()
     if (!isEligibilityUsable(decision)) {
       return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
     }
+    const identity = await getLapQualityIdentity(id);
+    if (!identity) return c.json({ error: "Lap quality identity is unavailable." }, 422);
     if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
 
     const settings = loadSettings();
@@ -108,7 +113,7 @@ export const chatRoutes = new Hono()
 
     const chatModelLabel = settings.chatModel || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "local" ? "local-model" : "gemini-flash-latest");
 
-    const threadId = await resolveActiveThread(chatThreadId(id));
+    const threadId = await resolveActiveThread(chatThreadId(id, `${identity.policyVersion}:${identity.generation}`));
     const turnStartedAt = Date.now();
     try {
       const stream = await lapChatAgent.stream([{ role: "system", content: systemPrompt }, ...messages], {
@@ -135,13 +140,16 @@ export const chatRoutes = new Hono()
   .delete("/api/laps/:id/chat", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
     try {
-      const memory = getChatMemory();
-      const base = chatThreadId(id);
-      const gens = await listThreadGenerations(base);
-      const ids = new Set(gens.map((g) => g.threadId));
-      ids.add(base);
-      for (const threadId of ids) {
-        await memory.deleteThread(threadId);
+      const identity = await getLapQualityIdentity(id);
+      if (identity) {
+        const memory = getChatMemory();
+        const base = chatThreadId(id, `${identity.policyVersion}:${identity.generation}`);
+        const gens = await listThreadGenerations(base);
+        const ids = new Set(gens.map((g) => g.threadId));
+        ids.add(base);
+        for (const threadId of ids) {
+          await memory.deleteThread(threadId);
+        }
       }
     } catch (err: any) {
       console.error("[Chat] Failed to clear thread:", err.message);

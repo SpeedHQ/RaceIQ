@@ -348,15 +348,16 @@ export const comparisonRoutes = new Hono()
 
   .get("/api/laps/:id1/compare/:id2/chat", zValidator("param", CompareParamsSchema), async (c) => {
     const { id1, id2 } = c.req.valid("param");
+    let base: string | null = null;
     try {
-      const memory = getChatMemory();
       const identity = await getCompareQualityIdentity(id1, id2);
-      if (!identity) return c.json({ messages: [] });
-      const base = compareChatThreadId(id1, id2, `${identity.policyVersion}:${identity.generation}`);
+      if (!identity) return c.json({ messages: [], threadId: null });
+      base = compareChatThreadId(id1, id2, `${identity.policyVersion}:${identity.generation}`);
+      const memory = getChatMemory();
       const genParam = Number(c.req.query("gen"));
       const threadId = Number.isInteger(genParam) && genParam >= 1 ? generationThreadId(base, genParam) : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
-      if (!thread) return c.json({ messages: [] });
+      if (!thread) return c.json({ messages: [], threadId: base });
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
 
@@ -364,10 +365,10 @@ export const comparisonRoutes = new Hono()
       list.add(raw, "memory");
       const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
 
-      return c.json({ messages: uiMessages });
+      return c.json({ messages: uiMessages, threadId: base });
     } catch (err: any) {
       console.error("[CompareChat] Failed to load messages:", err.message);
-      return c.json({ messages: [] });
+      return c.json({ messages: [], threadId: base });
     }
   })
 

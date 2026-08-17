@@ -2,14 +2,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, test } from "bun:test";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  ELIGIBILITY_POLICY_VERSION,
-  QUALITY_CONFIG_VERSION,
-  QUALITY_SCHEMA_VERSION,
-  type EligibilityDecisionSet,
-  type LapQualitySummary,
-} from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { LapMeta, SessionLapData, SessionMeta, SessionRecap } from "../../shared/racing/sessions/types";
+import { LapQualityBadge, QualityRebuildStatus, type QualityRebuildStatusProps } from "../src/components/LapQualityBadge";
 import { LapStatus } from "../src/components/LapStatus";
 import { RecordedLaps } from "../src/components/RecordedLaps";
 import { SessionRecapView } from "../src/components/SessionRecap";
@@ -27,6 +22,22 @@ function renderWithLocale(locale: Locale, render: () => ReactNode): string {
     overwriteGetLocale(() => previousLocale);
   }
 }
+function renderRebuildStatus(props: Partial<QualityRebuildStatusProps>): string {
+  return renderWithLocale("en", () => (
+    <QualityRebuildStatus
+      action={undefined}
+      statusPending={false}
+      statusFetching={false}
+      statusError={false}
+      rebuildPending={false}
+      rebuildError={false}
+      rebuildSuccess={false}
+      onRetry={() => {}}
+      onRebuild={() => {}}
+      {...props}
+    />
+  ));
+}
 
 const nonPaceLap = {
   id: 7,
@@ -43,6 +54,10 @@ const nonPaceLap = {
   eligibility: null,
   quality: null,
 } as unknown as LapMeta;
+const staleLap = {
+  ...nonPaceLap,
+  qualityStale: true,
+} as unknown as LapMeta;
 
 const session = {
   id: 3,
@@ -51,10 +66,7 @@ const session = {
   bestLapTime: 91.234,
 } as unknown as SessionMeta;
 
-type RecapQualityEvidence = Pick<
-  SessionLapData,
-  "quality" | "eligibility" | "qualityGeneration" | "qualitySchemaVersion" | "qualityPolicyVersion" | "qualityConfigVersion"
->;
+type RecapQualityEvidence = Pick<SessionLapData, "quality" | "eligibility" | "qualityGeneration" | "qualitySchemaVersion" | "qualityPolicyVersion" | "qualityConfigVersion">;
 
 function freshRecapQualityEvidence(generation: string): RecapQualityEvidence {
   return {
@@ -177,6 +189,25 @@ describe("client quality presentation contracts", () => {
     expect(german).toContain('title="Keine Telemetrie"');
     expect(german).toContain('aria-label="Ungültig: Keine Telemetrie"');
   });
+  test("renders stale quality as distinct localized warning evidence", () => {
+    const english = renderWithLocale("en", () => (
+      <QueryClientProvider client={new QueryClient()}>
+        <LapQualityBadge lap={staleLap} />
+      </QueryClientProvider>
+    ));
+    const german = renderWithLocale("de", () => (
+      <QueryClientProvider client={new QueryClient()}>
+        <LapQualityBadge lap={staleLap} />
+      </QueryClientProvider>
+    ));
+
+    expect(english).toContain('data-quality-level="stale"');
+    expect(english).toContain(">Stale<");
+    expect(english).toContain("Stored quality is out of date.");
+    expect(german).toContain('data-quality-level="stale"');
+    expect(german).toContain(">Veraltet<");
+    expect(german).toContain("Gespeicherte Qualität ist veraltet.");
+  });
 
   test("keeps deletion available when regeneration eligibility blocks generation", () => {
     const markup = renderWithLocale("de", () => (
@@ -207,24 +238,21 @@ describe("client quality presentation contracts", () => {
     expect(remove).not.toContain('disabled=""');
   });
 
-  test("uses corner-trace badge for SessionLapTable analyse action", () => {
+  test("keeps non-pace Analyse navigation enabled while showing corner-trace quality badges", () => {
     const markup = renderWithLocale("en", () => (
       <QueryClientProvider client={new QueryClient()}>
-        <SessionLapTable
-          session={session}
-          laps={[nonPaceLap]}
-          sectorCount={1}
-          lapSortKey="lap"
-          lapSortDir="asc"
-          toggleLapSort={() => {}}
-          selectedLaps={new Set()}
-          toggleLapSelection={() => {}}
-        />
+        <>
+          <RecordedLaps laps={[nonPaceLap]} />
+          <SessionLapTable session={session} laps={[nonPaceLap]} sectorCount={1} lapSortKey="lap" lapSortDir="asc" toggleLapSort={() => {}} selectedLaps={new Set()} toggleLapSelection={() => {}} />
+        </>
       </QueryClientProvider>
     ));
+    const analyseButtons = markup.match(/<button[^>]*title="Analyse"[^>]*>/g) ?? [];
 
-    expect(markup).toContain('aria-label="Telemetry quality: Corner trace —');
+    expect(markup.match(/aria-label="Telemetry quality: Corner trace —/g)?.length).toBe(2);
     expect(markup).not.toContain('aria-label="Telemetry quality: Normal pace —');
+    expect(analyseButtons).toHaveLength(2);
+    for (const button of analyseButtons) expect(button).not.toContain('disabled=""');
   });
 
   test("renders Pace section from fresh canonical eligible recap laps", () => {
@@ -251,5 +279,43 @@ describe("client quality presentation contracts", () => {
     expect(markup).toMatch(/<span class="[^"]*text-app-text-muted[^"]*">30\.123<\/span>/);
     expect(markup).not.toMatch(/<span class="[^"]*lap-pace-best[^"]*">30\.123<\/span>/);
     expect(markup).toContain('aria-label="Löschen"');
+  });
+
+  test("announces loading, rebuild progress, success, and current status", () => {
+    const loading = renderRebuildStatus({ action: "reprocess", statusPending: true });
+    const pending = renderRebuildStatus({ action: "reprocess", rebuildPending: true });
+    const success = renderRebuildStatus({ action: "reprocess", rebuildSuccess: true });
+    const current = renderRebuildStatus({ action: "current" });
+
+    expect(loading).toContain('aria-busy="true"');
+    expect(loading).toContain('role="status"');
+    expect(loading).toContain('aria-live="polite"');
+    expect(loading).toContain("Checking quality status…");
+    expect(pending).toContain('aria-busy="true"');
+    expect(pending).toContain("Rebuilding…");
+    expect(pending.match(/<button[^>]*>/)?.[0]).toContain('disabled=""');
+    expect(success).toContain('role="status"');
+    expect(success).toContain("Quality rebuilt");
+    expect(success.match(/<button[^>]*>/)?.[0]).not.toContain('disabled=""');
+    expect(current).toContain('role="status"');
+    expect(current).toContain("Quality is up to date.");
+  });
+
+  test("prioritizes rebuild errors and retains retry and available rebuild actions", () => {
+    const rebuildError = renderRebuildStatus({ action: "reprocess", statusError: true, rebuildError: true });
+    const statusError = renderRebuildStatus({ action: "reprocess", statusError: true });
+    const unavailable = renderRebuildStatus({ action: "unavailable" });
+
+    expect(rebuildError).toContain('role="alert"');
+    expect(rebuildError).toContain("Quality rebuild failed");
+    expect(rebuildError).not.toContain("Could not load session quality status.");
+    expect(rebuildError).toContain(">Rebuild quality<");
+    expect(statusError).toContain('role="alert"');
+    expect(statusError).toContain("Could not load session quality status.");
+    expect(statusError).toContain(">Retry<");
+    expect(statusError).toContain(">Rebuild quality<");
+    expect(unavailable).toContain('role="alert"');
+    expect(unavailable).toContain("Source recording unavailable; quality cannot be rebuilt.");
+    expect(unavailable).not.toContain(">Rebuild quality<");
   });
 });

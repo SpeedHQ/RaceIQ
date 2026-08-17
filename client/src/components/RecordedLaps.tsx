@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
-import { isTimedLapEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/quality/policies";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { LapStatus } from "@/components/LapStatus";
-import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
+import { LapQualityBadge } from "@/components/LapQualityBadge";
 import { m } from "@/paraglide/messages";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import { useDeleteLap } from "../hooks/laps";
@@ -75,8 +75,6 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
           <div className="divide-y divide-app-border/30">
             {sorted.map((l) => {
               const paceEligible = isTimedLapEligibilityUsable(l);
-              const analysisDecision = resolveEligibilityDecision(l, "corner-trace");
-              const analysisUsable = isTimedLapEligibilityUsable(l, "corner-trace");
               const delta = paceEligible && best > 0 ? l.lapTime - best : null;
               const isBest = delta === 0;
               const timeColor = !paceEligible
@@ -114,8 +112,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                       variant="app-primary"
                       size="app-sm"
                       className="!px-1.5 !py-0.5"
-                      disabled={!analysisUsable}
-                      title={analysisUsable ? m.label_analyse() : localizedEligibilityDecisionText(analysisDecision)}
+                      title={m.label_analyse()}
                     >
                       {m.label_analyse()}
                     </Button>

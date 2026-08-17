@@ -42,7 +42,17 @@ describe("websocket message router", () => {
   it("keeps current live view when server repeats its schema", () => {
     useTelemetryStore.getState().clearTelemetry();
     handleWebSocketMessage(schema);
-    handleWebSocketMessage({ type: "telemetry-frame", protocolVersion: 1, schemaId: "s", streamId: "x", sessionId: null, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [] });
+    handleWebSocketMessage({
+      type: "telemetry-frame",
+      protocolVersion: 1,
+      schemaId: "s",
+      streamId: "x",
+      sessionId: null,
+      sequence: 1,
+      observedAt: { domain: "session", milliseconds: 1 },
+      receivedAtMs: 1,
+      values: [],
+    });
     const frame = useTelemetryStore.getState().telemetryFrame;
     const view = useTelemetryStore.getState().telemetryView;
     handleWebSocketMessage(schema);
@@ -65,6 +75,12 @@ describe("quality update cache routing", () => {
     expect(qualityUpdatedQueryKeys(42)).toEqual([
       ["laps"],
       ["sessions"],
+      ["lap-semantic-telemetry"],
+      ["stint-traces"],
+      ["lap-issues"],
+      ["session-result"],
+      ["race-result-summary"],
+      ["race-result-recent"],
       ["track-laps"],
       ["session-recap", 42],
       ["session-quality", 42],

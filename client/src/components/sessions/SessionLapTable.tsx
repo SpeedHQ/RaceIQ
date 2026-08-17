@@ -1,9 +1,9 @@
-import { isEligibilityUsable, isTimedLapEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/quality/policies";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { LapStatus } from "@/components/LapStatus";
-import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
+import { LapQualityBadge } from "@/components/LapQualityBadge";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
@@ -64,8 +64,6 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
         <TBody>
           {sortedLaps.map((lap) => {
             const isBest = (session.bestLapTime ?? 0) > 0 && Math.abs(lap.lapTime - (session.bestLapTime ?? 0)) < 0.001;
-            const analysisDecision = resolveEligibilityDecision(lap, "corner-trace");
-            const analysisUsable = isEligibilityUsable(analysisDecision);
             return (
               <TRow
                 key={lap.id}
@@ -90,8 +88,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                       variant="app-outline"
                       size="app-sm"
                       className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
-                      disabled={!analysisUsable}
-                      title={analysisUsable ? m.label_analyse() : localizedEligibilityDecisionText(analysisDecision)}
+                      title={m.label_analyse()}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={(event) => {
                         event.stopPropagation();

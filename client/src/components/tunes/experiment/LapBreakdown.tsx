@@ -15,14 +15,14 @@ type SortKey = "lap" | "time" | "fuel" | "wear";
 type StatusFilter = "all" | EligibilityStatus | "eval" | "outside" | "excluded";
 const STATUS_FILTERS: StatusFilter[] = ["all", "eligible", "eligible_with_warning", "ineligible", "unknown", "eval", "outside", "excluded"];
 const STATUS_FILTER_LABELS: Record<StatusFilter, () => string> = {
-  all: () => "Status",
+  all: m.review_quality_status,
   eligible: m.quality_status_eligible,
   eligible_with_warning: m.quality_status_eligible_with_warning,
   ineligible: m.quality_status_ineligible,
   unknown: m.quality_status_unknown,
-  eval: () => "Status: Eval",
-  outside: () => `Status: Outside top ${REVIEW_LAP_CAP}`,
-  excluded: () => "Status: Excluded",
+  eval: m.review_quality_status_eval,
+  outside: () => m.review_quality_status_outside({ count: REVIEW_LAP_CAP }),
+  excluded: m.review_quality_status_excluded,
 };
 function matchesStatusFilter(filter: StatusFilter, lap: LapMeta, reason: string | undefined, policyStatus: EligibilityStatus): boolean {
   if (filter === "all") return true;
@@ -70,12 +70,16 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
   }, [laps, metricsById, sort, statusFilter, selection]);
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const cycleStatusFilter = () => setStatusFilter((s) => STATUS_FILTERS[(STATUS_FILTERS.indexOf(s) + 1) % STATUS_FILTERS.length]);
-  if (laps.length === 0) return <div className="px-3 py-2 text-app-subtext text-app-text-dim">No laps recorded against this version yet.</div>;
+  if (laps.length === 0) return <div className="px-3 py-2 text-app-subtext text-app-text-dim">{m.review_quality_no_laps()}</div>;
   return (
     <Table density="compact" fit>
       <THead>
-        <SortableTH direction={sort.key === "lap" ? (sort.dir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("lap")} title="Sort by lap">
-          Lap
+        <SortableTH
+          direction={sort.key === "lap" ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
+          onSort={() => toggleSort("lap")}
+          title={m.review_quality_sort_by({ label: m.label_lap() })}
+        >
+          {m.label_lap()}
         </SortableTH>
         <TH
           onClick={cycleStatusFilter}
@@ -86,16 +90,16 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
           }}
           tabIndex={0}
           role="button"
-          aria-label={`Filter by candidate quality status. Current filter: ${STATUS_FILTER_LABELS[statusFilter]()}`}
-          title="Filter by status"
+          aria-label={m.review_quality_filter_aria({ filter: STATUS_FILTER_LABELS[statusFilter]() })}
+          title={m.review_quality_filter_title()}
         >
           <span className={statusFilter !== "all" ? "text-app-accent" : undefined}>{STATUS_FILTER_LABELS[statusFilter]()}</span>
         </TH>
         {(
           [
-            ["time", "Time"],
-            ["fuel", "Fuel used"],
-            ["wear", "Tyre wear"],
+            ["time", m.label_time()],
+            ["fuel", m.review_quality_fuel_used()],
+            ["wear", m.review_quality_tyre_wear()],
           ] as [SortKey, string][]
         ).map(([key, label]) => (
           <SortableTH
@@ -103,7 +107,7 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
             align="end"
             direction={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
             onSort={() => toggleSort(key)}
-            title={`Sort by ${label.toLowerCase()}`}
+            title={m.review_quality_sort_by({ label })}
           >
             {label}
           </SortableTH>
@@ -146,23 +150,20 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
                       )}
                       <span className="flex min-w-0 items-center gap-2">
                         {excluded ? (
-                          <span className="truncate text-app-caption uppercase tracking-wider text-app-text-dim" title="Excluded from tuning aggregate by you">
-                            Excluded by user
+                          <span className="truncate text-app-caption uppercase tracking-wider text-app-text-dim" title={m.review_quality_excluded_title()}>
+                            {m.review_quality_excluded_by_user()}
                           </span>
                         ) : (
                           <LapStatus lap={l} visibility="issues" />
                         )}
                         {reason === "chosen" && (
-                          <span
-                            className="text-app-caption uppercase tracking-wider text-status-success"
-                            title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} suitable laps this analysis reads`}
-                          >
-                            Eval
+                          <span className="text-app-caption uppercase tracking-wider text-status-success" title={m.review_quality_eval_title({ count: REVIEW_LAP_CAP })}>
+                            {m.review_quality_eval()}
                           </span>
                         )}
                         {reason === "slower-than-cap" && (
-                          <span className="text-app-caption uppercase tracking-wider text-app-text-dim" title={`Suitable lap, but outside the fastest ${REVIEW_LAP_CAP} — not used for evaluation`}>
-                            Outside top {REVIEW_LAP_CAP}
+                          <span className="text-app-caption uppercase tracking-wider text-app-text-dim" title={m.review_quality_outside_title({ count: REVIEW_LAP_CAP })}>
+                            {m.review_quality_outside_top({ count: REVIEW_LAP_CAP })}
                           </span>
                         )}
                       </span>
@@ -174,10 +175,10 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
                     size="app-sm"
                     onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
                     disabled={setExcluded.isPending}
-                    aria-label={`${excluded ? "Include" : "Exclude"} lap ${l.lapNumber}`}
-                    title={excluded ? "Include this lap in tuning aggregate again" : "Exclude this lap from tuning aggregate (blunder, off-track, spin)"}
+                    aria-label={excluded ? m.review_quality_include_lap({ lap: l.lapNumber }) : m.review_quality_exclude_lap({ lap: l.lapNumber })}
+                    title={excluded ? m.review_quality_include_title() : m.review_quality_exclude_title()}
                   >
-                    {excluded ? "Include" : "Exclude"}
+                    {excluded ? m.review_quality_include() : m.review_quality_exclude()}
                   </Button>
                 </div>
               </TD>

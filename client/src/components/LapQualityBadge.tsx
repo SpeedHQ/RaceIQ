@@ -12,7 +12,7 @@ import { resolveEligibilityDecision } from "@shared/racing/quality/policies";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { qualityUpdatedQueryKeys } from "../hooks/query-keys";
 import { m } from "../paraglide/messages";
 import { Badge } from "./ui/badge";
@@ -43,6 +43,7 @@ const STATUS_LABELS: Record<EligibilityStatus, () => string> = {
 
 const REASON_LABELS: Record<QualityReasonCode, () => string> = {
   quality_not_rebuilt: m.quality_reason_quality_not_rebuilt,
+  quality_stale: m.quality_reason_quality_stale,
   recording_unavailable: m.quality_reason_recording_unavailable,
   recording_incompatible: m.quality_reason_recording_incompatible,
   recording_corrupt: m.quality_reason_recording_corrupt,
@@ -84,13 +85,14 @@ const REASON_LABELS: Record<QualityReasonCode, () => string> = {
   raw_redecode_required: m.quality_reason_raw_redecode_required,
 };
 
-export type QualityLevel = "good" | "degraded" | "unsuitable" | "unknown";
+export type QualityLevel = "good" | "degraded" | "unsuitable" | "stale" | "unknown";
 type BadgeVariant = "success" | "warning" | "danger" | "neutral";
 
 const LEVEL_PRESENTATION: Record<QualityLevel, { label: () => string; summary: () => string; variant: BadgeVariant }> = {
   good: { label: m.quality_badge_good, summary: m.quality_summary_good, variant: "success" },
   degraded: { label: m.quality_badge_degraded, summary: m.quality_summary_degraded, variant: "warning" },
   unsuitable: { label: m.quality_badge_unsuitable, summary: m.quality_summary_unsuitable, variant: "danger" },
+  stale: { label: m.quality_badge_stale, summary: m.quality_summary_stale, variant: "warning" },
   unknown: { label: m.quality_badge_unknown, summary: m.quality_summary_unknown, variant: "neutral" },
 };
 
@@ -117,6 +119,7 @@ export function localizedEligibilityDecisionText(decision: EligibilityDecision |
 }
 
 export function resolveLapQualityLevel(quality: LapQualitySummary | null | undefined, decision: EligibilityDecision | null | undefined): QualityLevel {
+  if (decision?.reasons.some((reason) => reason.code === "quality_stale")) return "stale";
   if (!quality || !decision || decision.status === "unknown") return "unknown";
   if (decision.status === "ineligible") return "unsuitable";
   if (decision.status === "eligible_with_warning" || quality.lifecycleState !== "exact") return "degraded";
@@ -203,8 +206,83 @@ function percent(value: number | null): string {
   return value == null ? m.quality_not_available() : `${(value * 100).toFixed(1)}%`;
 }
 
-interface SessionQualityStatus {
+export interface SessionQualityStatus {
   action: "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
+}
+
+export interface QualityRebuildStatusProps {
+  action: SessionQualityStatus["action"] | undefined;
+  statusPending: boolean;
+  statusFetching: boolean;
+  statusError: boolean;
+  rebuildPending: boolean;
+  rebuildError: boolean;
+  rebuildSuccess: boolean;
+  onRetry: () => void;
+  onRebuild: () => void;
+}
+
+export function QualityRebuildStatus({ action, statusPending, statusFetching, statusError, rebuildPending, rebuildError, rebuildSuccess, onRetry, onRebuild }: QualityRebuildStatusProps): ReactNode {
+  let liveStatus: ReactNode = null;
+  if (rebuildError) {
+    liveStatus = (
+      <p role="alert" className="text-app-caption text-status-danger">
+        {m.quality_rebuild_failed()}
+      </p>
+    );
+  } else if (statusError) {
+    liveStatus = (
+      <div role="alert" className="flex items-center justify-between gap-3 text-app-caption text-status-danger">
+        <span>{m.quality_status_load_failed()}</span>
+        <Button variant="app-outline" size="app-sm" onClick={onRetry} disabled={statusFetching}>
+          {m.label_retry()}
+        </Button>
+      </div>
+    );
+  } else if (rebuildPending) {
+    liveStatus = (
+      <p role="status" aria-live="polite" className="text-app-caption text-app-text-muted">
+        {m.quality_rebuilding()}
+      </p>
+    );
+  } else if (rebuildSuccess) {
+    liveStatus = (
+      <p role="status" aria-live="polite" className="text-app-caption text-status-success">
+        {m.quality_rebuilt()}
+      </p>
+    );
+  } else if (statusPending || statusFetching) {
+    liveStatus = (
+      <p role="status" aria-live="polite" className="text-app-caption text-app-text-muted">
+        {m.quality_status_loading()}
+      </p>
+    );
+  } else if (action === "current") {
+    liveStatus = (
+      <p role="status" aria-live="polite" className="text-app-caption text-status-success">
+        {m.quality_status_current()}
+      </p>
+    );
+  } else if (action === "unavailable") {
+    liveStatus = (
+      <p role="alert" className="text-app-caption text-status-danger">
+        {m.quality_rebuild_unavailable()}
+      </p>
+    );
+  }
+
+  return (
+    <section aria-label={m.quality_title()} aria-busy={statusPending || statusFetching || rebuildPending || undefined} className="space-y-3">
+      {liveStatus}
+      {(action === "rebuild_eligibility" || action === "reprocess") && (
+        <DialogFooter>
+          <Button variant="app-primary" onClick={onRebuild} disabled={rebuildPending}>
+            {rebuildPending ? m.quality_rebuilding() : m.quality_rebuild()}
+          </Button>
+        </DialogFooter>
+      )}
+    </section>
+  );
 }
 
 interface LapQualityBadgeProps {
@@ -426,25 +504,17 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
           </CollapsibleContent>
         </Collapsible>
 
-        {statusQuery.isError && (
-          <div role="alert" className="flex items-center justify-between gap-3 text-app-caption text-status-danger">
-            <span>{m.quality_status_load_failed()}</span>
-            <Button variant="app-outline" size="app-sm" onClick={() => void statusQuery.refetch()} disabled={statusQuery.isFetching}>
-              {m.label_retry()}
-            </Button>
-          </div>
-        )}
-        {rebuildAction === "unavailable" && <p className="text-app-caption text-status-danger">{m.quality_rebuild_unavailable()}</p>}
-        {rebuild.isError && <p className="text-app-caption text-status-danger">{m.quality_rebuild_failed()}</p>}
-        {rebuild.isSuccess && <p className="text-app-caption text-status-success">{m.quality_rebuilt()}</p>}
-
-        {(rebuildAction === "rebuild_eligibility" || rebuildAction === "reprocess") && (
-          <DialogFooter>
-            <Button variant="app-primary" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
-              {rebuild.isPending ? m.quality_rebuilding() : m.quality_rebuild()}
-            </Button>
-          </DialogFooter>
-        )}
+        <QualityRebuildStatus
+          action={rebuildAction}
+          statusPending={statusQuery.isPending}
+          statusFetching={statusQuery.isFetching}
+          statusError={statusQuery.isError}
+          rebuildPending={rebuild.isPending}
+          rebuildError={rebuild.isError}
+          rebuildSuccess={rebuild.isSuccess}
+          onRetry={() => void statusQuery.refetch()}
+          onRebuild={() => rebuild.mutate()}
+        />
       </DialogContent>
     </Dialog>
   );

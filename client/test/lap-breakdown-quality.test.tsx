@@ -1,9 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecision, type EligibilityPolicyId, type EligibilityStatus, type LapQualitySummary } from "../../shared/racing/quality/contracts";
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  QUALITY_CONFIG_VERSION,
+  QUALITY_SCHEMA_VERSION,
+  type EligibilityDecision,
+  type EligibilityPolicyId,
+  type EligibilityStatus,
+  type LapQualitySummary,
+} from "../../shared/racing/quality/contracts";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import { LapBreakdown } from "../src/components/tunes/experiment/LapBreakdown";
+import { getLocale, overwriteGetLocale, type Locale } from "../src/paraglide/runtime";
 
 function decision(policyId: EligibilityPolicyId, status: EligibilityStatus, reason: EligibilityDecision["reasons"][number]["code"] | null = null): EligibilityDecision {
   return {
@@ -62,12 +71,18 @@ function lap(id: number, isValid: boolean, cornerDecision: EligibilityDecision =
   } as unknown as LapMeta;
 }
 
-function renderBreakdown(values: LapMeta[]): string {
-  return renderToStaticMarkup(
-    <QueryClientProvider client={new QueryClient()}>
-      <LapBreakdown laps={values} bestT={null} metricsById={new Map()} />
-    </QueryClientProvider>,
-  );
+function renderBreakdown(values: LapMeta[], locale: Locale = "en"): string {
+  const previousLocale = getLocale();
+  overwriteGetLocale(() => locale);
+  try {
+    return renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}>
+        <LapBreakdown laps={values} bestT={null} metricsById={new Map()} experimentId={1} />
+      </QueryClientProvider>,
+    );
+  } finally {
+    overwriteGetLocale(() => previousLocale);
+  }
 }
 
 describe("Tune Review lap quality presentation", () => {
@@ -105,5 +120,17 @@ describe("Tune Review lap quality presentation", () => {
     const action = markup.match(/<button[^>]*aria-label="Exclude lap 4"[^>]*>/)?.[0] ?? "";
     expect(action).not.toBe("");
     expect(action).not.toMatch(/\sdisabled=""/);
+  });
+
+  test("localizes Tune Review quality controls and empty state in German", () => {
+    const markup = renderBreakdown([lap(7, true, decision("corner-trace", "ineligible", "channel_missing"))], "de");
+    const empty = renderBreakdown([], "de");
+
+    expect(markup).toContain('title="Nach Runde sortieren"');
+    expect(markup).toContain("Nach Qualitätsstatus der Kandidaten filtern.");
+    expect(markup).toContain('aria-label="Runde 7 ausschließen"');
+    expect(markup).toContain(">Ausschließen<");
+    expect(markup).not.toContain("Exclude this lap");
+    expect(empty).toContain("Für diese Version wurden noch keine Runden aufgezeichnet.");
   });
 });

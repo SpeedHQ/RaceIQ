@@ -9,6 +9,7 @@ import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
 import type { AnalyseSearch } from "../../lib/game-routes";
+import { lapAiStateKey } from "../../lib/lap-ai-state-key";
 import { client } from "../../lib/rpc";
 import { useRequiredGameId } from "../../stores/game";
 import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
@@ -250,6 +251,7 @@ function LapAnalyseInner() {
   const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
   const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
+  const qualityStateKey = selectedLap ? lapAiStateKey(selectedLap) : null;
   const analysisDecision = selectedLap ? resolveEligibilityDecision(selectedLap, "corner-trace") : undefined;
   const analysisUsable = isEligibilityUsable(analysisDecision);
   const totalTime = selectedLap?.lapTime ?? 0;
@@ -432,9 +434,10 @@ function LapAnalyseInner() {
             onJumpToFrame: handleChartClick,
           }}
           aiSidebarProps={
-            aiPanelOpen && analysisUsable && selectedLapId
+            aiPanelOpen && analysisUsable && selectedLapId && qualityStateKey
               ? {
                   lapId: selectedLapId,
+                  qualityStateKey,
                   trackName,
                   carName,
                   segments,
