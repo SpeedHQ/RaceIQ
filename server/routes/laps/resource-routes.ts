@@ -20,6 +20,7 @@ import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
+import { resolveLapGeoreference } from "../../tracks/georeference";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
@@ -77,12 +78,27 @@ export const resourceRoutes = new Hono()
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const trackOrdinal = lap.trackOrdinal;
+      const georeference = trackOrdinal == null
+        ? null
+        : await resolveLapGeoreference({
+            canonicalSlug: getGame(lap.gameId).getSharedTrackName?.(trackOrdinal),
+            gameId: lap.gameId,
+            trackOrdinal,
+            packets: lap.telemetry,
+          });
       return c.json({
         lapId: replay.lapId,
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
         sectorStarts: nativeLayout?.starts ?? null,
         insights: analyzeLap(lap.telemetry, lap.gameId),
+        ...(georeference
+          ? {
+              geographicPositions: georeference.positions,
+              georeference: georeference.metadata,
+            }
+          : {}),
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },

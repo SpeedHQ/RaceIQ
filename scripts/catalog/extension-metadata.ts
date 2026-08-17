@@ -122,6 +122,10 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.sectorStarts": "timing.sector.layout.start-fractions",
   "iracing.incidents": "race.incident-flags",
   "iracing.trackWetness": "weather.track-wetness",
+  "iracing.latitudeDeg": "motion.geodetic.latitude",
+  "iracing.longitudeDeg": "motion.geodetic.longitude",
+  "iracing.altitudeM": "motion.geodetic.altitude",
+  "iracing.headingNorthRad": "motion.yaw-north",
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {
@@ -372,6 +376,31 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     unit: "fraction",
     description: "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
     freshness: "session-update",
+  },
+  "iracing.latitudeDeg": {
+    unit: "deg",
+    description: "WGS84 latitude retained from imported iRacing IBT rows; unavailable in live shared memory.",
+    freshness: "continuous",
+    kind: "direct",
+  },
+  "iracing.longitudeDeg": {
+    unit: "deg",
+    description: "WGS84 longitude retained from imported iRacing IBT rows; unavailable in live shared memory.",
+    freshness: "continuous",
+    kind: "direct",
+  },
+  "iracing.altitudeM": {
+    unit: "m",
+    description: "WGS84 ellipsoidal altitude retained from imported iRacing IBT rows; unavailable in live shared memory.",
+    freshness: "continuous",
+    kind: "direct",
+  },
+  "iracing.headingNorthRad": {
+    unit: "rad",
+    description: "North-referenced clockwise heading retained from imported iRacing IBT rows; unavailable in live shared memory.",
+    freshness: "continuous",
+    kind: "direct",
+    normalization: "wrap source heading to [-π, π]",
   },
 };
 

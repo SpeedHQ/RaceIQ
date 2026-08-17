@@ -19,13 +19,28 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-
 export interface SemanticReplayFrame {
   sequence: number;
   observedAt: { domain: string; milliseconds: number };
   receivedAt: { domain: string; milliseconds: number };
   simulator: string;
   values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }>;
+}
+export interface GeographicPosition {
+  latitudeDeg: number;
+  longitudeDeg: number;
+  altitudeM: number;
+}
+
+export interface LapGeoreferenceMetadata {
+  kind: "native" | "derived";
+  sourceIdentity: string;
+  canonicalSlug: string | null;
+  quality: {
+    score: number;
+    rmseM: number;
+    sampleCount: number;
+  };
 }
 
 export interface SemanticLapTelemetry {
@@ -34,6 +49,8 @@ export interface SemanticLapTelemetry {
   sectorTimes?: number[] | null;
   sectorStarts?: number[] | null;
   insights?: unknown[];
+  geographicPositions?: Array<GeographicPosition | null>;
+  georeference?: LapGeoreferenceMetadata;
   envelopes: SemanticReplayFrame[];
 }
 

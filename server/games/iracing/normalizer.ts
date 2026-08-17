@@ -1,10 +1,5 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import {
-  createIRacingSourceDecoderState,
-  type IRacingSourceDecoderState,
-  type IRacingSourceFrame,
-  type IRacingValue,
-} from "./source-frame";
+import { createIRacingSourceDecoderState, type IRacingSourceDecoderState, type IRacingSourceFrame, type IRacingValue } from "./source-frame";
 import { parseIRacingFuelCapacity } from "./session-info";
 import { startsAtIRacingSectorOrigin, warnInvalidIRacingSectorLayout } from "./sector-layout";
 
@@ -18,6 +13,10 @@ interface IRacingGpsProjectionState {
   lastX: number;
   lastY: number;
   lastZ: number;
+  lastLatitudeDeg: number | null;
+  lastLongitudeDeg: number | null;
+  lastAltitudeM: number | null;
+  lastHeadingNorthRad: number | null;
   hasLast: boolean;
 }
 
@@ -44,6 +43,10 @@ export function createIRacingParserState(): IRacingParserState {
       lastX: 0,
       lastY: 0,
       lastZ: 0,
+      lastLatitudeDeg: null,
+      lastLongitudeDeg: null,
+      lastAltitudeM: null,
+      lastHeadingNorthRad: null,
       hasLast: false,
     },
     fuelCapacitySessionInfo: null,
@@ -68,35 +71,48 @@ function clamp(value: number, min: number, max: number): number {
 }
 function resetGpsProjection(state: IRacingGpsProjectionState): void {
   state.originLatitudeRad = null;
+  state.originLongitudeRad = 0;
+  state.originAltitudeM = 0;
+  state.lastX = 0;
+  state.lastY = 0;
+  state.lastZ = 0;
+  state.lastLatitudeDeg = null;
+  state.lastLongitudeDeg = null;
+  state.lastAltitudeM = null;
+  state.lastHeadingNorthRad = null;
   state.hasLast = false;
 }
 
+function normalizedHeadingNorthRad(value: number): number | null {
+  return Number.isFinite(value) ? Math.atan2(Math.sin(value), Math.cos(value)) : null;
+}
+
+function validLatitudeLongitude(latitude: number, longitude: number): boolean {
+  return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180 && !(latitude === 0 && longitude === 0);
+}
+
 /**
- * iRacing records WGS84 Lat/Lon/Alt channels only in IBT rows. Convert them to
- * a local east/north metric plane so stored laps use RaceIQ's normal X/Z path.
+ * iRacing records WGS84 Lat/Lon/Alt/YawNorth channels only in IBT rows.
+ * Convert them to a local east/north metric plane so stored laps use RaceIQ's
+ * normal X/Z path. Invalid transient rows retain last valid geodetic values.
  */
 function projectRecordedGps(values: Record<string, IRacingValue>, state: IRacingGpsProjectionState): boolean {
   const latitudeDegrees = scalar(values, "Lat", Number.NaN);
   const longitudeDegrees = scalar(values, "Lon", Number.NaN);
-  if (
-    !Number.isFinite(latitudeDegrees) ||
-    !Number.isFinite(longitudeDegrees) ||
-    latitudeDegrees < -90 ||
-    latitudeDegrees > 90 ||
-    longitudeDegrees < -180 ||
-    longitudeDegrees > 180 ||
-    (latitudeDegrees === 0 && longitudeDegrees === 0)
-  ) {
+  if (!validLatitudeLongitude(latitudeDegrees, longitudeDegrees)) {
     return state.hasLast;
   }
 
   const latitudeRad = (latitudeDegrees * Math.PI) / 180;
   const longitudeRad = (longitudeDegrees * Math.PI) / 180;
   const altitudeM = scalar(values, "Alt", Number.NaN);
+  const headingNorthRad = scalar(values, "YawNorth", Number.NaN);
+  const retainedAltitudeM = Number.isFinite(altitudeM) ? altitudeM : state.lastAltitudeM;
+  const retainedHeadingNorthRad = normalizedHeadingNorthRad(headingNorthRad) ?? state.lastHeadingNorthRad;
   if (state.originLatitudeRad === null) {
     state.originLatitudeRad = latitudeRad;
     state.originLongitudeRad = longitudeRad;
-    state.originAltitudeM = Number.isFinite(altitudeM) ? altitudeM : 0;
+    state.originAltitudeM = retainedAltitudeM ?? 0;
   }
 
   let longitudeDelta = longitudeRad - state.originLongitudeRad;
@@ -104,8 +120,12 @@ function projectRecordedGps(values: Record<string, IRacingValue>, state: IRacing
   else if (longitudeDelta < -Math.PI) longitudeDelta += Math.PI * 2;
 
   state.lastX = WGS84_EQUATORIAL_RADIUS_M * longitudeDelta * Math.cos((latitudeRad + state.originLatitudeRad) / 2);
-  state.lastY = Number.isFinite(altitudeM) ? altitudeM - state.originAltitudeM : 0;
+  state.lastY = retainedAltitudeM === null ? state.lastY : retainedAltitudeM - state.originAltitudeM;
   state.lastZ = WGS84_EQUATORIAL_RADIUS_M * (latitudeRad - state.originLatitudeRad);
+  state.lastLatitudeDeg = latitudeDegrees;
+  state.lastLongitudeDeg = longitudeDegrees;
+  state.lastAltitudeM = retainedAltitudeM;
+  state.lastHeadingNorthRad = retainedHeadingNorthRad;
   state.hasLast = true;
   return true;
 }
@@ -167,15 +187,15 @@ function coldPressurePsi(values: Record<string, IRacingValue>, corner: "LF" | "R
 }
 
 function normalizeSectorStarts(nativeStarts: readonly number[] | undefined): number[] {
-  if (!nativeStarts) return [];
-  const starts = [...nativeStarts].sort((a, b) => a - b);
-  if (starts.length >= 2 && startsAtIRacingSectorOrigin(starts[0]) && starts.every((value, index) => Number.isFinite(value) && value >= 0 && value < 1 && (index === 0 || value > starts[index - 1]))) {
-    return starts;
+  const starts = nativeStarts?.map(Number) ?? [];
+  const valid =
+    starts.length >= 2 && startsAtIRacingSectorOrigin(starts[0]) && starts.every((value, index) => Number.isFinite(value) && value >= 0 && value < 1 && (index === 0 || value > starts[index - 1]));
+  if (!valid) {
+    if (starts.length > 0) warnInvalidIRacingSectorLayout(starts);
+    return [];
   }
-  if (starts.length > 0) warnInvalidIRacingSectorLayout(starts);
-  return [];
+  return starts;
 }
-
 export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacingParserState | null): TelemetryPacket {
   const { session, values } = frame;
 
@@ -214,10 +234,33 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacing
     }
     currentLapTime = Math.max(0, sessionTime - state.lapStartSessionTime);
   }
-  const hasRecordedGps = state ? projectRecordedGps(values, state.gps) : false;
-  const positionX = hasRecordedGps ? state!.gps.lastX : 0;
-  const positionY = hasRecordedGps ? state!.gps.lastY : 0;
-  const positionZ = hasRecordedGps ? state!.gps.lastZ : 0;
+  const gpsState = state?.gps ?? {
+    originLatitudeRad: null,
+    originLongitudeRad: 0,
+    originAltitudeM: 0,
+    lastX: 0,
+    lastY: 0,
+    lastZ: 0,
+    lastLatitudeDeg: null,
+    lastLongitudeDeg: null,
+    lastAltitudeM: null,
+    lastHeadingNorthRad: null,
+    hasLast: false,
+  };
+  const hasRecordedGps = projectRecordedGps(values, gpsState);
+  const positionX = hasRecordedGps ? gpsState.lastX : 0;
+  const positionY = hasRecordedGps ? gpsState.lastY : 0;
+  const positionZ = hasRecordedGps ? gpsState.lastZ : 0;
+  const recordedGeodetic =
+    hasRecordedGps && gpsState.lastLatitudeDeg !== null && gpsState.lastLongitudeDeg !== null
+      ? {
+          latitudeDeg: gpsState.lastLatitudeDeg,
+          longitudeDeg: gpsState.lastLongitudeDeg,
+          ...(gpsState.lastAltitudeM !== null ? { altitudeM: gpsState.lastAltitudeM } : {}),
+          ...(gpsState.lastHeadingNorthRad !== null ? { headingNorthRad: gpsState.lastHeadingNorthRad } : {}),
+        }
+      : {};
+  const canonicalYaw = hasRecordedGps && gpsState.lastHeadingNorthRad !== null ? gpsState.lastHeadingNorthRad : -scalar(values, "Yaw", 0);
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
@@ -240,6 +283,7 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacing
   return {
     gameId: "iracing",
     iracing: {
+      ...recordedGeodetic,
       sessionTick: Math.trunc(scalar(values, "SessionTick", 0)),
       sessionNum: session.sessionNum,
       driverCarIdx: session.driverCarIdx,
@@ -282,7 +326,7 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacing
     AngularVelocityY: -scalar(values, "YawRate", 0),
     AngularVelocityZ: scalar(values, "RollRate", 0),
 
-    Yaw: -scalar(values, "Yaw", 0),
+    Yaw: canonicalYaw,
     Pitch: scalar(values, "Pitch", 0),
     Roll: scalar(values, "Roll", 0),
 

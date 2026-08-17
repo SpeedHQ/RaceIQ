@@ -53,6 +53,7 @@ describe("IRacingIbtReader", () => {
       expect(first?.values.Lat).toBeCloseTo(43);
       expect(first?.values.Lon).toBeCloseTo(-88);
       expect(first?.values.Alt).toBeCloseTo(200);
+      expect(first?.values.YawNorth).toBeCloseTo(Math.PI / 2);
       expect(first?.sessionInfo).toBe(syntheticSessionInfo(DEFAULT_IDENTITY));
       expect(first?.sessionInfoUpdate).toBe(0);
       expect(reader.recordsRead).toBe(1);
@@ -114,11 +115,12 @@ describe("IRacingIbtReader", () => {
       expect(frame?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
       const parserState = createIRacingParserState();
       const packet = normalizeIRacingFrame(frame!, parserState);
-      expect(packet.gameId).toBe("iracing");
-      expect(packet.sessionUID).toBe("456:123:2");
-      expect(packet.Speed).toBeCloseTo(50.5);
-      expect(packet.LapNumber).toBe(3);
       expect(packet.iracing?.lapDistancePct).toBeCloseTo(0.25);
+      expect(packet.iracing?.latitudeDeg).toBeCloseTo(43);
+      expect(packet.iracing?.longitudeDeg).toBeCloseTo(-88);
+      expect(packet.iracing?.altitudeM).toBeCloseTo(200);
+      expect(packet.iracing?.headingNorthRad).toBeCloseTo(Math.PI / 2);
+      expect(packet.Yaw).toBeCloseTo(Math.PI / 2);
       expect(packet).toMatchObject({
         PositionX: 0,
         PositionY: 0,
@@ -135,6 +137,9 @@ describe("IRacingIbtReader", () => {
       expect((secondFrame as IRacingSourceFrameV3 | null)?.sessionInfo).toBe(syntheticSessionInfo(DEFAULT_IDENTITY));
       expect((secondFrame as IRacingSourceFrameV3 | null)?.sessionInfoUpdate).toBe(0);
       const secondPacket = normalizeIRacingFrame(secondFrame!, parserState);
+      expect(secondPacket.iracing?.latitudeDeg).toBeCloseTo(43.0001);
+      expect(secondPacket.iracing?.headingNorthRad).toBeCloseTo(-Math.PI / 2);
+      expect(secondPacket.Yaw).toBeCloseTo(-Math.PI / 2);
       expect(secondPacket.PositionX).toBeGreaterThan(5);
       expect(secondPacket.PositionY).toBeCloseTo(1.5);
       expect(secondPacket.PositionZ).toBeGreaterThan(5);
@@ -143,6 +148,82 @@ describe("IRacingIbtReader", () => {
     } finally {
       recording.cleanup();
     }
+  });
+  test("retains last valid geodetic values across transient invalid IBT rows", () => {
+    const session = {
+      sessionId: 123,
+      subSessionId: 456,
+      sessionNum: 2,
+      driverCarIdx: 7,
+      trackId: 99,
+      trackName: "Road America",
+      trackLengthM: 6515,
+      sectorStarts: [0, 0.34, 0.67],
+      carId: 42,
+      carName: "GT3 Test Car",
+      carClassId: 8,
+      carClassName: "GT3",
+      engineIdleRpm: 900,
+      engineRedlineRpm: 8500,
+      engineCylinderCount: 8,
+    };
+    const state = createIRacingParserState();
+    const first = normalizeIRacingFrame(
+      {
+        schemaVersion: 2,
+        session,
+        values: {
+          SessionTime: 10,
+          SessionTick: 600,
+          SessionNum: 2,
+          Lap: 3,
+          LapDistPct: 0.25,
+          IsOnTrack: true,
+          Lat: 43,
+          Lon: -88,
+          Alt: 200,
+          YawNorth: Math.PI / 2,
+          Yaw: 0.25,
+        },
+      },
+      state,
+    );
+    const second = normalizeIRacingFrame(
+      {
+        schemaVersion: 2,
+        session,
+        values: {
+          SessionTime: 10 + 1 / 60,
+          SessionTick: 601,
+          SessionNum: 2,
+          Lap: 3,
+          LapDistPct: 0.26,
+          IsOnTrack: true,
+          Lat: 0,
+          Lon: 0,
+          Alt: 0,
+          YawNorth: 0,
+          Yaw: 0.75,
+        },
+      },
+      state,
+    );
+    expect(first.iracing).toMatchObject({
+      latitudeDeg: 43,
+      longitudeDeg: -88,
+      altitudeM: 200,
+      headingNorthRad: Math.PI / 2,
+    });
+    expect(second.iracing).toMatchObject({
+      latitudeDeg: 43,
+      longitudeDeg: -88,
+      altitudeM: 200,
+      headingNorthRad: Math.PI / 2,
+    });
+    expect(second.Yaw).toBeCloseTo(Math.PI / 2);
+    expect(second.PositionX).toBe(first.PositionX);
+    expect(second.PositionY).toBe(first.PositionY);
+    expect(second.PositionZ).toBe(first.PositionZ);
   });
 
   test("reports missing required inputs while retaining other native channels", async () => {

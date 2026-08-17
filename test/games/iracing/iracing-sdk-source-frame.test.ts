@@ -135,6 +135,8 @@ describe("iRacing raw source frame parser integration", () => {
       Yaw: 0.75,
       AngularVelocityY: 0.2,
     });
+    expect(normalizeIRacingFrame(leftFrame).iracing).not.toHaveProperty("latitudeDeg");
+    expect(normalizeIRacingFrame(leftFrame).iracing).not.toHaveProperty("headingNorthRad");
   });
 
   test("keeps historical v2 frames compatible without inventing raw YAML", () => {

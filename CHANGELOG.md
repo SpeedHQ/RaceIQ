@@ -13,6 +13,7 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
+- [WIP] Preserve imported iRacing WGS84 paths and georeference matching layouts from games without GPS; pending validation with running laps recorded on same track
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
@@ -20,6 +21,7 @@
 
 - Show connected iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, keep source SVGs hidden while generated thumbnails load, and exclude pit artwork from lap-distance calculations
 - Draw imported iRacing IBT driving paths on Analyse maps from recorded GPS coordinates
+- Orient imported iRacing cars from recorded north-referenced heading, pitch, and roll on Analyse views
 - Present start/finish straights as one logical segment on every circuit and use standard Frontstretch, Turns 1–2, Backstretch, and Turns 3–4 ordering for automatic iRacing oval segments
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Show iRacing live fuel bars using tank capacity reported by simulator session data

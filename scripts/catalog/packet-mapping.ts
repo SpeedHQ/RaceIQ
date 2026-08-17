@@ -367,6 +367,14 @@ function ensureCategoryGroups(groups: Map<string, CatalogGroup>): void {
     canonicalUnit: "°C",
     children: [],
   });
+  groups.set("motion.geodetic", {
+    id: "motion.geodetic",
+    label: "Geodetic position",
+    description: "WGS84 geographic coordinates retained from disk recordings.",
+    parentId: "motion",
+    canonicalUnit: "mixed",
+    children: [],
+  });
   groups.set("tire.temperature.surface", {
     id: "tire.temperature.surface",
     label: "Surface temperature",

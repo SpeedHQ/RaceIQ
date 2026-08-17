@@ -30,6 +30,14 @@ export function visualWheelRotationSpeed(measuredRadS: unknown, speedMps: number
   return speedMps / radiusM;
 }
 
+/**
+ * Apply semantic vehicle attitude to model frame (+X forward, +Y up, +Z right).
+ * Raw channels take precedence; suspension attitude remains the missing-channel fallback.
+ */
+export function setBodyAttitudeRotation(rotation: THREE.Euler, rawRoll: number | null, rawPitch: number | null, suspensionRoll: number, suspensionPitch: number): void {
+  rotation.set(rawRoll ?? suspensionRoll, 0, rawPitch ?? suspensionPitch, "YXZ");
+}
+
 /** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
 export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
   return inactive.clone().lerp(active, rawInput / 255);

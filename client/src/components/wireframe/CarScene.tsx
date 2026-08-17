@@ -10,7 +10,7 @@ import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
-import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
+import { setBodyAttitudeRotation, steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
 import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
@@ -99,18 +99,13 @@ export function CarScene({
   const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
   const [suspFL, suspFR, suspRL, suspRR] = normalizedSuspension(frame, suspensionRange);
 
-  // Keep packet in a ref so useFrame reads latest without triggering re-render
-  const packetRef = useRef(frame);
-  useEffect(() => {
-    packetRef.current = frame;
-  });
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
   const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
 
-  // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
-  // Higher suspension travel = more compressed on that corner
+  // Raw semantic attitude includes road gradient and banking. Suspension
+  // deltas remain useful only when a simulator does not expose an angle.
 
   // Body drops when suspension compresses (wheels stay on ground).
   // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
@@ -126,19 +121,21 @@ export function CarScene({
   // Roll: ~5° max at full differential compression
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
-  const bodyRoll = (rightAvg - leftAvg) * 0.1;
+  const suspensionBodyRoll = (rightAvg - leftAvg) * 0.1;
 
   // Pitch: ~3° max at full differential compression
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
-  const bodyPitch = (frontAvg - rearAvg) * 0.06;
+  const suspensionBodyPitch = (frontAvg - rearAvg) * 0.06;
+  const rawBodyRoll = semanticNumber(frame, "motion.roll");
+  const rawBodyPitch = semanticNumber(frame, "motion.pitch");
 
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
   useFrame(() => {
     if (carGroupRef.current) {
       carGroupRef.current.position.set(posOffset, bodyDrop, 0);
-      carGroupRef.current.rotation.set(bodyRoll, 0, bodyPitch, "YXZ");
+      setBodyAttitudeRotation(carGroupRef.current.rotation, rawBodyRoll, rawBodyPitch, suspensionBodyRoll, suspensionBodyPitch);
     }
   });
 

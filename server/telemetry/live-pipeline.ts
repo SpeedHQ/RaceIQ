@@ -22,6 +22,7 @@ import { detectCorners } from "../lap-analysis/corners"
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { assignSessionGeoreference } from "../tracks/georeference";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
@@ -464,6 +465,14 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
     } catch (error) {
       console.error(
         `[Race Results] Failed to reconcile session ${sessionId}:`,
+        error,
+      );
+    }
+    try {
+      await assignSessionGeoreference(sessionId, gameId);
+    } catch (error) {
+      console.error(
+        `[GeoReference] Failed to assign session ${sessionId}:`,
         error,
       );
     }

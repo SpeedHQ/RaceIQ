@@ -3,6 +3,30 @@ import { semanticDefinition } from "./semantic-metadata";
 import type { SemanticDefinition } from "./model";
 
 const SEMANTIC_DEFINITIONS_EXTENDED: Record<string, SemanticDefinition> = {
+  "motion.geodetic.latitude": semanticDefinition(
+    "Geodetic latitude",
+    "WGS84 latitude in degrees retained from imported iRacing IBT telemetry.",
+    "motion.geodetic",
+    "deg",
+  ),
+  "motion.geodetic.longitude": semanticDefinition(
+    "Geodetic longitude",
+    "WGS84 longitude in degrees retained from imported iRacing IBT telemetry.",
+    "motion.geodetic",
+    "deg",
+  ),
+  "motion.geodetic.altitude": semanticDefinition(
+    "Geodetic altitude",
+    "WGS84 ellipsoidal altitude in metres retained from imported iRacing IBT telemetry.",
+    "motion.geodetic",
+    "m",
+  ),
+  "motion.yaw-north": semanticDefinition(
+    "North-referenced yaw",
+    "Clockwise vehicle heading from geographic north, normalized to radians.",
+    "motion",
+    "rad",
+  ),
   "race.competitor.class-power-adjust": semanticDefinition(
     "Competitor class power adjustment",
     "Balance-of-performance power adjustment for each competitor car class.",

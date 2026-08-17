@@ -145,6 +145,10 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   SessionLapsRemainEx: "session.laps-remaining",
   SessionLapsTotal: "timing.total-laps",
   dcStarter: "inputs.starter-trigger",
+  Lat: "motion.geodetic.latitude",
+  Lon: "motion.geodetic.longitude",
+  Alt: "motion.geodetic.altitude",
+  YawNorth: "motion.yaw-north",
 };
 
 const IRACING_YAML_ALIASES: Record<string, string> = {

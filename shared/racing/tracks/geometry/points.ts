@@ -32,16 +32,30 @@ export function filterOutlierPoints(points: Point[]): Point[] {
   return filtered;
 }
 
+export interface TrackAlignment {
+  scale: number;
+  cos: number;
+  sin: number;
+  tx: number;
+  tz: number;
+  flipZ: boolean;
+  flipX: boolean;
+}
+
+export interface ComputeAlignmentOptions {
+  /** Reversed traversal is useful for shape-only outlines, but invalid when each point carries directional data. */
+  allowReverse?: boolean;
+  /** Maximum arc-length samples used by fit. Higher values trade CPU for precision. */
+  sampleCount?: number;
+  /** Inputs already contain matching equal-arc samples, avoiding another lossy interpolation pass. */
+  inputsAreArcSamples?: boolean;
+}
+
 /** Compute Procrustes transform (scale + rotation + translation) from src to tgt.
  *  Tries both normal and Z-flipped source, picks whichever has lower error. */
-export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; cos: number; sin: number; tx: number; tz: number; flipZ: boolean; flipX: boolean } | null {
+export function computeAlignment(src: Point[], tgt: Point[], options: ComputeAlignmentOptions = {}): TrackAlignment | null {
   if (src.length < 5 || tgt.length < 5) return null;
-  const n = Math.min(100, Math.min(src.length, tgt.length));
-  const sample = (pts: Point[]) => {
-    const step = pts.length / n;
-    return Array.from({ length: n }, (_, i) => pts[Math.floor(i * step)]);
-  };
-  void sample(tgt); // sampled at equal fractional distances below instead
+  const n = Math.min(options.sampleCount ?? 100, Math.min(src.length, tgt.length));
 
   // Sample target at equal fractional distances
   function cumDist(pts: Point[]): number[] {
@@ -65,7 +79,11 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
   }
 
   const fracs = Array.from({ length: n }, (_, i) => i / n);
-  const tSampled = sampleAtFracs(tgt, fracs);
+  const tSampled = options.inputsAreArcSamples ? tgt.slice(0, n) : sampleAtFracs(tgt, fracs);
+  const sampleSourceAtOffset = (points: Point[], offset: number): Point[] =>
+    options.inputsAreArcSamples
+      ? Array.from({ length: n }, (_, index) => points[(index + offset) % n])
+      : sampleAtFracs(points, fracs.map(fraction => (fraction + offset / n) % 1));
 
   function procrustes(s: Point[], t2: Point[]) {
     const cs = { x: s.reduce((a, p) => a + p.x, 0) / n, z: s.reduce((a, p) => a + p.z, 0) / n };
@@ -91,7 +109,7 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
   }
 
   // Try all flip combinations × multiple starting offsets along the track
-  type Candidate = { scale: number; cos: number; sin: number; tx: number; tz: number; err: number; flipZ: boolean; flipX: boolean };
+  type Candidate = TrackAlignment & { err: number };
   let best: Candidate | null = null;
   const offsets = 1; // test every possible starting offset for best alignment
 
@@ -99,21 +117,20 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
     const flipped = src.map(p => ({ x: flipX ? -p.x : p.x, z: flipZ ? -p.z : p.z }));
     // Try multiple starting offsets
     for (let off = 0; off < n; off += offsets) {
-      const shifted = fracs.map(f => (f + off / n) % 1);
-      const sSampled = sampleAtFracs(flipped, shifted);
+      const sSampled = sampleSourceAtOffset(flipped, off);
       const r = procrustes(sSampled, tSampled);
       if (!best || r.err < best.err) {
         best = { ...r, flipX, flipZ };
       }
     }
-    // Also try reversed direction
-    const revFlipped = [...flipped].reverse();
-    for (let off = 0; off < n; off += offsets) {
-      const shifted = fracs.map(f => (f + off / n) % 1);
-      const sSampled = sampleAtFracs(revFlipped, shifted);
-      const r = procrustes(sSampled, tSampled);
-      if (!best || r.err < best.err) {
-        best = { ...r, flipX, flipZ };
+    if (options.allowReverse !== false) {
+      const revFlipped = [...flipped].reverse();
+      for (let off = 0; off < n; off += offsets) {
+        const sSampled = sampleSourceAtOffset(revFlipped, off);
+        const r = procrustes(sSampled, tSampled);
+        if (!best || r.err < best.err) {
+          best = { ...r, flipX, flipZ };
+        }
       }
     }
   }
@@ -121,7 +138,7 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
   return best ? { scale: best.scale, cos: best.cos, sin: best.sin, tx: best.tx, tz: best.tz, flipZ: best.flipZ, flipX: best.flipX } : null;
 }
 
-export function applyAlignment(p: Point, a: { scale: number; cos: number; sin: number; tx: number; tz: number; flipZ: boolean; flipX: boolean }): Point {
+export function applyAlignment(p: Point, a: TrackAlignment): Point {
   const px = a.flipX ? -p.x : p.x;
   const pz = a.flipZ ? -p.z : p.z;
   return { x: a.scale * (a.cos * px - a.sin * pz) + a.tx, z: a.scale * (a.sin * px + a.cos * pz) + a.tz };

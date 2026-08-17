@@ -7,9 +7,9 @@
 - Catalog version: `0.13.0`
 - Schema version: `v6`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator commit: `e9e86b6562f4b5d7c8b48b842448f4f03f585240fc0e0c217b50a24371be38ae`
+- Generator commit: `82cf1faeaa0f20c93adb10f8016c9ff3c924be89648c9a064cf79f3cc046dd10`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `940bff7b4bb982f46841367c7589f9e6bff76cd86c820addf6687960e30cd148`
+- Content SHA-256: `7b2edce807baddf95bfb7b69e9656eb7641b1180fa24a2a08f65666267b97e83`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
+| iracing | 959 | 709 | 119 | 21 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -283,6 +283,9 @@
 | `motion.driver-head-position.y` | Driver head position Y | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.z` | Driver head position Z | number | length | m | scalar |  |  |  |
 | `motion.front-axle-roll-angle` | Front axle roll angle | number | angle | rad | scalar |  |  |  |
+| `motion.geodetic.altitude` | Geodetic altitude | number | length | m | scalar |  |  |  |
+| `motion.geodetic.latitude` | Geodetic latitude | number | angle | deg | scalar |  |  |  |
+| `motion.geodetic.longitude` | Geodetic longitude | number | angle | deg | scalar |  |  |  |
 | `motion.lat-accel-st` | Lat Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
 | `motion.local-velocity` | Local Velocity | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.long-accel-st` | Long Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
@@ -304,7 +307,7 @@
 | `motion.velocity-z-st` | Velocity Z ST | number | length × time^-1 | m/s | variable:0-* | source-order |  |  |
 | `motion.vert-accel-st` | Vert Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
 | `motion.yaw` | Yaw | number | angle | rad | scalar |  |  |  |
-| `motion.yaw-north` | Yaw North | number | angle | rad | scalar |  |  |  |
+| `motion.yaw-north` | North-referenced yaw | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-rate-st` | Yaw Rate ST | number | angle × time^-1 | rad/s | variable:0-* | source-order |  |  |
 | `race.competitor.car-class-color` | Competitor car-class color | structured | unit:color | color | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.car-class-id` | Competitor car-class ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |

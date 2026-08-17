@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { IRSDK_VAR_HEADER_SIZE, IRSDKVariableType } from "../../../server/games/iracing/variable-table";
 
 export const DISK_HEADER_SIZE = 144;
-export const ROW_LENGTH = 56;
+export const ROW_LENGTH = 60;
 
 export interface SyntheticRow {
   sessionTime: number;
@@ -18,6 +18,7 @@ export interface SyntheticRow {
   latitude?: number;
   longitude?: number;
   altitude?: number;
+  yawNorth?: number;
 }
 
 export interface SyntheticIdentity {
@@ -70,6 +71,7 @@ function telemetryRow(row: SyntheticRow): Buffer {
   buffer.writeFloatLE(row.latitude ?? 0, 44);
   buffer.writeFloatLE(row.longitude ?? 0, 48);
   buffer.writeFloatLE(row.altitude ?? 0, 52);
+  buffer.writeFloatLE(row.yawNorth ?? 0, 56);
   return buffer;
 }
 
@@ -119,6 +121,7 @@ export function writeSyntheticIbt(path: string, suppliedRows?: SyntheticRow[], i
     descriptor(IRSDKVariableType.Float, 44, "Lat"),
     descriptor(IRSDKVariableType.Float, 48, "Lon"),
     descriptor(IRSDKVariableType.Float, 52, "Alt"),
+    descriptor(IRSDKVariableType.Float, 56, "YawNorth"),
   ]);
   const sessionInfo = Buffer.from(`${syntheticSessionInfo(identity)}\0`, "utf8");
   const sourceRows: SyntheticRow[] = suppliedRows ?? [
@@ -131,6 +134,7 @@ export function writeSyntheticIbt(path: string, suppliedRows?: SyntheticRow[], i
       latitude: 43,
       longitude: -88,
       altitude: 200,
+      yawNorth: Math.PI / 2,
     },
     {
       sessionTime: 10 + 1 / 60,
@@ -141,6 +145,7 @@ export function writeSyntheticIbt(path: string, suppliedRows?: SyntheticRow[], i
       latitude: 43.0001,
       longitude: -87.9999,
       altitude: 201.5,
+      yawNorth: Math.PI * 1.5,
     },
   ];
   const rows = sourceRows.map(telemetryRow);

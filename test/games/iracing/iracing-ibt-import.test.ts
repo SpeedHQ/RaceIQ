@@ -84,12 +84,28 @@ describe("IRacingIbt import workflow", () => {
         expect(rawFile ? existsSync(rawFile) : false).toBe(true);
         const savedLap = await getLapById(imported.laps[0].lapId);
         expect(savedLap?.telemetry.some((packet) => packet.PositionX !== 0 || packet.PositionZ !== 0)).toBe(true);
-        const semanticReplay = await queryLapTelemetryBySemanticId(imported.laps[0].lapId, ["motion.position-x", "motion.position-z"]);
+        const semanticReplay = await queryLapTelemetryBySemanticId(imported.laps[0].lapId, [
+          "motion.position-x",
+          "motion.position-z",
+          "motion.geodetic.latitude",
+          "motion.geodetic.longitude",
+          "motion.geodetic.altitude",
+          "motion.yaw-north",
+        ]);
         expect(
           semanticReplay?.envelopes.some((envelope) => {
-            const x = envelope.values.find((value) => value.semanticId === "motion.position-x");
-            const z = envelope.values.find((value) => value.semanticId === "motion.position-z");
-            return x?.state === "ok" && z?.state === "ok" && typeof x.value === "number" && typeof z.value === "number" && (x.value !== 0 || z.value !== 0);
+            const values = Object.fromEntries(envelope.values.map((value) => [value.semanticId, value]));
+            const latitude = values["motion.geodetic.latitude"]?.value;
+            return (
+              values["motion.position-x"]?.state === "ok" &&
+              values["motion.position-z"]?.state === "ok" &&
+              values["motion.geodetic.latitude"]?.state === "ok" &&
+              values["motion.geodetic.longitude"]?.state === "ok" &&
+              values["motion.geodetic.altitude"]?.state === "ok" &&
+              values["motion.yaw-north"]?.state === "ok" &&
+              typeof latitude === "number" &&
+              Math.abs(latitude - 43) < 1e-3
+            );
           }),
         ).toBe(true);
       } finally {
