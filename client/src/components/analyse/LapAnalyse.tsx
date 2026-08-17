@@ -15,7 +15,7 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import { type Point, semanticNumber, type TrackMapHandle } from "./track-map/types";
+import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 
@@ -58,8 +58,8 @@ function LapAnalyseInner() {
     setMapZoom,
     rotateWithCar,
     setRotateWithCar,
-    trackOverlay,
-    setTrackOverlay,
+    trackOverlays,
+    setTrackOverlays,
     vizMode,
     setWheelTab,
     leftColWidth,
@@ -81,6 +81,8 @@ function LapAnalyseInner() {
     handleCarChange,
     cursorRef,
   } = useAnalyseSelections(search, gameId);
+  const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
+  const effectiveTrackOverlays = hasRacingLine ? trackOverlays : { ...trackOverlays, racingLine: false };
   const loading = lapLoading;
   const [cursorIdx, setCursorIdx] = useState(0);
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
@@ -301,9 +303,12 @@ function LapAnalyseInner() {
   const handleNotesChange = useCallback((notes: string) => updateLapNotesMutation.mutate(notes), [updateLapNotesMutation.mutate]);
   const handleToggleAi = useCallback(() => setAiPanelOpen((open) => !open), [setAiPanelOpen]);
   const handleRotateWithCarToggle = useCallback(() => setRotateWithCar((rotate) => !rotate), [setRotateWithCar]);
-  const handleTrackOverlayCycle = useCallback(
-    () => setTrackOverlay((overlay) => (overlay === "none" ? "inputs" : overlay === "inputs" ? "segments" : overlay === "segments" ? "sectors" : "none")),
-    [setTrackOverlay],
+  const handleTrackOverlayChange = useCallback(
+    (overlay: TrackOverlayKey, checked: boolean) => {
+      if (overlay === "racingLine" && !hasRacingLine) return;
+      setTrackOverlays((current) => ({ ...current, [overlay]: checked }));
+    },
+    [hasRacingLine, setTrackOverlays],
   );
 
   const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
@@ -377,10 +382,10 @@ function LapAnalyseInner() {
             aiPanelOpen,
             aiHighlights,
             rotateWithCar,
-            trackOverlay,
+            trackOverlays: effectiveTrackOverlays,
             mapZoom,
             onRotateWithCarToggle: handleRotateWithCarToggle,
-            onTrackOverlayCycle: handleTrackOverlayCycle,
+            onTrackOverlayChange: handleTrackOverlayChange,
             onMapZoomChange: setMapZoom,
             vizMode,
             onVizModeChange: setWheelTab,

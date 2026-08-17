@@ -35,6 +35,22 @@ export interface Point {
   z: number;
 }
 
+export interface TrackOverlays {
+  inputs: boolean;
+  segments: boolean;
+  sectors: boolean;
+  racingLine: boolean;
+}
+
+export type TrackOverlayKey = keyof TrackOverlays;
+
+export const DEFAULT_TRACK_OVERLAYS: TrackOverlays = {
+  inputs: false,
+  segments: false,
+  sectors: false,
+  racingLine: false,
+};
+
 export interface TrackMapLabel extends Point {
   text: string;
 }
@@ -59,6 +75,7 @@ export interface TrackMapBoundaries {
   leftEdge: Point[];
   rightEdge: Point[];
   centerLine: Point[];
+  raceLine?: Point[] | null;
   pitLane: Point[] | null;
   coordSystem: string;
 }
@@ -74,6 +91,7 @@ export interface TrackMapProps {
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;
+  showRaceLine?: boolean;
   showInputs?: boolean;
   showTrace?: boolean;
   rotateWithCar: boolean;

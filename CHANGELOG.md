@@ -12,6 +12,7 @@
 - Load every current iRacing layout's official track map without an internet connection
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 

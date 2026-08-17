@@ -10,8 +10,16 @@ import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
-import { type Point, type SectorBoundaries, type SemanticAnalysisFrame, semanticValues, type TrackMapBoundaries, type TrackMapLabel } from "./track-map/types";
-
+import {
+  DEFAULT_TRACK_OVERLAYS,
+  semanticValues,
+  type Point,
+  type SectorBoundaries,
+  type SemanticAnalysisFrame,
+  type TrackMapBoundaries,
+  type TrackMapLabel,
+  type TrackOverlays,
+} from "./track-map/types";
 interface AnalyseSemanticFrame {
   sequence: number;
   observedAtMs: number;
@@ -97,7 +105,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const initialCursor = search.cursor;
   const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);
   const [rotateWithCar, setRotateWithCar] = useLocalStorage("analyse-rotateWithCar", false);
-  const [trackOverlay, setTrackOverlay] = useLocalStorage<"none" | "inputs" | "segments" | "sectors">("analyse-trackOverlay", "none");
+  const [trackOverlays, setTrackOverlays] = useLocalStorage<TrackOverlays>("analyse-trackOverlays", DEFAULT_TRACK_OVERLAYS);
   const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
   const appliedVizParam = useRef(false);
   useEffect(() => {
@@ -199,8 +207,8 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setMapZoom,
     rotateWithCar,
     setRotateWithCar,
-    trackOverlay,
-    setTrackOverlay,
+    trackOverlays,
+    setTrackOverlays,
     vizMode,
     setWheelTab,
     leftColWidth,
