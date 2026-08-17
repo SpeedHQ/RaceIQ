@@ -146,3 +146,23 @@ test("persists one opaque venue base with selected transparent layout layers", a
   expect(resaveResponse.status).toBe(200);
   expect(await resaveResponse.json()).toMatchObject({ track: { id: "road-course", name: "Road Course" }, confirmation: null });
 });
+
+test("resolves lap-free imagery calibration through an exact iRacing layout peer", async () => {
+  const response = await app.request("/api/dev/track-imagery/reference/10?gameId=f1-2025");
+  expect(response.status).toBe(200);
+  const reference = (await response.json()) as {
+    sourceTrackOrdinal: number;
+    match: string;
+    outlineSource: string;
+    center: { latitudeDeg: number; longitudeDeg: number };
+    geographicPositions: Array<{ latitudeDeg: number; longitudeDeg: number }>;
+  };
+  expect(reference).toMatchObject({
+    sourceTrackOrdinal: 523,
+    match: "assigned-identity",
+    center: { latitudeDeg: 50.4369118, longitudeDeg: 5.969856 },
+  });
+  expect(reference.outlineSource).not.toBe("estimated");
+  expect(reference.geographicPositions.length).toBeGreaterThan(100);
+  expect(reference.geographicPositions.every((point) => Number.isFinite(point.latitudeDeg) && Number.isFinite(point.longitudeDeg))).toBe(true);
+});

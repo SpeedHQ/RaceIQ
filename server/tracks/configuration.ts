@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
-import { TrackConfigurationSchema, type TrackConfiguration } from "../../shared/racing/tracks/configuration";
+import { TrackConfigurationSchema, trackConfigurationCanonicalId, type TrackConfiguration } from "../../shared/racing/tracks/configuration";
 import { SHARED_DIR } from "../runtime/config/paths";
 
 const TRACK_CONFIGURATION_ROOT = resolve(SHARED_DIR, "tracks", "configuration");
@@ -36,4 +36,18 @@ export function listTrackConfigurations(): TrackConfiguration[] {
   }
   configurations.sort((a, b) => KNOWN_GAME_IDS.indexOf(a.gameId) - KNOWN_GAME_IDS.indexOf(b.gameId) || a.trackOrdinal - b.trackOrdinal);
   return configurations;
+}
+
+/** List tracks assigned to the same exact canonical layout, excluding source track. */
+export function listCanonicalTrackPeers(gameId: GameId, trackOrdinal: number): TrackConfiguration[] {
+  const source = loadTrackConfiguration(gameId, trackOrdinal);
+  if (!source) return [];
+  const canonicalId = trackConfigurationCanonicalId(source);
+  return listTrackConfigurations().filter(
+    (configuration) => (configuration.gameId !== gameId || configuration.trackOrdinal !== trackOrdinal) && trackConfigurationCanonicalId(configuration) === canonicalId,
+  );
+}
+
+export function loadCanonicalTrackPeer(gameId: GameId, trackOrdinal: number, peerGameId: GameId): TrackConfiguration | null {
+  return listCanonicalTrackPeers(gameId, trackOrdinal).find((configuration) => configuration.gameId === peerGameId) ?? null;
 }

@@ -17,7 +17,7 @@
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 - Render per-car tire dimensions and independent front/rear spring geometry from each 3D model definition
-- [WIP] Preserve imported iRacing WGS84 paths and georeference matching layouts from games without GPS; pending validation with running laps recorded on same track
+- Share GPS locations, imagery calibration outlines, sectors, guides, and corner names across games assigned to the same exact catalog layout, so calibration no longer requires a recorded lap
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 

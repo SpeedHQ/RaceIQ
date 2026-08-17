@@ -1,0 +1,89 @@
+import type { GameId } from "../../shared/games/ids";
+import { getAllIRacingTracks, getIRacingTrack, type IRacingCatalogTrack } from "../../shared/racing/tracks/catalogs/iracing";
+import { geographicTrackImageryPointFromEnu, type TrackImageryGeographicPoint, type TrackImageryPoint } from "../../shared/racing/tracks/imagery";
+import { loadCanonicalTrackPeer } from "./configuration";
+import { resolveTrackSharedName } from "./identity";
+
+export type TrackGeographicReferenceMatch = "game-id" | "assigned-identity" | "shared-name";
+
+export interface ResolvedTrackGeographicCatalogSource {
+  track: IRacingCatalogTrack;
+  match: TrackGeographicReferenceMatch;
+}
+
+function hasGeographicLocation(track: IRacingCatalogTrack | undefined): track is IRacingCatalogTrack {
+  return (
+    !!track &&
+    Number.isFinite(track.latitude) &&
+    Number.isFinite(track.longitude) &&
+    Math.abs(track.latitude) <= 90 &&
+    Math.abs(track.longitude) <= 180 &&
+    (track.latitude !== 0 || track.longitude !== 0)
+  );
+}
+
+/** Resolve authoritative venue coordinates from iRacing directly or through one exact canonical-layout assignment. */
+export function resolveTrackGeographicCatalogSource(gameId: GameId, trackOrdinal: number): ResolvedTrackGeographicCatalogSource | null {
+  if (gameId === "iracing") {
+    const direct = getIRacingTrack(trackOrdinal);
+    if (hasGeographicLocation(direct)) return { track: direct, match: "game-id" };
+  }
+
+  const assignedPeer = loadCanonicalTrackPeer(gameId, trackOrdinal, "iracing");
+  if (assignedPeer) {
+    const assigned = getIRacingTrack(assignedPeer.trackOrdinal);
+    if (hasGeographicLocation(assigned)) return { track: assigned, match: "assigned-identity" };
+  }
+
+  const sharedName = resolveTrackSharedName(trackOrdinal, gameId)?.trim().toLowerCase();
+  if (!sharedName) return null;
+  const shared = getAllIRacingTracks()
+    .filter((track) => track.commonTrackName.trim().toLowerCase() === sharedName)
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .find(hasGeographicLocation);
+  return shared ? { track: shared, match: "shared-name" } : null;
+}
+
+function closedOutlineLength(points: readonly TrackImageryPoint[]): number {
+  let length = 0;
+  for (let index = 0; index < points.length; index++) {
+    const next = points[(index + 1) % points.length]!;
+    const point = points[index]!;
+    length += Math.hypot(next.x - point.x, next.z - point.z);
+  }
+  return length;
+}
+
+/** Center and meter-scale one catalog outline around authoritative venue coordinates. */
+export function trackGeographicReferencePositions(outline: readonly TrackImageryPoint[] | null, center: TrackImageryGeographicPoint, trackLengthKm: number): TrackImageryGeographicPoint[] {
+  let points = (outline ?? []).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  if (points.length < 3) {
+    const halfExtentM = Math.max(500, Math.min(5_000, (Number.isFinite(trackLengthKm) ? trackLengthKm : 0) * 250));
+    points = [
+      { x: -halfExtentM, z: -halfExtentM },
+      { x: halfExtentM, z: -halfExtentM },
+      { x: halfExtentM, z: halfExtentM },
+      { x: -halfExtentM, z: halfExtentM },
+    ];
+  }
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minZ = Math.min(minZ, point.z);
+    maxZ = Math.max(maxZ, point.z);
+  }
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+  const rawLength = closedOutlineLength(points);
+  const expectedLengthM = Number.isFinite(trackLengthKm) && trackLengthKm > 0 ? trackLengthKm * 1_000 : rawLength;
+  const scale = rawLength > 0 ? expectedLengthM / rawLength : 1;
+  const stride = Math.max(1, Math.ceil(points.length / 1_500));
+  const centered = points.filter((_, index) => index % stride === 0).map((point) => ({ x: (point.x - centerX) * scale, z: (point.z - centerZ) * scale }));
+  if (centered.length > 0) centered.push(centered[0]!);
+  return centered.map((point) => geographicTrackImageryPointFromEnu(point, center.latitudeDeg, center.longitudeDeg));
+}

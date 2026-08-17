@@ -8,6 +8,7 @@ import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../../shared/r
 import {
   TrackImageryCalibrationSchema,
   TrackImageryGeographicBoundsSchema,
+  TrackImageryGeographicReferenceSchema,
   TrackImageryLayoutManifestSchema,
   TrackImageryVenueManifestSchema,
   type TrackImageryGeographicBounds,
@@ -16,7 +17,9 @@ import {
 } from "../../../shared/racing/tracks/imagery";
 import { loadTrackConfiguration } from "../../tracks/configuration";
 import { loadOpenTrackImageryRaster, searchOpenTrackImagery } from "../../tracks/imagery-sources";
+import { resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
 import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
+import { resolveTrackOutline } from "../tracks/support";
 
 const MAX_TRACK_IMAGE_BYTES = 100 * 1024 * 1024;
 const MAX_TRACK_IMAGE_PIXELS = 200_000_000;
@@ -99,6 +102,31 @@ function removeLayerFromLayouts(venueId: string, layerId: string): void {
 
 export const trackImageryDevRoutes = new Hono()
   .get("/api/dev/track-imagery", (c) => c.json(listTrackImageryConfigurations()))
+  .get("/api/dev/track-imagery/reference/:ordinal", async (c) => {
+    try {
+      const { gameId, trackOrdinal } = gameAndTrack(c);
+      const source = resolveTrackGeographicCatalogSource(gameId, trackOrdinal);
+      if (!source) return c.json(null);
+      let outline = await resolveTrackOutline(trackOrdinal, gameId);
+      if (!outline && (gameId !== "iracing" || trackOrdinal !== source.track.ordinal)) {
+        outline = await resolveTrackOutline(source.track.ordinal, "iracing");
+      }
+      const center = { latitudeDeg: source.track.latitude, longitudeDeg: source.track.longitude };
+      return c.json(
+        TrackImageryGeographicReferenceSchema.parse({
+          sourceGameId: "iracing",
+          sourceTrackOrdinal: source.track.ordinal,
+          sourceName: source.track.variant ? `${source.track.name} — ${source.track.variant}` : source.track.name,
+          match: source.match,
+          outlineSource: outline?.source ?? "estimated",
+          center,
+          geographicPositions: trackGeographicReferencePositions(outline?.points ?? null, center, source.track.lengthKm),
+        }),
+      );
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to resolve track geographic reference" }, 400);
+    }
+  })
   .post("/api/dev/track-imagery/sources/search", async (c) => {
     try {
       const raw = (await c.req.json()) as { bounds?: unknown };

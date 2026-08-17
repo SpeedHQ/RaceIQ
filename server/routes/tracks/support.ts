@@ -7,13 +7,13 @@ import { getTrackOutlineByOrdinal, getRecordedOutlineByOrdinal, recordLapTrace }
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
 import { applyAlignment, computeAlignment } from "../../../shared/racing/tracks/geometry/points";
-import { tryGetServerGame } from "../../games/registry";
-import { tryGetGame } from "../../../shared/games/registry";
 import { getIRacingOvalDirection, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
 import { alignIRacingAutoSegmentsToTurnLabels, projectIRacingTurnAnchors, type IRacingMapLabel, type IRacingPitLine } from "../../games/iracing/track-map-svg";
 import { lapPath } from "../../../shared/racing/tracks/path";
+import { loadCanonicalTrackPeer } from "../../tracks/configuration";
+import { resolveTrackSharedName } from "../../tracks/identity";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -47,15 +47,7 @@ export function computeOutlineLength(outline: { x: number; z: number }[] | null 
 /** Resolve the shared track name for a given ordinal + gameId.
  *  Returns the shared outline file name (e.g. "silverstone") or undefined. */
 export function getSharedTrackName(ordinal: number, gameId?: string): string | undefined {
-  if (gameId) {
-    const serverAdapter = tryGetServerGame(gameId);
-    if (serverAdapter?.getSharedTrackName) {
-      return serverAdapter.getSharedTrackName(ordinal);
-    }
-    const adapter = tryGetGame(gameId);
-    if (adapter?.getSharedTrackName) return adapter.getSharedTrackName(ordinal);
-  }
-  return undefined;
+  return resolveTrackSharedName(ordinal, gameId);
 }
 
 export interface ResolvedTrackOutline {
@@ -180,11 +172,20 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
  * through here, so the two pages can never disagree about where a corner
  * starts and ends.
  */
-export async function resolveTrackSegments(ordinal: number, gameId: string | undefined): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "auto" | "none" }> {
+export async function resolveTrackSegments(ordinal: number, gameId: string | undefined): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "canonical" | "auto" | "none" }> {
   const slug = getSharedTrackName(ordinal, gameId);
   const metaSegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
   if (metaSegments.length > 0) {
     return { segments: metaSegments, totalDist: 0, source: "shared" };
+  }
+
+  const parsedGameId = GameIdSchema.safeParse(gameId);
+  if (parsedGameId.success && parsedGameId.data !== "iracing") {
+    const iracingPeer = loadCanonicalTrackPeer(parsedGameId.data, ordinal, "iracing");
+    if (iracingPeer) {
+      const inherited = await resolveTrackSegments(iracingPeer.trackOrdinal, "iracing");
+      if (inherited.source !== "none") return { ...inherited, source: "canonical" };
+    }
   }
 
   const resolved = gameId ? await resolveTrackOutline(ordinal, gameId) : null;

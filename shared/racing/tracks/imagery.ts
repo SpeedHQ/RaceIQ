@@ -24,6 +24,11 @@ const textureSchema = z.object({
   source: imageSourceSchema,
 });
 
+export const TrackImageryGeographicPointSchema = z.object({
+  latitudeDeg: finiteNumber.min(-90).max(90),
+  longitudeDeg: finiteNumber.min(-180).max(180),
+});
+
 export const TrackImageryGeographicBoundsSchema = z
   .object({
     west: finiteNumber.min(-180).max(180),
@@ -51,6 +56,15 @@ export const TrackImageryCandidateSchema = z.object({
   attribution: z.string().trim().min(1),
   sourceUrl: z.string().url(),
 });
+export const TrackImageryGeographicReferenceSchema = z.object({
+  sourceGameId: z.literal("iracing"),
+  sourceTrackOrdinal: z.number().int().nonnegative(),
+  sourceName: z.string().trim().min(1),
+  match: z.enum(["game-id", "assigned-identity", "shared-name"]),
+  outlineSource: z.enum(["shared", "official-svg", "generated", "bundled", "recorded", "estimated"]),
+  center: TrackImageryGeographicPointSchema,
+  geographicPositions: z.array(TrackImageryGeographicPointSchema).min(4),
+});
 
 export const TrackImageryVenueManifestSchema = z.object({
   version: z.literal(TRACK_IMAGERY_MANIFEST_VERSION),
@@ -76,6 +90,7 @@ export type TrackImageryVenueManifest = z.infer<typeof TrackImageryVenueManifest
 export type TrackImageryLayoutManifest = z.infer<typeof TrackImageryLayoutManifestSchema>;
 export type TrackImageryGeographicBounds = z.infer<typeof TrackImageryGeographicBoundsSchema>;
 export type TrackImageryCandidate = z.infer<typeof TrackImageryCandidateSchema>;
+export type TrackImageryGeographicReference = z.infer<typeof TrackImageryGeographicReferenceSchema>;
 export interface TrackImagerySourceSearchResult {
   candidates: TrackImageryCandidate[];
   notices: string[];
@@ -109,10 +124,7 @@ export interface TrackImageryPoint {
   z: number;
 }
 
-export interface TrackImageryGeographicPoint {
-  latitudeDeg: number;
-  longitudeDeg: number;
-}
+export type TrackImageryGeographicPoint = z.infer<typeof TrackImageryGeographicPointSchema>;
 
 const EARTH_RADIUS_M = 6_378_137;
 
@@ -133,6 +145,13 @@ function toEnu(point: TrackImageryGeographicPoint, originLatitudeDeg: number, or
 }
 export function geographicTrackImageryPoint(point: TrackImageryGeographicPoint, calibration: TrackImageryCalibration): TrackImageryPoint {
   return toEnu(point, calibration.originLatitudeDeg, calibration.originLongitudeDeg);
+}
+export function geographicTrackImageryPointFromEnu(point: TrackImageryPoint, originLatitudeDeg: number, originLongitudeDeg: number): TrackImageryGeographicPoint {
+  const latitudeRad = (originLatitudeDeg * Math.PI) / 180;
+  return {
+    latitudeDeg: originLatitudeDeg + ((point.z / EARTH_RADIUS_M) * 180) / Math.PI,
+    longitudeDeg: originLongitudeDeg + ((point.x / (EARTH_RADIUS_M * Math.cos(latitudeRad))) * 180) / Math.PI,
+  };
 }
 export function trackImageryGeographicBounds(geographic: readonly (TrackImageryGeographicPoint | null)[], paddingFraction = 0.1): TrackImageryGeographicBounds | null {
   const valid = geographic.filter(finiteGeographicPoint);

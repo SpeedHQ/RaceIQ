@@ -12,6 +12,7 @@ import {
   translateTrackImageryMatrix,
   type TrackImageryCalibration,
   type TrackImageryCandidate,
+  type TrackImageryGeographicReference,
   type TrackImageryLayerKind,
   type TrackImageryLayoutManifest,
   type TrackImagerySource,
@@ -104,13 +105,16 @@ export function TrackImageryCalibrationPanel() {
   const calibrationLaps = useMemo(() => (selectedTrack ? eligibleLaps.filter((lap) => lap.trackOrdinal === selectedTrack.trackOrdinal) : eligibleLaps), [eligibleLaps, selectedTrack]);
   const [lapId, setLapId] = useState<number | null>(null);
   useEffect(() => {
-    if (!calibrationLaps.some((lap) => lap.id === lapId)) setLapId(calibrationLaps[0]?.id ?? null);
+    if (lapId !== null && !calibrationLaps.some((lap) => lap.id === lapId)) setLapId(null);
   }, [calibrationLaps, lapId]);
   const selectedLap = calibrationLaps.find((lap) => lap.id === lapId) ?? null;
   const trackOrdinal = selectedTrack?.trackOrdinal ?? selectedLap?.trackOrdinal ?? null;
+  const [catalogReference, setCatalogReference] = useState<TrackImageryGeographicReference | null>(null);
+  const [catalogReferenceLoading, setCatalogReferenceLoading] = useState(false);
   const { data: replay, isLoading: replayLoading } = useLapSemanticTelemetry(lapId);
-  const geographicPositions = replay?.geographicPositions ?? [];
+  const geographicPositions = lapId === null ? (catalogReference?.geographicPositions ?? []) : (replay?.geographicPositions ?? []);
   const openImageryBounds = useMemo(() => trackImageryGeographicBounds(geographicPositions), [geographicPositions]);
+  const calibrationReferenceLoading = lapId === null ? catalogReferenceLoading : replayLoading;
 
   const [configuration, setConfiguration] = useState<TrackConfiguration | null>(null);
   const [configurationRevision, setConfigurationRevision] = useState(0);
@@ -162,6 +166,32 @@ export function TrackImageryCalibrationPanel() {
       cancelled = true;
     };
   }, [configurationRevision, gameId, trackOrdinal]);
+
+  useEffect(() => {
+    if (!configuration || !gameId || trackOrdinal == null) {
+      setCatalogReference(null);
+      setCatalogReferenceLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setCatalogReference(null);
+    setCatalogReferenceLoading(true);
+    void fetch(`/api/dev/track-imagery/reference/${trackOrdinal}?gameId=${encodeURIComponent(gameId)}`)
+      .then(async (response) => {
+        const result = (await response.json()) as TrackImageryGeographicReference | { error?: string } | null;
+        if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to load catalog GPS reference");
+        if (!cancelled) setCatalogReference(result as TrackImageryGeographicReference | null);
+      })
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load catalog GPS reference");
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogReferenceLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [configuration, gameId, trackOrdinal]);
 
   useEffect(() => {
     if (!gameId || trackOrdinal == null) {
@@ -483,6 +513,7 @@ export function TrackImageryCalibrationPanel() {
     useGameStore.getState().setGameId(selection.gameId);
     setSelectedTrack(selection);
     setLapId(null);
+    setCatalogReference(null);
     setBaseFile(null);
     setSelectedImageryCandidate(null);
     setOpenImageryPreviewUrl(null);
@@ -494,7 +525,7 @@ export function TrackImageryCalibrationPanel() {
   const handleOpenImagerySelect = (candidate: TrackImageryCandidate, previewUrl: string) => {
     const nextCalibration = openImageryBounds ? trackImageryCalibrationFromBounds(geographicPositions, openImageryBounds) : null;
     if (!nextCalibration) {
-      setError("Selected lap needs at least two valid GPS positions.");
+      setError("Calibration reference needs at least two valid GPS positions.");
       return;
     }
     setBaseFile(null);
@@ -511,7 +542,7 @@ export function TrackImageryCalibrationPanel() {
     });
     setCalibration(nextCalibration);
     setError(null);
-    setStatus(`${candidate.quality.toUpperCase()} imagery selected. Inspect GPS alignment, then import.`);
+    setStatus(`${candidate.quality.toUpperCase()} imagery selected. Inspect reference alignment, then import.`);
   };
 
   return (
@@ -522,16 +553,19 @@ export function TrackImageryCalibrationPanel() {
         <p className="mb-4 text-xs text-app-text-muted">One opaque venue base; reusable transparent game, layout, and correction layers.</p>
 
         <label className="mb-3 block text-xs font-medium text-app-text-secondary">
-          Calibration lap
+          Calibration reference
           <select
             className="mt-1 w-full rounded border border-app-border-input bg-app-surface px-2 py-1.5 text-sm text-app-text"
             value={lapId ?? ""}
             onChange={(event) => setLapId(event.target.value ? Number(event.target.value) : null)}
           >
-            {calibrationLaps.length === 0 && <option value="">No recorded laps for selected track</option>}
+            <option value="">
+              {catalogReferenceLoading ? "Loading catalog GPS…" : catalogReference ? `Catalog · ${catalogReference.sourceName} (#${catalogReference.sourceTrackOrdinal})` : "Catalog GPS unavailable"}
+            </option>
+            {calibrationLaps.length === 0 && <option disabled>No recorded laps for selected track</option>}
             {calibrationLaps.map((lap) => (
               <option key={lap.id} value={lap.id}>
-                Lap {lap.lapNumber} · {(lap.lapTime / 1000).toFixed(3)}s
+                Recorded lap {lap.lapNumber} · {(lap.lapTime / 1000).toFixed(3)}s
               </option>
             ))}
           </select>
@@ -626,23 +660,25 @@ export function TrackImageryCalibrationPanel() {
           </section>
         )}
 
-        {replay?.georeference ? (
+        {lapId !== null && replay?.georeference ? (
           <p className="text-xs text-app-text-muted">
-            GPS: {replay.georeference.kind}, RMSE {replay.georeference.quality.rmseM.toFixed(2)} m
+            GPS: recorded lap, {replay.georeference.kind}, RMSE {replay.georeference.quality.rmseM.toFixed(2)} m
           </p>
+        ) : lapId === null && catalogReference ? (
+          <p className="text-xs text-app-text-muted">GPS: exact-layout iRacing catalog match · {catalogReference.outlineSource} outline</p>
         ) : (
-          <p className="text-xs text-severity-caution">Calibration lap needs GPS georeference.</p>
+          <p className="text-xs text-severity-caution">Assign an exact-layout iRacing peer or choose a recorded GPS lap.</p>
         )}
         {status && <p className="mt-2 text-xs text-severity-nominal">{status}</p>}
         {error && <p className="mt-2 text-xs text-severity-critical">{error}</p>}
       </aside>
 
       <main className="relative min-h-0 overflow-hidden p-4">
-        {replayLoading && <div className="grid h-full place-items-center text-sm text-app-text-muted">Loading GPS path…</div>}
-        {!replayLoading && (!viewBounds || !calibration) && (
-          <div className="grid h-full place-items-center text-sm text-app-text-muted">Select open imagery or upload a base image, then choose a GPS lap.</div>
+        {calibrationReferenceLoading && <div className="grid h-full place-items-center text-sm text-app-text-muted">Loading calibration reference…</div>}
+        {!calibrationReferenceLoading && (!viewBounds || !calibration) && (
+          <div className="grid h-full place-items-center text-sm text-app-text-muted">Select open imagery or upload a base image after resolving catalog GPS or choosing a recorded lap.</div>
         )}
-        {!replayLoading && viewBounds && calibration && (
+        {!calibrationReferenceLoading && viewBounds && calibration && (
           <svg
             className="h-full w-full cursor-default touch-none rounded border border-app-border bg-app-surface"
             viewBox={`${viewBounds.minX} ${viewBounds.minZ} ${viewBounds.width} ${viewBounds.height}`}
