@@ -10,14 +10,12 @@ name: Render dashboard screenshots
 # NOT execute PR code.
 
 on:
-  pull_request:
-    paths:
-      - "client/**"
-      - "playwright/**"
-      - "scripts/ui/collect-screenshot-diffs.ts"
-      - "scripts/data/seed-db.ts"
-      - "scripts/ui/visual-diff-config.ts"
-    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_call:
+    inputs:
+      pr:
+        description: "Pull request number to render"
+        required: true
+        type: number
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
@@ -27,23 +25,18 @@ on:
         type: number
 
 concurrency:
-  group: pr-screenshots-${{ github.event.pull_request.number || inputs.pr }}
+  group: pr-screenshots-${{ inputs.pr || github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: blacksmith-2vcpu-ubuntu-2204
-    # Pin the render environment so responsive screenshots are reproducible:
-    # the Playwright image ships the exact Chromium + system fonts, and
-    # software GL (SwiftShader) renders deterministically across machines.
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.0-jammy
-    permissions:
-      contents: read
-      pull-requests: read
+    runs-on:
+      - whitesmith-windows-x64
+      - 4VCPU
+      - 5G
     env:
-      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+      PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
     steps:
       # Resolve through the API for both event types. This keeps manual runs
       # aligned with the PR's current base revision too.
@@ -85,8 +78,6 @@ jobs:
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
 
-      - name: Install unzip (required by setup-bun in the container)
-        run: apt-get update && apt-get install -y --no-install-recommends unzip
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -109,6 +100,7 @@ jobs:
           E2E_SERVER_MODE: compiled
           PW_SCREENSHOT_ONLY: "1"
           PW_SEED_SCREENSHOTS: "1"
+        shell: bash
         run: |
           bun run build
           cd playwright
@@ -129,6 +121,7 @@ jobs:
           E2E_SERVER_MODE: compiled
           PW_SCREENSHOT_ONLY: "1"
           PW_SEED_SCREENSHOTS: "1"
+        shell: bash
         run: |
           bun install
           bun run build

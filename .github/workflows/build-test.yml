@@ -82,3 +82,10 @@ jobs:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs: build-test
     uses: ./.github/workflows/playwright-dev.yml
+
+  screenshots:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    needs: build-test
+    uses: ./.github/workflows/pr-screenshots.yml
+    with:
+      pr: ${{ github.event.pull_request.number }}
