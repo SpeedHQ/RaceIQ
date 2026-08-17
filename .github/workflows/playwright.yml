@@ -56,7 +56,7 @@ jobs:
 
       - name: Install Chromium
         working-directory: playwright
-        run: bun run node ../node_modules/@playwright/test/cli.js install chromium
+        run: npx --no-install playwright install chromium
 
       - name: Check Playwright project discovery
         working-directory: playwright
@@ -65,7 +65,7 @@ jobs:
           PW_SERVER_SET: ${{ inputs.server-set }}
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
-        run: bun run node ../node_modules/@playwright/test/cli.js test --list %PLAYWRIGHT_PROJECTS%
+        run: npx --no-install playwright test --list %PLAYWRIGHT_PROJECTS%
 
       - name: Run Playwright gate
         working-directory: playwright
@@ -75,7 +75,7 @@ jobs:
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
-        run: bun run node ../node_modules/@playwright/test/cli.js test %PLAYWRIGHT_PROJECTS%
+        run: npx --no-install playwright test %PLAYWRIGHT_PROJECTS%
 
       - name: Upload Playwright artifacts
         if: always()
