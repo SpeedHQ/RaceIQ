@@ -10,6 +10,13 @@ const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width:
   warning: { stroke: "color-mix(in srgb, var(--severity-caution) 70%, transparent)", width: 6 },
   critical: { stroke: "color-mix(in srgb, var(--severity-critical) 70%, transparent)", width: 6 },
 };
+interface ViewportTrackCamera {
+  panX: number;
+  panY: number;
+  center?: Point;
+  rotation?: number;
+  drawFollowCar?: boolean;
+}
 
 export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
@@ -29,9 +36,28 @@ export interface StaticTrackOptions {
   showTrace: boolean;
   rotateWithCar: boolean;
   zoom: number;
+  viewportCamera?: ViewportTrackCamera;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, pitLines, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace, rotateWithCar, zoom } = options;
+  const {
+    canvas,
+    telemetry,
+    gameId,
+    resolvedPositions,
+    outline,
+    mapLabels,
+    pitLines,
+    boundaries,
+    sectors,
+    segments,
+    highlights,
+    showInputs,
+    showRaceLine = false,
+    showTrace,
+    rotateWithCar,
+    zoom,
+    viewportCamera,
+  } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -70,10 +96,10 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const scale = baseScale * zoom * (rotateWithCar ? 3 : 1);
   const trackW = rangeX * scale + padding * 2;
   const trackH = rangeZ * scale + padding * 2;
-  const offW = Math.max(w, trackW);
-  const offH = Math.max(h, trackH);
-  const offsetX = (offW - rangeX * scale) / 2;
-  const offsetZ = (offH - rangeZ * scale) / 2;
+  const offW = viewportCamera ? w : Math.max(w, trackW);
+  const offH = viewportCamera ? h : Math.max(h, trackH);
+  const offsetX = viewportCamera?.center ? w / 2 - (maxX - viewportCamera.center.x) * scale : (offW - rangeX * scale) / 2;
+  const offsetZ = viewportCamera?.center ? h / 2 - (viewportCamera.center.z - minZ) * scale : (offH - rangeZ * scale) / 2;
   const transform: TrackTransform = { w, h, offsetX, offsetZ, scale, maxX, minZ, displayOutline, offW, offH };
   const toCanvas = (x: number, z: number): [number, number] => [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
 
@@ -83,6 +109,16 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
   ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
+  if (viewportCamera) {
+    ctx.save();
+    if (viewportCamera.center) {
+      ctx.translate(w / 2 + viewportCamera.panX, h / 2 + viewportCamera.panY);
+      ctx.rotate(viewportCamera.rotation ?? 0);
+      ctx.translate(-w / 2, -h / 2);
+    } else {
+      ctx.translate(viewportCamera.panX, viewportCamera.panY);
+    }
+  }
 
   drawPitLines(ctx, flippedPitLines, toCanvas);
   if (hasBounds) {
@@ -312,17 +348,23 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       }
     }
   }
-  if (!rotateWithCar) {
-    const mainCtx = getSemanticCanvasContext(canvas);
-    if (mainCtx) {
-      mainCtx.save();
-      mainCtx.setTransform(1, 0, 0, 1, 0, 0);
-      mainCtx.clearRect(0, 0, canvas.width, canvas.height);
-      mainCtx.restore();
-      mainCtx.save();
-      mainCtx.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
-      mainCtx.drawImage(bufferCanvas, 0, 0, w, h);
-      mainCtx.restore();
+  if (viewportCamera) {
+    ctx.restore();
+    if (viewportCamera.drawFollowCar) {
+      ctx.save();
+      ctx.translate(w / 2 + viewportCamera.panX, h / 2 + viewportCamera.panY);
+      ctx.rotate(-Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(-4.8, -4.8);
+      ctx.lineTo(-4.8, 4.8);
+      ctx.closePath();
+      ctx.fillStyle = "var(--app-accent)";
+      ctx.fill();
+      ctx.strokeStyle = "var(--track-label-background)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
     }
   }
   return { bufferCanvas, transform };

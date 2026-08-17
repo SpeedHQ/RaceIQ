@@ -43,7 +43,11 @@ test("projects telemetry without world coordinates onto the track outline", () =
     states: {},
     freshness: {},
   });
-  const outline = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }];
+  const outline = [
+    { x: 0, z: 0 },
+    { x: 100, z: 0 },
+    { x: 100, z: 100 },
+  ];
 
   expect(resolveTrackPositions([frame(0), frame(0.25), frame(0.75), frame(1)], outline)).toEqual([
     { x: 0, z: 0 },
@@ -60,10 +64,18 @@ test("prefers recorded world coordinates over lap-fraction projection", () => {
     freshness: {},
   });
 
-  expect(resolveTrackPositions(
-    [frame(20, 30, 0), frame(40, 50, 1)],
-    [{ x: 0, z: 0 }, { x: 100, z: 0 }],
-  )).toEqual([{ x: 20, z: 30 }, { x: 40, z: 50 }]);
+  expect(
+    resolveTrackPositions(
+      [frame(20, 30, 0), frame(40, 50, 1)],
+      [
+        { x: 0, z: 0 },
+        { x: 100, z: 0 },
+      ],
+    ),
+  ).toEqual([
+    { x: 20, z: 30 },
+    { x: 40, z: 50 },
+  ]);
 });
 
 test("draws throttle input traces in the throttle channel color", () => {
@@ -304,6 +316,8 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
       });
     },
     save() {},
+    translate() {},
+    rotate() {},
     restore() {},
     drawImage() {},
   } as unknown as CanvasRenderingContext2D;
@@ -450,3 +464,33 @@ for (const gameId of ["acc", "ac-evo"] as const) {
     }
   });
 }
+
+test("renders deep zoom as viewport-sized vectors with constant stroke widths", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const harness = createDrawingHarness();
+    const result = drawStaticTrack({
+      canvas: harness.canvas,
+      bufferCanvas: harness.canvas,
+      telemetry: [],
+      resolvedPositions: [],
+      outline: outlineFixture,
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 32,
+      viewportCamera: { panX: 50, panY: -25 },
+    });
+
+    expect(result.transform?.offW).toBe(800);
+    expect(result.transform?.offH).toBe(600);
+    expect(harness.canvas.width).toBe(800);
+    expect(harness.canvas.height).toBe(600);
+    expect(harness.strokes.find((stroke) => stroke.color === "var(--track-outline)")?.width).toBe(4);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});

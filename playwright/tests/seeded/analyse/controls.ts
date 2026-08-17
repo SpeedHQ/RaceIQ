@@ -1,4 +1,15 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+async function dragMap(page: Page, viewport: Locator): Promise<void> {
+  const canvas = viewport.locator("canvas").first();
+  const canvasBeforePan = await canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL());
+  const bounds = await viewport.boundingBox();
+  if (!bounds) throw new Error("Analyse map viewport has no bounds");
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 + 60, bounds.y + bounds.height / 2 + 30, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL())).not.toBe(canvasBeforePan);
+}
 
 export async function assertLapSelectors(page: Page): Promise<void> {
   for (const placeholder of ["Search tracks...", "Search cars..."]) {
@@ -47,9 +58,22 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
   await expect(insightsPanel.getByRole("button").first()).toBeVisible();
   await page.getByRole("tab", { name: "Data", exact: true }).click();
 
-  const followButton = page.getByRole("button", { name: "Fixed", exact: true });
-  await followButton.click();
+  const mapViewport = page.getByTestId("analyse-track-map-viewport");
+  await expect(mapViewport).toBeVisible();
+  const mapZoom = () => page.evaluate(() => Number(localStorage.getItem("analyse-mapZoom")));
+  expect(await mapViewport.evaluate((viewport) => !viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: 0, bubbles: true, cancelable: true }))), "map wheel events stay inside the viewport").toBe(
+    true,
+  );
+  await dragMap(page, mapViewport);
+  await mapViewport.hover();
+  await page.mouse.wheel(0, -250);
+  await expect.poll(mapZoom).toBeGreaterThan(1);
+  await page.mouse.wheel(0, 250);
+  await expect.poll(mapZoom).toBeCloseTo(1, 5);
+
+  await page.getByRole("button", { name: "Fixed", exact: true }).click();
   await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
+  await dragMap(page, mapViewport);
   await page.getByRole("button", { name: "Overlays", exact: true }).click();
   const overlayItems = ["Inputs", "Segments", "Sectors"].map((label) => page.getByRole("menuitemcheckbox", { name: label, exact: true }));
   for (const item of overlayItems) {
@@ -61,10 +85,15 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
     await expect(item).toHaveAttribute("aria-checked", "false");
   }
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Zoom in map" }).click();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("analyse-mapZoom"))).toBe("1.25");
-  await page.getByRole("button", { name: "Zoom out map" }).click();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("analyse-mapZoom"))).toBe("1");
+  for (let step = 0; step < 5; step++) await page.getByRole("button", { name: "Zoom in map" }).click();
+  await expect.poll(mapZoom).toBeGreaterThan(4);
+  for (let step = 0; step < 5; step++) await page.getByRole("button", { name: "Zoom out map" }).click();
+  await expect.poll(mapZoom).toBeCloseTo(1, 5);
+  await mapViewport.hover();
+  await page.mouse.wheel(0, -250);
+  await expect.poll(mapZoom).toBeGreaterThan(1);
+  await page.mouse.wheel(0, 250);
+  await expect.poll(mapZoom).toBeCloseTo(1, 5);
 }
 
 export async function exercise3dGuide(page: Page, assertClosed = true): Promise<void> {

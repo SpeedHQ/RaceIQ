@@ -10,6 +10,9 @@ import { DropdownMenu } from "../ui/DropdownMenu";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
 import {
   DEFAULT_TRACK_OVERLAYS,
+  TRACK_MAP_MAX_ZOOM,
+  TRACK_MAP_MIN_ZOOM,
+  TRACK_MAP_ZOOM_BUTTON_FACTOR,
   type Point,
   type SectorBoundaries,
   type SemanticAnalysisFrame,
@@ -98,15 +101,7 @@ export function AnalyseTrackPanel({
     }));
 
   return (
-    <div
-      data-testid="analyse-track-map-panel"
-      className="relative h-full min-w-0 bg-app-bg p-2"
-      onWheel={(e) => {
-        if (!rotateWithCar) return;
-        e.preventDefault();
-        onMapZoomChange((z) => Math.max(0.5, Math.min(4, z - e.deltaY * 0.001)));
-      }}
-    >
+    <div data-testid="analyse-track-map-panel" className="relative h-full min-w-0 bg-app-bg p-2">
       <AnalyseTrackMap
         ref={trackMapRef}
         gameId={gameId}
@@ -124,6 +119,7 @@ export function AnalyseTrackPanel({
         showRaceLine={trackOverlays.racingLine && hasRacingLine}
         rotateWithCar={rotateWithCar}
         zoom={mapZoom}
+        onZoomChange={onMapZoomChange}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
       {telemetry[cursorIdx]?.values["weather.air-temp"] != null && <WeatherWidget f1={telemetry[cursorIdx].values as never} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
@@ -159,26 +155,24 @@ export function AnalyseTrackPanel({
 
       {/* Right side controls */}
       <div className="pointer-events-none absolute top-2 right-2 flex items-start gap-2">
-        {rotateWithCar && (
-          <div className="pointer-events-auto flex flex-col gap-1">
-            <Button
-              type="button"
-              aria-label="Zoom in map"
-              onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
-              className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-            >
-              +
-            </Button>
-            <Button
-              type="button"
-              aria-label="Zoom out map"
-              onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
-              className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-            >
-              -
-            </Button>
-          </div>
-        )}
+        <div className="pointer-events-auto flex flex-col gap-1">
+          <Button
+            type="button"
+            aria-label="Zoom in map"
+            onClick={() => onMapZoomChange((z) => Math.min(z * TRACK_MAP_ZOOM_BUTTON_FACTOR, TRACK_MAP_MAX_ZOOM))}
+            className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+          >
+            +
+          </Button>
+          <Button
+            type="button"
+            aria-label="Zoom out map"
+            onClick={() => onMapZoomChange((z) => Math.max(z / TRACK_MAP_ZOOM_BUTTON_FACTOR, TRACK_MAP_MIN_ZOOM))}
+            className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+          >
+            -
+          </Button>
+        </div>
         {currentFrame && <Compass yaw={Number(currentFrame.values["motion.yaw"]) || 0} />}
       </div>
 

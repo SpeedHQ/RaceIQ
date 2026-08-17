@@ -50,6 +50,10 @@ export const DEFAULT_TRACK_OVERLAYS: TrackOverlays = {
   sectors: false,
   racingLine: false,
 };
+export const TRACK_MAP_MIN_ZOOM = 0.5;
+export const TRACK_MAP_MAX_ZOOM = 64;
+export const TRACK_MAP_MAX_RENDER_ZOOM = 4;
+export const TRACK_MAP_ZOOM_BUTTON_FACTOR = 1.5;
 
 export interface TrackMapLabel extends Point {
   text: string;
@@ -96,6 +100,7 @@ export interface TrackMapProps {
   showTrace?: boolean;
   rotateWithCar: boolean;
   zoom?: number;
+  onZoomChange?: (updater: (zoom: number) => number) => void;
 }
 
 export interface TrackTransform {
