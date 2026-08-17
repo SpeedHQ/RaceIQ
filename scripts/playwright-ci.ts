@@ -9,7 +9,15 @@ if (!command) {
 }
 
 const playwrightArgs = [command, ...commandArgs, ...projectArgs];
-const child = Bun.spawn([process.execPath, "x", "playwright", ...playwrightArgs], {
+const playwrightCli = Bun.resolveSync("@playwright/test/cli", process.cwd());
+const nodeExecutable = Bun.which("node");
+
+if (!nodeExecutable) {
+  console.error("Node.js executable not found; Playwright requires Node.js 20 or newer.");
+  process.exit(2);
+}
+
+const child = Bun.spawn([nodeExecutable, playwrightCli, ...playwrightArgs], {
   cwd: process.cwd(),
   env: Bun.env,
   stdout: "pipe",
