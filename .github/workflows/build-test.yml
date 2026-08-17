@@ -92,6 +92,9 @@ jobs:
   snapshots:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs: build-test
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/pr-snapshots.yml
     with:
       pr: ${{ github.event.pull_request.number }}
