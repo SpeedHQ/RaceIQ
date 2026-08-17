@@ -6,6 +6,11 @@ import { pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
 import { drawStaticTrack } from "./track-map/static-drawing";
 import { semanticNumber, TRACK_MAP_MAX_RENDER_ZOOM, TRACK_MAP_MAX_ZOOM, TRACK_MAP_MIN_ZOOM, type TrackMapHandle, type TrackMapProps, type TrackTransform } from "./track-map/types";
 
+const TRACK_MAP_WHEEL_SENSITIVITY = 0.0015;
+const TRACK_MAP_MAX_WHEEL_DELTA_PER_FRAME = 240;
+const TRACK_MAP_MAX_BUFFERED_WHEEL_DELTA = TRACK_MAP_MAX_WHEEL_DELTA_PER_FRAME * 4;
+const TRACK_MAP_WHEEL_LINE_HEIGHT = 16;
+
 export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(function AnalyseTrackMap(props, ref) {
   const {
     gameId,
@@ -37,6 +42,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const dragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const viewModeRef = useRef(rotateWithCar);
   const zoomRef = useRef(zoom);
+  const wheelAnimationRef = useRef<number | null>(null);
+  const wheelDeltaRef = useRef(0);
+  const wheelPointerRef = useRef({ x: 0, y: 0 });
+  const wheelTargetZoomRef = useRef<number | null>(null);
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, gameId), [telemetry, outline, gameId]);
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
   const directVectorRender = zoom > TRACK_MAP_MAX_RENDER_ZOOM;
@@ -176,7 +185,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     viewModeRef.current = rotateWithCar;
   }, [rotateWithCar]);
   useLayoutEffect(() => {
+    const wheelTarget = wheelTargetZoomRef.current;
+    if (wheelTarget !== null && zoom !== wheelTarget) return;
     zoomRef.current = zoom;
+    wheelTargetZoomRef.current = null;
   }, [zoom]);
 
   useLayoutEffect(drawStatic, [drawStatic]);
@@ -290,24 +302,53 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
+
+    const scheduleWheelZoom = () => {
+      if (wheelAnimationRef.current !== null) return;
+      wheelAnimationRef.current = requestAnimationFrame(flushWheelZoom);
+    };
+    const flushWheelZoom = () => {
+      wheelAnimationRef.current = null;
+      const delta = Math.max(-TRACK_MAP_MAX_WHEEL_DELTA_PER_FRAME, Math.min(TRACK_MAP_MAX_WHEEL_DELTA_PER_FRAME, wheelDeltaRef.current));
+      wheelDeltaRef.current -= delta;
+      if (Math.abs(wheelDeltaRef.current) < 0.01) wheelDeltaRef.current = 0;
+
+      const currentZoom = zoomRef.current;
+      const nextZoom = Math.max(TRACK_MAP_MIN_ZOOM, Math.min(TRACK_MAP_MAX_ZOOM, currentZoom * Math.exp(-delta * TRACK_MAP_WHEEL_SENSITIVITY)));
+      if (nextZoom === currentZoom) {
+        wheelDeltaRef.current = 0;
+        return;
+      }
+
+      const scaleChange = nextZoom / currentZoom;
+      panRef.current.x += (1 - scaleChange) * (wheelPointerRef.current.x - panRef.current.x);
+      panRef.current.y += (1 - scaleChange) * (wheelPointerRef.current.y - panRef.current.y);
+      zoomRef.current = nextZoom;
+      wheelTargetZoomRef.current = nextZoom;
+      onZoomChange?.(() => nextZoom);
+      if (wheelDeltaRef.current !== 0) scheduleWheelZoom();
+    };
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
       event.stopPropagation();
-      if (!onZoomChange) return;
-      const currentZoom = zoomRef.current;
-      const nextZoom = Math.max(TRACK_MAP_MIN_ZOOM, Math.min(TRACK_MAP_MAX_ZOOM, currentZoom * Math.exp(-event.deltaY * 0.0015)));
-      if (nextZoom === currentZoom) return;
+      if (!onZoomChange || event.deltaY === 0) return;
+
       const bounds = viewport.getBoundingClientRect();
-      const scaleChange = nextZoom / currentZoom;
-      const pointerFromCenterX = event.clientX - bounds.left - bounds.width / 2;
-      const pointerFromCenterY = event.clientY - bounds.top - bounds.height / 2;
-      panRef.current.x += (1 - scaleChange) * (pointerFromCenterX - panRef.current.x);
-      panRef.current.y += (1 - scaleChange) * (pointerFromCenterY - panRef.current.y);
-      zoomRef.current = nextZoom;
-      onZoomChange(() => nextZoom);
+      const deltaScale = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? TRACK_MAP_WHEEL_LINE_HEIGHT : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? Math.max(bounds.height, 1) : 1;
+      wheelDeltaRef.current = Math.max(-TRACK_MAP_MAX_BUFFERED_WHEEL_DELTA, Math.min(TRACK_MAP_MAX_BUFFERED_WHEEL_DELTA, wheelDeltaRef.current + event.deltaY * deltaScale));
+      wheelPointerRef.current = {
+        x: event.clientX - bounds.left - bounds.width / 2,
+        y: event.clientY - bounds.top - bounds.height / 2,
+      };
+      scheduleWheelZoom();
     };
     viewport.addEventListener("wheel", handleWheel, { passive: false });
-    return () => viewport.removeEventListener("wheel", handleWheel);
+    return () => {
+      viewport.removeEventListener("wheel", handleWheel);
+      if (wheelAnimationRef.current !== null) cancelAnimationFrame(wheelAnimationRef.current);
+      wheelAnimationRef.current = null;
+      wheelDeltaRef.current = 0;
+    };
   }, [onZoomChange]);
 
   return (
