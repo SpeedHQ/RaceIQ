@@ -29,15 +29,16 @@ concurrency:
   group: pr-snapshots-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: blacksmith-2vcpu-ubuntu-2204
     container:
       image: mcr.microsoft.com/playwright:v1.62.0-jammy
-    permissions:
-      contents: read
-      pull-requests: read
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
