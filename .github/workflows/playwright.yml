@@ -17,7 +17,7 @@ on:
         description: "Playwright project flags passed to the gate"
         required: false
         type: string
-        default: "--project=fresh-install --project=tunes --project=seeded-e2e --project=seeded-imports --project=mobile-device --project=tablet-device"
+        default: "--project=fresh-install --project=tunes --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device"
       server-set:
         description: "Playwright server set: all, fresh, tunes, or seeded"
         required: false
@@ -71,7 +71,7 @@ jobs:
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
-          PW_WORKERS: "2"
+          PW_WORKERS: "4"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
         run: bun run ../scripts/playwright-ci.ts test --list
@@ -81,7 +81,7 @@ jobs:
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
-          PW_WORKERS: "2"
+          PW_WORKERS: "4"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd

@@ -54,9 +54,15 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       },
     },
     {
+      name: "seeded-routes",
+      testMatch: "seeded/routes/**/*.spec.ts",
+      timeout: 120_000,
+      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
       name: "seeded-e2e",
       testMatch: "seeded/**/*.spec.ts",
-      testIgnore: sequentialImportSpecs,
+      testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts"],
       timeout: 120_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },

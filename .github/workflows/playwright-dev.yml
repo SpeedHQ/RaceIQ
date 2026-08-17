@@ -12,21 +12,34 @@ jobs:
           - name: fresh
             server-set: fresh
             projects: --project=fresh-install
+            memory: 5G
+            cpu: 2VCPU
           - name: tunes
             server-set: tunes
             projects: --project=tunes
+            memory: 5G
+            cpu: 2VCPU
           - name: seeded-imports
             server-set: seeded
             projects: --project=seeded-imports
+            memory: 8G
+            cpu: 4VCPU
           - name: seeded-read
             server-set: seeded
             projects: --project=seeded-e2e --project=mobile-device --project=tablet-device
+            memory: 8G
+            cpu: 4VCPU
+          - name: seeded-routes
+            server-set: seeded
+            projects: --project=seeded-routes
+            memory: 8G
+            cpu: 4VCPU
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
       server-set: ${{ matrix.server-set }}
       projects: ${{ matrix.projects }}
-      runs-on: '["whitesmith-windows-x64", "4VCPU", "5G"]'
+      runs-on: '["whitesmith-windows-x64", "${{ matrix.cpu }}", "${{ matrix.memory }}"]'
       dist-artifact: raceiq-dist-windows
       artifact-name: playwright-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
