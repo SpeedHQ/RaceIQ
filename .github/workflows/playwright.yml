@@ -56,7 +56,7 @@ jobs:
 
       - name: Install Chromium
         working-directory: playwright
-        run: bunx playwright install chromium
+        run: bun run ../scripts/playwright-ci.ts install chromium
 
       - name: Check Playwright project discovery
         working-directory: playwright
@@ -64,18 +64,8 @@ jobs:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
-        shell: powershell
-        run: |
-          $projectArgs = $env:PLAYWRIGHT_PROJECTS -split "\s+"
-          $listPath = Join-Path $env:RUNNER_TEMP "playwright-list.txt"
-          & bunx playwright test --list @projectArgs *> $listPath
-          $status = $LASTEXITCODE
-          Get-Content $listPath
-          if ($status -ne 0) { exit $status }
-          if ((Get-Content $listPath -Raw) -notmatch "Total:\s+[1-9]\d*\s+tests") {
-            Write-Error "No Playwright tests discovered for $env:PLAYWRIGHT_PROJECTS"
-            exit 1
-          }
+        shell: cmd
+        run: bun run ../scripts/playwright-ci.ts test --list
 
       - name: Run Playwright gate
         working-directory: playwright
@@ -84,11 +74,9 @@ jobs:
           PW_SERVER_SET: ${{ inputs.server-set }}
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
-        shell: powershell
-        run: |
-          $projectArgs = $env:PLAYWRIGHT_PROJECTS -split "\s+"
-          & bunx playwright test @projectArgs
-          exit $LASTEXITCODE
+        shell: cmd
+        run: bun run ../scripts/playwright-ci.ts test
+
 
       - name: Upload Playwright artifacts
         if: always()
