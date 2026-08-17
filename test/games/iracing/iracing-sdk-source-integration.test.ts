@@ -14,6 +14,7 @@ import {
   type IRacingSourceFrameV3,
 } from "../../../server/games/iracing/source-frame";
 import { parsePacket } from "../../../server/games/packet-dispatch";
+import { timerResolutionRefCount } from "../../../server/games/shared/win-timer-resolution";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   iracingAdapter,
@@ -24,6 +25,18 @@ initGameAdapters();
 initServerGameAdapters();
 import { sampleFrame, } from "../../support/games/iracing-sdk";
 describe("iRacing source ownership integration", () => {
+  test.skipIf(process.platform !== "win32")("holds high-resolution timer while polling iRacing", async () => {
+    const initialRefCount = timerResolutionRefCount();
+    const reader: IRacingFrameReader = { start() {}, async stop() {}, readLatest: () => null };
+    const source = new IRacingTelemetrySource({ reader, pollIntervalMs: 1000 });
+    source.start();
+    try {
+      expect(timerResolutionRefCount()).toBe(initialRefCount + 1);
+    } finally {
+      await source.stop();
+    }
+    expect(timerResolutionRefCount()).toBe(initialRefCount);
+  });
 
   test("parsing a historical frame cannot overwrite live identity", () => {
     const carOrdinal = 901_042;
@@ -103,6 +116,7 @@ DriverInfo:
   DriverCarIdleRPM: 900
   DriverCarRedLine: 8500
   DriverCarEngCylinderCount: 8
+  DriverCarFuelMaxLtr: 105.0
   Drivers:
   - CarIdx: 7
     CarID: 42
@@ -142,8 +156,86 @@ DriverInfo:
     );
     expect(parsePacket(delivered!)).toMatchObject({
       gameId: "iracing",
+      FuelCapacity: 105,
       iracing: { sectorStarts: [0, 0.34, 0.67] },
     });
+  });
+
+  test("captures SDK ticks while downstream processing is busy", async () => {
+    const values = sampleFrame().values;
+    const sessionInfo = `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: Road America
+  SessionID: 123
+  SubSessionID: 456
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+`;
+    const snapshots = [7530, 7531, 7532].map((tick) => ({
+      tick,
+      sessionInfoUpdate: 1,
+      sessionInfo,
+      values: {
+        ...values,
+        SessionTick: tick,
+        SessionTime: tick / 60,
+      },
+    }));
+    let reads = 0;
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest() {
+        reads++;
+        return snapshots.shift() ?? null;
+      },
+    };
+    let releaseDispatch!: () => void;
+    const dispatchGate = new Promise<void>((resolve) => {
+      releaseDispatch = resolve;
+    });
+    let signalDispatchStarted!: () => void;
+    const dispatchStarted = new Promise<void>((resolve) => {
+      signalDispatchStarted = resolve;
+    });
+    const delivered: Buffer[] = [];
+    const source = new IRacingTelemetrySource({
+      reader,
+      dispatchRawFrame: async (raw) => {
+        if (delivered.length === 0) {
+          signalDispatchStarted();
+          await dispatchGate;
+        }
+        delivered.push(raw);
+      },
+    });
+
+    const first = source.pollOnce();
+    await dispatchStarted;
+    const second = source.pollOnce();
+    const third = source.pollOnce();
+
+    expect(reads).toBe(3);
+    expect(delivered).toHaveLength(0);
+    releaseDispatch();
+    expect(await Promise.all([first, second, third])).toEqual([
+      true,
+      true,
+      true,
+    ]);
+
+    const decoder = createIRacingSourceDecoderState();
+    expect(
+      delivered.map(
+        (raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick,
+      ),
+    ).toEqual([7530, 7531, 7532]);
   });
 
   test("reparses session YAML when raw content or revision changes", async () => {
@@ -181,6 +273,12 @@ DriverInfo:
         sessionInfo: sessionInfo("Spa"),
         values: frame.values,
       },
+      {
+        tick: 7533,
+        sessionInfoUpdate: 3,
+        sessionInfo: `${sessionInfo("Spa")}\n# Results revision`,
+        values: frame.values,
+      },
     ];
     const reader: IRacingFrameReader = {
       start() {},
@@ -204,6 +302,7 @@ DriverInfo:
     expect(await source.pollOnce()).toBe(true);
     expect(await source.pollOnce()).toBe(true);
     expect(await source.pollOnce()).toBe(true);
+    expect(await source.pollOnce()).toBe(true);
     const decoder = createIRacingSourceDecoderState();
     const decoded = delivered.map((raw) =>
       decodeIRacingSourceFrame(raw, decoder),
@@ -212,12 +311,14 @@ DriverInfo:
       "Road America",
       "Content Only Update",
       "Spa",
+      "Spa",
     ]);
-    expect(decoded.map((raw) => raw?.sessionInfoUpdate)).toEqual([1, 1, 2]);
+    expect(decoded.map((raw) => raw?.sessionInfoUpdate)).toEqual([1, 1, 2, 3]);
     expect(decoded.map((raw) => raw?.sessionInfo)).toEqual([
       sessionInfo("Road America"),
       sessionInfo("Content Only Update"),
       sessionInfo("Spa"),
+      `${sessionInfo("Spa")}\n# Results revision`,
     ]);
     expect(registeredTrackNames).toEqual([
       "Road America",

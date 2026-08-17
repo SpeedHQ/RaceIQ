@@ -1,5 +1,11 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { createIRacingSourceDecoderState, type IRacingSourceDecoderState, type IRacingSourceFrame, type IRacingValue } from "./source-frame";
+import {
+  createIRacingSourceDecoderState,
+  type IRacingSourceDecoderState,
+  type IRacingSourceFrame,
+  type IRacingValue,
+} from "./source-frame";
+import { parseIRacingFuelCapacity } from "./session-info";
 import { startsAtIRacingSectorOrigin, warnInvalidIRacingSectorLayout } from "./sector-layout";
 
 const KPA_TO_PSI = 0.1450377377;
@@ -21,6 +27,8 @@ export interface IRacingParserState {
   rawLap: number | null;
   lapStartSessionTime: number;
   gps: IRacingGpsProjectionState;
+  fuelCapacitySessionInfo: string | null;
+  fuelCapacityL: number | undefined;
 }
 
 export function createIRacingParserState(): IRacingParserState {
@@ -38,6 +46,8 @@ export function createIRacingParserState(): IRacingParserState {
       lastZ: 0,
       hasLast: false,
     },
+    fuelCapacitySessionInfo: null,
+    fuelCapacityL: undefined,
   };
 }
 
@@ -176,6 +186,18 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacing
   const sdkCurrentLapTime = Math.max(0, scalar(values, "LapCurrentLapTime", 0));
   const sdkLastLapTime = Math.max(0, scalar(values, "LapLastLapTime", 0));
   const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
+  let fuelCapacityL: number | undefined;
+  if ("sessionInfo" in frame) {
+    if (!state) {
+      fuelCapacityL = parseIRacingFuelCapacity(frame.sessionInfo);
+    } else {
+      if (state.fuelCapacitySessionInfo !== frame.sessionInfo) {
+        state.fuelCapacitySessionInfo = frame.sessionInfo;
+        state.fuelCapacityL = parseIRacingFuelCapacity(frame.sessionInfo);
+      }
+      fuelCapacityL = state.fuelCapacityL;
+    }
+  }
   let currentLapTime = sdkCurrentLapTime;
   if (state) {
     if (state.sessionKey !== sessionKey || state.rawLap === null) {
@@ -245,9 +267,9 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacing
     EngineIdleRpm: session.engineIdleRpm,
     CurrentEngineRpm: scalar(values, "RPM", 0),
 
-    // The iRacing SDK publishes these accelerations in m/s², matching the
-    // canonical values consumed by RaceIQ's G-force views.
-    AccelerationX: scalar(values, "LatAccel", 0),
+    // iRacing LatAccel is left-positive; RaceIQ's canonical lateral axis is
+    // right-positive so felt G renders opposite the direction of the turn.
+    AccelerationX: -scalar(values, "LatAccel", 0),
     AccelerationY: scalar(values, "VertAccel", 0),
     AccelerationZ: scalar(values, "LongAccel", 0),
 
@@ -314,6 +336,7 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacing
 
     Boost: 0,
     Fuel: Math.max(0, scalar(values, "FuelLevel", 0)),
+    ...(fuelCapacityL !== undefined ? { FuelCapacity: fuelCapacityL } : {}),
     DistanceTraveled: distanceTraveled,
     BestLap: Math.max(0, scalar(values, "LapBestLapTime", 0)),
     LastLap: sdkLastLapTime,

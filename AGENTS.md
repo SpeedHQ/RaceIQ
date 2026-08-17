@@ -7,6 +7,14 @@ This file provides guidance to coding agents working in this repository.
 
 RaceIQ is a full-stack racing telemetry analysis app for Forza Motorsport 2023, F1 25, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing. UDP and native Windows telemetry sources feed a Bun server, SQLite storage, and a React dashboard. See [architecture overview](docs/architecture/overview.md).
 
+## Codebase Discovery
+
+When available, try the DeepWiki MCP first (`read_wiki_structure`,
+`read_wiki_contents`, or `ask_question`) to learn the app's architecture and
+feature flows before broad code searches. Use DeepWiki for orientation, then
+verify implementation details against the current checkout because its content
+may be stale or unavailable. Fall back to repository search when needed.
+
 ## Commands
 
 ```bash
@@ -336,7 +344,7 @@ When creating or updating a pull request:
 
 ### Pull Request Changelog
 
-Every pull request must include a concise bullet in `CHANGELOG.md` under `## Unreleased`. Use `### Internal` for implementation, CI, tooling, and maintenance changes that are not user-visible; keep `### Breaking`, `### Features`, and `### Fixes` for user-facing changes. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
+Every pull request must include a concise user-facing bullet in `CHANGELOG.md` under `## Unreleased`; do not omit it for implementation, CI, tooling, or maintenance work. Describe the observable benefit in `### Breaking`, `### Features`, or `### Fixes` rather than documenting internal mechanics. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
 
 ### AI Evaluators
 

@@ -28,6 +28,17 @@ function toNumber(value: string | undefined, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+export function parseIRacingFuelCapacity(
+  yaml: string,
+): number | undefined {
+  const lines = yaml.replace(/\r\n/g, "\n").split("\n");
+  const capacity = toNumber(
+    findScalar(lines, "DriverCarFuelMaxLtr"),
+    Number.NaN,
+  );
+  return Number.isFinite(capacity) && capacity > 0 ? capacity : undefined;
+}
+
 function parseTrackLengthM(value: string | undefined): number {
   if (!value) return 0;
   const match = value.match(/(-?\d+(?:\.\d+)?)\s*(km|m|mi|ft)?/i);
