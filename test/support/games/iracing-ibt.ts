@@ -1,17 +1,10 @@
-import {
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  IRSDK_VAR_HEADER_SIZE,
-  IRSDKVariableType,
-} from "../../../server/games/iracing/variable-table";
+import { IRSDK_VAR_HEADER_SIZE, IRSDKVariableType } from "../../../server/games/iracing/variable-table";
 
 export const DISK_HEADER_SIZE = 144;
-export const ROW_LENGTH = 44;
+export const ROW_LENGTH = 56;
 
 export interface SyntheticRow {
   sessionTime: number;
@@ -22,6 +15,9 @@ export interface SyntheticRow {
   lastLapTime?: number;
   currentLapTime?: number;
   brakeLinePressure?: number;
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
 }
 
 export interface SyntheticIdentity {
@@ -44,20 +40,11 @@ export interface SyntheticIbtRecording {
   cleanup: () => void;
 }
 
-export function writeCString(
-  buffer: Buffer,
-  offset: number,
-  length: number,
-  value: string,
-): void {
+export function writeCString(buffer: Buffer, offset: number, length: number, value: string): void {
   Buffer.from(value, "utf8").copy(buffer, offset, 0, length - 1);
 }
 
-function descriptor(
-  type: IRSDKVariableType,
-  valueOffset: number,
-  name: string,
-): Buffer {
+function descriptor(type: IRSDKVariableType, valueOffset: number, name: string): Buffer {
   const buffer = Buffer.alloc(IRSDK_VAR_HEADER_SIZE);
   buffer.writeInt32LE(type, 0);
   buffer.writeInt32LE(valueOffset, 4);
@@ -80,6 +67,9 @@ function telemetryRow(row: SyntheticRow): Buffer {
   buffer.writeFloatLE(row.lastLapTime ?? 0, 32);
   buffer.writeFloatLE(row.currentLapTime ?? row.sessionTime, 36);
   buffer.writeFloatLE(row.brakeLinePressure ?? 1200.25, 40);
+  buffer.writeFloatLE(row.latitude ?? 0, 44);
+  buffer.writeFloatLE(row.longitude ?? 0, 48);
+  buffer.writeFloatLE(row.altitude ?? 0, 52);
   return buffer;
 }
 
@@ -113,11 +103,7 @@ SplitTimeInfo:
 `;
 }
 
-export function writeSyntheticIbt(
-  path: string,
-  suppliedRows?: SyntheticRow[],
-  identity: SyntheticIdentity = DEFAULT_IDENTITY,
-): void {
+export function writeSyntheticIbt(path: string, suppliedRows?: SyntheticRow[], identity: SyntheticIdentity = DEFAULT_IDENTITY): void {
   const variableHeaders = Buffer.concat([
     descriptor(IRSDKVariableType.Double, 0, "SessionTime"),
     descriptor(IRSDKVariableType.Int, 8, "SessionTick"),
@@ -130,11 +116,11 @@ export function writeSyntheticIbt(
     descriptor(IRSDKVariableType.Float, 32, "LapLastLapTime"),
     descriptor(IRSDKVariableType.Float, 36, "LapCurrentLapTime"),
     descriptor(IRSDKVariableType.Float, 40, "LFbrakeLinePress"),
+    descriptor(IRSDKVariableType.Float, 44, "Lat"),
+    descriptor(IRSDKVariableType.Float, 48, "Lon"),
+    descriptor(IRSDKVariableType.Float, 52, "Alt"),
   ]);
-  const sessionInfo = Buffer.from(
-    `${syntheticSessionInfo(identity)}\0`,
-    "utf8",
-  );
+  const sessionInfo = Buffer.from(`${syntheticSessionInfo(identity)}\0`, "utf8");
   const sourceRows: SyntheticRow[] = suppliedRows ?? [
     {
       sessionTime: 10,
@@ -142,6 +128,9 @@ export function writeSyntheticIbt(
       speed: 50.5,
       lapDistancePct: 0.25,
       brakeLinePressure: 1200.25,
+      latitude: 43,
+      longitude: -88,
+      altitude: 200,
     },
     {
       sessionTime: 10 + 1 / 60,
@@ -149,50 +138,34 @@ export function writeSyntheticIbt(
       speed: 51.5,
       lapDistancePct: 0.26,
       brakeLinePressure: 1201.5,
+      latitude: 43.0001,
+      longitude: -87.9999,
+      altitude: 201.5,
     },
   ];
   const rows = sourceRows.map(telemetryRow);
 
-  const sessionInfoOffset =
-    DISK_HEADER_SIZE + variableHeaders.length;
+  const sessionInfoOffset = DISK_HEADER_SIZE + variableHeaders.length;
   const header = Buffer.alloc(DISK_HEADER_SIZE);
   header.writeInt32LE(2, 0);
   header.writeInt32LE(1, 4);
   header.writeInt32LE(60, 8);
   header.writeInt32LE(sessionInfo.length, 16);
   header.writeInt32LE(sessionInfoOffset, 20);
-  header.writeInt32LE(
-    variableHeaders.length / IRSDK_VAR_HEADER_SIZE,
-    24,
-  );
+  header.writeInt32LE(variableHeaders.length / IRSDK_VAR_HEADER_SIZE, 24);
   header.writeInt32LE(DISK_HEADER_SIZE, 28);
   header.writeInt32LE(1, 32);
   header.writeInt32LE(ROW_LENGTH, 36);
   header.writeBigInt64LE(1_757_390_931n, 112);
   header.writeDoubleLE(sourceRows[0]?.sessionTime ?? 0, 120);
-  header.writeDoubleLE(
-    sourceRows[sourceRows.length - 1]?.sessionTime ?? 0,
-    128,
-  );
+  header.writeDoubleLE(sourceRows[sourceRows.length - 1]?.sessionTime ?? 0, 128);
   header.writeInt32LE(1, 136);
   header.writeInt32LE(rows.length, 140);
 
-  writeFileSync(
-    path,
-    Buffer.concat([
-      header,
-      variableHeaders,
-      sessionInfo,
-      ...rows,
-    ]),
-  );
+  writeFileSync(path, Buffer.concat([header, variableHeaders, sessionInfo, ...rows]));
 }
 
-export function createRecording(
-  fileName = "sample.ibt",
-  suppliedRows?: SyntheticRow[],
-  identity: SyntheticIdentity = DEFAULT_IDENTITY,
-): SyntheticIbtRecording {
+export function createRecording(fileName = "sample.ibt", suppliedRows?: SyntheticRow[], identity: SyntheticIdentity = DEFAULT_IDENTITY): SyntheticIbtRecording {
   const tempDir = mkdtempSync(join(tmpdir(), "raceiq-ibt-"));
   const path = join(tempDir, fileName);
   writeSyntheticIbt(path, suppliedRows, identity);
@@ -218,6 +191,9 @@ export function drivenRows(): SyntheticRow[] {
       lap: 1,
       lapDistancePct: 0.2,
       currentLapTime: 10,
+      latitude: 43,
+      longitude: -88,
+      altitude: 200,
     },
     {
       sessionTime: 45,
@@ -226,6 +202,9 @@ export function drivenRows(): SyntheticRow[] {
       lap: 1,
       lapDistancePct: 0.9,
       currentLapTime: 55,
+      latitude: 43.0001,
+      longitude: -88.0002,
+      altitude: 201,
     },
     {
       sessionTime: 50,
@@ -235,6 +214,9 @@ export function drivenRows(): SyntheticRow[] {
       lapDistancePct: 0.1,
       lastLapTime: 60,
       currentLapTime: 5,
+      latitude: 43.0002,
+      longitude: -88,
+      altitude: 202,
     },
     {
       sessionTime: 105,
@@ -244,6 +226,9 @@ export function drivenRows(): SyntheticRow[] {
       lapDistancePct: 0.9,
       lastLapTime: 60,
       currentLapTime: 55,
+      latitude: 43.0003,
+      longitude: -87.9998,
+      altitude: 203,
     },
     {
       sessionTime: 110,
@@ -253,6 +238,9 @@ export function drivenRows(): SyntheticRow[] {
       lapDistancePct: 0.1,
       lastLapTime: 60,
       currentLapTime: 5,
+      latitude: 43.0004,
+      longitude: -88,
+      altitude: 204,
     },
     {
       sessionTime: 112,
@@ -262,6 +250,9 @@ export function drivenRows(): SyntheticRow[] {
       lapDistancePct: 0.14,
       lastLapTime: 61,
       currentLapTime: 2,
+      latitude: 43.00041,
+      longitude: -88.00002,
+      altitude: 204.5,
     },
   ];
 }
