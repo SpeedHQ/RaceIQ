@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { db } from "../../server/db";
 import { getLapCountsByTest } from "../../server/db/experiment-version-queries";
 import { analysisEligibility } from "../../server/db/lap-eligibility";
-import { getLaps } from "../../server/db/lap-read-queries";
+import { getLapById, getLaps } from "../../server/db/lap-read-queries";
 import { getSessionRecapData, getSessions } from "../../server/db/session-queries";
 import { computeRecap } from "../../server/lap-analysis/recap";
 import { experimentVersions, experiments, laps, sessions } from "../../server/db/schema";
@@ -455,6 +455,16 @@ test("session query projections preserve current pace evidence and reject stale,
   const missingDecision = resolveEligibilityDecision(missingLapMeta, "normal-pace");
   expect(missingDecision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
   expect(missingDecision).not.toBe(missingLapMeta.eligibility?.["normal-pace"]);
+
+  const fullMissingLap = await getLapById(missingLapMeta.id);
+  if (!fullMissingLap) throw new Error("Expected full missing-quality lap");
+  expect(fullMissingLap.qualityStale).toBe(false);
+  expect(resolveEligibilityDecision(fullMissingLap, "normal-pace").reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+
+  const fullStaleLap = await getLapById(staleLapMeta.id);
+  if (!fullStaleLap) throw new Error("Expected full stale-quality lap");
+  expect(fullStaleLap.qualityStale).toBe(true);
+  expect(resolveEligibilityDecision(fullStaleLap, "normal-pace").reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
 
   const recapData = await getSessionRecapData(sessionId, "iracing");
   if (!recapData) throw new Error("Expected recap query data");
