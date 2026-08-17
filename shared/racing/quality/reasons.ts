@@ -11,6 +11,7 @@ export interface QualityReasonMetadata {
 
 export const QUALITY_REASON_META = {
   quality_not_rebuilt: { category: "provenance", defaultSeverity: "warning", messageKey: "quality.reason.quality_not_rebuilt", blocksStrictAnalysis: true },
+  quality_stale: { category: "provenance", defaultSeverity: "warning", messageKey: "quality.reason.quality_stale", blocksStrictAnalysis: true },
   recording_unavailable: { category: "recording", defaultSeverity: "error", messageKey: "quality.reason.recording_unavailable", blocksStrictAnalysis: true },
   recording_incompatible: { category: "recording", defaultSeverity: "error", messageKey: "quality.reason.recording_incompatible", blocksStrictAnalysis: true },
   recording_corrupt: { category: "recording", defaultSeverity: "error", messageKey: "quality.reason.recording_corrupt", blocksStrictAnalysis: true },

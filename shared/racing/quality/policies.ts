@@ -207,11 +207,7 @@ function dedupeReasons(reasons: readonly EligibilityReason[]): EligibilityReason
   return result;
 }
 
-function unresolvedDecision(
-  policyId: EligibilityPolicyId,
-  reasons: readonly EligibilityReason[],
-  policyVersion: string = ELIGIBILITY_POLICY_VERSION,
-): EligibilityDecision {
+function unresolvedDecision(policyId: EligibilityPolicyId, reasons: readonly EligibilityReason[], policyVersion: string = ELIGIBILITY_POLICY_VERSION): EligibilityDecision {
   const uniqueReasons = dedupeReasons(reasons);
   return {
     status: "unknown",
@@ -695,6 +691,7 @@ export function resolveEligibilityDecision(
   policyId: EligibilityPolicyId,
   options: EligibilityEvaluationOptions = {},
 ): EligibilityDecision {
+  if (evidence.qualityStale === true) return unresolvedDecision(policyId, [syntheticReason("quality_stale")]);
   const snapshotCurrent = isQualitySnapshotCurrent(evidence);
   const persisted = evidence.eligibility?.[policyId];
   if (snapshotCurrent && persisted?.policyId === policyId && persisted.policyVersion === ELIGIBILITY_POLICY_VERSION) return persisted;

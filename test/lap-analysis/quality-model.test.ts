@@ -485,6 +485,6 @@ describe("versioned eligibility policies", () => {
 
     const decision = resolveEligibilityDecision(evidence, "corner-trace");
     expect(decision.status).toBe("unknown");
-    expect(decision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+    expect(decision.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
   });
 });
