@@ -1,16 +1,20 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { basename, relative, resolve, sep } from "node:path";
 import {
   TrackImageryLayoutManifestSchema,
   TrackImageryVenueManifestSchema,
   type TrackImagery,
+  type TrackImageryConfigurationIndex,
   type TrackImageryLayoutManifest,
   type TrackImageryVenueManifest,
 } from "../../shared/racing/tracks/imagery";
-import type { GameId } from "../../shared/games/ids";
+import { TrackVenueIdSchema } from "../../shared/racing/tracks/configuration";
+import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { SHARED_DIR } from "../runtime/config/paths";
+import { loadTrackConfiguration } from "./configuration";
 
 const TRACK_IMAGERY_ROOT = resolve(SHARED_DIR, "tracks", "imagery");
+const TRACK_IMAGERY_VENUES_ROOT = resolve(TRACK_IMAGERY_ROOT, "venues");
 
 export interface LoadedTrackImageryTexture {
   path: string;
@@ -23,7 +27,8 @@ export interface LoadedTrackImagery {
 }
 
 export function trackImageryVenueDirectory(venueId: string): string {
-  return resolve(TRACK_IMAGERY_ROOT, "venues", venueId);
+  const parsed = TrackVenueIdSchema.parse(venueId);
+  return resolve(TRACK_IMAGERY_VENUES_ROOT, ...parsed.split("/"));
 }
 
 export function trackImageryLayoutPath(gameId: GameId, trackOrdinal: number): string {
@@ -47,6 +52,40 @@ export function loadTrackImageryVenue(venueId: string): TrackImageryVenueManifes
   if (parsed.data.venueId !== venueId) throw new Error(`Track imagery venue identity mismatch in ${path}`);
   return parsed.data;
 }
+export function listTrackImageryConfigurations(): TrackImageryConfigurationIndex {
+  const venues: TrackImageryVenueManifest[] = [];
+  const layouts: TrackImageryLayoutManifest[] = [];
+  if (existsSync(TRACK_IMAGERY_VENUES_ROOT)) {
+    const visit = (directory: string) => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const child = resolve(directory, entry.name);
+        const manifestPath = resolve(child, "manifest.json");
+        if (existsSync(manifestPath)) {
+          const venueId = relative(TRACK_IMAGERY_VENUES_ROOT, child).split(sep).join("/");
+          const venue = loadTrackImageryVenue(venueId);
+          if (venue) venues.push(venue);
+        }
+        visit(child);
+      }
+    };
+    visit(TRACK_IMAGERY_VENUES_ROOT);
+  }
+  for (const gameId of KNOWN_GAME_IDS) {
+    const directory = resolve(TRACK_IMAGERY_ROOT, "layouts", gameId);
+    if (!existsSync(directory)) continue;
+    for (const entry of readdirSync(directory)) {
+      if (!entry.endsWith(".json")) continue;
+      const trackOrdinal = Number.parseInt(entry.slice(0, -5), 10);
+      if (!Number.isSafeInteger(trackOrdinal) || trackOrdinal < 0) continue;
+      const layout = loadTrackImageryLayout(gameId, trackOrdinal);
+      if (layout) layouts.push(layout);
+    }
+  }
+  venues.sort((a, b) => a.venueId.localeCompare(b.venueId));
+  layouts.sort((a, b) => KNOWN_GAME_IDS.indexOf(a.gameId) - KNOWN_GAME_IDS.indexOf(b.gameId) || a.trackOrdinal - b.trackOrdinal);
+  return { venues, layouts };
+}
 
 function textureFile(directory: string, fileName: string): LoadedTrackImageryTexture {
   if (fileName !== basename(fileName)) throw new Error(`Invalid track imagery file name ${fileName}`);
@@ -56,11 +95,12 @@ function textureFile(directory: string, fileName: string): LoadedTrackImageryTex
 }
 
 export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTrackImagery | null {
+  const configuration = loadTrackConfiguration(gameId, trackOrdinal);
   const layout = loadTrackImageryLayout(gameId, trackOrdinal);
-  if (!layout) return null;
-  const venue = loadTrackImageryVenue(layout.venueId);
-  if (!venue) throw new Error(`Missing track imagery venue ${layout.venueId}`);
-  const directory = trackImageryVenueDirectory(layout.venueId);
+  if (!configuration || !layout) return null;
+  const venue = loadTrackImageryVenue(configuration.venueId);
+  if (!venue) throw new Error(`Missing track imagery venue ${configuration.venueId}`);
+  const directory = trackImageryVenueDirectory(configuration.venueId);
   const textures: Record<string, LoadedTrackImageryTexture> = { base: textureFile(directory, venue.base.image) };
   const selectedLayers = [];
   const seen = new Set<string>();
@@ -68,7 +108,7 @@ export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTr
     if (seen.has(layerId)) continue;
     seen.add(layerId);
     const layer = venue.layers.find((candidate) => candidate.id === layerId);
-    if (!layer) throw new Error(`Missing imagery layer ${layerId} in venue ${layout.venueId}`);
+    if (!layer) throw new Error(`Missing imagery layer ${layerId} in venue ${configuration.venueId}`);
     textures[layer.id] = textureFile(resolve(directory, "layers"), layer.image);
     selectedLayers.push(layer);
   }

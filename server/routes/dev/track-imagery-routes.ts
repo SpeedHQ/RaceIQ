@@ -2,9 +2,11 @@ import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync, writeFileSy
 import { dirname, resolve } from "node:path";
 import { Hono } from "hono";
 import sharp from "sharp";
-import { GameIdSchema, KNOWN_GAME_IDS, type GameId } from "../../../shared/games/ids";
+import { GameIdSchema, type GameId } from "../../../shared/games/ids";
+import { TrackVenueIdSchema } from "../../../shared/racing/tracks/configuration";
 import { TrackImageryLayoutManifestSchema, TrackImageryVenueManifestSchema, type TrackImageryLayoutManifest, type TrackImageryVenueManifest } from "../../../shared/racing/tracks/imagery";
-import { loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
+import { loadTrackConfiguration } from "../../tracks/configuration";
+import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
 
 const MAX_TRACK_IMAGE_BYTES = 100 * 1024 * 1024;
 const MAX_TRACK_IMAGE_PIXELS = 200_000_000;
@@ -26,6 +28,9 @@ function gameAndTrack(c: { req: { param: (key: string) => string; query: (key: s
 function safeId(value: string, label: string): string {
   if (!SAFE_ID.test(value)) throw new Error(`${label} must use lowercase letters, digits, and hyphens`);
   return value;
+}
+function venueIdFromQuery(c: { req: { query: (key: string) => string | undefined } }): string {
+  return TrackVenueIdSchema.parse(c.req.query("venueId"));
 }
 
 async function validatedImage(file: File, requireAlpha: boolean): Promise<ValidatedImage> {
@@ -59,32 +64,28 @@ function replaceTexture(directory: string, stem: string, image: ValidatedImage):
 }
 
 function removeLayerFromLayouts(venueId: string, layerId: string): void {
-  for (const gameId of KNOWN_GAME_IDS) {
-    const directory = dirname(trackImageryLayoutPath(gameId, 0));
-    if (!existsSync(directory)) continue;
-    for (const entry of readdirSync(directory)) {
-      if (!entry.endsWith(".json")) continue;
-      const trackOrdinal = Number.parseInt(entry.slice(0, -5), 10);
-      if (!Number.isSafeInteger(trackOrdinal)) continue;
-      const layout = loadTrackImageryLayout(gameId, trackOrdinal);
-      if (!layout || layout.venueId !== venueId || !layout.layers.includes(layerId)) continue;
-      writeJson(trackImageryLayoutPath(gameId, trackOrdinal), { ...layout, layers: layout.layers.filter((id) => id !== layerId) });
-    }
+  for (const layout of listTrackImageryConfigurations().layouts) {
+    const configuration = loadTrackConfiguration(layout.gameId, layout.trackOrdinal);
+    if (configuration?.venueId !== venueId || !layout.layers.includes(layerId)) continue;
+    writeJson(trackImageryLayoutPath(layout.gameId, layout.trackOrdinal), {
+      ...layout,
+      layers: layout.layers.filter((id) => id !== layerId),
+    });
   }
 }
 
 export const trackImageryDevRoutes = new Hono()
-  .get("/api/dev/track-imagery/venues/:venueId", (c) => {
+  .get("/api/dev/track-imagery", (c) => c.json(listTrackImageryConfigurations()))
+  .get("/api/dev/track-imagery/venues/manifest", (c) => {
     try {
-      const venueId = safeId(c.req.param("venueId"), "Venue ID");
-      return c.json(loadTrackImageryVenue(venueId));
+      return c.json(loadTrackImageryVenue(venueIdFromQuery(c)));
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery venue" }, 400);
     }
   })
-  .get("/api/dev/track-imagery/venues/:venueId/texture/:textureId", (c) => {
+  .get("/api/dev/track-imagery/venues/texture/:textureId", (c) => {
     try {
-      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const venueId = venueIdFromQuery(c);
       const textureId = c.req.param("textureId") === "base" ? "base" : safeId(c.req.param("textureId"), "Texture ID");
       const venue = loadTrackImageryVenue(venueId);
       if (!venue) return c.json({ error: "Imagery venue not found" }, 404);
@@ -92,14 +93,16 @@ export const trackImageryDevRoutes = new Hono()
       if (!fileName) return c.json({ error: "Imagery texture not found" }, 404);
       const path = textureId === "base" ? resolve(trackImageryVenueDirectory(venueId), fileName) : resolve(trackImageryVenueDirectory(venueId), "layers", fileName);
       if (!existsSync(path)) return c.json({ error: "Imagery texture file not found" }, 404);
-      return new Response(Bun.file(path), { headers: { "Cache-Control": "no-store", "Content-Type": trackImageryContentType(path) } });
+      return new Response(Bun.file(path), {
+        headers: { "Cache-Control": "no-store", "Content-Type": trackImageryContentType(path) },
+      });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery texture" }, 400);
     }
   })
-  .post("/api/dev/track-imagery/venues/:venueId/base", async (c) => {
+  .post("/api/dev/track-imagery/venues/base", async (c) => {
     try {
-      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const venueId = venueIdFromQuery(c);
       const form = await c.req.formData();
       const file = form.get("file");
       if (!(file instanceof File)) return c.json({ error: "Missing base texture" }, 400);
@@ -107,7 +110,12 @@ export const trackImageryDevRoutes = new Hono()
       const directory = trackImageryVenueDirectory(venueId);
       const imageName = `base.${image.extension}`;
       const raw = JSON.parse(String(form.get("manifest") ?? "null")) as Record<string, unknown>;
-      const manifest = TrackImageryVenueManifestSchema.parse({ ...raw, version: 1, venueId, base: { ...(raw.base as Record<string, unknown> | undefined), image: imageName } });
+      const manifest = TrackImageryVenueManifestSchema.parse({
+        ...raw,
+        version: 1,
+        venueId,
+        base: { ...(raw.base as Record<string, unknown> | undefined), image: imageName },
+      });
       replaceTexture(directory, "base", image);
       writeJson(resolve(directory, "manifest.json"), manifest);
       return c.json(manifest, 201);
@@ -115,9 +123,9 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to save base texture" }, 400);
     }
   })
-  .put("/api/dev/track-imagery/venues/:venueId", async (c) => {
+  .put("/api/dev/track-imagery/venues/manifest", async (c) => {
     try {
-      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const venueId = venueIdFromQuery(c);
       const current = loadTrackImageryVenue(venueId);
       if (!current) return c.json({ error: "Imagery venue not found" }, 404);
       const raw = (await c.req.json()) as TrackImageryVenueManifest;
@@ -127,7 +135,10 @@ export const trackImageryDevRoutes = new Hono()
         version: 1,
         venueId,
         base: { ...raw.base, image: current.base.image },
-        layers: raw.layers.map((layer) => ({ ...layer, image: layersById.get(layer.id)?.image ?? layer.image })),
+        layers: raw.layers.map((layer) => ({
+          ...layer,
+          image: layersById.get(layer.id)?.image ?? layer.image,
+        })),
       });
       writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
       return c.json(manifest);
@@ -135,9 +146,9 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to update imagery venue" }, 400);
     }
   })
-  .post("/api/dev/track-imagery/venues/:venueId/layers/:layerId", async (c) => {
+  .post("/api/dev/track-imagery/venues/layers/:layerId", async (c) => {
     try {
-      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const venueId = venueIdFromQuery(c);
       const layerId = safeId(c.req.param("layerId"), "Layer ID");
       const venue = loadTrackImageryVenue(venueId);
       if (!venue) return c.json({ error: "Save venue base before adding layers" }, 404);
@@ -149,7 +160,10 @@ export const trackImageryDevRoutes = new Hono()
       const imageName = `${layerId}.${image.extension}`;
       const rawLayer = JSON.parse(String(form.get("layer") ?? "null")) as Record<string, unknown>;
       const layer = { ...rawLayer, id: layerId, image: imageName };
-      const manifest = TrackImageryVenueManifestSchema.parse({ ...venue, layers: [...venue.layers.filter((candidate) => candidate.id !== layerId), layer] });
+      const manifest = TrackImageryVenueManifestSchema.parse({
+        ...venue,
+        layers: [...venue.layers.filter((candidate) => candidate.id !== layerId), layer],
+      });
       replaceTexture(layersDirectory, layerId, image);
       writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
       return c.json(manifest, 201);
@@ -157,9 +171,9 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to save imagery layer" }, 400);
     }
   })
-  .delete("/api/dev/track-imagery/venues/:venueId/layers/:layerId", (c) => {
+  .delete("/api/dev/track-imagery/venues/layers/:layerId", (c) => {
     try {
-      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const venueId = venueIdFromQuery(c);
       const layerId = safeId(c.req.param("layerId"), "Layer ID");
       const venue = loadTrackImageryVenue(venueId);
       if (!venue) return c.json({ error: "Imagery venue not found" }, 404);
@@ -186,10 +200,12 @@ export const trackImageryDevRoutes = new Hono()
   .put("/api/dev/track-imagery/layouts/:ordinal", async (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
+      const configuration = loadTrackConfiguration(gameId, trackOrdinal);
+      if (!configuration) return c.json({ error: "Save track venue assignment before imagery layers" }, 404);
       const raw = (await c.req.json()) as TrackImageryLayoutManifest;
       const layout = TrackImageryLayoutManifestSchema.parse({ ...raw, version: 1, gameId, trackOrdinal });
-      const venue = loadTrackImageryVenue(layout.venueId);
-      if (!venue) return c.json({ error: `Imagery venue ${layout.venueId} not found` }, 404);
+      const venue = loadTrackImageryVenue(configuration.venueId);
+      if (!venue) return c.json({ error: `Imagery venue ${configuration.venueId} not found` }, 404);
       const knownLayers = new Set(venue.layers.map((layer) => layer.id));
       const missingLayer = layout.layers.find((layerId) => !knownLayers.has(layerId));
       if (missingLayer) return c.json({ error: `Imagery layer ${missingLayer} not found` }, 400);

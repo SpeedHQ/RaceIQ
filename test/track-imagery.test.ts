@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { TrackConfigurationSchema } from "../shared/racing/tracks/configuration";
 import {
   TrackImageryVenueManifestSchema,
   composeTrackImageryMatrices,
@@ -17,6 +18,24 @@ function geographicFromEnu(east: number, north: number, originLatitudeDeg: numbe
     longitudeDeg: originLongitudeDeg + ((east / (EARTH_RADIUS_M * Math.cos((originLatitudeDeg * Math.PI) / 180))) * 180) / Math.PI,
   };
 }
+
+test("validates hierarchical venue assignments and confirmation provenance", () => {
+  const configuration = TrackConfigurationSchema.parse({
+    version: 1,
+    gameId: "iracing",
+    trackOrdinal: 24,
+    venueId: "daytona/historical/2011/road-course",
+    confirmation: { confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" },
+  });
+  expect(configuration.venueId.split("/")).toEqual(["daytona", "historical", "2011", "road-course"]);
+  expect(TrackConfigurationSchema.safeParse({ ...configuration, venueId: "daytona/../road-course" }).success).toBe(false);
+  expect(
+    TrackConfigurationSchema.safeParse({
+      ...configuration,
+      confirmation: { ...configuration.confirmation, confirmedAt: "2026-02-31" },
+    }).success,
+  ).toBe(false);
+});
 
 test("creates a north-up venue footprint that fully covers GPS path", () => {
   const originLatitudeDeg = 29;

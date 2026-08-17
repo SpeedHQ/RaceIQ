@@ -2,21 +2,26 @@ import { afterAll, expect, test } from "bun:test";
 import { existsSync, rmSync, unlinkSync } from "node:fs";
 import { Hono } from "hono";
 import sharp from "sharp";
+import { trackConfigurationDevRoutes } from "../server/routes/dev/track-configuration-routes";
 import { trackImageryDevRoutes } from "../server/routes/dev/track-imagery-routes";
 import { trackImageryRoutes } from "../server/routes/tracks/imagery-routes";
+import { trackConfigurationPath } from "../server/tracks/configuration";
 import { trackImageryLayoutPath, trackImageryVenueDirectory } from "../server/tracks/imagery";
 
-const venueId = `route-test-${Date.now()}`;
+const venueRootId = `route-test-${Date.now()}`;
+const venueId = `${venueRootId}/historical/2011/road-course`;
 const gameId = "iracing" as const;
 const trackOrdinal = 900_000 + Math.floor(Math.random() * 90_000);
-const venueDirectory = trackImageryVenueDirectory(venueId);
+const venueDirectory = trackImageryVenueDirectory(venueRootId);
 const layoutPath = trackImageryLayoutPath(gameId, trackOrdinal);
-const app = new Hono().route("/", trackImageryDevRoutes).route("/", trackImageryRoutes);
+const configurationPath = trackConfigurationPath(gameId, trackOrdinal);
+const app = new Hono().route("/", trackConfigurationDevRoutes).route("/", trackImageryDevRoutes).route("/", trackImageryRoutes);
 const source = { name: "Generated test texture", license: "owned", attribution: "" };
 
 afterAll(() => {
   rmSync(venueDirectory, { recursive: true, force: true });
   if (existsSync(layoutPath)) unlinkSync(layoutPath);
+  if (existsSync(configurationPath)) unlinkSync(configurationPath);
 });
 
 test("persists one opaque venue base with selected transparent layout layers", async () => {
@@ -33,7 +38,7 @@ test("persists one opaque venue base with selected transparent layout layers", a
   const baseForm = new FormData();
   baseForm.set("file", new File([baseBytes], "base.png", { type: "image/png" }));
   baseForm.set("manifest", JSON.stringify(baseManifest));
-  const baseResponse = await app.request(`/api/dev/track-imagery/venues/${venueId}/base`, { method: "POST", body: baseForm });
+  const baseResponse = await app.request(`/api/dev/track-imagery/venues/base?venueId=${encodeURIComponent(venueId)}`, { method: "POST", body: baseForm });
   expect(baseResponse.status).toBe(201);
 
   const layerBytes = await sharp({ create: { width: 8, height: 4, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 0.5 } } })
@@ -42,13 +47,20 @@ test("persists one opaque venue base with selected transparent layout layers", a
   const layerForm = new FormData();
   layerForm.set("file", new File([layerBytes], "road-course.png", { type: "image/png" }));
   layerForm.set("layer", JSON.stringify({ id: "road-course", kind: "layout", image: "ignored.png", opacity: 0.65, source }));
-  const layerResponse = await app.request(`/api/dev/track-imagery/venues/${venueId}/layers/road-course`, { method: "POST", body: layerForm });
+  const layerResponse = await app.request(`/api/dev/track-imagery/venues/layers/road-course?venueId=${encodeURIComponent(venueId)}`, { method: "POST", body: layerForm });
   expect(layerResponse.status).toBe(201);
+
+  const configurationResponse = await app.request(`/api/dev/track-configurations/${trackOrdinal}?gameId=${gameId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version: 1, gameId, trackOrdinal, venueId, confirmation: null }),
+  });
+  expect(configurationResponse.status).toBe(200);
 
   const layoutResponse = await app.request(`/api/dev/track-imagery/layouts/${trackOrdinal}?gameId=${gameId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ version: 1, gameId, trackOrdinal, venueId, layers: ["road-course"] }),
+    body: JSON.stringify({ version: 1, gameId, trackOrdinal, layers: ["road-course"] }),
   });
   expect(layoutResponse.status).toBe(200);
 
@@ -67,4 +79,29 @@ test("persists one opaque venue base with selected transparent layout layers", a
   expect(layerTexture.status).toBe(200);
   expect(baseTexture.headers.get("content-type")).toBe("image/png");
   expect(layerTexture.headers.get("content-type")).toBe("image/png");
+
+  const confirmationResponse = await app.request(`/api/dev/track-configurations/${trackOrdinal}/confirmation?gameId=${gameId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" }),
+  });
+  expect(confirmationResponse.status).toBe(200);
+  const confirmed = (await confirmationResponse.json()) as { venueId: string; confirmation: { confirmedAt: string; confirmedBy: string; commitId: string } };
+  expect(confirmed).toMatchObject({
+    venueId,
+    confirmation: { confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" },
+  });
+
+  const indexResponse = await app.request("/api/dev/track-configurations");
+  expect(indexResponse.status).toBe(200);
+  const configurations = (await indexResponse.json()) as Array<{ gameId: string; trackOrdinal: number; venueId: string }>;
+  expect(configurations).toContainEqual(expect.objectContaining({ gameId, trackOrdinal, venueId }));
+
+  const resaveResponse = await app.request(`/api/dev/track-configurations/${trackOrdinal}?gameId=${gameId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(confirmed),
+  });
+  expect(resaveResponse.status).toBe(200);
+  expect(await resaveResponse.json()).toMatchObject({ venueId, confirmation: null });
 });

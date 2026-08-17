@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from "react";
+import type { TrackConfiguration } from "../../../../shared/racing/tracks/configuration";
 import {
   defaultVenueImageryCalibration,
   geographicTrackImageryPoint,
@@ -14,11 +15,13 @@ import {
   type TrackImageryVenueManifest,
 } from "../../../../shared/racing/tracks/imagery";
 import { useLapSemanticTelemetry, useLaps } from "../../hooks/laps";
-import { useGameId } from "../../stores/game";
+import { useGameId, useGameStore } from "../../stores/game";
+import { TrackConfigurationBrowser, type TrackConfigurationSelection } from "./TrackConfigurationBrowser";
 import { Button } from "../ui/button";
 
 const EMPTY_SOURCE: TrackImagerySource = { name: "", url: "", capturedAt: "", license: "", attribution: "" };
 const SAFE_ID = /^[a-z0-9][a-z0-9-]*$/;
+const VENUE_ID = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
 
 function normalizedId(value: string): string {
   return value
@@ -26,6 +29,14 @@ function normalizedId(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+function normalizedVenueId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9/-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/\/+/g, "/")
+    .replace(/^[-/]+/, "");
 }
 
 function sourcePayload(source: TrackImagerySource): TrackImagerySource {
@@ -71,22 +82,27 @@ function SourceEditor({ title, source, onChange }: { title: string; source: Trac
 }
 
 export function TrackImageryCalibrationPanel() {
-  const gameId = useGameId();
+  const storeGameId = useGameId();
   const queryClient = useQueryClient();
   const { data: laps = [] } = useLaps();
   const eligibleLaps = useMemo(() => laps.filter((lap) => lap.trackOrdinal != null && lap.lapTime > 0), [laps]);
+  const [selectedTrack, setSelectedTrack] = useState<TrackConfigurationSelection | null>(null);
+  const gameId = selectedTrack?.gameId ?? storeGameId;
+  const calibrationLaps = useMemo(() => (selectedTrack ? eligibleLaps.filter((lap) => lap.trackOrdinal === selectedTrack.trackOrdinal) : eligibleLaps), [eligibleLaps, selectedTrack]);
   const [lapId, setLapId] = useState<number | null>(null);
   useEffect(() => {
-    if (!eligibleLaps.some((lap) => lap.id === lapId)) setLapId(eligibleLaps[0]?.id ?? null);
-  }, [eligibleLaps, lapId]);
-  const selectedLap = eligibleLaps.find((lap) => lap.id === lapId) ?? null;
-  const trackOrdinal = selectedLap?.trackOrdinal ?? null;
+    if (!calibrationLaps.some((lap) => lap.id === lapId)) setLapId(calibrationLaps[0]?.id ?? null);
+  }, [calibrationLaps, lapId]);
+  const selectedLap = calibrationLaps.find((lap) => lap.id === lapId) ?? null;
+  const trackOrdinal = selectedTrack?.trackOrdinal ?? selectedLap?.trackOrdinal ?? null;
   const { data: replay, isLoading: replayLoading } = useLapSemanticTelemetry(lapId);
   const geographicPositions = replay?.geographicPositions ?? [];
 
+  const [configuration, setConfiguration] = useState<TrackConfiguration | null>(null);
+  const [configurationRevision, setConfigurationRevision] = useState(0);
   const [venueId, setVenueId] = useState("");
   const [venue, setVenue] = useState<TrackImageryVenueManifest | null>(null);
-  const [layout, setLayout] = useState<TrackImageryLayoutManifest | null>(null);
+  const [, setLayout] = useState<TrackImageryLayoutManifest | null>(null);
   const [calibration, setCalibration] = useState<TrackImageryCalibration | null>(null);
   const [baseFile, setBaseFile] = useState<File | null>(null);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
@@ -106,8 +122,40 @@ export function TrackImageryCalibrationPanel() {
   const dragRef = useRef<{ pointerId: number; x: number; z: number } | null>(null);
 
   useEffect(() => {
-    if (!gameId || trackOrdinal == null) return;
+    if (!gameId || trackOrdinal == null) {
+      setConfiguration(null);
+      setVenueId("");
+      return;
+    }
     let cancelled = false;
+    setConfiguration(null);
+    setVenueId("");
+    void fetch(`/api/dev/track-configurations/${trackOrdinal}?gameId=${encodeURIComponent(gameId)}`)
+      .then(async (response) => {
+        const result = (await response.json()) as TrackConfiguration | { error?: string } | null;
+        if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to load track configuration");
+        if (cancelled) return;
+        const nextConfiguration = result as TrackConfiguration | null;
+        setConfiguration(nextConfiguration);
+        setVenueId(nextConfiguration?.venueId ?? "");
+      })
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load track configuration");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [configurationRevision, gameId, trackOrdinal]);
+
+  useEffect(() => {
+    if (!gameId || trackOrdinal == null) {
+      setLayout(null);
+      setSelectedLayers([]);
+      return;
+    }
+    let cancelled = false;
+    setLayout(null);
+    setSelectedLayers([]);
     void fetch(`/api/dev/track-imagery/layouts/${trackOrdinal}?gameId=${encodeURIComponent(gameId)}`)
       .then(async (response) => {
         const result = (await response.json()) as TrackImageryLayoutManifest | { error?: string } | null;
@@ -116,7 +164,6 @@ export function TrackImageryCalibrationPanel() {
         const nextLayout = result as TrackImageryLayoutManifest | null;
         setLayout(nextLayout);
         setSelectedLayers(nextLayout?.layers ?? []);
-        setVenueId(nextLayout?.venueId ?? "");
       })
       .catch((loadError) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load imagery layout");
@@ -127,18 +174,18 @@ export function TrackImageryCalibrationPanel() {
   }, [gameId, trackOrdinal]);
 
   useEffect(() => {
-    if (layout || venueId || !replay) return;
+    if (configuration || venueId || !replay) return;
     const suggested = normalizedId(replay.georeference?.canonicalSlug ?? (trackOrdinal == null ? "" : `track-${trackOrdinal}`));
     if (suggested) setVenueId(suggested);
-  }, [layout, replay, trackOrdinal, venueId]);
+  }, [configuration, replay, trackOrdinal, venueId]);
 
   useEffect(() => {
-    if (!SAFE_ID.test(venueId)) {
+    if (!VENUE_ID.test(venueId)) {
       setVenue(null);
       return;
     }
     let cancelled = false;
-    void fetch(`/api/dev/track-imagery/venues/${encodeURIComponent(venueId)}`)
+    void fetch(`/api/dev/track-imagery/venues/manifest?venueId=${encodeURIComponent(venueId)}`)
       .then(async (response) => {
         const result = (await response.json()) as TrackImageryVenueManifest | { error?: string } | null;
         if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to load imagery venue");
@@ -162,7 +209,7 @@ export function TrackImageryCalibrationPanel() {
       setBaseUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     }
-    setBaseUrl(venue ? `/api/dev/track-imagery/venues/${encodeURIComponent(venue.venueId)}/texture/base?v=${assetVersion}` : null);
+    setBaseUrl(venue ? `/api/dev/track-imagery/venues/texture/base?venueId=${encodeURIComponent(venue.venueId)}&v=${assetVersion}` : null);
   }, [assetVersion, baseFile, venue]);
 
   useEffect(() => {
@@ -229,7 +276,7 @@ export function TrackImageryCalibrationPanel() {
   const gpsPolyline = gpsPath.map((point) => `${point.x},${point.z}`).join(" ");
   const displayedLayers = venue?.layers.filter((candidate) => selectedLayers.includes(candidate.id)) ?? [];
   const baseSourceValid = !!baseSource.name.trim() && !!baseSource.license.trim();
-  const canSaveBase = !!gameId && trackOrdinal != null && SAFE_ID.test(venueId) && !!calibration && baseSourceValid && (!!baseFile || !!venue);
+  const canSaveBase = !!gameId && trackOrdinal != null && VENUE_ID.test(venueId) && !!calibration && baseSourceValid && (!!baseFile || !!venue);
   const layerSourceValid = !!layerSource.name.trim() && !!layerSource.license.trim();
   const canSaveLayer = !!venue && SAFE_ID.test(layerId) && !!layerFile && layerSourceValid;
 
@@ -271,18 +318,35 @@ export function TrackImageryCalibrationPanel() {
     else adjustScale(Math.exp(-event.deltaY * 0.001));
   };
 
-  const saveLayout = async (nextVenueId = venueId, layers = selectedLayers) => {
-    if (!gameId || trackOrdinal == null) throw new Error("Select a calibration lap");
-    const payload: TrackImageryLayoutManifest = { version: 1, gameId, trackOrdinal, venueId: nextVenueId, layers };
+  const saveTrackConfiguration = async (nextVenueId: string) => {
+    if (!gameId || trackOrdinal == null) throw new Error("Select a catalog track");
+    if (configuration?.venueId === nextVenueId) return configuration;
+    const response = await fetch(`/api/dev/track-configurations/${trackOrdinal}?gameId=${encodeURIComponent(gameId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: 1, gameId, trackOrdinal, venueId: nextVenueId, confirmation: null }),
+    });
+    const result = (await response.json()) as TrackConfiguration | { error?: string };
+    if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to save track venue");
+    const saved = result as TrackConfiguration;
+    setConfiguration(saved);
+    setConfigurationRevision((revision) => revision + 1);
+    await queryClient.invalidateQueries({ queryKey: ["track-configurations"] });
+    return saved;
+  };
+
+  const saveLayout = async (layers = selectedLayers) => {
+    if (!gameId || trackOrdinal == null) throw new Error("Select a catalog track");
+    const payload: TrackImageryLayoutManifest = { version: 1, gameId, trackOrdinal, layers };
     const response = await fetch(`/api/dev/track-imagery/layouts/${trackOrdinal}?gameId=${encodeURIComponent(gameId)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const result = (await response.json()) as TrackImageryLayoutManifest | { error?: string };
-    if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to save layout assignment");
+    if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to save layout imagery");
     setLayout(result as TrackImageryLayoutManifest);
-    await queryClient.invalidateQueries({ queryKey: ["track-imagery", trackOrdinal, gameId] });
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ["track-imagery", trackOrdinal, gameId] }), queryClient.invalidateQueries({ queryKey: ["track-imagery-configurations"] })]);
   };
 
   const saveBase = async () => {
@@ -303,9 +367,9 @@ export function TrackImageryCalibrationPanel() {
         const body = new FormData();
         body.set("file", baseFile);
         body.set("manifest", JSON.stringify(manifest));
-        response = await fetch(`/api/dev/track-imagery/venues/${encodeURIComponent(venueId)}/base`, { method: "POST", body });
+        response = await fetch(`/api/dev/track-imagery/venues/base?venueId=${encodeURIComponent(venueId)}`, { method: "POST", body });
       } else {
-        response = await fetch(`/api/dev/track-imagery/venues/${encodeURIComponent(venueId)}`, {
+        response = await fetch(`/api/dev/track-imagery/venues/manifest?venueId=${encodeURIComponent(venueId)}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(manifest),
@@ -316,10 +380,8 @@ export function TrackImageryCalibrationPanel() {
       const savedVenue = result as TrackImageryVenueManifest;
       setVenue(savedVenue);
       setBaseFile(null);
-      await saveLayout(
-        savedVenue.venueId,
-        selectedLayers.filter((id) => savedVenue.layers.some((layer) => layer.id === id)),
-      );
+      await saveTrackConfiguration(savedVenue.venueId);
+      await saveLayout(selectedLayers.filter((id) => savedVenue.layers.some((layer) => layer.id === id)));
       setAssetVersion((version) => version + 1);
       setStatus("Opaque venue base and layout assignment saved.");
     } catch (saveError) {
@@ -338,7 +400,7 @@ export function TrackImageryCalibrationPanel() {
       const body = new FormData();
       body.set("file", layerFile);
       body.set("layer", JSON.stringify({ id: layerId, image: layerFile.name, kind: layerKind, opacity: layerOpacity, source: sourcePayload(layerSource) }));
-      const response = await fetch(`/api/dev/track-imagery/venues/${encodeURIComponent(venue.venueId)}/layers/${encodeURIComponent(layerId)}`, { method: "POST", body });
+      const response = await fetch(`/api/dev/track-imagery/venues/layers/${encodeURIComponent(layerId)}?venueId=${encodeURIComponent(venue.venueId)}`, { method: "POST", body });
       const result = (await response.json()) as TrackImageryVenueManifest | { error?: string };
       if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to save overlay layer");
       const savedVenue = result as TrackImageryVenueManifest;
@@ -346,7 +408,7 @@ export function TrackImageryCalibrationPanel() {
       setVenue(savedVenue);
       setSelectedLayers(nextLayers);
       setLayerFile(null);
-      await saveLayout(savedVenue.venueId, nextLayers);
+      await saveLayout(nextLayers);
       setAssetVersion((version) => version + 1);
       setStatus(`Layer ${layerId} saved and assigned to this layout.`);
     } catch (saveError) {
@@ -368,11 +430,22 @@ export function TrackImageryCalibrationPanel() {
       setSaving(false);
     }
   };
+  const handleSelectTrack = (selection: TrackConfigurationSelection) => {
+    useGameStore.getState().setGameId(selection.gameId);
+    setSelectedTrack(selection);
+    setLapId(null);
+    setBaseFile(null);
+    setLayerFile(null);
+    setCalibration(null);
+    setStatus(null);
+    setError(null);
+  };
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(19rem,25rem)_1fr] bg-app-bg">
+    <div className="grid h-full min-h-0 grid-cols-[minmax(25rem,32rem)_minmax(19rem,25rem)_1fr] bg-app-bg">
+      <TrackConfigurationBrowser selection={selectedTrack} onSelect={handleSelectTrack} onConfigurationChange={() => setConfigurationRevision((revision) => revision + 1)} />
       <aside className="overflow-y-auto border-r border-app-border p-4">
-        <h1 className="mb-1 text-lg font-semibold text-app-text">Track texture packs</h1>
+        <h1 className="mb-1 text-lg font-semibold text-app-text">Texture calibration</h1>
         <p className="mb-4 text-xs text-app-text-muted">One opaque venue base; reusable transparent game, layout, and correction layers.</p>
 
         <label className="mb-3 block text-xs font-medium text-app-text-secondary">
@@ -382,22 +455,22 @@ export function TrackImageryCalibrationPanel() {
             value={lapId ?? ""}
             onChange={(event) => setLapId(event.target.value ? Number(event.target.value) : null)}
           >
-            {eligibleLaps.length === 0 && <option value="">No laps for current game</option>}
-            {eligibleLaps.map((lap) => (
+            {calibrationLaps.length === 0 && <option value="">No recorded laps for selected track</option>}
+            {calibrationLaps.map((lap) => (
               <option key={lap.id} value={lap.id}>
-                Track {lap.trackOrdinal} · Lap {lap.lapNumber} · {(lap.lapTime / 1000).toFixed(3)}s
+                Lap {lap.lapNumber} · {(lap.lapTime / 1000).toFixed(3)}s
               </option>
             ))}
           </select>
         </label>
 
         <label className="mb-3 block text-xs font-medium text-app-text-secondary">
-          Shared venue ID
+          Hierarchical venue path
           <input
             className="mt-1 w-full rounded border border-app-border-input bg-app-surface px-2 py-1.5 font-mono text-sm text-app-text"
             value={venueId}
-            onChange={(event) => setVenueId(normalizedId(event.target.value))}
-            placeholder="daytona"
+            onChange={(event) => setVenueId(normalizedVenueId(event.target.value))}
+            placeholder="daytona/historical/2011/road-course"
           />
         </label>
 
@@ -510,7 +583,7 @@ export function TrackImageryCalibrationPanel() {
             {displayedLayers.map((layer) => (
               <image
                 key={layer.id}
-                href={`/api/dev/track-imagery/venues/${encodeURIComponent(venue!.venueId)}/texture/${encodeURIComponent(layer.id)}?v=${assetVersion}`}
+                href={`/api/dev/track-imagery/venues/texture/${encodeURIComponent(layer.id)}?venueId=${encodeURIComponent(venue!.venueId)}&v=${assetVersion}`}
                 x="0"
                 y="0"
                 width="1"

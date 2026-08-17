@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GameIdSchema } from "../../games/ids";
+import { TrackVenueIdSchema } from "./configuration";
 
 export const TRACK_IMAGERY_MANIFEST_VERSION = 1 as const;
 export const TRACK_IMAGERY_EXTENSIONS = ["png", "jpg", "jpeg", "webp"] as const;
@@ -22,7 +23,7 @@ const textureSchema = z.object({
 
 export const TrackImageryVenueManifestSchema = z.object({
   version: z.literal(TRACK_IMAGERY_MANIFEST_VERSION),
-  venueId: safeId,
+  venueId: TrackVenueIdSchema,
   calibration: z.object({
     originLatitudeDeg: finiteNumber.min(-90).max(90),
     originLongitudeDeg: finiteNumber.min(-180).max(180),
@@ -42,12 +43,15 @@ export const TrackImageryLayoutManifestSchema = z.object({
   version: z.literal(TRACK_IMAGERY_MANIFEST_VERSION),
   gameId: GameIdSchema,
   trackOrdinal: z.number().int().nonnegative(),
-  venueId: safeId,
   layers: z.array(safeId),
 });
 
 export type TrackImageryVenueManifest = z.infer<typeof TrackImageryVenueManifestSchema>;
 export type TrackImageryLayoutManifest = z.infer<typeof TrackImageryLayoutManifestSchema>;
+export interface TrackImageryConfigurationIndex {
+  venues: TrackImageryVenueManifest[];
+  layouts: TrackImageryLayoutManifest[];
+}
 export type TrackImageryCalibration = TrackImageryVenueManifest["calibration"];
 export type TrackImageryMatrix = TrackImageryCalibration["imageToEnu"];
 export type TrackImagerySource = z.infer<typeof imageSourceSchema>;

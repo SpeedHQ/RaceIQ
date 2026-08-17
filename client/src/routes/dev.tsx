@@ -14,7 +14,7 @@ function DevPage() {
     { id: "telemetry", label: "Native Telemetry" },
     { id: "e2e", label: "E2E Recordings" },
     { id: "import", label: "Import Dump" },
-    { id: "imagery", label: "Track Imagery" },
+    { id: "imagery", label: "Tracks" },
   ] as const;
 
   return (
