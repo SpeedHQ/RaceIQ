@@ -49,7 +49,7 @@ function eligibility(): EligibilityDecisionSet {
 }
 
 function currentRow(id: number = 1, decisions: EligibilityDecisionSet | null = eligibility()) {
-  const generation = `sha256:retention-${id}`;
+  const generation = `sha256:${id.toString(16).padStart(64, "0")}`;
   return {
     id,
     eligibility: decisions,
@@ -58,7 +58,7 @@ function currentRow(id: number = 1, decisions: EligibilityDecisionSet | null = e
         schemaVersion: QUALITY_SCHEMA_VERSION,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         configurationVersion: QUALITY_CONFIG_VERSION,
-        sourceGeneration: "sha256:retention-source",
+        sourceGeneration: `sha256:${"b".repeat(64)}`,
         outputGeneration: generation,
       },
     } as LapQualitySummary,
@@ -168,11 +168,7 @@ describe("evidence retention evaluator", () => {
     });
   }
   test("missing eligibility on any lap blocks deletion without omitting lap inventory", () => {
-    const assessment = evaluateEvidenceRetention(
-      236,
-      { rawCapture: true, canonicalArchive: archive() },
-      [currentRow(1), currentRow(2, null)],
-    );
+    const assessment = evaluateEvidenceRetention(236, { rawCapture: true, canonicalArchive: archive() }, [currentRow(1), currentRow(2, null)]);
 
     expect(assessment).toMatchObject({
       action: "quality_unavailable",
@@ -192,18 +188,18 @@ describe("evidence retention evaluator", () => {
     }
   });
 
-  test("stale eligibility snapshots block raw deletion", () => {
+  test("stale eligibility snapshots block raw deletion with a stale reason", () => {
     const staleRow = { ...currentRow(), qualityStale: true };
     const assessment = evaluateEvidenceRetention(236, { rawCapture: true, canonicalArchive: archive() }, [staleRow]);
 
     expect(assessment).toMatchObject({
       action: "quality_unavailable",
       canDeleteRaw: false,
-      reasons: ["quality_not_rebuilt"],
+      reasons: ["quality_stale"],
     });
     expect(assessment.laps[0]?.current["corner-trace"]).toMatchObject({
       status: "unknown",
-      reasons: [expect.objectContaining({ code: "quality_not_rebuilt" })],
+      reasons: [expect.objectContaining({ code: "quality_stale" })],
     });
   });
 
