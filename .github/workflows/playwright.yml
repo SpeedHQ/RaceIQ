@@ -60,7 +60,7 @@ jobs:
           path: dist
 
       - name: Install workspace dependencies
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference = "Continue"
           bun install --frozen-lockfile
