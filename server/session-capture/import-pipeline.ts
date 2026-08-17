@@ -4,15 +4,17 @@ import type { LapClassification } from "../../shared/racing/laps/classification"
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type {
-  ArchiveVerification,
-  EligibilityDecisionSet,
-  EvidenceSourceKind,
-  LapQualitySummary,
-  QualityReasonCode,
-  RecordingLifecycleState,
-  RecordingQualitySummary,
-  SourceChannelProfile,
+import {
+  LOCAL_PLAYER_EVIDENCE,
+  type ArchiveVerification,
+  type EligibilityDecisionSet,
+  type EvidenceSourceKind,
+  type LapQualitySummary,
+  type ParticipantEvidence,
+  type QualityReasonCode,
+  type RecordingLifecycleState,
+  type RecordingQualitySummary,
+  type SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
 import type { PersistLapInput } from "../db/lap-mutation-queries";
 import { deleteSession } from "../db/session-queries";
@@ -233,6 +235,8 @@ export interface ImportSessionFramesOptions {
   sourceChannelProfile?: SourceChannelProfile;
   /** Ownership classification applied to every created session. */
   ownership?: SessionOwnership;
+  /** Participant identity carried by imported evidence; legacy input defaults to local player. */
+  participant?: ParticipantEvidence;
 }
 
 /**
@@ -259,6 +263,7 @@ export async function importSessionFrames(
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     sourceKind: options.sourceKind ?? "raceiq-raw",
+    participant: options.participant ?? LOCAL_PLAYER_EVIDENCE,
     versionIdentity: options.versionIdentity,
     sourceChannelProfile: options.sourceChannelProfile,
     sourceArchiveVerification: options.sourceArchiveVerification,

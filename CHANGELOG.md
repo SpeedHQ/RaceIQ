@@ -18,6 +18,7 @@
 
 ### Fixes
 
+- Prevent unfinished or stale lap-quality generations and decisions from driving pace, experiment, AI, or cached lap-metric analysis
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
@@ -33,6 +34,7 @@
 - Measure telemetry coverage and cadence from each native source packet family so cached values cannot hide missed channel updates
 - Count isolated missing telemetry samples inside requested track ranges so strict analyses reject unreliable evidence without excluding unaffected ranges
 - Carry imported channel fidelity into eligibility reasons and confidence so strict analyses reject held, resampled, reconstructed, or assumed evidence
+- Distinguish stale lap quality from quality that has not been rebuilt so blocked analyses show the correct recovery state
 - Measure lap coverage from native progress or track length without penalizing later laps whose distance counter is cumulative
 - Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
 - Record reconnect and timeout quality warnings only for accepted telemetry from same game and session, preventing stale UDP traffic from degrading another recording
@@ -40,6 +42,8 @@
 - Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
 - Clear stale degraded lap-quality states after a clean recording rebuild
 - Validate RaceIQ canonical recording and every archive manifest/member separately from imported-source provenance so valid source cannot hide corrupt local evidence
+- Keep imported opponent laps attributed to the correct participant across archive round-trips and reprocessing
+- Detect retained capture changes before quality rebuilds so stale source evidence is never treated as current
 - Reject RaceIQ v3 archives when declared captures are missing, checksums differ, or undeclared members remain, while retaining v1, v2, and manifestless import compatibility
 - Clear F1 lap-sector history when the session changes so repeated lap numbers cannot reuse stale splits
 - Finalize ACC replay sessions between loop passes so each pass starts with independent lap and quality state
@@ -54,6 +58,7 @@
 - Collect recent fuel and tire history independently so several fuel-only laps cannot prevent older tire data from seeding strategy estimates, and vice versa
 - Regenerate cached driver profiles when underlying lap quality or eligibility changes
 - Keep race-result summaries stable across repeated reconciliation while repairing missing lap-quality links
+- Keep recorded laps inspectable when AI evidence is unsafe, isolate Analyse and Compare conversations by current quality generation, and clear stale results when evidence changes
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup

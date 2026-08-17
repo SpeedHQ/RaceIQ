@@ -1011,6 +1011,8 @@ export function buildSetupEngineerTools() {
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
+      eligibilityStatus: EligibilityStatusEnum.optional(),
+      reasonCodes: z.array(z.string()).optional(),
       truncated: z.boolean().optional(),
       laps: z
         .array(
@@ -1063,6 +1065,8 @@ export function buildSetupEngineerTools() {
           return {
             ok: false,
             error: `Lap ${meta.id} is ${decision.status} for ${decision.policyId}: ${codes.join(", ") || "no policy reason"}.`,
+            eligibilityStatus: decision.status,
+            reasonCodes: [...codes],
             laps: [],
           };
         }

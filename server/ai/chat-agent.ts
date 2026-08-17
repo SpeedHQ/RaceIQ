@@ -63,7 +63,7 @@ export function getMastraModelId(aiProvider: string, aiModel: string): string {
   }
 }
 
-/** Build the threadId for a lap's chat. */
+/** Build the threadId for a lap's chat and current quality identity. */
 export function chatThreadId(lapId: number, qualityIdentity: string): string {
   const qualityHash = createHash("sha256").update(qualityIdentity).digest("hex");
   return `lap-${lapId}~q${qualityHash}`;

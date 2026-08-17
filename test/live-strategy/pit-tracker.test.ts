@@ -323,7 +323,7 @@ describe("PitTracker history seeding policy", () => {
   test("continues past newer fuel-only laps until independent tire quota is filled", async () => {
     const historicalLap = (id: number, fuelStatus: EligibilityDecision["status"], tireStatus: EligibilityDecision["status"]): LapMeta => {
       const packets = qualityPackets(100);
-      const generated = finalizeLapQualityGeneration(summarize(packets), "legacy", {
+      const generated = finalizeLapQualityGeneration(summarize(packets), "test-pit-history", {
         lapNumber: id,
         rawByteOffset: null,
         rawFrameCount: packets.length,

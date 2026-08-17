@@ -39,7 +39,7 @@ export const chatRoutes = new Hono()
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
-      const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
+      const uiMessages = list.get.all.aiV5.ui().filter((message) => message.role === "user" || message.role === "assistant");
 
       return c.json({ messages: uiMessages, threadId: base });
     } catch (err: any) {
@@ -145,7 +145,7 @@ export const chatRoutes = new Hono()
         const memory = getChatMemory();
         const base = chatThreadId(id, `${identity.policyVersion}:${identity.generation}`);
         const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((g) => g.threadId));
+        const ids = new Set(gens.map((generation) => generation.threadId));
         ids.add(base);
         for (const threadId of ids) {
           await memory.deleteThread(threadId);

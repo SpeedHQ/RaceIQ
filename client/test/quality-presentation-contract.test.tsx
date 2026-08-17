@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import type { LapMeta, SessionLapData, SessionMeta, SessionRecap } from "../../shared/racing/sessions/types";
 import { LapQualityBadge, QualityRebuildStatus, type QualityRebuildStatusProps } from "../src/components/LapQualityBadge";
 import { LapStatus } from "../src/components/LapStatus";
@@ -54,8 +55,14 @@ const nonPaceLap = {
   eligibility: null,
   quality: null,
 } as unknown as LapMeta;
-const staleLap = {
+const missingLap = {
   ...nonPaceLap,
+  phase: "flying",
+  paceEligibility: "eligible",
+  qualityStale: false,
+} as unknown as LapMeta;
+const staleLap = {
+  ...missingLap,
   qualityStale: true,
 } as unknown as LapMeta;
 
@@ -75,7 +82,7 @@ function freshRecapQualityEvidence(generation: string): RecapQualityEvidence {
         schemaVersion: QUALITY_SCHEMA_VERSION,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         configurationVersion: QUALITY_CONFIG_VERSION,
-        sourceGeneration: "sha256:recap-source",
+        sourceGeneration: `sha256:${"c".repeat(64)}`,
         outputGeneration: generation,
       },
     } as LapQualitySummary,
@@ -157,7 +164,7 @@ const paceRecap = {
     ...lap,
     phase: "flying" as const,
     paceEligibility: "eligible" as const,
-    ...freshRecapQualityEvidence(`sha256:recap-${lap.lapId}`),
+    ...freshRecapQualityEvidence(`sha256:${lap.lapId.toString(16).padStart(64, "0")}`),
   })),
 } satisfies SessionRecap;
 
@@ -189,53 +196,83 @@ describe("client quality presentation contracts", () => {
     expect(german).toContain('title="Keine Telemetrie"');
     expect(german).toContain('aria-label="Ungültig: Keine Telemetrie"');
   });
-  test("renders stale quality as distinct localized warning evidence", () => {
-    const english = renderWithLocale("en", () => (
+  test("renders missing and stale quality as distinct localized evidence", () => {
+    const missingDecision = resolveEligibilityDecision(missingLap, "corner-trace");
+    const staleDecision = resolveEligibilityDecision(staleLap, "corner-trace");
+    const englishMissing = renderWithLocale("en", () => (
+      <QueryClientProvider client={new QueryClient()}>
+        <LapQualityBadge lap={missingLap} />
+      </QueryClientProvider>
+    ));
+    const englishStale = renderWithLocale("en", () => (
       <QueryClientProvider client={new QueryClient()}>
         <LapQualityBadge lap={staleLap} />
       </QueryClientProvider>
     ));
-    const german = renderWithLocale("de", () => (
+    const germanMissing = renderWithLocale("de", () => (
+      <QueryClientProvider client={new QueryClient()}>
+        <LapQualityBadge lap={missingLap} />
+      </QueryClientProvider>
+    ));
+    const germanStale = renderWithLocale("de", () => (
       <QueryClientProvider client={new QueryClient()}>
         <LapQualityBadge lap={staleLap} />
       </QueryClientProvider>
     ));
 
-    expect(english).toContain('data-quality-level="stale"');
-    expect(english).toContain(">Stale<");
-    expect(english).toContain("Stored quality is out of date.");
-    expect(german).toContain('data-quality-level="stale"');
-    expect(german).toContain(">Veraltet<");
-    expect(german).toContain("Gespeicherte Qualität ist veraltet.");
+    expect(missingDecision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+    expect(staleDecision.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
+    expect(englishMissing).toContain('data-quality-level="unknown"');
+    expect(englishMissing).toContain(">Telemetry unknown<");
+    expect(englishMissing).toContain("— Unknown: Quality has not been rebuilt from source evidence.");
+    expect(englishStale).toContain('data-quality-level="stale"');
+    expect(englishStale).toContain(">Stale<");
+    expect(englishStale).toContain("Stored quality is out of date.");
+    expect(germanMissing).toContain('data-quality-level="unknown"');
+    expect(germanMissing).toContain(">Telemetrie unbekannt<");
+    expect(germanStale).toContain('data-quality-level="stale"');
+    expect(germanStale).toContain(">Veraltet<");
   });
 
-  test("keeps deletion available when regeneration eligibility blocks generation", () => {
-    const markup = renderWithLocale("de", () => (
-      <AnalysisResultCard
-        title="Vergleich"
-        dotClass="bg-app-accent"
-        hasResult
-        loading={false}
-        error={null}
-        runLabel="Start"
-        loadingLabel="Laden"
-        retryLabel="Erneut versuchen"
-        onRun={() => {}}
-        onRetry={() => {}}
-        onRegenerate={() => {}}
-        onDelete={() => {}}
-        deleteLabel={m.compare_delete_inputs()}
-        generationDisabled
-        deletionDisabled={false}
-        disabledReason="Nicht geeignet"
-      />
-    ));
-    const regenerate = markup.match(/<button[^>]*aria-label="Neu erstellen"[^>]*>/)?.[0] ?? "";
-    const remove = markup.match(/<button[^>]*aria-label="Eingabenvergleich löschen"[^>]*>/)?.[0] ?? "";
+  test("blocks generation while retaining recorded-lap inspection and deletion for missing and stale quality", () => {
+    for (const lap of [missingLap, staleLap]) {
+      const decision = resolveEligibilityDecision(lap, "corner-trace");
+      const markup = renderWithLocale("en", () => (
+        <QueryClientProvider client={new QueryClient()}>
+          <>
+            <RecordedLaps laps={[lap]} />
+            <AnalysisResultCard
+              title="Comparison"
+              dotClass="bg-app-accent"
+              hasResult
+              loading={false}
+              error={null}
+              runLabel="Start"
+              loadingLabel="Loading"
+              retryLabel="Retry"
+              onRun={() => {}}
+              onRetry={() => {}}
+              onRegenerate={() => {}}
+              onDelete={() => {}}
+              deleteLabel="Delete generated analysis"
+              generationDisabled={!isEligibilityUsable(decision)}
+              deletionDisabled={false}
+              disabledReason="Not suitable"
+            />
+          </>
+        </QueryClientProvider>
+      ));
+      const analyseButtons = markup.match(/<button[^>]*title="Analyse"[^>]*>/g) ?? [];
+      const regenerate = markup.match(/<button[^>]*aria-label="Regenerate"[^>]*>/)?.[0] ?? "";
+      const remove = markup.match(/<button[^>]*aria-label="Delete generated analysis"[^>]*>/)?.[0] ?? "";
 
-    expect(regenerate).toContain('disabled=""');
-    expect(remove).not.toBe("");
-    expect(remove).not.toContain('disabled=""');
+      expect(decision.status).toBe("unknown");
+      expect(analyseButtons).toHaveLength(1);
+      expect(analyseButtons[0]).not.toContain('disabled=""');
+      expect(regenerate).toContain('disabled=""');
+      expect(remove).not.toBe("");
+      expect(remove).not.toContain('disabled=""');
+    }
   });
 
   test("keeps non-pace Analyse navigation enabled while showing corner-trace quality badges", () => {

@@ -13,8 +13,10 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration } from "../../server/lap-analysis/quality-generation";
 import { db } from "../../server/db";
 import { laps, sessions } from "../../server/db/schema";
+import { _telemetryCacheForTest } from "../../server/db/telemetry-replay-storage";
 import { lapRoutes } from "../../server/routes/laps";
 import { sessionRoutes } from "../../server/routes/session-routes";
+import { tuneRoutes } from "../../server/routes/tune-routes";
 import { packet } from "../support/telemetry/resolver";
 
 initGameAdapters();
@@ -31,12 +33,15 @@ const VERSION: TelemetryVersionIdentity = {
 
 const createdSessionIds: number[] = [];
 const createdRawDirectories: string[] = [];
+const cachedLapIds: number[] = [];
 
 afterEach(async () => {
   for (const sessionId of createdSessionIds) {
     await db.delete(laps).where(eq(laps.sessionId, sessionId)).run();
     await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
   }
+  for (const lapId of cachedLapIds) _telemetryCacheForTest.delete(lapId);
+  cachedLapIds.length = 0;
   createdSessionIds.length = 0;
   for (const directory of createdRawDirectories) rmSync(directory, { recursive: true, force: true });
   createdRawDirectories.length = 0;
@@ -172,6 +177,28 @@ async function seedQualitySession(): Promise<{ sessionId: number; lapId: number 
       .get()
   ).id;
   return { sessionId, lapId };
+}
+
+async function seedUnsafeRecordedLap(): Promise<{ sessionId: number; lapId: number }> {
+  const seeded = await seedQualitySession();
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-unsafe-inspection-"));
+  createdRawDirectories.push(directory);
+  const rawFile = join(directory, "session.bin");
+  writeFileSync(rawFile, "unsafe-recorded-evidence");
+  await db.update(sessions).set({ rawFile }).where(eq(sessions.id, seeded.sessionId)).run();
+  await db.update(laps).set({ qualityPolicyVersion: "stale-policy" }).where(eq(laps.id, seeded.lapId)).run();
+  _telemetryCacheForTest.set(seeded.lapId, telemetry());
+  cachedLapIds.push(seeded.lapId);
+  return seeded;
+}
+
+async function expectQualityBlocked(response: Response, policyId: string): Promise<void> {
+  expect(response.status).toBe(422);
+  const body = (await response.json()) as {
+    decision: { policyId: string; status: string; reasons: { code: string }[] };
+  };
+  expect(body.decision).toMatchObject({ policyId, status: "unknown" });
+  expect(body.decision.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
 }
 
 describe("quality diagnostics API", () => {
@@ -357,5 +384,63 @@ describe("quality diagnostics API", () => {
       }),
     );
     expect(body.decision.reasons.map((reason: { code: string }) => reason.code)).toContain("quality_not_rebuilt");
+  });
+
+  test("blocks reports, issues, and rules auto-tuning when stored quality is stale", async () => {
+    const { lapId } = await seedUnsafeRecordedLap();
+
+    await expectQualityBlocked(await lapRoutes.request(`/api/laps/${lapId}/export`), "corner-trace");
+    await expectQualityBlocked(await tuneRoutes.request(`/api/laps/${lapId}/issues`), "setup-analysis");
+    await expectQualityBlocked(
+      await tuneRoutes.request("/api/tunes/auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId: "acc",
+          stintId: lapId,
+          filePath: "unused.json",
+          preview: true,
+          engine: "rules",
+        }),
+      }),
+      "setup-analysis",
+    );
+  });
+
+  test("keeps stale recorded laps inspectable without deriving insights", async () => {
+    const { lapId } = await seedUnsafeRecordedLap();
+    const gameHeader = { "X-Game-Id": "iracing" };
+
+    const semanticResponse = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, {
+      headers: gameHeader,
+    });
+    expect(semanticResponse.status).toBe(200);
+    const semantic = await semanticResponse.json();
+    expect(semantic.envelopes.length).toBeGreaterThan(0);
+    expect(semantic.insights).toEqual([]);
+    expect(semantic.decision.reasons.map((reason: { code: string }) => reason.code)).toEqual(["quality_stale"]);
+
+    const detailResponse = await lapRoutes.request(`/api/laps/${lapId}`, { headers: gameHeader });
+    expect(detailResponse.status).toBe(200);
+    const detail = await detailResponse.json();
+    expect(detail.telemetry.length).toBeGreaterThan(0);
+    expect(detail.insights).toEqual([]);
+    expect(detail.decision.reasons.map((reason: { code: string }) => reason.code)).toEqual(["quality_stale"]);
+
+    const notesResponse = await lapRoutes.request(`/api/laps/${lapId}/notes`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes: "inspection remains available" }),
+    });
+    expect(notesResponse.status).toBe(200);
+
+    const rawResponse = await lapRoutes.request(`/api/laps/${lapId}/export-bin`);
+    expect(rawResponse.status).toBe(200);
+    expect(rawResponse.headers.get("Content-Disposition")).toContain(".bin.gz");
+    expect((await rawResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
+
+    const deleteResponse = await lapRoutes.request(`/api/laps/${lapId}`, { method: "DELETE" });
+    expect(deleteResponse.status).toBe(200);
+    expect(await deleteResponse.json()).toEqual({ success: true });
   });
 });

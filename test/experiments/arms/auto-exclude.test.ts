@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type QualityReasonCode } from "../../../shared/racing/quality/contracts";
-import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
 import { QUALITY_REASON_META } from "../../../shared/racing/quality/reasons";
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 import { reconcileAutoExclusions, reconcileAutoExclusionsForLap, type ExclusionScopeLap, type LapExclusionWriter, type LapExperimentScopeReader } from "../../../server/experiments/auto-exclude";
 import { selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
+import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quality-generation";
 
 /** Auto-exclude fastest-5 curation
  *  (docs/architecture/setup-engineer.md).
@@ -45,8 +45,13 @@ class CapturingLapExclusionWriter implements LapExclusionWriter, LapExperimentSc
     return this.laps.get(lapId);
   }
 }
-const TEST_QUALITY = summarize(qualityPackets(200));
-const TEST_ELIGIBILITY = evaluateAllEligibility(TEST_QUALITY);
+const TEST_GENERATED = finalizeLapQualityGeneration(summarize(qualityPackets(200)), "test-auto-exclude", {
+  lapNumber: 1,
+  rawByteOffset: 0,
+  rawFrameCount: 200,
+});
+const TEST_QUALITY = TEST_GENERATED.quality;
+const TEST_ELIGIBILITY = TEST_GENERATED.eligibility;
 
 function ineligibleNormalPace(reason: QualityReasonCode): EligibilityDecisionSet {
   return {

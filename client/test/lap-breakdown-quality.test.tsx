@@ -36,7 +36,7 @@ function decision(policyId: EligibilityPolicyId, status: EligibilityStatus, reas
   };
 }
 
-const qualityGeneration = "sha256:lap-breakdown-quality";
+const qualityGeneration = `sha256:${"f".repeat(64)}`;
 const exactQuality = {
   lifecycleState: "exact",
   facts: [],
@@ -45,7 +45,7 @@ const exactQuality = {
     schemaVersion: QUALITY_SCHEMA_VERSION,
     policyVersion: ELIGIBILITY_POLICY_VERSION,
     configurationVersion: QUALITY_CONFIG_VERSION,
-    sourceGeneration: "sha256:lap-breakdown-source",
+    sourceGeneration: `sha256:${"a".repeat(64)}`,
     outputGeneration: qualityGeneration,
   },
 } as unknown as LapQualitySummary;

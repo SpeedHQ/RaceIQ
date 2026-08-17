@@ -19,7 +19,7 @@ const ineligibleLap: TrackLap = {
   paceEligibility: "excluded",
 };
 
-const eligibleGeneration = "sha256:track-stats-eligible";
+const eligibleGeneration = `sha256:${"d".repeat(64)}`;
 const eligibleLap: TrackLap = {
   ...ineligibleLap,
   lapId: 2,
@@ -37,7 +37,7 @@ const eligibleLap: TrackLap = {
       schemaVersion: QUALITY_SCHEMA_VERSION,
       policyVersion: ELIGIBILITY_POLICY_VERSION,
       configurationVersion: QUALITY_CONFIG_VERSION,
-      sourceGeneration: "sha256:track-stats-source",
+      sourceGeneration: `sha256:${"e".repeat(64)}`,
       outputGeneration: eligibleGeneration,
     },
   } as unknown as LapQualitySummary,

@@ -11,7 +11,6 @@ import { useUiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
 import { ChatPanelThread } from "./chat-runtime";
 import { resolvedResumableThreadId } from "./resumable-chat";
-
 export interface ChatHistoryResult {
   messages: UIMessage[];
   threadId?: string | null;

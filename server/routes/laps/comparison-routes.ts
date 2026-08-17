@@ -363,7 +363,7 @@ export const comparisonRoutes = new Hono()
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
-      const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
+      const uiMessages = list.get.all.aiV5.ui().filter((message) => message.role === "user" || message.role === "assistant");
 
       return c.json({ messages: uiMessages, threadId: base });
     } catch (err: any) {

@@ -21,7 +21,7 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { importSessionBin } from "../../server/session-capture/import-capture";
 import { getSessionResult } from "../../server/db/session-result-queries";
 import { buildLapsZip, importLapsZip } from "../../server/laps/archive";
-import type { SourceChannelProfile } from "../../shared/racing/quality/contracts";
+import { LOCAL_PLAYER_EVIDENCE, type ParticipantEvidence, type SourceChannelProfile } from "../../shared/racing/quality/contracts";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { sha256ContentHash } from "../../server/session-capture/identity";
 
@@ -45,6 +45,13 @@ const SOURCE_CHANNEL_PROFILE: SourceChannelProfile = {
       evidenceId: "source-channel-profile:1:motec:inputs.steer",
     },
   },
+};
+
+const OPPONENT_PARTICIPANT: ParticipantEvidence = {
+  kind: "opponent",
+  sourceId: "car-17",
+  stableId: "driver-17",
+  identityState: "stable",
 };
 
 describe("lap export → import round-trip (real capture)", () => {
@@ -75,11 +82,11 @@ describe("lap export → import round-trip (real capture)", () => {
    * which are junk — e.g. a 2-frame "incomplete lap (session ended)" stub. Pick
    * the session holding the real laps rather than assuming it is the first.
    */
-  async function seedSession() {
+  async function seedSession(participant?: ParticipantEvidence) {
     const gz = Buffer.from(await Bun.file(CAPTURE).arrayBuffer());
     const raw = Buffer.from(gunzipSync(gz));
 
-    const res = await importSessionBin(raw, "fm-2023");
+    const res = await importSessionBin(raw, "fm-2023", participant ? { participant } : {});
     expect(res.laps.length).toBeGreaterThan(0);
 
     const sids = [...new Set(res.laps.map((l) => l.sessionId))];
@@ -109,17 +116,11 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(result.laps.length).toBeGreaterThan(0);
       const sessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
       createdSessions.push(...sessionIds);
-      const importedSessions = await db
-        .select()
-        .from(sessions)
-        .where(inArray(sessions.id, sessionIds))
-        .all();
+      const importedSessions = await db.select().from(sessions).where(inArray(sessions.id, sessionIds)).all();
       expect(importedSessions.length).toBeGreaterThan(0);
       for (const imported of importedSessions) {
         if (imported.rawFile) tmpFiles.push(imported.rawFile);
-        expect(imported.recordingQuality?.archiveVerification?.sourceGeneration).toBe(
-          expectedGeneration,
-        );
+        expect(imported.recordingQuality?.archiveVerification?.sourceGeneration).toBe(expectedGeneration);
       }
     }
   }, 120000);
@@ -192,6 +193,24 @@ describe("lap export → import round-trip (real capture)", () => {
     }
   }, 120000);
 
+  test("round-trips current-manifest participant evidence", async () => {
+    const { rows } = await seedSession(OPPONENT_PARTICIPANT);
+    const { bytes, manifest } = await buildLapsZip([rows[0].id]);
+    expect(manifest.entries[0]?.participant).toEqual(OPPONENT_PARTICIPANT);
+
+    const result = await importLapsZip(bytes);
+    expect(result.errors).toEqual([]);
+    expect(result.imported).toBeGreaterThan(0);
+    expect(result.laps.every((lap) => JSON.stringify(lap.quality.participant) === JSON.stringify(OPPONENT_PARTICIPANT))).toBe(true);
+    const importedSessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
+    createdSessions.push(...importedSessionIds);
+    const importedSessions = await db.select().from(sessions).where(inArray(sessions.id, importedSessionIds)).all();
+    for (const imported of importedSessions) {
+      if (imported.rawFile) tmpFiles.push(imported.rawFile);
+      expect(imported.recordingQuality?.participant).toEqual(OPPONENT_PARTICIPANT);
+    }
+  }, 120000);
+
   test("imports archives without a manifest as legacy unverified evidence", async () => {
     const { rows } = await seedSession();
     const { bytes } = await buildLapsZip([rows[0].id]);
@@ -213,40 +232,64 @@ describe("lap export → import round-trip (real capture)", () => {
       state: "unknown",
       sourceGeneration: "legacy",
     });
+    expect(importedSession?.recordingQuality?.participant).toEqual(LOCAL_PLAYER_EVIDENCE);
   }, 120000);
 
-  test("imports released v2 manifests without v3-only fields", async () => {
+  test("imports released v1 and v2 manifests with local-player compatibility evidence", async () => {
+    const { rows } = await seedSession(OPPONENT_PARTICIPANT);
+    const { bytes, manifest } = await buildLapsZip([rows[0].id]);
+
+    for (const version of [1, 2] as const) {
+      const files = unzipSync(bytes);
+      const legacyManifest = structuredClone(manifest);
+      legacyManifest.version = version;
+      for (const entry of legacyManifest.entries) {
+        delete entry.memberSha256;
+        delete entry.sourceKind;
+        delete entry.participant;
+        delete entry.sourceChannelProfile;
+        delete entry.sourceVerification;
+        delete entry.recordingQualitySchemaVersion;
+        delete entry.sourceGeneration;
+      }
+      files["manifest.json"] = new TextEncoder().encode(JSON.stringify(legacyManifest));
+
+      const result = await importLapsZip(zipSync(files));
+      expect(result.errors).toEqual([]);
+      expect(result.imported).toBeGreaterThan(0);
+      const importedSessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
+      createdSessions.push(...importedSessionIds);
+      const importedSessions = await db.select().from(sessions).where(inArray(sessions.id, importedSessionIds)).all();
+      for (const imported of importedSessions) {
+        if (imported.rawFile) tmpFiles.push(imported.rawFile);
+        expect(imported.source).toBe("raceiq-archive");
+        expect(imported.recordingQuality?.participant).toEqual(LOCAL_PLAYER_EVIDENCE);
+        expect(imported.recordingQuality?.archiveVerification).toMatchObject({
+          state: "unknown",
+          sourceGeneration: "legacy",
+        });
+      }
+    }
+  }, 120000);
+
+  test("rejects malformed current-manifest participant evidence", async () => {
     const { rows } = await seedSession();
     const { bytes, manifest } = await buildLapsZip([rows[0].id]);
-    const files = unzipSync(bytes);
-    manifest.version = 2;
-    for (const entry of manifest.entries) {
-      delete entry.memberSha256;
-      delete entry.sourceKind;
-      delete entry.sourceChannelProfile;
-      delete entry.sourceVerification;
-      delete entry.recordingQualitySchemaVersion;
-      delete entry.sourceGeneration;
-    }
-    files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
+    const invalidParticipants: unknown[] = [
+      { ...OPPONENT_PARTICIPANT, kind: "spectator" },
+      { ...OPPONENT_PARTICIPANT, sourceId: 17 },
+      { ...OPPONENT_PARTICIPANT, stableId: false },
+      { ...OPPONENT_PARTICIPANT, identityState: "ambiguous" },
+    ];
 
-    const result = await importLapsZip(zipSync(files));
-    expect(result.errors).toEqual([]);
-    expect(result.imported).toBeGreaterThan(0);
-    const importedSessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
-    createdSessions.push(...importedSessionIds);
-    const importedSessions = await db
-      .select()
-      .from(sessions)
-      .where(inArray(sessions.id, importedSessionIds))
-      .all();
-    for (const imported of importedSessions) {
-      if (imported.rawFile) tmpFiles.push(imported.rawFile);
-      expect(imported.source).toBe("raceiq-archive");
-      expect(imported.recordingQuality?.archiveVerification).toMatchObject({
-        state: "unknown",
-        sourceGeneration: "legacy",
-      });
+    for (const participant of invalidParticipants) {
+      const files = unzipSync(bytes);
+      const invalidManifest = structuredClone(manifest);
+      const entry = invalidManifest.entries[0];
+      if (!entry) throw new Error("Expected exported manifest entry");
+      Object.assign(entry, { participant });
+      files["manifest.json"] = new TextEncoder().encode(JSON.stringify(invalidManifest));
+      await expect(importLapsZip(zipSync(files))).rejects.toThrow("Invalid RaceIQ archive manifest");
     }
   }, 120000);
 
@@ -260,9 +303,7 @@ describe("lap export → import round-trip (real capture)", () => {
     });
     files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
 
-    await expect(importLapsZip(zipSync(files))).rejects.toThrow(
-      "version 3 strict layout declares a missing capture member",
-    );
+    await expect(importLapsZip(zipSync(files))).rejects.toThrow("version 3 strict layout declares a missing capture member");
   }, 120000);
   test("rejects v3 manifest entries for ancillary members", async () => {
     const { rows } = await seedSession();
@@ -277,9 +318,7 @@ describe("lap export → import round-trip (real capture)", () => {
     });
     files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
 
-    await expect(importLapsZip(zipSync(files))).rejects.toThrow(
-      "version 3 strict layout only allows .bin/.bin.gz capture entries",
-    );
+    await expect(importLapsZip(zipSync(files))).rejects.toThrow("version 3 strict layout only allows .bin/.bin.gz capture entries");
   }, 120000);
 
   test("rejects undeclared ancillary members in v3 archives", async () => {
@@ -288,9 +327,7 @@ describe("lap export → import round-trip (real capture)", () => {
     const files = unzipSync(bytes);
     files["notes.txt"] = new TextEncoder().encode("notes");
 
-    await expect(importLapsZip(zipSync(files))).rejects.toThrow(
-      "version 3 strict layout contains an undeclared member",
-    );
+    await expect(importLapsZip(zipSync(files))).rejects.toThrow("version 3 strict layout contains an undeclared member");
   }, 120000);
 
   test("verifies every v3 checksum before importing any capture", async () => {
@@ -302,20 +339,13 @@ describe("lap export → import round-trip (real capture)", () => {
     const corruptName = manifest.entries[1].file;
     files[corruptName] = files[corruptName].slice();
     files[corruptName][files[corruptName].length - 1] ^= 0xff;
-    const beforeSessionIds = (await db.select({ id: sessions.id }).from(sessions).all())
-      .map(({ id }) => id)
-      .sort((a, b) => a - b);
+    const beforeSessionIds = (await db.select({ id: sessions.id }).from(sessions).all()).map(({ id }) => id).sort((a, b) => a - b);
 
-    await expect(importLapsZip(zipSync(files))).rejects.toThrow(
-      "version 3 capture member checksum mismatch",
-    );
+    await expect(importLapsZip(zipSync(files))).rejects.toThrow("version 3 capture member checksum mismatch");
 
-    const afterSessionIds = (await db.select({ id: sessions.id }).from(sessions).all())
-      .map(({ id }) => id)
-      .sort((a, b) => a - b);
+    const afterSessionIds = (await db.select({ id: sessions.id }).from(sessions).all()).map(({ id }) => id).sort((a, b) => a - b);
     expect(afterSessionIds).toEqual(beforeSessionIds);
   }, 120000);
-
 
   test("rejects a present corrupt v2 manifest instead of importing as legacy", async () => {
     const { rows } = await seedSession();

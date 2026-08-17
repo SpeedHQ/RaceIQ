@@ -4,13 +4,13 @@ import { LapDetectorAcc } from "../../server/games/acc/lap-detector";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-
-afterAll(() => stopMaintenanceTasks());
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapClassification } from "../../shared/racing/laps/classification";
 import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
 import type { DbAdapter } from "../../server/telemetry/pipeline-ports";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+
+afterAll(() => stopMaintenanceTasks());
 initGameAdapters();
 initServerGameAdapters();
 
@@ -409,7 +409,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(db.inserted[0].invalidReason).toBeNull();
   });
 
-  test("keeps native-live and replay boundaries, measured channels, and policy decisions in parity", async () => {
+  test("keeps native-live and replay boundaries and normalized quality semantics in parity", async () => {
     async function detect(sourceKind: "native-live" | "raceiq-raw") {
       const db = makeFakeDb();
       const detector = new LapDetectorAcc({ db, sourceKind });
@@ -418,7 +418,48 @@ describe("LapDetectorAc — reset detection", () => {
         await detector.feed(packet({ CurrentLap: tick, DistanceTraveled: tick * 50, TimestampMS: tick * 1_000 }), tick * 100);
       }
       await detector.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 4_530, TimestampMS: 91_000 }), 9_100);
-      return db.inserted[0];
+      return db.inserted[0]!;
+    }
+
+    function normalizedFacts(quality: LapQualitySummary) {
+      return quality.facts
+        .filter(({ code }) => code !== "imported_source")
+        .map(({ id: _id, eventIds: _eventIds, provenance, semanticIds, channelFamilies, ...fact }) => ({
+          ...fact,
+          semanticIds: [...semanticIds].sort(),
+          channelFamilies: [...channelFamilies].sort(),
+          provenance: {
+            schemaVersion: provenance.schemaVersion,
+            policyVersion: provenance.policyVersion,
+            configurationVersion: provenance.configurationVersion,
+          },
+        }))
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    }
+
+    function normalizedChannels(quality: LapQualitySummary) {
+      return quality.channelQuality.map(({ provenance: _provenance, ...channel }) => channel);
+    }
+
+    function normalizedEligibility(eligibility: EligibilityDecisionSet) {
+      return Object.fromEntries(
+        Object.entries(eligibility).map(([policyId, decision]) => [
+          policyId,
+          {
+            status: decision.status,
+            policyId: decision.policyId,
+            policyVersion: decision.policyVersion,
+            confidence: decision.confidence,
+            reasons: decision.reasons
+              .filter(({ code }) => code !== "imported_source")
+              .map(({ evidenceIds: _evidenceIds, semanticIds, ...reason }) => ({
+                ...reason,
+                semanticIds: [...semanticIds].sort(),
+              }))
+              .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+          },
+        ]),
+      );
     }
 
     const live = await detect("native-live");
@@ -427,32 +468,22 @@ describe("LapDetectorAc — reset detection", () => {
       lapNumber: live.lapNumber,
       lapTime: live.lapTime,
       valid: live.valid,
+      invalidReason: live.invalidReason,
       phase: live.phase,
       conditions: live.conditions,
       paceEligibility: live.paceEligibility,
       rawByteOffset: live.rawByteOffset,
       rawFrameCount: live.rawFrameCount,
     });
+    expect(replay.quality.participant).toEqual(live.quality.participant);
+    expect(replay.quality.classification).toEqual(live.quality.classification);
     expect(replay.quality.gapSummary).toEqual(live.quality.gapSummary);
+    expect(replay.quality.timing).toEqual(live.quality.timing);
     expect(replay.quality.trackDistanceCoverage).toBe(live.quality.trackDistanceCoverage);
-    expect(
-      replay.quality.channelQuality.map(({ semanticId, mappingStatus, coverage, freshnessCounts }) => ({
-        semanticId,
-        mappingStatus,
-        coverage,
-        freshnessCounts,
-      })),
-    ).toEqual(
-      live.quality.channelQuality.map(({ semanticId, mappingStatus, coverage, freshnessCounts }) => ({
-        semanticId,
-        mappingStatus,
-        coverage,
-        freshnessCounts,
-      })),
-    );
-    expect(Object.fromEntries(Object.entries(replay.eligibility).map(([policyId, decision]) => [policyId, decision.status]))).toEqual(
-      Object.fromEntries(Object.entries(live.eligibility).map(([policyId, decision]) => [policyId, decision.status])),
-    );
+    expect(replay.quality.worldPositionCoverage).toBe(live.quality.worldPositionCoverage);
+    expect(normalizedChannels(replay.quality)).toEqual(normalizedChannels(live.quality));
+    expect(normalizedFacts(replay.quality)).toEqual(normalizedFacts(live.quality));
+    expect(normalizedEligibility(replay.eligibility)).toEqual(normalizedEligibility(live.eligibility));
   });
 });
 

@@ -121,6 +121,7 @@ describe("chatThreadId", () => {
     expect(parseThreadGeneration(generationThreadId(original, 3))).toEqual({ base: original, gen: 3 });
   });
 });
+
 describe("compareChatThreadId", () => {
   test("isolates chat history by quality identity while preserving canonical lap order", () => {
     const original = compareChatThreadId(5, 6, "policy-1:quality-generation-1");

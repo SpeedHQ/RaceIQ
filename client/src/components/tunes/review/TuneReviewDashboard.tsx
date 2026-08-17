@@ -16,6 +16,7 @@ import type { ExperimentVersion } from "@/hooks/experiments";
 import { useLapSemanticTelemetry } from "@/hooks/laps";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { m } from "@/paraglide/messages";
 import { ArmHeadline, ReviewOverviewSkeleton } from "./OverviewSkeleton";
 import { IssuePill } from "./ReviewIssues";
 import { semanticTireSnapshot } from "./tire-snapshot";
@@ -81,7 +82,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   }, [search.lap, reviewLaps, navigate]);
 
   const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(focusLap?.id ?? null);
-  const { data: issues } = useLapIssues(focusLap?.id ?? null);
+  const { data: issues, error: issuesError } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
 
   const telemetry = useMemo(() => semanticSamples(lapTel?.envelopes), [lapTel]);
@@ -233,6 +234,11 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
           </div>
           <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden text-xs text-app-text-muted @5xl/workspace:inline">{trackName}</span>}</div>
         </div>
+        {issuesError && (
+          <div role="alert" className="border-b border-status-warning/40 bg-status-warning/10 px-4 py-2 text-xs text-status-warning">
+            {issuesError instanceof Error ? issuesError.message : m.common_error()}
+          </div>
+        )}
 
         {test && <ArmHeadline kind={test.kind} laps={evaluationLaps} />}
 

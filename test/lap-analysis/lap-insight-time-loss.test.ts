@@ -5,6 +5,7 @@ import { initGameAdapters } from "@shared/games/init";
 import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
 import type { ChannelQualitySummary, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 const RADIUS = 0.33;
 const STEP_MS = 16;
@@ -74,8 +75,9 @@ const ANALYSIS_QUALITY = {
     paceEligibility: "eligible",
   },
 } as unknown as LapQualitySummary;
-
 initGameAdapters();
+const CLEAN_QUALITY = summarize(qualityPackets(200).map((packet) => ({ ...packet, gameId: "fm-2023" })));
+
 interface Frame {
   speed: number;
   accel?: number;
@@ -106,6 +108,7 @@ function pkt(f: Frame, t: number): TelemetryPacket {
   const rot = f.speed / RADIUS;
   return {
     TimestampMS: t,
+    DistanceTraveled: (t / 1_000) * f.speed,
     Speed: f.speed,
     Accel: f.accel ?? 0,
     Brake: f.brake ?? 0,
@@ -247,6 +250,7 @@ describe("analyzeLap wheel-state capabilities", () => {
   }
 
   test("retains lockup insights when wheel rotation is available", () => {
+    expect(evaluateEligibility("transient-event", CLEAN_QUALITY).status).toBe("ineligible");
     const insights = analyzeFixtureLap(lockedLap(), "fm-2023");
 
     expect(find(insights, "tire-lockup-FL")).toBeDefined();
@@ -316,7 +320,6 @@ describe("analyzeLap localized insight eligibility", () => {
     expect(find(rangedInsights, "driving-rev-limiter")?.frameIndices).toEqual([66]);
     expect(find(rangedInsights, "tire-lockup-FL")?.frameIndices).toEqual([63]);
   });
-
 
   test("analyzes corner events outside a policy-ineligible range and remaps source frames", () => {
     const telemetry = localizedInsightLap();
