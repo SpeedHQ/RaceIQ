@@ -5,11 +5,19 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const freshBaseURL = `http://localhost:${runtime.devServer ? runtime.freshInstall.clientPort : runtime.freshInstall.port}`;
   const seededBaseURL = `http://localhost:${runtime.devServer ? runtime.seeded.clientPort : runtime.seeded.port}`;
   const tunesBaseURL = `http://localhost:${runtime.devServer ? runtime.tunes.clientPort : runtime.tunes.port}`;
+  const sequentialImportSpecs = [
+    "seeded/analyse/core-flow.spec.ts",
+    "seeded/catalog/tracks.spec.ts",
+    "seeded/dev-tools/server-import.spec.ts",
+    "seeded/sessions/import.spec.ts",
+    "seeded/sessions/lifecycle.spec.ts",
+  ] as const;
 
   return [
     {
       name: "fresh-install",
       testMatch: ["fresh-install/**/*.spec.ts", "responsive/workspaces.spec.ts"],
+      workers: 1,
       use: { baseURL: freshBaseURL, viewport: { width: 1280, height: 900 } },
     },
     {
@@ -28,6 +36,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     {
       name: "tunes",
       testMatch: "tunes/**/*.spec.ts",
+      workers: 1,
       use: { baseURL: tunesBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
@@ -47,7 +56,14 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     {
       name: "seeded-e2e",
       testMatch: "seeded/**/*.spec.ts",
+      testIgnore: sequentialImportSpecs,
       timeout: 120_000,
+      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
+      name: "seeded-imports",
+      testMatch: sequentialImportSpecs,
+      workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
