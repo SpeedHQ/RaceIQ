@@ -12,7 +12,7 @@ on:
         description: "Runner labels as JSON array; Windows is required for compiled native binary"
         required: false
         type: string
-        default: '["whitesmith-windows-x64", "10VCPU", "10G"]'
+        default: '["whitesmith-windows-x64", "4VCPU", "5G"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
@@ -33,6 +33,11 @@ on:
         required: false
         type: string
         default: playwright-results
+      diagnostic-artifact-name:
+        description: "Server diagnostic artifact name"
+        required: false
+        type: string
+        default: server-diagnostics
 
 jobs:
   playwright:
@@ -98,7 +103,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: server-diagnostics
+          name: ${{ inputs.diagnostic-artifact-name }}
           path: |
             playwright/test-data*/raceiq.log
             playwright/test-data*/crash.log

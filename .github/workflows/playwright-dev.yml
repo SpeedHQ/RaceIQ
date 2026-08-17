@@ -5,10 +5,28 @@ on:
 
 jobs:
   playwright:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fresh
+            server-set: fresh
+            projects: --project=fresh-install
+          - name: tunes
+            server-set: tunes
+            projects: --project=tunes
+          - name: seeded-imports
+            server-set: seeded
+            projects: --project=seeded-imports
+          - name: seeded-read
+            server-set: seeded
+            projects: --project=seeded-e2e --project=mobile-device --project=tablet-device
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      server-set: all
-      runs-on: '["whitesmith-windows-x64", "10VCPU", "10G"]'
+      server-set: ${{ matrix.server-set }}
+      projects: ${{ matrix.projects }}
+      runs-on: '["whitesmith-windows-x64", "4VCPU", "5G"]'
       dist-artifact: raceiq-dist-windows
-      artifact-name: playwright-compiled
+      artifact-name: playwright-${{ matrix.name }}
+      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
