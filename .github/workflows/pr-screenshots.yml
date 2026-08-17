@@ -61,7 +61,8 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
-      - name: Mark workspace safe for git (container runs as root)
+      - name: Mark workspace safe for git
+        shell: bash
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Merge pull request base into the PR head
