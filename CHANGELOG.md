@@ -13,6 +13,7 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
+- Render per-car tire dimensions and independent front/rear spring geometry from each 3D model definition
 - [WIP] Preserve imported iRacing WGS84 paths and georeference matching layouts from games without GPS; pending validation with running laps recorded on same track
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
@@ -42,6 +43,7 @@
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
 - Use official iRacing turn labels consistently across Analyse maps, segment lists, comparisons, chats, and tuning insights
 - Roll iRacing wireframe wheels in Analyse when per-wheel rotation telemetry is unavailable
+- Keep Analyse 3D suspension and drivetrain aligned with vehicle roll, pitch, and ride-height movement
 - Show iRacing lateral G-force on the correct side during turns
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps
 - Restore the moving car pointer on iRacing Analyse track maps

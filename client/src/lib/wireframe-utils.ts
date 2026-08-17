@@ -17,6 +17,41 @@ export function makeWheelGeometries(radius: number, width: number) {
   rim.rotateX(Math.PI / 2);
   return { tire, rim };
 }
+/** Build a coil and damper along any chassis-to-wheel axis. */
+export function makeSuspensionSpringGeometry(bodyPos: [number, number, number], wheelPos: [number, number, number], coilRadius: number, coils: number, damperExtension: number) {
+  const bottom = new THREE.Vector3(...wheelPos);
+  const direction = new THREE.Vector3(...bodyPos).sub(bottom);
+  const height = direction.length();
+  if (height <= Number.EPSILON) {
+    return { coilPoints: [wheelPos, bodyPos], rodPoints: [wheelPos, bodyPos] };
+  }
+
+  direction.multiplyScalar(1 / height);
+  const reference = Math.abs(direction.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const radialA = new THREE.Vector3().crossVectors(direction, reference).normalize();
+  const radialB = new THREE.Vector3().crossVectors(direction, radialA).normalize();
+  const segments = coils * 12;
+  const coilPoints: [number, number, number][] = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const angle = t * coils * Math.PI * 2;
+    const radialACoefficient = Math.cos(angle) * coilRadius;
+    const radialBCoefficient = Math.sin(angle) * coilRadius;
+    coilPoints.push([
+      wheelPos[0] + (bodyPos[0] - wheelPos[0]) * t + radialA.x * radialACoefficient + radialB.x * radialBCoefficient,
+      wheelPos[1] + (bodyPos[1] - wheelPos[1]) * t + radialA.y * radialACoefficient + radialB.y * radialBCoefficient,
+      wheelPos[2] + (bodyPos[2] - wheelPos[2]) * t + radialA.z * radialACoefficient + radialB.z * radialBCoefficient,
+    ]);
+  }
+
+  return {
+    coilPoints,
+    rodPoints: [
+      bottom.clone().addScaledVector(direction, -damperExtension).toArray() as [number, number, number],
+      new THREE.Vector3(...bodyPos).addScaledVector(direction, damperExtension).toArray() as [number, number, number],
+    ],
+  };
+}
 
 /** Convert signed int8 steering input to a bounded front-wheel angle. */
 export function steeringAngleRadians(steerInput: number): number {
@@ -31,11 +66,20 @@ export function visualWheelRotationSpeed(measuredRadS: unknown, speedMps: number
 }
 
 /**
- * Apply semantic vehicle attitude to model frame (+X forward, +Y up, +Z right).
- * Raw channels take precedence; suspension attitude remains the missing-channel fallback.
+ * Split semantic attitude between complete vehicle and suspension-articulated chassis.
+ * Raw channels include road banking/gradient, so they rotate running gear too.
+ * Suspension estimates only move chassis when corresponding raw channel is absent.
  */
-export function setBodyAttitudeRotation(rotation: THREE.Euler, rawRoll: number | null, rawPitch: number | null, suspensionRoll: number, suspensionPitch: number): void {
-  rotation.set(rawRoll ?? suspensionRoll, 0, rawPitch ?? suspensionPitch, "YXZ");
+export function setVehicleAttitudeRotations(
+  vehicleRotation: THREE.Euler,
+  chassisRotation: THREE.Euler,
+  rawRoll: number | null,
+  rawPitch: number | null,
+  suspensionRoll: number,
+  suspensionPitch: number,
+): void {
+  vehicleRotation.set(rawRoll ?? 0, 0, rawPitch ?? 0, "YXZ");
+  chassisRotation.set(rawRoll == null ? suspensionRoll : 0, 0, rawPitch == null ? suspensionPitch : 0, "YXZ");
 }
 
 /** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
