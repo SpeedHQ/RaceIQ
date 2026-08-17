@@ -251,6 +251,12 @@ interface StrokeRecord {
   commands: PathCommand[];
 }
 
+interface ImageRecord {
+  image: CanvasImageSource;
+  alpha: number;
+  transform: number[];
+}
+
 const outlineFixture: Point[] = [
   { x: -4, z: 0 },
   { x: -2, z: 4 },
@@ -277,8 +283,11 @@ function boundaryFixture(raceLine?: Point[] | null, includeRaceLine = true): Tra
   return boundaries;
 }
 
-function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRecord[] } {
+function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRecord[]; images: ImageRecord[] } {
   const strokes: StrokeRecord[] = [];
+  const images: ImageRecord[] = [];
+  const savedStates: Array<{ alpha: number; transform: number[] }> = [];
+  let activeTransform: number[] = [];
   let commands: PathCommand[] = [];
   const context = {
     strokeStyle: "",
@@ -287,7 +296,9 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     lineWidth: 1,
     lineCap: "butt" as CanvasLineCap,
     lineJoin: "miter" as CanvasLineJoin,
-    setTransform() {},
+    setTransform(...values: number[]) {
+      activeTransform = values;
+    },
     clearRect() {},
     beginPath() {
       commands = [];
@@ -315,11 +326,23 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
         commands: commands.map((command) => ({ ...command, values: [...command.values] }) as PathCommand),
       });
     },
-    save() {},
+    save() {
+      savedStates.push({ alpha: this.globalAlpha, transform: [...activeTransform] });
+    },
     translate() {},
     rotate() {},
-    restore() {},
-    drawImage() {},
+    transform(...values: number[]) {
+      activeTransform = values;
+    },
+    restore() {
+      const saved = savedStates.pop();
+      if (!saved) return;
+      this.globalAlpha = saved.alpha;
+      activeTransform = saved.transform;
+    },
+    drawImage(image: CanvasImageSource) {
+      images.push({ image, alpha: this.globalAlpha, transform: [...activeTransform] });
+    },
   } as unknown as CanvasRenderingContext2D;
   const canvas = {
     width: 0,
@@ -328,7 +351,7 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     getBoundingClientRect: () => ({ width: 800, height: 600 }),
     getContext: () => context,
   } as unknown as HTMLCanvasElement;
-  return { canvas, strokes };
+  return { canvas, strokes, images };
 }
 
 function drawRaceLineCase(boundaries: TrackMapBoundaries | null, showRaceLine: boolean, gameId: "acc" | "ac-evo" = "acc") {
@@ -490,6 +513,44 @@ test("renders deep zoom as viewport-sized vectors with constant stroke widths", 
     expect(harness.canvas.width).toBe(800);
     expect(harness.canvas.height).toBe(600);
     expect(harness.strokes.find((stroke) => stroke.color === "var(--track-outline)")?.width).toBe(4);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("draws opaque venue base before transparent layout layers", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const harness = createDrawingHarness();
+    const base = {} as CanvasImageSource;
+    const roadCourse = {} as CanvasImageSource;
+    drawStaticTrack({
+      canvas: harness.canvas,
+      bufferCanvas: harness.canvas,
+      telemetry: [],
+      resolvedPositions: [],
+      outline: outlineFixture,
+      imagery: {
+        imageToTrack: [100, 0, 0, 80, -50, -40],
+        textures: [
+          { image: base, opacity: 1 },
+          { image: roadCourse, opacity: 0.65 },
+        ],
+      },
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+
+    expect(harness.images.map(({ image, alpha }) => ({ image, alpha }))).toEqual([
+      { image: base, alpha: 1 },
+      { image: roadCourse, alpha: 0.65 },
+    ]);
+    expect(harness.strokes.find((stroke) => stroke.color === "var(--track-outline)")?.alpha).toBe(1);
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }

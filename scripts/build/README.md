@@ -8,7 +8,7 @@ Build and package RaceIQ artifacts from repository root.
 | `bun scripts/build/build-installer.ts [version]` | Build client, copy data, compile Windows binary, and run Inno Setup. Defaults version to `package.json`. |
 | `bun scripts/build/bundle-client.ts` | Embed `client/dist` assets in `server/client-assets.generated.ts`. |
 | `bun scripts/build/copy-client-dist.ts` | Copy `client/dist` to `dist/public`. |
-| `bun scripts/build/copy-shared-data.ts` | Copy shared CSV/JSON data and `credstore.ps1` into `dist`. |
+| `bun scripts/build/copy-shared-data.ts` | Copy shared CSV/JSON data, track texture images, and `credstore.ps1` into `dist`. |
 | `bun scripts/build/patch-pe-gui.ts <exe>` | Change Windows PE subsystem from console to GUI. |
 
 Inputs: repository `client`, `shared`, `server`, `assets`, and installed dependencies. Outputs: `dist`, generated client asset module, or patched executable as applicable.

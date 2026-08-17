@@ -1,4 +1,5 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { resolveTrackImageryMatrix } from "../../../../shared/racing/tracks/imagery";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { compositeFixedTrack, compositeTrack, drawCarOverlay } from "./track-map/overlay-drawing";
@@ -19,6 +20,9 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     outline,
     mapLabels,
     pitLines,
+    imagery,
+    geographicPositions,
+    showImagery = true,
     boundaries,
     sectors,
     segments,
@@ -46,9 +50,41 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const wheelDeltaRef = useRef(0);
   const wheelPointerRef = useRef({ x: 0, y: 0 });
   const wheelTargetZoomRef = useRef<number | null>(null);
+  const [imageryTextures, setImageryTextures] = useState<readonly { image: HTMLImageElement; opacity: number }[]>([]);
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, gameId), [telemetry, outline, gameId]);
+  const imageryMatrix = useMemo(
+    () => (showImagery && imagery && geographicPositions ? resolveTrackImageryMatrix(resolvedPositions, geographicPositions, imagery.calibration) : null),
+    [geographicPositions, imagery, resolvedPositions, showImagery],
+  );
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
   const directVectorRender = zoom > TRACK_MAP_MAX_RENDER_ZOOM;
+  useEffect(() => {
+    setImageryTextures([]);
+    if (!showImagery || !imagery) return;
+    let cancelled = false;
+    void Promise.all(
+      imagery.textures.map(
+        (texture) =>
+          new Promise<{ image: HTMLImageElement; opacity: number }>((resolve, reject) => {
+            const image = new Image();
+            image.decoding = "async";
+            image.onload = () => resolve({ image, opacity: texture.opacity });
+            image.onerror = () => reject(new Error(`Unable to load track texture ${texture.id}`));
+            image.src = texture.url;
+          }),
+      ),
+    )
+      .then((textures) => {
+        if (!cancelled) setImageryTextures(textures);
+      })
+      .catch(() => {
+        if (!cancelled) setImageryTextures([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [imagery, showImagery]);
+  const renderedImagery = useMemo(() => (imageryMatrix && imageryTextures.length > 0 ? { imageToTrack: imageryMatrix, textures: imageryTextures } : null), [imageryMatrix, imageryTextures]);
 
   const drawStatic = useCallback(
     (idx = cursorRef.current) => {
@@ -67,6 +103,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
         outline,
         pitLines,
         mapLabels,
+        imagery: renderedImagery,
         boundaries,
         sectors,
         segments,
@@ -108,6 +145,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       outline,
       pitLines,
       mapLabels,
+      renderedImagery,
       boundaries,
       sectors,
       segments,

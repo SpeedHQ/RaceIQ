@@ -1,0 +1,211 @@
+import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { Hono } from "hono";
+import sharp from "sharp";
+import { GameIdSchema, KNOWN_GAME_IDS, type GameId } from "../../../shared/games/ids";
+import { TrackImageryLayoutManifestSchema, TrackImageryVenueManifestSchema, type TrackImageryLayoutManifest, type TrackImageryVenueManifest } from "../../../shared/racing/tracks/imagery";
+import { loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
+
+const MAX_TRACK_IMAGE_BYTES = 100 * 1024 * 1024;
+const MAX_TRACK_IMAGE_PIXELS = 200_000_000;
+const SUPPORTED_FORMATS: Record<string, string> = { png: "png", jpeg: "jpg", webp: "webp" };
+const SAFE_ID = /^[a-z0-9][a-z0-9-]*$/;
+
+interface ValidatedImage {
+  bytes: Uint8Array;
+  extension: string;
+}
+
+function gameAndTrack(c: { req: { param: (key: string) => string; query: (key: string) => string | undefined } }): { gameId: GameId; trackOrdinal: number } {
+  const gameId = GameIdSchema.parse(c.req.query("gameId"));
+  const trackOrdinal = Number.parseInt(c.req.param("ordinal"), 10);
+  if (!Number.isSafeInteger(trackOrdinal) || trackOrdinal < 0) throw new Error("Invalid track ordinal");
+  return { gameId, trackOrdinal };
+}
+
+function safeId(value: string, label: string): string {
+  if (!SAFE_ID.test(value)) throw new Error(`${label} must use lowercase letters, digits, and hyphens`);
+  return value;
+}
+
+async function validatedImage(file: File, requireAlpha: boolean): Promise<ValidatedImage> {
+  if (file.size <= 0 || file.size > MAX_TRACK_IMAGE_BYTES) throw new Error("Track image must be between 1 byte and 100 MiB");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const metadata = await sharp(bytes, { limitInputPixels: MAX_TRACK_IMAGE_PIXELS }).metadata();
+  const extension = metadata.format ? SUPPORTED_FORMATS[metadata.format] : undefined;
+  if (!extension || !metadata.width || !metadata.height) throw new Error("Track image must be PNG, JPEG, or WebP");
+  if (requireAlpha && !metadata.hasAlpha) throw new Error("Overlay layer must contain an alpha channel");
+  return { bytes, extension };
+}
+
+function writeJson(path: string, value: unknown): void {
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  renameSync(temporary, path);
+}
+
+function replaceTexture(directory: string, stem: string, image: ValidatedImage): string {
+  mkdirSync(directory, { recursive: true });
+  const fileName = `${stem}.${image.extension}`;
+  const target = resolve(directory, fileName);
+  const temporary = `${target}.tmp`;
+  writeFileSync(temporary, image.bytes);
+  renameSync(temporary, target);
+  for (const entry of readdirSync(directory)) {
+    if (entry !== fileName && entry.startsWith(`${stem}.`) && /\.(?:png|jpe?g|webp)$/i.test(entry)) unlinkSync(resolve(directory, entry));
+  }
+  return fileName;
+}
+
+function removeLayerFromLayouts(venueId: string, layerId: string): void {
+  for (const gameId of KNOWN_GAME_IDS) {
+    const directory = dirname(trackImageryLayoutPath(gameId, 0));
+    if (!existsSync(directory)) continue;
+    for (const entry of readdirSync(directory)) {
+      if (!entry.endsWith(".json")) continue;
+      const trackOrdinal = Number.parseInt(entry.slice(0, -5), 10);
+      if (!Number.isSafeInteger(trackOrdinal)) continue;
+      const layout = loadTrackImageryLayout(gameId, trackOrdinal);
+      if (!layout || layout.venueId !== venueId || !layout.layers.includes(layerId)) continue;
+      writeJson(trackImageryLayoutPath(gameId, trackOrdinal), { ...layout, layers: layout.layers.filter((id) => id !== layerId) });
+    }
+  }
+}
+
+export const trackImageryDevRoutes = new Hono()
+  .get("/api/dev/track-imagery/venues/:venueId", (c) => {
+    try {
+      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      return c.json(loadTrackImageryVenue(venueId));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery venue" }, 400);
+    }
+  })
+  .get("/api/dev/track-imagery/venues/:venueId/texture/:textureId", (c) => {
+    try {
+      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const textureId = c.req.param("textureId") === "base" ? "base" : safeId(c.req.param("textureId"), "Texture ID");
+      const venue = loadTrackImageryVenue(venueId);
+      if (!venue) return c.json({ error: "Imagery venue not found" }, 404);
+      const fileName = textureId === "base" ? venue.base.image : venue.layers.find((layer) => layer.id === textureId)?.image;
+      if (!fileName) return c.json({ error: "Imagery texture not found" }, 404);
+      const path = textureId === "base" ? resolve(trackImageryVenueDirectory(venueId), fileName) : resolve(trackImageryVenueDirectory(venueId), "layers", fileName);
+      if (!existsSync(path)) return c.json({ error: "Imagery texture file not found" }, 404);
+      return new Response(Bun.file(path), { headers: { "Cache-Control": "no-store", "Content-Type": trackImageryContentType(path) } });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery texture" }, 400);
+    }
+  })
+  .post("/api/dev/track-imagery/venues/:venueId/base", async (c) => {
+    try {
+      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const form = await c.req.formData();
+      const file = form.get("file");
+      if (!(file instanceof File)) return c.json({ error: "Missing base texture" }, 400);
+      const image = await validatedImage(file, false);
+      const directory = trackImageryVenueDirectory(venueId);
+      const imageName = `base.${image.extension}`;
+      const raw = JSON.parse(String(form.get("manifest") ?? "null")) as Record<string, unknown>;
+      const manifest = TrackImageryVenueManifestSchema.parse({ ...raw, version: 1, venueId, base: { ...(raw.base as Record<string, unknown> | undefined), image: imageName } });
+      replaceTexture(directory, "base", image);
+      writeJson(resolve(directory, "manifest.json"), manifest);
+      return c.json(manifest, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to save base texture" }, 400);
+    }
+  })
+  .put("/api/dev/track-imagery/venues/:venueId", async (c) => {
+    try {
+      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const current = loadTrackImageryVenue(venueId);
+      if (!current) return c.json({ error: "Imagery venue not found" }, 404);
+      const raw = (await c.req.json()) as TrackImageryVenueManifest;
+      const layersById = new Map(current.layers.map((layer) => [layer.id, layer]));
+      const manifest = TrackImageryVenueManifestSchema.parse({
+        ...raw,
+        version: 1,
+        venueId,
+        base: { ...raw.base, image: current.base.image },
+        layers: raw.layers.map((layer) => ({ ...layer, image: layersById.get(layer.id)?.image ?? layer.image })),
+      });
+      writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
+      return c.json(manifest);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to update imagery venue" }, 400);
+    }
+  })
+  .post("/api/dev/track-imagery/venues/:venueId/layers/:layerId", async (c) => {
+    try {
+      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const layerId = safeId(c.req.param("layerId"), "Layer ID");
+      const venue = loadTrackImageryVenue(venueId);
+      if (!venue) return c.json({ error: "Save venue base before adding layers" }, 404);
+      const form = await c.req.formData();
+      const file = form.get("file");
+      if (!(file instanceof File)) return c.json({ error: "Missing overlay texture" }, 400);
+      const image = await validatedImage(file, true);
+      const layersDirectory = resolve(trackImageryVenueDirectory(venueId), "layers");
+      const imageName = `${layerId}.${image.extension}`;
+      const rawLayer = JSON.parse(String(form.get("layer") ?? "null")) as Record<string, unknown>;
+      const layer = { ...rawLayer, id: layerId, image: imageName };
+      const manifest = TrackImageryVenueManifestSchema.parse({ ...venue, layers: [...venue.layers.filter((candidate) => candidate.id !== layerId), layer] });
+      replaceTexture(layersDirectory, layerId, image);
+      writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
+      return c.json(manifest, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to save imagery layer" }, 400);
+    }
+  })
+  .delete("/api/dev/track-imagery/venues/:venueId/layers/:layerId", (c) => {
+    try {
+      const venueId = safeId(c.req.param("venueId"), "Venue ID");
+      const layerId = safeId(c.req.param("layerId"), "Layer ID");
+      const venue = loadTrackImageryVenue(venueId);
+      if (!venue) return c.json({ error: "Imagery venue not found" }, 404);
+      const layer = venue.layers.find((candidate) => candidate.id === layerId);
+      if (!layer) return c.json({ error: "Imagery layer not found" }, 404);
+      const manifest = { ...venue, layers: venue.layers.filter((candidate) => candidate.id !== layerId) };
+      writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
+      const imagePath = resolve(trackImageryVenueDirectory(venueId), "layers", layer.image);
+      if (existsSync(imagePath)) unlinkSync(imagePath);
+      removeLayerFromLayouts(venueId, layerId);
+      return c.json(manifest);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to remove imagery layer" }, 400);
+    }
+  })
+  .get("/api/dev/track-imagery/layouts/:ordinal", (c) => {
+    try {
+      const { gameId, trackOrdinal } = gameAndTrack(c);
+      return c.json(loadTrackImageryLayout(gameId, trackOrdinal));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery layout" }, 400);
+    }
+  })
+  .put("/api/dev/track-imagery/layouts/:ordinal", async (c) => {
+    try {
+      const { gameId, trackOrdinal } = gameAndTrack(c);
+      const raw = (await c.req.json()) as TrackImageryLayoutManifest;
+      const layout = TrackImageryLayoutManifestSchema.parse({ ...raw, version: 1, gameId, trackOrdinal });
+      const venue = loadTrackImageryVenue(layout.venueId);
+      if (!venue) return c.json({ error: `Imagery venue ${layout.venueId} not found` }, 404);
+      const knownLayers = new Set(venue.layers.map((layer) => layer.id));
+      const missingLayer = layout.layers.find((layerId) => !knownLayers.has(layerId));
+      if (missingLayer) return c.json({ error: `Imagery layer ${missingLayer} not found` }, 400);
+      writeJson(trackImageryLayoutPath(gameId, trackOrdinal), layout);
+      return c.json(layout);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to save imagery layout" }, 400);
+    }
+  })
+  .delete("/api/dev/track-imagery/layouts/:ordinal", (c) => {
+    try {
+      const { gameId, trackOrdinal } = gameAndTrack(c);
+      const path = trackImageryLayoutPath(gameId, trackOrdinal);
+      if (existsSync(path)) unlinkSync(path);
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to remove imagery layout" }, 400);
+    }
+  });

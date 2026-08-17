@@ -1,6 +1,7 @@
 import { isTelemetryVariableId } from "../../../../../shared/telemetry/catalog/query";
 import type { TelemetryVariableId } from "../../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { PitLine } from "@/lib/canvas/draw-track";
+import type { TrackImagery, TrackImageryGeographicPoint } from "../../../../../shared/racing/tracks/imagery";
 
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
@@ -91,6 +92,9 @@ export interface TrackMapProps {
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
+  imagery?: TrackImagery | null;
+  geographicPositions?: readonly (TrackImageryGeographicPoint | null)[];
+  showImagery?: boolean;
   boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;

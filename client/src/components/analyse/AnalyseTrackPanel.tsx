@@ -1,4 +1,5 @@
 import type { GameId } from "../../../../shared/games/ids";
+import type { TrackImagery, TrackImageryGeographicPoint } from "../../../../shared/racing/tracks/imagery";
 import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { PitLine } from "@/lib/canvas/draw-track";
@@ -31,6 +32,8 @@ interface AnalyseTrackPanelProps {
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
+  imagery?: TrackImagery | null;
+  geographicPositions?: readonly (TrackImageryGeographicPoint | null)[] | null;
   boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
@@ -47,6 +50,8 @@ interface AnalyseTrackPanelProps {
   onRotateWithCarToggle: () => void;
   onTrackOverlayChange?: (overlay: TrackOverlayKey, checked: boolean) => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
+  showImagery?: boolean;
+  onShowImageryChange?: (show: boolean) => void;
 
   trackMapRef?: RefObject<TrackMapHandle | null>;
 
@@ -71,6 +76,8 @@ export function AnalyseTrackPanel({
   outline,
   mapLabels,
   pitLines,
+  imagery,
+  geographicPositions,
   boundaries,
   sectors,
   segments,
@@ -84,12 +91,19 @@ export function AnalyseTrackPanel({
   onRotateWithCarToggle,
   onTrackOverlayChange,
   onMapZoomChange,
+  showImagery = true,
+  onShowImageryChange,
   trackMapRef,
   hideSteeringOverlay,
   weatherBottomRight,
 }: AnalyseTrackPanelProps) {
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
   const anyTrackOverlay = Object.values(trackOverlays).some(Boolean);
+  const imageryAttribution =
+    imagery?.textures
+      .map((texture) => texture.source.attribution)
+      .filter((value, index, values) => value && values.indexOf(value) === index)
+      .join(" · ") ?? "";
   const overlayItems = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
     .filter((overlay) => overlay !== "racingLine" || hasRacingLine)
     .map((overlay) => ({
@@ -110,6 +124,9 @@ export function AnalyseTrackPanel({
         outline={outline}
         mapLabels={trackOverlays.segments ? mapLabels : null}
         pitLines={pitLines}
+        imagery={imagery}
+        geographicPositions={geographicPositions ?? undefined}
+        showImagery={showImagery}
         boundaries={boundaries}
         sectors={trackOverlays.sectors ? sectors : null}
         segments={trackOverlays.segments ? segments : null}
@@ -151,7 +168,27 @@ export function AnalyseTrackPanel({
             items={overlayItems}
           />
         )}
+        {imagery && onShowImageryChange && (
+          <Button
+            type="button"
+            aria-pressed={showImagery}
+            onClick={() => onShowImageryChange(!showImagery)}
+            className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
+              showImagery ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+            }`}
+          >
+            {m.overlay_imagery()}
+          </Button>
+        )}
       </div>
+      {showImagery && imageryAttribution && (
+        <div
+          className="pointer-events-none absolute bottom-2 left-1/2 max-w-[70%] -translate-x-1/2 truncate rounded bg-app-bg/70 px-1.5 py-0.5 text-[9px] text-app-text-muted"
+          title={imageryAttribution}
+        >
+          {imageryAttribution}
+        </div>
+      )}
 
       {/* Right side controls */}
       <div className="pointer-events-none absolute top-2 right-2 flex items-start gap-2">

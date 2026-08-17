@@ -8,6 +8,7 @@
 
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Drag and deeply zoom crisp Fixed and Follow Analyse track maps without scrolling the page to inspect any point independently of car position
+- Overlay GPS-calibrated texture packs on Analyse maps with one opaque venue image and reusable game, layout, and correction layers
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Enriched iRacing car and track catalogs with current specifications, capabilities, official map layers, and contextual car-class metadata
 - Load every current iRacing layout's official track map without an internet connection

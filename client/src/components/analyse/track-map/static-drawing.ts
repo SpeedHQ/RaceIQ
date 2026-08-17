@@ -3,6 +3,7 @@ import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import type { TrackImageryMatrix } from "../../../../../shared/racing/tracks/imagery";
 import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform } from "./types";
 
 const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
@@ -17,6 +18,10 @@ interface ViewportTrackCamera {
   rotation?: number;
   drawFollowCar?: boolean;
 }
+export interface StaticTrackImagery {
+  imageToTrack: TrackImageryMatrix;
+  textures: readonly { image: CanvasImageSource; opacity: number }[];
+}
 
 export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
@@ -27,6 +32,7 @@ export interface StaticTrackOptions {
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
+  imagery?: StaticTrackImagery | null;
   sectors: SectorBoundaries | null;
   boundaries: TrackMapBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
@@ -47,6 +53,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     outline,
     mapLabels,
     pitLines,
+    imagery,
     boundaries,
     sectors,
     segments,
@@ -117,6 +124,16 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.translate(-w / 2, -h / 2);
     } else {
       ctx.translate(viewportCamera.panX, viewportCamera.panY);
+    }
+  }
+  if (imagery) {
+    const [a, b, c, d, e, f] = imagery.imageToTrack;
+    for (const texture of imagery.textures) {
+      ctx.save();
+      ctx.globalAlpha = texture.opacity;
+      ctx.transform(-a * scale, b * scale, -c * scale, d * scale, offsetX + (maxX - e) * scale, offsetZ + (f - minZ) * scale);
+      ctx.drawImage(texture.image, 0, 0, 1, 1);
+      ctx.restore();
     }
   }
 

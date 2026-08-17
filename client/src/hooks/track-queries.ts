@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { GameId } from "../../../shared/games/ids";
+import type { TrackImagery } from "../../../shared/racing/tracks/imagery";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
@@ -75,6 +76,21 @@ export function useTrackBoundaries(ord: number | undefined, gameIdOverride?: Gam
       return rpcJson(res);
     },
     enabled: ord != null && ord >= 0 && !!gameId,
+  });
+}
+
+export function useTrackImagery(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
+  return useQuery({
+    queryKey: ["track-imagery", ord!, gameId ?? null],
+    queryFn: async () => {
+      const response = await fetch(`/api/track-imagery/${ord}?gameId=${encodeURIComponent(gameId!)}`);
+      if (!response.ok) throw new Error(`Unable to load track imagery: ${response.statusText}`);
+      return (await response.json()) as TrackImagery | null;
+    },
+    enabled: ord != null && ord >= 0 && !!gameId,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 
