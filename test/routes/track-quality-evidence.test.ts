@@ -8,6 +8,7 @@ import {
   type EligibilityStatus,
   type LapQualitySummary,
 } from "../../shared/racing/quality/contracts";
+import { evaluateAllEligibility } from "../../shared/racing/quality/policies";
 import { deleteRecordedOutline, getRecordedOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
@@ -16,34 +17,34 @@ import { laps, sessions } from "../../server/db/schema";
 import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
 import { trackRoutes } from "../../server/routes/tracks";
 import { resolveTrackOutline } from "../../server/routes/tracks/support";
+import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 const createdSessionIds: number[] = [];
 const cachedLapIds: number[] = [];
 const recordedTrackOrdinals = new Set<number>();
 
 function quality(generation: string): LapQualitySummary {
+  const summarized = summarize(qualityPackets(100));
   return {
+    ...summarized,
     provenance: {
-      schemaVersion: QUALITY_SCHEMA_VERSION,
-      policyVersion: ELIGIBILITY_POLICY_VERSION,
-      configurationVersion: QUALITY_CONFIG_VERSION,
-      sourceGeneration: "sha256:track-route-source",
+      ...summarized.provenance,
+      sourceGeneration: `sha256:${"c".repeat(64)}`,
       outputGeneration: generation,
     },
-  } as LapQualitySummary;
+  };
 }
 
 function cornerTraceEligibility(status: EligibilityStatus): EligibilityDecisionSet {
-  return {
-    "corner-trace": {
-      policyId: "corner-trace",
-      policyVersion: ELIGIBILITY_POLICY_VERSION,
-      status,
-      confidence: { level: status === "unknown" ? "unknown" : "high", score: status === "unknown" ? null : 1 },
-      reasons: [],
-      evidenceIds: [],
-    },
-  } as unknown as EligibilityDecisionSet;
+  const eligibility = evaluateAllEligibility(quality(`sha256:${"0".repeat(64)}`));
+  eligibility["corner-trace"] = {
+    ...eligibility["corner-trace"],
+    status,
+    confidence: { level: status === "unknown" ? "unknown" : "high", score: status === "unknown" ? null : 1 },
+    reasons: [],
+    evidenceIds: [],
+  };
+  return eligibility;
 }
 
 function outlineTelemetry(): TelemetryPacket[] {
@@ -71,7 +72,7 @@ async function insertOutlineCandidate(
     lapTime?: number;
   },
 ): Promise<number> {
-  const generation = `sha256:outline-${trackOrdinal}`;
+  const generation = `sha256:${trackOrdinal.toString(16).padStart(64, "0")}`;
   const sessionId = (
     await db
       .insert(sessions)
@@ -174,7 +175,7 @@ describe("POST /api/tracks/:trackOrdinal/recompute-outline", () => {
       { track: 9_231_212, options: { eligibility: cornerTraceEligibility("eligible"), sessionTrackOrdinal: 9_231_999 }, status: 404 },
       { track: 9_231_213, options: { eligibility: cornerTraceEligibility("eligible"), ownership: "others" as const }, status: 404 },
       { track: 9_231_214, options: { eligibility: cornerTraceEligibility("eligible"), lapTime: 0 }, status: 404 },
-      { track: 9_231_215, options: { eligibility: cornerTraceEligibility("eligible"), storedGeneration: "sha256:stale" }, status: 422 },
+      { track: 9_231_215, options: { eligibility: cornerTraceEligibility("eligible"), storedGeneration: `sha256:${"d".repeat(64)}` }, status: 422 },
       { track: 9_231_216, options: { eligibility: cornerTraceEligibility("ineligible") }, status: 422 },
       { track: 9_231_217, options: { eligibility: null }, status: 422 },
     ];

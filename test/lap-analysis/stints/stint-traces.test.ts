@@ -5,6 +5,7 @@ import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classifi
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { consistencyAt, downsampleLap, sampleAt, stintStats } from "../../../client/src/lib/stint-traces";
+const TEST_SOURCE_GENERATION = `sha256:${"b".repeat(64)}`;
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   return {
@@ -266,19 +267,30 @@ function lapMeta(overrides: Partial<LapMeta>): LapMeta {
     createdAt: new Date().toISOString(),
     ...overrides,
   };
-  const quality =
-    overrides.quality ??
-    summarize(qualityPackets(200), {
-      lapTime: 10,
-      structurallyValid: value.isValid,
-      invalidReason: value.isValid ? null : (value.invalidReason ?? "invalid-lap"),
-      classification: {
-        phase: value.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
-        conditions: value.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
-        paceEligibility: value.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
-      },
-    });
-  return { ...value, quality, eligibility: overrides.eligibility ?? evaluateAllEligibility(quality) };
+  const summarized = summarize(qualityPackets(200), {
+    lapTime: 10,
+    structurallyValid: value.isValid,
+    invalidReason: value.isValid ? null : (value.invalidReason ?? "invalid-lap"),
+    classification: {
+      phase: value.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+      conditions: value.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+      paceEligibility: value.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
+    },
+  });
+  const quality = {
+    ...summarized,
+    provenance: {
+      ...summarized.provenance,
+      sourceGeneration: TEST_SOURCE_GENERATION,
+      outputGeneration: `sha256:${value.id.toString(16).padStart(64, "0")}`,
+    },
+  };
+  return {
+    ...value,
+    quality,
+    eligibility: overrides.eligibility ?? evaluateAllEligibility(quality),
+    qualityGeneration: quality.provenance.outputGeneration,
+  };
 }
 
 describe("stintStats", () => {
