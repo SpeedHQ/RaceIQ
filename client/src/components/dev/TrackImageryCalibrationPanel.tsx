@@ -1,14 +1,17 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { trackConfigurationVenueId, type TrackConfiguration } from "../../../../shared/racing/tracks/configuration";
 import {
   defaultVenueImageryCalibration,
   geographicTrackImageryPoint,
   rotateTrackImageryMatrix,
   scaleTrackImageryMatrix,
+  trackImageryCalibrationFromBounds,
+  trackImageryGeographicBounds,
   transformTrackImageryPoint,
   translateTrackImageryMatrix,
   type TrackImageryCalibration,
+  type TrackImageryCandidate,
   type TrackImageryLayerKind,
   type TrackImageryLayoutManifest,
   type TrackImagerySource,
@@ -17,6 +20,7 @@ import {
 import { useLapSemanticTelemetry, useLaps } from "../../hooks/laps";
 import { useGameId, useGameStore } from "../../stores/game";
 import { TrackConfigurationBrowser, type TrackConfigurationSelection } from "./TrackConfigurationBrowser";
+import { OpenTrackImageryPicker } from "./OpenTrackImageryPicker";
 import { Button } from "../ui/button";
 
 const EMPTY_SOURCE: TrackImagerySource = { name: "", url: "", capturedAt: "", license: "", attribution: "" };
@@ -37,6 +41,8 @@ function sourcePayload(source: TrackImagerySource): TrackImagerySource {
     ...(source.capturedAt?.trim() ? { capturedAt: source.capturedAt.trim() } : {}),
     license: source.license.trim(),
     attribution: source.attribution.trim(),
+    ...(source.quality ? { quality: source.quality } : {}),
+    ...(source.resolutionM ? { resolutionM: source.resolutionM } : {}),
   };
 }
 
@@ -47,12 +53,27 @@ function svgPoint(svg: SVGSVGElement, clientX: number, clientY: number): { x: nu
   return { x: point.x, z: point.y };
 }
 
-function sourceField(source: TrackImagerySource, key: keyof TrackImagerySource): string {
+type SourceTextField = "name" | "url" | "capturedAt" | "license" | "attribution";
+type CalibrationDragMode = "move" | "rotate" | "scale";
+
+interface CalibrationDrag {
+  pointerId: number;
+  mode: CalibrationDragMode;
+  startX: number;
+  startZ: number;
+  centerX: number;
+  centerZ: number;
+  startDistance: number;
+  startAngle: number;
+  startMatrix: TrackImageryCalibration["imageToEnu"];
+}
+
+function sourceField(source: TrackImagerySource, key: SourceTextField): string {
   return source[key] ?? "";
 }
 
-function SourceEditor({ title, source, onChange }: { title: string; source: TrackImagerySource; onChange: (source: TrackImagerySource) => void }) {
-  const update = (key: keyof TrackImagerySource, value: string) => onChange({ ...source, [key]: value });
+function SourceEditor({ title, source, onChange, readOnly = false }: { title: string; source: TrackImagerySource; onChange: (source: TrackImagerySource) => void; readOnly?: boolean }) {
+  const update = (key: SourceTextField, value: string) => onChange({ ...source, [key]: value });
   return (
     <fieldset className="mb-3 rounded border border-app-border p-2">
       <legend className="px-1 text-xs font-semibold text-app-text-secondary">{title}</legend>
@@ -62,6 +83,7 @@ function SourceEditor({ title, source, onChange }: { title: string; source: Trac
           <input
             className="mt-0.5 w-full rounded border border-app-border-input bg-app-surface px-2 py-1 text-xs text-app-text"
             type={key === "capturedAt" ? "date" : key === "url" ? "url" : "text"}
+            disabled={readOnly}
             value={sourceField(source, key)}
             onChange={(event) => update(key, event.target.value)}
             placeholder={key === "license" ? "CC BY 4.0, public domain, owned" : undefined}
@@ -88,6 +110,7 @@ export function TrackImageryCalibrationPanel() {
   const trackOrdinal = selectedTrack?.trackOrdinal ?? selectedLap?.trackOrdinal ?? null;
   const { data: replay, isLoading: replayLoading } = useLapSemanticTelemetry(lapId);
   const geographicPositions = replay?.geographicPositions ?? [];
+  const openImageryBounds = useMemo(() => trackImageryGeographicBounds(geographicPositions), [geographicPositions]);
 
   const [configuration, setConfiguration] = useState<TrackConfiguration | null>(null);
   const [configurationRevision, setConfigurationRevision] = useState(0);
@@ -99,6 +122,8 @@ export function TrackImageryCalibrationPanel() {
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
   const [baseAspectRatio, setBaseAspectRatio] = useState(1);
   const [baseSource, setBaseSource] = useState<TrackImagerySource>(EMPTY_SOURCE);
+  const [selectedImageryCandidate, setSelectedImageryCandidate] = useState<TrackImageryCandidate | null>(null);
+  const [openImageryPreviewUrl, setOpenImageryPreviewUrl] = useState<string | null>(null);
   const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
   const [layerId, setLayerId] = useState("");
   const [layerKind, setLayerKind] = useState<TrackImageryLayerKind>("layout");
@@ -110,7 +135,7 @@ export function TrackImageryCalibrationPanel() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assetVersion, setAssetVersion] = useState(0);
-  const dragRef = useRef<{ pointerId: number; x: number; z: number } | null>(null);
+  const dragRef = useRef<CalibrationDrag | null>(null);
 
   useEffect(() => {
     if (!gameId || trackOrdinal == null) {
@@ -164,7 +189,6 @@ export function TrackImageryCalibrationPanel() {
     };
   }, [gameId, trackOrdinal]);
 
-
   useEffect(() => {
     if (!configuration || !venueId) {
       setVenue(null);
@@ -180,6 +204,8 @@ export function TrackImageryCalibrationPanel() {
         setVenue(nextVenue);
         setCalibration(nextVenue?.calibration ?? null);
         setBaseSource(nextVenue?.base.source ?? EMPTY_SOURCE);
+        setSelectedImageryCandidate(null);
+        setOpenImageryPreviewUrl(null);
       })
       .catch((loadError) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load imagery venue");
@@ -195,8 +221,12 @@ export function TrackImageryCalibrationPanel() {
       setBaseUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     }
+    if (openImageryPreviewUrl) {
+      setBaseUrl(openImageryPreviewUrl);
+      return;
+    }
     setBaseUrl(venue ? `/api/dev/track-imagery/venues/texture/base?venueId=${encodeURIComponent(venue.venueId)}&v=${assetVersion}` : null);
-  }, [assetVersion, baseFile, venue]);
+  }, [assetVersion, baseFile, openImageryPreviewUrl, venue]);
 
   useEffect(() => {
     if (!layerFile) {
@@ -217,6 +247,9 @@ export function TrackImageryCalibrationPanel() {
       const aspectRatio = image.naturalWidth / image.naturalHeight || 1;
       setBaseAspectRatio(aspectRatio);
       setCalibration((current) => current ?? defaultVenueImageryCalibration(geographicPositions, aspectRatio));
+    };
+    image.onerror = () => {
+      if (!cancelled) setError("Unable to load selected imagery preview.");
     };
     image.src = baseUrl;
     return () => {
@@ -243,67 +276,106 @@ export function TrackImageryCalibrationPanel() {
     [calibration],
   );
   const viewBounds = useMemo(() => {
-    const points = [...gpsPath, ...imageCorners];
-    if (points.length < 2) return null;
+    if (gpsPath.length < 2) return null;
     let minX = Infinity;
     let maxX = -Infinity;
     let minZ = Infinity;
     let maxZ = -Infinity;
-    for (const point of points) {
+    for (const point of gpsPath) {
       minX = Math.min(minX, point.x);
       maxX = Math.max(maxX, point.x);
       minZ = Math.min(minZ, point.z);
       maxZ = Math.max(maxZ, point.z);
     }
-    const padding = Math.max(maxX - minX, maxZ - minZ) * 0.1 || 10;
+    const padding = Math.max(maxX - minX, maxZ - minZ) * 0.25 || 10;
     return { minX: minX - padding, minZ: minZ - padding, width: maxX - minX + padding * 2, height: maxZ - minZ + padding * 2 };
-  }, [gpsPath, imageCorners]);
+  }, [gpsPath]);
+  const calibrationHandles = useMemo(() => {
+    if (!viewBounds || imageCorners.length !== 4) return null;
+    const center = {
+      x: (imageCorners[0].x + imageCorners[2].x) / 2,
+      z: (imageCorners[0].z + imageCorners[2].z) / 2,
+    };
+    const top = {
+      x: (imageCorners[0].x + imageCorners[1].x) / 2,
+      z: (imageCorners[0].z + imageCorners[1].z) / 2,
+    };
+    const directionX = top.x - center.x;
+    const directionZ = top.z - center.z;
+    const directionLength = Math.hypot(directionX, directionZ) || 1;
+    const offset = Math.max(viewBounds.width, viewBounds.height) * 0.075;
+    return {
+      center,
+      top,
+      rotate: {
+        x: top.x + (directionX / directionLength) * offset,
+        z: top.z + (directionZ / directionLength) * offset,
+      },
+      radius: Math.max(viewBounds.width, viewBounds.height) * 0.012,
+    };
+  }, [imageCorners, viewBounds]);
   const imageTransform = calibration ? `matrix(${calibration.imageToEnu.join(" ")})` : undefined;
   const gpsPolyline = gpsPath.map((point) => `${point.x},${point.z}`).join(" ");
   const displayedLayers = venue?.layers.filter((candidate) => selectedLayers.includes(candidate.id)) ?? [];
   const baseSourceValid = !!baseSource.name.trim() && !!baseSource.license.trim();
-  const canSaveBase = !!gameId && trackOrdinal != null && !!configuration && !!calibration && baseSourceValid && (!!baseFile || !!venue);
+  const canSaveBase = !!gameId && trackOrdinal != null && !!configuration && !!calibration && baseSourceValid && (!!baseFile || !!selectedImageryCandidate || !!venue);
   const layerSourceValid = !!layerSource.name.trim() && !!layerSource.license.trim();
   const canSaveLayer = !!venue && SAFE_ID.test(layerId) && !!layerFile && layerSourceValid;
 
-  const updateCalibrationMatrix = (updater: (matrix: TrackImageryCalibration["imageToEnu"]) => TrackImageryCalibration["imageToEnu"]) => {
-    setCalibration((current) => (current ? { ...current, imageToEnu: updater(current.imageToEnu) } : current));
-  };
   const resetGpsFit = () => {
-    const next = defaultVenueImageryCalibration(geographicPositions, baseAspectRatio);
+    const next =
+      selectedImageryCandidate && openImageryBounds ? trackImageryCalibrationFromBounds(geographicPositions, openImageryBounds) : defaultVenueImageryCalibration(geographicPositions, baseAspectRatio);
     if (next) setCalibration(next);
   };
-  const adjustScale = (factor: number) => updateCalibrationMatrix((matrix) => scaleTrackImageryMatrix(matrix, factor));
-  const adjustRotation = (degrees: number) => updateCalibrationMatrix((matrix) => rotateTrackImageryMatrix(matrix, (degrees * Math.PI) / 180));
 
-  const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+  const startCalibrationDrag = (mode: CalibrationDragMode, event: ReactPointerEvent<SVGElement>) => {
     if (!calibration || event.button !== 0) return;
-    const point = svgPoint(event.currentTarget, event.clientX, event.clientY);
+    const svg = event.currentTarget.ownerSVGElement;
+    if (!svg) return;
+    const point = svgPoint(svg, event.clientX, event.clientY);
     if (!point) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, ...point };
+    event.preventDefault();
+    event.stopPropagation();
+    svg.setPointerCapture(event.pointerId);
+    const center = transformTrackImageryPoint(calibration.imageToEnu, 0.5, 0.5);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      mode,
+      startX: point.x,
+      startZ: point.z,
+      centerX: center.x,
+      centerZ: center.z,
+      startDistance: Math.hypot(point.x - center.x, point.z - center.z),
+      startAngle: Math.atan2(point.z - center.z, point.x - center.x),
+      startMatrix: calibration.imageToEnu,
+    };
   };
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const point = svgPoint(event.currentTarget, event.clientX, event.clientY);
     if (!point) return;
-    updateCalibrationMatrix((matrix) => translateTrackImageryMatrix(matrix, point.x - drag.x, point.z - drag.z));
-    drag.x = point.x;
-    drag.z = point.z;
+    event.preventDefault();
+
+    let matrix = drag.startMatrix;
+    if (drag.mode === "move") {
+      matrix = translateTrackImageryMatrix(matrix, point.x - drag.startX, point.z - drag.startZ);
+    } else if (drag.mode === "scale") {
+      const distance = Math.hypot(point.x - drag.centerX, point.z - drag.centerZ);
+      const factor = Math.max(0.05, Math.min(20, distance / Math.max(drag.startDistance, Number.EPSILON)));
+      matrix = scaleTrackImageryMatrix(matrix, factor);
+    } else {
+      const angle = Math.atan2(point.z - drag.centerZ, point.x - drag.centerX);
+      const delta = Math.atan2(Math.sin(angle - drag.startAngle), Math.cos(angle - drag.startAngle));
+      matrix = rotateTrackImageryMatrix(matrix, delta);
+    }
+    setCalibration((current) => (current ? { ...current, imageToEnu: matrix } : current));
   };
   const handlePointerEnd = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;
     dragRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
-  const handleWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
-    if (!calibration) return;
-    event.preventDefault();
-    if (event.shiftKey) adjustRotation(event.deltaY * 0.01);
-    else adjustScale(Math.exp(-event.deltaY * 0.001));
-  };
-
 
   const saveLayout = async (layers = selectedLayers) => {
     if (!gameId || trackOrdinal == null) throw new Error("Select a catalog track");
@@ -338,6 +410,12 @@ export function TrackImageryCalibrationPanel() {
         body.set("file", baseFile);
         body.set("manifest", JSON.stringify(manifest));
         response = await fetch(`/api/dev/track-imagery/venues/base?venueId=${encodeURIComponent(venueId)}`, { method: "POST", body });
+      } else if (selectedImageryCandidate && openImageryBounds) {
+        response = await fetch(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ candidateId: selectedImageryCandidate.id, bounds: openImageryBounds, calibration }),
+        });
       } else {
         response = await fetch(`/api/dev/track-imagery/venues/manifest?venueId=${encodeURIComponent(venueId)}`, {
           method: "PUT",
@@ -350,9 +428,11 @@ export function TrackImageryCalibrationPanel() {
       const savedVenue = result as TrackImageryVenueManifest;
       setVenue(savedVenue);
       setBaseFile(null);
+      setSelectedImageryCandidate(null);
+      setOpenImageryPreviewUrl(null);
       await saveLayout(selectedLayers.filter((id) => savedVenue.layers.some((layer) => layer.id === id)));
       setAssetVersion((version) => version + 1);
-      setStatus("Opaque venue base and layout assignment saved.");
+      setStatus(selectedImageryCandidate ? `${selectedImageryCandidate.quality.toUpperCase()} open imagery imported and assigned.` : "Opaque venue base and layout assignment saved.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save venue base");
     } finally {
@@ -404,10 +484,34 @@ export function TrackImageryCalibrationPanel() {
     setSelectedTrack(selection);
     setLapId(null);
     setBaseFile(null);
+    setSelectedImageryCandidate(null);
+    setOpenImageryPreviewUrl(null);
     setLayerFile(null);
     setCalibration(null);
     setStatus(null);
     setError(null);
+  };
+  const handleOpenImagerySelect = (candidate: TrackImageryCandidate, previewUrl: string) => {
+    const nextCalibration = openImageryBounds ? trackImageryCalibrationFromBounds(geographicPositions, openImageryBounds) : null;
+    if (!nextCalibration) {
+      setError("Selected lap needs at least two valid GPS positions.");
+      return;
+    }
+    setBaseFile(null);
+    setSelectedImageryCandidate(candidate);
+    setOpenImageryPreviewUrl(previewUrl);
+    setBaseSource({
+      name: candidate.title,
+      url: candidate.sourceUrl,
+      ...(candidate.capturedAt ? { capturedAt: candidate.capturedAt } : {}),
+      license: candidate.license,
+      attribution: candidate.attribution,
+      quality: candidate.quality,
+      ...(candidate.resolutionM ? { resolutionM: candidate.resolutionM } : {}),
+    });
+    setCalibration(nextCalibration);
+    setError(null);
+    setStatus(`${candidate.quality.toUpperCase()} imagery selected. Inspect GPS alignment, then import.`);
   };
 
   return (
@@ -437,9 +541,7 @@ export function TrackImageryCalibrationPanel() {
           <div className="text-[10px] uppercase tracking-wide text-app-text-muted">Assigned venue</div>
           {configuration ? (
             <>
-              <div className="mt-1 text-xs text-app-text">
-                {[configuration.venue.name, ...configuration.subVenues.map((entry) => entry.name)].join(" / ")}
-              </div>
+              <div className="mt-1 text-xs text-app-text">{[configuration.venue.name, ...configuration.subVenues.map((entry) => entry.name)].join(" / ")}</div>
               <div className="font-mono text-[10px] text-app-text-muted">{venueId}</div>
             </>
           ) : (
@@ -449,28 +551,25 @@ export function TrackImageryCalibrationPanel() {
 
         <section className="mb-4 rounded border border-app-border p-3">
           <h2 className="mb-2 text-sm font-semibold text-app-text">Opaque venue base</h2>
-          <input className="mb-2 block w-full text-xs text-app-text-muted" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setBaseFile(event.target.files?.[0] ?? null)} />
-          <div className="mb-2 grid grid-cols-3 gap-1">
-            <Button type="button" onClick={() => adjustScale(1 / 1.02)} disabled={!calibration}>
-              Scale −
-            </Button>
-            <Button type="button" onClick={resetGpsFit} disabled={!baseUrl || geographicPositions.length < 2}>
-              GPS fit
-            </Button>
-            <Button type="button" onClick={() => adjustScale(1.02)} disabled={!calibration}>
-              Scale +
-            </Button>
-            <Button type="button" onClick={() => adjustRotation(-0.5)} disabled={!calibration}>
-              Rotate −
-            </Button>
-            <span className="self-center text-center text-[10px] text-app-text-muted">100% fill</span>
-            <Button type="button" onClick={() => adjustRotation(0.5)} disabled={!calibration}>
-              Rotate +
-            </Button>
-          </div>
-          <SourceEditor title="Base provenance" source={baseSource} onChange={setBaseSource} />
+          <OpenTrackImageryPicker bounds={configuration ? openImageryBounds : null} selectedCandidateId={selectedImageryCandidate?.id ?? null} onSelect={handleOpenImagerySelect} />
+          <input
+            className="mb-2 block w-full text-xs text-app-text-muted"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setBaseFile(file);
+              setSelectedImageryCandidate(null);
+              setOpenImageryPreviewUrl(null);
+              if (file) setBaseSource(EMPTY_SOURCE);
+            }}
+          />
+          <Button type="button" className="mb-2 w-full" onClick={resetGpsFit} disabled={!baseUrl || geographicPositions.length < 2}>
+            Reset to GPS fit
+          </Button>
+          <SourceEditor title="Base provenance" source={baseSource} onChange={setBaseSource} readOnly={!!selectedImageryCandidate} />
           <Button type="button" onClick={() => void saveBase()} disabled={!canSaveBase || saving}>
-            {saving ? "Saving…" : venue ? "Update base" : "Save base"}
+            {saving ? "Saving…" : selectedImageryCandidate ? `Import ${selectedImageryCandidate.quality.toUpperCase()} image` : venue ? "Update base" : "Save base"}
           </Button>
         </section>
 
@@ -540,16 +639,16 @@ export function TrackImageryCalibrationPanel() {
 
       <main className="relative min-h-0 overflow-hidden p-4">
         {replayLoading && <div className="grid h-full place-items-center text-sm text-app-text-muted">Loading GPS path…</div>}
-        {!replayLoading && (!viewBounds || !calibration) && <div className="grid h-full place-items-center text-sm text-app-text-muted">Upload a base image and select a GPS lap.</div>}
+        {!replayLoading && (!viewBounds || !calibration) && (
+          <div className="grid h-full place-items-center text-sm text-app-text-muted">Select open imagery or upload a base image, then choose a GPS lap.</div>
+        )}
         {!replayLoading && viewBounds && calibration && (
           <svg
-            className="h-full w-full cursor-move touch-none rounded border border-app-border bg-app-surface"
+            className="h-full w-full cursor-default touch-none rounded border border-app-border bg-app-surface"
             viewBox={`${viewBounds.minX} ${viewBounds.minZ} ${viewBounds.width} ${viewBounds.height}`}
-            onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerEnd}
             onPointerCancel={handlePointerEnd}
-            onWheel={handleWheel}
             aria-label="Track texture calibration preview"
           >
             {baseUrl && <image href={baseUrl} x="0" y="0" width="1" height="1" preserveAspectRatio="none" transform={imageTransform} opacity="1" />}
@@ -573,6 +672,7 @@ export function TrackImageryCalibrationPanel() {
               stroke="var(--app-accent)"
               strokeWidth={viewBounds.width / 600}
               strokeDasharray={`${viewBounds.width / 150} ${viewBounds.width / 150}`}
+              pointerEvents="none"
             />
             <polyline
               points={gpsPolyline}
@@ -582,11 +682,98 @@ export function TrackImageryCalibrationPanel() {
               strokeLinecap="round"
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
+              pointerEvents="none"
             />
+            {calibrationHandles && (
+              <g>
+                <line
+                  x1={calibrationHandles.top.x}
+                  y1={calibrationHandles.top.z}
+                  x2={calibrationHandles.rotate.x}
+                  y2={calibrationHandles.rotate.z}
+                  stroke="var(--app-accent)"
+                  strokeWidth={calibrationHandles.radius * 0.35}
+                  pointerEvents="none"
+                />
+                {imageCorners.map((point, index) => (
+                  <rect
+                    key={index}
+                    data-calibration-handle="scale"
+                    className="cursor-nwse-resize"
+                    x={point.x - calibrationHandles.radius}
+                    y={point.z - calibrationHandles.radius}
+                    width={calibrationHandles.radius * 2}
+                    height={calibrationHandles.radius * 2}
+                    rx={calibrationHandles.radius * 0.2}
+                    fill="var(--app-accent)"
+                    stroke="var(--app-bg)"
+                    strokeWidth={calibrationHandles.radius * 0.35}
+                    onPointerDown={(event) => startCalibrationDrag("scale", event)}
+                  >
+                    <title>Drag to scale texture</title>
+                  </rect>
+                ))}
+                <circle
+                  data-calibration-handle="move"
+                  className="cursor-move"
+                  cx={calibrationHandles.center.x}
+                  cy={calibrationHandles.center.z}
+                  r={calibrationHandles.radius * 1.25}
+                  fill="var(--app-accent)"
+                  stroke="var(--app-bg)"
+                  strokeWidth={calibrationHandles.radius * 0.35}
+                  onPointerDown={(event) => startCalibrationDrag("move", event)}
+                >
+                  <title>Drag to move texture</title>
+                </circle>
+                <line
+                  x1={calibrationHandles.center.x - calibrationHandles.radius * 0.65}
+                  y1={calibrationHandles.center.z}
+                  x2={calibrationHandles.center.x + calibrationHandles.radius * 0.65}
+                  y2={calibrationHandles.center.z}
+                  stroke="var(--app-bg)"
+                  strokeWidth={calibrationHandles.radius * 0.25}
+                  pointerEvents="none"
+                />
+                <line
+                  x1={calibrationHandles.center.x}
+                  y1={calibrationHandles.center.z - calibrationHandles.radius * 0.65}
+                  x2={calibrationHandles.center.x}
+                  y2={calibrationHandles.center.z + calibrationHandles.radius * 0.65}
+                  stroke="var(--app-bg)"
+                  strokeWidth={calibrationHandles.radius * 0.25}
+                  pointerEvents="none"
+                />
+                <circle
+                  data-calibration-handle="rotate"
+                  className="cursor-grab"
+                  cx={calibrationHandles.rotate.x}
+                  cy={calibrationHandles.rotate.z}
+                  r={calibrationHandles.radius * 1.25}
+                  fill="var(--app-accent)"
+                  stroke="var(--app-bg)"
+                  strokeWidth={calibrationHandles.radius * 0.35}
+                  onPointerDown={(event) => startCalibrationDrag("rotate", event)}
+                >
+                  <title>Drag to rotate texture</title>
+                </circle>
+                <text
+                  x={calibrationHandles.rotate.x}
+                  y={calibrationHandles.rotate.z}
+                  dy="0.35em"
+                  fill="var(--app-bg)"
+                  fontSize={calibrationHandles.radius * 1.4}
+                  textAnchor="middle"
+                  pointerEvents="none"
+                >
+                  ↻
+                </text>
+              </g>
+            )}
           </svg>
         )}
         <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded bg-app-bg/80 px-2 py-1 text-[10px] text-app-text-muted">
-          Base: 100% · Wheel: scale · Shift+wheel: rotate · Drag: move
+          Handles: center moves · corners scale · round handle rotates
         </div>
       </main>
     </div>

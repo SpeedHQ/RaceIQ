@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "gameId": "iracing",
+  "trackOrdinal": 523,
+  "venue": {
+    "id": "circuit-de-spa-francorchamps",
+    "name": "Circuit de Spa-Francorchamps"
+  },
+  "subVenues": [],
+  "track": {
+    "id": "grand-prix",
+    "name": "Grand Prix"
+  },
+  "confirmation": null
+}

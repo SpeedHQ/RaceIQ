@@ -4,6 +4,7 @@ import { TrackVenueIdSchema } from "./configuration";
 
 export const TRACK_IMAGERY_MANIFEST_VERSION = 1 as const;
 export const TRACK_IMAGERY_EXTENSIONS = ["png", "jpg", "jpeg", "webp"] as const;
+export const TrackImageryQualitySchema = z.enum(["hq", "lq"]);
 
 const finiteNumber = z.number().finite();
 const safeId = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, digits, and hyphens");
@@ -14,6 +15,8 @@ const imageSourceSchema = z.object({
   capturedAt: z.string().trim().optional(),
   license: z.string().trim().min(1),
   attribution: z.string().trim(),
+  quality: TrackImageryQualitySchema.optional(),
+  resolutionM: finiteNumber.positive().optional(),
 });
 const textureSchema = z.object({
   image: imageFileName,
@@ -21,15 +24,38 @@ const textureSchema = z.object({
   source: imageSourceSchema,
 });
 
+export const TrackImageryGeographicBoundsSchema = z
+  .object({
+    west: finiteNumber.min(-180).max(180),
+    south: finiteNumber.min(-90).max(90),
+    east: finiteNumber.min(-180).max(180),
+    north: finiteNumber.min(-90).max(90),
+  })
+  .refine((bounds) => bounds.east > bounds.west && bounds.north > bounds.south, "Imagery bounds must have positive width and height");
+
+export const TrackImageryCalibrationSchema = z.object({
+  originLatitudeDeg: finiteNumber.min(-90).max(90),
+  originLongitudeDeg: finiteNumber.min(-180).max(180),
+  /** Canvas-style affine transform from normalized image U/V to local east/north metres. */
+  imageToEnu: z.tuple([finiteNumber, finiteNumber, finiteNumber, finiteNumber, finiteNumber, finiteNumber]),
+});
+
+export const TrackImageryCandidateSchema = z.object({
+  id: z.string().trim().min(1),
+  provider: z.enum(["naip", "openaerialmap", "nasa-hls"]),
+  quality: TrackImageryQualitySchema,
+  title: z.string().trim().min(1),
+  capturedAt: z.string().trim().optional(),
+  resolutionM: finiteNumber.positive().optional(),
+  license: z.string().trim().min(1),
+  attribution: z.string().trim().min(1),
+  sourceUrl: z.string().url(),
+});
+
 export const TrackImageryVenueManifestSchema = z.object({
   version: z.literal(TRACK_IMAGERY_MANIFEST_VERSION),
   venueId: TrackVenueIdSchema,
-  calibration: z.object({
-    originLatitudeDeg: finiteNumber.min(-90).max(90),
-    originLongitudeDeg: finiteNumber.min(-180).max(180),
-    /** Canvas-style affine transform from normalized image U/V to local east/north metres. */
-    imageToEnu: z.tuple([finiteNumber, finiteNumber, finiteNumber, finiteNumber, finiteNumber, finiteNumber]),
-  }),
+  calibration: TrackImageryCalibrationSchema,
   base: z.object({ image: imageFileName, source: imageSourceSchema }),
   layers: z.array(
     textureSchema.extend({
@@ -48,6 +74,12 @@ export const TrackImageryLayoutManifestSchema = z.object({
 
 export type TrackImageryVenueManifest = z.infer<typeof TrackImageryVenueManifestSchema>;
 export type TrackImageryLayoutManifest = z.infer<typeof TrackImageryLayoutManifestSchema>;
+export type TrackImageryGeographicBounds = z.infer<typeof TrackImageryGeographicBoundsSchema>;
+export type TrackImageryCandidate = z.infer<typeof TrackImageryCandidateSchema>;
+export interface TrackImagerySourceSearchResult {
+  candidates: TrackImageryCandidate[];
+  notices: string[];
+}
 export interface TrackImageryConfigurationIndex {
   venues: TrackImageryVenueManifest[];
   layouts: TrackImageryLayoutManifest[];
@@ -101,6 +133,45 @@ function toEnu(point: TrackImageryGeographicPoint, originLatitudeDeg: number, or
 }
 export function geographicTrackImageryPoint(point: TrackImageryGeographicPoint, calibration: TrackImageryCalibration): TrackImageryPoint {
   return toEnu(point, calibration.originLatitudeDeg, calibration.originLongitudeDeg);
+}
+export function trackImageryGeographicBounds(geographic: readonly (TrackImageryGeographicPoint | null)[], paddingFraction = 0.1): TrackImageryGeographicBounds | null {
+  const valid = geographic.filter(finiteGeographicPoint);
+  if (valid.length < 2) return null;
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  for (const point of valid) {
+    west = Math.min(west, point.longitudeDeg);
+    south = Math.min(south, point.latitudeDeg);
+    east = Math.max(east, point.longitudeDeg);
+    north = Math.max(north, point.latitudeDeg);
+  }
+  const safePadding = Number.isFinite(paddingFraction) ? Math.max(0, paddingFraction) : 0.1;
+  const longitudePadding = Math.max((east - west) * safePadding, 0.000_01);
+  const latitudePadding = Math.max((north - south) * safePadding, 0.000_01);
+  return TrackImageryGeographicBoundsSchema.parse({
+    west: Math.max(-180, west - longitudePadding),
+    south: Math.max(-90, south - latitudePadding),
+    east: Math.min(180, east + longitudePadding),
+    north: Math.min(90, north + latitudePadding),
+  });
+}
+
+/** Create an exact north-up calibration for an API image exported to geographic bounds. */
+export function trackImageryCalibrationFromBounds(geographic: readonly (TrackImageryGeographicPoint | null)[], bounds: TrackImageryGeographicBounds): TrackImageryCalibration | null {
+  const valid = geographic.filter(finiteGeographicPoint);
+  if (valid.length < 2 || !TrackImageryGeographicBoundsSchema.safeParse(bounds).success) return null;
+  const originLatitudeDeg = valid.reduce((sum, point) => sum + point.latitudeDeg, 0) / valid.length;
+  const originLongitudeDeg = valid.reduce((sum, point) => sum + point.longitudeDeg, 0) / valid.length;
+  const northWest = toEnu({ latitudeDeg: bounds.north, longitudeDeg: bounds.west }, originLatitudeDeg, originLongitudeDeg);
+  const northEast = toEnu({ latitudeDeg: bounds.north, longitudeDeg: bounds.east }, originLatitudeDeg, originLongitudeDeg);
+  const southWest = toEnu({ latitudeDeg: bounds.south, longitudeDeg: bounds.west }, originLatitudeDeg, originLongitudeDeg);
+  return {
+    originLatitudeDeg,
+    originLongitudeDeg,
+    imageToEnu: [northEast.x - northWest.x, northEast.z - northWest.z, southWest.x - northWest.x, southWest.z - northWest.z, northWest.x, northWest.z],
+  };
 }
 
 /** Create a north-up venue footprint covering one GPS path. */

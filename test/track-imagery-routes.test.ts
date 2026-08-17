@@ -92,6 +92,33 @@ test("persists one opaque venue base with selected transparent layout layers", a
   expect(layerTexture.status).toBe(200);
   expect(baseTexture.headers.get("content-type")).toBe("image/png");
   expect(layerTexture.headers.get("content-type")).toBe("image/png");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input) => {
+    const url = String(input);
+    if (url.startsWith("https://gibs.earthdata.nasa.gov/")) {
+      return new Response(Uint8Array.from(baseBytes).buffer, { headers: { "Content-Type": "image/png" } });
+    }
+    throw new Error(`Unexpected external request ${url}`);
+  }) as typeof fetch;
+  let sourceImportResponse: Response;
+  try {
+    sourceImportResponse = await app.request(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        candidateId: "nasa-hls-2025-01-01",
+        bounds: { west: -81.01, south: 28.99, east: -80.99, north: 29.01 },
+        calibration: baseManifest.calibration,
+      }),
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  expect(sourceImportResponse.status).toBe(201);
+  expect(await sourceImportResponse.json()).toMatchObject({ base: { image: "base.webp", source: { quality: "lq", resolutionM: 30 } } });
+  const importedBaseTexture = await app.request(`/api/dev/track-imagery/venues/texture/base?venueId=${encodeURIComponent(venueId)}`);
+  expect(importedBaseTexture.status).toBe(200);
+  expect(importedBaseTexture.headers.get("content-type")).toBe("image/webp");
 
   const confirmationResponse = await app.request(`/api/dev/track-configurations/${trackOrdinal}/confirmation?gameId=${gameId}`, {
     method: "PUT",
@@ -107,7 +134,9 @@ test("persists one opaque venue base with selected transparent layout layers", a
   const indexResponse = await app.request("/api/dev/track-configurations");
   expect(indexResponse.status).toBe(200);
   const configurations = (await indexResponse.json()) as TrackConfiguration[];
-  expect(configurations.some((configuration) => configuration.gameId === gameId && configuration.trackOrdinal === trackOrdinal && trackConfigurationCanonicalId(configuration) === `${venueId}/road-course`)).toBe(true);
+  expect(
+    configurations.some((configuration) => configuration.gameId === gameId && configuration.trackOrdinal === trackOrdinal && trackConfigurationCanonicalId(configuration) === `${venueId}/road-course`),
+  ).toBe(true);
 
   const resaveResponse = await app.request(`/api/dev/track-configurations/${trackOrdinal}?gameId=${gameId}`, {
     method: "PUT",

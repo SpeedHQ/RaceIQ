@@ -4,7 +4,10 @@ import {
   TrackImageryVenueManifestSchema,
   composeTrackImageryMatrices,
   defaultVenueImageryCalibration,
+  geographicTrackImageryPoint,
   resolveTrackImageryMatrix,
+  trackImageryCalibrationFromBounds,
+  trackImageryGeographicBounds,
   transformTrackImageryPoint,
   type TrackImageryGeographicPoint,
   type TrackImageryMatrix,
@@ -60,6 +63,21 @@ test("creates a north-up venue footprint that fully covers GPS path", () => {
   expect(c).toBe(0);
   expect(d).toBeLessThanOrEqual(-100);
   expect(a / Math.abs(d)).toBeCloseTo(2, 8);
+});
+test("calibrates an API raster to its exact geographic bounds", () => {
+  const originLatitudeDeg = 29;
+  const originLongitudeDeg = -81;
+  const geographic = [geographicFromEnu(-200, -100, originLatitudeDeg, originLongitudeDeg), geographicFromEnu(200, 100, originLatitudeDeg, originLongitudeDeg)];
+  const bounds = trackImageryGeographicBounds(geographic, 0.1);
+  expect(bounds).not.toBeNull();
+  const calibration = trackImageryCalibrationFromBounds(geographic, bounds!);
+  expect(calibration).not.toBeNull();
+  const northWest = geographicTrackImageryPoint({ latitudeDeg: bounds!.north, longitudeDeg: bounds!.west }, calibration!);
+  const southEast = geographicTrackImageryPoint({ latitudeDeg: bounds!.south, longitudeDeg: bounds!.east }, calibration!);
+  expect(transformTrackImageryPoint(calibration!.imageToEnu, 0, 0)).toEqual(northWest);
+  const transformedSouthEast = transformTrackImageryPoint(calibration!.imageToEnu, 1, 1);
+  expect(transformedSouthEast.x).toBeCloseTo(southEast.x, 8);
+  expect(transformedSouthEast.z).toBeCloseTo(southEast.z, 8);
 });
 
 test("resolves one GPS-calibrated venue texture into mirrored game-local coordinates", () => {

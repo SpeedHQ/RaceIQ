@@ -2,16 +2,31 @@ import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync, writeFileSy
 import { dirname, resolve } from "node:path";
 import { Hono } from "hono";
 import sharp from "sharp";
+import { z } from "zod";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../../shared/racing/tracks/configuration";
-import { TrackImageryLayoutManifestSchema, TrackImageryVenueManifestSchema, type TrackImageryLayoutManifest, type TrackImageryVenueManifest } from "../../../shared/racing/tracks/imagery";
+import {
+  TrackImageryCalibrationSchema,
+  TrackImageryGeographicBoundsSchema,
+  TrackImageryLayoutManifestSchema,
+  TrackImageryVenueManifestSchema,
+  type TrackImageryGeographicBounds,
+  type TrackImageryLayoutManifest,
+  type TrackImageryVenueManifest,
+} from "../../../shared/racing/tracks/imagery";
 import { loadTrackConfiguration } from "../../tracks/configuration";
+import { loadOpenTrackImageryRaster, searchOpenTrackImagery } from "../../tracks/imagery-sources";
 import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
 
 const MAX_TRACK_IMAGE_BYTES = 100 * 1024 * 1024;
 const MAX_TRACK_IMAGE_PIXELS = 200_000_000;
 const SUPPORTED_FORMATS: Record<string, string> = { png: "png", jpeg: "jpg", webp: "webp" };
 const SAFE_ID = /^[a-z0-9][a-z0-9-]*$/;
+const openImageryBaseRequestSchema = z.object({
+  candidateId: z.string().trim().min(1),
+  bounds: TrackImageryGeographicBoundsSchema,
+  calibration: TrackImageryCalibrationSchema,
+});
 
 interface ValidatedImage {
   bytes: Uint8Array;
@@ -31,6 +46,14 @@ function safeId(value: string, label: string): string {
 }
 function venueIdFromQuery(c: { req: { query: (key: string) => string | undefined } }): string {
   return TrackVenueIdSchema.parse(c.req.query("venueId"));
+}
+function imageryBoundsFromQuery(c: { req: { query: (key: string) => string | undefined } }): TrackImageryGeographicBounds {
+  return TrackImageryGeographicBoundsSchema.parse({
+    west: Number(c.req.query("west")),
+    south: Number(c.req.query("south")),
+    east: Number(c.req.query("east")),
+    north: Number(c.req.query("north")),
+  });
 }
 
 async function validatedImage(file: File, requireAlpha: boolean): Promise<ValidatedImage> {
@@ -76,6 +99,52 @@ function removeLayerFromLayouts(venueId: string, layerId: string): void {
 
 export const trackImageryDevRoutes = new Hono()
   .get("/api/dev/track-imagery", (c) => c.json(listTrackImageryConfigurations()))
+  .post("/api/dev/track-imagery/sources/search", async (c) => {
+    try {
+      const raw = (await c.req.json()) as { bounds?: unknown };
+      return c.json(await searchOpenTrackImagery(raw.bounds));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to search open imagery" }, 400);
+    }
+  })
+  .get("/api/dev/track-imagery/sources/preview", async (c) => {
+    try {
+      const candidateId = c.req.query("candidateId");
+      if (!candidateId) return c.json({ error: "Missing imagery source" }, 400);
+      const raster = await loadOpenTrackImageryRaster(candidateId, imageryBoundsFromQuery(c), "preview");
+      return new Response(Uint8Array.from(raster.bytes).buffer, {
+        headers: {
+          "Cache-Control": "no-store",
+          "Content-Type": "image/webp",
+          "X-Imagery-Height": String(raster.height),
+          "X-Imagery-Width": String(raster.width),
+        },
+      });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to preview open imagery" }, 400);
+    }
+  })
+  .post("/api/dev/track-imagery/venues/base/source", async (c) => {
+    try {
+      const venueId = venueIdFromQuery(c);
+      const requestBody = openImageryBaseRequestSchema.parse(await c.req.json());
+      const raster = await loadOpenTrackImageryRaster(requestBody.candidateId, requestBody.bounds, "asset");
+      const current = loadTrackImageryVenue(venueId);
+      const manifest = TrackImageryVenueManifestSchema.parse({
+        version: 1,
+        venueId,
+        calibration: requestBody.calibration,
+        base: { image: "base.webp", source: raster.source },
+        layers: current?.layers ?? [],
+      });
+      const directory = trackImageryVenueDirectory(venueId);
+      replaceTexture(directory, "base", { bytes: raster.bytes, extension: "webp" });
+      writeJson(resolve(directory, "manifest.json"), manifest);
+      return c.json(manifest, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to import open imagery" }, 400);
+    }
+  })
   .get("/api/dev/track-imagery/venues/manifest", (c) => {
     try {
       return c.json(loadTrackImageryVenue(venueIdFromQuery(c)));
