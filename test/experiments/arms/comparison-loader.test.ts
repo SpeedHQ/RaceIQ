@@ -3,41 +3,22 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "../../../server/db";
 import { experimentVersions, experiments, laps, sessions } from "../../../server/db/schema";
 import { loadArmComparison } from "../../../server/experiments/comparison/load";
-import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION } from "../../../shared/racing/quality/contracts";
+import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quality-generation";
+import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 
 const createdExperimentIds: number[] = [];
 const createdSessionIds: number[] = [];
 
-const generation = "sha256:comparison-loader-quality";
-const quality = {
-  lifecycleState: "exact",
-  facts: [],
-  provenance: {
-    schemaVersion: QUALITY_SCHEMA_VERSION,
-    policyVersion: ELIGIBILITY_POLICY_VERSION,
-    configurationVersion: QUALITY_CONFIG_VERSION,
-    sourceGeneration: "sha256:comparison-loader-source",
-    outputGeneration: generation,
-  },
-} as unknown as LapQualitySummary;
-const eligibility = {
-  "normal-pace": {
-    policyId: "normal-pace",
-    policyVersion: ELIGIBILITY_POLICY_VERSION,
-    status: "eligible",
-    confidence: { level: "high", score: 1 },
-    reasons: [],
-    evidenceIds: [],
-  },
-  "corner-trace": {
-    policyId: "corner-trace",
-    policyVersion: ELIGIBILITY_POLICY_VERSION,
-    status: "eligible",
-    confidence: { level: "high", score: 1 },
-    reasons: [],
-    evidenceIds: [],
-  },
-} as unknown as EligibilityDecisionSet;
+const fixturePackets = qualityPackets(100);
+const generated = finalizeLapQualityGeneration(summarize(fixturePackets), `sha256:${"d".repeat(64)}`, {
+  lapNumber: 1,
+  rawByteOffset: null,
+  rawFrameCount: fixturePackets.length,
+});
+const generation = generated.quality.provenance.outputGeneration;
+const quality = generated.quality;
+const eligibility = generated.eligibility;
 
 const currentEvidence = {
   quality,

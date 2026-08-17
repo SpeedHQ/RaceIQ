@@ -46,12 +46,15 @@ const provenance: RaceResultProvenance = {
   authorityPolicyVersion: "1",
 };
 const qualityFixturePackets = qualityPackets(100);
+const qualityFixtureRecordingAccumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
+for (const packet of qualityFixturePackets) qualityFixtureRecordingAccumulator.observe(packet);
+const qualityFixtureRecording = finalizeRecordingQualityGeneration(qualityFixtureRecordingAccumulator.finalize("complete", { state: "verified", sourceGeneration: `sha256:${"c".repeat(64)}` }));
 function currentLapQuality(lapNumber: number, phase: LapPhase, conditions: LapCondition[]) {
   return finalizeLapQualityGeneration(
     summarize(qualityFixturePackets, {
       classification: { phase, conditions, paceEligibility: "excluded" },
     }),
-    "legacy",
+    qualityFixtureRecording.provenance.sourceGeneration,
     {
       lapNumber,
       rawByteOffset: null,
@@ -73,6 +76,17 @@ describe("persisted race result metadata", () => {
     const expectedLap3Quality = currentLapQuality(3, "in", ["caution"]);
     const expectedLap4Quality = currentLapQuality(4, "out", ["slow_zone"]);
     const sessionId = await insertSession(99, 88, "f1-2025", "race");
+    await db
+      .update(sessions)
+      .set({
+        recordingQuality: qualityFixtureRecording,
+        qualitySchemaVersion: qualityFixtureRecording.provenance.schemaVersion,
+        qualityPolicyVersion: qualityFixtureRecording.provenance.policyVersion,
+        qualityConfigVersion: qualityFixtureRecording.provenance.configurationVersion,
+        qualityGeneration: qualityFixtureRecording.provenance.outputGeneration,
+      })
+      .where(eq(sessions.id, sessionId))
+      .run();
     await db.insert(laps).values([
       {
         sessionId,
@@ -211,9 +225,7 @@ describe("persisted race result metadata", () => {
       policyVersions: [ELIGIBILITY_POLICY_VERSION],
     });
     expect(aggregate.lapQuality.evidenceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect((await getRaceResultAggregate({ gameId: "f1-2025", carOrdinal: 99, trackOrdinal: 88 })).lapQuality.evidenceGeneration).toBe(
-      aggregate.lapQuality.evidenceGeneration,
-    );
+    expect((await getRaceResultAggregate({ gameId: "f1-2025", carOrdinal: 99, trackOrdinal: 88 })).lapQuality.evidenceGeneration).toBe(aggregate.lapQuality.evidenceGeneration);
 
     const qualityRow = await db.select({ id: laps.id, quality: laps.quality }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.id).get();
     const changedGeneration = "sha256:aggregate-quality-changed";
@@ -349,7 +361,12 @@ describe("persisted race result metadata", () => {
     const cachedLapIds = await db
       .select({ lapId: lapAnalyses.lapId })
       .from(lapAnalyses)
-      .where(inArray(lapAnalyses.lapId, insertedLaps.map(({ id }) => id)))
+      .where(
+        inArray(
+          lapAnalyses.lapId,
+          insertedLaps.map(({ id }) => id),
+        ),
+      )
       .orderBy(lapAnalyses.lapId)
       .all();
     expect(cachedLapIds.map(({ lapId }) => lapId)).toEqual([byLapNumber.get(3)!.id, byLapNumber.get(4)!.id]);
@@ -358,8 +375,14 @@ describe("persisted race result metadata", () => {
       .from(compareAnalyses)
       .where(
         and(
-          inArray(compareAnalyses.lapAId, insertedLaps.map(({ id }) => id)),
-          inArray(compareAnalyses.lapBId, insertedLaps.map(({ id }) => id)),
+          inArray(
+            compareAnalyses.lapAId,
+            insertedLaps.map(({ id }) => id),
+          ),
+          inArray(
+            compareAnalyses.lapBId,
+            insertedLaps.map(({ id }) => id),
+          ),
         ),
       )
       .all();
@@ -370,15 +393,13 @@ describe("persisted race result metadata", () => {
     const packets = qualityPackets(100, [20]);
     const recording = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
     for (const packet of packets) recording.observe(packet);
-    const recordingQuality = finalizeRecordingQualityGeneration(
-      recording.finalize("complete", { state: "verified", sourceGeneration: "sha256:reconcile-idempotency-source" }),
-    );
+    const recordingQuality = finalizeRecordingQualityGeneration(recording.finalize("complete", { state: "verified", sourceGeneration: "sha256:reconcile-idempotency-source" }));
     const generated = [1, 2].map((lapNumber) =>
-      finalizeLapQualityGeneration(
-        summarize(packets, { eventIds: ["pit:ephemeral"] }),
-        recordingQuality.provenance.sourceGeneration,
-        { lapNumber, rawByteOffset: null, rawFrameCount: packets.length },
-      ),
+      finalizeLapQualityGeneration(summarize(packets, { eventIds: ["pit:ephemeral"] }), recordingQuality.provenance.sourceGeneration, {
+        lapNumber,
+        rawByteOffset: null,
+        rawFrameCount: packets.length,
+      }),
     );
     const sessionId = (
       await db
@@ -453,36 +474,21 @@ describe("persisted race result metadata", () => {
     try {
       expect((await reconcileSessionResult(sessionId, "f1-2025")).status).toBe("enriched");
       const first = (await getSessionResult(sessionId, "f1-2025"))!;
-      const firstGenerations = await db
-        .select({ id: laps.id, qualityGeneration: laps.qualityGeneration })
-        .from(laps)
-        .where(eq(laps.sessionId, sessionId))
-        .orderBy(laps.id)
-        .all();
+      const firstGenerations = await db.select({ id: laps.id, qualityGeneration: laps.qualityGeneration }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.id).all();
       expect(firstGenerations[0]?.qualityGeneration).not.toBe(generated[0]?.quality.provenance.outputGeneration);
       await db.insert(lapAnalyses).values({ lapId: insertedLaps[0]!.id, analysis: "survives identical reconcile" }).run();
-      await db
-        .insert(compareAnalyses)
-        .values({ lapAId: insertedLaps[0]!.id, lapBId: insertedLaps[1]!.id, kind: "inputs", analysis: "survives identical reconcile" })
-        .run();
+      await db.insert(compareAnalyses).values({ lapAId: insertedLaps[0]!.id, lapBId: insertedLaps[1]!.id, kind: "inputs", analysis: "survives identical reconcile" }).run();
       await db.update(sessionResults).set({ updatedAt: "2000-01-01T00:00:00.000Z" }).where(eq(sessionResults.id, first.id)).run();
       const beforeRepeat = (await getSessionResult(sessionId, "f1-2025"))!;
 
       expect((await reconcileSessionResult(sessionId, "f1-2025")).status).toBe("unchanged");
       const repeated = (await getSessionResult(sessionId, "f1-2025"))!;
-      const repeatedGenerations = await db
-        .select({ id: laps.id, qualityGeneration: laps.qualityGeneration })
-        .from(laps)
-        .where(eq(laps.sessionId, sessionId))
-        .orderBy(laps.id)
-        .all();
+      const repeatedGenerations = await db.select({ id: laps.id, qualityGeneration: laps.qualityGeneration }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.id).all();
       expect(repeated.events.map(({ id }) => id)).toEqual(beforeRepeat.events.map(({ id }) => id));
       expect(repeated.updatedAt).toBe(beforeRepeat.updatedAt);
       expect(repeatedGenerations).toEqual(firstGenerations);
       expect(await db.select({ id: lapAnalyses.id }).from(lapAnalyses).where(eq(lapAnalyses.lapId, insertedLaps[0]!.id)).all()).toHaveLength(1);
-      expect(
-        await db.select({ id: compareAnalyses.id }).from(compareAnalyses).where(eq(compareAnalyses.lapAId, insertedLaps[0]!.id)).all(),
-      ).toHaveLength(1);
+      expect(await db.select({ id: compareAnalyses.id }).from(compareAnalyses).where(eq(compareAnalyses.lapAId, insertedLaps[0]!.id)).all()).toHaveLength(1);
     } finally {
       derive.mockRestore();
     }

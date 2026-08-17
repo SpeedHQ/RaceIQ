@@ -31,7 +31,7 @@ function quality(generation: string): LapQualitySummary {
       schemaVersion: QUALITY_SCHEMA_VERSION,
       policyVersion: ELIGIBILITY_POLICY_VERSION,
       configurationVersion: QUALITY_CONFIG_VERSION,
-      sourceGeneration: "sha256:quality-source",
+      sourceGeneration: `sha256:${"e".repeat(64)}`,
       outputGeneration: generation,
     },
   } as LapQualitySummary;
@@ -39,14 +39,14 @@ function quality(generation: string): LapQualitySummary {
 
 describe("AI quality prompt context", () => {
   test("includes persisted decision, reason code, affected range, and generation", () => {
-    const generation = "sha256:quality-generation";
+    const generation = `sha256:${"f".repeat(64)}`;
     const context = buildQualityPromptContext({ quality: quality(generation), eligibility: decisions(), qualityGeneration: generation }, ["corner-trace"]);
 
     expect(context).toContain("corner-trace: eligible_with_warning; confidence=medium");
     expect(context).toContain(
       'code=telemetry_gap_minor; evidenceIds=["gap:turn-5"]; semanticIds=["motion.speed","inputs.brake"]; timeRange={"startMs":12000,"endMs":12200}; distanceRange={"startFraction":0.4,"endFraction":0.45}; message=Telemetry contains a short gap. (12.0-12.2s, 40-45% of lap)',
     );
-    expect(context).toContain("quality-generation: sha256:quality-generation");
+    expect(context).toContain(`quality-generation: ${generation}`);
     expect(context).toContain("avoid claims inside affected ranges");
   });
 
