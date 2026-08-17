@@ -29,7 +29,7 @@ jobs:
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Compute new version
         id: bump
@@ -53,7 +53,7 @@ jobs:
     needs: compute-version
     runs-on: blacksmith-2vcpu-windows-2025
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
 
@@ -119,7 +119,7 @@ jobs:
           cp node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
 
       - name: Upload dist artifact (for E2E test)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: raceiq-dist-windows
           path: dist/
@@ -139,12 +139,12 @@ jobs:
           SET VERSION=${{ needs.compute-version.outputs.version }}
           iscc /DMyAppVersion=%VERSION% installer\raceiq.iss
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: raceiq-v${{ needs.compute-version.outputs.version }}-setup
           path: RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: raceiq-v${{ needs.compute-version.outputs.version }}-release-note
           path: |
@@ -166,7 +166,7 @@ jobs:
     needs: [compute-version, build, playwright-test]
     runs-on: blacksmith-2vcpu-ubuntu-2204
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: raceiq-v*
@@ -185,7 +185,7 @@ jobs:
           fi
 
       - name: Create draft release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: RaceIQ v${{ needs.compute-version.outputs.version }}
@@ -198,7 +198,7 @@ jobs:
     if: github.event_name == 'release'
     runs-on: blacksmith-2vcpu-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
       - uses: oven-sh/setup-bun@v2

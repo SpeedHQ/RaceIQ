@@ -46,7 +46,7 @@ jobs:
       # aligned with the PR's current base revision too.
       - name: Resolve pull request revisions
         id: pull-request
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = Number(process.env.PR_NUMBER);
@@ -60,7 +60,7 @@ jobs:
 
       # Check out the PR HEAD rather than GitHub's lazily updated merge ref,
       # then merge the resolved base revision ourselves.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
@@ -182,7 +182,7 @@ jobs:
           }
 
       - name: Upload preview artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-screenshot-preview
           path: pr-preview/
