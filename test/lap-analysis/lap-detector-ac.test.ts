@@ -5,9 +5,12 @@ import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import type { LapClassification } from "../../shared/racing/laps/classification";
+import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
+import type { DbAdapter } from "../../server/telemetry/pipeline-ports";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 afterAll(() => stopMaintenanceTasks());
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -18,28 +21,29 @@ type CapturedLap = {
   lapTime: number;
   valid: boolean;
   invalidReason: string | null;
+  rawByteOffset: number | null;
+  rawFrameCount: number;
+  quality: LapQualitySummary;
+  eligibility: EligibilityDecisionSet;
 } & LapClassification;
 
-function makeFakeDb() {
+function makeFakeDb(): DbAdapter & { inserted: CapturedLap[] } {
   const inserted: CapturedLap[] = [];
   return {
     inserted,
     insertSession: async () => 1,
-    insertLap: async (
-      _sessionId: number,
-      lapNumber: number,
-      lapTime: number,
-      valid: boolean,
-      _rawByteOffset: unknown,
-      _rawFrameCount: unknown,
-      _profileId: unknown,
-      _tuneId: unknown,
-      invalidReason: string | null,
-      _sectors: unknown,
-      _versionIdentity: unknown,
-      classification: LapClassification,
-    ) => {
-      inserted.push({ lapNumber, lapTime, valid, invalidReason, ...classification });
+    insertLap: async (input: PersistLapInput) => {
+      inserted.push({
+        lapNumber: input.lapNumber,
+        lapTime: input.lapTime,
+        valid: input.isValid,
+        invalidReason: input.invalidReason,
+        rawByteOffset: input.rawByteOffset,
+        rawFrameCount: input.rawFrameCount,
+        quality: input.quality!,
+        eligibility: input.eligibility!,
+        ...input.classification,
+      });
       return inserted.length;
     },
     getTuneAssignment: async () => null,
@@ -48,7 +52,7 @@ function makeFakeDb() {
     // reconcileAutoExclusionsForLap (server/experiments/auto-exclude.ts) always
     // no-ops after seeing null/null here.
     getLapExperimentScope: async () => ({ experimentId: null, tuneId: null }),
-  } as any;
+  } as unknown as DbAdapter & { inserted: CapturedLap[] };
 }
 
 function packet(fields: Partial<TelemetryPacket>): TelemetryPacket {
@@ -160,7 +164,7 @@ describe("LapDetectorAc — reset detection", () => {
           DistanceTraveled: t * 50,
           TimestampMS: t * 1000,
           acc: { pitStatus: "pit_lane" } as any,
-        })
+        }),
       );
     }
     // Driver exits the pit lane partway through and spends the rest of the pre-recording lap on track
@@ -171,7 +175,7 @@ describe("LapDetectorAc — reset detection", () => {
           DistanceTraveled: t * 50,
           TimestampMS: t * 1000,
           acc: { pitStatus: "out" } as any,
-        })
+        }),
       );
     }
     // First reset (end of that pre-recording lap) — on track now
@@ -181,7 +185,7 @@ describe("LapDetectorAc — reset detection", () => {
         DistanceTraveled: 90 * 50 + 30,
         TimestampMS: 91 * 1000,
         acc: { pitStatus: "out" } as any,
-      })
+      }),
     );
 
     // Full clean lap on track
@@ -192,7 +196,7 @@ describe("LapDetectorAc — reset detection", () => {
           DistanceTraveled: 90 * 50 + 30 + t * 50,
           TimestampMS: (91 + t) * 1000,
           acc: { pitStatus: "out" } as any,
-        })
+        }),
       );
     }
     await d.feed(
@@ -201,7 +205,7 @@ describe("LapDetectorAc — reset detection", () => {
         DistanceTraveled: 999999,
         TimestampMS: 999999,
         acc: { pitStatus: "out" } as any,
-      })
+      }),
     );
 
     // Two structurally valid laps: classified out lap, then normal pace lap.
@@ -287,7 +291,7 @@ describe("LapDetectorAc — reset detection", () => {
         DistanceTraveled: 0,
         TimestampMS: 0,
         acc: { pitStatus: "pit_lane" } as any,
-      })
+      }),
     );
     // Next 40 packets: still in pit lane, creeping towards track
     for (let t = 1; t <= 40; t += 1) {
@@ -297,7 +301,7 @@ describe("LapDetectorAc — reset detection", () => {
           DistanceTraveled: t * 50,
           TimestampMS: t * 1000,
           acc: { pitStatus: "pit_lane" } as any,
-        })
+        }),
       );
     }
     // Car exits pit, on track for the rest of the lap
@@ -308,7 +312,7 @@ describe("LapDetectorAc — reset detection", () => {
           DistanceTraveled: t * 50,
           TimestampMS: t * 1000,
           acc: { pitStatus: "out" } as any,
-        })
+        }),
       );
     }
     // Lap boundary — reset
@@ -318,7 +322,7 @@ describe("LapDetectorAc — reset detection", () => {
         DistanceTraveled: 91 * 50,
         TimestampMS: 91 * 1000,
         acc: { pitStatus: "out" } as any,
-      })
+      }),
     );
 
     expect(db.inserted.length).toBe(1);
@@ -339,7 +343,7 @@ describe("LapDetectorAc — reset detection", () => {
           DistanceTraveled: t * 50,
           TimestampMS: t * 1000,
           acc: { pitStatus: "out" } as any,
-        })
+        }),
       );
     }
     // Enters pit lane for the last ~30s of the lap
@@ -350,7 +354,7 @@ describe("LapDetectorAc — reset detection", () => {
           DistanceTraveled: t * 50,
           TimestampMS: t * 1000,
           acc: { pitStatus: "pit_lane" } as any,
-        })
+        }),
       );
     }
     // Lap boundary — reset, still in pit
@@ -360,7 +364,7 @@ describe("LapDetectorAc — reset detection", () => {
         DistanceTraveled: 91 * 50,
         TimestampMS: 91 * 1000,
         acc: { pitStatus: "pit_lane" } as any,
-      })
+      }),
     );
 
     expect(db.inserted.length).toBe(1);
@@ -368,18 +372,103 @@ describe("LapDetectorAc — reset detection", () => {
     expect(db.inserted[0]).toMatchObject({ phase: "in", conditions: [], paceEligibility: "excluded" });
     expect(db.inserted[0].invalidReason).toBeNull();
   });
+
+  test("keeps native-live and replay boundaries and normalized quality semantics in parity", async () => {
+    async function detect(sourceKind: "native-live" | "raceiq-raw") {
+      const db = makeFakeDb();
+      const detector = new LapDetectorAcc({ db, sourceKind });
+      for (let tick = 0; tick <= 90; tick += 1) {
+        if (tick === 45) continue;
+        await detector.feed(packet({ CurrentLap: tick, DistanceTraveled: tick * 50, TimestampMS: tick * 1_000 }), tick * 100);
+      }
+      await detector.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 4_530, TimestampMS: 91_000 }), 9_100);
+      return db.inserted[0]!;
+    }
+
+    function normalizedFacts(quality: LapQualitySummary) {
+      return quality.facts
+        .filter(({ code }) => code !== "imported_source")
+        .map(({ id: _id, eventIds: _eventIds, provenance, semanticIds, channelFamilies, ...fact }) => ({
+          ...fact,
+          semanticIds: [...semanticIds].sort(),
+          channelFamilies: [...channelFamilies].sort(),
+          provenance: {
+            schemaVersion: provenance.schemaVersion,
+            policyVersion: provenance.policyVersion,
+            configurationVersion: provenance.configurationVersion,
+          },
+        }))
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    }
+
+    function normalizedChannels(quality: LapQualitySummary) {
+      return quality.channelQuality.map(({ provenance: _provenance, ...channel }) => channel);
+    }
+
+    function normalizedEligibility(eligibility: EligibilityDecisionSet) {
+      return Object.fromEntries(
+        Object.entries(eligibility).map(([policyId, decision]) => [
+          policyId,
+          {
+            status: decision.status,
+            policyId: decision.policyId,
+            policyVersion: decision.policyVersion,
+            confidence: decision.confidence,
+            reasons: decision.reasons
+              .filter(({ code }) => code !== "imported_source")
+              .map(({ evidenceIds: _evidenceIds, semanticIds, ...reason }) => ({
+                ...reason,
+                semanticIds: [...semanticIds].sort(),
+              }))
+              .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+          },
+        ]),
+      );
+    }
+
+    const live = await detect("native-live");
+    const replay = await detect("raceiq-raw");
+    expect(replay).toMatchObject({
+      lapNumber: live.lapNumber,
+      lapTime: live.lapTime,
+      valid: live.valid,
+      invalidReason: live.invalidReason,
+      phase: live.phase,
+      conditions: live.conditions,
+      paceEligibility: live.paceEligibility,
+      rawByteOffset: live.rawByteOffset,
+      rawFrameCount: live.rawFrameCount,
+    });
+    expect(replay.quality.participant).toEqual(live.quality.participant);
+    expect(replay.quality.classification).toEqual(live.quality.classification);
+    expect(replay.quality.gapSummary).toEqual(live.quality.gapSummary);
+    expect(replay.quality.timing).toEqual(live.quality.timing);
+    expect(replay.quality.trackDistanceCoverage).toBe(live.quality.trackDistanceCoverage);
+    expect(replay.quality.worldPositionCoverage).toBe(live.quality.worldPositionCoverage);
+    expect(normalizedChannels(replay.quality)).toEqual(normalizedChannels(live.quality));
+    expect(normalizedFacts(replay.quality)).toEqual(normalizedFacts(live.quality));
+    expect(normalizedEligibility(replay.eligibility)).toEqual(normalizedEligibility(live.eligibility));
+  });
 });
 
-test("parseDump runs against the problem recording without throwing", async () => {
-  const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz");
-  expect(result.laps.length).toBeGreaterThan(0);
-}, { timeout: 30000 });
+test(
+  "parseDump runs against the problem recording without throwing",
+  async () => {
+    const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz");
+    expect(result.laps.length).toBeGreaterThan(0);
+  },
+  { timeout: 30000 },
+);
 
-test("session bin: laps 1+2 have no isValidLap=false, laps 3+4 contain isValidLap=false frames", async () => {
-  const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
-  const byLap = new Map(result.laps.map((l) => [l.lapNumber, l]));
-  expect(byLap.get(1)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
-  expect(byLap.get(2)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
-  expect(byLap.get(3)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
-  expect(byLap.get(4)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
-}, { timeout: 60000 });
+test(
+  "session bin: laps 1+2 have no isValidLap=false, laps 3+4 contain isValidLap=false frames",
+  async () => {
+    const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
+    const byLap = new Map(result.laps.map((l) => [l.lapNumber, l]));
+    expect(byLap.get(1)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
+    expect(byLap.get(2)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
+    expect(byLap.get(3)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
+    expect(byLap.get(4)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
+  },
+  { timeout: 60000 },
+);

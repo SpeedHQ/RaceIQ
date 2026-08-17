@@ -16,6 +16,7 @@
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
 ### Fixes
+
 - Prevent unfinished or stale lap-quality generations and decisions from driving pace, experiment, AI, or cached lap-metric analysis.
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
@@ -33,6 +34,8 @@
 - Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
 - Clear stale degraded lap-quality states after a clean recording rebuild
 - Validate RaceIQ canonical recording and every archive manifest/member separately from imported-source provenance so valid source cannot hide corrupt local evidence
+- Keep imported opponent laps attributed to the correct participant across archive round-trips and reprocessing
+- Detect retained capture changes before quality rebuilds so stale source evidence is never treated as current
 - Reject RaceIQ v3 archives when declared captures are missing, checksums differ, or undeclared members remain, while retaining v1, v2, and manifestless import compatibility
 - Clear F1 lap-sector history when the session changes so repeated lap numbers cannot reuse stale splits
 - Finalize ACC replay sessions between loop passes so each pass starts with independent lap and quality state

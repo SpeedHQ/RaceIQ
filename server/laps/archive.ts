@@ -24,7 +24,15 @@ import { detectGameIdFromBuffer, detectGameIdFromFilename, importSessionBin } fr
 import type { ImportedLap } from "../session-capture/import-pipeline";
 import { advanceSessionFrames, countSessionFrames, encodeMetaFrame, gzipBufferSync, gunzipBufferSync, readFrameStreamStart, sessionFrameAt } from "../session-capture/framing";
 import { sha256ContentHash } from "../session-capture/identity";
-import { SOURCE_CHANNEL_PROFILE_VERSION, type ArchiveVerification, type EvidenceSourceKind, type SourceChannelProfile, type SourceChannelTreatment } from "../../shared/racing/quality/contracts";
+import {
+  LOCAL_PLAYER_EVIDENCE,
+  SOURCE_CHANNEL_PROFILE_VERSION,
+  type ArchiveVerification,
+  type EvidenceSourceKind,
+  type ParticipantEvidence,
+  type SourceChannelProfile,
+  type SourceChannelTreatment,
+} from "../../shared/racing/quality/contracts";
 import type { MappingStatus } from "../../shared/telemetry/derivations/contracts";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { GameIdSchema, type GameId } from "../../shared/games/ids";
@@ -52,6 +60,7 @@ export interface ManifestEntry {
   laps: ManifestLap[];
   memberSha256?: string;
   sourceKind?: EvidenceSourceKind;
+  participant?: ParticipantEvidence;
   sourceChannelProfile?: SourceChannelProfile;
   sourceVerification?: ArchiveVerification;
   recordingQualitySchemaVersion?: string;
@@ -103,6 +112,15 @@ const ARCHIVE_VERIFICATION_STATES: Record<ArchiveVerification["state"], true> = 
   unavailable: true,
   unknown: true,
 };
+const PARTICIPANT_KINDS: Record<ParticipantEvidence["kind"], true> = {
+  player: true,
+  opponent: true,
+};
+const PARTICIPANT_IDENTITY_STATES: Record<ParticipantEvidence["identityState"], true> = {
+  stable: true,
+  "session-scoped": true,
+  unknown: true,
+};
 
 function isArchiveVerification(value: unknown): value is ArchiveVerification {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -117,6 +135,19 @@ function isArchiveVerification(value: unknown): value is ArchiveVerification {
 
 function isEvidenceSourceKind(value: unknown): value is EvidenceSourceKind {
   return typeof value === "string" && Object.hasOwn(EVIDENCE_SOURCE_KINDS, value);
+}
+
+function isParticipantEvidence(value: unknown): value is ParticipantEvidence {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const participant = value as Record<string, unknown>;
+  return (
+    typeof participant.kind === "string" &&
+    Object.hasOwn(PARTICIPANT_KINDS, participant.kind) &&
+    (participant.sourceId === null || typeof participant.sourceId === "string") &&
+    (participant.stableId === null || typeof participant.stableId === "string") &&
+    typeof participant.identityState === "string" &&
+    Object.hasOwn(PARTICIPANT_IDENTITY_STATES, participant.identityState)
+  );
 }
 
 function isSourceChannelProfile(value: unknown): value is SourceChannelProfile {
@@ -191,6 +222,7 @@ function parseManifestFile(files: Record<string, Uint8Array>): LapsZipManifest |
       typeof entry.createdAt !== "string" ||
       !Array.isArray(entry.laps) ||
       (entry.sourceKind !== undefined && !isEvidenceSourceKind(entry.sourceKind)) ||
+      (entry.participant !== undefined && !isParticipantEvidence(entry.participant)) ||
       (entry.sourceVerification !== undefined && !isArchiveVerification(entry.sourceVerification)) ||
       (entry.sourceChannelProfile !== undefined && (!isSourceChannelProfile(entry.sourceChannelProfile) || entry.sourceKind !== entry.sourceChannelProfile.sourceKind))
     ) {
@@ -209,50 +241,34 @@ function parseManifestFile(files: Record<string, Uint8Array>): LapsZipManifest |
   return manifest as unknown as LapsZipManifest;
 }
 
-
-function validateStrictArchiveLayout(
-  files: Record<string, Uint8Array>,
-  manifest: LapsZipManifest,
-): void {
+function validateStrictArchiveLayout(files: Record<string, Uint8Array>, manifest: LapsZipManifest): void {
   const entryFiles = new Set<string>();
   for (const entry of manifest.entries) {
     if (!entry.file.endsWith(".bin") && !entry.file.endsWith(".bin.gz")) {
-      throw new Error(
-        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout only allows .bin/.bin.gz capture entries`,
-      );
+      throw new Error(`Invalid RaceIQ archive manifest: version ${manifest.version} strict layout only allows .bin/.bin.gz capture entries`);
     }
     if (entryFiles.has(entry.file)) {
-      throw new Error(
-        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout contains duplicate member names`,
-      );
+      throw new Error(`Invalid RaceIQ archive manifest: version ${manifest.version} strict layout contains duplicate member names`);
     }
     entryFiles.add(entry.file);
     if (!Object.hasOwn(files, entry.file)) {
-      throw new Error(
-        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout declares a missing capture member`,
-      );
+      throw new Error(`Invalid RaceIQ archive manifest: version ${manifest.version} strict layout declares a missing capture member`);
     }
     if (!entry.memberSha256 || !/^sha256:[0-9a-f]{64}$/.test(entry.memberSha256)) {
-      throw new Error(
-        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout capture member is missing a valid checksum`,
-      );
+      throw new Error(`Invalid RaceIQ archive manifest: version ${manifest.version} strict layout capture member is missing a valid checksum`);
     }
   }
 
   for (const name of Object.keys(files)) {
     if (name !== MANIFEST_FILE_NAME && !entryFiles.has(name)) {
-      throw new Error(
-        `Invalid RaceIQ archive manifest: version ${manifest.version} strict layout contains an undeclared member`,
-      );
+      throw new Error(`Invalid RaceIQ archive manifest: version ${manifest.version} strict layout contains an undeclared member`);
     }
   }
 
   for (const entry of manifest.entries) {
     const member = files[entry.file];
     if (sha256ContentHash(Buffer.from(member.buffer, member.byteOffset, member.byteLength)) !== entry.memberSha256) {
-      throw new Error(
-        `Invalid RaceIQ archive manifest: version ${manifest.version} capture member checksum mismatch`,
-      );
+      throw new Error(`Invalid RaceIQ archive manifest: version ${manifest.version} capture member checksum mismatch`);
     }
   }
 }
@@ -423,6 +439,7 @@ export async function buildLapsZip(lapIds: number[]): Promise<{ bytes: Uint8Arra
       createdAt: first.createdAt,
       memberSha256: sha256ContentHash(compressedSlice),
       sourceKind: (first.source as EvidenceSourceKind | null) ?? "unknown",
+      participant: first.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE,
       sourceChannelProfile: first.sourceChannelProfile ?? undefined,
       sourceVerification: first.recordingQuality?.archiveVerification ?? {
         state: "unknown",
@@ -528,6 +545,7 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       const result = await importSessionBin(bytes, gameId, {
         ownership: options.ownership,
         sourceKind: preservesSourceFidelity ? (entry?.sourceKind ?? "unknown") : "raceiq-archive",
+        participant: preservesSourceFidelity ? (entry?.participant ?? LOCAL_PLAYER_EVIDENCE) : LOCAL_PLAYER_EVIDENCE,
         sourceChannelProfile: preservesSourceFidelity ? entry?.sourceChannelProfile : undefined,
         sourceArchiveVerification: sourceVerification,
         sourceTransportVerification: preservesSourceFidelity
