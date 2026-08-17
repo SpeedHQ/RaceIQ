@@ -5,6 +5,13 @@ import type { KunosRecordingFrame } from "../../../server/games/kunos/frame-read
 import * as RealFrameReader from "../../../server/games/kunos/frame-reader";
 import * as RealParser from "../../../server/games/acc/parser";
 import * as RealLivePipeline from "../../../server/telemetry/live-pipeline";
+// Bun mutates imported namespace bindings after mock.module registration.
+// Capture real values first so process-global wrappers can delegate without recursing.
+const realReadKunosFrames = RealFrameReader.readKunosFrames;
+const realParseAccBuffers = RealParser.parseAccBuffers;
+const realProcessPacket = RealLivePipeline.processPacket;
+const realLapDetector = RealLivePipeline.lapDetector;
+const realStopMaintenanceTasks = RealLivePipeline.stopMaintenanceTasks;
 
 const frame: KunosRecordingFrame = {
   physics: Buffer.alloc(1),
@@ -16,56 +23,40 @@ const frame: KunosRecordingFrame = {
 let useReplayMocks = true;
 const readKunosFramesMock = mock((_filePath: string, _limit?: number) => [frame]);
 const parseAccBuffersMock = mock(
-  (
-    _physics: Buffer,
-    _graphics: Buffer,
-    _staticData: Buffer,
-    overrides?: Parameters<typeof RealParser.parseAccBuffers>[3],
-  ) => ({ TimestampMS: overrides?.timestampMS ?? 0 } as TelemetryPacket),
+  (_physics: Buffer, _graphics: Buffer, _staticData: Buffer, overrides?: Parameters<typeof RealParser.parseAccBuffers>[3]) => ({ TimestampMS: overrides?.timestampMS ?? 0 }) as TelemetryPacket,
 );
-const processPacketMock = mock(
-  async (_packet: TelemetryPacket, _sourceFrame?: Buffer): Promise<void> => {},
-);
+const processPacketMock = mock(async (_packet: TelemetryPacket, _sourceFrame?: Buffer): Promise<void> => {});
 const finalizeCurrentSessionMock = mock(async (): Promise<void> => {});
 
 mock.module("../../../server/games/kunos/frame-reader", () => ({
   ...RealFrameReader,
-  readKunosFrames: (...args: Parameters<typeof RealFrameReader.readKunosFrames>) =>
-    useReplayMocks
-      ? readKunosFramesMock(...args)
-      : RealFrameReader.readKunosFrames(...args),
+  readKunosFrames: (...args: Parameters<typeof RealFrameReader.readKunosFrames>) => (useReplayMocks ? readKunosFramesMock(...args) : realReadKunosFrames(...args)),
 }));
 
 mock.module("../../../server/games/acc/parser", () => ({
   ...RealParser,
-  parseAccBuffers: (...args: Parameters<typeof RealParser.parseAccBuffers>) =>
-    useReplayMocks
-      ? parseAccBuffersMock(...args)
-      : RealParser.parseAccBuffers(...args),
+  parseAccBuffers: (...args: Parameters<typeof RealParser.parseAccBuffers>) => (useReplayMocks ? parseAccBuffersMock(...args) : realParseAccBuffers(...args)),
 }));
 
 mock.module("../../../server/telemetry/live-pipeline", () => ({
   ...RealLivePipeline,
-  processPacket: (...args: Parameters<typeof RealLivePipeline.processPacket>) =>
-    useReplayMocks
-      ? processPacketMock(...args)
-      : RealLivePipeline.processPacket(...args),
+  processPacket: (...args: Parameters<typeof RealLivePipeline.processPacket>) => (useReplayMocks ? processPacketMock(...args) : realProcessPacket(...args)),
   lapDetector: {
     get session() {
-      return RealLivePipeline.lapDetector.session;
+      return realLapDetector.session;
     },
     get fuelHistory() {
-      return RealLivePipeline.lapDetector.fuelHistory;
+      return realLapDetector.fuelHistory;
     },
     get tireWearHistory() {
-      return RealLivePipeline.lapDetector.tireWearHistory;
+      return realLapDetector.tireWearHistory;
     },
     async finalizeCurrentSession(): Promise<void> {
       if (useReplayMocks) {
         await finalizeCurrentSessionMock();
         return;
       }
-      await RealLivePipeline.lapDetector.finalizeCurrentSession();
+      await realLapDetector.finalizeCurrentSession();
     },
   },
 }));
@@ -85,7 +76,7 @@ beforeEach(() => {
 
 afterAll(() => {
   useReplayMocks = false;
-  RealLivePipeline.stopMaintenanceTasks();
+  realStopMaintenanceTasks();
 });
 
 describe("ACC replay session boundaries", () => {
