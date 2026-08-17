@@ -9,6 +9,7 @@ import { getLapById, getLapsRaw } from "../../../server/db/lap-read-queries";
 import { deleteSession } from "../../../server/db/session-queries";
 import { commitStagedIbt, previewIbtFile, stageIbtUpload } from "../../../server/games/iracing/import-ibt";
 import { initServerGameAdapters } from "../../../server/games/init";
+import { queryLapTelemetryBySemanticId } from "../../../server/telemetry/replay";
 import { iracingAdapter } from "../../../shared/games/iracing";
 import { initGameAdapters } from "../../../shared/games/init";
 import { createRecording, drivenRows } from "../../support/games/iracing-ibt";
@@ -83,6 +84,14 @@ describe("IRacingIbt import workflow", () => {
         expect(rawFile ? existsSync(rawFile) : false).toBe(true);
         const savedLap = await getLapById(imported.laps[0].lapId);
         expect(savedLap?.telemetry.some((packet) => packet.PositionX !== 0 || packet.PositionZ !== 0)).toBe(true);
+        const semanticReplay = await queryLapTelemetryBySemanticId(imported.laps[0].lapId, ["motion.position-x", "motion.position-z"]);
+        expect(
+          semanticReplay?.envelopes.some((envelope) => {
+            const x = envelope.values.find((value) => value.semanticId === "motion.position-x");
+            const z = envelope.values.find((value) => value.semanticId === "motion.position-z");
+            return x?.state === "ok" && z?.state === "ok" && typeof x.value === "number" && typeof z.value === "number" && (x.value !== 0 || z.value !== 0);
+          }),
+        ).toBe(true);
       } finally {
         if (sessionId !== null) await deleteSession(sessionId);
         if (rawFile) rmSync(rawFile, { force: true });
