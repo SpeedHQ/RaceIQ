@@ -12,7 +12,7 @@ jobs:
           - name: fresh
             server-set: fresh
             projects: --project=fresh-install
-            memory: 5G
+            memory: 10G
             cpu: 2VCPU
           - name: tunes
             server-set: tunes
@@ -27,12 +27,12 @@ jobs:
           - name: seeded-read
             server-set: seeded
             projects: --project=seeded-e2e --project=mobile-device --project=tablet-device
-            memory: 8G
+            memory: 10G
             cpu: 4VCPU
           - name: seeded-routes
             server-set: seeded
             projects: --project=seeded-routes
-            memory: 8G
+            memory: 10G
             cpu: 4VCPU
     uses: ./.github/workflows/playwright.yml
     with:
