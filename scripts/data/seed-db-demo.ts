@@ -2,7 +2,7 @@ import { db } from "../../server/db/index";
 import { sessions, laps, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../../server/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { chatThreadId, compareChatThreadId, saveChatMessages } from "../../server/ai/chat-agent";
-import { getCompareQualityIdentity } from "../../server/db/analysis-queries";
+import { getCompareQualityIdentity, getLapQualityIdentity } from "../../server/db/analysis-queries";
 import { loadSettings, saveSettings } from "../../server/runtime/config/settings";
 import { SEED_MARKER } from "./seed-db-options";
 
@@ -75,12 +75,15 @@ export async function insertDemoRows(profileId: number, importedLapIds: number[]
         ),
       )
       .run();
-    await saveChatMessages(chatThreadId(fm.id), [
-      {
-        role: "user",
-        markdown: "Where can I improve this lap?",
-      },
-    ]);
+    const identity = await getLapQualityIdentity(fm.id);
+    if (identity) {
+      await saveChatMessages(chatThreadId(fm.id, `${identity.policyVersion}:${identity.generation}`), [
+        {
+          role: "user",
+          markdown: "Where can I improve this lap?",
+        },
+      ]);
+    }
   }
 
   const f1Laps = importedLaps.filter((lap) => lap.gameId === "f1-2025");

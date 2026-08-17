@@ -2,7 +2,7 @@ import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
 import { Sparkles } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ChatPanel } from "@/components/ai-chat/ChatPanel";
+import { ChatPanel, type ChatHistoryResult } from "@/components/ai-chat/ChatPanel";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "@/lib/chat-stream";
@@ -59,12 +59,15 @@ interface AiPanelProps {
   panelOpen?: boolean;
 }
 
-async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
+async function fetchLapChatHistory(lapId: number, gen?: number): Promise<ChatHistoryResult> {
   const url = gen === undefined ? `/api/laps/${lapId}/chat` : `/api/laps/${lapId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
-  const data = (await res.json()) as { messages?: UIMessage[] };
-  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+  const data = (await res.json()) as { messages?: UIMessage[]; threadId?: string | null };
+  return {
+    messages: (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant"),
+    threadId: data.threadId,
+  };
 }
 
 export interface AiPanelHandle {

@@ -16,7 +16,16 @@
 // process forever whenever this file ran before another file that loads those
 // agents (e.g. laps-issues-route.test.ts).
 import { describe, test, expect } from "bun:test";
-import { parseThreadGeneration, generationThreadId, listThreadGenerations, resolveActiveThread, chatMemoryOptions, compareChatThreadId, parseCompareChatThreadId } from "../../../server/ai/chat-agent";
+import {
+  parseThreadGeneration,
+  generationThreadId,
+  listThreadGenerations,
+  resolveActiveThread,
+  chatMemoryOptions,
+  chatThreadId,
+  compareChatThreadId,
+  parseCompareChatThreadId,
+} from "../../../server/ai/chat-agent";
 
 function makeFakeMemory(existingThreadIds: string[]) {
   const threads = new Set(existingThreadIds);
@@ -101,11 +110,26 @@ describe("chatMemoryOptions", () => {
   });
 });
 
+describe("chatThreadId", () => {
+  test("isolates lap chat by hashed quality identity and preserves generation parsing", () => {
+    const identity = "policy-1:quality-generation-1";
+    const original = chatThreadId(5, identity);
+    expect(chatThreadId(5, identity)).toBe(original);
+    expect(chatThreadId(5, "policy-1:quality-generation-2")).not.toBe(original);
+    expect(original).toMatch(/^lap-5~q[0-9a-f]{64}$/);
+    expect(original).not.toContain(identity);
+    expect(parseThreadGeneration(generationThreadId(original, 3))).toEqual({ base: original, gen: 3 });
+  });
+});
+
 describe("compareChatThreadId", () => {
   test("isolates chat history by quality identity while preserving canonical lap order", () => {
     const original = compareChatThreadId(5, 6, "policy-1:quality-generation-1");
     expect(compareChatThreadId(6, 5, "policy-1:quality-generation-1")).toBe(original);
     expect(compareChatThreadId(5, 6, "policy-1:quality-generation-2")).not.toBe(original);
     expect(parseCompareChatThreadId(generationThreadId(original, 2))).toEqual([5, 6]);
+    expect(original).toMatch(/^compare-5-6~q[0-9a-f]{64}$/);
+    expect(original).not.toContain("policy-1:quality-generation-1");
+    expect(parseThreadGeneration(generationThreadId(original, 2))).toEqual({ base: original, gen: 2 });
   });
 });

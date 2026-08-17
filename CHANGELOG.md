@@ -46,7 +46,7 @@
 - Keep every recorded experiment lap available for inspection in Tune Review while limiting aggregate setup evaluation to its curated evidence pool
 - Preserve telemetry warning reasons in setup-analysis decisions and Setup Engineer lap summaries
 - Keep lap exclusions, detailed telemetry, comparisons, and track outlines scoped to matching owned experiments and current quality evidence
-- Clear displayed comparison analysis and conversations when either lap quality generation changes
+- Keep recorded laps inspectable when AI evidence is unsafe, isolate Analyse and Compare conversations by current quality generation, and clear stale results when evidence changes
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup

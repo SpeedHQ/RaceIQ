@@ -78,7 +78,7 @@ function combineCompareIdentityRows(rows: Array<{ generation: string | null; pol
   };
 }
 
-async function getLapQualityIdentity(lapId: number): Promise<QualityCacheIdentity | null> {
+export async function getLapQualityIdentity(lapId: number): Promise<QualityCacheIdentity | null> {
   const row = await db
     .select({
       generation: laps.qualityGeneration,

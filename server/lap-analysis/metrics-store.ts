@@ -2,8 +2,8 @@ import { eq, inArray } from "drizzle-orm";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
-import type { LapQualitySummary } from "../../shared/racing/quality/contracts";
-import { isQualitySnapshotCurrent } from "../../shared/racing/quality/policies";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { db } from "../db";
 import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
@@ -32,23 +32,25 @@ interface MetricsRow {
   qualityGeneration: string | null;
   currentQualityGeneration: string | null;
   quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
   qualitySchemaVersion: string | null;
   qualityPolicyVersion: string | null;
   qualityConfigVersion: string | null;
 }
 
 function rowToMetrics(row: MetricsRow): LapMetrics | null {
-  if (
-    !isQualitySnapshotCurrent({
+  const decision = resolveEligibilityDecision(
+    {
       quality: row.quality,
+      eligibility: row.eligibility,
       qualityGeneration: row.currentQualityGeneration,
       qualitySchemaVersion: row.qualitySchemaVersion,
       qualityPolicyVersion: row.qualityPolicyVersion,
       qualityConfigVersion: row.qualityConfigVersion,
-    })
-  ) {
-    return null;
-  }
+    },
+    "corner-trace",
+  );
+  if (!isEligibilityUsable(decision)) return null;
   if (row.algoVersion !== LAP_METRICS_ALGO_VERSION || row.qualityGeneration !== row.currentQualityGeneration) return null;
   try {
     return {
@@ -99,6 +101,7 @@ export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics 
       qualityGeneration: lapMetrics.qualityGeneration,
       currentQualityGeneration: laps.qualityGeneration,
       quality: laps.quality,
+      eligibility: laps.eligibility,
       qualitySchemaVersion: laps.qualitySchemaVersion,
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
@@ -113,7 +116,7 @@ export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics 
   }
 
   const lap = await getLapById(lapId);
-  if (!lap || !isQualitySnapshotCurrent(lap) || lap.telemetry.length === 0 || !lap.gameId) return null;
+  if (!lap || !isEligibilityUsable(resolveEligibilityDecision(lap, "corner-trace")) || lap.telemetry.length === 0 || !lap.gameId) return null;
 
   const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
   const metrics = computeLapMetrics(lapId, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
@@ -136,6 +139,7 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
       qualityGeneration: lapMetrics.qualityGeneration,
       currentQualityGeneration: laps.qualityGeneration,
       quality: laps.quality,
+      eligibility: laps.eligibility,
       qualitySchemaVersion: laps.qualitySchemaVersion,
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
@@ -154,7 +158,7 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
 
   const loadedLaps = await getLapsByIds(missing);
   for (const lap of loadedLaps) {
-    if (!isQualitySnapshotCurrent(lap) || lap.telemetry.length === 0 || !lap.gameId) continue;
+    if (!isEligibilityUsable(resolveEligibilityDecision(lap, "corner-trace")) || lap.telemetry.length === 0 || !lap.gameId) continue;
     const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
     const metrics = computeLapMetrics(lap.id, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
     await persist(metrics, lap.qualityGeneration ?? null);

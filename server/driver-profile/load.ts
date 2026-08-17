@@ -3,6 +3,9 @@ import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
+import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
+import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecision, selectDriverProfileEligibleLaps } from "../../shared/racing/quality/policies";
 import { getLapMetaForProfileScope, getLapsByIds } from "../db/lap-read-queries";
 import { buildDriverFingerprint, emptyFingerprint, type DriverFingerprint, type ProfileScope } from "./fingerprint";
 import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "./trend";
@@ -14,12 +17,35 @@ const MIN_TELEMETRY_FRAMES = 30;
 export async function loadDriverProfile(opts: { gameId: GameId }): Promise<DriverFingerprint> {
   const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carOrdinal: null, trackOrdinal: null };
   const pool = await getLapMetaForProfileScope(opts.gameId);
-  const trend = buildDriverTrend(pool);
   if (pool.length === 0) {
-    return emptyFingerprint(scope, { candidates: 0 }, ["No laps recorded for this scope."], trend);
+    return emptyFingerprint(scope, { candidates: 0 }, ["No laps recorded for this scope."]);
   }
 
-  const selected = pool.slice(0, DRIVER_TREND_WINDOW_LAPS);
+  const evidence = pool.flatMap((lap) => {
+    if (!lap.quality) return [];
+    return [
+      {
+        lapId: lap.id,
+        lapTime: lap.lapTime,
+        createdAt: lap.createdAt,
+        carTrackKey: `${lap.carOrdinal ?? "unknown"}:${lap.trackOrdinal ?? "unknown"}`,
+        quality: lap.quality,
+        eligibility: {
+          ...(lap.eligibility ?? {}),
+          "normal-pace": resolveEligibilityDecision(lap, "normal-pace"),
+          "lap-comparison": resolveEligibilityDecision(lap, "lap-comparison"),
+        } as EligibilityDecisionSet,
+      },
+    ];
+  });
+  const profileDecision = evaluateGroupEligibility("driver-profile", evidence, { newestFirst: true });
+  if (!isEligibilityUsable(profileDecision)) {
+    return emptyFingerprint(scope, { candidates: 0 }, [eligibilityDecisionText(profileDecision)]);
+  }
+  const selectedIds = new Set(selectDriverProfileEligibleLaps(evidence, { newestFirst: true }).map(({ lapId }) => lapId));
+  const eligiblePool = pool.filter((lap) => selectedIds.has(lap.id));
+  const trend = buildDriverTrend(eligiblePool);
+  const selected = eligiblePool.slice(0, DRIVER_TREND_WINDOW_LAPS);
   const loaded = await getLapsByIds(selected.map((lap) => lap.id));
   const metaById = new Map(selected.map((lap) => [lap.id, lap]));
   const laps: LapMeta[] = [];
@@ -45,6 +71,6 @@ export async function loadDriverProfile(opts: { gameId: GameId }): Promise<Drive
     perLapInsights,
     perLapStyle,
     trend,
-    pool: { candidates: pool.length, droppedNoTelemetry },
+    pool: { candidates: eligiblePool.length, droppedNoTelemetry },
   });
 }

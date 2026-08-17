@@ -30,16 +30,21 @@ afterEach(async () => {
   _telemetryCacheForTest.clear();
 });
 
-
 function mkPackets(opts: { fuelPerLap?: number; tyreWear?: number[]; fuel?: [number, number] }): TelemetryPacket[] {
-  const base = (i: number) => ({ DistanceTraveled: i * 5, Speed: 50 } as unknown as TelemetryPacket);
+  const base = (i: number) => ({ DistanceTraveled: i * 5, Speed: 50 }) as unknown as TelemetryPacket;
   const a = base(0);
   const b = base(1);
-  if (opts.fuel) { (a as any).Fuel = opts.fuel[0]; (b as any).Fuel = opts.fuel[1]; }
+  if (opts.fuel) {
+    (a as any).Fuel = opts.fuel[0];
+    (b as any).Fuel = opts.fuel[1];
+  }
   if (opts.fuelPerLap != null) (b as any).acc = { fuelPerLap: opts.fuelPerLap };
   if (opts.tyreWear) {
     const [fl, fr, rl, rr] = opts.tyreWear;
-    (b as any).TireWearFL = fl; (b as any).TireWearFR = fr; (b as any).TireWearRL = rl; (b as any).TireWearRR = rr;
+    (b as any).TireWearFL = fl;
+    (b as any).TireWearFR = fr;
+    (b as any).TireWearRL = rl;
+    (b as any).TireWearRR = rr;
   }
   return [a, b];
 }
@@ -73,13 +78,7 @@ describe("quality-versioned lap metrics cache", () => {
       rawByteOffset: 1_000,
       rawFrameCount: packets.length,
     });
-    const sessionId = (
-      await db
-        .insert(sessions)
-        .values({ carOrdinal: 301, trackOrdinal: 401, gameId: "f1-2025" })
-        .returning({ id: sessions.id })
-        .get()
-    ).id;
+    const sessionId = (await db.insert(sessions).values({ carOrdinal: 301, trackOrdinal: 401, gameId: "f1-2025" }).returning({ id: sessions.id }).get()).id;
     createdSessionIds.push(sessionId);
     const lapId = (
       await db
@@ -113,11 +112,7 @@ describe("quality-versioned lap metrics cache", () => {
     const metrics = await getOrComputeLapMetrics(lapId);
 
     expect(metrics?.computedAt).not.toBe("stale");
-    const stored = await db
-      .select({ qualityGeneration: lapMetrics.qualityGeneration, computedAt: lapMetrics.computedAt })
-      .from(lapMetrics)
-      .where(eq(lapMetrics.lapId, lapId))
-      .get();
+    const stored = await db.select({ qualityGeneration: lapMetrics.qualityGeneration, computedAt: lapMetrics.computedAt }).from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
     expect(stored).toEqual({
       qualityGeneration: generated.quality.provenance.outputGeneration,
       computedAt: metrics!.computedAt,
@@ -133,13 +128,7 @@ describe("quality-versioned lap metrics cache", () => {
         rawFrameCount: packets.length,
       }),
     );
-    const sessionId = (
-      await db
-        .insert(sessions)
-        .values({ carOrdinal: 302, trackOrdinal: 402, gameId: "f1-2025" })
-        .returning({ id: sessions.id })
-        .get()
-    ).id;
+    const sessionId = (await db.insert(sessions).values({ carOrdinal: 302, trackOrdinal: 402, gameId: "f1-2025" }).returning({ id: sessions.id }).get()).id;
     createdSessionIds.push(sessionId);
     const insertedLaps = await db
       .insert(laps)
@@ -240,6 +229,46 @@ describe("quality-versioned lap metrics cache", () => {
     expect((await db.select({ computedAt: lapMetrics.computedAt }).from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get())?.computedAt).toBe("cached-stale-policy");
   });
 
+  test("does not compute metrics when current corner-trace policy rejects the lap", async () => {
+    const packets = qualityPackets(100);
+    const generated = finalizeLapQualityGeneration(summarize(packets), FINALIZED_SOURCE_GENERATION, {
+      lapNumber: 1,
+      rawByteOffset: 1_000,
+      rawFrameCount: packets.length,
+    });
+    const sessionId = (await db.insert(sessions).values({ carOrdinal: 305, trackOrdinal: 405, gameId: "f1-2025" }).returning({ id: sessions.id }).get()).id;
+    createdSessionIds.push(sessionId);
+    const lapId = (
+      await db
+        .insert(laps)
+        .values({
+          sessionId,
+          lapNumber: 1,
+          lapTime: 100,
+          rawByteOffset: 1_000,
+          rawFrameCount: packets.length,
+          quality: generated.quality,
+          eligibility: {
+            ...generated.eligibility,
+            "corner-trace": {
+              ...generated.eligibility["corner-trace"],
+              status: "ineligible",
+            },
+          },
+          qualitySchemaVersion: generated.quality.provenance.schemaVersion,
+          qualityPolicyVersion: generated.quality.provenance.policyVersion,
+          qualityConfigVersion: generated.quality.provenance.configurationVersion,
+          qualityGeneration: generated.quality.provenance.outputGeneration,
+        })
+        .returning({ id: laps.id })
+        .get()
+    ).id;
+    _telemetryCacheForTest.set(lapId, packets);
+
+    expect(await getOrComputeLapMetrics(lapId)).toBeNull();
+    expect(await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get()).toBeUndefined();
+  });
+
   test("batch cache hits omit stale schema, config, and provisional quality without recomputing", async () => {
     const packets = qualityPackets(100);
     const finalized = [1, 2].map((lapNumber) =>
@@ -314,7 +343,12 @@ describe("quality-versioned lap metrics cache", () => {
     const cachedRows = await db
       .select({ computedAt: lapMetrics.computedAt })
       .from(lapMetrics)
-      .where(inArray(lapMetrics.lapId, inserted.map(({ id }) => id)))
+      .where(
+        inArray(
+          lapMetrics.lapId,
+          inserted.map(({ id }) => id),
+        ),
+      )
       .all();
     expect(cachedRows.map(({ computedAt }) => computedAt).sort()).toEqual(["cached-stale-0", "cached-stale-1", "cached-stale-2"]);
   });
