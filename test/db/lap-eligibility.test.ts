@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { db } from "../../server/db";
 import { getLapCountsByTest } from "../../server/db/experiment-version-queries";
 import { analysisEligibility } from "../../server/db/lap-eligibility";
+import { getLaps } from "../../server/db/lap-read-queries";
 import { getSessionRecapData, getSessions } from "../../server/db/session-queries";
 import { computeRecap } from "../../server/lap-analysis/recap";
 import { experimentVersions, experiments, laps, sessions } from "../../server/db/schema";
@@ -12,9 +13,11 @@ import {
   QUALITY_CONFIG_VERSION,
   QUALITY_SCHEMA_VERSION,
   type EligibilityDecisionSet,
+  type EligibilityPolicyId,
   type EligibilityStatus,
   type LapQualitySummary,
 } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 
 const createdSessionIds: number[] = [];
 const createdExperimentIds: number[] = [];
@@ -36,32 +39,33 @@ function qualityGeneration(label: string): string {
   return `sha256:${createHash("sha256").update(label).digest("hex")}`;
 }
 function normalPace(status: EligibilityStatus): EligibilityDecisionSet {
-  return {
-    "normal-pace": {
-      status,
-      policyId: "normal-pace",
-      policyVersion: "1",
-      confidence: { level: "high", score: 1 },
-      reasons: [],
-      evidenceIds: [],
-    },
-    "corner-trace": {
-      status,
-      policyId: "corner-trace",
-      policyVersion: "1",
-      confidence: { level: "high", score: 1 },
-      reasons: [],
-      evidenceIds: [],
-    },
-    "setup-analysis": {
-      status,
-      policyId: "setup-analysis",
-      policyVersion: "1",
-      confidence: { level: "high", score: 1 },
-      reasons: [],
-      evidenceIds: [],
-    },
-  } as unknown as EligibilityDecisionSet;
+  const policyIds = [
+    "official-timing",
+    "normal-pace",
+    "lap-comparison",
+    "corner-trace",
+    "transient-event",
+    "fuel-burn",
+    "tire-analysis",
+    "stint-falloff",
+    "setup-analysis",
+    "driver-profile",
+    "ml-training",
+  ] as const satisfies readonly EligibilityPolicyId[];
+
+  return Object.fromEntries(
+    policyIds.map((policyId) => [
+      policyId,
+      {
+        status,
+        policyId,
+        policyVersion: ELIGIBILITY_POLICY_VERSION,
+        confidence: { level: "high", score: 1 },
+        reasons: [],
+        evidenceIds: [],
+      },
+    ]),
+  ) as unknown as EligibilityDecisionSet;
 }
 
 function currentQualityEvidence(label = "session-query-quality") {
@@ -250,12 +254,8 @@ test("session recap keeps validity and positive-time filters caller-owned", asyn
 });
 
 test("session recap and SQL eligibility exclude stale quality and decision identities", async () => {
-  const currentSessionId = (
-    await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()
-  ).id;
-  const comparisonSessionId = (
-    await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()
-  ).id;
+  const currentSessionId = (await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
+  const comparisonSessionId = (await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(currentSessionId, comparisonSessionId);
 
   const staleColumnEvidence = [
@@ -354,7 +354,16 @@ test("session recap and SQL eligibility exclude stale quality and decision ident
   const directDecisionMatches = await db
     .select({ lapNumber: laps.lapNumber })
     .from(laps)
-    .where(and(eq(laps.sessionId, comparisonSessionId), inArray(laps.lapNumber, decisionRows.map(({ lapNumber }) => lapNumber)), analysisEligibility(laps, "normal-pace")))
+    .where(
+      and(
+        eq(laps.sessionId, comparisonSessionId),
+        inArray(
+          laps.lapNumber,
+          decisionRows.map(({ lapNumber }) => lapNumber),
+        ),
+        analysisEligibility(laps, "normal-pace"),
+      ),
+    )
     .all();
   expect(directDecisionMatches).toEqual([]);
 
@@ -364,9 +373,7 @@ test("session recap and SQL eligibility exclude stale quality and decision ident
 });
 
 test("session query projections preserve current pace evidence and reject stale, missing, non-pace, and legacy rows", async () => {
-  const sessionId = (
-    await db.insert(sessions).values({ carOrdinal: 998_229, trackOrdinal: 999_229, gameId: "iracing" }).returning({ id: sessions.id }).get()
-  ).id;
+  const sessionId = (await db.insert(sessions).values({ carOrdinal: 998_229, trackOrdinal: 999_229, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(sessionId);
 
   await db.insert(laps).values([
@@ -417,6 +424,37 @@ test("session query projections preserve current pace evidence and reject stale,
 
   const session = (await getSessions("iracing")).find((row) => row.id === sessionId);
   expect(session?.bestLapTime).toBe(95_000);
+
+  const projectedLaps = (await getLaps("iracing", 10_000)).filter((lap) => lap.sessionId === sessionId);
+  const projectedLap = (lapNumber: number) => {
+    const lap = projectedLaps.find((candidate) => candidate.lapNumber === lapNumber);
+    if (!lap) throw new Error(`Expected projected lap ${lapNumber}`);
+    return lap;
+  };
+
+  const currentLapMeta = projectedLap(1);
+  const currentPersistedDecision = currentLapMeta.eligibility?.["normal-pace"];
+  if (!currentPersistedDecision) throw new Error("Expected current persisted normal-pace decision");
+  expect(currentLapMeta.qualityStale).toBe(false);
+  expect(isEligibilitySnapshotCurrent(currentLapMeta)).toBe(true);
+  expect(currentPersistedDecision).toBeDefined();
+  expect(resolveEligibilityDecision(currentLapMeta, "normal-pace")).toBe(currentPersistedDecision);
+
+  const staleLapMeta = projectedLap(2);
+  const stalePersistedDecision = isEligibilitySnapshotCurrent(staleLapMeta) ? staleLapMeta.eligibility?.["normal-pace"] : undefined;
+  expect(staleLapMeta.qualityStale).toBe(true);
+  expect(stalePersistedDecision).toBeUndefined();
+  const staleDecision = resolveEligibilityDecision(staleLapMeta, "normal-pace");
+  expect(staleDecision.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
+  expect(staleDecision).not.toBe(staleLapMeta.eligibility?.["normal-pace"]);
+
+  const missingLapMeta = projectedLap(4);
+  const missingPersistedDecision = isEligibilitySnapshotCurrent(missingLapMeta) ? missingLapMeta.eligibility?.["normal-pace"] : undefined;
+  expect(missingLapMeta.qualityStale).toBe(false);
+  expect(missingPersistedDecision).toBeUndefined();
+  const missingDecision = resolveEligibilityDecision(missingLapMeta, "normal-pace");
+  expect(missingDecision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+  expect(missingDecision).not.toBe(missingLapMeta.eligibility?.["normal-pace"]);
 
   const recapData = await getSessionRecapData(sessionId, "iracing");
   if (!recapData) throw new Error("Expected recap query data");

@@ -165,13 +165,15 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     quality: quality ?? undefined,
     eligibility: eligibility ?? undefined,
     qualityGeneration: qualityGeneration ?? undefined,
-    qualityStale: !isEligibilitySnapshotCurrent({
-      quality,
-      eligibility,
-      qualityGeneration,
-      qualitySchemaVersion,
-      qualityPolicyVersion,
-      qualityConfigVersion,
-    }),
+    qualityStale:
+      quality != null &&
+      !isEligibilitySnapshotCurrent({
+        quality,
+        eligibility,
+        qualityGeneration,
+        qualitySchemaVersion,
+        qualityPolicyVersion,
+        qualityConfigVersion,
+      }),
   };
 }
