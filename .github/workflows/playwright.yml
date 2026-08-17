@@ -60,7 +60,17 @@ jobs:
           path: dist
 
       - name: Install workspace dependencies
-        run: bun install --frozen-lockfile
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          bun install --frozen-lockfile
+          if ($LASTEXITCODE -eq 0) {
+            exit 0
+          }
+          Write-Host "Initial Bun install failed; clearing node_modules and retrying with a forced package download."
+          Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+          bun install --frozen-lockfile --force
+          exit $LASTEXITCODE
 
       - name: Install Chromium
         working-directory: playwright
