@@ -4,6 +4,7 @@ import { qualityPackets, summarize } from "../../support/lap-analysis/quality-mo
 import { repeatabilityStats, stintStats } from "../../../shared/racing/laps/stint-stats";
 import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+const TEST_SOURCE_GENERATION = `sha256:${"a".repeat(64)}`;
 
 describe("repeatabilityStats", () => {
   test("returns null statistics when no values qualify", () => {
@@ -64,19 +65,30 @@ const lap = (overrides: Partial<LapMeta> = {}): LapMeta => {
     createdAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
-  const quality =
-    overrides.quality ??
-    summarize(qualityPackets(200), {
-      lapTime: 10,
-      structurallyValid: value.isValid,
-      invalidReason: value.isValid ? null : (value.invalidReason ?? "invalid-lap"),
-      classification: {
-        phase: value.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
-        conditions: value.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
-        paceEligibility: value.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
-      },
-    });
-  return { ...value, quality, eligibility: overrides.eligibility ?? evaluateAllEligibility(quality) };
+  const summarized = summarize(qualityPackets(200), {
+    lapTime: 10,
+    structurallyValid: value.isValid,
+    invalidReason: value.isValid ? null : (value.invalidReason ?? "invalid-lap"),
+    classification: {
+      phase: value.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+      conditions: value.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+      paceEligibility: value.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
+    },
+  });
+  const quality = {
+    ...summarized,
+    provenance: {
+      ...summarized.provenance,
+      sourceGeneration: TEST_SOURCE_GENERATION,
+      outputGeneration: `sha256:${value.id.toString(16).padStart(64, "0")}`,
+    },
+  };
+  return {
+    ...value,
+    quality,
+    eligibility: overrides.eligibility ?? evaluateAllEligibility(quality),
+    qualityGeneration: quality.provenance.outputGeneration,
+  };
 };
 
 describe("stintStats", () => {
