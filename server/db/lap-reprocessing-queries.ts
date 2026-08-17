@@ -1,7 +1,7 @@
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq, and, notInArray } from "drizzle-orm";
+import { eq, and, inArray, notInArray, or } from "drizzle-orm";
 import { db } from "./index";
-import { laps } from "./schema";
+import { compareAnalyses, laps } from "./schema";
 import type { LapClassification } from "../../shared/racing/laps/classification";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
@@ -142,6 +142,10 @@ export async function deleteLapsForSession(sessionId: number, preserveLapIds: re
   const deletedIds = rows.map(({ id }) => id).filter((id) => !preserved.has(id));
   for (const id of deletedIds) cacheDelete(id);
   if (deletedIds.length === 0) return;
+  await db
+    .delete(compareAnalyses)
+    .where(or(inArray(compareAnalyses.lapAId, deletedIds), inArray(compareAnalyses.lapBId, deletedIds)))
+    .run();
   if (preserveLapIds.length === 0) {
     await db.delete(laps).where(eq(laps.sessionId, sessionId));
     return;

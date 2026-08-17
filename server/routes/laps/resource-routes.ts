@@ -75,9 +75,6 @@ export const resourceRoutes = new Hono()
       const lap = await getLapById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const decision = resolveEligibilityDecision(lap, "corner-trace");
-      if (!isEligibilityUsable(decision)) {
-        return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
-      }
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
@@ -86,7 +83,7 @@ export const resourceRoutes = new Hono()
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
         sectorStarts: nativeLayout?.starts ?? null,
-        insights: analyzeLap(lap.telemetry, lap.gameId, lap.quality),
+        insights: isEligibilityUsable(decision) ? analyzeLap(lap.telemetry, lap.gameId, lap.quality) : [],
         decision,
         qualityGeneration: lap.qualityGeneration ?? null,
         channelQuality: lap.quality?.channelQuality ?? [],
@@ -170,6 +167,7 @@ export const resourceRoutes = new Hono()
       lapDist: number;
     } | null = null;
     const packets = lap.telemetry;
+    const decision = resolveEligibilityDecision(lap, "corner-trace");
     if (packets.length >= 10 && lap.trackOrdinal != null) {
       const game = getGame(gameId);
       const firstDist = packets[0].DistanceTraveled;
@@ -226,15 +224,19 @@ export const resourceRoutes = new Hono()
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = analyzeLap(packets, gameId, lap.quality);
+    const insights = isEligibilityUsable(decision) ? analyzeLap(packets, gameId, lap.quality) : [];
 
-    return c.json({ ...lap, sectorTimes, insights });
+    return c.json({ ...lap, sectorTimes, insights, decision });
   })
 
   .get("/api/laps/:id/export", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
     const lap = await getLapById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
+    const decision = resolveEligibilityDecision(lap, "corner-trace");
+    if (!isEligibilityUsable(decision)) {
+      return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
+    }
     const packets = lap.telemetry;
     if (packets.length === 0) return c.json({ error: "No telemetry data" }, 400);
     const exportText = generateExport(lap, packets);

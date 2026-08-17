@@ -26,11 +26,7 @@ interface ReprocessResult {
 
 export class SessionRawFileMissingError extends Error {
   constructor(sessionId: number, rawFile?: string) {
-    super(
-      rawFile
-        ? `Session ${sessionId} raw file not found: ${rawFile}`
-        : `Session ${sessionId} has no raw file to reprocess`,
-    );
+    super(rawFile ? `Session ${sessionId} raw file not found: ${rawFile}` : `Session ${sessionId} has no raw file to reprocess`);
     this.name = "SessionRawFileMissingError";
   }
 }
@@ -70,7 +66,8 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
   const sourceKind = (session.source as EvidenceSourceKind | null) ?? "unknown";
-  const recordingQuality = new RecordingQualityAccumulator(sourceKind, LOCAL_PLAYER_EVIDENCE, versionIdentity);
+  const participant = session.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE;
+  const recordingQuality = new RecordingQualityAccumulator(sourceKind, participant, versionIdentity);
 
   // Read the raw session file
   const rawFileHandle = Bun.file(session.rawFile);
@@ -89,6 +86,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     db: capturingDb,
     bypassPacketRateFilter: true,
     sourceKind,
+    participant,
     sourceChannelProfile: session.sourceChannelProfile ?? undefined,
     versionIdentity,
   });
@@ -201,10 +199,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
       sourceGeneration: sha256ContentHash(buf),
     },
   });
-  await updateSessionQuality(
-    sessionId,
-    mergeReprocessedRecordingQuality(session.recordingQuality, recomputedQuality),
-  );
+  await updateSessionQuality(sessionId, mergeReprocessedRecordingQuality(session.recordingQuality, recomputedQuality));
   await linkSessionQualityEvents(sessionId);
 
   return {

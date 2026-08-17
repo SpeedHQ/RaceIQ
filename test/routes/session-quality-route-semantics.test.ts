@@ -16,6 +16,7 @@ function status(sessionId: number, action: QualityRebuildAction): QualityRebuild
       schema: false,
       policy: action === "rebuild_eligibility",
       configuration: false,
+      source: false,
     },
   };
 }

@@ -5,7 +5,9 @@ import {
   type F1Header,
 } from "../../../server/games/f1-2025/f1-wire";
 
-function header(packetId: number, sessionUID = 1n): F1Header {
+function header(packetId: number, sessionUIDOrOverallFrameIdentifier: bigint | number = 1): F1Header {
+  const sessionUID = typeof sessionUIDOrOverallFrameIdentifier === "bigint" ? sessionUIDOrOverallFrameIdentifier : 1n;
+  const overallFrameIdentifier = typeof sessionUIDOrOverallFrameIdentifier === "number" ? sessionUIDOrOverallFrameIdentifier : 1;
   return {
     packetFormat: 2025,
     gameYear: 25,
@@ -16,7 +18,7 @@ function header(packetId: number, sessionUID = 1n): F1Header {
     sessionUID,
     sessionTime: 10,
     frameIdentifier: 1,
-    overallFrameIdentifier: 1,
+    overallFrameIdentifier,
     playerCarIndex: 0,
     secondaryPlayerCarIndex: 255,
   };
@@ -58,9 +60,11 @@ describe("F1 telemetry contract", () => {
     carStatus.writeFloatLE(110, 9);
     carStatus.writeFloatLE(500_000, 29);
     carStatus.writeFloatLE(120_000, 33);
-    const packet = accumulator.feed(header(7), frame(carStatus));
+    const packet = accumulator.feed(header(7, 42), frame(carStatus));
 
     expect(packet).not.toBeNull();
+    expect(packet!.f1?.overallFrameIdentifier).toBe(42);
+    expect(packet!.f1?.packetId).toBe(7);
     expect(packet!.Fuel).toBeCloseTo(0.5);
     expect(packet!.FuelCapacity).toBeCloseTo(110);
     expect(packet!.Power).toBeCloseTo(620_000);

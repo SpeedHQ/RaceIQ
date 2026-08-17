@@ -51,8 +51,8 @@ describe("selectEvaluationLaps", () => {
       schemaVersion: QUALITY_SCHEMA_VERSION,
       policyVersion: ELIGIBILITY_POLICY_VERSION,
       configurationVersion: QUALITY_CONFIG_VERSION,
-      sourceGeneration: "sha256:review-laps-source",
-      outputGeneration: "sha256:review-laps-quality",
+      sourceGeneration: `sha256:${"a".repeat(64)}`,
+      outputGeneration: `sha256:${"b".repeat(64)}`,
     },
   } as unknown as LapQualitySummary;
   const decision = (policyId: EligibilityPolicyId, status: EligibilityDecision["status"] = "eligible", code?: QualityReasonCode): EligibilityDecision => ({
@@ -165,7 +165,7 @@ describe("selectEvaluationLaps", () => {
     const sel = selectEvaluationLaps(laps);
     expect(sel.chosen.map((candidate) => candidate.id)).toEqual([2, 3, 4]);
     expect(sel.rejectionDecisionById.get(1)?.status).toBe("unknown");
-    expect(sel.reasonCodesById.get(1)).toContain("quality_not_rebuilt");
+    expect(sel.reasonCodesById.get(1)).toContain("quality_stale");
   });
 
   test("empty input yields an empty selection", () => {

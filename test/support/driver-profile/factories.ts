@@ -8,7 +8,7 @@ export const SCOPE: ProfileScope = { kind: "car-track", gameId: "fm-2023", carOr
 export const GLOBAL_SCOPE: ProfileScope = { kind: "global", gameId: "fm-2023", carOrdinal: null, trackOrdinal: null };
 
 export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
-  const qualityGeneration = `sha256:test-quality-${id}`;
+  const qualityGeneration = `sha256:${(id * 2).toString(16).padStart(64, "0")}`;
   const value: LapMeta = {
     id,
     sessionId: 1,
@@ -27,7 +27,7 @@ export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
         schemaVersion: QUALITY_SCHEMA_VERSION,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         configurationVersion: QUALITY_CONFIG_VERSION,
-        sourceGeneration: `sha256:test-source-${id}`,
+        sourceGeneration: `sha256:${(id * 2 + 1).toString(16).padStart(64, "0")}`,
         outputGeneration: qualityGeneration,
       },
     } as unknown as LapQualitySummary,

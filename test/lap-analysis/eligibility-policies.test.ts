@@ -1,7 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { evaluateAllEligibility, evaluateEligibility, evaluateGroupEligibility, isEligibilityUsable } from "../../shared/racing/quality/policies";
-import type { EligibilityDecisionSet, EligibilityReason, GroupEligibilityLap, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { evaluateAllEligibility, evaluateEligibility, evaluateGroupEligibility, isEligibilityUsable, QUALITY_POLICY_CONFIG_V1, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  QUALITY_CONFIG_VERSION,
+  type EligibilityDecision,
+  type EligibilityDecisionSet,
+  type EligibilityReason,
+  type GroupEligibilityLap,
+  type LapQualitySummary,
+} from "../../shared/racing/quality/contracts";
 import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
+import { finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
 
 function copyQuality(quality: LapQualitySummary): LapQualitySummary {
   return {
@@ -40,6 +49,45 @@ function groupLap(quality: LapQualitySummary, lapTime: number): GroupEligibility
 }
 
 describe("eligibility policy registry", () => {
+  test("publishes its configuration compatibility identity", () => {
+    expect(QUALITY_POLICY_CONFIG_V1.version).toBe(QUALITY_CONFIG_VERSION);
+  });
+
+  test("distinguishes current, stale, and missing snapshots across policy families", () => {
+    const finalized = finalizeLapQualityGeneration(summarize(qualityPackets(200)), "test-session-source", {
+      lapNumber: 1,
+      rawByteOffset: 0,
+      rawFrameCount: 200,
+    });
+    const quality = finalized.quality;
+    const policyIds = ["normal-pace", "corner-trace", "setup-analysis", "ml-training"] as const;
+
+    for (const policyId of policyIds) {
+      const persisted = finalized.eligibility[policyId];
+      const currentEvidence = {
+        quality,
+        eligibility: { [policyId]: persisted } as Partial<EligibilityDecisionSet>,
+        qualityGeneration: quality.provenance.outputGeneration,
+      };
+
+      const current = resolveEligibilityDecision(currentEvidence, policyId);
+      expect(current).toBe(persisted);
+
+      const stale = resolveEligibilityDecision({ ...currentEvidence, qualityStale: true }, policyId);
+      expect(stale.status).toBe("unknown");
+      expect(isEligibilityUsable(stale)).toBe(false);
+      expect(stale.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
+
+      const missing = resolveEligibilityDecision({}, policyId);
+      expect(missing.status).toBe("unknown");
+      expect(isEligibilityUsable(missing)).toBe(false);
+      expect(missing.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+    }
+
+    const staleMissing = resolveEligibilityDecision({ quality: null, eligibility: null, qualityStale: true }, "corner-trace");
+    expect(staleMissing.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
+  });
+
   test("keeps official timing eligible through irrelevant telemetry gaps", () => {
     const missing = Array.from({ length: 20 }, (_, index) => 90 + index);
     const quality = summarize(qualityPackets(200, missing));

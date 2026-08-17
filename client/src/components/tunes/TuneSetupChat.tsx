@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
-import { ChatPanel } from "@/components/ai-chat/ChatPanel";
+import { ChatPanel, type ChatHistoryResult } from "@/components/ai-chat/ChatPanel";
 
 /**
  * TuneSetupChat — the setup-scoped chat inside an experiment (plan Phase D).
@@ -20,14 +20,15 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
  * into this thread, so no separate generate endpoint or reload plumbing is
  * needed — the streamed reply already contains the outcome.
  */
-async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<UIMessage[]> {
+async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<ChatHistoryResult> {
   const url = gen === undefined ? `/api/experiments/${sessionId}/chat` : `/api/experiments/${sessionId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
-  const data = (await res.json()) as { messages?: UIMessage[] };
-  const msgs = (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
-
-  return msgs;
+  const data = (await res.json()) as { messages?: UIMessage[]; threadId?: string | null };
+  return {
+    messages: (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant"),
+    threadId: data.threadId,
+  };
 }
 
 export function TuneSetupChat({

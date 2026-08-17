@@ -23,6 +23,7 @@ import { readSetupEngineerContext } from "../../../mastra/tools/setup-engineer-r
 import { setupEngineerTools } from "../../../mastra/tools/setup-engineer";
 import { db } from "../../../server/db";
 import { experimentActions, experiments, laps, sessions } from "../../../server/db/schema";
+import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quality-generation";
 import {
   ELIGIBILITY_POLICY_VERSION,
   QUALITY_CONFIG_VERSION,
@@ -160,7 +161,12 @@ describe("readSetupEngineerContext — per-request gameId/sessionId guard", () =
 
 const createdScopeExperimentIds: number[] = [];
 const createdScopeSessionIds: number[] = [];
-const scopeQuality = summarize(qualityPackets(200));
+const scopePackets = qualityPackets(200);
+const scopeQuality = finalizeLapQualityGeneration(summarize(scopePackets), `sha256:${"7".repeat(64)}`, {
+  lapNumber: 1,
+  rawByteOffset: 0,
+  rawFrameCount: scopePackets.length,
+}).quality;
 
 function scopeEligibility(rejectedPolicy?: EligibilityPolicyId, reason: QualityReasonCode = "traffic_context"): EligibilityDecisionSet {
   const eligibility = structuredClone(evaluateAllEligibility(scopeQuality));
@@ -285,5 +291,21 @@ describe("Setup Engineer explicit lap scope", () => {
     const rejectedB = await setupEngineerTools.compareLapsTool.execute!({ lapId1: compareEligibleId, lapId2: compareRejectedId }, toolExecutionContext(requestContext));
     expect(rejectedB).toMatchObject({ ok: false, eligibilityStatus: "ineligible", reasonCodes: ["traffic_context"] });
     expect(await setupEngineerTools.compareLapsTool.execute!({ lapId1: compareEligibleId, lapId2: wrongTrackId }, toolExecutionContext(requestContext))).toMatchObject({ ok: false });
+  });
+
+  test("rejects an explicit unsafe lap before generating handling issues", async () => {
+    const experimentId = await insertScopeExperiment("iracing", 9_302_021);
+    const sessionId = await insertScopeSession("iracing", 9_302_021);
+    const lapId = await insertScopeLap(sessionId, experimentId, 1, scopeEligibility());
+    await db.update(laps).set({ qualityPolicyVersion: "stale-policy" }).where(eq(laps.id, lapId)).run();
+
+    const result = await setupEngineerTools.getLapIssuesTool.execute!({ lapId }, toolExecutionContext(toolContext("iracing", experimentId)));
+
+    expect(result).toMatchObject({
+      ok: false,
+      eligibilityStatus: "unknown",
+      reasonCodes: ["quality_stale"],
+      laps: [],
+    });
   });
 });

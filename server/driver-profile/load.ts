@@ -40,7 +40,6 @@ export function selectCurrentDriverProfileEvidence(
   return { currentPool, decision, candidates };
 }
 
-
 /** Load and reduce all driver laps for one selected game to a global fingerprint. */
 export async function loadDriverProfile(opts: { gameId: GameId }): Promise<DriverFingerprint> {
   const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carOrdinal: null, trackOrdinal: null };

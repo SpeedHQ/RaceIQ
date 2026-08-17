@@ -1,4 +1,6 @@
 import { lapClassificationLabel, type ClassifiedLap } from "../../shared/racing/laps/classification";
+import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision, type QualitySnapshotEvidence } from "../../shared/racing/quality/policies";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { tryGetGame } from "../../shared/games/registry";
 
@@ -21,17 +23,20 @@ function convertTemp(value: number, unit: "F" | "C", source: "F" | "C" = "F"): n
  * Generate a Claude-formatted lap export summary.
  */
 export function generateExport(
-  lap: ClassifiedLap & {
-    lapNumber: number;
-    lapTime: number;
-    isValid: boolean;
-    carOrdinal?: number;
-    trackOrdinal?: number;
-  },
+  lap: ClassifiedLap &
+    QualitySnapshotEvidence & {
+      lapNumber: number;
+      lapTime: number;
+      isValid: boolean;
+      carOrdinal?: number;
+      trackOrdinal?: number;
+    },
   packets: TelemetryPacket[],
   unit: UnitSystem = "metric",
   temperatureUnit?: TemperatureUnit,
 ): string {
+  const decision = resolveEligibilityDecision(lap, "corner-trace");
+  if (!isEligibilityUsable(decision)) throw new Error(eligibilityDecisionText(decision));
   const first = packets[0];
   const adapter = first.gameId ? tryGetGame(first.gameId) : undefined;
   const className = adapter?.carClassNames?.[first.CarClass] ?? String(first.CarClass);
@@ -39,9 +44,7 @@ export function generateExport(
 
   const speedUnit = unitToSpeed(unit);
   const tempUnit = temperatureUnit ?? unitToTemp(unit);
-  const srcTemp = adapter?.telemetry.tireTemperature.packetUnit === "fahrenheit"
-    ? ("F" as const)
-    : ("C" as const);
+  const srcTemp = adapter?.telemetry.tireTemperature.packetUnit === "fahrenheit" ? ("F" as const) : ("C" as const);
   const speedFactor = speedUnit === "kmh" ? 3.6 : 2.237;
   const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
   const tempLabel = tempUnit === "C" ? "C" : "F";
@@ -71,9 +74,7 @@ export function generateExport(
 
   for (let index = 0; index < packets.length; index++) {
     const packet = packets[index];
-    const speed =
-      Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2) *
-      speedFactor;
+    const speed = Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2) * speedFactor;
     speeds[index] = speed;
     minSpeed = Math.min(minSpeed, speed);
     maxSpeed = Math.max(maxSpeed, speed);

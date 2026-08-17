@@ -2,7 +2,7 @@ import { existsSync, unlinkSync } from "node:fs";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "../../server/db/index";
 import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations } from "../../server/ai/chat-agent";
-import { getCompareQualityIdentity } from "../../server/db/analysis-queries";
+import { getCompareQualityIdentity, getLapQualityIdentity } from "../../server/db/analysis-queries";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../../server/db/schema";
 import { deleteSession } from "../../server/db/session-queries";
 import { PROFILE_NAME, SEED_MARKER } from "./seed-db-options";
@@ -32,7 +32,11 @@ export async function removeSeedData(): Promise<void> {
     .where(like(experiments.notes, `%${SEED_MARKER}%`))
     .all();
   const tuneRows = await db.select({ id: tunes.id }).from(tunes).where(eq(tunes.source, SEED_MARKER)).all();
-  const chatBases = seededLaps.map((lap) => chatThreadId(lap.id));
+  const chatBases: string[] = [];
+  for (const lap of seededLaps) {
+    const identity = await getLapQualityIdentity(lap.id);
+    if (identity) chatBases.push(chatThreadId(lap.id, `${identity.policyVersion}:${identity.generation}`));
+  }
   const fmLapIds = seededLaps
     .filter((lap) => lap.gameId === "fm-2023")
     .map((lap) => lap.id)
