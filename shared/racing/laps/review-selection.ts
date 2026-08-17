@@ -1,4 +1,4 @@
-import type { LapCondition, LapPhase, PaceEligibility } from "./classification";
+import type { ClassifiedLap } from "./classification";
 import type { EligibilityDecision, EligibilityDecisionSet, EligibilityPolicyId, LapQualitySummary, QualityReasonCode } from "../quality/contracts";
 import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecision, type QualitySnapshotEvidence } from "../quality/policies";
 
@@ -51,13 +51,10 @@ export interface EvaluationSelection<T> {
 
 /** Minimal lap shape the selector needs. Satisfied by both `LapMeta` (client)
  *  and the server's `ExclusionScopeLap` row projection. */
-export interface EvaluableLap extends QualitySnapshotEvidence {
+export interface EvaluableLap extends ClassifiedLap, QualitySnapshotEvidence {
   id: number;
   lapTime: number;
   isValid: boolean;
-  phase?: LapPhase | null;
-  conditions?: LapCondition[] | null;
-  paceEligibility?: PaceEligibility | null;
   invalidReason?: string | null;
   experimentExcluded?: boolean;
   experimentExcludedSource?: "auto" | "manual" | null;

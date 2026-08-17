@@ -7,6 +7,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 
 interface LapStats {
   totalLaps: number;
@@ -348,13 +349,14 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
     quality: row.quality ?? undefined,
     eligibility: row.eligibility ?? undefined,
     qualityGeneration: row.qualityGeneration ?? undefined,
-    qualityStale:
-      !row.quality ||
-      !row.eligibility ||
-      row.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
-      row.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
-      row.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
-      row.qualityGeneration !== row.quality.provenance.outputGeneration,
+    qualityStale: !isEligibilitySnapshotCurrent({
+      quality: row.quality,
+      eligibility: row.eligibility,
+      qualityGeneration: row.qualityGeneration,
+      qualitySchemaVersion: row.qualitySchemaVersion,
+      qualityPolicyVersion: row.qualityPolicyVersion,
+      qualityConfigVersion: row.qualityConfigVersion,
+    }),
     telemetry,
   };
 }

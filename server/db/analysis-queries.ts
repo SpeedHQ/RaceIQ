@@ -1,6 +1,6 @@
 import { eq, and, inArray, sql } from "drizzle-orm";
-import { ELIGIBILITY_POLICY_VERSION, type LapQualitySummary } from "../../shared/racing/quality/contracts";
-import { isQualitySnapshotCurrent } from "../../shared/racing/quality/policies";
+import { ELIGIBILITY_POLICY_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 import { combineQualityGenerations } from "../lap-analysis/quality-generation";
 import { db } from "./index";
 import { lapAnalyses, compareAnalyses, laps } from "./schema";
@@ -24,10 +24,11 @@ export interface LapQualityCacheEvidence {
   qualityPolicyVersion?: string | null;
   qualityConfigVersion?: string | null;
   quality?: LapQualitySummary | null;
+  eligibility?: Partial<EligibilityDecisionSet> | null;
 }
 
 export function qualityCacheIdentityForLap(evidence: LapQualityCacheEvidence): QualityCacheIdentity | null {
-  if (!isQualitySnapshotCurrent(evidence)) return null;
+  if (!isEligibilitySnapshotCurrent(evidence)) return null;
   return {
     generation: evidence.qualityGeneration!,
     policyVersion: ELIGIBILITY_POLICY_VERSION,
@@ -36,7 +37,7 @@ export function qualityCacheIdentityForLap(evidence: LapQualityCacheEvidence): Q
 
 export function qualityCacheIdentityForComparison(evidence: readonly [LapQualityCacheEvidence, LapQualityCacheEvidence]): QualityCacheIdentity | null {
   return combineCompareIdentityRows(
-    evidence.map((lap) => (isQualitySnapshotCurrent(lap) ? { generation: lap.qualityGeneration ?? null, policyVersion: ELIGIBILITY_POLICY_VERSION } : { generation: null, policyVersion: null })),
+    evidence.map((lap) => (isEligibilitySnapshotCurrent(lap) ? { generation: lap.qualityGeneration ?? null, policyVersion: ELIGIBILITY_POLICY_VERSION } : { generation: null, policyVersion: null })),
   );
 }
 
@@ -46,14 +47,16 @@ interface PersistedQualityIdentityRow {
   schemaVersion: string | null;
   configurationVersion: string | null;
   quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
 }
 
 function currentQualityCacheIdentity(row: PersistedQualityIdentityRow | null | undefined): QualityCacheIdentity | null {
   if (
     !row?.quality ||
     !row.generation ||
-    !isQualitySnapshotCurrent({
+    !isEligibilitySnapshotCurrent({
       quality: row.quality,
+      eligibility: row.eligibility,
       qualityGeneration: row.generation,
       qualitySchemaVersion: row.schemaVersion,
       qualityPolicyVersion: row.policyVersion,
@@ -83,6 +86,7 @@ async function getLapQualityIdentity(lapId: number): Promise<QualityCacheIdentit
       schemaVersion: laps.qualitySchemaVersion,
       configurationVersion: laps.qualityConfigVersion,
       quality: laps.quality,
+      eligibility: laps.eligibility,
     })
     .from(laps)
     .where(eq(laps.id, lapId))
@@ -99,6 +103,7 @@ export async function getCompareQualityIdentity(idA: number, idB: number): Promi
       schemaVersion: laps.qualitySchemaVersion,
       configurationVersion: laps.qualityConfigVersion,
       quality: laps.quality,
+      eligibility: laps.eligibility,
     })
     .from(laps)
     .where(inArray(laps.id, [idA, idB]))

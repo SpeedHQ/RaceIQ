@@ -68,6 +68,7 @@ export type RecordingLifecycleState = "exact" | "minor_gaps" | "degraded" | "inc
 
 export type QualityReasonCode =
   | "quality_not_rebuilt"
+  | "quality_stale"
   | "recording_unavailable"
   | "recording_incompatible"
   | "recording_corrupt"

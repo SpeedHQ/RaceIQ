@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import type { RecordingQualitySummary } from "../../shared/racing/quality/contracts";
 import { eq } from "drizzle-orm";
 import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
@@ -6,6 +5,7 @@ import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { updateSessionQuality } from "../db/session-queries";
 import { tryGetServerGame } from "../games/registry";
+import { loadRawCaptureIdentity } from "../session-capture/identity";
 
 export type QualityRebuildAction = "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
 
@@ -22,6 +22,7 @@ export interface QualityRebuildStatus {
     schema: boolean;
     policy: boolean;
     configuration: boolean;
+    source: boolean;
   };
 }
 
@@ -42,22 +43,33 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     .get();
   if (!session) throw new Error(`Session ${sessionId} not found`);
   const lapRows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-  const rawAvailable = session.rawFile != null && existsSync(session.rawFile);
+  let rawAvailable = false;
+  let sourceStale = false;
+  if (session.rawFile !== null) {
+    try {
+      const rawCapture = await loadRawCaptureIdentity(session.rawFile);
+      if (rawCapture) {
+        rawAvailable = true;
+        const canonicalVerification = session.recordingQuality?.canonicalVerification;
+        const expectedGeneration = canonicalVerification !== undefined ? canonicalVerification.sourceGeneration : (session.recordingQuality?.archiveVerification.sourceGeneration ?? null);
+        sourceStale = rawCapture.contentHash !== expectedGeneration;
+      } else {
+        sourceStale = true;
+      }
+    } catch {
+      sourceStale = true;
+    }
+  }
   const currentDetectorId = tryGetServerGame(session.gameId)?.lapDetectorId ?? null;
   const stale = {
     detector: currentDetectorId === null || session.detectorVersion === null || session.detectorVersion !== currentDetectorId,
     schema: session.schemaVersion !== QUALITY_SCHEMA_VERSION,
     policy: session.policyVersion !== ELIGIBILITY_POLICY_VERSION,
     configuration: session.configurationVersion !== QUALITY_CONFIG_VERSION,
+    source: sourceStale,
   };
-  const measurementStale = !session.recordingQuality || stale.schema || stale.detector || stale.configuration;
-  const action: QualityRebuildAction = measurementStale
-    ? rawAvailable && currentDetectorId !== null
-      ? "reprocess"
-      : "unavailable"
-    : stale.policy
-      ? "rebuild_eligibility"
-      : "current";
+  const measurementStale = !session.recordingQuality || stale.schema || stale.detector || stale.configuration || stale.source;
+  const action: QualityRebuildAction = measurementStale ? (rawAvailable && currentDetectorId !== null ? "reprocess" : "unavailable") : stale.policy ? "rebuild_eligibility" : "current";
   return {
     sessionId,
     currentDetectorId,

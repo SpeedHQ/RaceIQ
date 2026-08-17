@@ -1,8 +1,10 @@
 import { afterEach, expect, test } from "bun:test";
 import { and, eq, gt, inArray } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { db } from "../../server/db";
 import { getLapCountsByTest } from "../../server/db/experiment-version-queries";
 import { analysisEligibility } from "../../server/db/lap-eligibility";
+import { getLaps } from "../../server/db/lap-read-queries";
 import { getSessionRecapData, getSessions } from "../../server/db/session-queries";
 import { computeRecap } from "../../server/lap-analysis/recap";
 import { experimentVersions, experiments, laps, sessions } from "../../server/db/schema";
@@ -11,9 +13,11 @@ import {
   QUALITY_CONFIG_VERSION,
   QUALITY_SCHEMA_VERSION,
   type EligibilityDecisionSet,
+  type EligibilityPolicyId,
   type EligibilityStatus,
   type LapQualitySummary,
 } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 
 const createdSessionIds: number[] = [];
 const createdExperimentIds: number[] = [];
@@ -30,43 +34,49 @@ afterEach(async () => {
     createdExperimentIds.length = 0;
   }
 });
+
+function qualityGeneration(label: string): string {
+  return `sha256:${createHash("sha256").update(label).digest("hex")}`;
+}
 function normalPace(status: EligibilityStatus): EligibilityDecisionSet {
-  return {
-    "normal-pace": {
-      status,
-      policyId: "normal-pace",
-      policyVersion: "1",
-      confidence: { level: "high", score: 1 },
-      reasons: [],
-      evidenceIds: [],
-    },
-    "corner-trace": {
-      status,
-      policyId: "corner-trace",
-      policyVersion: "1",
-      confidence: { level: "high", score: 1 },
-      reasons: [],
-      evidenceIds: [],
-    },
-    "setup-analysis": {
-      status,
-      policyId: "setup-analysis",
-      policyVersion: "1",
-      confidence: { level: "high", score: 1 },
-      reasons: [],
-      evidenceIds: [],
-    },
-  } as unknown as EligibilityDecisionSet;
+  const policyIds = [
+    "official-timing",
+    "normal-pace",
+    "lap-comparison",
+    "corner-trace",
+    "transient-event",
+    "fuel-burn",
+    "tire-analysis",
+    "stint-falloff",
+    "setup-analysis",
+    "driver-profile",
+    "ml-training",
+  ] as const satisfies readonly EligibilityPolicyId[];
+
+  return Object.fromEntries(
+    policyIds.map((policyId) => [
+      policyId,
+      {
+        status,
+        policyId,
+        policyVersion: ELIGIBILITY_POLICY_VERSION,
+        confidence: { level: "high", score: 1 },
+        reasons: [],
+        evidenceIds: [],
+      },
+    ]),
+  ) as unknown as EligibilityDecisionSet;
 }
 
-function currentQualityEvidence(generation = "sha256:session-query-quality") {
+function currentQualityEvidence(label = "session-query-quality") {
+  const generation = qualityGeneration(label);
   return {
     quality: {
       provenance: {
         schemaVersion: QUALITY_SCHEMA_VERSION,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         configurationVersion: QUALITY_CONFIG_VERSION,
-        sourceGeneration: "sha256:session-query-source",
+        sourceGeneration: qualityGeneration("session-query-source"),
         outputGeneration: generation,
       },
     } as unknown as LapQualitySummary,
@@ -118,12 +128,13 @@ test("analysisEligibility filters the normal-pace policy decision", async () => 
   });
 });
 
-test("experiment test best lap requires a setup-eligible group", async () => {
+test("experiment best lap requires current persisted identity and a setup-eligible group", async () => {
   const sessionId = (await db.insert(sessions).values({ carOrdinal: 996_229, trackOrdinal: 997_229, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(sessionId);
   const experimentId = (await db.insert(experiments).values({ gameId: "iracing", name: "setup group eligibility test" }).returning({ id: experiments.id }).get()).id;
   createdExperimentIds.push(experimentId);
   const experimentVersionId = (await db.insert(experimentVersions).values({ experimentId, version: 1, label: "base" }).returning({ id: experimentVersions.id }).get()).id;
+  const staleVersionId = (await db.insert(experimentVersions).values({ experimentId, version: 2, label: "stale" }).returning({ id: experimentVersions.id }).get()).id;
   const eligibility = normalPace("eligible");
 
   await db.insert(laps).values(
@@ -134,14 +145,36 @@ test("experiment test best lap requires a setup-eligible group", async () => {
       lapNumber: index + 1,
       lapTime,
       isValid: true,
-      ...currentQualityEvidence(),
+      ...currentQualityEvidence(`experiment-current-${index}`),
+      eligibility,
+    })),
+  );
+  const staleIdentityEvidence = [
+    { ...currentQualityEvidence("experiment-stale-generation"), qualityGeneration: qualityGeneration("experiment-stale-column") },
+    { ...currentQualityEvidence("experiment-stale-policy"), qualityPolicyVersion: "legacy-policy" },
+    { ...currentQualityEvidence("experiment-stale-config"), qualityConfigVersion: "legacy-config" },
+  ];
+  await db.insert(laps).values(
+    staleIdentityEvidence.map((evidence, index) => ({
+      ...evidence,
+      experimentId,
+      experimentVersionId: staleVersionId,
+      sessionId,
+      lapNumber: index + 4,
+      lapTime: 88_000 - index * 500,
+      isValid: true,
       eligibility,
     })),
   );
 
-  expect((await getLapCountsByTest(experimentId)).get(experimentVersionId)).toEqual({
+  const counts = await getLapCountsByTest(experimentId);
+  expect(counts.get(experimentVersionId)).toEqual({
     lapCount: 3,
     bestLapMs: 89_500,
+  });
+  expect(counts.get(staleVersionId)).toEqual({
+    lapCount: 3,
+    bestLapMs: null,
   });
 });
 
@@ -220,23 +253,19 @@ test("session recap keeps validity and positive-time filters caller-owned", asyn
   expect(recap?.allTimeBestSectors).toEqual([45_000, 45_000]);
 });
 
-test("session recap excludes stale and legacy eligibility from cross-session pace", async () => {
-  const currentSessionId = (
-    await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()
-  ).id;
-  const comparisonSessionId = (
-    await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()
-  ).id;
+test("session recap and SQL eligibility exclude stale quality and decision identities", async () => {
+  const currentSessionId = (await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
+  const comparisonSessionId = (await db.insert(sessions).values({ carOrdinal: 991_229, trackOrdinal: 990_229, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(currentSessionId, comparisonSessionId);
 
   const staleColumnEvidence = [
-    { ...currentQualityEvidence("sha256:cross-session-stale-output"), qualityGeneration: "sha256:cross-session-stale-column" },
-    { ...currentQualityEvidence("sha256:cross-session-stale-schema"), qualitySchemaVersion: "legacy-schema" },
-    { ...currentQualityEvidence("sha256:cross-session-stale-policy"), qualityPolicyVersion: "legacy-policy" },
-    { ...currentQualityEvidence("sha256:cross-session-stale-config"), qualityConfigVersion: "legacy-config" },
+    { ...currentQualityEvidence("cross-session-stale-output"), qualityGeneration: qualityGeneration("cross-session-stale-column") },
+    { ...currentQualityEvidence("cross-session-stale-schema"), qualitySchemaVersion: "legacy-schema" },
+    { ...currentQualityEvidence("cross-session-stale-policy"), qualityPolicyVersion: "legacy-policy" },
+    { ...currentQualityEvidence("cross-session-stale-config"), qualityConfigVersion: "legacy-config" },
   ];
   const staleProvenanceEvidence = (["schemaVersion", "policyVersion", "configurationVersion"] as const).map((field) => {
-    const evidence = currentQualityEvidence(`sha256:cross-session-stale-provenance-${field}`);
+    const evidence = currentQualityEvidence(`cross-session-stale-provenance-${field}`);
     return {
       ...evidence,
       quality: {
@@ -245,7 +274,25 @@ test("session recap excludes stale and legacy eligibility from cross-session pac
       } as LapQualitySummary,
     };
   });
-  const staleRows = [...staleColumnEvidence, ...staleProvenanceEvidence].map((evidence, index) => ({
+  const staleGenerationEvidence = (
+    [
+      ["sourceGeneration", "provisional"],
+      ["outputGeneration", "provisional"],
+      ["sourceGeneration", `sha256:${"A".repeat(64)}`],
+      ["outputGeneration", `sha256:${"g".repeat(64)}`],
+    ] as const
+  ).map(([field, generation], index) => {
+    const evidence = currentQualityEvidence(`cross-session-stale-generation-${index}`);
+    return {
+      ...evidence,
+      quality: {
+        ...evidence.quality,
+        provenance: { ...evidence.quality.provenance, [field]: generation },
+      } as LapQualitySummary,
+      ...(field === "outputGeneration" ? { qualityGeneration: generation } : {}),
+    };
+  });
+  const staleRows = [...staleColumnEvidence, ...staleProvenanceEvidence, ...staleGenerationEvidence].map((evidence, index) => ({
     ...evidence,
     sessionId: comparisonSessionId,
     lapNumber: index + 2,
@@ -254,10 +301,28 @@ test("session recap excludes stale and legacy eligibility from cross-session pac
     sectorTimes: [40_000 - index * 500, 40_000 - index * 500],
     eligibility: normalPace("eligible"),
   }));
+  const staleDecisionVersion = normalPace("eligible");
+  staleDecisionVersion["normal-pace"] = { ...staleDecisionVersion["normal-pace"], policyVersion: "legacy-policy" };
+  const wrongDecisionPolicy = {
+    ...normalPace("eligible"),
+    "normal-pace": {
+      ...normalPace("eligible")["normal-pace"],
+      policyId: "corner-trace",
+    },
+  } as unknown as EligibilityDecisionSet;
+  const decisionRows = [staleDecisionVersion, wrongDecisionPolicy].map((eligibility, index) => ({
+    ...currentQualityEvidence(`cross-session-stale-decision-${index}`),
+    sessionId: comparisonSessionId,
+    lapNumber: staleRows.length + index + 2,
+    lapTime: 68_000 - index * 1_000,
+    isValid: true,
+    sectorTimes: [34_000 - index * 500, 34_000 - index * 500],
+    eligibility,
+  }));
 
   await db.insert(laps).values([
     {
-      ...currentQualityEvidence("sha256:cross-session-anchor"),
+      ...currentQualityEvidence("cross-session-anchor"),
       sessionId: currentSessionId,
       lapNumber: 1,
       lapTime: 91_000,
@@ -266,7 +331,7 @@ test("session recap excludes stale and legacy eligibility from cross-session pac
       eligibility: normalPace("eligible"),
     },
     {
-      ...currentQualityEvidence("sha256:cross-session-current"),
+      ...currentQualityEvidence("cross-session-current"),
       sessionId: comparisonSessionId,
       lapNumber: 1,
       lapTime: 90_000,
@@ -275,15 +340,32 @@ test("session recap excludes stale and legacy eligibility from cross-session pac
       eligibility: normalPace("eligible"),
     },
     ...staleRows,
+    ...decisionRows,
     {
       sessionId: comparisonSessionId,
-      lapNumber: staleRows.length + 2,
-      lapTime: 70_000,
+      lapNumber: staleRows.length + decisionRows.length + 2,
+      lapTime: 60_000,
       isValid: true,
-      sectorTimes: [35_000, 35_000],
+      sectorTimes: [30_000, 30_000],
       eligibility: normalPace("eligible"),
     },
   ]);
+
+  const directDecisionMatches = await db
+    .select({ lapNumber: laps.lapNumber })
+    .from(laps)
+    .where(
+      and(
+        eq(laps.sessionId, comparisonSessionId),
+        inArray(
+          laps.lapNumber,
+          decisionRows.map(({ lapNumber }) => lapNumber),
+        ),
+        analysisEligibility(laps, "normal-pace"),
+      ),
+    )
+    .all();
+  expect(directDecisionMatches).toEqual([]);
 
   const recap = await getSessionRecapData(currentSessionId, "iracing");
   expect(recap?.allTimeBestSec).toBe(90_000);
@@ -291,29 +373,27 @@ test("session recap excludes stale and legacy eligibility from cross-session pac
 });
 
 test("session query projections preserve current pace evidence and reject stale, missing, non-pace, and legacy rows", async () => {
-  const sessionId = (
-    await db.insert(sessions).values({ carOrdinal: 998_229, trackOrdinal: 999_229, gameId: "iracing" }).returning({ id: sessions.id }).get()
-  ).id;
+  const sessionId = (await db.insert(sessions).values({ carOrdinal: 998_229, trackOrdinal: 999_229, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(sessionId);
 
   await db.insert(laps).values([
     {
-      ...currentQualityEvidence("sha256:session-query-current"),
+      ...currentQualityEvidence("session-query-current"),
       sessionId,
       lapNumber: 1,
       lapTime: 95_000,
       eligibility: normalPace("eligible"),
     },
     {
-      ...currentQualityEvidence("sha256:session-query-stale-output"),
-      qualityGeneration: "sha256:session-query-stale-column",
+      ...currentQualityEvidence("session-query-stale-output"),
+      qualityGeneration: qualityGeneration("session-query-stale-column"),
       sessionId,
       lapNumber: 2,
       lapTime: 90_000,
       eligibility: normalPace("eligible"),
     },
     {
-      ...currentQualityEvidence("sha256:session-query-stale-version"),
+      ...currentQualityEvidence("session-query-stale-version"),
       qualityPolicyVersion: "legacy-policy",
       sessionId,
       lapNumber: 3,
@@ -327,7 +407,7 @@ test("session query projections preserve current pace evidence and reject stale,
       eligibility: normalPace("eligible"),
     },
     {
-      ...currentQualityEvidence("sha256:session-query-non-pace"),
+      ...currentQualityEvidence("session-query-non-pace"),
       sessionId,
       lapNumber: 5,
       lapTime: 87_000,
@@ -345,6 +425,37 @@ test("session query projections preserve current pace evidence and reject stale,
   const session = (await getSessions("iracing")).find((row) => row.id === sessionId);
   expect(session?.bestLapTime).toBe(95_000);
 
+  const projectedLaps = (await getLaps("iracing", 10_000)).filter((lap) => lap.sessionId === sessionId);
+  const projectedLap = (lapNumber: number) => {
+    const lap = projectedLaps.find((candidate) => candidate.lapNumber === lapNumber);
+    if (!lap) throw new Error(`Expected projected lap ${lapNumber}`);
+    return lap;
+  };
+
+  const currentLapMeta = projectedLap(1);
+  const currentPersistedDecision = currentLapMeta.eligibility?.["normal-pace"];
+  if (!currentPersistedDecision) throw new Error("Expected current persisted normal-pace decision");
+  expect(currentLapMeta.qualityStale).toBe(false);
+  expect(isEligibilitySnapshotCurrent(currentLapMeta)).toBe(true);
+  expect(currentPersistedDecision).toBeDefined();
+  expect(resolveEligibilityDecision(currentLapMeta, "normal-pace")).toBe(currentPersistedDecision);
+
+  const staleLapMeta = projectedLap(2);
+  const stalePersistedDecision = isEligibilitySnapshotCurrent(staleLapMeta) ? staleLapMeta.eligibility?.["normal-pace"] : undefined;
+  expect(staleLapMeta.qualityStale).toBe(true);
+  expect(stalePersistedDecision).toBeUndefined();
+  const staleDecision = resolveEligibilityDecision(staleLapMeta, "normal-pace");
+  expect(staleDecision.reasons.map(({ code }) => code)).toEqual(["quality_stale"]);
+  expect(staleDecision).not.toBe(staleLapMeta.eligibility?.["normal-pace"]);
+
+  const missingLapMeta = projectedLap(4);
+  const missingPersistedDecision = isEligibilitySnapshotCurrent(missingLapMeta) ? missingLapMeta.eligibility?.["normal-pace"] : undefined;
+  expect(missingLapMeta.qualityStale).toBe(false);
+  expect(missingPersistedDecision).toBeUndefined();
+  const missingDecision = resolveEligibilityDecision(missingLapMeta, "normal-pace");
+  expect(missingDecision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
+  expect(missingDecision).not.toBe(missingLapMeta.eligibility?.["normal-pace"]);
+
   const recapData = await getSessionRecapData(sessionId, "iracing");
   if (!recapData) throw new Error("Expected recap query data");
   const currentLap = recapData.laps.find((lap) => lap.lapNumber === 1);
@@ -353,13 +464,13 @@ test("session query projections preserve current pace evidence and reject stale,
     qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
     qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
     qualityConfigVersion: QUALITY_CONFIG_VERSION,
-    qualityGeneration: "sha256:session-query-current",
+    qualityGeneration: qualityGeneration("session-query-current"),
     quality: {
       provenance: {
         schemaVersion: QUALITY_SCHEMA_VERSION,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         configurationVersion: QUALITY_CONFIG_VERSION,
-        outputGeneration: "sha256:session-query-current",
+        outputGeneration: qualityGeneration("session-query-current"),
       },
     },
   });
@@ -373,17 +484,17 @@ test("session query projections preserve current pace evidence and reject stale,
     qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
     qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
     qualityConfigVersion: QUALITY_CONFIG_VERSION,
-    qualityGeneration: "sha256:session-query-current",
+    qualityGeneration: qualityGeneration("session-query-current"),
     quality: {
       provenance: {
         schemaVersion: QUALITY_SCHEMA_VERSION,
         policyVersion: ELIGIBILITY_POLICY_VERSION,
         configurationVersion: QUALITY_CONFIG_VERSION,
-        outputGeneration: "sha256:session-query-current",
+        outputGeneration: qualityGeneration("session-query-current"),
       },
     },
   });
-  expect(recap.sparkline.find((lap) => lap.lapNumber === 2)?.qualityGeneration).toBe("sha256:session-query-stale-column");
+  expect(recap.sparkline.find((lap) => lap.lapNumber === 2)?.qualityGeneration).toBe(qualityGeneration("session-query-stale-column"));
   expect(recap.sparkline.find((lap) => lap.lapNumber === 4)).toMatchObject({
     quality: null,
     qualityGeneration: null,

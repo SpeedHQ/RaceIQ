@@ -65,13 +65,7 @@ import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
  *  which arm a *statistically distinguishable* difference points at. */
 type MetricDirection = "lower-better" | "higher-better";
 
-export const OUTCOME_METRIC_IDS = [
-  "lapTimeSec",
-  "consistencySpreadSec",
-  "inputVarianceBrake",
-  "inputVarianceThrottle",
-  "lineSpreadScore",
-] as const;
+export const OUTCOME_METRIC_IDS = ["lapTimeSec", "consistencySpreadSec", "inputVarianceBrake", "inputVarianceThrottle", "lineSpreadScore"] as const;
 
 export type OutcomeMetricId = (typeof OUTCOME_METRIC_IDS)[number];
 
@@ -79,7 +73,6 @@ export type OutcomeMetricId = (typeof OUTCOME_METRIC_IDS)[number];
 type InputChannel = "brake" | "throttle";
 const TIMING_ELIGIBILITY_POLICY_IDS = ["normal-pace"] as const satisfies readonly EligibilityPolicyId[];
 const TRACE_ELIGIBILITY_POLICY_IDS = ["normal-pace", "corner-trace"] as const satisfies readonly EligibilityPolicyId[];
-
 
 /**
  * How an arm's raw lap pool is reduced to the laps a metric is computed over.
@@ -136,7 +129,6 @@ export interface CuratedPool<T> {
 const MIN_FENCE_SAMPLES = 4;
 const FENCE_IQR_MULT = 3;
 const FENCE_MIN_REL_GAP = 1.05;
-
 
 /** The blunder threshold for a lap-time pool, or null when the fence can't fire. */
 export function blunderFence(lapTimes: number[]): number | null {
@@ -198,11 +190,7 @@ export function blunderFencesForArms(armLapTimes: number[][]): (number | null)[]
  * Eligibility is delegated to `selectEvaluationLaps` so this never becomes a
  * fourth place that re-derives "which laps count".
  */
-export function curateLaps<T extends EvaluableLap>(
-  laps: T[],
-  curation: CurationSpec,
-  opts?: { fence?: number | null },
-): CuratedPool<T> {
+export function curateLaps<T extends EvaluableLap>(laps: T[], curation: CurationSpec, opts?: { fence?: number | null }): CuratedPool<T> {
   const cap = curation.mode === "fastest-n" ? (curation.n ?? REVIEW_LAP_CAP) : Number.POSITIVE_INFINITY;
   const selection = selectEvaluationLaps(laps, cap, {
     requireSetupEligibility: false,
@@ -317,14 +305,8 @@ export function metricNeedsTelemetry(metric: OutcomeMetric): boolean {
   return metric.sampling === "pairwise-frames";
 }
 /** Shared fence policy for two arms, used by both in-memory and DB-backed comparisons. */
-export function comparisonFences(
-  metric: OutcomeMetric,
-  aLapTimes: number[],
-  bLapTimes: number[],
-): [number | null | undefined, number | null | undefined] {
-  return metric.curation.outlierRule === "blunder-fence"
-    ? (blunderFencesForArms([aLapTimes, bLapTimes]) as [number | null, number | null])
-    : [undefined, undefined];
+export function comparisonFences(metric: OutcomeMetric, aLapTimes: number[], bLapTimes: number[]): [number | null | undefined, number | null | undefined] {
+  return metric.curation.outlierRule === "blunder-fence" ? (blunderFencesForArms([aLapTimes, bLapTimes]) as [number | null, number | null]) : [undefined, undefined];
 }
 
 /** Public comparison alias for the domain-wide analysable-lap threshold. */

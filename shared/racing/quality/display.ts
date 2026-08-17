@@ -2,6 +2,7 @@ import type { EligibilityDecision, QualityDistanceRange, QualityReasonCode, Qual
 
 const QUALITY_REASON_TEXT = {
   quality_not_rebuilt: "Quality has not been rebuilt from source telemetry.",
+  quality_stale: "Stored quality is out of date and must be rebuilt.",
   recording_unavailable: "Source recording is unavailable.",
   recording_incompatible: "Source recording is not compatible with this RaceIQ version.",
   recording_corrupt: "Source recording failed integrity checks.",

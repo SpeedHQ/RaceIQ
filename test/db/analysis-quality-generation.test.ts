@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { and, eq, inArray } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
-import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { evaluateAllEligibility } from "../../shared/racing/quality/policies";
 import {
   getAnalysis,
   getCompareAnalysis,
@@ -13,6 +15,8 @@ import {
 } from "../../server/db/analysis-queries";
 import { db } from "../../server/db";
 import { compareAnalyses, lapAnalyses, laps, sessions } from "../../server/db/schema";
+import { combineQualityGenerations } from "../../server/lap-analysis/quality-generation";
+import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 const createdSessionIds: number[] = [];
 const createdLapIds: number[] = [];
@@ -25,16 +29,35 @@ const usage: AnalysisUsage = {
   model: "race-test-model",
 };
 
+
+function qualityGeneration(label: string): string {
+  return `sha256:${createHash("sha256").update(label).digest("hex")}`;
+}
 function currentQuality(generation: string): LapQualitySummary {
+  const quality = summarize(qualityPackets(100));
   return {
+    ...quality,
     provenance: {
+      ...quality.provenance,
       schemaVersion: QUALITY_SCHEMA_VERSION,
       policyVersion: ELIGIBILITY_POLICY_VERSION,
       configurationVersion: QUALITY_CONFIG_VERSION,
-      sourceGeneration: "sha256:test-source",
+      sourceGeneration: qualityGeneration("analysis-quality-source"),
       outputGeneration: generation,
     },
-  } as LapQualitySummary;
+  };
+}
+
+function currentEvidence(generation: string) {
+  const quality = currentQuality(generation);
+  return {
+    quality,
+    eligibility: evaluateAllEligibility(quality),
+    qualityGeneration: generation,
+    qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+    qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+    qualityConfigVersion: QUALITY_CONFIG_VERSION,
+  };
 }
 
 async function createLaps(generations: readonly string[]): Promise<number[]> {
@@ -62,11 +85,7 @@ async function createLaps(generations: readonly string[]): Promise<number[]> {
           lapNumber: index + 1,
           lapTime: 90 + index,
           isValid: true,
-          qualityGeneration: generation,
-          qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
-          quality: currentQuality(generation),
-          qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
-          qualityConfigVersion: QUALITY_CONFIG_VERSION,
+          ...currentEvidence(generation),
         })
         .returning({ id: laps.id })
         .get()
@@ -96,13 +115,10 @@ afterEach(async () => {
 
 describe("AI analysis quality generation races", () => {
   test("single-lap output generated from stale quality is neither cached nor stamped current", async () => {
-    const originalGeneration = "sha256:single-prompt";
-    const currentGeneration = "sha256:single-current";
+    const originalGeneration = qualityGeneration("single-prompt");
+    const currentGeneration = qualityGeneration("single-current");
     const [lapId] = await createLaps([originalGeneration]);
-    const expectedIdentity = qualityCacheIdentityForLap({
-      qualityGeneration: originalGeneration,
-      quality: currentQuality(originalGeneration),
-    });
+    const expectedIdentity = qualityCacheIdentityForLap(currentEvidence(originalGeneration));
     if (!expectedIdentity) throw new Error("Expected single-lap quality identity");
     expect(await saveAnalysis(lapId!, "existing analysis", usage, expectedIdentity)).toBe(true);
 
@@ -125,23 +141,14 @@ describe("AI analysis quality generation races", () => {
   });
 
   test("comparison output generated from stale quality is neither cached nor stamped current", async () => {
-    const originalGenerations = ["sha256:compare-a", "sha256:compare-b"] as const;
+    const originalGenerations = [qualityGeneration("compare-a"), qualityGeneration("compare-b")] as const;
     const [lapAId, lapBId] = await createLaps(originalGenerations);
-    const expectedIdentity = qualityCacheIdentityForComparison([
-      {
-        qualityGeneration: originalGenerations[0],
-        quality: currentQuality(originalGenerations[0]),
-      },
-      {
-        qualityGeneration: originalGenerations[1],
-        quality: currentQuality(originalGenerations[1]),
-      },
-    ]);
+    const expectedIdentity = qualityCacheIdentityForComparison([currentEvidence(originalGenerations[0]), currentEvidence(originalGenerations[1])]);
     if (!expectedIdentity) throw new Error("Expected comparison quality identity");
     expect(await saveCompareAnalysis(lapAId!, lapBId!, "existing comparison", usage, expectedIdentity, "inputs")).toBe(true);
 
     const staleOutput = await finishModelWork(async () => {
-      await db.update(laps).set({ qualityGeneration: "sha256:compare-a-current" }).where(eq(laps.id, lapAId!)).run();
+      await db.update(laps).set({ qualityGeneration: qualityGeneration("compare-a-current") }).where(eq(laps.id, lapAId!)).run();
     }, "stale comparison output");
     const saved = await saveCompareAnalysis(lapAId!, lapBId!, staleOutput, usage, expectedIdentity, "inputs");
 
@@ -166,16 +173,10 @@ describe("AI analysis quality generation races", () => {
   });
 
   test("cache reads reject stale quality metadata even when cache generation still matches", async () => {
-    const generations = ["sha256:stale-cache-a", "sha256:stale-cache-b"] as const;
+    const generations = [qualityGeneration("stale-cache-a"), qualityGeneration("stale-cache-b")] as const;
     const [lapAId, lapBId] = await createLaps(generations);
-    const lapIdentity = qualityCacheIdentityForLap({
-      qualityGeneration: generations[0],
-      quality: currentQuality(generations[0]),
-    });
-    const comparisonIdentity = qualityCacheIdentityForComparison([
-      { qualityGeneration: generations[0], quality: currentQuality(generations[0]) },
-      { qualityGeneration: generations[1], quality: currentQuality(generations[1]) },
-    ]);
+    const lapIdentity = qualityCacheIdentityForLap(currentEvidence(generations[0]));
+    const comparisonIdentity = qualityCacheIdentityForComparison([currentEvidence(generations[0]), currentEvidence(generations[1])]);
     if (!lapIdentity || !comparisonIdentity) throw new Error("Expected current quality identities");
     expect(await saveAnalysis(lapAId!, "stale single analysis", usage, lapIdentity)).toBe(true);
     expect(await saveCompareAnalysis(lapAId!, lapBId!, "stale comparison", usage, comparisonIdentity, "inputs")).toBe(true);
@@ -184,5 +185,67 @@ describe("AI analysis quality generation races", () => {
 
     expect(await getAnalysis(lapAId!)).toBeNull();
     expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
+  });
+
+  test("cache reads and writes reject missing, stale-decision, and provisional evidence with matching metadata", async () => {
+    const generations = [qualityGeneration("decision-cache-a"), qualityGeneration("decision-cache-b")] as const;
+    const [lapAId, lapBId] = await createLaps(generations);
+    const lapIdentity = qualityCacheIdentityForLap(currentEvidence(generations[0]));
+    const comparisonIdentity = qualityCacheIdentityForComparison([currentEvidence(generations[0]), currentEvidence(generations[1])]);
+    if (!lapIdentity || !comparisonIdentity) throw new Error("Expected current quality identities");
+    expect(await saveAnalysis(lapAId!, "current single", usage, lapIdentity)).toBe(true);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "current comparison", usage, comparisonIdentity, "inputs")).toBe(true);
+
+    expect(qualityCacheIdentityForLap({ ...currentEvidence(generations[0]), eligibility: null })).toBeNull();
+    expect(qualityCacheIdentityForComparison([{ ...currentEvidence(generations[0]), eligibility: null }, currentEvidence(generations[1])])).toBeNull();
+    await db.update(laps).set({ eligibility: null }).where(eq(laps.id, lapAId!)).run();
+    expect(await getAnalysis(lapAId!)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
+    expect(await saveAnalysis(lapAId!, "missing decision", usage, lapIdentity)).toBe(false);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "missing decision", usage, comparisonIdentity, "inputs")).toBe(false);
+
+    const staleEligibility = evaluateAllEligibility(currentQuality(generations[0]));
+    staleEligibility["normal-pace"] = { ...staleEligibility["normal-pace"], policyVersion: "legacy-policy" };
+    expect(qualityCacheIdentityForLap({ ...currentEvidence(generations[0]), eligibility: staleEligibility })).toBeNull();
+    expect(qualityCacheIdentityForComparison([{ ...currentEvidence(generations[0]), eligibility: staleEligibility }, currentEvidence(generations[1])])).toBeNull();
+    await db.update(laps).set({ eligibility: staleEligibility as EligibilityDecisionSet }).where(eq(laps.id, lapAId!)).run();
+    expect(await getAnalysis(lapAId!)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
+    expect(await saveAnalysis(lapAId!, "stale decision", usage, lapIdentity)).toBe(false);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "stale decision", usage, comparisonIdentity, "inputs")).toBe(false);
+
+    const provisionalQuality = {
+      ...currentQuality("provisional"),
+      provenance: {
+        ...currentQuality("provisional").provenance,
+        sourceGeneration: "provisional",
+        outputGeneration: "provisional",
+      },
+    } as LapQualitySummary;
+    const provisionalEvidence = {
+      quality: provisionalQuality,
+      eligibility: evaluateAllEligibility(provisionalQuality),
+      qualityGeneration: "provisional",
+      qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+      qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+      qualityConfigVersion: QUALITY_CONFIG_VERSION,
+    };
+    expect(qualityCacheIdentityForLap(provisionalEvidence)).toBeNull();
+    expect(qualityCacheIdentityForComparison([provisionalEvidence, currentEvidence(generations[1])])).toBeNull();
+    await db.update(laps).set(provisionalEvidence).where(eq(laps.id, lapAId!)).run();
+    const provisionalComparisonGeneration = combineQualityGenerations(["provisional", generations[1]]);
+    await db.update(lapAnalyses).set({ qualityGeneration: "provisional" }).where(eq(lapAnalyses.lapId, lapAId!)).run();
+    await db
+      .update(compareAnalyses)
+      .set({ qualityGeneration: provisionalComparisonGeneration })
+      .where(and(eq(compareAnalyses.lapAId, Math.min(lapAId!, lapBId!)), eq(compareAnalyses.lapBId, Math.max(lapAId!, lapBId!)), eq(compareAnalyses.kind, "inputs")))
+      .run();
+
+    const provisionalIdentity = { generation: "provisional", policyVersion: ELIGIBILITY_POLICY_VERSION };
+    const provisionalComparisonIdentity = { generation: provisionalComparisonGeneration, policyVersion: ELIGIBILITY_POLICY_VERSION };
+    expect(await getAnalysis(lapAId!)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
+    expect(await saveAnalysis(lapAId!, "provisional", usage, provisionalIdentity)).toBe(false);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "provisional", usage, provisionalComparisonIdentity, "inputs")).toBe(false);
   });
 });

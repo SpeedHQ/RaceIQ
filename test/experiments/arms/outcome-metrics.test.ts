@@ -11,26 +11,34 @@ import {
   pickReferenceLap,
 } from "../../../server/experiments/comparison/metrics";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
-import { qualityEvidence } from "../../support/experiments/arms";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
+import { policyEvidence } from "../../support/experiments/arms";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
  *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */
 const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none", requiredPolicyIds: ["normal-pace"] };
 
 function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {
-  const isValid = overrides.isValid ?? true;
-  const paceEligibility = overrides.paceEligibility ?? "eligible";
-  return {
+  const candidate = {
+    ...DEFAULT_LAP_CLASSIFICATION,
     lapTime: 90,
-    isValid,
+    isValid: true,
     invalidReason: null,
-    phase: "flying",
-    conditions: [],
-    paceEligibility,
     experimentExcluded: false,
     experimentExcludedSource: null,
     ...overrides,
-    ...qualityEvidence(isValid && paceEligibility === "eligible"),
+  };
+  return {
+    ...candidate,
+    ...policyEvidence(
+      {
+        phase: candidate.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+        conditions: candidate.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+        paceEligibility: candidate.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
+      },
+      candidate.isValid,
+      candidate.invalidReason,
+    ),
   };
 }
 

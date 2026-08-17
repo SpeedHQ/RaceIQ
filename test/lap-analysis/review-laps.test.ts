@@ -51,8 +51,8 @@ describe("selectEvaluationLaps", () => {
       schemaVersion: QUALITY_SCHEMA_VERSION,
       policyVersion: ELIGIBILITY_POLICY_VERSION,
       configurationVersion: QUALITY_CONFIG_VERSION,
-      sourceGeneration: "sha256:review-laps-source",
-      outputGeneration: "sha256:review-laps-quality",
+      sourceGeneration: `sha256:${"a".repeat(64)}`,
+      outputGeneration: `sha256:${"b".repeat(64)}`,
     },
   } as unknown as LapQualitySummary;
   const decision = (policyId: EligibilityPolicyId, status: EligibilityDecision["status"] = "eligible", code?: QualityReasonCode): EligibilityDecision => ({

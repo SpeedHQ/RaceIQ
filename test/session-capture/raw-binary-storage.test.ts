@@ -11,14 +11,22 @@ import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { encodeFrameLength, encodeMetaFrame, META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import { db } from "../../server/db/index";
-import { sessions, laps, pitEvents, sessionResults } from "../../server/db/schema";
+import { compareAnalyses, sessions, laps, pitEvents, sessionResults } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
-import { ELIGIBILITY_POLICY_VERSION, LOCAL_PLAYER_EVIDENCE, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type RecordingQualitySummary } from "../../shared/racing/quality/contracts";
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  LOCAL_PLAYER_EVIDENCE,
+  QUALITY_CONFIG_VERSION,
+  QUALITY_SCHEMA_VERSION,
+  type ParticipantEvidence,
+  type RecordingQualitySummary,
+} from "../../shared/racing/quality/contracts";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import { finalizeRecordingQualityGeneration } from "../../server/lap-analysis/quality-generation";
+
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
 import { qualityPackets, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
 import { getRecordingFixture } from "../support/recordings/fixtures";
@@ -27,6 +35,13 @@ import { verifySessionCaptureFile } from "../../server/session-capture/verificat
 
 initGameAdapters();
 initServerGameAdapters();
+
+const OPPONENT_PARTICIPANT: ParticipantEvidence = {
+  kind: "opponent",
+  sourceId: "car-17",
+  stableId: "driver-17",
+  identityState: "stable",
+};
 
 // ── SessionRecorder: meta frame + byte offset ─────────────────────────────────────
 
@@ -295,6 +310,80 @@ describe("reprocessSession", () => {
     expect(canonicalGeneration).not.toBe(sourceVerification.sourceGeneration);
   });
 
+  test("preserves non-local participant identity and refreshes canonical and output generations", async () => {
+    const recording = getRecordingFixture("iracing-road-america-gt3.bin.gz");
+    if (!recording) throw new Error("Required recording fixture is missing");
+    const capturePath = join(tmpDir, "participant-session.bin");
+    const recorder = new SessionRecorder();
+    recorder.start(capturePath);
+    recorder.writeMetaFrame();
+    for (const frame of readIRacingFrames(recording)) recorder.writeRecord(frame);
+    await recorder.stop();
+
+    const previousAccumulator = new RecordingQualityAccumulator("raceiq-archive", OPPONENT_PARTICIPANT, TEST_VERSION_IDENTITY);
+    const previous = finalizeRecordingQualityGeneration(
+      previousAccumulator.finalize(
+        "imported",
+        {
+          state: "verified",
+          sourceGeneration: "sha256:original-source",
+        },
+        {
+          canonicalVerification: {
+            state: "verified",
+            sourceGeneration: "sha256:old-canonical",
+          },
+        },
+      ),
+    );
+    sessionId = (
+      await db
+        .insert(sessions)
+        .values({
+          carOrdinal: 42,
+          trackOrdinal: 99,
+          gameId: "iracing",
+          source: "raceiq-archive",
+          rawFile: capturePath,
+          recordingQuality: previous,
+        })
+        .returning({ id: sessions.id })
+        .get()
+    ).id;
+
+    await reprocessSession(sessionId);
+
+    const reprocessedSession = await db
+      .select({
+        recordingQuality: sessions.recordingQuality,
+        qualityGeneration: sessions.qualityGeneration,
+      })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .get();
+    const reprocessedLaps = await db
+      .select({
+        quality: laps.quality,
+        qualityGeneration: laps.qualityGeneration,
+      })
+      .from(laps)
+      .where(eq(laps.sessionId, sessionId))
+      .all();
+    const expectedCanonicalGeneration = sha256ContentHash(Buffer.from(await Bun.file(capturePath).arrayBuffer()));
+
+    expect(reprocessedSession?.recordingQuality?.participant).toEqual(OPPONENT_PARTICIPANT);
+    expect(reprocessedSession?.recordingQuality?.canonicalVerification?.sourceGeneration).toBe(expectedCanonicalGeneration);
+    expect(reprocessedSession?.qualityGeneration).toBe(reprocessedSession?.recordingQuality?.provenance.outputGeneration);
+    expect(reprocessedSession?.qualityGeneration).not.toBe(previous.provenance.outputGeneration);
+    expect(reprocessedLaps.length).toBeGreaterThan(0);
+    for (const lap of reprocessedLaps) {
+      if (!lap.quality) throw new Error("Expected reprocessed lap quality");
+      expect(lap.quality.participant).toEqual(OPPONENT_PARTICIPANT);
+      expect(lap.qualityGeneration).toBe(lap.quality.provenance.outputGeneration);
+      expect(lap.qualityGeneration).toMatch(/^sha256:/);
+    }
+  });
+
   test("keeps reconnect-only recording quality degraded after reprocessing", async () => {
     const binPath = join(tmpDir, "session.bin");
     emptyBin(binPath);
@@ -370,6 +459,26 @@ describe("reprocessSession", () => {
 
     const remaining = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
     expect(remaining).toHaveLength(0);
+  });
+
+  test("replace strategy removes comparison analyses for deleted laps", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    emptyBin(binPath);
+    sessionId = await insertTestSession(binPath, "0.9.0");
+    await insertTestLap(sessionId, 1);
+    await insertTestLap(sessionId, 2);
+    const oldLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    if (!oldLaps[0] || !oldLaps[1]) throw new Error("Expected two stored laps");
+    await db.insert(compareAnalyses).values({
+      lapAId: oldLaps[0].id,
+      lapBId: oldLaps[1].id,
+      analysis: "stale comparison",
+    });
+
+    await reprocessSession(sessionId);
+
+    const remaining = await db.select().from(compareAnalyses).where(eq(compareAnalyses.lapAId, oldLaps[0].id)).all();
+    expect(remaining).toEqual([]);
   });
 
   test("updates lap_detector_version on session after reprocess", async () => {

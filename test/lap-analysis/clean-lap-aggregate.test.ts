@@ -1,14 +1,22 @@
 import { describe, test, expect } from "bun:test";
 import { selectCleanLaps, computeConsistency, aggregateSymptoms, baselineFallbackNote } from "../../server/experiments/lap-evidence/aggregate";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneSymptoms } from "../../server/ai/tune-symptoms";
 import type { EligibilityDecision, EligibilityDecisionSet, QualityReasonCode } from "../../shared/racing/quality/contracts";
 import { evaluateAllEligibility } from "../../shared/racing/quality/policies";
 import { QUALITY_REASON_META } from "../../shared/racing/quality/reasons";
 import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
+import { finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
 
-const quality = summarize(qualityPackets(200));
-const currentEligibility = evaluateAllEligibility(quality);
+const packets = qualityPackets(200);
+const finalized = finalizeLapQualityGeneration(summarize(packets), `sha256:${"c".repeat(64)}`, {
+  lapNumber: 1,
+  rawByteOffset: 0,
+  rawFrameCount: packets.length,
+});
+const quality = finalized.quality;
+const currentEligibility = finalized.eligibility;
 
 function eligibility(normalStatus: EligibilityDecision["status"] = "eligible", normalReason?: QualityReasonCode): EligibilityDecisionSet {
   const normalPace = currentEligibility["normal-pace"];
@@ -30,9 +38,6 @@ function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
     lapNumber: overrides.id,
     lapTime: 90,
     isValid: true,
-    phase: "flying",
-    conditions: [],
-    paceEligibility: "eligible",
     createdAt: "2026-07-15T12:00:00.000Z",
     experimentId: 1,
     experimentVersionId: 1,
@@ -40,6 +45,9 @@ function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
     quality,
     eligibility: eligibility(),
     ...overrides,
+    phase: overrides.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+    conditions: overrides.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+    paceEligibility: overrides.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
   };
 }
 

@@ -1,6 +1,7 @@
 import { getGame } from "../../../../games/registry";
 import type { GameId } from "../../../../games/ids";
 import type { TelemetryPacket } from "../../../../telemetry/types";
+import type { TelemetryVariableId } from "../../../../telemetry/catalog/generated/telemetry-catalog.types";
 import type { EligibilityPolicyId, EligibilityReason, LapQualitySummary, QualityDistanceRange } from "../../../../racing/quality/contracts";
 import { evaluateEligibility, isEligibilityUsable } from "../../../../racing/quality/policies";
 import { frameDt } from "../frame-time";
@@ -22,6 +23,12 @@ import {
 } from "./driving-core";
 import { detectBrakeDrag, detectDownshiftOverRev, detectLateBrakingOvershoot, detectUndersteerScrub, detectSteeringSawing, detectThrottleMicroLifts, detectKerbRiding } from "./driving-advanced";
 import type { LapInsight, TimeLossCtx } from "./types";
+const SUSPENSION_EVENT_CHANNELS = ["motion.speed", "suspension.norm-suspension-travel"] as const;
+const WHEEL_EVENT_CHANNELS = ["motion.speed", "tires.wheel-rotation-speed"] as const;
+const BRAKE_TRACTION_CHANNELS = [...WHEEL_EVENT_CHANNELS, "inputs.brake"] as const;
+const THROTTLE_TRACTION_CHANNELS = [...WHEEL_EVENT_CHANNELS, "inputs.accel"] as const;
+const STEERING_EVENT_CHANNELS = ["motion.speed", "inputs.steer"] as const;
+
 
 function mergeInsights(target: LapInsight[], additions: LapInsight[], sourceIndices: readonly number[]): void {
   for (const addition of additions) {
@@ -58,8 +65,10 @@ function eligibleSegments(
   quality: LapQualitySummary,
   policyId: EligibilityPolicyId,
   sourceIndices: number[],
+  requiredSemanticIds?: readonly TelemetryVariableId[],
 ): Array<{ packets: TelemetryPacket[]; indices: number[] }> {
-  const wholeLap = evaluateEligibility(policyId, quality);
+  const policyOptions = requiredSemanticIds ? { requiredSemanticIds } : {};
+  const wholeLap = evaluateEligibility(policyId, quality, policyOptions);
   // Transient detectors also depend on lap distance and speed, whose localized warnings belong to lap-comparison.
   const warningPolicyIds: readonly EligibilityPolicyId[] =
     policyId === "transient-event" ? ["transient-event", "lap-comparison"] : [policyId];
@@ -95,6 +104,7 @@ function eligibleSegments(
     isEligibilityUsable(
       evaluateEligibility(policyId, quality, {
         range: { startFraction: fraction, endFraction: fraction },
+        ...policyOptions,
       }),
     ),
   );
@@ -107,6 +117,7 @@ function eligibleSegments(
     const interiorUsable = isEligibilityUsable(
       evaluateEligibility(policyId, quality, {
         range: { startFraction: midpoint, endFraction: midpoint },
+        ...policyOptions,
       }),
     );
     const startUsable = pointUsability[index - 1]!;
@@ -191,15 +202,29 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, quality
     mergeInsights(insights, detectors, segment.indices);
   }
 
-  for (const segment of eligibleSegments(telemetry, quality, "transient-event", fullIndices)) {
+  for (const segment of eligibleSegments(telemetry, quality, "transient-event", fullIndices, SUSPENSION_EVENT_CHANNELS)) {
     mergeInsights(insights, detectSuspensionOverload(segment.packets), segment.indices);
-    if (supportsWheelStateAnalysis) {
+    const kerb = detectKerbRiding(segment.packets);
+    if (kerb) mergeInsights(insights, [kerb], segment.indices);
+  }
+
+  if (supportsWheelStateAnalysis) {
+    for (const segment of eligibleSegments(telemetry, quality, "transient-event", fullIndices, WHEEL_EVENT_CHANNELS)) {
       mergeInsights(insights, detectLockups(segment.packets), segment.indices);
+      mergeInsights(insights, detectWheelspin(segment.packets), segment.indices);
+    }
+    for (const segment of eligibleSegments(telemetry, quality, "transient-event", fullIndices, BRAKE_TRACTION_CHANNELS)) {
       const brakeLoss = detectBrakeTractionLoss(segment.packets);
       if (brakeLoss) mergeInsights(insights, [brakeLoss], segment.indices);
     }
-    mergeInsights(insights, detectWheelspin(segment.packets), segment.indices);
-    for (const detector of [detectCounterSteer(segment.packets), detectThrottleTractionLoss(segment.packets), detectSteeringSawing(segment.packets), detectKerbRiding(segment.packets)]) {
+    for (const segment of eligibleSegments(telemetry, quality, "transient-event", fullIndices, THROTTLE_TRACTION_CHANNELS)) {
+      const throttleLoss = detectThrottleTractionLoss(segment.packets);
+      if (throttleLoss) mergeInsights(insights, [throttleLoss], segment.indices);
+    }
+  }
+
+  for (const segment of eligibleSegments(telemetry, quality, "transient-event", fullIndices, STEERING_EVENT_CHANNELS)) {
+    for (const detector of [detectCounterSteer(segment.packets), detectSteeringSawing(segment.packets)]) {
       if (detector) mergeInsights(insights, [detector], segment.indices);
     }
   }
