@@ -341,14 +341,16 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
     quality: row.quality ?? undefined,
     eligibility: row.eligibility ?? undefined,
     qualityGeneration: row.qualityGeneration ?? undefined,
-    qualityStale: !isEligibilitySnapshotCurrent({
-      quality: row.quality,
-      eligibility: row.eligibility,
-      qualityGeneration: row.qualityGeneration,
-      qualitySchemaVersion: row.qualitySchemaVersion,
-      qualityPolicyVersion: row.qualityPolicyVersion,
-      qualityConfigVersion: row.qualityConfigVersion,
-    }),
+    qualityStale:
+      row.quality != null &&
+      !isEligibilitySnapshotCurrent({
+        quality: row.quality,
+        eligibility: row.eligibility,
+        qualityGeneration: row.qualityGeneration,
+        qualitySchemaVersion: row.qualitySchemaVersion,
+        qualityPolicyVersion: row.qualityPolicyVersion,
+        qualityConfigVersion: row.qualityConfigVersion,
+      }),
     telemetry,
   };
 }
