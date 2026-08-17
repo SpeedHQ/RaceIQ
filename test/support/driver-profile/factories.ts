@@ -1,6 +1,7 @@
 import type { ProfileScope } from "../../../server/driver-profile/fingerprint";
 import type { LapStyleSummary } from "../../../shared/racing/analysis/laps/driving-style";
 import type { LapInsight } from "../../../shared/racing/analysis/laps/insights/types";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 
 export const SCOPE: ProfileScope = { kind: "car-track", gameId: "fm-2023", carOrdinal: 100, trackOrdinal: 200 };
@@ -18,9 +19,9 @@ export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
     carOrdinal: 100,
     trackOrdinal: 200,
     ...over,
-    phase: over.phase ?? "flying",
-    conditions: over.conditions ?? [],
-    paceEligibility: over.paceEligibility ?? "eligible",
+    phase: over.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+    conditions: over.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+    paceEligibility: over.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
   };
 }
 

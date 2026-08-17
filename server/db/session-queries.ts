@@ -26,6 +26,8 @@ import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration } from
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+
+const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 export async function insertSession(
   carOrdinal: number,
   trackOrdinal: number,
@@ -436,6 +438,8 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       qualityGeneration: session.qualityGeneration ?? undefined,
       qualityStale:
         !session.recordingQuality ||
+        !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.sourceGeneration) ||
+        !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.outputGeneration) ||
         session.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
         session.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
         session.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||

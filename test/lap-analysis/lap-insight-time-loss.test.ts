@@ -2,14 +2,20 @@ import { describe, expect, test } from "bun:test";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { initGameAdapters } from "@shared/games/init";
 import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
+import { evaluateEligibility } from "@shared/racing/quality/policies";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 const RADIUS = 0.33;
 const STEP_MS = 16;
 const STEP_S = STEP_MS / 1000;
 
-
 initGameAdapters();
+const CLEAN_QUALITY = summarize(qualityPackets(200).map((packet) => ({ ...packet, gameId: "fm-2023" })));
+
+function analyze(telemetry: TelemetryPacket[], gameId: Parameters<typeof analyzeLap>[1]) {
+  return analyzeLap(telemetry, gameId, CLEAN_QUALITY);
+}
 interface Frame {
   speed: number;
   accel?: number;
@@ -40,6 +46,7 @@ function pkt(f: Frame, t: number): TelemetryPacket {
   const rot = f.speed / RADIUS;
   return {
     TimestampMS: t,
+    DistanceTraveled: (t / 1_000) * f.speed,
     Speed: f.speed,
     Accel: f.accel ?? 0,
     Brake: f.brake ?? 0,
@@ -57,7 +64,7 @@ function find(insights: ReturnType<typeof analyzeLap>, id: string) {
 
 describe("analyzeLap time-loss quantification", () => {
   test("coasting that is not corner entry is charged for the speed it bled", () => {
-    const insights = analyzeLap(
+    const insights = analyze(
       lap([
         // Establish what the car can do: a long clean full-throttle pull.
         { n: 400, a: 4, accel: 255 },
@@ -78,7 +85,7 @@ describe("analyzeLap time-loss quantification", () => {
   });
 
   test("a coast that runs into braking is deliberate corner entry, not charged", () => {
-    const insights = analyzeLap(
+    const insights = analyze(
       lap([
         { n: 400, a: 4, accel: 255 },
         { n: 100, a: -2, accel: 0 },
@@ -95,7 +102,7 @@ describe("analyzeLap time-loss quantification", () => {
   });
 
   test("detectors that only describe a symptom stay unquantified", () => {
-    const insights = analyzeLap(
+    const insights = analyze(
       lap([
         { n: 400, a: 4, accel: 255 },
         { n: 100, a: -2, accel: 0 },
@@ -114,7 +121,7 @@ describe("analyzeLap time-loss quantification", () => {
   });
 
   test("a lap too short to analyse yields nothing rather than guesses", () => {
-    expect(analyzeLap(lap([{ n: 5, a: 0, accel: 255 }]), "fm-2023")).toEqual([]);
+    expect(analyze(lap([{ n: 5, a: 0, accel: 255 }]), "fm-2023")).toEqual([]);
   });
 });
 
@@ -124,14 +131,15 @@ describe("analyzeLap wheel-state capabilities", () => {
   }
 
   test("retains lockup insights when wheel rotation is available", () => {
-    const insights = analyzeLap(lockedLap(), "fm-2023");
+    expect(evaluateEligibility("transient-event", CLEAN_QUALITY).status).toBe("ineligible");
+    const insights = analyze(lockedLap(), "fm-2023");
 
     expect(find(insights, "tire-lockup-FL")).toBeDefined();
     expect(find(insights, "driving-brake-traction-loss")).toBeDefined();
   });
 
   test("omits lockup insights when iRacing wheel rotation is unavailable", () => {
-    const insights = analyzeLap(lockedLap(), "iracing");
+    const insights = analyze(lockedLap(), "iracing");
 
     expect(find(insights, "tire-lockup-FL")).toBeUndefined();
     expect(find(insights, "driving-brake-traction-loss")).toBeUndefined();
@@ -147,13 +155,13 @@ describe("analyzeLap fuel units", () => {
   }
 
   test("reports litre-based iRacing consumption in litres", () => {
-    const fuel = find(analyzeLap(fuelLap(40, 38.5), "iracing"), "mech-fuel");
+    const fuel = find(analyze(fuelLap(40, 38.5), "iracing"), "mech-fuel");
 
     expect(fuel?.detail).toBe("Used 1.50 L — ~25.7 laps remaining");
   });
 
   test("retains percentage consumption for fractional-fuel games", () => {
-    const fuel = find(analyzeLap(fuelLap(0.8, 0.75), "fm-2023"), "mech-fuel");
+    const fuel = find(analyze(fuelLap(0.8, 0.75), "fm-2023"), "mech-fuel");
 
     expect(fuel?.detail).toBe("Used 5.0% — ~15.0 laps remaining");
   });

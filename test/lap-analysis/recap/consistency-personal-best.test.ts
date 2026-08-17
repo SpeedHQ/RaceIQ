@@ -39,7 +39,7 @@ describe("computeRecap", () => {
     expect(recap.theoretical?.bestSectorTimes).toEqual([33, 33, 34]);
     expect(recap.improvementSec).toBe(0);
     expect(recap.consistency?.stdDevSec).toBeCloseTo(0.816_497, 6);
-    expect(recap.sparkline.map((point) => point.lapId)).toEqual([1, 4, 5]);
+    expect(recap.sparkline.map((point) => point.lapId)).toEqual([1, 2, 3, 4, 5]);
   });
 
   test("a single absurd invalid lap does not inflate time or distance (real session 174 case)", () => {

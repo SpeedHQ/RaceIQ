@@ -1,4 +1,4 @@
-import type { LapCondition, LapPhase, PaceEligibility } from "./classification";
+import type { ClassifiedLap } from "./classification";
 import type { EligibilityDecision, EligibilityDecisionSet, EligibilityPolicyId, LapQualitySummary, QualityReasonCode } from "../quality/contracts";
 import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecision } from "../quality/policies";
 
@@ -17,7 +17,6 @@ import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecisi
  */
 export const REVIEW_LAP_CAP = 5;
 const REVIEW_REQUIRED_POLICY_IDS = ["normal-pace", "corner-trace"] as const satisfies readonly EligibilityPolicyId[];
-
 
 /** The `n` fastest laps by lap time. Input is expected to be pre-filtered to
  *  clean/eligible laps; this only ranks + trims. */
@@ -52,13 +51,10 @@ export interface EvaluationSelection<T> {
 
 /** Minimal lap shape the selector needs. Satisfied by both `LapMeta` (client)
  *  and the server's `ExclusionScopeLap` row projection. */
-export interface EvaluableLap {
+export interface EvaluableLap extends ClassifiedLap {
   id: number;
   lapTime: number;
   isValid: boolean;
-  phase?: LapPhase | null;
-  conditions?: LapCondition[] | null;
-  paceEligibility?: PaceEligibility | null;
   invalidReason?: string | null;
   experimentExcluded?: boolean;
   experimentExcludedSource?: "auto" | "manual" | null;

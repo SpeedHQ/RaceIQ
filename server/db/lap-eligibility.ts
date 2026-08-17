@@ -28,10 +28,20 @@ export function currentQualitySnapshot(table: PersistedQualitySnapshotColumns): 
     AND json_extract(${table.quality}, '$.provenance.policyVersion') = ${ELIGIBILITY_POLICY_VERSION}
     AND json_extract(${table.quality}, '$.provenance.configurationVersion') = ${QUALITY_CONFIG_VERSION}
     AND ${table.qualityGeneration} = json_extract(${table.quality}, '$.provenance.outputGeneration')
+    AND length(json_extract(${table.quality}, '$.provenance.sourceGeneration')) = 71
+    AND substr(json_extract(${table.quality}, '$.provenance.sourceGeneration'), 1, 7) = 'sha256:'
+    AND substr(json_extract(${table.quality}, '$.provenance.sourceGeneration'), 8) NOT GLOB '*[^0-9a-f]*'
+    AND length(json_extract(${table.quality}, '$.provenance.outputGeneration')) = 71
+    AND substr(json_extract(${table.quality}, '$.provenance.outputGeneration'), 1, 7) = 'sha256:'
+    AND substr(json_extract(${table.quality}, '$.provenance.outputGeneration'), 8) NOT GLOB '*[^0-9a-f]*'
   )`;
 }
 
 /** Read one persisted policy decision. Policy rules never live in SQL. */
 export function analysisEligibility(table: { eligibility: AnySQLiteColumn }, policyId: EligibilityPolicyId, acceptedStatuses: readonly EligibilityStatus[] = USABLE_ELIGIBILITY_STATUSES): SQL {
-  return inArray(sql<string>`json_extract(${table.eligibility}, ${`$."${policyId}".status`})`, [...acceptedStatuses]);
+  return sql`(
+    json_extract(${table.eligibility}, ${`$."${policyId}".policyId`}) = ${policyId}
+    AND json_extract(${table.eligibility}, ${`$."${policyId}".policyVersion`}) = ${ELIGIBILITY_POLICY_VERSION}
+    AND ${inArray(sql<string>`json_extract(${table.eligibility}, ${`$."${policyId}".status`})`, [...acceptedStatuses])}
+  )`;
 }
