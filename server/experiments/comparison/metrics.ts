@@ -198,7 +198,7 @@ export function curateLaps<T extends EvaluableLap>(
   opts?: { fence?: number | null },
 ): CuratedPool<T> {
   const cap = curation.mode === "fastest-n" ? (curation.n ?? REVIEW_LAP_CAP) : Number.POSITIVE_INFINITY;
-  const selection = selectEvaluationLaps(laps, cap);
+  const selection = selectEvaluationLaps(laps, cap, { requireSetupEligibility: false });
 
   const reasonById = new Map<number, CurationReason>(selection.reasonById);
   let kept = selection.chosen;

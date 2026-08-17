@@ -20,6 +20,7 @@ afterAll(() => stopMaintenanceTasks());
 /** Helper: create a minimal physics buffer with given values */
 function makePhysicsBuf(overrides: Record<string, number> = {}): Buffer {
   const buf = Buffer.alloc(PHYSICS.SIZE);
+  buf.writeInt32LE(overrides.packetId ?? 101, PHYSICS.packetId.offset);
   buf.writeFloatLE(overrides.gas ?? 0.8, PHYSICS.gas.offset);
   buf.writeFloatLE(overrides.brake ?? 0.0, PHYSICS.brake.offset);
   buf.writeFloatLE(overrides.fuel ?? 50.0, PHYSICS.fuel.offset);
@@ -58,6 +59,7 @@ function makePhysicsBuf(overrides: Record<string, number> = {}): Buffer {
 /** Helper: create a minimal graphics buffer */
 function makeGraphicsBuf(overrides: Record<string, number> = {}): Buffer {
   const buf = Buffer.alloc(GRAPHICS.SIZE);
+  buf.writeInt32LE(overrides.packetId ?? 202, GRAPHICS.packetId.offset);
   buf.writeInt32LE(overrides.status ?? 2, GRAPHICS.status.offset);
   buf.writeInt32LE(overrides.session ?? 0, GRAPHICS.session.offset);
   buf.writeInt32LE(overrides.completedLaps ?? 3, GRAPHICS.completedLaps.offset);
@@ -105,6 +107,8 @@ describe("ACC parser", () => {
     const packet = parseAccBuffers(physics, graphics, makeStaticBuf());
 
     expect(packet!.acc).toBeDefined();
+    expect(packet!.acc!.physicsPacketId).toBe(101);
+    expect(packet!.acc!.graphicsPacketId).toBe(202);
     expect(packet!.acc!.tc).toBe(3);
     expect(packet!.acc!.abs).toBe(2);
     expect(packet!.acc!.brakeBias).toBeCloseTo(0.58);
