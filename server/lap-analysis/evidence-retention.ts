@@ -14,7 +14,7 @@ function availableArchiveSemanticIds(availability: EvidenceAvailability): Readon
   return new Set(availability.canonicalArchive.state === "available" ? availability.canonicalArchive.semanticIds : []);
 }
 
-function unavailableEligibilityDecisions(): EligibilityDecisionSet {
+function unavailableEligibilityDecisions(reason: "quality_not_rebuilt" | "quality_stale"): EligibilityDecisionSet {
   return Object.fromEntries(
     ELIGIBILITY_POLICY_IDS.map((policyId) => [
       policyId,
@@ -23,7 +23,7 @@ function unavailableEligibilityDecisions(): EligibilityDecisionSet {
           policyId,
           policyVersion: QUALITY_POLICY_CONFIG_V1.version,
         },
-        "quality_not_rebuilt",
+        reason,
       ),
     ]),
   ) as unknown as EligibilityDecisionSet;
@@ -57,8 +57,12 @@ export interface EvidenceRetentionLapRow {
 export function evaluateEvidenceRetention(sessionId: number, availability: EvidenceAvailability, rows: readonly EvidenceRetentionLapRow[]): EvidenceRetentionAssessment {
   const canonicalIds = availableArchiveSemanticIds(availability);
   const blockedBy = RAW_REDECODE_POLICIES.filter((policyId) => QUALITY_POLICY_CONFIG_V1.requiredChannels[policyId].some((semanticId) => !canonicalIds.has(semanticId)));
-  const currentDecisions = rows.map((row) => (isEligibilitySnapshotCurrent(row) ? row.eligibility! : unavailableEligibilityDecisions()));
-  const hasMissingEligibility = currentDecisions.some((current, index) => current !== rows[index]?.eligibility);
+  const snapshotCurrent = rows.map((row) => isEligibilitySnapshotCurrent(row));
+  const qualityUnavailableReasons = [
+    ...new Set(rows.flatMap((row, index) => (snapshotCurrent[index] ? [] : [row.qualityStale === true ? ("quality_stale" as const) : ("quality_not_rebuilt" as const)]))),
+  ];
+  const currentDecisions = rows.map((row, index) => (snapshotCurrent[index] ? row.eligibility! : unavailableEligibilityDecisions(row.qualityStale === true ? "quality_stale" : "quality_not_rebuilt")));
+  const hasUnavailableEligibility = qualityUnavailableReasons.length > 0;
   const lapDecisions = rows.map((row, index) => {
     const current = currentDecisions[index]!;
     return {
@@ -67,21 +71,14 @@ export function evaluateEvidenceRetention(sessionId: number, availability: Evide
       postRawRemoval: current === row.eligibility ? postRemovalDecisions(current, canonicalIds) : current,
     };
   });
-  const canDeleteRaw = rows.length > 0 && !hasMissingEligibility && availability.rawCapture && availability.canonicalArchive.state === "available" && blockedBy.length === 0;
+  const canDeleteRaw = rows.length > 0 && !hasUnavailableEligibility && availability.rawCapture && availability.canonicalArchive.state === "available" && blockedBy.length === 0;
   return {
     sessionId,
     policyVersion: EVIDENCE_RETENTION_POLICY_VERSION,
-    action:
-      rows.length === 0 || hasMissingEligibility
-        ? "quality_unavailable"
-        : !availability.rawCapture
-          ? "raw_unavailable"
-          : canDeleteRaw
-            ? "raw_removal_safe"
-            : "retain_raw",
+    action: rows.length === 0 || hasUnavailableEligibility ? "quality_unavailable" : !availability.rawCapture ? "raw_unavailable" : canDeleteRaw ? "raw_removal_safe" : "retain_raw",
     canDeleteRaw,
-    reasons: rows.length === 0 || hasMissingEligibility ? ["quality_not_rebuilt"] : blockedBy.length > 0 ? ["raw_redecode_required"] : [],
-    blockedBy: rows.length === 0 || hasMissingEligibility ? [] : blockedBy,
+    reasons: rows.length === 0 ? ["quality_not_rebuilt"] : hasUnavailableEligibility ? qualityUnavailableReasons : blockedBy.length > 0 ? ["raw_redecode_required"] : [],
+    blockedBy: rows.length === 0 || hasUnavailableEligibility ? [] : blockedBy,
     availability,
     laps: lapDecisions,
   };
