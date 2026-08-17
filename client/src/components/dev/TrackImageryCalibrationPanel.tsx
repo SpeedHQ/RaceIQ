@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from "react";
-import type { TrackConfiguration } from "../../../../shared/racing/tracks/configuration";
+import { trackConfigurationVenueId, type TrackConfiguration } from "../../../../shared/racing/tracks/configuration";
 import {
   defaultVenueImageryCalibration,
   geographicTrackImageryPoint,
@@ -21,7 +21,6 @@ import { Button } from "../ui/button";
 
 const EMPTY_SOURCE: TrackImagerySource = { name: "", url: "", capturedAt: "", license: "", attribution: "" };
 const SAFE_ID = /^[a-z0-9][a-z0-9-]*$/;
-const VENUE_ID = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
 
 function normalizedId(value: string): string {
   return value
@@ -29,14 +28,6 @@ function normalizedId(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-}
-function normalizedVenueId(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9/-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/\/+/g, "/")
-    .replace(/^[-/]+/, "");
 }
 
 function sourcePayload(source: TrackImagerySource): TrackImagerySource {
@@ -137,7 +128,7 @@ export function TrackImageryCalibrationPanel() {
         if (cancelled) return;
         const nextConfiguration = result as TrackConfiguration | null;
         setConfiguration(nextConfiguration);
-        setVenueId(nextConfiguration?.venueId ?? "");
+        setVenueId(nextConfiguration ? trackConfigurationVenueId(nextConfiguration) : "");
       })
       .catch((loadError) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load track configuration");
@@ -173,14 +164,9 @@ export function TrackImageryCalibrationPanel() {
     };
   }, [gameId, trackOrdinal]);
 
-  useEffect(() => {
-    if (configuration || venueId || !replay) return;
-    const suggested = normalizedId(replay.georeference?.canonicalSlug ?? (trackOrdinal == null ? "" : `track-${trackOrdinal}`));
-    if (suggested) setVenueId(suggested);
-  }, [configuration, replay, trackOrdinal, venueId]);
 
   useEffect(() => {
-    if (!VENUE_ID.test(venueId)) {
+    if (!configuration || !venueId) {
       setVenue(null);
       return;
     }
@@ -276,7 +262,7 @@ export function TrackImageryCalibrationPanel() {
   const gpsPolyline = gpsPath.map((point) => `${point.x},${point.z}`).join(" ");
   const displayedLayers = venue?.layers.filter((candidate) => selectedLayers.includes(candidate.id)) ?? [];
   const baseSourceValid = !!baseSource.name.trim() && !!baseSource.license.trim();
-  const canSaveBase = !!gameId && trackOrdinal != null && VENUE_ID.test(venueId) && !!calibration && baseSourceValid && (!!baseFile || !!venue);
+  const canSaveBase = !!gameId && trackOrdinal != null && !!configuration && !!calibration && baseSourceValid && (!!baseFile || !!venue);
   const layerSourceValid = !!layerSource.name.trim() && !!layerSource.license.trim();
   const canSaveLayer = !!venue && SAFE_ID.test(layerId) && !!layerFile && layerSourceValid;
 
@@ -318,22 +304,6 @@ export function TrackImageryCalibrationPanel() {
     else adjustScale(Math.exp(-event.deltaY * 0.001));
   };
 
-  const saveTrackConfiguration = async (nextVenueId: string) => {
-    if (!gameId || trackOrdinal == null) throw new Error("Select a catalog track");
-    if (configuration?.venueId === nextVenueId) return configuration;
-    const response = await fetch(`/api/dev/track-configurations/${trackOrdinal}?gameId=${encodeURIComponent(gameId)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: 1, gameId, trackOrdinal, venueId: nextVenueId, confirmation: null }),
-    });
-    const result = (await response.json()) as TrackConfiguration | { error?: string };
-    if (!response.ok) throw new Error((result as { error?: string }).error ?? "Unable to save track venue");
-    const saved = result as TrackConfiguration;
-    setConfiguration(saved);
-    setConfigurationRevision((revision) => revision + 1);
-    await queryClient.invalidateQueries({ queryKey: ["track-configurations"] });
-    return saved;
-  };
 
   const saveLayout = async (layers = selectedLayers) => {
     if (!gameId || trackOrdinal == null) throw new Error("Select a catalog track");
@@ -380,7 +350,6 @@ export function TrackImageryCalibrationPanel() {
       const savedVenue = result as TrackImageryVenueManifest;
       setVenue(savedVenue);
       setBaseFile(null);
-      await saveTrackConfiguration(savedVenue.venueId);
       await saveLayout(selectedLayers.filter((id) => savedVenue.layers.some((layer) => layer.id === id)));
       setAssetVersion((version) => version + 1);
       setStatus("Opaque venue base and layout assignment saved.");
@@ -464,15 +433,19 @@ export function TrackImageryCalibrationPanel() {
           </select>
         </label>
 
-        <label className="mb-3 block text-xs font-medium text-app-text-secondary">
-          Hierarchical venue path
-          <input
-            className="mt-1 w-full rounded border border-app-border-input bg-app-surface px-2 py-1.5 font-mono text-sm text-app-text"
-            value={venueId}
-            onChange={(event) => setVenueId(normalizedVenueId(event.target.value))}
-            placeholder="daytona/historical/2011/road-course"
-          />
-        </label>
+        <div className="mb-3 rounded border border-app-border bg-app-surface-alt p-2">
+          <div className="text-[10px] uppercase tracking-wide text-app-text-muted">Assigned venue</div>
+          {configuration ? (
+            <>
+              <div className="mt-1 text-xs text-app-text">
+                {[configuration.venue.name, ...configuration.subVenues.map((entry) => entry.name)].join(" / ")}
+              </div>
+              <div className="font-mono text-[10px] text-app-text-muted">{venueId}</div>
+            </>
+          ) : (
+            <div className="mt-1 text-xs text-severity-caution">Assign track from catalog list before calibrating imagery.</div>
+          )}
+        </div>
 
         <section className="mb-4 rounded border border-app-border p-3">
           <h2 className="mb-2 text-sm font-semibold text-app-text">Opaque venue base</h2>

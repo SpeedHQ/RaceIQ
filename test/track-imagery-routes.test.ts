@@ -2,6 +2,8 @@ import { afterAll, expect, test } from "bun:test";
 import { existsSync, rmSync, unlinkSync } from "node:fs";
 import { Hono } from "hono";
 import sharp from "sharp";
+import { trackConfigurationCanonicalId, type TrackConfiguration } from "../shared/racing/tracks/configuration";
+import { resolveTrackName } from "../shared/racing/tracks/resolve-name";
 import { trackConfigurationDevRoutes } from "../server/routes/dev/track-configuration-routes";
 import { trackImageryDevRoutes } from "../server/routes/dev/track-imagery-routes";
 import { trackImageryRoutes } from "../server/routes/tracks/imagery-routes";
@@ -9,7 +11,7 @@ import { trackConfigurationPath } from "../server/tracks/configuration";
 import { trackImageryLayoutPath, trackImageryVenueDirectory } from "../server/tracks/imagery";
 
 const venueRootId = `route-test-${Date.now()}`;
-const venueId = `${venueRootId}/historical/2011/road-course`;
+const venueId = `${venueRootId}/historical/2011`;
 const gameId = "iracing" as const;
 const trackOrdinal = 900_000 + Math.floor(Math.random() * 90_000);
 const venueDirectory = trackImageryVenueDirectory(venueRootId);
@@ -53,7 +55,18 @@ test("persists one opaque venue base with selected transparent layout layers", a
   const configurationResponse = await app.request(`/api/dev/track-configurations/${trackOrdinal}?gameId=${gameId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ version: 1, gameId, trackOrdinal, venueId, confirmation: null }),
+    body: JSON.stringify({
+      version: 1,
+      gameId,
+      trackOrdinal,
+      venue: { id: venueRootId, name: "Route Test" },
+      subVenues: [
+        { id: "historical", name: "Historical" },
+        { id: "2011", name: "2011" },
+      ],
+      track: { id: "road-course", name: "Road Course" },
+      confirmation: null,
+    }),
   });
   expect(configurationResponse.status).toBe(200);
 
@@ -86,16 +99,15 @@ test("persists one opaque venue base with selected transparent layout layers", a
     body: JSON.stringify({ confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" }),
   });
   expect(confirmationResponse.status).toBe(200);
-  const confirmed = (await confirmationResponse.json()) as { venueId: string; confirmation: { confirmedAt: string; confirmedBy: string; commitId: string } };
-  expect(confirmed).toMatchObject({
-    venueId,
-    confirmation: { confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" },
-  });
+  const confirmed = (await confirmationResponse.json()) as TrackConfiguration;
+  expect(trackConfigurationCanonicalId(confirmed)).toBe(`${venueId}/road-course`);
+  expect(confirmed.confirmation).toEqual({ confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" });
+  expect(resolveTrackName(trackOrdinal, gameId)).toBe("Route Test — Historical — 2011 — Road Course");
 
   const indexResponse = await app.request("/api/dev/track-configurations");
   expect(indexResponse.status).toBe(200);
-  const configurations = (await indexResponse.json()) as Array<{ gameId: string; trackOrdinal: number; venueId: string }>;
-  expect(configurations).toContainEqual(expect.objectContaining({ gameId, trackOrdinal, venueId }));
+  const configurations = (await indexResponse.json()) as TrackConfiguration[];
+  expect(configurations.some((configuration) => configuration.gameId === gameId && configuration.trackOrdinal === trackOrdinal && trackConfigurationCanonicalId(configuration) === `${venueId}/road-course`)).toBe(true);
 
   const resaveResponse = await app.request(`/api/dev/track-configurations/${trackOrdinal}?gameId=${gameId}`, {
     method: "PUT",
@@ -103,5 +115,5 @@ test("persists one opaque venue base with selected transparent layout layers", a
     body: JSON.stringify(confirmed),
   });
   expect(resaveResponse.status).toBe(200);
-  expect(await resaveResponse.json()).toMatchObject({ venueId, confirmation: null });
+  expect(await resaveResponse.json()).toMatchObject({ track: { id: "road-course", name: "Road Course" }, confirmation: null });
 });

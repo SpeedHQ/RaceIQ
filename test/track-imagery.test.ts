@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { TrackConfigurationSchema } from "../shared/racing/tracks/configuration";
+import { TrackConfigurationSchema, trackConfigurationCanonicalId, trackConfigurationVenueId } from "../shared/racing/tracks/configuration";
 import {
   TrackImageryVenueManifestSchema,
   composeTrackImageryMatrices,
@@ -24,11 +24,17 @@ test("validates hierarchical venue assignments and confirmation provenance", () 
     version: 1,
     gameId: "iracing",
     trackOrdinal: 24,
-    venueId: "daytona/historical/2011/road-course",
+    venue: { id: "daytona", name: "Daytona" },
+    subVenues: [
+      { id: "historical", name: "Historical" },
+      { id: "2011", name: "2011" },
+    ],
+    track: { id: "road-course", name: "Road Course" },
     confirmation: { confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" },
   });
-  expect(configuration.venueId.split("/")).toEqual(["daytona", "historical", "2011", "road-course"]);
-  expect(TrackConfigurationSchema.safeParse({ ...configuration, venueId: "daytona/../road-course" }).success).toBe(false);
+  expect(trackConfigurationVenueId(configuration)).toBe("daytona/historical/2011");
+  expect(trackConfigurationCanonicalId(configuration)).toBe("daytona/historical/2011/road-course");
+  expect(TrackConfigurationSchema.safeParse({ ...configuration, subVenues: [{ id: "../", name: "Invalid" }] }).success).toBe(false);
   expect(
     TrackConfigurationSchema.safeParse({
       ...configuration,

@@ -1,10 +1,16 @@
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { KNOWN_GAME_IDS, type GameId } from "../../../../shared/games/ids";
-import type { TrackConfiguration, TrackConfigurationConfirmation } from "../../../../shared/racing/tracks/configuration";
+import {
+  trackConfigurationCanonicalId,
+  type TrackConfiguration,
+  type TrackConfigurationConfirmation,
+  type TrackIdentityNode,
+} from "../../../../shared/racing/tracks/configuration";
 import type { TrackImageryConfigurationIndex } from "../../../../shared/racing/tracks/imagery";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
 interface CatalogTrack {
   ordinal: number;
@@ -12,6 +18,7 @@ interface CatalogTrack {
   variant?: string | null;
   location?: string | null;
   country?: string | null;
+  commonTrackName?: string | null;
 }
 
 export interface TrackConfigurationSelection {
@@ -23,6 +30,7 @@ export interface TrackConfigurationSelection {
 interface TrackRecord extends TrackConfigurationSelection {
   variant: string;
   location: string;
+  commonTrackName: string;
   configuration: TrackConfiguration | null;
   hasImagery: boolean;
 }
@@ -30,29 +38,37 @@ interface TrackRecord extends TrackConfigurationSelection {
 type StatusFilter = "all" | "unassigned" | "unconfirmed" | "confirmed";
 
 interface VenueNode {
-  segment: string;
+  segment: TrackIdentityNode;
   path: string;
   children: Map<string, VenueNode>;
   tracks: TrackRecord[];
 }
 
-const VENUE_ID = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
+interface AssignmentSuggestions {
+  venues: string[];
+  subVenues: string[];
+  tracks: string[];
+}
 
 function key(gameId: GameId, trackOrdinal: number): string {
   return `${gameId}:${trackOrdinal}`;
 }
 
-function normalizeVenueInput(value: string): string {
+function slug(value: string): string {
   return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9/-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/\/+/g, "/")
-    .replace(/^[-/]+/, "");
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function node(name: string): TrackIdentityNode {
+  return { id: slug(name), name: name.trim() };
 }
 
 function displaySegment(segment: string): string {
-  if (segment === "unassigned") return "Unassigned";
   return segment
     .split("-")
     .filter(Boolean)
@@ -66,17 +82,17 @@ async function responseJson<T>(response: Response): Promise<T> {
   return result as T;
 }
 
-function insertVenue(root: Map<string, VenueNode>, venueId: string): VenueNode {
+function insertVenue(root: Map<string, VenueNode>, segments: readonly TrackIdentityNode[]): VenueNode {
   let children = root;
   let path = "";
-  let node: VenueNode | null = null;
-  for (const segment of venueId.split("/")) {
-    path = path ? `${path}/${segment}` : segment;
-    node = children.get(segment) ?? { segment, path, children: new Map(), tracks: [] };
-    children.set(segment, node);
-    children = node.children;
+  let current: VenueNode | null = null;
+  for (const segment of segments) {
+    path = path ? `${path}/${segment.id}` : segment.id;
+    current = children.get(segment.id) ?? { segment, path, children: new Map(), tracks: [] };
+    children.set(segment.id, current);
+    children = current.children;
   }
-  return node!;
+  return current!;
 }
 
 function countNodeTracks(node: VenueNode): number {
@@ -97,6 +113,150 @@ function statusBadge(record: TrackRecord): { label: string; className: string } 
   return { label: "Unassigned", className: "border-app-border bg-app-surface-alt text-app-text-muted" };
 }
 
+function AssignmentModal({
+  record,
+  suggestions,
+  onClose,
+  onSave,
+}: {
+  record: TrackRecord;
+  suggestions: AssignmentSuggestions;
+  onClose: () => void;
+  onSave: (record: TrackRecord, configuration: Omit<TrackConfiguration, "confirmation">) => Promise<void>;
+}) {
+  const [venue, setVenue] = useState("");
+  const [subVenues, setSubVenues] = useState<string[]>([]);
+  const [track, setTrack] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const configuration = record.configuration;
+    setVenue(configuration?.venue.name ?? record.name);
+    setSubVenues(configuration?.subVenues.map((entry) => entry.name) ?? []);
+    setTrack(configuration?.track.name ?? (record.variant || "Main"));
+    setError(null);
+  }, [record]);
+  const venueNode = node(venue);
+  const subVenueNodes = subVenues.map(node);
+  const trackNode = node(track);
+  const valid = !!venueNode.id && !!venueNode.name && subVenueNodes.every((entry) => !!entry.id && !!entry.name) && !!trackNode.id && !!trackNode.name;
+  const preview = valid ? [venueNode, ...subVenueNodes, trackNode].map((entry) => entry.name).join(" / ") : "Complete venue and track names";
+
+  const save = async () => {
+    if (!valid) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(record, {
+        version: 1,
+        gameId: record.gameId,
+        trackOrdinal: record.trackOrdinal,
+        venue: venueNode,
+        subVenues: subVenueNodes,
+        track: trackNode,
+      });
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save track assignment");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60">
+        <DialogHeader>
+          <DialogTitle>Assign canonical track</DialogTitle>
+          <DialogDescription>
+            {record.gameId} #{record.trackOrdinal} · {record.name}
+            {record.variant ? ` · ${record.variant}` : ""}
+          </DialogDescription>
+        </DialogHeader>
+
+        <label className="block text-xs font-medium text-app-text-secondary">
+          Venue
+          <input
+            className="mt-1 w-full rounded border border-app-border-input bg-app-bg px-2 py-1.5 text-sm text-app-text"
+            list="track-configuration-venue-options"
+            value={venue}
+            onChange={(event) => setVenue(event.target.value)}
+            placeholder="Daytona"
+            autoFocus
+          />
+        </label>
+
+        <fieldset className="rounded border border-app-border p-3">
+          <legend className="px-1 text-xs font-medium text-app-text-secondary">Sub-venues (optional)</legend>
+          {subVenues.length === 0 && <p className="mb-2 text-[11px] text-app-text-muted">None. Add levels for historical versions, years, complexes, or sub-venues.</p>}
+          <div className="space-y-2">
+            {subVenues.map((subVenue, index) => (
+              <div key={index} className="grid grid-cols-[1fr_auto] gap-2">
+                <input
+                  className="min-w-0 rounded border border-app-border-input bg-app-bg px-2 py-1.5 text-sm text-app-text"
+                  list="track-configuration-sub-venue-options"
+                  value={subVenue}
+                  onChange={(event) => setSubVenues((current) => current.map((value, currentIndex) => (currentIndex === index ? event.target.value : value)))}
+                  placeholder={index === 0 ? "Historical" : "2011"}
+                />
+                <Button type="button" onClick={() => setSubVenues((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button type="button" className="mt-2" onClick={() => setSubVenues((current) => [...current, ""])} disabled={subVenues.length >= 8}>
+            Add sub-venue
+          </Button>
+        </fieldset>
+
+        <label className="block text-xs font-medium text-app-text-secondary">
+          Track / layout
+          <input
+            className="mt-1 w-full rounded border border-app-border-input bg-app-bg px-2 py-1.5 text-sm text-app-text"
+            list="track-configuration-track-options"
+            value={track}
+            onChange={(event) => setTrack(event.target.value)}
+            placeholder="Road Course"
+          />
+        </label>
+
+        <div className="rounded border border-app-border bg-app-surface-alt p-2">
+          <div className="text-[10px] uppercase tracking-wide text-app-text-muted">Canonical identity</div>
+          <div className="mt-1 text-sm text-app-text">{preview}</div>
+          {valid && <div className="mt-0.5 font-mono text-[10px] text-app-text-muted">{[venueNode, ...subVenueNodes, trackNode].map((entry) => entry.id).join("/")}</div>}
+        </div>
+        {error && <p className="text-xs text-severity-critical">{error}</p>}
+
+        <datalist id="track-configuration-venue-options">
+          {suggestions.venues.map((value) => (
+            <option key={value} value={value} />
+          ))}
+        </datalist>
+        <datalist id="track-configuration-sub-venue-options">
+          {suggestions.subVenues.map((value) => (
+            <option key={value} value={value} />
+          ))}
+        </datalist>
+        <datalist id="track-configuration-track-options">
+          {suggestions.tracks.map((value) => (
+            <option key={value} value={value} />
+          ))}
+        </datalist>
+
+        <DialogFooter>
+          <Button type="button" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={() => void save()} disabled={!valid || saving}>
+            {saving ? "Saving…" : "Save assignment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function TrackRow({
   record,
   selected,
@@ -104,6 +264,7 @@ function TrackRow({
   commitId,
   onConfirmedByChange,
   onCommitIdChange,
+  onAssign,
   onSelect,
   onChanged,
 }: {
@@ -113,35 +274,15 @@ function TrackRow({
   commitId: string;
   onConfirmedByChange: (value: string) => void;
   onCommitIdChange: (value: string) => void;
+  onAssign: (record: TrackRecord) => void;
   onSelect: (selection: TrackConfigurationSelection) => void;
   onChanged: () => Promise<void>;
 }) {
-  const [venueId, setVenueId] = useState(record.configuration?.venueId ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => setVenueId(record.configuration?.venueId ?? ""), [record.configuration?.venueId]);
   const badge = statusBadge(record);
   const selection = { gameId: record.gameId, trackOrdinal: record.trackOrdinal, name: record.name };
-
-  const saveVenue = async () => {
-    if (!VENUE_ID.test(venueId)) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await responseJson<TrackConfiguration>(
-        await fetch(`/api/dev/track-configurations/${record.trackOrdinal}?gameId=${encodeURIComponent(record.gameId)}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ version: 1, gameId: record.gameId, trackOrdinal: record.trackOrdinal, venueId, confirmation: null }),
-        }),
-      );
-      await onChanged();
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save venue assignment");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const canonical = record.configuration ? trackConfigurationCanonicalId(record.configuration) : null;
 
   const confirm = async () => {
     if (!record.configuration || !confirmedBy.trim()) return;
@@ -172,7 +313,9 @@ function TrackRow({
     setSaving(true);
     setError(null);
     try {
-      await responseJson<TrackConfiguration>(await fetch(`/api/dev/track-configurations/${record.trackOrdinal}/confirmation?gameId=${encodeURIComponent(record.gameId)}`, { method: "DELETE" }));
+      await responseJson<TrackConfiguration>(
+        await fetch(`/api/dev/track-configurations/${record.trackOrdinal}/confirmation?gameId=${encodeURIComponent(record.gameId)}`, { method: "DELETE" }),
+      );
       await onChanged();
     } catch (clearError) {
       setError(clearError instanceof Error ? clearError.message : "Unable to clear confirmation");
@@ -185,9 +328,9 @@ function TrackRow({
     <details className={`rounded border ${selected ? "border-app-accent" : "border-app-border"} bg-app-surface`}>
       <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
-          <span className="block truncate text-xs font-medium text-app-text">{record.name}</span>
+          <span className="block truncate text-xs font-medium text-app-text">{record.configuration?.track.name ?? record.name}</span>
           <span className="block truncate text-[10px] text-app-text-muted">
-            {record.variant ? `${record.variant} · ` : ""}#{record.trackOrdinal}
+            {record.configuration ? `${record.name} · ` : record.variant ? `${record.variant} · ` : ""}#{record.trackOrdinal}
             {record.location ? ` · ${record.location}` : ""}
           </span>
         </span>
@@ -196,20 +339,12 @@ function TrackRow({
       <div className="border-t border-app-border px-2 py-2">
         <div className="mb-2 flex flex-wrap gap-1 text-[10px] text-app-text-muted">
           <span className="rounded bg-app-surface-alt px-1.5 py-0.5 font-mono">{record.gameId}</span>
+          {canonical && <span className="rounded bg-app-surface-alt px-1.5 py-0.5 font-mono">{canonical}</span>}
           {record.hasImagery && <span className="rounded bg-app-accent/10 px-1.5 py-0.5 text-app-accent">Imagery configured</span>}
         </div>
-        <label className="mb-2 block text-[10px] font-medium text-app-text-secondary">
-          Venue path
-          <input
-            className="mt-0.5 w-full rounded border border-app-border-input bg-app-bg px-2 py-1 font-mono text-xs text-app-text"
-            value={venueId}
-            onChange={(event) => setVenueId(normalizeVenueInput(event.target.value))}
-            placeholder="daytona/historical/2011/road-course"
-          />
-        </label>
         <div className="mb-2 flex flex-wrap gap-1">
-          <Button type="button" onClick={() => void saveVenue()} disabled={!VENUE_ID.test(venueId) || saving}>
-            Save venue
+          <Button type="button" onClick={() => onAssign(record)}>
+            {record.configuration ? "Edit assignment" : "Assign track"}
           </Button>
           <Button type="button" onClick={() => onSelect(selection)}>
             {selected ? "Selected for calibration" : "Open calibration"}
@@ -258,6 +393,7 @@ function VenueNodeView({
   commitId,
   onConfirmedByChange,
   onCommitIdChange,
+  onAssign,
   onSelect,
   onChanged,
 }: {
@@ -268,6 +404,7 @@ function VenueNodeView({
   commitId: string;
   onConfirmedByChange: (value: string) => void;
   onCommitIdChange: (value: string) => void;
+  onAssign: (record: TrackRecord) => void;
   onSelect: (selection: TrackConfigurationSelection) => void;
   onChanged: () => Promise<void>;
 }) {
@@ -277,12 +414,12 @@ function VenueNodeView({
     records.push(track);
     games.set(track.gameId, records);
   }
-  const children = [...node.children.values()].sort((a, b) => a.segment.localeCompare(b.segment));
+  const children = [...node.children.values()].sort((a, b) => a.segment.name.localeCompare(b.segment.name));
   return (
-    <details key={`${node.path}:${filterActive}`} className="ml-2 border-l border-app-border pl-2" open={filterActive || node.segment === "unassigned" ? true : undefined}>
+    <details key={`${node.path}:${filterActive}`} className="ml-2 border-l border-app-border pl-2" open={filterActive || node.segment.id === "unassigned" ? true : undefined}>
       <summary className="cursor-pointer list-none py-1 text-xs font-semibold text-app-text-secondary [&::-webkit-details-marker]:hidden">
         <span className="mr-1 text-app-text-muted">›</span>
-        {displaySegment(node.segment)} <span className="font-normal text-app-text-muted">({countNodeTracks(node)})</span>
+        {node.segment.name} <span className="font-normal text-app-text-muted">({countNodeTracks(node)})</span>
       </summary>
       <div className="space-y-1 pb-1">
         {[...games.entries()].map(([gameId, records]) => (
@@ -300,6 +437,7 @@ function VenueNodeView({
                   commitId={commitId}
                   onConfirmedByChange={onConfirmedByChange}
                   onCommitIdChange={onCommitIdChange}
+                  onAssign={onAssign}
                   onSelect={onSelect}
                   onChanged={onChanged}
                 />
@@ -317,6 +455,7 @@ function VenueNodeView({
             commitId={commitId}
             onConfirmedByChange={onConfirmedByChange}
             onCommitIdChange={onCommitIdChange}
+            onAssign={onAssign}
             onSelect={onSelect}
             onChanged={onChanged}
           />
@@ -338,6 +477,7 @@ export function TrackConfigurationBrowser({
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [assigning, setAssigning] = useState<TrackRecord | null>(null);
   const [confirmedBy, setConfirmedBy] = useLocalStorage("track-configuration-confirmed-by", "");
   const [commitId, setCommitId] = useLocalStorage("track-configuration-commit-id", "");
   const catalogQueries = useQueries({
@@ -367,39 +507,93 @@ export function TrackConfigurationBrowser({
         name: track.name,
         variant: track.variant ?? "",
         location: track.location ?? "",
+        commonTrackName: track.commonTrackName ?? "",
         configuration: configurations.get(key(gameId, track.ordinal)) ?? null,
         hasImagery: imagery.has(key(gameId, track.ordinal)),
       }));
     });
   }, [catalogQueries, configurationQuery.data, imageryQuery.data]);
 
+  const suggestions = useMemo<AssignmentSuggestions>(() => {
+    const venues = new Set<string>();
+    const subVenues = new Set<string>();
+    const tracks = new Set<string>(["Main"]);
+    for (const record of records) {
+      if (record.name) venues.add(record.name);
+      if (record.variant) tracks.add(record.variant);
+      if (record.commonTrackName) tracks.add(displaySegment(record.commonTrackName));
+      const configuration = record.configuration;
+      if (!configuration) continue;
+      venues.add(configuration.venue.name);
+      for (const entry of configuration.subVenues) subVenues.add(entry.name);
+      tracks.add(configuration.track.name);
+    }
+    return {
+      venues: [...venues].sort((a, b) => a.localeCompare(b)),
+      subVenues: [...subVenues].sort((a, b) => a.localeCompare(b)),
+      tracks: [...tracks].sort((a, b) => a.localeCompare(b)),
+    };
+  }, [records]);
+
   const normalizedFilter = filter.trim().toLowerCase();
   const filteredRecords = records.filter((record) => {
     if (statusFilter !== "all" && statusFor(record) !== statusFilter) return false;
     if (!normalizedFilter) return true;
-    return [record.name, record.variant, record.location, record.gameId, String(record.trackOrdinal), record.configuration?.venueId ?? ""].some((value) =>
-      value.toLowerCase().includes(normalizedFilter),
-    );
+    const configuration = record.configuration;
+    return [
+      record.name,
+      record.variant,
+      record.location,
+      record.commonTrackName,
+      record.gameId,
+      String(record.trackOrdinal),
+      configuration ? trackConfigurationCanonicalId(configuration) : "",
+      configuration?.venue.name ?? "",
+      ...(configuration?.subVenues.map((entry) => entry.name) ?? []),
+      configuration?.track.name ?? "",
+    ].some((value) => value.toLowerCase().includes(normalizedFilter));
   });
   const venueTree = new Map<string, VenueNode>();
-  for (const venue of imageryQuery.data?.venues ?? []) insertVenue(venueTree, venue.venueId);
-  for (const configuration of configurationQuery.data ?? []) insertVenue(venueTree, configuration.venueId);
-  for (const record of filteredRecords) insertVenue(venueTree, record.configuration?.venueId ?? "unassigned").tracks.push(record);
+  for (const venue of imageryQuery.data?.venues ?? []) {
+    insertVenue(
+      venueTree,
+      venue.venueId.split("/").map((id) => ({ id, name: displaySegment(id) })),
+    );
+  }
+  for (const configuration of configurationQuery.data ?? []) insertVenue(venueTree, [configuration.venue, ...configuration.subVenues]);
+  for (const record of filteredRecords) {
+    const segments = record.configuration ? [record.configuration.venue, ...record.configuration.subVenues] : [{ id: "unassigned", name: "Unassigned" }];
+    insertVenue(venueTree, segments).tracks.push(record);
+  }
   const statusCounts = { unassigned: 0, unconfirmed: 0, confirmed: 0 };
   for (const record of records) statusCounts[statusFor(record)] += 1;
   const selectedKey = selection ? key(selection.gameId, selection.trackOrdinal) : null;
   const loading = catalogQueries.some((query) => query.isLoading) || configurationQuery.isLoading || imageryQuery.isLoading;
   const loadError = catalogQueries.find((query) => query.error)?.error ?? configurationQuery.error ?? imageryQuery.error;
   const changed = async () => {
-    await Promise.all([queryClient.invalidateQueries({ queryKey: ["track-configurations"] }), queryClient.invalidateQueries({ queryKey: ["track-imagery-configurations"] })]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["track-configurations"] }),
+      queryClient.invalidateQueries({ queryKey: ["track-imagery-configurations"] }),
+      ...KNOWN_GAME_IDS.map((gameId) => queryClient.invalidateQueries({ queryKey: ["tracks", gameId] })),
+    ]);
     onConfigurationChange();
+  };
+  const saveAssignment = async (record: TrackRecord, configuration: Omit<TrackConfiguration, "confirmation">) => {
+    await responseJson<TrackConfiguration>(
+      await fetch(`/api/dev/track-configurations/${record.trackOrdinal}?gameId=${encodeURIComponent(record.gameId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...configuration, confirmation: null }),
+      }),
+    );
+    await changed();
   };
 
   return (
     <section className="flex min-h-0 flex-col border-r border-app-border bg-app-bg">
       <div className="border-b border-app-border p-3">
         <h1 className="text-base font-semibold text-app-text">Track configuration</h1>
-        <p className="mb-2 text-[11px] text-app-text-muted">All catalog tracks grouped by expandable venue path, then game ID.</p>
+        <p className="mb-2 text-[11px] text-app-text-muted">All simulator catalogs grouped by canonical venue, sub-venue, then game ID.</p>
         <input
           className="mb-2 w-full rounded border border-app-border-input bg-app-surface px-2 py-1.5 text-xs text-app-text"
           type="search"
@@ -408,14 +602,12 @@ export function TrackConfigurationBrowser({
           placeholder="Filter track, venue, game, or ordinal…"
         />
         <div className="flex flex-wrap gap-1">
-          {(
-            [
-              ["all", `All ${records.length}`],
-              ["unassigned", `Unassigned ${statusCounts.unassigned}`],
-              ["unconfirmed", `Needs confirmation ${statusCounts.unconfirmed}`],
-              ["confirmed", `Confirmed ${statusCounts.confirmed}`],
-            ] as const
-          ).map(([value, label]) => (
+          {([
+            ["all", `All ${records.length}`],
+            ["unassigned", `Unassigned ${statusCounts.unassigned}`],
+            ["unconfirmed", `Needs confirmation ${statusCounts.unconfirmed}`],
+            ["confirmed", `Confirmed ${statusCounts.confirmed}`],
+          ] as const).map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -432,22 +624,24 @@ export function TrackConfigurationBrowser({
         {loadError && <p className="p-2 text-xs text-severity-critical">{loadError instanceof Error ? loadError.message : "Unable to load track catalogs"}</p>}
         {!loading && !loadError && filteredRecords.length === 0 && <p className="p-2 text-xs text-app-text-muted">No tracks match filter.</p>}
         {[...venueTree.values()]
-          .sort((a, b) => (a.segment === "unassigned" ? 1 : b.segment === "unassigned" ? -1 : a.segment.localeCompare(b.segment)))
-          .map((node) => (
+          .sort((a, b) => (a.segment.id === "unassigned" ? 1 : b.segment.id === "unassigned" ? -1 : a.segment.name.localeCompare(b.segment.name)))
+          .map((venue) => (
             <VenueNodeView
-              key={node.path}
-              node={node}
+              key={venue.path}
+              node={venue}
               filterActive={!!normalizedFilter || statusFilter !== "all"}
               selectedKey={selectedKey}
               confirmedBy={confirmedBy}
               commitId={commitId}
               onConfirmedByChange={setConfirmedBy}
               onCommitIdChange={setCommitId}
+              onAssign={setAssigning}
               onSelect={onSelect}
               onChanged={changed}
             />
           ))}
       </div>
+      {assigning && <AssignmentModal record={assigning} suggestions={suggestions} onClose={() => setAssigning(null)} onSave={saveAssignment} />}
     </section>
   );
 }

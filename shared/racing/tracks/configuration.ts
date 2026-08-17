@@ -9,6 +9,12 @@ function validCalendarDate(value: string): boolean {
 }
 
 export const TrackVenueIdSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/, "Use slash-separated lowercase venue segments");
+const trackIdentityId = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, digits, and hyphens");
+export const TrackIdentityNodeSchema = z.object({
+  id: trackIdentityId,
+  name: z.string().trim().min(1),
+});
+
 
 export const TrackConfigurationConfirmationSchema = z.object({
   confirmedAt: z
@@ -27,9 +33,20 @@ export const TrackConfigurationSchema = z.object({
   version: z.literal(TRACK_CONFIGURATION_VERSION),
   gameId: GameIdSchema,
   trackOrdinal: z.number().int().nonnegative(),
-  venueId: TrackVenueIdSchema,
+  venue: TrackIdentityNodeSchema,
+  subVenues: z.array(TrackIdentityNodeSchema).max(8),
+  track: TrackIdentityNodeSchema,
   confirmation: TrackConfigurationConfirmationSchema.nullable(),
 });
 
 export type TrackConfiguration = z.infer<typeof TrackConfigurationSchema>;
 export type TrackConfigurationConfirmation = z.infer<typeof TrackConfigurationConfirmationSchema>;
+export type TrackIdentityNode = z.infer<typeof TrackIdentityNodeSchema>;
+
+export function trackConfigurationVenueId(configuration: Pick<TrackConfiguration, "venue" | "subVenues">): string {
+  return [configuration.venue.id, ...configuration.subVenues.map((node) => node.id)].join("/");
+}
+
+export function trackConfigurationCanonicalId(configuration: Pick<TrackConfiguration, "venue" | "subVenues" | "track">): string {
+  return `${trackConfigurationVenueId(configuration)}/${configuration.track.id}`;
+}

@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { Hono } from "hono";
 import sharp from "sharp";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
-import { TrackVenueIdSchema } from "../../../shared/racing/tracks/configuration";
+import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../../shared/racing/tracks/configuration";
 import { TrackImageryLayoutManifestSchema, TrackImageryVenueManifestSchema, type TrackImageryLayoutManifest, type TrackImageryVenueManifest } from "../../../shared/racing/tracks/imagery";
 import { loadTrackConfiguration } from "../../tracks/configuration";
 import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
@@ -66,7 +66,7 @@ function replaceTexture(directory: string, stem: string, image: ValidatedImage):
 function removeLayerFromLayouts(venueId: string, layerId: string): void {
   for (const layout of listTrackImageryConfigurations().layouts) {
     const configuration = loadTrackConfiguration(layout.gameId, layout.trackOrdinal);
-    if (configuration?.venueId !== venueId || !layout.layers.includes(layerId)) continue;
+    if (!configuration || trackConfigurationVenueId(configuration) !== venueId || !layout.layers.includes(layerId)) continue;
     writeJson(trackImageryLayoutPath(layout.gameId, layout.trackOrdinal), {
       ...layout,
       layers: layout.layers.filter((id) => id !== layerId),
@@ -204,8 +204,9 @@ export const trackImageryDevRoutes = new Hono()
       if (!configuration) return c.json({ error: "Save track venue assignment before imagery layers" }, 404);
       const raw = (await c.req.json()) as TrackImageryLayoutManifest;
       const layout = TrackImageryLayoutManifestSchema.parse({ ...raw, version: 1, gameId, trackOrdinal });
-      const venue = loadTrackImageryVenue(configuration.venueId);
-      if (!venue) return c.json({ error: `Imagery venue ${configuration.venueId} not found` }, 404);
+      const venueId = trackConfigurationVenueId(configuration);
+      const venue = loadTrackImageryVenue(venueId);
+      if (!venue) return c.json({ error: `Imagery venue ${venueId} not found` }, 404);
       const knownLayers = new Set(venue.layers.map((layer) => layer.id));
       const missingLayer = layout.layers.find((layerId) => !knownLayers.has(layerId));
       if (missingLayer) return c.json({ error: `Imagery layer ${missingLayer} not found` }, 400);

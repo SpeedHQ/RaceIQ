@@ -177,7 +177,7 @@ export const carRoutes = new Hono()
         for (const ord of tracks.split(",")) {
           const n = Number(ord);
           if (!Number.isNaN(n)) {
-            trackNames[ord] = adapter ? adapter.getTrackName(n) : resolveTrackName(n, gameId);
+            trackNames[ord] = resolveTrackName(n, gameId);
           }
         }
       }

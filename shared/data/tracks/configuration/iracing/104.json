@@ -2,6 +2,8 @@
   "version": 1,
   "gameId": "iracing",
   "trackOrdinal": 104,
-  "venueId": "phoenix-raceway/2008/oval",
+  "venue": { "id": "phoenix-raceway", "name": "Phoenix Raceway" },
+  "subVenues": [{ "id": "2008", "name": "2008" }],
+  "track": { "id": "oval", "name": "Oval" },
   "confirmation": null
 }

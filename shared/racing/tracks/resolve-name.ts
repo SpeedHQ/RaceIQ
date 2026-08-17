@@ -7,6 +7,8 @@ import { getAcEvoSharedTrackName } from "./catalogs/ac-evo";
 import { getF1TrackInfo } from "./catalogs/f1";
 import { getFmBundledTrackName, getFmTrackName } from "./catalogs/fm";
 import { getIRacingSharedTrackName } from "./catalogs/iracing";
+import { GameIdSchema } from "../../games/ids";
+import { TrackConfigurationSchema } from "./configuration";
 
 export interface TrackPoint {
   x: number;
@@ -34,9 +36,21 @@ function readDataFile(filePath: string): string | null {
     return null;
   }
 }
+function configuredTrackName(ordinal: number, gameId: string | undefined): string | null {
+  const parsedGameId = GameIdSchema.safeParse(gameId);
+  if (!parsedGameId.success) return null;
+  const content = readDataFile(resolve(SHARED_DIR, "tracks", "configuration", parsedGameId.data, `${ordinal}.json`));
+  if (!content) return null;
+  const configuration = TrackConfigurationSchema.safeParse(JSON.parse(content));
+  if (!configuration.success || !configuration.data.confirmation) return null;
+  return [configuration.data.venue.name, ...configuration.data.subVenues.map((node) => node.name), configuration.data.track.name].join(" — ");
+}
 
-/** Resolve display name through registered game adapter, then Forza fallback. */
+
+/** Resolve confirmed canonical identity first, then registered game catalog. */
 export function resolveTrackName(ordinal: number, gameId?: string): string {
+  const canonical = configuredTrackName(ordinal, gameId);
+  if (canonical) return canonical;
   const adapter = gameId ? tryGetGame(gameId) : undefined;
   return adapter?.getTrackName(ordinal) ?? getFmTrackName(ordinal);
 }

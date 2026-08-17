@@ -8,7 +8,7 @@ import {
   type TrackImageryLayoutManifest,
   type TrackImageryVenueManifest,
 } from "../../shared/racing/tracks/imagery";
-import { TrackVenueIdSchema } from "../../shared/racing/tracks/configuration";
+import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../shared/racing/tracks/configuration";
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { SHARED_DIR } from "../runtime/config/paths";
 import { loadTrackConfiguration } from "./configuration";
@@ -98,9 +98,10 @@ export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTr
   const configuration = loadTrackConfiguration(gameId, trackOrdinal);
   const layout = loadTrackImageryLayout(gameId, trackOrdinal);
   if (!configuration || !layout) return null;
-  const venue = loadTrackImageryVenue(configuration.venueId);
-  if (!venue) throw new Error(`Missing track imagery venue ${configuration.venueId}`);
-  const directory = trackImageryVenueDirectory(configuration.venueId);
+  const venueId = trackConfigurationVenueId(configuration);
+  const venue = loadTrackImageryVenue(venueId);
+  if (!venue) throw new Error(`Missing track imagery venue ${venueId}`);
+  const directory = trackImageryVenueDirectory(venueId);
   const textures: Record<string, LoadedTrackImageryTexture> = { base: textureFile(directory, venue.base.image) };
   const selectedLayers = [];
   const seen = new Set<string>();
@@ -108,7 +109,7 @@ export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTr
     if (seen.has(layerId)) continue;
     seen.add(layerId);
     const layer = venue.layers.find((candidate) => candidate.id === layerId);
-    if (!layer) throw new Error(`Missing imagery layer ${layerId} in venue ${configuration.venueId}`);
+    if (!layer) throw new Error(`Missing imagery layer ${layerId} in venue ${venueId}`);
     textures[layer.id] = textureFile(resolve(directory, "layers"), layer.image);
     selectedLayers.push(layer);
   }

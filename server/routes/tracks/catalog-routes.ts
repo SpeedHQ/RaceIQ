@@ -11,7 +11,6 @@ import { getF1Tracks } from "../../../shared/racing/tracks/catalogs/f1";
 import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "../../../shared/racing/tracks/catalogs/iracing";
-import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
 
 export const trackCatalogInfoRoutes = new Hono()
@@ -37,8 +36,6 @@ export const trackCatalogInfoRoutes = new Hono()
     (c) => {
       const { ordinal } = c.req.valid("param");
       const { gameId } = c.req.valid("query");
-      const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
-      if (serverAdapter) return c.text(serverAdapter.getTrackName(ordinal));
       return c.text(resolveTrackName(ordinal, gameId));
     },
   );
@@ -57,7 +54,7 @@ export const trackCatalogRoutes = new Hono()
           const hasBundled = !!getTrackOutlineByOrdinal(id, "f1-2025", info.commonTrackName);
           return {
             ordinal: id,
-            name: info.name,
+            name: resolveTrackName(id, "f1-2025"),
             location: info.location,
             country: info.country,
             variant: info.variant,
@@ -80,7 +77,7 @@ export const trackCatalogRoutes = new Hono()
           const hasBundled = !!getTrackOutlineByOrdinal(id, "acc", info.commonTrackName ?? undefined);
           return {
             ordinal: id,
-            name: info.name,
+            name: resolveTrackName(id, "acc"),
             location: "",
             country: "",
             variant: info.variant,
@@ -102,7 +99,7 @@ export const trackCatalogRoutes = new Hono()
           const hasBundled = !!getTrackOutlineByOrdinal(id, "ac-evo", info.commonTrackName ?? undefined);
           return {
             ordinal: id,
-            name: info.name,
+            name: resolveTrackName(id, "ac-evo"),
             location: "",
             country: "",
             variant: info.variant,
@@ -141,7 +138,7 @@ export const trackCatalogRoutes = new Hono()
             hasShared || hasOfficialSvg || hasGenerated;
           return {
             ordinal: info.ordinal,
-            name: info.name,
+            name: resolveTrackName(info.ordinal, "iracing"),
             location: info.location,
             country: info.country,
             variant: info.variant,
@@ -224,7 +221,7 @@ export const trackCatalogRoutes = new Hono()
         const hasBundled = !!getTrackOutlineByOrdinal(ordinal, "fm-2023");
         return {
           ordinal,
-          name: info.name,
+          name: resolveTrackName(ordinal, "fm-2023"),
           location: info.location,
           country: info.country,
           variant: info.variant,
