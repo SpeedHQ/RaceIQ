@@ -9,6 +9,6 @@ jobs:
     with:
       server-mode: compiled
       server-set: all
-      runs-on: whitesmith-windows-x64
+      runs-on: '["whitesmith-windows-x64", "10VCPU", "10G"]'
       dist-artifact: raceiq-dist-windows
       artifact-name: playwright-compiled

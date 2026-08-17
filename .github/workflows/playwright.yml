@@ -9,10 +9,10 @@ on:
         type: string
         default: compiled
       runs-on:
-        description: "Runner label; Windows is required for compiled native binary"
+        description: "Runner labels as JSON array; Windows is required for compiled native binary"
         required: false
         type: string
-        default: blacksmith-4vcpu-windows-2025
+        default: '["whitesmith-windows-x64", "10VCPU", "10G"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
@@ -36,7 +36,7 @@ on:
 
 jobs:
   playwright:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     steps:
       - uses: actions/checkout@v4
 

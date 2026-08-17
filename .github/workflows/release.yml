@@ -158,7 +158,7 @@ jobs:
     with:
       server-mode: compiled
       server-set: all
-      runs-on: blacksmith-4vcpu-windows-2025
+      runs-on: '["whitesmith-windows-x64", "10VCPU", "10G"]'
       dist-artifact: raceiq-dist-windows
       artifact-name: playwright-compiled
   draft-release:
