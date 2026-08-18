@@ -157,7 +157,15 @@ test("developer native timing sectors remain game-owned and read-only", async ({
   expect(boundaries.ownership).toBe("game");
   expect(boundaries.editable).toBe(false);
 
-  await openTool(page, IRACING_TRACK, "geometry");
+  const curbsUrl = `/api/track-curbs/${IRACING_TRACK.trackOrdinal}?gameId=${IRACING_TRACK.gameId}`;
+  const curbsResponse = await request.get(curbsUrl);
+  expect(curbsResponse.ok()).toBe(true);
+  expect(await curbsResponse.json()).toBeNull();
+
+  await page.goto(`${selectedTrackPath(IRACING_TRACK, "geometry")}?mode=turns`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("dev-geometry-mode-turns")).toBeVisible();
+  await expect(page.getByText("Geometry data unavailable")).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { name: /Curbs/i })).toBeDisabled();
   await page.getByTestId("dev-geometry-mode-sectors").click();
   await expect(page.getByText(/Game supplied.*(?:read-only|no recorded layout)/i)).toBeVisible();
   await expect(page.getByText(/no recorded layout|recorded layout|sector starts/i).first()).toBeVisible();

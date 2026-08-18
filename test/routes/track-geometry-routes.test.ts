@@ -2,8 +2,20 @@ import { describe, expect, test } from "bun:test";
 
 import { initGameAdapters } from "../../shared/games/init";
 import { trackSectorBoundaryRoutes } from "../../server/routes/tracks/segments-routes";
+import { trackGeometryRoutes } from "../../server/routes/tracks/geometry-routes";
 
 initGameAdapters({ f1Experiments: false, iracingAdapter: true });
+
+describe("optional track geometry routes", () => {
+  test("returns null instead of an error when curb data is unavailable", async () => {
+    const response = await trackGeometryRoutes.request(
+      "/api/track-curbs/999999?gameId=iracing",
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toBeNull();
+  });
+});
 
 describe("track sector boundary routes", () => {
   test("requires validated gameId on GET", async () => {
