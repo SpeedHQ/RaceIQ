@@ -24,6 +24,7 @@
 ### Fixes
 
 - Complete large venue imagery imports reliably by batching source downloads and retrying transient provider failures
+- Keep viewport-loaded aerial imagery seamless and stable while progressively sharpening it during Analyse map zoom
 - Show connected iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, keep source SVGs hidden while generated thumbnails load, and exclude pit artwork from lap-distance calculations
 - Draw imported iRacing IBT driving paths on Analyse maps from recorded GPS coordinates
 - Orient imported iRacing cars from recorded north-referenced heading, pitch, and roll on Analyse views

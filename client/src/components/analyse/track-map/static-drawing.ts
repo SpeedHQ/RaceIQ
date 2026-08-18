@@ -23,6 +23,8 @@ export interface StaticTrackImageryTile {
   y: number;
   width: number;
   height: number;
+  decodeWidth?: number;
+  decodeHeight?: number;
   image: CanvasImageSource;
   released?: boolean;
 }
@@ -153,8 +155,8 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       const tileV = tile.height / height;
       const imageX = a * u + c * v + e;
       const imageZ = b * u + d * v + f;
-      const overlapU = 0.5 / Math.max(1, tile.width);
-      const overlapV = 0.5 / Math.max(1, tile.height);
+      const overlapU = 0.5 / Math.max(1, tile.decodeWidth ?? tile.width);
+      const overlapV = 0.5 / Math.max(1, tile.decodeHeight ?? tile.height);
       ctx.save();
       ctx.transform(-a * scale * tileU, b * scale * tileU, -c * scale * tileV, d * scale * tileV, offsetX + (maxX - imageX) * scale, offsetZ + (imageZ - minZ) * scale);
       // Half-source-pixel overdraw hides bilinear edge sampling without changing
