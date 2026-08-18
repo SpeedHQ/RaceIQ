@@ -42,7 +42,7 @@ export interface TrackGuideCornerFile {
   key: string;
   /** English label. Prose fallback when meta has no name for the turn. */
   name: string;
-  /** Official turn numbers — the join key into shared/data/tracks/meta/<slug>.json. */
+  /** Official turn numbers — join key into bundled registry facts. */
   numbers?: number[];
   type: string;
   technique: string;

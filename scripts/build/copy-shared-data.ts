@@ -1,5 +1,5 @@
 /**
- * Copies shared/data CSV/JSON and track imagery directly into dist/data and preserves
+ * Copies shared data and track registry assets directly into dist/data and preserves
  * other shared umbrella names beneath dist/data. Used by production builds so
  * compiled code sees the same logical data roots as source code.
  *
@@ -16,7 +16,7 @@ const ROOT = path.resolve(import.meta.dir, "..", "..");
 const DIST = path.resolve(ROOT, "dist", "data");
 
 let count = 0;
-const DATA_EXTENSIONS: Record<string, true> = { ".csv": true, ".json": true, ".rqi": true, ".png": true, ".jpg": true, ".jpeg": true, ".webp": true };
+const DATA_EXTENSIONS: Record<string, true> = { ".csv": true, ".json": true, ".sqlite": true, ".rqi": true, ".png": true, ".jpg": true, ".jpeg": true, ".webp": true };
 const isDataFile = (name: string) => DATA_EXTENSIONS[path.extname(name).toLowerCase()] === true;
 
 function copyFile(src: string, dest: string) {

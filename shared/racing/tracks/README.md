@@ -1,7 +1,7 @@
 # Tracks
 
 Track domain owns static track facts, game-specific fractions, and label-ready helpers used by maps, AI prompts, telemetry transforms, and track tooling.
-`shared/racing/tracks/` is executable TypeScript. `shared/data/tracks/` is bundled CSV/JSON data; code in this directory consumes or produces those assets.
+`shared/racing/tracks/` is executable TypeScript. `shared/data/tracks/registry.sqlite` is bundled source of truth; adjacent JSON/CSV files contain guides, hints, and extracted geometry.
 
 ## Purpose
 - Keep track model split between **game-agnostic facts** and **per-game geometry**.
@@ -11,8 +11,8 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 ## Key modules
 - **Core contracts:** `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`.
 - **Math/data helpers:** `coords.ts`, `projection.ts`, `path.ts`, `sectors.ts`.
-- **Track identity/catalog:** `resolve-name.ts`, `catalogs/*`.
-- **Persistence and cache:** `storage/files.ts`, `storage/meta.ts`, `storage/cache.ts`.
+- **Track identity/catalog:** `configuration.ts`, `registry.ts`, `resolve-name.ts`, `catalogs/*`.
+- **Persistence and cache:** `registry.ts`, `storage/files.ts`, `storage/meta.ts`, `storage/cache.ts`.
 - **Geometry sources:** `geometry/outlines.ts`, `geometry/extracted.ts`, `geometry/shared.ts`.
 - **Runtime capture:** `recording/outlines.ts`, `recording/curbs.ts`.
 - **Curation pipeline:** `curation/generate.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, `curation/segment-align-match.ts`, `curation/segment-align-validate.ts`, `curation/verified.ts`, `curation/coverage.ts`.
@@ -27,10 +27,10 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 - `guide/` — contracts and loaders for static data in `shared/data/tracks/guides/`.
 
 ## Data split and join contract
-- `shared/data/tracks/meta/<slug>.json`: physical roster only (turn numbers, names, groups, straights).
-- `shared/data/tracks/<gameId>/<slug>-segments.json`: geometry only (fraction ranges per segment key).
-- `joinSegments` builds display-ready labeled segments from one facts file + one geometry file.
-- `splitSegments` is inverse for editors/normalization loops.
+- `track_facts`, `track_corners`, and `track_straights` registry rows contain physical roster only: turn numbers, names, groups, and straights.
+- `game_geometry` and `game_geometry_segments` rows contain per-game fractional ranges and sectors only.
+- `joinSegments` builds display-ready labeled segments from facts plus one game's geometry.
+- `splitSegments` is inverse for editors and normalization loops.
 - Fact keys come from `keys.ts`; straight keys are `s<number>` and corner keys are `t<number>` or `tN-M`.
 
 ## Browser vs Node boundary
@@ -38,8 +38,8 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 - `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`, `projection.ts`, `coords.ts`, `sectors.ts`, `path.ts`, `geometry/points.ts`, `geometry/types.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, and `curation/segment-align-match.ts`.
 
 ### Node-only leaves
-- `resolve-name.ts`, `detect-hints.ts`, `storage/*`, `geometry/outlines.ts`, `geometry/extracted.ts`, `geometry/shared.ts`, `recording/*`, `catalogs/*`, `guide/data.ts`, `curation/generate.ts`, `curation/coverage.ts`, `curation/verified.ts`, and `curation/segment-align-validate.ts`.
-- These leaves read or write files directly, depend on runtime path resolution, or import another Node-only leaf.
+- `registry.ts`, `resolve-name.ts`, `detect-hints.ts`, `storage/*`, `geometry/outlines.ts`, `geometry/extracted.ts`, `geometry/shared.ts`, `recording/*`, `catalogs/*`, `guide/data.ts`, `curation/generate.ts`, `curation/coverage.ts`, `curation/verified.ts`, and `curation/segment-align-validate.ts`.
+- These leaves access SQLite or files, depend on runtime path resolution, or import another Node-only leaf.
 - Browser code should consume normalized values from its data boundary instead of importing these modules.
 
 ## Dependency direction
@@ -49,8 +49,8 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 - **Derived layer:** `recording/*`, `guide/*`, `curation/*` consume identity + storage to produce consumable artifacts.
 
 ## Add/extend safely
-- Add/modify facts for a layout in `shared/data/tracks/meta/<slug>.json` and keep turn numbering complete and ordered.
-- Add/refresh one-game geometry in `shared/data/tracks/<gameId>/<slug>-segments.json` via generation.
+- Add or modify layout facts through `saveTrackFacts`; keep turn numbering complete and ordered.
+- Add or refresh one-game geometry through `saveTrackGeometry` or track-segment generation.
 - For new game support, add a catalog loader under `catalogs/` and map shared names only when one-to-one equivalent exists.
 - For generated geometry, use:
   - `bun run tracks:segments --track <slug> [--game <gameId>]` for dry run.
@@ -61,7 +61,7 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
   - `bun run tracks:coverage --verify segments:<gameId>/<slug>`
 - Import explicit leaves (for example, `shared/racing/tracks/storage/meta` or `shared/racing/tracks/curation/generate`); this directory has no barrel contract.
 
-## Verification files
-- `shared/racing/tracks/curation/verified.ts` records human sign-off hashes in `shared/data/tracks/verified.json`.
-- `shared/racing/tracks/curation/coverage.ts` renders curation coverage.
-- `bun run tracks:coverage --write` refreshes the generated coverage tables in the track-curation contribution guide.
+## Verification
+- `curation/verified.ts` records human sign-off hashes in `curation_verification` registry rows.
+- `curation/coverage.ts` renders curation coverage.
+- `bun run tracks:coverage --write` refreshes generated coverage tables in track-curation contribution guide.

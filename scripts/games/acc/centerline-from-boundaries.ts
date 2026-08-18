@@ -9,11 +9,10 @@
  * The racing line is preserved as `-raceline.csv` (it is a genuine reference line
  * for coaching, just not a centreline).
  *
- * Migration is per-track: the curated name lists in shared/data/tracks/meta/
- * were written against the racing line's segmentation, so the true centre — which
- * resolves corners the racing line had fused — only aligns writably on the tracks
- * in ADOPTED. The rest keep the racing line as their centerline until their name
- * list is re-curated against it (see issue #98).
+ * Migration is per-track: curated registry name lists were written against
+ * racing-line segmentation, so true centre — which resolves corners racing line
+ * fused — only aligns writably on tracks in ADOPTED. Others keep racing line as
+ * centerline until their roster is re-curated against it (see issue #98).
  *
  * Usage: bun scripts/games/acc/centerline-from-boundaries.ts [--write] [slug...]
  *   --write        persist; otherwise dry-run

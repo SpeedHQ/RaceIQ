@@ -1,9 +1,7 @@
-import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
 import { Hono } from "hono";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { TrackConfigurationConfirmationSchema, TrackConfigurationSchema, type TrackConfiguration } from "../../../shared/racing/tracks/configuration";
-import { listTrackConfigurations, loadTrackConfiguration, trackConfigurationPath } from "../../tracks/configuration";
+import { deleteTrackConfiguration, listTrackConfigurations, loadTrackConfiguration, saveTrackConfiguration } from "../../tracks/configuration";
 
 function gameAndTrack(c: { req: { param: (key: string) => string; query: (key: string) => string | undefined } }): { gameId: GameId; trackOrdinal: number } {
   const gameId = GameIdSchema.parse(c.req.query("gameId"));
@@ -12,13 +10,6 @@ function gameAndTrack(c: { req: { param: (key: string) => string; query: (key: s
   return { gameId, trackOrdinal };
 }
 
-function writeConfiguration(configuration: TrackConfiguration): void {
-  const path = trackConfigurationPath(configuration.gameId, configuration.trackOrdinal);
-  mkdirSync(dirname(path), { recursive: true });
-  const temporary = `${path}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(configuration, null, 2)}\n`, "utf8");
-  renameSync(temporary, path);
-}
 
 export const trackConfigurationDevRoutes = new Hono()
   .get("/api/dev/track-configurations", (c) => c.json(listTrackConfigurations()))
@@ -41,8 +32,7 @@ export const trackConfigurationDevRoutes = new Hono()
         trackOrdinal,
         confirmation: null,
       });
-      writeConfiguration(configuration);
-      return c.json(configuration);
+      return c.json(saveTrackConfiguration(configuration));
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to save track configuration" }, 400);
     }
@@ -53,9 +43,7 @@ export const trackConfigurationDevRoutes = new Hono()
       const current = loadTrackConfiguration(gameId, trackOrdinal);
       if (!current) return c.json({ error: "Save venue assignment before confirming" }, 404);
       const confirmation = TrackConfigurationConfirmationSchema.parse(await c.req.json());
-      const configuration = { ...current, confirmation };
-      writeConfiguration(configuration);
-      return c.json(configuration);
+      return c.json(saveTrackConfiguration({ ...current, confirmation }));
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to confirm track configuration" }, 400);
     }
@@ -65,9 +53,7 @@ export const trackConfigurationDevRoutes = new Hono()
       const { gameId, trackOrdinal } = gameAndTrack(c);
       const current = loadTrackConfiguration(gameId, trackOrdinal);
       if (!current) return c.json({ error: "Track configuration not found" }, 404);
-      const configuration = { ...current, confirmation: null };
-      writeConfiguration(configuration);
-      return c.json(configuration);
+      return c.json(saveTrackConfiguration({ ...current, confirmation: null }));
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to clear track confirmation" }, 400);
     }
@@ -75,8 +61,7 @@ export const trackConfigurationDevRoutes = new Hono()
   .delete("/api/dev/track-configurations/:ordinal", (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
-      const path = trackConfigurationPath(gameId, trackOrdinal);
-      if (existsSync(path)) unlinkSync(path);
+      deleteTrackConfiguration(gameId, trackOrdinal);
       return c.json({ ok: true });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to remove track configuration" }, 400);

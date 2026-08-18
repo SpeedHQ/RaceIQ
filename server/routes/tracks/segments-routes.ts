@@ -220,9 +220,9 @@ export const trackSegmentRoutes = new Hono()
       const byAfter = new Map((existing?.straights ?? []).map((s) => [s.after, s]));
       for (const s of straights) byAfter.set(s.after, s);
 
-      // An editor save is an edit, not a sign-off — any signature in
-      // `shared/data/tracks/verified.json` goes stale on the next hash check. The
-      // citation is carried outright: an uncited name is indistinguishable
+      // Editor save is edit, not sign-off — registry verification hash goes
+      // stale on next check. Citation is carried outright: uncited name is
+      // indistinguishable
       // from an invented one.
       saveTrackFacts(slug, {
         slug,

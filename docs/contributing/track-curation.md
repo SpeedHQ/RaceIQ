@@ -8,18 +8,22 @@ Short version: **curated geometry is the source of truth. The detector is a fall
 
 Four layers, highest wins. Each one may be partial; lower layers fill the gaps.
 
-| Rank | Layer | File | Authored by |
-|------|-------|------|-------------|
-| 1 | **Curated geometry** | `shared/data/tracks/<gameId>/<slug>-segments.json` | human, per game |
-| 2 | **Curated roster** (names, numbers, direction, groups) | `shared/data/tracks/meta/<slug>.json` | human, shared across games |
-| 3 | **Detect hints** (nudges for the fallback detector) | `shared/data/tracks/detect-hints.json` | human |
+| Rank | Layer | Registry table | Authored by |
+|------|-------|----------------|-------------|
+| 1 | **Curated geometry** | `game_geometry`, `game_geometry_segments` | human, per game |
+| 2 | **Curated roster** (names, numbers, direction, groups) | `track_facts`, `track_corners`, `track_straights` | human, shared across games |
+| 3 | **Detect hints** (nudges for fallback detector) | `shared/data/tracks/detect-hints.json` | human |
 | 4 | **Fallback detector** | `detectCornerRegions()` in `shared/racing/tracks/curation/segment-align-detect.ts` | code |
 
 ### Why the roster is shared but geometry is not
 
-A circuit's corner names and numbering are a property of the *circuit* — Spa's Eau Rouge is Eau Rouge in every game. So the roster lives once, keyed by slug.
+Circuit corner names and numbering are properties of circuit. Spa's Eau Rouge is
+Eau Rouge in every game, so roster exists once in registry, keyed by facts slug.
+Corner location depends on game centerline, so geometry rows use `game_id` + slug.
 
-Where a corner physically *is* depends on the game's centerline, which differs per title (different digitisation, different granularity, sometimes a racing line rather than a centerline). So geometry is keyed by `gameId` + slug.
+iRacing is separate: native `SplitTimeInfo.Sectors` is variable-length session
+metadata and flows through telemetry as an array. Registry's curated boundaries
+serve games without authoritative native sector layouts.
 
 ## The fallback detector
 
@@ -29,7 +33,7 @@ Consequences, all deliberate:
 
 - A detector miss on one track is **not a bug** if that track has accurate curated geometry. Fix the curated data.
 - Only touch the detector when it is wrong in a *general* way — a bug affecting every track. Never to chase one slug's alignment. Tuning thresholds to rescue one circuit reliably breaks three others.
-- Counting geometry files as "curation" would read ~100%, because the detector writes one for nearly every centerline. Hence the roster-based coverage stat below.
+- Counting geometry rows as "curation" would read ~100%, because detector generates geometry for nearly every centerline. Hence roster-based coverage below.
 
 ### Sanctioned gaps
 
@@ -50,49 +54,33 @@ Three claims, weakest to strongest. They are tracked separately because each say
 
 | Claim | Means | Proof |
 |-------|-------|-------|
-| **Curated roster** | someone hand-authored a non-empty `corners` array | `shared/data/tracks/meta/<slug>.json` exists with corners |
-| **Meta human-verified** | someone checked that roster against a real turn-by-turn guide | ledger entry for that file |
-| **Segments human-verified** | someone checked that game's rendered geometry | ledger entry for that file |
+| **Curated roster** | someone hand-authored non-empty corner facts | registry facts and corner rows |
+| **Facts human-verified** | someone checked roster against real turn-by-turn guide | `curation_verification` facts row |
+| **Geometry human-verified** | someone checked game's rendered geometry | `curation_verification` geometry row |
 
-### The ledger
+### Verification records
 
-Sign-offs live in one file, `shared/data/tracks/verified.json`, keyed by the **path of
-the file signed**:
+Sign-offs live in `curation_verification` inside `shared/data/tracks/registry.sqlite`.
+Each row identifies `kind`, `facts_slug`, and optional `game_id`, then stores
+content hash, date, reviewer, and note.
 
-```json
-{
-  "shared/data/tracks/meta/suzuka.json": {
-    "hash": "95778f6106d2",
-    "date": "2026-07-27",
-    "by": "aaronc",
-    "note": "official Suzuka circuit map"
-  },
-  "shared/data/tracks/f1-2025/spa-segments.json": { "hash": "…", "date": "…", "by": "…" }
-}
-```
+Facts verification hashes normalized roster rows. Geometry verification hashes
+normalized per-game geometry rows. Editing relevant registry data makes previous
+signature **stale**. Stale signatures stop counting and render as `+N stale` until
+human review stamps current hash.
 
-The path is the whole record of *what* was checked — `meta/` entries are rosters,
-`<gameId>/*-segments.json` entries are that game's geometry. `by` is a person,
-never a tool. `note` is what they checked it against.
+Nothing in generation pipeline writes verification rows. They only arrive from
+person running `--verify`.
 
-Entries are **hash-bound**: `hash` is a short sha256 of the file at sign-off, so
-editing that file makes the signature **stale**. A stale entry stops counting as
-verified and renders as `+N stale` until a human looks again and re-stamps. That
-is the ledger's answer to the obvious objection — a side file can drift from what
-it describes, so it is not allowed to: drift is detected and it costs you the
-claim, silently keeping it is impossible.
 
-Nothing in the pipeline writes an entry. They only ever arrive by a person running
-`--verify`.
-
-The gap between column 1 and column 3 is the whole point. F1 25 is 24/24 curated and its segments are still known-inaccurate — a correct roster says nothing about whether the corners landed in the right *place*.
+Gap between columns 1 and 3 is whole point. F1 25 is 24/24 curated while geometry remains known-inaccurate—a correct roster says nothing about whether corners landed in right place.
 
 ### Summary
 
 Generated — do not hand-edit. This doc is the only place the numbers live; CLAUDE.md carries the rules and points here.
 
 <!-- track-coverage:start -->
-| Game | Tracks | Curated roster | Meta human-verified | Segments human-verified | Not yet curated |
+| Game | Tracks | Curated roster | Facts human-verified | Geometry human-verified | Not yet curated |
 |------|--------|----------------|---------------------|-------------------------|-----------------|
 | Forza Motorsport (fm-2023) | 71 | 68/71 (96%) | 0/71 (0%) | 0/71 (0%) | daytona-oval, fujimi-kaido, fujimi-kaido-r |
 | F1 25 (f1-2025) | 24 | 24/24 (100%) | 0/24 (0%) | 0/24 (0%) | — |
@@ -102,9 +90,8 @@ Generated — do not hand-edit. This doc is the only place the numbers live; CLA
 <!-- track-coverage:end -->
 
 Both verified columns read 0 on purpose. Sebring and Suzuka were curated carefully
-against real guides, but curation was done *with* Claude, and nobody has since sat
-down and independently checked either one. Until someone does and signs the file,
-the honest number is zero.
+against real guides, but nobody has independently checked and signed current
+registry rows. Until someone does, honest number is zero.
 
 ### Reading the table
 
@@ -113,24 +100,24 @@ Every cell is `n/total (pct%)`, optionally `+N stale`.
 | Column | Counts | Computed from |
 |--------|--------|---------------|
 | **Tracks** | the denominator — distinct slugs this game ships a centerline for | `listAllCenterlines()` |
-| **Curated roster** | slugs with a hand-authored `meta/<slug>.json` carrying a non-empty `corners` array | `listCuratedSlugs()` |
-| **Meta human-verified** | rosters signed off **and unchanged since** | ledger hash vs file |
-| **Segments human-verified** | that game's `<slug>-segments.json` signed off and unchanged since | ledger hash vs file |
+| **Curated roster** | slugs with non-empty registry corner rows | `listCuratedSlugs()` |
+| **Facts human-verified** | roster rows signed off **and unchanged since** | ledger hash vs normalized facts |
+| **Geometry human-verified** | game's geometry rows signed off and unchanged since | ledger hash vs normalized geometry |
 | **Not yet curated** | the exact uncurated slugs, so the remainder is actionable rather than a number | |
 | **`+N stale`** | signed off, then the file changed — signature void, needs a re-look | |
 
 Denominator notes:
 
 - **Tracks is per game, not global.** Same circuit in four games = four rows' worth of work. Totals are a sum of rows, not a count of distinct circuits.
-- **Forza slugs are de-ordinalised.** `brands-hatch-860-centerline.csv` → `brands-hatch`, since the roster is keyed by slug, not by in-game ordinal (`canonicalSlug()`).
-- **Curated roster is the honest metric.** Counting `<slug>-segments.json` files would read ~100% and measure nothing, because the fallback detector writes one for essentially every centerline.
+- **Forza slugs are de-ordinalised.** `brands-hatch-860-centerline.csv` → `brands-hatch`, since roster is keyed by slug, not in-game ordinal (`canonicalSlug()`).
+- **Curated roster is honest metric.** Counting geometry rows would read ~100% and measure nothing because fallback detector generates one for nearly every centerline.
 - Both verified columns use **Tracks** as the denominator, not Curated — so they never flatter themselves by shrinking the base.
 
 Adding a game to `GameId` breaks `GAME_LABELS` on purpose; there is no default row.
 
 ### What the numbers mean
 
-Read the summary as: rosters are nearly everywhere, almost nothing has been checked against a real guide, and **rendered geometry has barely been checked by a human at all**. A high curated percentage is not a quality claim. F1 25 sits at 24/24 curated with segments known to be misplaced — exactly the gap the third column exists to expose.
+Read summary as: rosters are nearly everywhere, almost nothing has been checked against real guide, and **rendered geometry has barely been checked by human at all**. High curated percentage is not quality claim. F1 25 sits at 24/24 curated with geometry known to be misplaced — exactly gap third column exposes.
 
 The uncurated remainder is three Forza fantasy tracks (`daytona-oval`, `fujimi-kaido`, `fujimi-kaido-r`) — no real-world turn-by-turn guide exists for them, so they stay uncurated by choice, not by neglect. They are the reason curated will never read 100%, and that is correct.
 
@@ -145,14 +132,14 @@ bun run tracks:coverage --write    # rewrite the summary above + the detail tabl
 
 ### Per-track detail
 
-Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ stale` = signed off then the file changed; `—` = never checked. **Curated roster** is shared across games (one `meta/<slug>.json`), so that column repeats per game by design; **Segments verified** is per game because each title digitises its own centerline.
+Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ stale` = signed off then data changed; `—` = never checked. **Curated roster** is shared across games, so column repeats per game; **Geometry verified** is per game because each title digitises its own centerline.
 
 <!-- track-detail:start -->
 #### Forza Motorsport (fm-2023)
 
-68/71 (96%) curated · 0/71 (0%) meta-verified · 0/71 (0%) segments-verified
+68/71 (96%) curated · 0/71 (0%) facts-verified · 0/71 (0%) geometry-verified
 
-| Track | Curated roster | Meta verified | Segments verified |
+| Track | Curated roster | Facts verified | Geometry verified |
 |-------|----------------|---------------|-------------------|
 | brands-hatch | ✅ | — | — |
 | brands-hatch-indy | ✅ | — | — |
@@ -228,9 +215,9 @@ Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ 
 
 #### F1 25 (f1-2025)
 
-24/24 (100%) curated · 0/24 (0%) meta-verified · 0/24 (0%) segments-verified
+24/24 (100%) curated · 0/24 (0%) facts-verified · 0/24 (0%) geometry-verified
 
-| Track | Curated roster | Meta verified | Segments verified |
+| Track | Curated roster | Facts verified | Geometry verified |
 |-------|----------------|---------------|-------------------|
 | austin | ✅ | — | — |
 | baku | ✅ | — | — |
@@ -259,9 +246,9 @@ Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ 
 
 #### ACC (acc)
 
-25/25 (100%) curated · 0/25 (0%) meta-verified · 0/25 (0%) segments-verified
+25/25 (100%) curated · 0/25 (0%) facts-verified · 0/25 (0%) geometry-verified
 
-| Track | Curated roster | Meta verified | Segments verified |
+| Track | Curated roster | Facts verified | Geometry verified |
 |-------|----------------|---------------|-------------------|
 | austin | ✅ | — | — |
 | brands-hatch | ✅ | — | — |
@@ -291,9 +278,9 @@ Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ 
 
 #### AC Evo (ac-evo)
 
-20/20 (100%) curated · 0/20 (0%) meta-verified · 0/20 (0%) segments-verified
+20/20 (100%) curated · 0/20 (0%) facts-verified · 0/20 (0%) geometry-verified
 
-| Track | Curated roster | Meta verified | Segments verified |
+| Track | Curated roster | Facts verified | Geometry verified |
 |-------|----------------|---------------|-------------------|
 | austin | ✅ | — | — |
 | brands-hatch | ✅ | — | — |
@@ -345,11 +332,12 @@ If a track looks wrong in the app: fix that track's curated data.
 
 ## Source of truth
 
-| Concern | File |
-|---------|------|
+| Concern | Source |
+|---------|--------|
+| Registry facts, game assignments, geometry, verification | `shared/data/tracks/registry.sqlite` |
+| Runtime registry access | `shared/racing/tracks/registry.ts`, `shared/racing/tracks/storage/meta.ts` |
 | Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |
-| Coverage stats | `shared/racing/tracks/curation/coverage.ts` |
-| Verification ledger | `shared/racing/tracks/curation/verified.ts` → `shared/data/tracks/verified.json` |
+| Coverage stats and verification | `shared/racing/tracks/curation/coverage.ts`, `shared/racing/tracks/curation/verified.ts` |
 | CLI | `scripts/tracks/track-coverage.ts` |
 | Guards | `test/tracks/track-coverage.test.ts`, `test/support/tracks/known-gaps.ts` |
 

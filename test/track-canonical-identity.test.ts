@@ -1,7 +1,13 @@
 import { expect, test } from "bun:test";
+import type { GameId } from "../shared/games/ids";
+import { getAcEvoTracks } from "../shared/racing/tracks/catalogs/ac-evo";
+import { getAccTracks } from "../shared/racing/tracks/catalogs/acc";
+import { getF1Tracks } from "../shared/racing/tracks/catalogs/f1";
+import { fmTrackCatalog } from "../shared/racing/tracks/catalogs/fm";
+import { getAllIRacingTracks } from "../shared/racing/tracks/catalogs/iracing";
 import { trackConfigurationCanonicalId } from "../shared/racing/tracks/configuration";
 import { resolveTrackSegments } from "../server/routes/tracks/support";
-import { listCanonicalTrackPeers, loadTrackConfiguration } from "../server/tracks/configuration";
+import { listCanonicalTrackPeers, listTrackConfigurations, loadTrackConfiguration } from "../server/tracks/configuration";
 import { resolveTrackGeographicCatalogSource } from "../server/tracks/geographic-reference";
 import { resolveTrackSharedName } from "../server/tracks/identity";
 import { resolveTrack } from "../server/tracks/info";
@@ -34,4 +40,23 @@ test("inherits shared facts and game-specific geometry through exact-layout iden
     iracingSegments.segments.filter((segment) => segment.type === "corner").map((segment) => segment.name),
   );
   expect(f1Segments.segments.find((segment) => segment.name === "Blanchimont")).toBeDefined();
+});
+
+test("assigns every bundled simulator track to a canonical identity", () => {
+  const catalogOrdinals: Record<GameId, number[]> = {
+    "fm-2023": [...fmTrackCatalog.keys()],
+    "f1-2025": [...getF1Tracks().keys()],
+    acc: [...getAccTracks().keys()],
+    "ac-evo": [...getAcEvoTracks().keys()],
+    iracing: getAllIRacingTracks().map((track) => track.ordinal),
+  };
+  const expectedKeys = new Set(Object.entries(catalogOrdinals).flatMap(([gameId, ordinals]) => ordinals.map((ordinal) => `${gameId}:${ordinal}`)));
+  const configurations = listTrackConfigurations();
+
+  expect(new Set(configurations.map((configuration) => `${configuration.gameId}:${configuration.trackOrdinal}`))).toEqual(expectedKeys);
+  for (const [gameId, ordinals] of Object.entries(catalogOrdinals) as [GameId, number[]][]) {
+    for (const ordinal of ordinals) {
+      expect(loadTrackConfiguration(gameId, ordinal)).not.toBeNull();
+    }
+  }
 });

@@ -2,9 +2,9 @@
  * Runs the real segment generator (same code path as `bun run
  * tracks:segments`) over every curated track and asserts:
  *   1. every game centerline aligns cleanly (no unsanctioned fuzz), and
- *   2. the committed meta files exactly match what --write would produce — the
- *      shared facts and every game's geometry file — i.e. name lists, detector,
- *      shared/data/tracks/meta and shared/data/tracks/<game> cannot drift apart.
+ *   2. committed registry rows exactly match what --write would produce —
+ *      shared facts and every game's geometry. Names, detector, and geometry
+ *      cannot drift apart.
  *
  * If this fails after editing a name list or the detector, regenerate with:
  *   bun run tracks:segments --all --write

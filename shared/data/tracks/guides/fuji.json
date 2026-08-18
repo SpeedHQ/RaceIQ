@@ -3,7 +3,7 @@
   "locale": "en",
   "character": "4.563km, 16 turns, clockwise at the foot of Mount Fuji. A 1.475km main straight — one of the longest anywhere — feeds the hardest braking zone on the lap, then a fast downhill middle sector, then a tight technical final third. Exit speed from the last corner sets top speed down the entire straight, so the lap is won at the end of it.",
   "sources": "official Fuji Speedway circuit guide (FIA WEC 6H of Fuji programme, https://storage.googleapis.com/fiawec-prod/assets/fileuploads/5d/8a/5d8a3c3a63038.pdf) for the sponsor-named sections (TGR, Coca-Cola, Toyopet 100R, Advan, 300R, Dunlop, GR Supra, Panasonic) and their character; https://www.racingcircuits.info/asia/japan/fuji-speedway.html for the 4.563 km / 16-turn layout.",
-  "notes": "Entries are deliberately unanchored: shared/data/tracks/meta/fuji.json is auto-seeded from AC Evo's racing line and holds 9 unnamed regions, so its T1..T9 are not the circuit's official 1..16 and there is nothing honest to anchor to. Registered in test/track-guide-anchor.test.ts.",
+  "notes": "Entries are deliberately unanchored: bundled registry facts for Fuji are auto-seeded from AC Evo's racing line and hold 9 unnamed regions, so T1..T9 are not circuit's official 1..16 and there is nothing honest to anchor to. Registered in test/track-guide-anchor.test.ts.",
   "corners": [
     {
       "key": "tgr-corner",

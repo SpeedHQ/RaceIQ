@@ -328,9 +328,10 @@ function TrackRow({
     <details className={`rounded border ${selected ? "border-app-accent" : "border-app-border"} bg-app-surface`}>
       <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
-          <span className="block truncate text-xs font-medium text-app-text">{record.configuration?.track.name ?? record.name}</span>
+          <span className="block truncate font-mono text-xs font-semibold text-app-accent">{record.gameId}</span>
           <span className="block truncate text-[10px] text-app-text-muted">
-            {record.configuration ? `${record.name} · ` : record.variant ? `${record.variant} · ` : ""}#{record.trackOrdinal}
+            {record.name}
+            {record.variant ? ` · ${record.variant}` : ""} · #{record.trackOrdinal}
             {record.location ? ` · ${record.location}` : ""}
           </span>
         </span>
@@ -338,7 +339,6 @@ function TrackRow({
       </summary>
       <div className="border-t border-app-border px-2 py-2">
         <div className="mb-2 flex flex-wrap gap-1 text-[10px] text-app-text-muted">
-          <span className="rounded bg-app-surface-alt px-1.5 py-0.5 font-mono">{record.gameId}</span>
           {canonical && <span className="rounded bg-app-surface-alt px-1.5 py-0.5 font-mono">{canonical}</span>}
           {record.hasImagery && <span className="rounded bg-app-accent/10 px-1.5 py-0.5 text-app-accent">Imagery configured</span>}
         </div>
@@ -408,11 +408,12 @@ function VenueNodeView({
   onSelect: (selection: TrackConfigurationSelection) => void;
   onChanged: () => Promise<void>;
 }) {
-  const games = new Map<GameId, TrackRecord[]>();
-  for (const track of node.tracks) {
-    const records = games.get(track.gameId) ?? [];
-    records.push(track);
-    games.set(track.gameId, records);
+  const layouts = new Map<string, { segment: TrackIdentityNode; records: TrackRecord[] }>();
+  for (const record of node.tracks) {
+    const segment = record.configuration?.track ?? { id: slug(record.variant || "Main"), name: record.variant || "Main" };
+    const layout = layouts.get(segment.id) ?? { segment, records: [] };
+    layout.records.push(record);
+    layouts.set(segment.id, layout);
   }
   const children = [...node.children.values()].sort((a, b) => a.segment.name.localeCompare(b.segment.name));
   return (
@@ -422,29 +423,33 @@ function VenueNodeView({
         {node.segment.name} <span className="font-normal text-app-text-muted">({countNodeTracks(node)})</span>
       </summary>
       <div className="space-y-1 pb-1">
-        {[...games.entries()].map(([gameId, records]) => (
-          <details key={`${node.path}:${gameId}:${filterActive}`} className="ml-2" open={filterActive ? true : undefined}>
-            <summary className="cursor-pointer list-none py-1 font-mono text-[10px] font-semibold text-app-accent [&::-webkit-details-marker]:hidden">
-              {gameId} <span className="font-sans font-normal text-app-text-muted">({records.length})</span>
-            </summary>
-            <div className="space-y-1 pl-2">
-              {records.map((record) => (
-                <TrackRow
-                  key={key(record.gameId, record.trackOrdinal)}
-                  record={record}
-                  selected={selectedKey === key(record.gameId, record.trackOrdinal)}
-                  confirmedBy={confirmedBy}
-                  commitId={commitId}
-                  onConfirmedByChange={onConfirmedByChange}
-                  onCommitIdChange={onCommitIdChange}
-                  onAssign={onAssign}
-                  onSelect={onSelect}
-                  onChanged={onChanged}
-                />
-              ))}
-            </div>
-          </details>
-        ))}
+        {[...layouts.values()]
+          .sort((a, b) => a.segment.name.localeCompare(b.segment.name))
+          .map((layout) => (
+            <details key={`${node.path}:${layout.segment.id}:${filterActive}`} className="ml-2" open={filterActive ? true : undefined}>
+              <summary className="cursor-pointer list-none py-1 text-[11px] font-semibold text-app-text [&::-webkit-details-marker]:hidden">
+                {layout.segment.name} <span className="font-normal text-app-text-muted">({layout.records.length})</span>
+              </summary>
+              <div className="space-y-1 pl-2">
+                {layout.records
+                  .sort((a, b) => a.gameId.localeCompare(b.gameId) || a.trackOrdinal - b.trackOrdinal)
+                  .map((record) => (
+                    <TrackRow
+                      key={key(record.gameId, record.trackOrdinal)}
+                      record={record}
+                      selected={selectedKey === key(record.gameId, record.trackOrdinal)}
+                      confirmedBy={confirmedBy}
+                      commitId={commitId}
+                      onConfirmedByChange={onConfirmedByChange}
+                      onCommitIdChange={onCommitIdChange}
+                      onAssign={onAssign}
+                      onSelect={onSelect}
+                      onChanged={onChanged}
+                    />
+                  ))}
+              </div>
+            </details>
+          ))}
         {children.map((child) => (
           <VenueNodeView
             key={child.path}
@@ -593,7 +598,7 @@ export function TrackConfigurationBrowser({
     <section className="flex min-h-0 flex-col border-r border-app-border bg-app-bg">
       <div className="border-b border-app-border p-3">
         <h1 className="text-base font-semibold text-app-text">Track configuration</h1>
-        <p className="mb-2 text-[11px] text-app-text-muted">All simulator catalogs grouped by canonical venue, sub-venue, then game ID.</p>
+        <p className="mb-2 text-[11px] text-app-text-muted">All simulator catalogs grouped by canonical track, layout, then game ID.</p>
         <input
           className="mb-2 w-full rounded border border-app-border-input bg-app-surface px-2 py-1.5 text-xs text-app-text"
           type="search"

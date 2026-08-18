@@ -1,22 +1,16 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
+import { getTrackRegistry, writeTrackRegistry } from "../registry";
 import { joinSegments } from "../curation/join";
-import type { TrackFacts } from "../facts";
+import type { CornerFact, StraightFact, TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";
 import type { NamedSegment } from "../named-segments";
 import type { TrackSectors } from "../sectors";
-import { readDataFile } from "./files";
-
-/** Game-agnostic track facts (turn names, numbers, groups). */
-const trackFactsDir = resolve(SHARED_DIR, "tracks", "meta");
 
 /**
  * Games that reuse another game's curated geometry when they ship none of
  * their own. AC Evo and ACC use the same Kunos track meshes. iRacing's
  * `commonTrackName` entries are deliberately limited to exact physical
  * layouts, so normalized LapDistPct can use the first curated geometry
- * RaceIQ has for that layout while retaining the shared real-world names.
+ * RaceIQ has for that layout while retaining shared real-world names.
  */
 const GEOMETRY_FALLBACKS: Record<string, string[]> = {
   "ac-evo": ["acc"],
@@ -26,27 +20,127 @@ const GEOMETRY_FALLBACKS: Record<string, string[]> = {
 const factsCache = new Map<string, TrackFacts | null>();
 const geometryCache = new Map<string, TrackGeometry | null>();
 
-/**
- * Load a layout's physical facts by slug. Takes no gameId, deliberately: turn
- * names and numbers are properties of the circuit, identical for every game
- * that ships it, so a caller that has a gameId to hand still must not use it
- * here. Geometry is the only thing that varies — see `loadTrackGeometry`.
- */
+interface FactsRow {
+  slug: string;
+  track: string;
+  layout: string;
+  layoutName: string;
+  name: string;
+  source: string | null;
+}
+
+interface CornerRow {
+  sequence: number;
+  number: number;
+  name: string;
+  direction: "left" | "right" | null;
+  group: string | null;
+}
+
+interface CoverRow {
+  cornerSequence: number;
+  number: number;
+}
+
+interface StraightRow {
+  after: number;
+  name: string;
+  group: string | null;
+}
+
+interface GeometryRow {
+  s1End: number | null;
+  s2End: number | null;
+  source: string | null;
+}
+
+interface SegmentRow {
+  key: string;
+  startFrac: number;
+  endFrac: number;
+}
+
+export function listTrackFactSlugs(): string[] {
+  const rows = getTrackRegistry().query("SELECT slug FROM track_facts ORDER BY slug").all() as Array<{ slug: string }>;
+  return rows.map(({ slug }) => slug);
+}
+
+/** Load game-agnostic turn names, numbers, groups, and straights for one layout. */
 export function loadTrackFacts(slug: string): TrackFacts | null {
   if (!slug) return null;
   const hit = factsCache.get(slug);
   if (hit !== undefined) return hit;
-  const content = readDataFile(resolve(trackFactsDir, `${slug}.json`));
-  let parsed: TrackFacts | null = null;
-  if (content) {
-    try {
-      parsed = JSON.parse(content) as TrackFacts;
-    } catch {
-      parsed = null;
-    }
+
+  const database = getTrackRegistry();
+  const row = database.query(`
+    SELECT slug, track_slug AS track, layout_slug AS layout, layout_name AS layoutName, name, source
+      FROM track_facts WHERE slug = ?
+  `).get(slug) as FactsRow | null;
+  if (!row) {
+    factsCache.set(slug, null);
+    return null;
   }
-  factsCache.set(slug, parsed);
-  return parsed;
+  const cornerRows = database.query(`
+    SELECT sequence, turn_number AS number, name, direction, group_name AS "group"
+      FROM track_corners WHERE facts_slug = ? ORDER BY sequence
+  `).all(slug) as CornerRow[];
+  const coverRows = database.query(`
+    SELECT corner_sequence AS cornerSequence, turn_number AS number
+      FROM track_corner_covers WHERE facts_slug = ? ORDER BY corner_sequence, turn_number
+  `).all(slug) as CoverRow[];
+  const covers = new Map<number, number[]>();
+  for (const cover of coverRows) {
+    const numbers = covers.get(cover.cornerSequence) ?? [];
+    numbers.push(cover.number);
+    covers.set(cover.cornerSequence, numbers);
+  }
+  const corners: CornerFact[] = cornerRows.map((corner) => ({
+    number: corner.number,
+    ...(covers.has(corner.sequence) ? { covers: covers.get(corner.sequence) } : {}),
+    name: corner.name,
+    ...(corner.direction ? { direction: corner.direction } : {}),
+    ...(corner.group ? { group: corner.group } : {}),
+  }));
+  const straightRows = database.query(`
+    SELECT after_turn AS "after", name, group_name AS "group"
+      FROM track_straights WHERE facts_slug = ? ORDER BY after_turn
+  `).all(slug) as StraightRow[];
+  const straights: StraightFact[] = straightRows.map((straight) => ({
+    after: straight.after,
+    name: straight.name,
+    ...(straight.group ? { group: straight.group } : {}),
+  }));
+  const facts: TrackFacts = {
+    slug: row.slug,
+    track: row.track,
+    layout: row.layout,
+    layoutName: row.layoutName,
+    name: row.name,
+    ...(row.source ? { source: row.source } : {}),
+    corners,
+    ...(straights.length ? { straights } : {}),
+  };
+  factsCache.set(slug, facts);
+  return facts;
+}
+
+export function loadTrackGeometryForGame(slug: string, gameId: string): TrackGeometry | null {
+  const database = getTrackRegistry();
+  const row = database.query(`
+    SELECT sector_1_end AS s1End, sector_2_end AS s2End, sector_source AS source
+      FROM game_geometry WHERE facts_slug = ? AND game_id = ?
+  `).get(slug, gameId) as GeometryRow | null;
+  if (!row) return null;
+  const segmentRows = database.query(`
+    SELECT segment_key AS "key", start_fraction AS startFrac, end_fraction AS endFrac
+      FROM game_geometry_segments WHERE facts_slug = ? AND game_id = ? ORDER BY sequence
+  `).all(slug, gameId) as SegmentRow[];
+  return {
+    ...(row.s1End !== null && row.s2End !== null
+      ? { sectors: { s1End: row.s1End, s2End: row.s2End, ...(row.source ? { source: row.source } : {}) } }
+      : {}),
+    segments: segmentRows,
+  };
 }
 
 /** Load one game's segment fractions for a layout, falling back when compatible. */
@@ -56,30 +150,16 @@ export function loadTrackGeometry(slug: string, gameId: string): TrackGeometry |
   const hit = geometryCache.get(cacheKey);
   if (hit !== undefined) return hit;
 
-  let parsed: TrackGeometry | null = null;
-  for (const candidate of [
-    gameId,
-    ...(GEOMETRY_FALLBACKS[gameId] ?? []),
-  ]) {
-    const content = readDataFile(resolve(SHARED_DIR, "tracks", candidate, `${slug}-segments.json`));
-    if (!content) continue;
-    try {
-      parsed = JSON.parse(content) as TrackGeometry;
-      break;
-    } catch {
-      parsed = null;
-    }
+  let geometry: TrackGeometry | null = null;
+  for (const candidate of [gameId, ...(GEOMETRY_FALLBACKS[gameId] ?? [])]) {
+    geometry = loadTrackGeometryForGame(slug, candidate);
+    if (geometry) break;
   }
-  geometryCache.set(cacheKey, parsed);
-  return parsed;
+  geometryCache.set(cacheKey, geometry);
+  return geometry;
 }
 
-/**
- * The one place labelled segments come from: this game's fractions carrying
- * the layout's shared names. Returns [] when the game has no geometry for the
- * layout, so callers fall through to their own auto-detection. The only
- * cross-game fallbacks are the compatible layouts documented above.
- */
+/** Join shared corner names with one game's fractional segment ranges. */
 export function loadLabelledSegments(slug: string, gameId: string): NamedSegment[] {
   const facts = loadTrackFacts(slug);
   const geometry = loadTrackGeometry(slug, gameId);
@@ -92,19 +172,48 @@ export function loadTrackSectorsFor(slug: string, gameId: string): (TrackSectors
   return loadTrackGeometry(slug, gameId)?.sectors;
 }
 
-/** Persist a layout's facts and keep the in-process cache coherent. */
+/** Persist one layout's shared names and turn roster in registry database. */
 export function saveTrackFacts(slug: string, facts: TrackFacts): void {
   if (!slug) throw new Error("saveTrackFacts: slug required");
-  if (!existsSync(trackFactsDir)) mkdirSync(trackFactsDir, { recursive: true });
-  writeFileSync(resolve(trackFactsDir, `${slug}.json`), `${JSON.stringify(facts, null, 2)}\n`);
+  if (facts.slug !== slug) throw new Error(`saveTrackFacts: identity mismatch ${facts.slug} !== ${slug}`);
+  writeTrackRegistry((database) => {
+    database.query(`
+      INSERT INTO track_facts (slug, track_slug, layout_slug, layout_name, name, source) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(slug) DO UPDATE SET track_slug = excluded.track_slug, layout_slug = excluded.layout_slug,
+        layout_name = excluded.layout_name, name = excluded.name, source = excluded.source
+    `).run(slug, facts.track, facts.layout, facts.layoutName, facts.name, facts.source ?? null);
+    database.query("DELETE FROM track_corners WHERE facts_slug = ?").run(slug);
+    database.query("DELETE FROM track_straights WHERE facts_slug = ?").run(slug);
+    for (const [sequence, corner] of facts.corners.entries()) {
+      database.query(`
+        INSERT INTO track_corners (facts_slug, sequence, turn_number, name, direction, group_name) VALUES (?, ?, ?, ?, ?, ?)
+      `).run(slug, sequence, corner.number, corner.name, corner.direction ?? null, corner.group ?? null);
+      for (const covered of corner.covers ?? []) {
+        database.query("INSERT INTO track_corner_covers (facts_slug, corner_sequence, turn_number) VALUES (?, ?, ?)").run(slug, sequence, covered);
+      }
+    }
+    for (const straight of facts.straights ?? []) {
+      database.query("INSERT INTO track_straights (facts_slug, after_turn, name, group_name) VALUES (?, ?, ?, ?)").run(slug, straight.after, straight.name, straight.group ?? null);
+    }
+  });
   factsCache.set(slug, facts);
 }
 
-/** Persist one game's geometry for a layout and keep the cache coherent. */
+/** Persist one game's fractional segment ranges and sector boundaries. */
 export function saveTrackGeometry(slug: string, gameId: string, geometry: TrackGeometry): void {
   if (!slug || !gameId) throw new Error("saveTrackGeometry: slug and gameId required");
-  const dir = resolve(SHARED_DIR, "tracks", gameId);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(resolve(dir, `${slug}-segments.json`), `${JSON.stringify(geometry, null, 2)}\n`);
+  writeTrackRegistry((database) => {
+    database.query(`
+      INSERT INTO game_geometry (facts_slug, game_id, sector_1_end, sector_2_end, sector_source) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(facts_slug, game_id) DO UPDATE SET sector_1_end = excluded.sector_1_end,
+        sector_2_end = excluded.sector_2_end, sector_source = excluded.sector_source
+    `).run(slug, gameId, geometry.sectors?.s1End ?? null, geometry.sectors?.s2End ?? null, geometry.sectors?.source ?? null);
+    database.query("DELETE FROM game_geometry_segments WHERE facts_slug = ? AND game_id = ?").run(slug, gameId);
+    for (const [sequence, segment] of geometry.segments.entries()) {
+      database.query(`
+        INSERT INTO game_geometry_segments (facts_slug, game_id, sequence, segment_key, start_fraction, end_fraction) VALUES (?, ?, ?, ?, ?, ?)
+      `).run(slug, gameId, sequence, segment.key, segment.startFrac, segment.endFrac);
+    }
+  });
   geometryCache.set(`${gameId}:${slug}`, geometry);
 }

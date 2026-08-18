@@ -16,9 +16,9 @@
  * This module owns only *resolution*: name → guide, and guide → the labels the
  * rest of the app uses.
  *
- * Corner naming is owned by track meta (shared/data/tracks/meta/<id>.json), not by
- * this file: entries anchor to official turn numbers and render under meta's
- * name for those turns. See `TrackGuideCornerFile.numbers` in shared/racing/tracks/guide/types.ts.
+ * Corner naming is owned by bundled registry facts, not guide file. Entries
+ * anchor to official turn numbers and render under registry name for those
+ * turns. See `TrackGuideCornerFile.numbers` in shared/racing/tracks/guide/types.ts.
  */
 
 import { loadTrackFacts } from "../../shared/racing/tracks/storage/meta";

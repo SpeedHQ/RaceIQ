@@ -1,20 +1,20 @@
 /**
  * Track facts: what the circuit IS. Game-agnostic, no fractions.
  *
- * Two files describe a track layout.
+ * Bundled registry splits each layout between:
  *
- *   shared/data/tracks/meta/<slug>.json         facts  — what the circuit IS
- *   shared/data/tracks/<gameId>/<slug>-segments.json   geometry — where it is, per game
+ *   track facts rows      — what circuit IS
+ *   per-game geometry rows — where segments are in each simulator
  *
- * The facts file carries turn numbers, turn names, named straights, groups and
- * layout identity. It is game-agnostic and holds no fractions. Every game that
+ * Facts carry turn numbers, turn names, named straights, groups, and layout
+ * identity. They are game-agnostic and hold no fractions. Every game that
  * ships this layout is modelling the same real-world circuit, so the set of
  * turns is identical across games — only where each turn sits along the lap
  * differs, because each game digitises its own centerline.
  *
  * That is the whole invariant: classification is a property of the track,
  * geometry is a property of the (track, game) pair. A name never appears in a
- * geometry file, and a fraction never appears in a facts file.
+ * geometry row, and a fraction never appears in facts.
  *
  * Geometry lives in `shared/racing/tracks/geometry.ts`; the keys that join the two in
  * `shared/racing/tracks/keys.ts`; the join itself in `shared/racing/tracks/curation/join.ts`.

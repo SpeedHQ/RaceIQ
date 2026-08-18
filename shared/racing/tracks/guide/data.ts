@@ -173,9 +173,9 @@ export function validateTrackGuide(raw: unknown, slug: string): TrackGuideFile {
 }
 
 /**
- * Turn numbers join into shared/data/tracks/meta/<slug>.json, which is itself sorted
- * and dupe-free — an unsorted or duplicated list here means the anchor was
- * transcribed wrong, and would render a nonsense label like "Turn (4-2)".
+ * Turn numbers join into sorted, duplicate-free registry facts. Unsorted or
+ * duplicated list here means anchor was transcribed wrong and would render
+ * nonsense label like "Turn (4-2)".
  */
 function validateNumbers(value: unknown, at: (m: string) => never): void {
   if (!Array.isArray(value) || value.length === 0) at("numbers is present but empty");

@@ -9,7 +9,7 @@ import { TRACK_IMAGERY_MANIFEST_VERSION, TRACK_IMAGERY_PACKAGE_NAME, type TrackI
 import { trackConfigurationDevRoutes } from "../server/routes/dev/track-configuration-routes";
 import { trackImageryDevRoutes } from "../server/routes/dev/track-imagery-routes";
 import { trackImageryRoutes } from "../server/routes/tracks/imagery-routes";
-import { trackConfigurationPath } from "../server/tracks/configuration";
+import { deleteTrackConfiguration } from "../server/tracks/configuration";
 import { readTrackImageryPackMetadata, writeTrackImageryPack, type TrackImageryPackTile } from "../server/tracks/imagery-pack";
 import { trackImageryLayoutPath, trackImageryVenueDirectory } from "../server/tracks/imagery";
 
@@ -22,14 +22,14 @@ const venueRootDirectory = trackImageryVenueDirectory(venueRootId);
 const venueDirectory = trackImageryVenueDirectory(venueId);
 const layoutPath = trackImageryLayoutPath(gameId, trackOrdinal);
 const peerLayoutPath = trackImageryLayoutPath(gameId, peerTrackOrdinal);
-const configurationPath = trackConfigurationPath(gameId, trackOrdinal);
-const peerConfigurationPath = trackConfigurationPath(gameId, peerTrackOrdinal);
 const app = new Hono().route("/", trackConfigurationDevRoutes).route("/", trackImageryDevRoutes).route("/", trackImageryRoutes);
 const source = { name: "Generated test texture", provider: "test-hq", license: "owned", attribution: "", sourceResolutionM: 0.25, storedResolutionM: 0.25 };
 
 afterAll(() => {
   rmSync(venueRootDirectory, { recursive: true, force: true });
-  for (const path of [layoutPath, peerLayoutPath, configurationPath, peerConfigurationPath]) {
+  deleteTrackConfiguration(gameId, trackOrdinal);
+  deleteTrackConfiguration(gameId, peerTrackOrdinal);
+  for (const path of [layoutPath, peerLayoutPath]) {
     if (existsSync(path)) unlinkSync(path);
   }
 });

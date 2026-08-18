@@ -1,9 +1,8 @@
 /**
  * Core of the track segment generator: turns extracted game centerlines +
- * curated track facts into a track's shared facts plus one geometry file
- * per game. Used by scripts/tracks/generate-track-segments.ts (CLI) and by tests, so
- * the exact code path that produces committed meta is what the test suite
- * exercises.
+ * curated track facts into shared registry rows plus per-game geometry rows.
+ * Used by scripts/tracks/generate-track-segments.ts (CLI) and tests, so exact
+ * code producing committed registry data is exercised by test suite.
  */
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
@@ -12,6 +11,7 @@ import { detectCornerRegions, type CornerRegion } from "./segment-align-detect";
 import { alignSegments, type AlignedCorner } from "./segment-align-match";
 import { validateFacts } from "./segment-align-validate";
 import {
+  listTrackFactSlugs,
   loadTrackFacts,
   loadTrackGeometry,
   saveTrackFacts,
@@ -26,7 +26,6 @@ import type { NamedSegment } from "../named-segments";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import type { GameId } from "@shared/games/ids";
 
-export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const NO_CENTERLINE_DIR = null;
 const GAME_DIRS: Record<GameId, string | typeof NO_CENTERLINE_DIR> = {
   "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
@@ -36,13 +35,9 @@ const GAME_DIRS: Record<GameId, string | typeof NO_CENTERLINE_DIR> = {
   iracing: NO_CENTERLINE_DIR,
 };
 
-/** List every track slug that has a meta file, curated or not. */
+/** List every track-facts slug in bundled registry, curated or not. */
 export function listMetaSlugs(): string[] {
-  if (!existsSync(TRACK_META_DIR)) return [];
-  return readdirSync(TRACK_META_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(/\.json$/, ""))
-    .sort();
+  return listTrackFactSlugs();
 }
 
 /**

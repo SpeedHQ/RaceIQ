@@ -1,9 +1,9 @@
 /**
  * Corner-detector tolerances — `shared/data/tracks/detect-hints.json`.
  *
- * Deliberately NOT part of track facts. `shared/data/tracks/meta/<slug>.json` states
- * what the circuit *is*: turn numbers, names, groups, the numbers one corner
- * subsumes. Nothing in there depends on how a game drew its centerline or on
+ * Deliberately NOT part of track facts. Registry facts state what circuit is:
+ * turn numbers, names, groups, and numbers one corner subsumes. Nothing there
+ * depends on how a game drew its centerline or on
  * how our curvature detector reads it. These hints are exactly that dependency
  * — "this apex often resolves into two arcs", "this kink is too flat for some
  * centerlines to register" — so they live in their own file and are read only

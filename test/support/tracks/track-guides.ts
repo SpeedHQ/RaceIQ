@@ -1,16 +1,13 @@
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { turnNumbers } from "../../../shared/racing/tracks/segment-label";
+import type { CornerFact, TrackFacts } from "../../../shared/racing/tracks/facts";
 import { listTrackGuideSlugs, loadTrackGuide } from "../../../shared/racing/tracks/guide/data";
+import { loadTrackFacts } from "../../../shared/racing/tracks/storage/meta";
 
-export const META_DIR = resolve(import.meta.dir, "../../../shared/data/tracks/meta");
-export type Corner = { number: number; covers?: number[]; name: string; direction?: string; group?: string };
-export type Facts = { corners?: Corner[] };
+export type Corner = CornerFact;
+export type Facts = Pick<TrackFacts, "corners">;
 export const numsOf = (c: Corner) => turnNumbers({ number: c.number, covers: c.covers });
 export function loadFacts(slug: string): Facts | null {
-  const p = resolve(META_DIR, `${slug}.json`);
-  if (!existsSync(p)) return null;
-  return JSON.parse(readFileSync(p, "utf8")) as Facts;
+  return loadTrackFacts(slug);
 }
 export function knownTurns(facts: Facts): Set<number> {
   const out = new Set<number>();
