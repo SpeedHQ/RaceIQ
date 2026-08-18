@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import sharp from "sharp";
 import {
   TRACK_IMAGERY_PROVIDERS,
   rankTrackImageryCandidates,
@@ -62,6 +63,34 @@ function registryFetcher(urls: string[]): TrackImageryFetcher {
         ],
       });
     }
+    if (url.includes("service.pdok.nl") && url.includes("GetCapabilities")) {
+      const layers = Array.from({ length: 11 }, (_, index) => {
+        const year = 2026 - index;
+        const detail = year >= 2021 ? "orthoHR" : "ortho25";
+        return `<Layer><Name>${year}_${detail}</Name></Layer>`;
+      }).join("");
+      return new Response(`<WMS_Capabilities>${layers}<Layer><Name>2026_ortho25</Name></Layer></WMS_Capabilities>`, { headers: { "Content-Type": "application/xml" } });
+    }
+    if (url.endsWith("/arcgis/rest/services/IMAGERIE?f=json")) {
+      return json({
+        services: ["ORTHO_2023_ETE", "ORTHO_2022_ETE", "ORTHO_2022_PRINTEMPS", "ORTHO_1978_1990", "ORTHO_1971"].map((service) => ({
+          name: `IMAGERIE/${service}`,
+          type: "MapServer",
+        })),
+      });
+    }
+    if (url.includes("geoservices.wallonie.be/arcgis/rest/services/IMAGERIE/") && url.endsWith("/MapServer/0?f=json")) {
+      const service = /\/IMAGERIE\/([^/]+)\/MapServer/.exec(url)?.[1];
+      const descriptions: Record<string, string> = {
+        ORTHO_2023_ETE: "Imagerie couvrant le territoire wallon à une résolution de 25 cm.",
+        ORTHO_2022_ETE: "Imagerie couvrant le territoire wallon à une résolution de 25 cm.",
+        ORTHO_2022_PRINTEMPS: "Imagerie couvrant le territoire wallon à une résolution de 25 cm.",
+        ORTHO_1978_1990: "Imagerie couvrant une partie du territoire wallon à une résolution de 50 cm.",
+        ORTHO_1971: "Imagerie couvrant l'entièreté du territoire wallon à une résolution de 1 m.",
+      };
+      if (!service || !descriptions[service]) throw new Error(`Unexpected Wallonia metadata request: ${url}`);
+      return json({ type: "Raster Layer", description: descriptions[service] });
+    }
     if (url.includes("planetarycomputer.microsoft.com/api/stac/v1/search")) {
       return json({
         features: [
@@ -90,12 +119,13 @@ test("Spa groups ranked imagery options under their display sources", async () =
   const urls: string[] = [];
   const result = await searchTrackImageryProviders(spaBounds, spa, registryFetcher(urls));
   const candidates = result.sources.flatMap((source) => source.candidates);
-  expect(candidates.some((item) => item.id === "wallonia-spw:ortho-last")).toBe(true);
+  expect(candidates.some((item) => item.id === "wallonia-spw:ortho_2023_ete")).toBe(true);
+  expect(candidates.some((item) => item.id === "wallonia-spw:ortho_1971")).toBe(true);
   expect(candidates.some((item) => item.provider === "openaerialmap")).toBe(true);
   expect(urls.some((url) => url.includes("nationalmap.gov"))).toBe(false);
   expect(urls.some((url) => url.includes("pdok.nl"))).toBe(false);
   expect(candidates.find((item) => item.id === "openaerialmap:5a00c655bac48e5b1cf76247")?.sourceResolutionM).toBe(0.2);
-  expect(candidates.find((item) => item.id === "wallonia-spw:ortho-last")?.sourceResolutionM).toBe(0.25);
+  expect(candidates.find((item) => item.id === "wallonia-spw:ortho_2023_ete")?.sourceResolutionM).toBe(0.25);
   expect(result.sources[0]).toMatchObject({ id: "openaerialmap", name: "OpenAerialMap" });
 });
 
@@ -116,11 +146,13 @@ test("global search groups reusable OAM HQ and Sentinel context options", async 
   expect(result.sources[1]?.candidates[0]).toMatchObject({ quality: "context", sourceResolutionM: 10, coverage: "full" });
 });
 
-test("PDOK advertises 0.08m source detail while normalized source pipeline must clamp stored detail to 0.10m", async () => {
+test("PDOK discovers best annual layers from live WMS capabilities", async () => {
   const pdok = TRACK_IMAGERY_PROVIDERS.find((provider) => provider.id === "pdok-netherlands-rgb");
   expect(pdok).toBeDefined();
-  const [candidateValue] = await pdok!.search({ bounds: zandvoortBounds, location: zandvoort, fetcher: registryFetcher([]) });
-  expect(candidateValue).toMatchObject({ id: "pdok-netherlands-rgb:2026-orthohr", sourceResolutionM: 0.08, quality: "hq" });
+  const candidates = await pdok!.search({ bounds: zandvoortBounds, location: zandvoort, fetcher: registryFetcher([]) });
+  expect(candidates).toHaveLength(11);
+  expect(candidates[0]).toMatchObject({ id: "pdok-netherlands-rgb:2026-orthohr", sourceResolutionM: 0.08, quality: "hq" });
+  expect(candidates.at(-1)).toMatchObject({ id: "pdok-netherlands-rgb:2016-ortho25", sourceResolutionM: 0.25, capturedAt: "2016-01-01/2016-12-31" });
 });
 
 test("NAIP preserves exact geographic bounds across chunked exports", async () => {
@@ -145,6 +177,69 @@ test("NAIP preserves exact geographic bounds across chunked exports", async () =
     fetcher,
   );
   expect(new URL(exportUrl).searchParams.get("adjustAspectRatio")).toBe("false");
+});
+
+test("NAIP exposes only full-coverage historical vintages and renders their source mosaic", async () => {
+  const items = [
+    {
+      id: "fl_2023_west",
+      collection: "naip",
+      bbox: [-81.02, 28.98, -81, 29.02],
+      properties: { datetime: "2023-01-17T16:00:00Z", gsd: 0.3, "naip:year": "2023" },
+      assets: { image: { href: "https://example.test/2023-west.tif" } },
+    },
+    {
+      id: "fl_2023_east",
+      collection: "naip",
+      bbox: [-81, 28.98, -80.98, 29.02],
+      properties: { datetime: "2023-01-17T16:00:00Z", gsd: 0.3, "naip:year": "2023" },
+      assets: { image: { href: "https://example.test/2023-east.tif" } },
+    },
+    {
+      id: "fl_2021_partial",
+      collection: "naip",
+      bbox: [-81.02, 28.98, -81, 29.02],
+      properties: { datetime: "2021-11-30T16:00:00Z", gsd: 0.6, "naip:year": "2021" },
+      assets: { image: { href: "https://example.test/2021-west.tif" } },
+    },
+  ];
+  const dataUrls: string[] = [];
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    if (url.hostname === "imagery.nationalmap.gov" && url.pathname.endsWith("/query")) return json({ features: [] });
+    if (url.hostname === "planetarycomputer.microsoft.com" && url.pathname.endsWith("/search")) return json({ features: items });
+    if (url.hostname === "planetarycomputer.microsoft.com" && url.pathname.includes("/api/data/v1/item/bbox/")) {
+      dataUrls.push(url.href);
+      const dimensions = /\/(\d+)x(\d+)\.webp$/.exec(url.pathname);
+      if (!dimensions) throw new Error(`Missing render dimensions in ${url}`);
+      const bytes = await sharp({
+        create: { width: Number(dimensions[1]), height: Number(dimensions[2]), channels: 3, background: { r: 60, g: 90, b: 120 } },
+      })
+        .webp()
+        .toBuffer();
+      return new Response(Uint8Array.from(bytes).buffer, { headers: { "Content-Type": "image/webp" } });
+    }
+    throw new Error(`Unexpected NAIP URL ${url}`);
+  }) as TrackImageryFetcher;
+
+  const candidates = await naipProvider.search({ bounds: usBounds, location: unitedStates, fetcher });
+  expect(candidates.map(({ id }) => id)).toEqual(["usgs-naip:2023"]);
+  expect(candidates[0]).toMatchObject({ capturedAt: "2023-01-17", sourceResolutionM: 0.3, redistribution: "allowed" });
+
+  const resolved = await naipProvider.resolve("usgs-naip:2023", { bounds: usBounds, location: unitedStates, fetcher });
+  const rendered = await naipProvider.fetch(resolved, usBounds, 64, 32, fetcher);
+  expect(await sharp(rendered).metadata()).toMatchObject({ format: "png", width: 64, height: 32, hasAlpha: true });
+  expect(dataUrls).toHaveLength(2);
+  expect(dataUrls.every((url) => url.includes("collection=naip") && url.includes("assets=image"))).toBe(true);
+});
+
+test("Wallonia discovers full-coverage seasonal and historical orthophotos", async () => {
+  const provider = TRACK_IMAGERY_PROVIDERS.find((candidateProvider) => candidateProvider.id === "wallonia-spw");
+  expect(provider).toBeDefined();
+  const candidates = await provider!.search({ bounds: spaBounds, location: spa, fetcher: registryFetcher([]) });
+  expect(candidates).toHaveLength(4);
+  expect(candidates.slice(0, 3).map(({ id }) => id)).toEqual(["wallonia-spw:ortho_2023_ete", "wallonia-spw:ortho_2022_ete", "wallonia-spw:ortho_2022_printemps"]);
+  expect(candidates.at(-1)).toMatchObject({ id: "wallonia-spw:ortho_1971", sourceResolutionM: 1, capturedAt: "1971-01-01/1971-12-31" });
 });
 
 test("ranking prioritizes coverage, quality, resolution, reliability, recency, cloud, stability, then provider and id", () => {

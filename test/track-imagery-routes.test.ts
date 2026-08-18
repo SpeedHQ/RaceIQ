@@ -152,7 +152,12 @@ test("serves one physical HQ venue package to two layouts with transparent overl
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.includes("geoservices.wallonie.be/arcgis/services/IMAGERIE/ORTHO_LAST/MapServer/WMSServer")) {
+    if (url.includes("geoservices.wallonie.be/arcgis/rest/services/IMAGERIE/ORTHO_2023_ETE/MapServer/0?f=json")) {
+      return new Response(JSON.stringify({ type: "Raster Layer", description: "Imagerie couvrant le territoire wallon à une résolution de 25 cm." }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.includes("geoservices.wallonie.be/arcgis/services/IMAGERIE/ORTHO_2023_ETE/MapServer/WMSServer")) {
       return new Response(Uint8Array.from(packTileBytes).buffer, { headers: { "Content-Type": "image/jpeg" } });
     }
     throw new Error(`Unexpected external request ${url}`);
@@ -163,7 +168,7 @@ test("serves one physical HQ venue package to two layouts with transparent overl
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        candidateId: "wallonia-spw:ortho-last",
+        candidateId: "wallonia-spw:ortho_2023_ete",
         bounds: sourceBounds,
         calibration,
         gameId,
