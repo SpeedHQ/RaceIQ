@@ -17,7 +17,7 @@ jobs:
         include:
           - name: fresh
             server_set: fresh
-            projects: --project=fresh-install --project=mobile-device --project=tablet-device
+            projects: --project=fresh-install
             runs_on: '["whitesmith-windows-x64", "2VCPU", "5G"]'
           - name: tunes
             server_set: tunes
@@ -25,7 +25,7 @@ jobs:
             runs_on: '["whitesmith-windows-x64", "2VCPU", "5G"]'
           - name: seeded
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
             runs_on: '["whitesmith-windows-x64", "4VCPU", "8G"]'
     uses: ./.github/workflows/playwright.yml
     with:
