@@ -2,6 +2,6 @@
 import catalog from "./telemetry-catalog.generated.json";
 
 export const TELEMETRY_CATALOG_VERSION = "0.13.0";
-export const TELEMETRY_CATALOG_SCHEMA_VERSION = "v6";
-export const TELEMETRY_CATALOG_HASH = "c58371bc0857b9c3c41e1dcd2d4dc31af1420d8aaeff42eab27d7b2e5950f3dc";
+export const TELEMETRY_CATALOG_SCHEMA_VERSION = "v7";
+export const TELEMETRY_CATALOG_HASH = "d654780f733fc969347e77d97ebe6433b2b89eeaeb73952bba3721347834bab8";
 export const TELEMETRY_CATALOG_GENERATED = catalog;

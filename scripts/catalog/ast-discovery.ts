@@ -149,10 +149,14 @@ function fieldDescription(node: AstNode, _name: string): string | undefined {
   return cleaned.replaceAll("`", "");
 }
 
+function sourceText(source: string, node: AstNode): string {
+  return source.slice(node.start, node.end).replace(/\r\n?/g, "\n");
+}
+
 function typeText(source: string, node: AstNode): string {
   if (!node.typeAnnotation?.typeAnnotation) return "unknown";
   const type = node.typeAnnotation.typeAnnotation;
-  return source.slice(type.start, type.end);
+  return sourceText(source, type);
 }
 
 function interfaceFields(
@@ -240,7 +244,7 @@ function interfaceLeafFields(
       if (!name || !type) continue;
       const path = prefix ? `${prefix}.${name}` : name;
       const nested = referencedMembers(type);
-      const cycleKey = `${path}:${source.slice(type.start, type.end)}`;
+      const cycleKey = `${path}:${sourceText(source, type)}`;
       if (nested && !seen.has(cycleKey)) {
         const nextSeen = new Set(seen).add(cycleKey);
         result.push(
@@ -254,7 +258,7 @@ function interfaceLeafFields(
       }
       result.push({
         name: path,
-        type: source.slice(type.start, type.end),
+        type: sourceText(source, type),
         description: fieldDescription(node, name),
       });
     }

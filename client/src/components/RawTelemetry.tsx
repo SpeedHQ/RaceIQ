@@ -93,7 +93,7 @@ export function RawTelemetry({ packet }: Props) {
           const provenance = metadata
             ? metadata.link.kind === "unavailable"
               ? `unavailable:${metadata.link.reason}`
-              : `${metadata.link.provenance.origin}:${metadata.link.provenance.artifact}@${metadata.link.provenance.commit}`
+              : `${metadata.link.provenance.origin}:${metadata.link.provenance.artifact}@${TELEMETRY_CATALOG.metadata.sourceHashes[metadata.link.provenance.artifact]}`
             : undefined;
           return (
             <div

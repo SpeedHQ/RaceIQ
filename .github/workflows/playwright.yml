@@ -64,6 +64,10 @@ jobs:
         with:
           name: ${{ inputs.dist-artifact }}
           path: dist
+      - name: Restore compiled server permissions
+        if: inputs.dist-artifact != ''
+        run: chmod +x dist/raceiq
+
 
       - name: Install workspace dependencies
         shell: powershell
