@@ -24,14 +24,23 @@ const child = Bun.spawn([nodeExecutable, playwrightCli, ...playwrightArgs], {
   stderr: "pipe",
 });
 
-const [stdout, stderr, exitCode] = await Promise.all([
-  new Response(child.stdout).text(),
-  new Response(child.stderr).text(),
+const captureStdout = command === "test" && commandArgs.includes("--list");
+const stdoutChunks: Uint8Array[] = [];
+
+async function streamOutput(stream: ReadableStream<Uint8Array>, target: NodeJS.WriteStream, capture = false): Promise<void> {
+  for await (const chunk of stream) {
+    target.write(chunk);
+    if (capture) stdoutChunks.push(chunk);
+  }
+}
+
+const [exitCode] = await Promise.all([
   child.exited,
+  streamOutput(child.stdout, process.stdout, captureStdout),
+  streamOutput(child.stderr, process.stderr),
 ]);
 
-process.stdout.write(stdout);
-process.stderr.write(stderr);
+const stdout = new TextDecoder().decode(Buffer.concat(stdoutChunks));
 
 if (command === "test" && commandArgs.includes("--list")) {
   if (exitCode !== 0) process.exit(exitCode);
