@@ -35,6 +35,8 @@ import { Route as AccSetupsRouteImport } from './routes/acc/setups'
 import { Route as DashIndexRouteImport } from './routes/dash.index'
 import { Route as DashCombo1RouteImport } from './routes/dash.combo-1'
 import { Route as DashCombo2RouteImport } from './routes/dash.combo-2'
+import { Route as DevIndexRouteImport } from './routes/dev.index'
+import { Route as DevTracksRouteImport } from './routes/dev.tracks'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as F125RawRouteImport } from './routes/f125/raw'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
@@ -54,6 +56,7 @@ import { Route as AcEvoSetupsNewRouteImport } from './routes/ac-evo/setups/new'
 import { Route as AccSetupsIndexRouteImport } from './routes/acc/setups/index'
 import { Route as AccSetupsImportRouteImport } from './routes/acc/setups/import'
 import { Route as AccSetupsNewRouteImport } from './routes/acc/setups/new'
+import { Route as DevTracksIndexRouteImport } from './routes/dev.tracks.index'
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
 import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
@@ -69,7 +72,12 @@ import { Route as GameidTracksTrackOrdinalIndexRouteImport } from './routes/$gam
 import { Route as GameidTracksTrackOrdinalTabRouteImport } from './routes/$gameid/tracks.$trackOrdinal.$tab'
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
 import { Route as AccSetupsEditTuneIdRouteImport } from './routes/acc/setups/edit.$tuneId'
+import { Route as DevTracksGameIdTrackOrdinalRouteImport } from './routes/dev.tracks.$gameId.$trackOrdinal'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
+import { Route as DevTracksGameIdTrackOrdinalIndexRouteImport } from './routes/dev.tracks.$gameId.$trackOrdinal.index'
+import { Route as DevTracksGameIdTrackOrdinalGeometryRouteImport } from './routes/dev.tracks.$gameId.$trackOrdinal.geometry'
+import { Route as DevTracksGameIdTrackOrdinalGuidesRouteImport } from './routes/dev.tracks.$gameId.$trackOrdinal.guides'
+import { Route as DevTracksGameIdTrackOrdinalImageryRouteImport } from './routes/dev.tracks.$gameId.$trackOrdinal.imagery'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -201,6 +209,16 @@ const DashCombo2Route = DashCombo2RouteImport.update({
   path: '/dash/combo-2',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevIndexRoute = DevIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DevRoute,
+} as any)
+const DevTracksRoute = DevTracksRouteImport.update({
+  id: '/tracks',
+  path: '/tracks',
+  getParentRoute: () => DevRoute,
+} as any)
 const F125IndexRoute = F125IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -297,6 +315,11 @@ const AccSetupsNewRoute = AccSetupsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AccSetupsRoute,
 } as any)
+const DevTracksIndexRoute = DevTracksIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DevTracksRoute,
+} as any)
 const F125SetupsIndexRoute = F125SetupsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -375,18 +398,48 @@ const AccSetupsEditTuneIdRoute = AccSetupsEditTuneIdRouteImport.update({
   path: '/edit/$tuneId',
   getParentRoute: () => AccSetupsRoute,
 } as any)
+const DevTracksGameIdTrackOrdinalRoute =
+  DevTracksGameIdTrackOrdinalRouteImport.update({
+    id: '/$gameId/$trackOrdinal',
+    path: '/$gameId/$trackOrdinal',
+    getParentRoute: () => DevTracksRoute,
+  } as any)
 const Fm23SetupsEditTuneIdRoute = Fm23SetupsEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
   path: '/edit/$tuneId',
   getParentRoute: () => Fm23SetupsRoute,
 } as any)
+const DevTracksGameIdTrackOrdinalIndexRoute =
+  DevTracksGameIdTrackOrdinalIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => DevTracksGameIdTrackOrdinalRoute,
+  } as any)
+const DevTracksGameIdTrackOrdinalGeometryRoute =
+  DevTracksGameIdTrackOrdinalGeometryRouteImport.update({
+    id: '/geometry',
+    path: '/geometry',
+    getParentRoute: () => DevTracksGameIdTrackOrdinalRoute,
+  } as any)
+const DevTracksGameIdTrackOrdinalGuidesRoute =
+  DevTracksGameIdTrackOrdinalGuidesRouteImport.update({
+    id: '/guides',
+    path: '/guides',
+    getParentRoute: () => DevTracksGameIdTrackOrdinalRoute,
+  } as any)
+const DevTracksGameIdTrackOrdinalImageryRoute =
+  DevTracksGameIdTrackOrdinalImageryRouteImport.update({
+    id: '/imagery',
+    path: '/imagery',
+    getParentRoute: () => DevTracksGameIdTrackOrdinalRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
-  '/dev': typeof DevRoute
+  '/dev': typeof DevRouteWithChildren
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
@@ -405,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev/tracks': typeof DevTracksRouteWithChildren
   '/f125/raw': typeof F125RawRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
@@ -415,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/dash/': typeof DashIndexRoute
+  '/dev/': typeof DevIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
@@ -434,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/$gameid/tracks/': typeof GameidTracksIndexRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
+  '/dev/tracks/': typeof DevTracksIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
@@ -441,13 +497,17 @@ export interface FileRoutesByFullPath {
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
+  '/dev/tracks/$gameId/$trackOrdinal': typeof DevTracksGameIdTrackOrdinalRouteWithChildren
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
+  '/dev/tracks/$gameId/$trackOrdinal/geometry': typeof DevTracksGameIdTrackOrdinalGeometryRoute
+  '/dev/tracks/$gameId/$trackOrdinal/guides': typeof DevTracksGameIdTrackOrdinalGuidesRoute
+  '/dev/tracks/$gameId/$trackOrdinal/imagery': typeof DevTracksGameIdTrackOrdinalImageryRoute
+  '/dev/tracks/$gameId/$trackOrdinal/': typeof DevTracksGameIdTrackOrdinalIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
-  '/dev': typeof DevRoute
   '/$game/live': typeof GameLiveRoute
   '/$gameid/analyse': typeof GameidAnalyseRoute
   '/$gameid/cars': typeof GameidCarsRoute
@@ -466,6 +526,7 @@ export interface FileRoutesByTo {
   '/ac-evo': typeof AcEvoIndexRoute
   '/acc': typeof AccIndexRoute
   '/dash': typeof DashIndexRoute
+  '/dev': typeof DevIndexRoute
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
   '/iracing': typeof IracingIndexRoute
@@ -485,6 +546,7 @@ export interface FileRoutesByTo {
   '/$gameid/tracks': typeof GameidTracksIndexRoute
   '/ac-evo/setups': typeof AcEvoSetupsIndexRoute
   '/acc/setups': typeof AccSetupsIndexRoute
+  '/dev/tracks': typeof DevTracksIndexRoute
   '/f125/setups': typeof F125SetupsIndexRoute
   '/f125/tunes': typeof F125TunesIndexRoute
   '/fm23/setups': typeof Fm23SetupsIndexRoute
@@ -494,6 +556,10 @@ export interface FileRoutesByTo {
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/$gameid/tracks/$trackOrdinal': typeof GameidTracksTrackOrdinalIndexRoute
+  '/dev/tracks/$gameId/$trackOrdinal/geometry': typeof DevTracksGameIdTrackOrdinalGeometryRoute
+  '/dev/tracks/$gameId/$trackOrdinal/guides': typeof DevTracksGameIdTrackOrdinalGuidesRoute
+  '/dev/tracks/$gameId/$trackOrdinal/imagery': typeof DevTracksGameIdTrackOrdinalImageryRoute
+  '/dev/tracks/$gameId/$trackOrdinal': typeof DevTracksGameIdTrackOrdinalIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -501,7 +567,7 @@ export interface FileRoutesById {
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
-  '/dev': typeof DevRoute
+  '/dev': typeof DevRouteWithChildren
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
@@ -520,6 +586,7 @@ export interface FileRoutesById {
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev/tracks': typeof DevTracksRouteWithChildren
   '/f125/raw': typeof F125RawRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
@@ -530,6 +597,7 @@ export interface FileRoutesById {
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/dash/': typeof DashIndexRoute
+  '/dev/': typeof DevIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
@@ -549,6 +617,7 @@ export interface FileRoutesById {
   '/$gameid/tracks/': typeof GameidTracksIndexRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
+  '/dev/tracks/': typeof DevTracksIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
@@ -556,8 +625,13 @@ export interface FileRoutesById {
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
+  '/dev/tracks/$gameId/$trackOrdinal': typeof DevTracksGameIdTrackOrdinalRouteWithChildren
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
+  '/dev/tracks/$gameId/$trackOrdinal/geometry': typeof DevTracksGameIdTrackOrdinalGeometryRoute
+  '/dev/tracks/$gameId/$trackOrdinal/guides': typeof DevTracksGameIdTrackOrdinalGuidesRoute
+  '/dev/tracks/$gameId/$trackOrdinal/imagery': typeof DevTracksGameIdTrackOrdinalImageryRoute
+  '/dev/tracks/$gameId/$trackOrdinal/': typeof DevTracksGameIdTrackOrdinalIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -585,6 +659,7 @@ export interface FileRouteTypes {
     | '/acc/setups'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev/tracks'
     | '/f125/raw'
     | '/f125/setups'
     | '/f125/tunes'
@@ -595,6 +670,7 @@ export interface FileRouteTypes {
     | '/ac-evo/'
     | '/acc/'
     | '/dash/'
+    | '/dev/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
@@ -614,6 +690,7 @@ export interface FileRouteTypes {
     | '/$gameid/tracks/'
     | '/ac-evo/setups/'
     | '/acc/setups/'
+    | '/dev/tracks/'
     | '/f125/setups/'
     | '/f125/tunes/'
     | '/fm23/setups/'
@@ -621,13 +698,17 @@ export interface FileRouteTypes {
     | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
+    | '/dev/tracks/$gameId/$trackOrdinal'
     | '/fm23/setups/edit/$tuneId'
     | '/$gameid/tracks/$trackOrdinal/'
+    | '/dev/tracks/$gameId/$trackOrdinal/geometry'
+    | '/dev/tracks/$gameId/$trackOrdinal/guides'
+    | '/dev/tracks/$gameId/$trackOrdinal/imagery'
+    | '/dev/tracks/$gameId/$trackOrdinal/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/$gameid'
-    | '/dev'
     | '/$game/live'
     | '/$gameid/analyse'
     | '/$gameid/cars'
@@ -646,6 +727,7 @@ export interface FileRouteTypes {
     | '/ac-evo'
     | '/acc'
     | '/dash'
+    | '/dev'
     | '/f125'
     | '/fm23'
     | '/iracing'
@@ -665,6 +747,7 @@ export interface FileRouteTypes {
     | '/$gameid/tracks'
     | '/ac-evo/setups'
     | '/acc/setups'
+    | '/dev/tracks'
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/setups'
@@ -674,6 +757,10 @@ export interface FileRouteTypes {
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
     | '/$gameid/tracks/$trackOrdinal'
+    | '/dev/tracks/$gameId/$trackOrdinal/geometry'
+    | '/dev/tracks/$gameId/$trackOrdinal/guides'
+    | '/dev/tracks/$gameId/$trackOrdinal/imagery'
+    | '/dev/tracks/$gameId/$trackOrdinal'
   id:
     | '__root__'
     | '/'
@@ -699,6 +786,7 @@ export interface FileRouteTypes {
     | '/acc/setups'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev/tracks'
     | '/f125/raw'
     | '/f125/setups'
     | '/f125/tunes'
@@ -709,6 +797,7 @@ export interface FileRouteTypes {
     | '/ac-evo/'
     | '/acc/'
     | '/dash/'
+    | '/dev/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
@@ -728,6 +817,7 @@ export interface FileRouteTypes {
     | '/$gameid/tracks/'
     | '/ac-evo/setups/'
     | '/acc/setups/'
+    | '/dev/tracks/'
     | '/f125/setups/'
     | '/f125/tunes/'
     | '/fm23/setups/'
@@ -735,8 +825,13 @@ export interface FileRouteTypes {
     | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
+    | '/dev/tracks/$gameId/$trackOrdinal'
     | '/fm23/setups/edit/$tuneId'
     | '/$gameid/tracks/$trackOrdinal/'
+    | '/dev/tracks/$gameId/$trackOrdinal/geometry'
+    | '/dev/tracks/$gameId/$trackOrdinal/guides'
+    | '/dev/tracks/$gameId/$trackOrdinal/imagery'
+    | '/dev/tracks/$gameId/$trackOrdinal/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -744,7 +839,7 @@ export interface RootRouteChildren {
   GameidRoute: typeof GameidRouteWithChildren
   AcEvoRoute: typeof AcEvoRouteWithChildren
   AccRoute: typeof AccRouteWithChildren
-  DevRoute: typeof DevRoute
+  DevRoute: typeof DevRouteWithChildren
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
   IracingRoute: typeof IracingRouteWithChildren
@@ -938,6 +1033,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashCombo2RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev/': {
+      id: '/dev/'
+      path: '/'
+      fullPath: '/dev/'
+      preLoaderRoute: typeof DevIndexRouteImport
+      parentRoute: typeof DevRoute
+    }
+    '/dev/tracks': {
+      id: '/dev/tracks'
+      path: '/tracks'
+      fullPath: '/dev/tracks'
+      preLoaderRoute: typeof DevTracksRouteImport
+      parentRoute: typeof DevRoute
+    }
     '/f125/': {
       id: '/f125/'
       path: '/'
@@ -1071,6 +1180,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsNewRouteImport
       parentRoute: typeof AccSetupsRoute
     }
+    '/dev/tracks/': {
+      id: '/dev/tracks/'
+      path: '/'
+      fullPath: '/dev/tracks/'
+      preLoaderRoute: typeof DevTracksIndexRouteImport
+      parentRoute: typeof DevTracksRoute
+    }
     '/f125/setups/': {
       id: '/f125/setups/'
       path: '/'
@@ -1176,12 +1292,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsEditTuneIdRouteImport
       parentRoute: typeof AccSetupsRoute
     }
+    '/dev/tracks/$gameId/$trackOrdinal': {
+      id: '/dev/tracks/$gameId/$trackOrdinal'
+      path: '/$gameId/$trackOrdinal'
+      fullPath: '/dev/tracks/$gameId/$trackOrdinal'
+      preLoaderRoute: typeof DevTracksGameIdTrackOrdinalRouteImport
+      parentRoute: typeof DevTracksRoute
+    }
     '/fm23/setups/edit/$tuneId': {
       id: '/fm23/setups/edit/$tuneId'
       path: '/edit/$tuneId'
       fullPath: '/fm23/setups/edit/$tuneId'
       preLoaderRoute: typeof Fm23SetupsEditTuneIdRouteImport
       parentRoute: typeof Fm23SetupsRoute
+    }
+    '/dev/tracks/$gameId/$trackOrdinal/': {
+      id: '/dev/tracks/$gameId/$trackOrdinal/'
+      path: '/'
+      fullPath: '/dev/tracks/$gameId/$trackOrdinal/'
+      preLoaderRoute: typeof DevTracksGameIdTrackOrdinalIndexRouteImport
+      parentRoute: typeof DevTracksGameIdTrackOrdinalRoute
+    }
+    '/dev/tracks/$gameId/$trackOrdinal/geometry': {
+      id: '/dev/tracks/$gameId/$trackOrdinal/geometry'
+      path: '/geometry'
+      fullPath: '/dev/tracks/$gameId/$trackOrdinal/geometry'
+      preLoaderRoute: typeof DevTracksGameIdTrackOrdinalGeometryRouteImport
+      parentRoute: typeof DevTracksGameIdTrackOrdinalRoute
+    }
+    '/dev/tracks/$gameId/$trackOrdinal/guides': {
+      id: '/dev/tracks/$gameId/$trackOrdinal/guides'
+      path: '/guides'
+      fullPath: '/dev/tracks/$gameId/$trackOrdinal/guides'
+      preLoaderRoute: typeof DevTracksGameIdTrackOrdinalGuidesRouteImport
+      parentRoute: typeof DevTracksGameIdTrackOrdinalRoute
+    }
+    '/dev/tracks/$gameId/$trackOrdinal/imagery': {
+      id: '/dev/tracks/$gameId/$trackOrdinal/imagery'
+      path: '/imagery'
+      fullPath: '/dev/tracks/$gameId/$trackOrdinal/imagery'
+      preLoaderRoute: typeof DevTracksGameIdTrackOrdinalImageryRouteImport
+      parentRoute: typeof DevTracksGameIdTrackOrdinalRoute
     }
   }
 }
@@ -1307,6 +1458,57 @@ const AccRouteChildren: AccRouteChildren = {
 
 const AccRouteWithChildren = AccRoute._addFileChildren(AccRouteChildren)
 
+interface DevTracksGameIdTrackOrdinalRouteChildren {
+  DevTracksGameIdTrackOrdinalGeometryRoute: typeof DevTracksGameIdTrackOrdinalGeometryRoute
+  DevTracksGameIdTrackOrdinalGuidesRoute: typeof DevTracksGameIdTrackOrdinalGuidesRoute
+  DevTracksGameIdTrackOrdinalImageryRoute: typeof DevTracksGameIdTrackOrdinalImageryRoute
+  DevTracksGameIdTrackOrdinalIndexRoute: typeof DevTracksGameIdTrackOrdinalIndexRoute
+}
+
+const DevTracksGameIdTrackOrdinalRouteChildren: DevTracksGameIdTrackOrdinalRouteChildren =
+  {
+    DevTracksGameIdTrackOrdinalGeometryRoute:
+      DevTracksGameIdTrackOrdinalGeometryRoute,
+    DevTracksGameIdTrackOrdinalGuidesRoute:
+      DevTracksGameIdTrackOrdinalGuidesRoute,
+    DevTracksGameIdTrackOrdinalImageryRoute:
+      DevTracksGameIdTrackOrdinalImageryRoute,
+    DevTracksGameIdTrackOrdinalIndexRoute:
+      DevTracksGameIdTrackOrdinalIndexRoute,
+  }
+
+const DevTracksGameIdTrackOrdinalRouteWithChildren =
+  DevTracksGameIdTrackOrdinalRoute._addFileChildren(
+    DevTracksGameIdTrackOrdinalRouteChildren,
+  )
+
+interface DevTracksRouteChildren {
+  DevTracksIndexRoute: typeof DevTracksIndexRoute
+  DevTracksGameIdTrackOrdinalRoute: typeof DevTracksGameIdTrackOrdinalRouteWithChildren
+}
+
+const DevTracksRouteChildren: DevTracksRouteChildren = {
+  DevTracksIndexRoute: DevTracksIndexRoute,
+  DevTracksGameIdTrackOrdinalRoute:
+    DevTracksGameIdTrackOrdinalRouteWithChildren,
+}
+
+const DevTracksRouteWithChildren = DevTracksRoute._addFileChildren(
+  DevTracksRouteChildren,
+)
+
+interface DevRouteChildren {
+  DevTracksRoute: typeof DevTracksRouteWithChildren
+  DevIndexRoute: typeof DevIndexRoute
+}
+
+const DevRouteChildren: DevRouteChildren = {
+  DevTracksRoute: DevTracksRouteWithChildren,
+  DevIndexRoute: DevIndexRoute,
+}
+
+const DevRouteWithChildren = DevRoute._addFileChildren(DevRouteChildren)
+
 interface F125SetupsRouteChildren {
   F125SetupsIndexRoute: typeof F125SetupsIndexRoute
 }
@@ -1429,7 +1631,7 @@ const rootRouteChildren: RootRouteChildren = {
   GameidRoute: GameidRouteWithChildren,
   AcEvoRoute: AcEvoRouteWithChildren,
   AccRoute: AccRouteWithChildren,
-  DevRoute: DevRoute,
+  DevRoute: DevRouteWithChildren,
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,
   IracingRoute: IracingRouteWithChildren,

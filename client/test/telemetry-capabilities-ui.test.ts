@@ -11,7 +11,7 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../src/components/track-map/types";
 import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
 import { PitEstimate } from "../src/components/telemetry/PitEstimate";

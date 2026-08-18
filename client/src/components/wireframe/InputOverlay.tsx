@@ -1,7 +1,7 @@
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import type * as THREE from "three";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "../track-map/types";
 import { pedalInputColor, threeColor } from "../../lib/wireframe-utils";
 
 export function InputOverlay({ telemetry, packet }: { telemetry: SemanticAnalysisFrame[]; packet: SemanticAnalysisFrame }) {

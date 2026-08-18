@@ -67,7 +67,7 @@ describe("responsive workspace contract", () => {
 
   test("analyse track sizing stays CSS-owned", () => {
     const trackPanel = read("client/src/components/analyse/AnalyseTrackPanel.tsx");
-    const trackMap = read("client/src/components/analyse/AnalyseTrackMap.tsx");
+    const trackMap = read("client/src/components/track-map/TrackMapCanvas.tsx");
     const liveDashboard = read("client/src/components/tunes/LiveTestDashboard.tsx");
 
     expect(trackPanel).not.toContain("containerHeight");

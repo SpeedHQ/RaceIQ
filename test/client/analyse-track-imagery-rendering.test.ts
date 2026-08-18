@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { drawStaticTrack } from "../../client/src/components/analyse/track-map/static-drawing";
+import { drawStaticTrack } from "../../client/src/components/track-map/static-drawing";
 
 const originalWindow = globalThis.window;
 

@@ -1,6 +1,6 @@
 import { turnNumbers } from "../../../shared/racing/tracks/segment-label";
 import type { CornerFact, TrackFacts } from "../../../shared/racing/tracks/facts";
-import { listTrackGuideSlugs, loadTrackGuide } from "../../../shared/racing/tracks/guide/data";
+import { productionTrackGuideStore } from "../../../shared/racing/tracks/guide/data";
 import { loadTrackFacts } from "../../../shared/racing/tracks/storage/meta";
 
 export type Corner = CornerFact;
@@ -17,8 +17,8 @@ export function knownTurns(facts: Facts): Set<number> {
 export type GuideAnchor = { slug: string; name: string; numbers: number[] };
 export function guideAnchors(): GuideAnchor[] {
   const out: GuideAnchor[] = [];
-  for (const slug of listTrackGuideSlugs()) {
-    const guide = loadTrackGuide(slug);
+  for (const slug of productionTrackGuideStore.list()) {
+    const guide = productionTrackGuideStore.load(slug);
     if (!guide) continue;
     for (const c of guide.corners) if (c.numbers?.length) out.push({ slug, name: c.name, numbers: c.numbers });
   }
@@ -35,9 +35,9 @@ export const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
 export const FANTASY_SLUGS = new Set(["maple-valley", "fujimi-kaido", "sunset-peninsula", "grand-oak", "hakone", "eaglerock"]);
 export function unanchoredEntries(): Record<string, string[]> {
   const out: Record<string, string[]> = {};
-  for (const slug of listTrackGuideSlugs()) {
+  for (const slug of productionTrackGuideStore.list()) {
     if (FANTASY_SLUGS.has(slug)) continue;
-    const guide = loadTrackGuide(slug);
+    const guide = productionTrackGuideStore.load(slug);
     if (!guide) continue;
     for (const c of guide.corners) {
       if (c.numbers?.length) continue;
@@ -55,8 +55,8 @@ export const KNOWN_MERGES: Record<string, string[][]> = {
 export type GuideEntry = { slug: string; name: string; numbers: number[]; type: string };
 export function guideEntries(): GuideEntry[] {
   const out: GuideEntry[] = [];
-  for (const slug of listTrackGuideSlugs()) {
-    const guide = loadTrackGuide(slug);
+  for (const slug of productionTrackGuideStore.list()) {
+    const guide = productionTrackGuideStore.load(slug);
     if (!guide) continue;
     for (const c of guide.corners) if (c.numbers?.length) out.push({ slug, name: c.name, numbers: c.numbers, type: c.type });
   }

@@ -24,10 +24,10 @@ interface CatalogTrack {
 export interface TrackConfigurationSelection {
   gameId: GameId;
   trackOrdinal: number;
-  name: string;
 }
 
 interface TrackRecord extends TrackConfigurationSelection {
+  name: string;
   variant: string;
   location: string;
   commonTrackName: string;
@@ -281,7 +281,7 @@ function TrackRow({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const badge = statusBadge(record);
-  const selection = { gameId: record.gameId, trackOrdinal: record.trackOrdinal, name: record.name };
+  const selection = { gameId: record.gameId, trackOrdinal: record.trackOrdinal };
   const canonical = record.configuration ? trackConfigurationCanonicalId(record.configuration) : null;
 
   const confirm = async () => {
@@ -347,7 +347,7 @@ function TrackRow({
             {record.configuration ? "Edit assignment" : "Assign track"}
           </Button>
           <Button type="button" onClick={() => onSelect(selection)}>
-            {selected ? "Selected for calibration" : "Open calibration"}
+            {selected ? "Workbench open" : "Open workbench"}
           </Button>
         </div>
         {record.configuration?.confirmation ? (
@@ -474,10 +474,12 @@ export function TrackConfigurationBrowser({
   selection,
   onSelect,
   onConfigurationChange,
+  className,
 }: {
   selection: TrackConfigurationSelection | null;
   onSelect: (selection: TrackConfigurationSelection) => void;
   onConfigurationChange: () => void;
+  className?: string;
 }) {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("");
@@ -595,7 +597,7 @@ export function TrackConfigurationBrowser({
   };
 
   return (
-    <section className="flex min-h-0 flex-col border-r border-app-border bg-app-bg">
+    <section className={`flex min-h-0 flex-col border-r border-app-border bg-app-bg ${className ?? ""}`}>
       <div className="border-b border-app-border p-3">
         <h1 className="text-base font-semibold text-app-text">Track configuration</h1>
         <p className="mb-2 text-[11px] text-app-text-muted">All simulator catalogs grouped by canonical track, layout, then game ID.</p>

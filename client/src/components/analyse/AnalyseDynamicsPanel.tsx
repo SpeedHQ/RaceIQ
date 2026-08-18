@@ -9,7 +9,7 @@ import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
 import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "../track-map/types";
 
 const WHEELS = ["FL", "FR", "RL", "RR"] as const;
 const number = (frame: SemanticAnalysisFrame, id: string): number | null => {

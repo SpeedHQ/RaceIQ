@@ -6,7 +6,7 @@ import { Check, Copy } from "lucide-react";
 import { getSteeringLock } from "@/lib/settings-storage";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "../track-map/types";
 import { m } from "../../paraglide/messages";
 import { InsightPanel } from "../InsightPanel";
 import { Button } from "../ui/button";

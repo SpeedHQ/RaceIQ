@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { IS_DEV } from "../../runtime/config/env";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { IS_DEV, IS_E2E } from "../../runtime/config/env";
+import { OrdinalParamSchema, GameIdQuerySchema, RequiredGameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { tryGetGame } from "../../../shared/games/registry";
+import { tryGetServerGame } from "../../games/registry";
 import { formatTurnNumbers, turnNumbers } from "../../../shared/racing/tracks/segment-label";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 import { getCorners, saveCorners } from "../../db/track-queries";
@@ -88,12 +90,13 @@ export const trackCornerRoutes = new Hono()
     }
   )
 
-  // PUT /api/tracks/:trackOrdinal/corners — save/update corner definitions
   .put("/api/tracks/:trackOrdinal/corners",
     zValidator("param", TrackOrdinalParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
     async (c) => {
+      if (!IS_DEV && !IS_E2E) return c.json({ error: "Not available in production" }, 403);
       const { trackOrdinal } = c.req.valid("param");
-
+      const { gameId } = c.req.valid("query");
       const body = await c.req.json<Corner[]>();
 
       if (!Array.isArray(body)) {
@@ -121,7 +124,7 @@ export const trackCornerRoutes = new Hono()
         }
       }
 
-      await saveCorners(trackOrdinal, body, requireGameId(c), false);
+      await saveCorners(trackOrdinal, body, gameId, false);
       return c.json({ success: true, count: body.length });
     }
   );
@@ -131,47 +134,70 @@ export const trackSectorBoundaryRoutes = new Hono()
   // GET /api/track-sector-boundaries/:ordinal — returns s1End/s2End fractions for timing
   .get("/api/track-sector-boundaries/:ordinal",
     zValidator("param", OrdinalParamSchema),
-    zValidator("query", GameIdQuerySchema),
+    zValidator("query", RequiredGameIdQuerySchema),
     async (c) => {
       const { ordinal } = c.req.valid("param");
-      const gameId = c.req.query("gameId");
-      const sharedName = getSharedTrackName(ordinal, gameId);
+      const { gameId } = c.req.valid("query");
+      const adapter = tryGetGame(gameId) ?? tryGetServerGame(gameId);
 
-      // Sector fractions are this game's geometry; fall back to bundled defaults.
-      const sectors = (sharedName && gameId ? loadTrackSectorsFor(sharedName, gameId) : undefined)
-        ?? getTrackSectorsByOrdinal(ordinal);
-
-      // Compute track length from outline
-      const outline = gameId
-        ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName)
-        : null;
+      // Native games own timing sectors. RaceIQ's stored S1/S2 values are
+      // not an effective fallback when no native lap layout is recorded.
+      const outline = getTrackOutlineByOrdinal(ordinal, gameId, getSharedTrackName(ordinal, gameId));
       const trackLength = computeOutlineLength(outline);
-      return c.json({ ...sectors, trackLength });
+      if (adapter?.nativeSectors) {
+        return c.json({
+          ownership: "game" as const,
+          editable: false as const,
+          sectorStarts: null,
+          trackLength,
+        });
+      }
+
+      const sharedName = getSharedTrackName(ordinal, gameId);
+      const sectors = (sharedName ? loadTrackSectorsFor(sharedName, gameId) : undefined)
+        ?? getTrackSectorsByOrdinal(ordinal);
+      return c.json({
+        ...sectors,
+        ownership: "raceiq" as const,
+        editable: true as const,
+        sectorStarts: [0, sectors.s1End, sectors.s2End],
+        trackLength,
+      });
     }
   )
 
   // PUT /api/track-sector-boundaries/:ordinal — update s1End/s2End fractions (dev only)
   .put("/api/track-sector-boundaries/:ordinal",
     zValidator("param", OrdinalParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
     async (c) => {
-      if (!IS_DEV) return c.json({ error: "Not available in production" }, 403);
+      if (!IS_DEV && !IS_E2E) return c.json({ error: "Not available in production" }, 403);
       const { ordinal } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+
+      // Check ownership before reading the body. Native-sector callers must
+      // receive this stable conflict even when their payload is malformed.
+      if ((tryGetGame(gameId) ?? tryGetServerGame(gameId))?.nativeSectors) {
+        return c.json({
+          error: "native-sectors-read-only",
+          message: "Native sector boundaries are supplied by the game and cannot be edited",
+        }, 409);
+      }
 
       const body = await c.req.json();
       const { s1End, s2End } = body;
-      if (typeof s1End !== "number" || typeof s2End !== "number") {
+      if (!Number.isFinite(s1End) || !Number.isFinite(s2End)) {
         return c.json({ error: "s1End and s2End numbers required" }, 400);
       }
       if (s1End <= 0 || s1End >= s2End || s2End >= 1) {
         return c.json({ error: "Invalid sector boundaries: need 0 < s1End < s2End < 1" }, 400);
       }
 
-      const gameId = c.req.query("gameId");
       const slug = getSharedTrackName(ordinal, gameId);
 
       // Sector boundaries are lap fractions, so they live with the rest of this
       // game's geometry rather than in the shared facts.
-      if (slug && gameId) {
+      if (slug) {
         const geometry = loadTrackGeometry(slug, gameId);
         saveTrackGeometry(slug, gameId, {
           sectors: { s1End, s2End },
@@ -188,11 +214,11 @@ export const trackSegmentRoutes = new Hono()
   // PUT /api/tracks/:trackOrdinal/segments — save segments to shared meta (dev only)
   .put("/api/tracks/:trackOrdinal/segments",
     zValidator("param", TrackOrdinalParamSchema),
-    zValidator("query", GameIdQuerySchema),
+    zValidator("query", RequiredGameIdQuerySchema),
     async (c) => {
-      if (!IS_DEV) return c.json({ error: "Not available in production" }, 403);
+      if (!IS_DEV && !IS_E2E) return c.json({ error: "Not available in production" }, 403);
       const { trackOrdinal } = c.req.valid("param");
-      const gameId = c.req.query("gameId");
+      const { gameId } = c.req.valid("query");
 
       const body = await c.req.json();
       if (!body.segments || !Array.isArray(body.segments)) {
@@ -202,9 +228,6 @@ export const trackSegmentRoutes = new Hono()
       const slug = getSharedTrackName(trackOrdinal, gameId);
       if (!slug) {
         return c.json({ error: "No shared track name for this ordinal" }, 400);
-      }
-      if (!gameId) {
-        return c.json({ error: "gameId required: fractions are always game-specific" }, 400);
       }
 
       // The editor hands back joined segments, so split them: fractions belong

@@ -1,9 +1,9 @@
 import { memo, useMemo } from "react";
 import { lapWrappedSegmentGroup, segmentDisplayNames } from "@shared/racing/tracks/segment-label";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "../track-map/types";
 
-export type { SemanticAnalysisFrame } from "./track-map/types";
+export type { SemanticAnalysisFrame } from "../track-map/types";
 
 const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
   const value = frame.values[id];

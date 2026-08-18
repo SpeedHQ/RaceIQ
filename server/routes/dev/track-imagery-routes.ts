@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { Hono } from "hono";
 import sharp from "sharp";
 import { z } from "zod";
@@ -21,8 +21,16 @@ import { TRACK_IMAGERY_PACKAGE_NAME, readTrackImageryPackMetadata, readTrackImag
 import { loadTrackConfiguration } from "../../tracks/configuration";
 import { loadOpenTrackImageryAsset, loadOpenTrackImageryRaster, searchOpenTrackImagery } from "../../tracks/imagery-sources";
 import { resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
-import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
+import {
+  listTrackImageryConfigurations,
+  loadTrackImageryLayout,
+  loadTrackImageryVenue,
+  trackImageryContentType,
+  trackImageryLayoutPath,
+  trackImageryVenueDirectory,
+} from "../../tracks/imagery";
 import { resolveTrackOutline } from "../tracks/support";
+import { writeAtomicJson } from "../../../shared/platform/runtime/atomic-json";
 
 const MAX_TRACK_IMAGE_BYTES = 100 * 1024 * 1024;
 const MAX_TRACK_IMAGE_PIXELS = 200_000_000;
@@ -97,12 +105,6 @@ async function validatedImage(file: File, requireAlpha: boolean): Promise<Valida
   return { bytes, extension, width: metadata.width, height: metadata.height };
 }
 
-function writeJson(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const temporary = `${path}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  renameSync(temporary, path);
-}
 
 function replaceTexture(directory: string, stem: string, image: ValidatedImage): string {
   mkdirSync(directory, { recursive: true });
@@ -205,7 +207,7 @@ function removeLayerFromLayouts(venueId: string, layerId: string): void {
   for (const layout of listTrackImageryConfigurations().layouts) {
     const configuration = loadTrackConfiguration(layout.gameId, layout.trackOrdinal);
     if (!configuration || trackConfigurationVenueId(configuration) !== venueId || !layout.layers.includes(layerId)) continue;
-    writeJson(trackImageryLayoutPath(layout.gameId, layout.trackOrdinal), {
+    writeAtomicJson(trackImageryLayoutPath(layout.gameId, layout.trackOrdinal), {
       ...layout,
       layers: layout.layers.filter((id) => id !== layerId),
     });
@@ -295,7 +297,7 @@ export const trackImageryDevRoutes = new Hono()
       const directory = trackImageryVenueDirectory(venueId);
       await writeTrackImageryPack(imageryPackPath(venueId), packageMetadata(asset, requestBody.bounds), asset.tiles);
       removeLooseBaseFiles(directory);
-      writeJson(resolve(directory, "manifest.json"), manifest);
+      writeAtomicJson(resolve(directory, "manifest.json"), manifest);
       console.info(`[Track Imagery] Completed ${requestBody.candidateId} import for venue ${venueId}: ${asset.width}x${asset.height}px, ${asset.columns * asset.rows} internal tiles`);
       return c.json(manifest, 201);
     } catch (error) {
@@ -382,7 +384,7 @@ export const trackImageryDevRoutes = new Hono()
         manualImageryTiles(image, tileSize, width, height),
       );
       removeLooseBaseFiles(directory);
-      writeJson(resolve(directory, "manifest.json"), manifest);
+      writeAtomicJson(resolve(directory, "manifest.json"), manifest);
       return c.json(manifest, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to save base texture" }, 400);
@@ -405,7 +407,7 @@ export const trackImageryDevRoutes = new Hono()
           image: layersById.get(layer.id)?.image ?? layer.image,
         })),
       });
-      writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
+      writeAtomicJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
       return c.json(manifest);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to update imagery venue" }, 400);
@@ -430,7 +432,7 @@ export const trackImageryDevRoutes = new Hono()
         layers: [...venue.layers.filter((candidate) => candidate.id !== layerId), layer],
       });
       replaceTexture(layersDirectory, layerId, image);
-      writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
+      writeAtomicJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
       return c.json(manifest, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to save imagery layer" }, 400);
@@ -445,7 +447,7 @@ export const trackImageryDevRoutes = new Hono()
       const layer = venue.layers.find((candidate) => candidate.id === layerId);
       if (!layer) return c.json({ error: "Imagery layer not found" }, 404);
       const manifest = { ...venue, layers: venue.layers.filter((candidate) => candidate.id !== layerId) };
-      writeJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
+      writeAtomicJson(resolve(trackImageryVenueDirectory(venueId), "manifest.json"), manifest);
       const imagePath = resolve(trackImageryVenueDirectory(venueId), "layers", layer.image);
       if (existsSync(imagePath)) unlinkSync(imagePath);
       removeLayerFromLayouts(venueId, layerId);
@@ -475,7 +477,7 @@ export const trackImageryDevRoutes = new Hono()
       const knownLayers = new Set(venue.layers.map((layer) => layer.id));
       const missingLayer = layout.layers.find((layerId) => !knownLayers.has(layerId));
       if (missingLayer) return c.json({ error: `Imagery layer ${missingLayer} not found` }, 400);
-      writeJson(trackImageryLayoutPath(gameId, trackOrdinal), layout);
+      writeAtomicJson(trackImageryLayoutPath(gameId, trackOrdinal), layout);
       return c.json(layout);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to save imagery layout" }, 400);

@@ -1,7 +1,7 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { GameId } from "@shared/games/ids";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "../track-map/types";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "@/lib/settings-storage";
 import { operatingRangeColor, severityRangeColor } from "../../lib/colors";

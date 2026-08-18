@@ -24,7 +24,8 @@
 import { loadTrackFacts } from "../../shared/racing/tracks/storage/meta";
 import { cornerNumbers } from "../../shared/racing/tracks/facts";
 import { cornerPromptLabel } from "../../shared/racing/tracks/segment-label";
-import { listTrackGuideSlugs, loadTrackGuide } from "../../shared/racing/tracks/guide/data";
+import { productionTrackGuideStore, TRACK_GUIDE_SLUG_RE } from "../../shared/racing/tracks/guide/data";
+import type { TrackFacts } from "../../shared/racing/tracks/facts";
 import type { ResolvedTrackGuide, TrackGuideCornerFile, TrackGuideFile } from "../../shared/racing/tracks/guide/types";
 
 function normalise(name: string): string {
@@ -107,21 +108,14 @@ const TRACK_KEYWORDS: [string[], string][] = [
   [["hanoi"], "hanoi"],
 ];
 
-/** Look up a guide by track meta ID (e.g., "spa") or display name */
+/** Look up guide by track meta ID or display name. */
 function findGuide(trackNameOrId: string): TrackGuideFile | null {
   const norm = normalise(trackNameOrId);
-
-  // Direct ID match first
-  const direct = loadTrackGuide(norm) ?? loadTrackGuide(trackNameOrId);
+  const direct = TRACK_GUIDE_SLUG_RE.test(norm) ? productionTrackGuideStore.load(norm) : null;
   if (direct) return direct;
-
-  // Keyword search against display name
   for (const [keywords, id] of TRACK_KEYWORDS) {
-    if (keywords.some((kw) => norm.includes(kw))) {
-      return loadTrackGuide(id);
-    }
+    if (keywords.some((kw) => norm.includes(kw))) return productionTrackGuideStore.load(id);
   }
-
   return null;
 }
 
@@ -131,39 +125,21 @@ interface TrackGuideOptions {
 }
 
 /**
- * Map each official turn number to the label track meta uses for it, so a
- * guide entry anchored to [14, 15] at Monaco renders "Piscine (14-15)" — the
- * same string the track map and the prompt's corner whitelist use — rather
- * than the guide's own "Swimming Pool".
- *
- * Facts only: a corner's name, numbering and complex are properties of the
- * circuit, identical in every game, so this takes no gameId.
+ * Resolve one guide corner against bundled game-agnostic facts.
  */
-function metaLabelsByTurn(slug: string): Map<number, string> {
+function metaLabelsByTurn(facts: TrackFacts | null): Map<number, string> {
   const out = new Map<number, string>();
-  const facts = loadTrackFacts(slug);
   if (!facts) return out;
   for (const corner of facts.corners) {
     const nums = cornerNumbers(corner);
-    // Group-collapsed labels: every turn of a complex maps to the one label for
-    // the whole complex, so a guide entry spanning it resolves (each member
-    // carrying its own label would make `canonicalLabel` see a partial match and
-    // fall back to the guide's own name).
     const members = corner.group ? facts.corners.filter((c) => c.group === corner.group) : [corner];
     const name = corner.group || corner.name;
-    // Facts leave a turn the circuit doesn't name empty; `T3` / `T3-4` is the
-    // token the rest of the app renders for it.
     const label = name ? cornerPromptLabel(name, members.flatMap(cornerNumbers)) : `T${nums.join("-")}`;
     for (const n of nums) out.set(n, label);
   }
   return out;
 }
 
-/**
- * Resolve one guide entry to the label the rest of the app uses for it.
- * Returns null when the entry's turns don't all belong to a single meta
- * segment — a partial match would mislabel, so the guide's own name is kept.
- */
 function canonicalLabel(c: TrackGuideCornerFile, labels: Map<number, string>): string | null {
   if (!c.numbers?.length || labels.size === 0) return null;
   const hit = labels.get(c.numbers[0]);
@@ -171,20 +147,10 @@ function canonicalLabel(c: TrackGuideCornerFile, labels: Map<number, string>): s
   return c.numbers.every((n) => labels.get(n) === hit) ? hit : null;
 }
 
-/**
- * The same knowledge `buildTrackGuideContext` puts in the prompt, structured.
- *
- * Shares the label resolution and the merge rule with the prompt builder, so
- * what the Info page shows is what the coach was told — if these two could
- * drift, the page would be documenting a guide that doesn't exist.
- */
-export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): ResolvedTrackGuide | null {
-  const guide = findGuide(opts.slug ?? trackName);
-  if (!guide) return null;
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
+/** Resolve guide prose against canonical track facts. Pure, no disk access. */
+export function resolveTrackGuideFile(guide: TrackGuideFile, facts: TrackFacts | null): ResolvedTrackGuide {
+  const labels = metaLabelsByTurn(facts);
   const labelFor = (c: TrackGuideCornerFile) => canonicalLabel(c, labels) ?? c.name;
-  const isPriority = (c: TrackGuideCornerFile) => guide.priorityCorners.includes(c.key);
-
   const byLabel = new Map<string, TrackGuideCornerFile[]>();
   for (const c of guide.corners) {
     const label = labelFor(c);
@@ -192,7 +158,6 @@ export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): 
     if (bucket) bucket.push(c);
     else byLabel.set(label, [c]);
   }
-
   return {
     id: guide.id,
     character: guide.character,
@@ -202,17 +167,22 @@ export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): 
       technique: entries.map((e) => e.technique).join(" "),
       trap: entries.map((e) => e.trap).join("; "),
       numbers: entries.flatMap((e) => e.numbers ?? []).sort((a, b) => a - b),
-      priority: entries.some(isPriority),
+      priority: entries.some((entry) => guide.priorityCorners.includes(entry.key)),
     })),
   };
 }
 
-/** The corner labels a guide will actually emit for this track. */
+export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): ResolvedTrackGuide | null {
+  const guide = findGuide(opts.slug ?? trackName);
+  if (!guide) return null;
+  return resolveTrackGuideFile(guide, opts.slug ? loadTrackFacts(opts.slug) : null);
+}
+
 export function guideCornerLabels(trackName: string, opts: TrackGuideOptions = {}): string[] {
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return [];
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
-  return [...new Set(guide.corners.map((c) => canonicalLabel(c, labels) ?? c.name))];
+  const resolved = resolveTrackGuideFile(guide, opts.slug ? loadTrackFacts(opts.slug) : null);
+  return resolved.corners.map((corner) => corner.label);
 }
 
 /**
@@ -227,7 +197,7 @@ export function buildTrackGuideContext(trackName: string, opts: TrackGuideOption
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return "";
 
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
+  const labels = opts.slug ? metaLabelsByTurn(loadTrackFacts(opts.slug)) : new Map<number, string>();
   const labelFor = (c: TrackGuideCornerFile) => canonicalLabel(c, labels) ?? c.name;
 
   let out = "\n--- Expert Track Guide ---\n";
@@ -277,5 +247,5 @@ export function buildTrackGuideContext(trackName: string, opts: TrackGuideOption
  * Useful for UI indicators showing which tracks have expert knowledge.
  */
 export function getAvailableTrackGuides(): string[] {
-  return listTrackGuideSlugs();
+  return productionTrackGuideStore.list();
 }

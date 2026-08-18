@@ -3,7 +3,8 @@ import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
-import type { TrackImageryMatrix } from "../../../../../shared/racing/tracks/imagery";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TrackImageryMatrix } from "../../../../shared/racing/tracks/imagery";
 import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform } from "./types";
 
 const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
@@ -44,15 +45,17 @@ export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
   bufferCanvas: HTMLCanvasElement | null;
   telemetry: SemanticAnalysisFrame[];
-  gameId?: import("../../../../../shared/games/ids").GameId;
+  gameId?: GameId;
   resolvedPositions: Point[];
   outline: Point[] | null;
+  showOutline?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
   imagery?: StaticTrackImagery | null;
   sectors: SectorBoundaries | null;
   boundaries: TrackMapBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
+  curbs?: { points: Point[]; side: string }[] | null;
   highlights?: TrackHighlight[] | null;
   showInputs?: boolean;
   showRaceLine?: boolean;
@@ -68,14 +71,16 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     gameId,
     resolvedPositions,
     outline,
+    showOutline = true,
     mapLabels,
     pitLines,
     imagery,
     boundaries,
     sectors,
     segments,
-    highlights,
+    curbs,
     showInputs,
+    highlights,
     showRaceLine = false,
     showTrace,
     rotateWithCar,
@@ -89,13 +94,17 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
 
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
-  const telemetryPoints = telemetryPointsWithIdx as Point[];
-  const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
+  const telemetryPoints: Point[] = telemetryPointsWithIdx.map(({ x, z }) => ({ x, z }));
+  const hasTelemetryTrace = telemetryPoints.length > 2;
+  const displayOutline: Point[] = showTrace && hasTelemetryTrace ? telemetryPoints : (outline ?? (hasTelemetryTrace ? telemetryPoints : []));
+  const visualOutline: Point[] = showOutline ? (outline ?? (hasTelemetryTrace ? telemetryPoints : [])) : showTrace && !hasTelemetryTrace ? (outline ?? []) : [];
   if (displayOutline.length < 2) return { bufferCanvas: null, transform: null };
   const flip = needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const flippedPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
+  const boundaryPitLane = boundaries?.pitLane && boundaries.pitLane.length > 1 ? (flip ? flipPoints(boundaries.pitLane) : boundaries.pitLane) : null;
+  const flippedCurbs = flip && curbs ? curbs.map((curb) => ({ ...curb, points: flipPoints(curb.points) })) : curbs;
   const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
@@ -174,6 +183,18 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   }
 
   drawPitLines(ctx, flippedPitLines, toCanvas);
+  if (boundaryPitLane) {
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(boundaryPitLane[0].x, boundaryPitLane[0].z));
+    for (let i = 1; i < boundaryPitLane.length; i++) ctx.lineTo(...toCanvas(boundaryPitLane[i].x, boundaryPitLane[i].z));
+    ctx.strokeStyle = "var(--track-pit-lane)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.globalAlpha = 0.7;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
   if (hasBounds) {
     const left = flippedLeft!;
     const right = flippedRight!;
@@ -196,16 +217,17 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.stroke();
   }
 
-  ctx.beginPath();
-  ctx.strokeStyle = showInputs ? "var(--track-outline-strong)" : "var(--track-outline)";
-  ctx.lineWidth = showInputs ? 0.75 : 4;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
-  ctx.moveTo(sx, sy);
-  for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-  if (outline) ctx.lineTo(sx, sy);
-  ctx.stroke();
+  if (visualOutline.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = showInputs ? "var(--track-outline-strong)" : "var(--track-outline)";
+    ctx.lineWidth = showInputs ? 0.75 : 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.moveTo(...toCanvas(visualOutline[0].x, visualOutline[0].z));
+    for (let i = 1; i < visualOutline.length; i++) ctx.lineTo(...toCanvas(visualOutline[i].x, visualOutline[i].z));
+    if (outline) ctx.closePath();
+    ctx.stroke();
+  }
 
   if (raceLine) {
     ctx.beginPath();
@@ -296,13 +318,13 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.fillText(label.text, label.x, label.y);
     }
   }
-  if (!sectors && !segments?.length) {
+  if (!sectors && !segments?.length && visualOutline.length > 1) {
     ctx.beginPath();
     ctx.strokeStyle = "var(--track-edge)";
     ctx.lineWidth = 2;
-    ctx.moveTo(sx, sy);
-    for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-    if (outline) ctx.lineTo(sx, sy);
+    ctx.moveTo(...toCanvas(visualOutline[0].x, visualOutline[0].z));
+    for (let i = 1; i < visualOutline.length; i++) ctx.lineTo(...toCanvas(visualOutline[i].x, visualOutline[i].z));
+    if (outline) ctx.closePath();
     ctx.stroke();
   }
 
@@ -320,35 +342,21 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.fillText(label.text, labelX, labelY);
     }
   }
-  if (highlights?.length)
-    for (const hl of highlights) {
-      const style = HIGHLIGHT_COLORS[hl.color];
-      drawRange(hl.startFrac, hl.endFrac, style.stroke, style.width);
-    }
-
-  if (outline) {
-    const [sfCx, sfCy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
-    ctx.beginPath();
-    ctx.arc(sfCx, sfCy, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "var(--track-start)";
-    ctx.fill();
-    ctx.strokeStyle = "var(--track-label-background)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
   if (sectors && displayOutline.length > 10) {
     for (let si = 0; si < sectors.sectorStarts.slice(1).length; si++) {
-      const pt = displayOutline[fracToIdx(sectors.sectorStarts.slice(1)[si])];
+      const fraction = sectors.sectorStarts.slice(1)[si];
+      const sectorIndex = fracToIdx(fraction);
+      const pt = displayOutline[sectorIndex];
       if (!pt) continue;
       const [mx, my] = toCanvas(pt.x, pt.z);
-      const prev = displayOutline[Math.max(0, fracToIdx(sectors.sectorStarts.slice(1)[si]) - 3)],
-        next = displayOutline[Math.min(displayOutline.length - 1, fracToIdx(sectors.sectorStarts.slice(1)[si]) + 3)];
-      const dx = next.x - prev.x,
-        dz = next.z - prev.z,
-        len = Math.hypot(dx, dz);
+      const prev = displayOutline[Math.max(0, sectorIndex - 3)];
+      const next = displayOutline[Math.min(displayOutline.length - 1, sectorIndex + 3)];
+      const dx = next.x - prev.x;
+      const dz = next.z - prev.z;
+      const len = Math.hypot(dx, dz);
       if (len > 0) {
-        const nx = dz / len,
-          nz = -dx / len;
+        const nx = dz / len;
+        const nz = -dx / len;
         ctx.beginPath();
         ctx.moveTo(mx - nx * 8, my + nz * 8);
         ctx.lineTo(mx + nx * 8, my - nz * 8);
@@ -364,6 +372,45 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.lineWidth = 1;
       ctx.stroke();
     }
+  }
+  if (flippedCurbs?.length) {
+    for (const curb of flippedCurbs) {
+      const color = curb.side === "left" ? "var(--track-curb-left)" : curb.side === "right" ? "var(--track-curb-right)" : "var(--track-curb-unknown)";
+      for (const point of curb.points) {
+        const [x, y] = toCanvas(point.x, point.z);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.8;
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (showTrace && hasTelemetryTrace) {
+    ctx.beginPath();
+    ctx.strokeStyle = showInputs ? "var(--track-outline-strong)" : "var(--track-outline)";
+    ctx.lineWidth = showInputs ? 0.75 : 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.moveTo(...toCanvas(telemetryPoints[0].x, telemetryPoints[0].z));
+    for (let i = 1; i < telemetryPoints.length; i++) ctx.lineTo(...toCanvas(telemetryPoints[i].x, telemetryPoints[i].z));
+    ctx.stroke();
+  }
+  if (highlights?.length)
+    for (const hl of highlights) {
+      const style = HIGHLIGHT_COLORS[hl.color];
+      drawRange(hl.startFrac, hl.endFrac, style.stroke, style.width);
+    }
+  if (displayOutline.length > 1) {
+    const [sfCx, sfCy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
+    ctx.beginPath();
+    ctx.arc(sfCx, sfCy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "var(--track-start)";
+    ctx.fill();
+    ctx.strokeStyle = "var(--track-label-background)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   }
   if (showInputs && telemetryPoints.length > 2) {
     for (let i = 1; i < telemetryPoints.length; i++) {

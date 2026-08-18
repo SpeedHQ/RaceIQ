@@ -4,11 +4,10 @@ import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { PitLine } from "@/lib/canvas/draw-track";
 import { m } from "../../paraglide/messages";
-import { ChevronDownIcon } from "lucide-react";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
-import { DropdownMenu } from "../ui/DropdownMenu";
-import { AnalyseTrackMap } from "./AnalyseTrackMap";
+import { TrackMapCanvas } from "../track-map/TrackMapCanvas";
+import { TrackMapLayerMenu, type TrackMapLayerMenuItem } from "../track-map/TrackMapLayerMenu";
 import {
   DEFAULT_TRACK_OVERLAYS,
   TRACK_MAP_MAX_ZOOM,
@@ -22,7 +21,8 @@ import {
   type TrackMapLabel,
   type TrackOverlayKey,
   type TrackOverlays,
-} from "./track-map/types";
+  type TrackMapLayerState,
+} from "../track-map/types";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
@@ -98,40 +98,49 @@ export function AnalyseTrackPanel({
   weatherBottomRight,
 }: AnalyseTrackPanelProps) {
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
-  const anyTrackOverlay = Object.values(trackOverlays).some(Boolean);
+  const trace = showTrace ?? true;
   const imageryAttribution = [imagery?.base.source.attribution, ...(imagery?.textures.map((texture) => texture.source.attribution) ?? [])]
     .filter((value, index, values) => value && values.indexOf(value) === index)
     .join(" · ");
-  const overlayItems = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
+  const layers: TrackMapLayerState = {
+    imagery: showImagery,
+    boundaries: true,
+    pitLane: true,
+    outline: !trace,
+    racingLine: trackOverlays.racingLine && hasRacingLine,
+    segments: trackOverlays.segments,
+    sectors: trackOverlays.sectors,
+    curbs: false,
+    trace,
+    inputs: trackOverlays.inputs,
+    highlights: !!aiPanelOpen,
+    car: true,
+  };
+  const overlayItems: TrackMapLayerMenuItem[] = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
     .filter((overlay) => overlay !== "racingLine" || hasRacingLine)
     .map((overlay) => ({
-      type: "checkbox" as const,
       key: overlay,
       label: overlay === "inputs" ? m.overlay_inputs() : overlay === "segments" ? m.overlay_segments() : overlay === "sectors" ? m.overlay_sectors() : m.overlay_racing_line(),
-      checked: trackOverlays[overlay],
-      onCheckedChange: (checked: boolean) => onTrackOverlayChange?.(overlay, checked),
+      available: true,
     }));
 
   return (
     <div data-testid="analyse-track-map-panel" className="relative h-full min-w-0 bg-app-bg p-2">
-      <AnalyseTrackMap
+      <TrackMapCanvas
         ref={trackMapRef}
         gameId={gameId}
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}
-        mapLabels={trackOverlays.segments ? mapLabels : null}
+        mapLabels={mapLabels}
         pitLines={pitLines}
         imagery={imagery}
         geographicPositions={geographicPositions ?? undefined}
-        showImagery={showImagery}
         boundaries={boundaries}
-        sectors={trackOverlays.sectors ? sectors : null}
-        segments={trackOverlays.segments ? segments : null}
-        highlights={aiPanelOpen ? aiHighlights : null}
-        showInputs={trackOverlays.inputs}
-        showTrace={showTrace}
-        showRaceLine={trackOverlays.racingLine && hasRacingLine}
+        sectors={sectors}
+        segments={segments}
+        highlights={aiHighlights}
+        layers={layers}
         rotateWithCar={rotateWithCar}
         zoom={mapZoom}
         onZoomChange={onMapZoomChange}
@@ -150,20 +159,10 @@ export function AnalyseTrackPanel({
           {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
         </Button>
         {!hideSteeringOverlay && onTrackOverlayChange && (
-          <DropdownMenu
-            align="left"
-            trigger={
-              <Button
-                type="button"
-                className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
-                  anyTrackOverlay ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-                }`}
-              >
-                {m.overlay_overlay()}
-                <ChevronDownIcon data-icon="inline-end" />
-              </Button>
-            }
+          <TrackMapLayerMenu
+            layers={layers}
             items={overlayItems}
+            onLayerChange={(key, checked) => onTrackOverlayChange(key as TrackOverlayKey, checked)}
           />
         )}
         {imagery && onShowImageryChange && (

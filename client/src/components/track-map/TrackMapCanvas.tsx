@@ -2,10 +2,10 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import { resolveTrackImageryMatrix } from "../../../../shared/racing/tracks/imagery";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { compositeFixedTrack, compositeTrack, drawCarOverlay } from "./track-map/overlay-drawing";
-import { pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
-import { drawStaticTrack } from "./track-map/static-drawing";
-import { semanticNumber, TRACK_MAP_MAX_RENDER_ZOOM, TRACK_MAP_MAX_ZOOM, TRACK_MAP_MIN_ZOOM, type TrackMapHandle, type TrackMapProps, type TrackTransform } from "./track-map/types";
+import { compositeFixedTrack, compositeTrack, drawCarOverlay } from "./overlay-drawing";
+import { pathForwardOffsets, resolveTrackPositions } from "./path";
+import { drawStaticTrack } from "./static-drawing";
+import { semanticNumber, TRACK_MAP_MAX_RENDER_ZOOM, TRACK_MAP_MAX_ZOOM, TRACK_MAP_MIN_ZOOM, type TrackMapHandle, type TrackMapProps, type TrackTransform } from "./types";
 
 const TRACK_MAP_WHEEL_SENSITIVITY = 0.0015;
 const TRACK_MAP_MAX_WHEEL_DELTA_PER_FRAME = 240;
@@ -90,7 +90,7 @@ function imagerySourceUrl(url: string): string {
   return new URL(url, window.location.href).toString();
 }
 
-export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(function AnalyseTrackMap(props, ref) {
+export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function TrackMapCanvas(props, ref) {
   const {
     gameId,
     telemetry,
@@ -100,19 +100,35 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     pitLines,
     imagery,
     geographicPositions,
-    showImagery = true,
     boundaries,
     sectors,
     segments,
+    curbs,
     highlights,
-    showInputs,
-    showRaceLine = false,
-    showTrace = true,
+    layers,
     rotateWithCar,
     zoom = 1,
     onZoomChange,
   } = props;
+  const showImagery = layers.imagery;
+  const showInputs = layers.inputs;
+  const showRaceLine = layers.racingLine;
+  const showTrace = layers.trace;
   const viewportRef = useRef<HTMLDivElement>(null);
+  const visibleBoundaries = useMemo(
+    () =>
+      boundaries
+        ? {
+            ...boundaries,
+            leftEdge: layers.boundaries ? boundaries.leftEdge : [],
+            rightEdge: layers.boundaries ? boundaries.rightEdge : [],
+            centerLine: layers.boundaries ? boundaries.centerLine : [],
+            raceLine: layers.racingLine ? boundaries.raceLine : null,
+            pitLane: layers.pitLane ? boundaries.pitLane : null,
+          }
+        : null,
+    [boundaries, layers.boundaries, layers.pitLane, layers.racingLine],
+  );
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
@@ -132,9 +148,13 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const imageryTileManagerRef = useRef<ImageryTileManager | null>(null);
   const [imageryTiles, setImageryTiles] = useState<readonly LoadedImageryTile[]>([]);
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, gameId), [telemetry, outline, gameId]);
+  const imageryLocalPositions = resolvedPositions.length > 0 ? resolvedPositions : (outline ?? []);
   const imageryMatrix = useMemo(
-    () => (showImagery && imagery && geographicPositions ? resolveTrackImageryMatrix(resolvedPositions, geographicPositions, imagery.calibration) : null),
-    [geographicPositions, imagery, resolvedPositions, showImagery],
+    () =>
+      showImagery && imagery && geographicPositions && imageryLocalPositions.length > 1
+        ? resolveTrackImageryMatrix(imageryLocalPositions, geographicPositions, imagery.calibration)
+        : null,
+    [geographicPositions, imagery, imageryLocalPositions, showImagery],
   );
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
   const directVectorRender = zoom > TRACK_MAP_MAX_RENDER_ZOOM;
@@ -430,13 +450,15 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
         gameId,
         resolvedPositions,
         outline,
-        pitLines,
-        mapLabels,
+        showOutline: layers.outline,
+        pitLines: layers.pitLane ? pitLines : null,
+        mapLabels: layers.segments ? mapLabels : null,
         imagery: renderedImagery,
-        boundaries,
-        sectors,
-        segments,
-        highlights,
+        boundaries: visibleBoundaries,
+        sectors: layers.sectors ? sectors ?? null : null,
+        segments: layers.segments ? segments : null,
+        curbs: layers.curbs ? curbs : null,
+        highlights: layers.highlights ? highlights : null,
         showInputs,
         showRaceLine,
         showTrace,
@@ -446,7 +468,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
           ? {
               panX: panRef.current.x,
               panY: panRef.current.y,
-              ...(rotateWithCar && position ? { center: position, rotation, drawFollowCar: true } : {}),
+              ...(rotateWithCar && layers.car && position ? { center: position, rotation, drawFollowCar: true } : {}),
             }
           : undefined,
       });
@@ -456,7 +478,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
         const ctx = getSemanticCanvasContext(carCanvasRef.current);
         ctx?.clearRect(0, 0, carCanvasRef.current.width, carCanvasRef.current.height);
       }
-      if (directVectorRender && rotateWithCar && result.transform && position) {
+      if (layers.car && directVectorRender && rotateWithCar && result.transform && position) {
         carPosRef.current = {
           x: result.transform.w / 2 + panRef.current.x,
           y: result.transform.h / 2 + panRef.current.y,
@@ -475,10 +497,12 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       pitLines,
       mapLabels,
       renderedImagery,
-      boundaries,
+      visibleBoundaries,
       sectors,
       segments,
+      curbs,
       highlights,
+      layers,
       showInputs,
       showRaceLine,
       showTrace,
@@ -499,8 +523,9 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       transform: transformRef.current,
       panX: panRef.current.x,
       panY: panRef.current.y,
+      showCar: layers.car,
     }),
-    [telemetry, resolvedPositions, resolvedDirections],
+    [telemetry, resolvedPositions, resolvedDirections, layers.car],
   );
 
   const composite = useCallback(
@@ -510,7 +535,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       if (transformRef.current) requestVisibleTiles(transformRef.current);
       const pkt = telemetry[idx],
         pos = resolvedPositions[idx];
-      if (pkt && pos && transformRef.current)
+      if (layers.car && pkt && pos && transformRef.current)
         carPosRef.current = {
           x: transformRef.current.w / 2 + panRef.current.x,
           y: transformRef.current.h / 2 + panRef.current.y,
@@ -519,7 +544,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
           angle: -Math.PI / 2,
         };
     },
-    [renderOverlayOptions, requestVisibleTiles, telemetry, resolvedPositions],
+    [renderOverlayOptions, requestVisibleTiles, telemetry, resolvedPositions, layers.car],
   );
   const drawCar = useCallback(
     (idx: number) => {

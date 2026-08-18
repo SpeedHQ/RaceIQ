@@ -12,6 +12,7 @@ export interface OverlayOptions {
   transform: TrackTransform | null;
   panX: number;
   panY: number;
+  showCar?: boolean;
 }
 
 const direction = (frame: SemanticAnalysisFrame, path: [number, number] | null): [number, number] =>
@@ -29,7 +30,7 @@ export function compositeFixedTrack(options: OverlayOptions): void {
 }
 
 export function compositeTrack(options: OverlayOptions, idx: number): void {
-  const { canvas, telemetry, resolvedPositions, resolvedDirections, transform: t, bufferCanvas, panX, panY } = options;
+  const { canvas, telemetry, resolvedPositions, resolvedDirections, transform: t, bufferCanvas, panX, panY, showCar = true } = options;
   if (!bufferCanvas || !t) return;
   const ctx = getSemanticCanvasContext(canvas);
   if (!ctx) return;
@@ -39,7 +40,7 @@ export function compositeTrack(options: OverlayOptions, idx: number): void {
   const frame = telemetry[idx],
     position = resolvedPositions[idx],
     path = resolvedDirections[idx];
-  if (frame && position) {
+  if (showCar && frame && position) {
     const cx = t.offsetX + (t.maxX - position.x) * t.scale,
       cy = t.offsetZ + (position.z - t.minZ) * t.scale;
     ctx.translate(t.w / 2 + panX, t.h / 2 + panY);
@@ -47,7 +48,7 @@ export function compositeTrack(options: OverlayOptions, idx: number): void {
     ctx.translate(-cx, -cy);
   }
   ctx.drawImage(bufferCanvas, 0, 0, t.offW, t.offH);
-  if (frame && position) {
+  if (showCar && frame && position) {
     const cx = t.offsetX + (t.maxX - position.x) * t.scale,
       cy = t.offsetZ + (position.z - t.minZ) * t.scale;
     const [dx, dz] = direction(frame, path),
@@ -70,15 +71,15 @@ export function compositeTrack(options: OverlayOptions, idx: number): void {
   }
   ctx.restore();
 }
-
 export function drawCarOverlay(options: OverlayOptions, idx: number): { x: number; y: number; w: number; h: number; angle?: number } | null {
-  const { carCanvas, telemetry, resolvedPositions, resolvedDirections, transform: t, panX, panY } = options;
+  const { carCanvas, telemetry, resolvedPositions, resolvedDirections, transform: t, panX, panY, showCar = true } = options;
   if (!t) return null;
   syncCanvasSize(carCanvas, t.w, t.h, window.devicePixelRatio || 1, false);
   const ctx = getSemanticCanvasContext(carCanvas);
   if (!ctx) return null;
   ctx.setTransform(carCanvas.width / t.w, 0, 0, carCanvas.height / t.h, 0, 0);
   ctx.clearRect(0, 0, t.w, t.h);
+  if (!showCar) return null;
   const frame = telemetry[idx],
     position = resolvedPositions[idx];
   if (!frame || !position) return null;

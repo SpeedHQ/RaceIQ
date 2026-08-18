@@ -19,7 +19,7 @@ import {
   type TrackMapBoundaries,
   type TrackMapLabel,
   type TrackOverlays,
-} from "./track-map/types";
+} from "../track-map/types";
 interface AnalyseSemanticFrame {
   sequence: number;
   observedAtMs: number;

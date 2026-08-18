@@ -32,7 +32,7 @@ export function generateSegmentSvg(
   // Centerline CSVs hold RAW game coordinates. The UI never projects those
   // directly: it projects telemetry, which the pipeline has already X-negated
   // for standard-xyz games, and flips bundled outline/boundary data to match
-  // (AnalyseTrackMap, CompareTrackMap, TrackFocusView). Skipping this step fed
+  // (TrackMapCanvas, CompareTrackMap, TrackFocusView). Skipping this step fed
   // raw coords into a projection expecting display space — the SVGs came out
   // mirrored horizontally. Same helpers as the UI, so the two cannot diverge.
   // needsTrackFlip() returns false for an unregistered game, which would

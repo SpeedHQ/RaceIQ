@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnalyseDataPanel } from "../components/analyse/AnalyseDataPanel";
-import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../components/track-map/types";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
 const frame: SemanticAnalysisFrame = {

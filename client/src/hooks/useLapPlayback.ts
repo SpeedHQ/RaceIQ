@@ -1,6 +1,6 @@
 import { startTransition, useCallback, useEffect } from "react";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
-import { type SemanticAnalysisFrame, semanticNumber, type TrackMapHandle } from "../components/analyse/track-map/types";
+import { type SemanticAnalysisFrame, semanticNumber, type TrackMapHandle } from "../components/track-map/types";
 // Offer React-owned gauges playback updates at display cadence. Transition
 // scheduling may coalesce them under load so canvas animation stays smooth.
 export const REACT_STATE_INTERVAL_MS = 1000 / 60;

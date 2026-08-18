@@ -7,7 +7,7 @@ import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, TrackMapBoundaries } from "./track-map/types";
+import type { Point, TrackMapBoundaries } from "../track-map/types";
 
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;

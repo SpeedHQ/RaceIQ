@@ -12,6 +12,26 @@ export interface NativeSectorTimeline {
 
 type IRacingSectorTimeline = NativeSectorTimeline;
 
+/** Native sector starts must be fractions beginning at lap origin. */
+export function isValidNativeSectorStarts(
+  starts: readonly number[] | undefined,
+): starts is number[] {
+  return (
+    !!starts &&
+    starts.length >= 2 &&
+    Number.isFinite(starts[0]) &&
+    starts[0] >= 0 &&
+    starts[0] < 1e-6 &&
+    starts.every(
+      (value, index) =>
+        Number.isFinite(value) &&
+        value >= 0 &&
+        value < 1 &&
+        (index === 0 || value > starts[index - 1]),
+    )
+  );
+}
+
 function computeDistanceSectorTimes(
   packets: TelemetryPacket[],
   lapTime: number,
@@ -52,20 +72,7 @@ export function computeNativeSectorTimeline(
 ): NativeSectorTimeline | null {
   const layouts = packets.map(getLayout);
   const starts = layouts.find((layout) => layout?.starts.length)?.starts;
-  if (
-    !starts ||
-    starts.length < 2 ||
-    !Number.isFinite(starts[0]) ||
-    starts[0] < 0 ||
-    starts[0] >= 1e-6 ||
-    starts.some(
-      (value, index) =>
-        !Number.isFinite(value) ||
-        value < 0 ||
-        value >= 1 ||
-        (index > 0 && value <= starts[index - 1]),
-    )
-  ) {
+  if (!isValidNativeSectorStarts(starts)) {
     return null;
   }
 

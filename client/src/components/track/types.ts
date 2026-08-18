@@ -58,6 +58,7 @@ export interface TrackBoundaries {
   rightEdge: Point[];
   centerLine?: Point[];
   pitLane: Point[] | null;
+  raceLine?: Point[] | null;
   coordSystem: string;
 }
 

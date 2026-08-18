@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "../../components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../../components/track-map/types";
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";

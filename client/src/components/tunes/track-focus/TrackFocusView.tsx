@@ -3,7 +3,7 @@ import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMemo, useState } from "react";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
-import type { SemanticAnalysisFrame } from "../../analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../../track-map/types";
 import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
@@ -85,7 +85,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
   // Boundary/outline data is stored in raw game coords; standard-xyz games
   // (ACC, AC Evo) have their telemetry PositionX negated by the pipeline, so
-  // flip the edges to match — same convention AnalyseTrackMap uses. Without
+  // flip the edges to match — same convention TrackMapCanvas uses. Without
   // this the driven line (negated telemetry) and the track edges (raw) are
   // X-mirror images of each other and don't overlay.
   const edges = useMemo(() => {

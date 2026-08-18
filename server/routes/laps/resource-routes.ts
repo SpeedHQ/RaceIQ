@@ -17,7 +17,7 @@ import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutat
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { assessLapRecording } from "../../lap-analysis/quality";
-import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
+import { computeNativeSectorTimeline, computeLapSectors, isValidNativeSectorStarts } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { resolveLapGeoreference } from "../../tracks/georeference";
@@ -77,12 +77,17 @@ export const resourceRoutes = new Hono()
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
-      const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const game = getGame(lap.gameId);
+      const nativeLayout = game.nativeSectors
+        ? lap.telemetry
+          .map((packet) => game.getNativeSectorLayout?.(packet))
+          .find((layout) => isValidNativeSectorStarts(layout?.starts))
+        : undefined;
       const trackOrdinal = lap.trackOrdinal;
       const georeference = trackOrdinal == null
         ? null
         : await resolveLapGeoreference({
-            canonicalSlug: getGame(lap.gameId).getSharedTrackName?.(trackOrdinal),
+            canonicalSlug: game.getSharedTrackName?.(trackOrdinal),
             gameId: lap.gameId,
             trackOrdinal,
             packets: lap.telemetry,

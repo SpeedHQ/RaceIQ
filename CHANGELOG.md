@@ -120,6 +120,7 @@
 - Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
 - Add fixture-seeded cross-game route and lap playback end-to-end coverage
 - Completed fixture-seeded browser workflow coverage across Sessions, Analyse, Compare, Driver, Experiments, Chats, Tracks, Cars, Setups, Dash, developer tools, compiled binaries, and emulated devices
+- Curate per-game track turns, timing-sector boundaries, authored guides, and calibrated imagery from one routed development workbench using the same layered map renderer as Analyse
 - Define setup form sources through typed catalog entries and expose iRacing setup metadata for future setup views
 
 ## v0.14.0 - 2026-08-05

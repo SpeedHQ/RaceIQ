@@ -12,6 +12,7 @@ import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import { isValidNativeSectorStarts } from "../lap-analysis/sectors";
 
 export async function insertSession(
   carOrdinal: number,
@@ -342,7 +343,7 @@ export async function getSessionRecapData(
       const lap = await getLapById(row.id);
       const layout = lap?.telemetry
         .map((packet) => gameAdapter.getNativeSectorLayout!(packet))
-        .find((candidate) => candidate?.starts.length === sessionSectorCount);
+        .find((candidate) => candidate?.starts.length === sessionSectorCount && isValidNativeSectorStarts(candidate.starts));
       if (layout) {
         sectorStarts = [...layout.starts];
         break;

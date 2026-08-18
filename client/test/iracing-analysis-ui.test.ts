@@ -7,8 +7,8 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
-import { pathForwardOffsets } from "../src/components/analyse/track-map/path";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { pathForwardOffsets } from "../src/components/track-map/path";
+import type { SemanticAnalysisFrame } from "../src/components/track-map/types";
 import type { useUnits } from "../src/hooks/useUnits";
 
 initGameAdapters({ iracingAdapter: true });

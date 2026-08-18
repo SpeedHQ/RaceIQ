@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
 import { AnalyseVizPanel } from "../components/analyse/AnalyseVizPanel";
-import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../components/track-map/types";
 
 export const frame: SemanticAnalysisFrame = {
   values: {

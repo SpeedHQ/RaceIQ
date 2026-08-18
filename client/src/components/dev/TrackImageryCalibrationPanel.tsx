@@ -20,12 +20,11 @@ import {
   type TrackImageryVenueManifest,
 } from "../../../../shared/racing/tracks/imagery";
 import { useLapSemanticTelemetry, useLaps } from "../../hooks/laps";
-import { useGameId, useGameStore } from "../../stores/game";
-import { TrackConfigurationBrowser, type TrackConfigurationSelection } from "./TrackConfigurationBrowser";
+import type { TrackConfigurationSelection } from "./TrackConfigurationBrowser";
 import { OpenTrackImageryPicker } from "./OpenTrackImageryPicker";
 import { Button } from "../ui/button";
-const EMPTY_SOURCE: TrackImagerySource = { name: "", url: "", capturedAt: "", license: "", attribution: "", provider: "manual" };
 const SAFE_ID = /^[a-z0-9][a-z0-9-]*$/;
+const EMPTY_SOURCE: TrackImagerySource = { name: "", url: "", capturedAt: "", license: "", attribution: "", provider: "manual" };
 
 function normalizedId(value: string): string {
   return value
@@ -102,20 +101,23 @@ function SourceEditor({ title, source, onChange, readOnly = false }: { title: st
   );
 }
 
-export function TrackImageryCalibrationPanel() {
-  const storeGameId = useGameId();
+export function TrackImageryCalibrationPanel({
+  selection,
+  configurationRevision,
+}: {
+  selection: TrackConfigurationSelection;
+  configurationRevision: number;
+}) {
   const queryClient = useQueryClient();
   const { data: laps = [] } = useLaps();
+  const gameId = selection.gameId;
+  const trackOrdinal = selection.trackOrdinal;
   const eligibleLaps = useMemo(() => laps.filter((lap) => lap.trackOrdinal != null && lap.lapTime > 0), [laps]);
-  const [selectedTrack, setSelectedTrack] = useState<TrackConfigurationSelection | null>(null);
-  const gameId = selectedTrack?.gameId ?? storeGameId;
-  const calibrationLaps = useMemo(() => (selectedTrack ? eligibleLaps.filter((lap) => lap.trackOrdinal === selectedTrack.trackOrdinal) : eligibleLaps), [eligibleLaps, selectedTrack]);
+  const calibrationLaps = useMemo(() => eligibleLaps.filter((lap) => lap.trackOrdinal === trackOrdinal), [eligibleLaps, trackOrdinal]);
   const [lapId, setLapId] = useState<number | null>(null);
   useEffect(() => {
     if (lapId !== null && !calibrationLaps.some((lap) => lap.id === lapId)) setLapId(null);
   }, [calibrationLaps, lapId]);
-  const selectedLap = calibrationLaps.find((lap) => lap.id === lapId) ?? null;
-  const trackOrdinal = selectedTrack?.trackOrdinal ?? selectedLap?.trackOrdinal ?? null;
   const [catalogReference, setCatalogReference] = useState<TrackImageryGeographicReference | null>(null);
   const [catalogReferenceLoading, setCatalogReferenceLoading] = useState(false);
   const { data: replay, isLoading: replayLoading } = useLapSemanticTelemetry(lapId);
@@ -124,7 +126,6 @@ export function TrackImageryCalibrationPanel() {
   const calibrationReferenceLoading = lapId === null ? catalogReferenceLoading : replayLoading;
 
   const [configuration, setConfiguration] = useState<TrackConfiguration | null>(null);
-  const [configurationRevision, setConfigurationRevision] = useState(0);
   const [venueId, setVenueId] = useState("");
   const [venue, setVenue] = useState<TrackImageryVenueManifest | null>(null);
   const [, setLayout] = useState<TrackImageryLayoutManifest | null>(null);
@@ -147,6 +148,25 @@ export function TrackImageryCalibrationPanel() {
   const [error, setError] = useState<string | null>(null);
   const [assetVersion, setAssetVersion] = useState(0);
   const dragRef = useRef<CalibrationDrag | null>(null);
+
+  useEffect(() => {
+    setLapId(null);
+    setCatalogReference(null);
+    setBaseFile(null);
+    setSelectedImageryCandidate(null);
+    setOpenImageryPreviewUrl(null);
+    setLayerFile(null);
+    setLayerId("");
+    setLayerSource(EMPTY_SOURCE);
+    setSelectedLayers([]);
+    setCalibration(null);
+    setConfiguration(null);
+    setVenueId("");
+    setVenue(null);
+    setBaseUrl(null);
+    setStatus(null);
+    setError(null);
+  }, [gameId, trackOrdinal]);
 
   useEffect(() => {
     if (!gameId || trackOrdinal == null) {
@@ -519,19 +539,6 @@ export function TrackImageryCalibrationPanel() {
       setSaving(false);
     }
   };
-  const handleSelectTrack = (selection: TrackConfigurationSelection) => {
-    useGameStore.getState().setGameId(selection.gameId);
-    setSelectedTrack(selection);
-    setLapId(null);
-    setCatalogReference(null);
-    setBaseFile(null);
-    setSelectedImageryCandidate(null);
-    setOpenImageryPreviewUrl(null);
-    setLayerFile(null);
-    setCalibration(null);
-    setStatus(null);
-    setError(null);
-  };
   const handleOpenImagerySelect = (candidate: TrackImageryCandidate, previewUrl: string) => {
     const nextCalibration = openImageryBounds ? trackImageryCalibrationFromBounds(geographicPositions, openImageryBounds) : null;
     if (!nextCalibration) {
@@ -563,9 +570,8 @@ export function TrackImageryCalibrationPanel() {
   };
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(25rem,32rem)_minmax(19rem,25rem)_1fr] bg-app-bg">
-      <TrackConfigurationBrowser selection={selectedTrack} onSelect={handleSelectTrack} onConfigurationChange={() => setConfigurationRevision((revision) => revision + 1)} />
-      <aside className="overflow-y-auto border-r border-app-border p-4">
+    <div className="grid h-full min-h-0 grid-cols-1 bg-app-bg @7xl/workspace:grid-cols-[minmax(19rem,25rem)_minmax(0,1fr)]">
+      <aside className="min-h-0 overflow-y-auto border-r border-app-border p-4">
         <h1 className="mb-1 text-lg font-semibold text-app-text">Imagery calibration</h1>
         <p className="mb-4 text-xs text-app-text-muted">One HQ venue package; reusable transparent game, layout, and correction layers.</p>
 
@@ -696,7 +702,7 @@ export function TrackImageryCalibrationPanel() {
         {error && <p className="mt-2 text-xs text-severity-critical">{error}</p>}
       </aside>
 
-      <main className="relative min-h-0 overflow-hidden p-4">
+      <main className="relative min-h-[24rem] overflow-hidden p-4 @7xl/workspace:min-h-0">
         {calibrationReferenceLoading && <div className="grid h-full place-items-center text-sm text-app-text-muted">Loading calibration reference…</div>}
         {!calibrationReferenceLoading && (!viewBounds || !calibration) && (
           <div className="grid h-full place-items-center text-sm text-app-text-muted">Select open imagery or upload a base image after resolving catalog GPS or choosing a recorded lap.</div>

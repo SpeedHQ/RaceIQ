@@ -1,4 +1,4 @@
-import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../track-map/types";
 import type { GameId } from "@shared/games/ids";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { useUnits } from "../../hooks/useUnits";
