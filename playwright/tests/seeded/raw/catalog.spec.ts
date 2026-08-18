@@ -73,9 +73,9 @@ async function assertCatalogField(page: Page, game: SeededGame, fieldCase: Catal
     await expect(row, `${game.name} ${fieldCase.field} unsupported provenance`).toHaveAttribute("data-telemetry-provenance", `unavailable:${link.reason}`);
     return;
   }
-  await expect(row, `${game.name} ${fieldCase.field} provenance origin/artifact/commit`).toHaveAttribute(
+  await expect(row, `${game.name} ${fieldCase.field} provenance origin/artifact/source hash`).toHaveAttribute(
     "data-telemetry-provenance",
-    `${link.provenance.origin}:${link.provenance.artifact}@${link.provenance.commit}`,
+    `${link.provenance.origin}:${link.provenance.artifact}@${TELEMETRY_CATALOG.metadata.sourceHashes[link.provenance.artifact]}`,
   );
 }
 

@@ -19,7 +19,7 @@ import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
 import { type Point, semanticNumber, type TrackMapHandle } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
-const noop = () => undefined;
+import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -341,7 +341,14 @@ function LapAnalyseInner() {
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
-        onExport={noop}
+        onExport={() =>
+          buildExportCsv(
+            semanticFrames.map((frame) => frame.values),
+            carName,
+            trackName,
+            selectedLap,
+            selectedLapId,
+          )}
         onExportBin={() => handleExportBin(selectedLapId)}
         selectedTrack={selectedTrack}
         selectedCar={selectedCar}

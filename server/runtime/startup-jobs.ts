@@ -47,11 +47,13 @@ export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencie
   (dependencies.countStaleRaceResults ?? countStaleRaceResults)(RACE_RESULT_PROCESSOR_ID).then((count) => {
     if (count > 0) {
       console.log(`[Server] ${count} session result(s) use an older processor — will prompt user to recalculate`);
-      wsManager.setStaleRaceResultsNotification({
-        type: "stale-race-results",
-        sessionCount: count,
-        currentVersion: RACE_RESULT_PROCESSOR_ID,
-      });
+      if (process.env.RACEIQ_E2E !== "1") {
+        wsManager.setStaleRaceResultsNotification({
+          type: "stale-race-results",
+          sessionCount: count,
+          currentVersion: RACE_RESULT_PROCESSOR_ID,
+        });
+      }
     }
   }).catch((err) => {
     console.error("[Server] Failed to check stale race results:", err);

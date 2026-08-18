@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import type { E2ERuntime, ServerPorts } from "./runtime";
 
 type WebServerDefinition = {
@@ -17,6 +18,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     SERVER_PORT: ports.port,
     UDP_PORT: ports.udpPort,
     NODE_ENV: runtime.devServer ? "test" : "production",
+    RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
   };
   if (runtime.devServer) {
     env.CLIENT_PORT = ports.clientPort;
