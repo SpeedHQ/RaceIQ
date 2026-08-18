@@ -204,6 +204,7 @@ async function renderRegion(template: string, bounds: TrackImageryGeographicBoun
 export const openAerialMapProvider: TrackImageryProvider = {
   id: "openaerialmap",
   name: "OpenAerialMap",
+  maxFetchDimension: 2_048,
   supports: () => true,
   owns: (candidateId) => candidateId.startsWith("openaerialmap:") && OPEN_AERIAL_MAP_ID.test(candidateId.slice("openaerialmap:".length)),
   async search(context) {

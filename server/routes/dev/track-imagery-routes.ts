@@ -263,6 +263,7 @@ export const trackImageryDevRoutes = new Hono()
         },
       });
     } catch (error) {
+      console.error("[Track Imagery] Source preview failed:", error);
       return c.json({ error: error instanceof Error ? error.message : "Unable to preview open imagery" }, 400);
     }
   })
@@ -270,6 +271,7 @@ export const trackImageryDevRoutes = new Hono()
     try {
       const venueId = venueIdFromQuery(c);
       const requestBody = openImageryBaseRequestSchema.parse(await c.req.json());
+      console.info(`[Track Imagery] Starting ${requestBody.candidateId} import for venue ${venueId}`);
       const location = resolveImageryLocation(requestBody.gameId, requestBody.trackOrdinal);
       const asset = await loadOpenTrackImageryAsset(requestBody.candidateId, requestBody.bounds, location, 512);
       const current = loadTrackImageryVenue(venueId);
@@ -289,8 +291,10 @@ export const trackImageryDevRoutes = new Hono()
       await writeTrackImageryPack(imageryPackPath(venueId), packageMetadata(asset, requestBody.bounds), asset.tiles);
       removeLooseBaseFiles(directory);
       writeJson(resolve(directory, "manifest.json"), manifest);
+      console.info(`[Track Imagery] Completed ${requestBody.candidateId} import for venue ${venueId}: ${asset.width}x${asset.height}px, ${asset.columns * asset.rows} internal tiles`);
       return c.json(manifest, 201);
     } catch (error) {
+      console.error("[Track Imagery] Venue package import failed:", error);
       return c.json({ error: error instanceof Error ? error.message : "Unable to import open imagery" }, 400);
     }
   })

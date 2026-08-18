@@ -9,7 +9,7 @@ import {
 import { resolveTrackImageryProviderCandidate, searchTrackImageryProviders, type TrackImageryFetcher, type TrackImageryLocation } from "./imagery-providers";
 
 const DEFAULT_TILE_SIZE = 512;
-const MAX_SOURCE_CHUNK_SIZE = 2_048;
+const MAX_SOURCE_CHUNK_SIZE = 4_096;
 const EARTH_RADIUS_M = 6_378_137;
 
 type Fetcher = TrackImageryFetcher;
@@ -160,14 +160,26 @@ export async function loadOpenTrackImageryAsset(
     throw new Error("Imagery source has no known resolution");
   const resolutionM = Math.max(resolved.candidate.sourceResolutionM, 0.1);
   const grid = imageryGrid(bounds, resolutionM, tileSize);
-  const sourceChunkSize = tileSize * Math.max(1, Math.floor(MAX_SOURCE_CHUNK_SIZE / tileSize));
+  const providerChunkLimit = Math.min(MAX_SOURCE_CHUNK_SIZE, resolved.provider.maxFetchDimension ?? MAX_SOURCE_CHUNK_SIZE);
+  const sourceChunkSize = tileSize * Math.max(1, Math.floor(providerChunkLimit / tileSize));
+  const sourceChunkColumns = Math.ceil(grid.width / sourceChunkSize);
+  const sourceChunkRows = Math.ceil(grid.height / sourceChunkSize);
+  const sourceChunkCount = sourceChunkColumns * sourceChunkRows;
   const tiles = (async function* (): AsyncIterable<OpenTrackImageryTile> {
+    let sourceChunkIndex = 0;
     for (let sourceY = 0; sourceY < grid.height; sourceY += sourceChunkSize) {
       for (let sourceX = 0; sourceX < grid.width; sourceX += sourceChunkSize) {
         const sourceWidth = Math.min(sourceChunkSize, grid.width - sourceX);
         const sourceHeight = Math.min(sourceChunkSize, grid.height - sourceY);
         const sourceBounds = tileBounds(bounds, sourceX, sourceY, sourceWidth, sourceHeight, grid.width, grid.height);
-        const raw = await resolved.provider.fetch(resolved, sourceBounds, sourceWidth, sourceHeight, fetcher);
+        sourceChunkIndex += 1;
+        let raw: Uint8Array;
+        try {
+          raw = await resolved.provider.fetch(resolved, sourceBounds, sourceWidth, sourceHeight, fetcher);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "unknown provider error";
+          throw new Error(`${resolved.provider.name} source chunk ${sourceChunkIndex}/${sourceChunkCount} failed: ${message}`, { cause: error });
+        }
         const pixels = await normalizeOpaquePixels(raw, sourceWidth, sourceHeight);
         for (let offsetY = 0; offsetY < sourceHeight; offsetY += tileSize) {
           for (let offsetX = 0; offsetX < sourceWidth; offsetX += tileSize) {

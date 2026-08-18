@@ -25,6 +25,7 @@ export interface TrackImageryProviderResolvedCandidate {
 export interface TrackImageryProvider {
   id: string;
   name: string;
+  maxFetchDimension?: number;
   supports(location: TrackImageryLocation, bounds: TrackImageryGeographicBounds): boolean;
   owns(candidateId: string): boolean;
   search(context: TrackImageryProviderContext): Promise<TrackImageryCandidate[]>;

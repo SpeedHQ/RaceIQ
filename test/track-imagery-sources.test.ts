@@ -141,7 +141,8 @@ test("batches provider downloads into source chunks before creating internal til
   let internalTiles = 0;
   for await (const _tile of asset.tiles) internalTiles += 1;
   expect(internalTiles).toBe(asset.columns * asset.rows);
-  expect(exportRequests).toBe(Math.ceil(asset.width / 2_048) * Math.ceil(asset.height / 2_048));
+  const naipSourceChunkSize = 512 * Math.floor(4_000 / 512);
+  expect(exportRequests).toBe(Math.ceil(asset.width / naipSourceChunkSize) * Math.ceil(asset.height / naipSourceChunkSize));
   expect(exportRequests).toBeLessThan(internalTiles);
 });
 

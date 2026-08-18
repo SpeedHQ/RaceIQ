@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "venueId": "daytona-international-speedway",
+  "calibration": {
+    "originLatitudeDeg": 29.184410823863203,
+    "originLongitudeDeg": -81.07014076357655,
+    "imageToEnu": [
+      2397.612270554759,
+      0,
+      0,
+      -2846.0140108095234,
+      -1060.8702387051421,
+      1498.575820661061
+    ]
+  },
+  "base": {
+    "pack": "imagery.rqi",
+    "tileSize": 512,
+    "bounds": {
+      "west": -81.08105641249621,
+      "south": 29.172306580657036,
+      "east": -81.05638657745324,
+      "north": 29.19787275950432
+    },
+    "source": {
+      "name": "USGS NAIP 2022",
+      "provider": "usgs-naip",
+      "url": "https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer",
+      "capturedAt": "2023-01-17",
+      "license": "Public domain",
+      "attribution": "National Agriculture Imagery Program (NAIP), USDA Farm Service Agency; distributed by the U.S. Geological Survey",
+      "quality": "hq",
+      "coverage": "full",
+      "geographicReliability": "authoritative",
+      "providerStability": "authoritative",
+      "redistribution": "allowed",
+      "sourceResolutionM": 0.3,
+      "storedResolutionM": 0.3
+    }
+  },
+  "layers": []
+}

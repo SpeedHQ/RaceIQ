@@ -2,7 +2,7 @@ import type { TrackImageryFetcher } from "./types";
 
 export const MAX_SOURCE_BYTES = 100 * 1024 * 1024;
 export const REQUEST_TIMEOUT_MS = 90_000;
-const MAX_REQUEST_ATTEMPTS = 3;
+const MAX_REQUEST_ATTEMPTS = 4;
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 
 function retryDelayMs(response: Response, attempt: number): number {
@@ -13,7 +13,7 @@ function retryDelayMs(response: Response, attempt: number): number {
     const at = Date.parse(retryAfter);
     if (Number.isFinite(at)) return Math.max(0, Math.min(5_000, at - Date.now()));
   }
-  return 250 * 3 ** attempt;
+  return 1_000 * 3 ** attempt;
 }
 
 function pause(milliseconds: number): Promise<void> {
@@ -39,6 +39,8 @@ export async function request(url: string, fetcher: TrackImageryFetcher, init?: 
       throw new Error(`${new URL(url).hostname} returned HTTP ${response.status}`);
     }
     const delay = retryDelayMs(response, attempt);
+    const parsedUrl = new URL(url);
+    console.warn(`[Track Imagery] ${parsedUrl.hostname}${parsedUrl.pathname} returned HTTP ${response.status}; retrying in ${delay}ms (${attempt + 2}/${MAX_REQUEST_ATTEMPTS})`);
     await response.body?.cancel().catch(() => undefined);
     await pause(delay);
   }

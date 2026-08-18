@@ -76,6 +76,7 @@ function getMapUrl(bounds: TrackImageryGeographicBounds, width: number, height: 
 export const netherlandsProvider: TrackImageryProvider = {
   id: "pdok-netherlands-rgb",
   name: "Netherlands PDOK 2026 OrthoHR",
+  maxFetchDimension: NETHERLANDS_MAX_DIMENSION,
   supports,
   owns: (candidateId) => candidateId === NETHERLANDS_CANDIDATE_ID,
   async search(context: TrackImageryProviderContext): Promise<TrackImageryCandidate[]> {

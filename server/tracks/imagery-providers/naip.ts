@@ -93,6 +93,7 @@ function toResolved(candidate: TrackImageryCandidate, providerData?: unknown): T
 export const naipProvider: TrackImageryProvider = {
   id: "usgs-naip",
   name: "USGS NAIP",
+  maxFetchDimension: 4_000,
   supports,
   owns: (candidateId) => candidateId === NAIP_ID,
   async search(context) {

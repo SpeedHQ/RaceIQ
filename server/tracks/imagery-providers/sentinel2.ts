@@ -174,6 +174,7 @@ function dimensionsValid(width: number, height: number): boolean {
 export const sentinel2Provider: TrackImageryProvider = {
   id: "sentinel-2-l2a",
   name: "Sentinel-2 L2A true color",
+  maxFetchDimension: 8_192,
 
   supports(_location: TrackImageryLocation, bounds: TrackImageryGeographicBounds): boolean {
     return validBounds(bounds);

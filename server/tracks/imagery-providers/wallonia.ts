@@ -74,6 +74,7 @@ function getMapUrl(bounds: TrackImageryGeographicBounds, width: number, height: 
 export const walloniaProvider: TrackImageryProvider = {
   id: "wallonia-spw",
   name: "Wallonia SPW ORTHO_LAST",
+  maxFetchDimension: WALLONIA_MAX_DIMENSION,
   supports,
   owns: (candidateId) => candidateId === WALLONIA_CANDIDATE_ID,
   async search(context: TrackImageryProviderContext): Promise<TrackImageryCandidate[]> {
