@@ -61,7 +61,8 @@ const serverSet = readServerSet();
 const screenshotOnly = process.env.PW_SCREENSHOT_ONLY === "1";
 const seededScreenshots = process.env.PW_SEED_SCREENSHOTS === "1";
 
-const defaultTestWorkers = serverSet === "seeded" ? 2 : 1;
+// Stateful E2E flows share one server-side telemetry/replay stream.
+const defaultTestWorkers = 1;
 const requestedTestWorkers = Number.parseInt(process.env.PW_WORKERS ?? String(defaultTestWorkers), 10);
 const testWorkers = Number.isFinite(requestedTestWorkers) && requestedTestWorkers > 0 ? requestedTestWorkers : defaultTestWorkers;
 
