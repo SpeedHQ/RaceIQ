@@ -7,6 +7,12 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Branch or ref to build and test"
+        required: false
+        type: string
 concurrency:
   group: build-test-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -24,6 +30,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
 
       - uses: oven-sh/setup-bun@v2
 
@@ -79,9 +87,11 @@ jobs:
         run: bun run test
 
   playwright-dev:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: (github.event_name == 'pull_request' && !github.event.pull_request.draft) || github.event_name == 'workflow_dispatch'
     needs: build-test
     uses: ./.github/workflows/playwright-dev.yml
+    with:
+      target-ref: ${{ inputs.target_ref || github.ref }}
 
   screenshots:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft

@@ -37,13 +37,19 @@ on:
         description: "Server diagnostic artifact name"
         required: false
         type: string
-        default: server-diagnostics
+      target-ref:
+        description: "Branch or ref to test"
+        required: false
+        type: string
+
 
 jobs:
   playwright:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target-ref || github.ref }}
 
       - uses: oven-sh/setup-bun@v2
         with:

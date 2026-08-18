@@ -2,6 +2,11 @@ name: Playwright E2E (compiled PR gate)
 
 on:
   workflow_call:
+    inputs:
+      target-ref:
+        description: "Branch or ref to test"
+        required: false
+        type: string
 
 jobs:
   playwright:
@@ -14,3 +19,4 @@ jobs:
       dist-artifact: raceiq-dist-windows
       artifact-name: playwright
       diagnostic-artifact-name: server-diagnostics
+      target-ref: ${{ inputs.target-ref }}
