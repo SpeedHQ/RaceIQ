@@ -1,6 +1,5 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
-import { useSettings } from "../hooks/settings";
 import { useTelemetryStore } from "../stores/telemetry";
 import { deriveConnectionStatusView } from "./connection-status-logic";
 
@@ -21,7 +20,6 @@ const DOT_CLASS: Record<"green" | "red" | "cyan" | "amber" | "dim", string> = {
 
 export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving, collapsed = false }: Props) {
   const detectedGame = useTelemetryStore((s) => s.serverStatus?.detectedGame);
-  const { displaySettings } = useSettings();
   const view = deriveConnectionStatusView({ connected, forzaReceiving, detectedGame });
 
   // Localize the display text here (connection-status-logic stays pure/testable).
@@ -42,7 +40,7 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving, col
       break;
   }
 
-  const packetText = forzaReceiving ? `${packetsPerSec} pkt/s · ${displaySettings.wsRefreshRate ?? 60}Hz` : null;
+  const packetText = forzaReceiving ? `${m.browser_source()}: ${packetsPerSec} Hz` : null;
   const accessibleLabel = packetText ? `${statusText}. ${packetText}` : statusText;
 
   if (collapsed) {

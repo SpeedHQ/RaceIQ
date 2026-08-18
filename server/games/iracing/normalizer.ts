@@ -5,6 +5,7 @@ import {
   type IRacingSourceFrame,
   type IRacingValue,
 } from "./source-frame";
+import { parseIRacingFuelCapacity } from "./session-info";
 import {
   startsAtIRacingSectorOrigin,
   warnInvalidIRacingSectorLayout,
@@ -17,6 +18,8 @@ export interface IRacingParserState {
   sessionKey: string | null;
   rawLap: number | null;
   lapStartSessionTime: number;
+  fuelCapacitySessionInfo: string | null;
+  fuelCapacityL: number | undefined;
 }
 
 export function createIRacingParserState(): IRacingParserState {
@@ -25,6 +28,8 @@ export function createIRacingParserState(): IRacingParserState {
     sessionKey: null,
     rawLap: null,
     lapStartSessionTime: 0,
+    fuelCapacitySessionInfo: null,
+    fuelCapacityL: undefined,
   };
 }
 
@@ -156,6 +161,18 @@ export function normalizeIRacingFrame(
   );
   const sdkLastLapTime = Math.max(0, scalar(values, "LapLastLapTime", 0));
   const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
+  let fuelCapacityL: number | undefined;
+  if ("sessionInfo" in frame) {
+    if (!state) {
+      fuelCapacityL = parseIRacingFuelCapacity(frame.sessionInfo);
+    } else {
+      if (state.fuelCapacitySessionInfo !== frame.sessionInfo) {
+        state.fuelCapacitySessionInfo = frame.sessionInfo;
+        state.fuelCapacityL = parseIRacingFuelCapacity(frame.sessionInfo);
+      }
+      fuelCapacityL = state.fuelCapacityL;
+    }
+  }
   let currentLapTime = sdkCurrentLapTime;
   if (state) {
     if (state.sessionKey !== sessionKey || state.rawLap === null) {
@@ -299,6 +316,7 @@ export function normalizeIRacingFrame(
 
     Boost: 0,
     Fuel: Math.max(0, scalar(values, "FuelLevel", 0)),
+    ...(fuelCapacityL !== undefined ? { FuelCapacity: fuelCapacityL } : {}),
     DistanceTraveled: distanceTraveled,
     BestLap: Math.max(0, scalar(values, "LapBestLapTime", 0)),
     LastLap: sdkLastLapTime,
