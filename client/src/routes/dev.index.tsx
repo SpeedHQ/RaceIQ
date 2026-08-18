@@ -29,6 +29,7 @@ function DevLocalTools() {
         ))}
         <Button
           variant="ghost"
+          nativeButton={false}
           render={<Link to="/dev/tracks" />}
           className="px-4 py-2 text-sm font-medium text-app-text-muted hover:text-app-text"
         >
