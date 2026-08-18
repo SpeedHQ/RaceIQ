@@ -1,6 +1,9 @@
+import { ChevronDownIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { TrackImageryCandidate, TrackImageryGeographicBounds, TrackImagerySourceSearchResult } from "../../../../shared/racing/tracks/imagery";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 interface OpenTrackImageryPickerProps {
   bounds: TrackImageryGeographicBounds | null;
@@ -30,6 +33,64 @@ function capturedAtLabel(value: string | undefined): string {
     return Number.isNaN(parsed.valueOf()) ? part : parsed.toLocaleDateString();
   });
   return dates.join(" – ");
+}
+
+interface TrackImagerySourceListProps {
+  sources: TrackImagerySourceSearchResult["sources"];
+  selectedCandidateId: string | null;
+  onSelect: (candidate: TrackImageryCandidate) => void;
+}
+
+export function TrackImagerySourceList({ sources, selectedCandidateId, onSelect }: TrackImagerySourceListProps) {
+  return (
+    <div className="flex flex-col gap-1">
+      {sources.map((source) => (
+        <Collapsible key={source.id} defaultOpen={source.candidates.some((candidate) => candidate.id === selectedCandidateId)} className="overflow-hidden rounded">
+          <CollapsibleTrigger render={<Button variant="default" size="content" className="group/source w-full justify-between px-2 py-2 text-left" />}>
+            <span className="min-w-0 truncate font-semibold text-app-text">{source.name}</span>
+            <span className="flex shrink-0 items-center gap-1">
+              <Badge size="compact">
+                {source.candidates.length} {source.candidates.length === 1 ? "image" : "images"}
+              </Badge>
+              <ChevronDownIcon data-icon="inline-end" className="transition-transform group-data-[state=open]/source:rotate-180" />
+            </span>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-1 rounded-b border-x border-b border-app-border bg-app-surface-alt p-1">
+              {source.candidates.map((candidate) => {
+                const selected = candidate.id === selectedCandidateId;
+                const isHq = candidate.quality === "hq";
+                return (
+                  <Button key={candidate.id} variant={selected ? "imagery-option-selected" : "imagery-option"} size="content" aria-pressed={selected} onClick={() => onSelect(candidate)}>
+                    <span className="flex w-full items-center justify-between gap-2">
+                      <span className="font-semibold text-app-text">{capturedAtLabel(candidate.capturedAt)}</span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        {selected && (
+                          <Badge variant="info" size="compact">
+                            Selected
+                          </Badge>
+                        )}
+                        <Badge variant={isHq ? "success" : "warning"} size="compact">
+                          {isHq ? "HQ" : "Context"}
+                        </Badge>
+                      </span>
+                    </span>
+                    <span className="w-full truncate text-app-micro text-app-text-muted" title={candidate.title}>
+                      {candidate.title}
+                    </span>
+                    <span className="w-full text-app-micro text-app-text-muted">
+                      {candidate.sourceResolutionM.toFixed(candidate.sourceResolutionM < 1 ? 2 : 1)} m · {candidate.coverage} coverage ·{" "}
+                      {candidate.cloudCoverPercent === undefined ? "cloud unknown" : `${candidate.cloudCoverPercent.toFixed(0)}% cloud`}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ))}
+    </div>
+  );
 }
 
 export function OpenTrackImageryPicker({ bounds, gameId, trackOrdinal, selectedCandidateId, onSelect }: OpenTrackImageryPickerProps) {
@@ -77,34 +138,14 @@ export function OpenTrackImageryPicker({ bounds, gameId, trackOrdinal, selectedC
       ) : !bounds ? (
         <p className="text-[11px] text-severity-caution">Select a lap containing GPS coordinates.</p>
       ) : null}
-      {result && result.candidates.length === 0 && <p className="text-[11px] text-severity-caution">No reusable imagery covers this GPS footprint.</p>}
-      {result && result.candidates.length > 0 && (
-        <div className="mt-2 space-y-1">
-          {result.candidates.map((candidate) => {
-            const isHq = candidate.quality === "hq";
-            return (
-              <button
-                key={candidate.id}
-                type="button"
-                className={`w-full rounded border px-2 py-1.5 text-left text-[11px] ${
-                  selectedCandidateId === candidate.id ? "border-app-accent bg-app-accent/10 text-app-text" : "border-app-border bg-app-surface text-app-text-secondary hover:border-app-border-input"
-                }`}
-                onClick={() => bounds && gameId && trackOrdinal != null && onSelect(candidate, openTrackImageryPreviewUrl(candidate.id, bounds, gameId, trackOrdinal))}
-              >
-                <span
-                  className={`mr-2 inline-flex rounded px-1 font-mono text-[9px] font-semibold uppercase ${isHq ? "bg-severity-nominal/15 text-severity-nominal" : "bg-severity-caution/20 text-severity-caution"}`}
-                >
-                  {isHq ? "HQ" : "Context fallback"}
-                </span>
-                <span>{candidate.title}</span>
-                <span className="ml-2 text-app-text-muted">{candidate.provider}</span>
-                <div className="mt-1 text-[10px] text-app-text-muted">
-                  {candidate.sourceResolutionM.toFixed(candidate.sourceResolutionM < 1 ? 2 : 1)} m · {candidate.coverage} coverage · {capturedAtLabel(candidate.capturedAt)} ·{" "}
-                  {candidate.cloudCoverPercent === undefined ? "cloud unknown" : `${candidate.cloudCoverPercent.toFixed(0)}% cloud`}
-                </div>
-              </button>
-            );
-          })}
+      {result && result.sources.length === 0 && <p className="text-[11px] text-severity-caution">No reusable imagery covers this GPS footprint.</p>}
+      {result && result.sources.length > 0 && (
+        <div className="mt-2">
+          <TrackImagerySourceList
+            sources={result.sources}
+            selectedCandidateId={selectedCandidateId}
+            onSelect={(candidate) => bounds && gameId && trackOrdinal != null && onSelect(candidate, openTrackImageryPreviewUrl(candidate.id, bounds, gameId, trackOrdinal))}
+          />
         </div>
       )}
       {result?.notices.map((notice) => (

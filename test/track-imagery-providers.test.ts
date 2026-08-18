@@ -86,16 +86,17 @@ test("filters national providers by resolved location before network calls", () 
   expect(trackImageryProvidersForLocation(global, globalBounds).map((provider) => provider.id)).toEqual(["openaerialmap", "sentinel-2-l2a"]);
 });
 
-test("Spa searches Wallonia and OAM without irrelevant NAIP or PDOK requests", async () => {
+test("Spa groups ranked imagery options under their display sources", async () => {
   const urls: string[] = [];
   const result = await searchTrackImageryProviders(spaBounds, spa, registryFetcher(urls));
-  expect(result.candidates.some((item) => item.id === "wallonia-spw:ortho-last")).toBe(true);
-  expect(result.candidates.some((item) => item.provider === "openaerialmap")).toBe(true);
+  const candidates = result.sources.flatMap((source) => source.candidates);
+  expect(candidates.some((item) => item.id === "wallonia-spw:ortho-last")).toBe(true);
+  expect(candidates.some((item) => item.provider === "openaerialmap")).toBe(true);
   expect(urls.some((url) => url.includes("nationalmap.gov"))).toBe(false);
   expect(urls.some((url) => url.includes("pdok.nl"))).toBe(false);
-  expect(result.candidates.find((item) => item.id === "openaerialmap:5a00c655bac48e5b1cf76247")?.sourceResolutionM).toBe(0.2);
-  expect(result.candidates.find((item) => item.id === "wallonia-spw:ortho-last")?.sourceResolutionM).toBe(0.25);
-  expect(result.candidates[0]?.provider).toBe("openaerialmap");
+  expect(candidates.find((item) => item.id === "openaerialmap:5a00c655bac48e5b1cf76247")?.sourceResolutionM).toBe(0.2);
+  expect(candidates.find((item) => item.id === "wallonia-spw:ortho-last")?.sourceResolutionM).toBe(0.25);
+  expect(result.sources[0]).toMatchObject({ id: "openaerialmap", name: "OpenAerialMap" });
 });
 
 test("location filter includes PDOK in Zandvoort, NAIP in US, and OAM plus Sentinel globally", () => {
@@ -105,11 +106,14 @@ test("location filter includes PDOK in Zandvoort, NAIP in US, and OAM plus Senti
   expect(TRACK_IMAGERY_PROVIDERS.map((provider) => provider.id)).toEqual(["usgs-naip", "wallonia-spw", "pdok-netherlands-rgb", "openaerialmap", "sentinel-2-l2a"]);
 });
 
-test("global search returns reusable OAM HQ and Sentinel context candidates", async () => {
+test("global search groups reusable OAM HQ and Sentinel context options", async () => {
   const result = await searchTrackImageryProviders(globalBounds, global, registryFetcher([]));
-  expect(result.candidates.map((item) => item.provider)).toEqual(["openaerialmap", "sentinel-2-l2a"]);
-  expect(result.candidates.find((item) => item.provider === "openaerialmap")?.quality).toBe("hq");
-  expect(result.candidates.find((item) => item.provider === "sentinel-2-l2a")).toMatchObject({ quality: "context", sourceResolutionM: 10, coverage: "full" });
+  expect(result.sources.map((source) => [source.id, source.name])).toEqual([
+    ["openaerialmap", "OpenAerialMap"],
+    ["sentinel-2-l2a", "Sentinel-2 L2A true color"],
+  ]);
+  expect(result.sources[0]?.candidates[0]?.quality).toBe("hq");
+  expect(result.sources[1]?.candidates[0]).toMatchObject({ quality: "context", sourceResolutionM: 10, coverage: "full" });
 });
 
 test("PDOK advertises 0.08m source detail while normalized source pipeline must clamp stored detail to 0.10m", async () => {

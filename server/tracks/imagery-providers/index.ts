@@ -101,7 +101,19 @@ export async function searchTrackImageryProviders(bounds: TrackImageryGeographic
     }
     if (accepted === 0) notices.push(`${provider.name} has no full coverage for this GPS footprint.`);
   }
-  return { candidates: rankTrackImageryCandidates(candidates), notices };
+  const sourceById = new Map(providers.map((provider) => [provider.id, provider]));
+  const sources = new Map<string, TrackImagerySourceSearchResult["sources"][number]>();
+  for (const candidate of rankTrackImageryCandidates(candidates)) {
+    let source = sources.get(candidate.provider);
+    if (!source) {
+      const provider = sourceById.get(candidate.provider);
+      if (!provider) throw new Error(`Unknown imagery provider ${candidate.provider}`);
+      source = { id: provider.id, name: provider.name, candidates: [] };
+      sources.set(provider.id, source);
+    }
+    source.candidates.push(candidate);
+  }
+  return { sources: [...sources.values()], notices };
 }
 
 export type TrackImageryResolvedCandidate = TrackImageryProviderResolvedCandidate & { provider: TrackImageryProvider };

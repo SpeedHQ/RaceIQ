@@ -23,6 +23,7 @@
 
 ### Fixes
 
+- Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list
 - Complete large venue imagery imports reliably by batching source downloads and retrying transient provider failures
 - Keep viewport-loaded aerial imagery seamless and stable while progressively sharpening it during Analyse map zoom
 - Show connected iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, keep source SVGs hidden while generated thumbnails load, and exclude pit artwork from lap-distance calculations

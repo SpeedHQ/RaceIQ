@@ -124,8 +124,13 @@ export type TrackImageryLayoutManifest = z.infer<typeof TrackImageryLayoutManife
 export type TrackImageryGeographicBounds = z.infer<typeof TrackImageryGeographicBoundsSchema>;
 export type TrackImageryCandidate = z.infer<typeof TrackImageryCandidateSchema>;
 export type TrackImageryGeographicReference = z.infer<typeof TrackImageryGeographicReferenceSchema>;
-export interface TrackImagerySourceSearchResult {
+export interface TrackImagerySourceSearchGroup {
+  id: string;
+  name: string;
   candidates: TrackImageryCandidate[];
+}
+export interface TrackImagerySourceSearchResult {
+  sources: TrackImagerySourceSearchGroup[];
   notices: string[];
 }
 export interface TrackImageryConfigurationIndex {

@@ -45,14 +45,19 @@ function catalogFetcher(tile: Uint8Array | null = null, oamResolutionM = 0.2): t
   }) as typeof fetch;
 }
 
-test("lists reusable normalized imagery candidates with provenance", async () => {
+test("lists reusable imagery options grouped by source with provenance", async () => {
   const result = await searchOpenTrackImagery(bounds, location, catalogFetcher());
   expect(result.notices).toEqual([]);
-  expect(result.candidates.map((candidate) => [candidate.provider, candidate.quality])).toEqual([
+  expect(result.sources.map((source) => [source.id, source.name])).toEqual([
+    ["openaerialmap", "OpenAerialMap"],
+    ["sentinel-2-l2a", "Sentinel-2 L2A true color"],
+  ]);
+  const candidates = result.sources.flatMap((source) => source.candidates);
+  expect(candidates.map((candidate) => [candidate.provider, candidate.quality])).toEqual([
     ["openaerialmap", "hq"],
     ["sentinel-2-l2a", "context"],
   ]);
-  expect(result.candidates[0]).toMatchObject({
+  expect(candidates[0]).toMatchObject({
     id: `openaerialmap:${openAerialMapId}`,
     license: "CC BY 4.0",
     sourceResolutionM: 0.2,
@@ -61,7 +66,7 @@ test("lists reusable normalized imagery candidates with provenance", async () =>
     providerStability: "opportunistic",
     redistribution: "allowed",
   });
-  expect(result.candidates[1]).toMatchObject({
+  expect(candidates[1]).toMatchObject({
     id: "sentinel-2-l2a:S2A_fixture",
     sourceResolutionM: 10,
     quality: "context",
