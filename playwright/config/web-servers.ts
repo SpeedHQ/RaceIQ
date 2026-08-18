@@ -46,7 +46,10 @@ export function createWebServers(runtime: E2ERuntime): WebServerDefinition[] {
   const servers: WebServerDefinition[] = [];
   if (runtime.needsFreshServer) servers.push(serverDefinition(runtime, runtime.freshInstall, false));
   if (!runtime.screenshotOnly && runtime.needsTunesServer) {
-    servers.push(serverDefinition(runtime, runtime.tunes, false));
+    servers.push(serverDefinition(runtime, runtime.tunes, true));
+  }
+  if (!runtime.screenshotOnly && runtime.needsTunesUnseededServer) {
+    servers.push(serverDefinition(runtime, runtime.tunesUnseeded, false));
   }
   if (runtime.needsSeededServer) servers.push(serverDefinition(runtime, runtime.seeded, true));
   return servers;

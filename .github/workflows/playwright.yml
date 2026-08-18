@@ -17,9 +17,9 @@ on:
         description: "Playwright project flags passed to the gate"
         required: false
         type: string
-        default: "--project=fresh-install --project=tunes --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device"
+        default: "--project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device"
       server-set:
-        description: "Playwright server set: all, fresh, tunes, or seeded"
+        description: "Playwright server set: all, fresh, tunes, tunes-unseeded, or seeded"
         required: false
         type: string
         default: all

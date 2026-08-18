@@ -5,6 +5,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const freshBaseURL = `http://localhost:${runtime.devServer ? runtime.freshInstall.clientPort : runtime.freshInstall.port}`;
   const seededBaseURL = `http://localhost:${runtime.devServer ? runtime.seeded.clientPort : runtime.seeded.port}`;
   const tunesBaseURL = `http://localhost:${runtime.devServer ? runtime.tunes.clientPort : runtime.tunes.port}`;
+  const tunesUnseededBaseURL = `http://localhost:${runtime.devServer ? runtime.tunesUnseeded.clientPort : runtime.tunesUnseeded.port}`;
   const sequentialImportSpecs = [
     "seeded/analyse/core-flow.spec.ts",
     "seeded/catalog/tracks.spec.ts",
@@ -36,8 +37,16 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     {
       name: "tunes",
       testMatch: "tunes/**/*.spec.ts",
+      grepInvert: /import page renders empty state when Documents folder absent/,
       workers: 1,
       use: { baseURL: tunesBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
+      name: "tunes-unseeded",
+      testMatch: ["tunes/ac-evo.spec.ts", "tunes/acc.spec.ts"],
+      grep: /import page renders empty state when Documents folder absent/,
+      workers: 1,
+      use: { baseURL: tunesUnseededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
       name: "mobile-device",

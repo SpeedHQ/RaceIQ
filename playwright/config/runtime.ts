@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 
 export type E2EServerMode = "dev" | "compiled";
-export type E2EServerSet = "all" | "fresh" | "tunes" | "seeded";
+export type E2EServerSet = "all" | "fresh" | "tunes" | "tunes-unseeded" | "seeded";
 
 export interface E2ERuntime {
   serverMode: E2EServerMode;
@@ -15,9 +15,11 @@ export interface E2ERuntime {
   appRoot?: string;
   needsFreshServer: boolean;
   needsTunesServer: boolean;
+  needsTunesUnseededServer: boolean;
   needsSeededServer: boolean;
   freshInstall: ServerPorts;
   tunes: ServerPorts;
+  tunesUnseeded: ServerPorts;
   seeded: ServerPorts;
 }
 
@@ -38,8 +40,8 @@ function readServerMode(): E2EServerMode {
 
 function readServerSet(): E2EServerSet {
   const value = process.env.PW_SERVER_SET ?? "all";
-  if (value !== "all" && value !== "fresh" && value !== "tunes" && value !== "seeded") {
-    throw new Error(`Unsupported PW_SERVER_SET "${value}" (expected all, fresh, tunes, or seeded)`);
+  if (value !== "all" && value !== "fresh" && value !== "tunes" && value !== "tunes-unseeded" && value !== "seeded") {
+    throw new Error(`Unsupported PW_SERVER_SET "${value}" (expected all, fresh, tunes, tunes-unseeded, or seeded)`);
   }
   return value;
 }
@@ -75,6 +77,7 @@ export const runtime: E2ERuntime = {
   ...(process.env.RACEIQ_APP_ROOT ? { appRoot: process.env.RACEIQ_APP_ROOT } : {}),
   needsFreshServer: serverSet === "all" || serverSet === "fresh",
   needsTunesServer: serverSet === "all" || serverSet === "tunes",
+  needsTunesUnseededServer: serverSet === "all" || serverSet === "tunes-unseeded",
   needsSeededServer: serverSet === "all" || serverSet === "seeded",
   freshInstall: {
     port: process.env.PW_FRESH_INSTALL_PORT ?? "3118",
@@ -87,6 +90,12 @@ export const runtime: E2ERuntime = {
     clientPort: process.env.PW_TUNES_CLIENT_PORT ?? "4119",
     udpPort: process.env.PW_TUNES_UDP_PORT ?? "15319",
     dataDir: dataDir(process.env.PW_TUNES_DATA_DIR, resolve(__dirname, "..", "test-data-tunes")),
+  },
+  tunesUnseeded: {
+    port: process.env.PW_TUNES_UNSEEDED_PORT ?? "3121",
+    clientPort: process.env.PW_TUNES_UNSEEDED_CLIENT_PORT ?? "4121",
+    udpPort: process.env.PW_TUNES_UNSEEDED_UDP_PORT ?? "15321",
+    dataDir: dataDir(process.env.PW_TUNES_UNSEEDED_DATA_DIR, resolve(__dirname, "..", "test-results", "test-data-tunes-unseeded")),
   },
   seeded: {
     port: process.env.PW_SEEDED_E2E_PORT ?? "3120",
