@@ -62,6 +62,34 @@ test("developer Tracks action routes to neutral workbench and selection preserve
   expect(browserErrors.errors, "unexpected browser errors in Tracks workbench").toEqual([]);
 });
 
+test("developer overview renders available cards without waiting for every status request", async ({ page }) => {
+  let releaseImagery!: () => void;
+  const imageryGate = new Promise<void>((resolve) => {
+    releaseImagery = resolve;
+  });
+  let semanticTelemetryRequests = 0;
+  page.on("request", (request) => {
+    if (/\/api\/laps\/\d+\/semantic-telemetry$/.test(new URL(request.url()).pathname)) semanticTelemetryRequests += 1;
+  });
+  await page.route("**/api/dev/track-imagery", async (route) => {
+    await imageryGate;
+    await route.continue();
+  });
+
+  try {
+    await page.goto(selectedTrackPath(IRACING_TRACK), { waitUntil: "domcontentloaded" });
+    for (const tool of ["turns", "sectors", "guides", "imagery"] as const) {
+      await expect(page.getByTestId(`dev-track-tool-${tool}`)).toBeVisible();
+    }
+    releaseImagery();
+    await expect(page.getByTestId("dev-track-tool-sectors").locator("xpath=ancestor::*[@data-slot='card'][1]")).toContainText(/Game supplied/, { timeout: 30_000 });
+    expect(semanticTelemetryRequests).toBe(0);
+  } finally {
+    releaseImagery();
+    await page.unroute("**/api/dev/track-imagery");
+  }
+});
+
 test("developer Geometry keeps mode URL and layer state independent through history", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await selectTrack(page, FM_TRACK);

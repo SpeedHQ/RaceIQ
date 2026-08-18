@@ -67,6 +67,12 @@ function SummaryCard({
   );
 }
 
+function StatusValue({ loading, error, children }: { loading: boolean; error: unknown; children: ReactNode }) {
+  if (loading) return <Skeleton className="h-5 w-40" />;
+  if (error) return <span className="text-status-danger">{error instanceof Error ? error.message : "Status unavailable"}</span>;
+  return children;
+}
+
 export function TrackWorkbenchOverview({ gameId, trackOrdinal }: { gameId: GameId; trackOrdinal: number }) {
   const catalogQuery = useQuery({
     queryKey: ["tracks", gameId],
@@ -112,27 +118,7 @@ export function TrackWorkbenchOverview({ gameId, trackOrdinal }: { gameId: GameI
   const segments = segmentEnvelope?.segments ?? [];
   const { corners: turns, straights } = logicalSegmentCounts(segments);
   const starts = timingLayout.starts ?? [];
-  const loading = catalogQuery.isLoading || configurationQuery.isLoading || imageryQuery.isLoading || guideQuery.isLoading || sectorsQuery.isLoading || timingQuery.isLoading;
-  const error = [catalogQuery.error, configurationQuery.error, imageryQuery.error, guideQuery.error, sectorsQuery.error, timingQuery.error].find(Boolean);
-
-  if (loading) {
-    return (
-      <div className="grid gap-4 p-4 sm:grid-cols-2">
-        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-44 rounded-xl" />)}
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="p-4">
-        <Alert variant="destructive">
-          <AlertTitle>Unable to load track status</AlertTitle>
-          <AlertDescription>{error instanceof Error ? error.message : "Unknown track data error"}</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-  if (!catalogTrack) {
+  if (!catalogQuery.isLoading && !catalogQuery.error && !catalogTrack) {
     return (
       <div className="p-4">
         <Empty>
@@ -145,27 +131,47 @@ export function TrackWorkbenchOverview({ gameId, trackOrdinal }: { gameId: GameI
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      {catalogQuery.error && (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load track catalog</AlertTitle>
+          <AlertDescription>{catalogQuery.error instanceof Error ? catalogQuery.error.message : "Unknown track catalog error"}</AlertDescription>
+        </Alert>
+      )}
       <div className="flex flex-wrap items-center gap-2">
-        <div>
-          <h2 className="text-xl font-semibold text-app-text">{catalogTrack.name}</h2>
-          <p className="text-sm text-app-text-muted">{catalogTrack.variant || "Main"} · {gameId} · ordinal {trackOrdinal}</p>
+        <div className="min-w-0">
+          {catalogQuery.isLoading ? <Skeleton className="mb-2 h-6 w-72 max-w-full" /> : <h2 className="truncate text-xl font-semibold text-app-text">{catalogTrack?.name ?? `Track ${trackOrdinal}`}</h2>}
+          <p className="text-sm text-app-text-muted">{catalogTrack?.variant || "Main"} · {gameId} · ordinal {trackOrdinal}</p>
         </div>
-        <Badge variant={configuration?.confirmation ? "success" : configuration ? "warning" : "neutral"}>
-          {configuration?.confirmation ? "Confirmed" : configuration ? "Needs confirmation" : "Unassigned"}
-        </Badge>
+        {configurationQuery.isLoading ? (
+          <Skeleton className="h-6 w-28" />
+        ) : configurationQuery.error ? (
+          <Badge variant="warning">Status unavailable</Badge>
+        ) : (
+          <Badge variant={configuration?.confirmation ? "success" : configuration ? "warning" : "neutral"}>
+            {configuration?.confirmation ? "Confirmed" : configuration ? "Needs confirmation" : "Unassigned"}
+          </Badge>
+        )}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <SummaryCard testId="dev-track-tool-turns" title="Turns" description="Resolved corner and straight segments." href={{ ...toolPath("geometry", gameId, trackOrdinal), search: { mode: "turns" } }}>
-          {segments.length > 0 ? <>{segmentEnvelope?.source || "Resolved"} · {turns} turns · {straights} straights</> : "Missing segment data"}
+          <StatusValue loading={sectorsQuery.isLoading} error={sectorsQuery.error}>
+            {segments.length > 0 ? <>{segmentEnvelope?.source || "Resolved"} · {turns} turns · {straights} straights</> : "Missing segment data"}
+          </StatusValue>
         </SummaryCard>
         <SummaryCard testId="dev-track-tool-sectors" title="Sectors" description="Effective timing-sector starts and ownership." href={{ ...toolPath("geometry", gameId, trackOrdinal), search: { mode: "sectors" } }}>
-          {starts.length > 0 ? <>{starts.length} starts · <Badge variant="neutral">{timingLayout.ownership === "game" ? "Game supplied · read-only" : "RaceIQ · editable"}</Badge></> : timingLayout.ownership === "game" ? <span>Game supplied · no recorded layout</span> : <span>Missing timing-sector layout</span>}
+          <StatusValue loading={timingQuery.isLoading} error={timingQuery.error}>
+            {starts.length > 0 ? <>{starts.length} starts · <Badge variant="neutral">{timingLayout.ownership === "game" ? "Game supplied · read-only" : "RaceIQ · editable"}</Badge></> : timingLayout.ownership === "game" ? <span>Game supplied · no recorded layout</span> : <span>Missing timing-sector layout</span>}
+          </StatusValue>
         </SummaryCard>
         <SummaryCard testId="dev-track-tool-guides" title="Guides" description="Canonical guide authoring and resolved preview." href={toolPath("guides", gameId, trackOrdinal)}>
-          {guideQuery.data?.guide ? `${guideQuery.data.guide.corners?.length ?? 0} corners · ${guideQuery.data.guide.priorityCorners?.length ?? 0} priorities` : "Missing guide · create document"}
+          <StatusValue loading={guideQuery.isLoading} error={guideQuery.error}>
+            {guideQuery.data?.guide ? `${guideQuery.data.guide.corners?.length ?? 0} corners · ${guideQuery.data.guide.priorityCorners?.length ?? 0} priorities` : "Missing guide · create document"}
+          </StatusValue>
         </SummaryCard>
         <SummaryCard testId="dev-track-tool-imagery" title="Imagery" description="Venue base, calibration, and layer configuration." href={toolPath("imagery", gameId, trackOrdinal)}>
-          {imageryConfigured ? "Configured" : "Missing · create or import imagery"}
+          <StatusValue loading={imageryQuery.isLoading} error={imageryQuery.error}>
+            {imageryConfigured ? "Configured" : "Missing · create or import imagery"}
+          </StatusValue>
         </SummaryCard>
       </div>
     </div>

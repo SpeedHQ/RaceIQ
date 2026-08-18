@@ -7,6 +7,7 @@ import { tryGetServerGame } from "../../games/registry";
 import { formatTurnNumbers, turnNumbers } from "../../../shared/racing/tracks/segment-label";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 import { getCorners, saveCorners } from "../../db/track-queries";
+import { getLapById, getLapSummariesByTrack } from "../../db/lap-read-queries";
 import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
 import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
 import {
@@ -19,6 +20,7 @@ import {
 import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
 import type { Corner } from "../../lap-analysis/corners";
+import { isValidNativeSectorStarts } from "../../lap-analysis/sectors";
 import { cornerNumbers } from "../../../shared/racing/tracks/facts";
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
 import { cornerKey } from "../../../shared/racing/tracks/keys";
@@ -145,10 +147,28 @@ export const trackSectorBoundaryRoutes = new Hono()
       const outline = getTrackOutlineByOrdinal(ordinal, gameId, getSharedTrackName(ordinal, gameId));
       const trackLength = computeOutlineLength(outline);
       if (adapter?.nativeSectors) {
+        let sectorStarts: number[] | null = null;
+        if (adapter.getNativeSectorLayout) {
+          const laps = await getLapSummariesByTrack(ordinal, gameId);
+          laps.sort((left, right) => {
+            const dateDelta = new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime();
+            return dateDelta || right.lapId - left.lapId;
+          });
+          for (const summary of laps) {
+            const lap = await getLapById(summary.lapId);
+            for (const packet of lap?.telemetry ?? []) {
+              const starts = adapter.getNativeSectorLayout(packet)?.starts;
+              if (!isValidNativeSectorStarts(starts)) continue;
+              sectorStarts = [...starts];
+              break;
+            }
+            if (sectorStarts) break;
+          }
+        }
         return c.json({
           ownership: "game" as const,
           editable: false as const,
-          sectorStarts: null,
+          sectorStarts,
           trackLength,
         });
       }

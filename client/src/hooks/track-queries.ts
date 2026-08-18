@@ -33,17 +33,39 @@ export function useTrackSectors(ord: number | undefined, gameIdOverride?: GameId
   });
 }
 
-export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride?: GameId | null, enabledOverride = true) {
+export type TrackSectorBoundaryData =
+  | {
+      ownership: "game";
+      editable: false;
+      sectorStarts: number[] | null;
+      trackLength: number;
+    }
+  | {
+      ownership: "raceiq";
+      editable: true;
+      sectorStarts: number[];
+      trackLength: number;
+      s1End: number;
+      s2End: number;
+    };
+
+function useTrackSectorBoundaryData(ord: number | undefined, gameIdOverride?: GameId | null, enabledOverride = true) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
     queryKey: [...queryKeys.trackSectorBoundaries(ord!), gameId ?? null],
     queryFn: async () => {
       const res = await client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
-      return rpcJson<{ s1End: number; s2End: number } | null>(res);
+      return rpcJson<TrackSectorBoundaryData>(res);
     },
     enabled: enabledOverride && ord != null && ord >= 0 && !!gameId,
   });
+}
+
+export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride?: GameId | null, enabledOverride = true) {
+  const query = useTrackSectorBoundaryData(ord, gameIdOverride, enabledOverride);
+  const data = query.data?.ownership === "raceiq" ? { s1End: query.data.s1End, s2End: query.data.s2End } : null;
+  return { ...query, data };
 }
 
 export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId | null) {
@@ -156,9 +178,6 @@ export interface TrackTimingSectorLayout {
   hasRecording: boolean;
 }
 
-interface NativeSectorLayoutResult {
-  starts: number[] | null;
-}
 
 function validNativeStarts(value: unknown): value is number[] {
   return (
@@ -181,49 +200,22 @@ export function useTrackTimingSectorLayout({
   trackOrdinal: number;
 }) {
   const native = gameId ? getGame(gameId).nativeSectors : false;
-  const boundaries = useTrackSectorBoundaries(trackOrdinal, gameId, !native);
-  const nativeQuery = useQuery<NativeSectorLayoutResult>({
-    queryKey: ["track-native-sector-layout", gameId, trackOrdinal],
-    queryFn: async ({ signal }) => {
-      const response = await client.api.tracks[":trackOrdinal"]["all-laps"].$get({
-        param: { trackOrdinal: String(trackOrdinal) },
-        query: { gameId },
-      } as never, { init: { signal } } as never);
-      if (!response.ok) throw new Error(`Failed to load track laps (${response.status})`);
-      const laps = (await response.json()) as Array<{ lapId: number; createdAt?: string | null }>;
-      if (!Array.isArray(laps)) throw new Error("Track laps response is malformed");
-      const newest = [...laps].sort((left, right) => {
-        const dateDelta = new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime();
-        return dateDelta || right.lapId - left.lapId;
-      });
-      for (const lap of newest) {
-        const telemetryResponse = await fetch(`/api/laps/${lap.lapId}/semantic-telemetry`, {
-          headers: { "X-Game-Id": gameId ?? "" },
-          signal,
-        });
-        if (!telemetryResponse.ok) continue;
-        const telemetry = (await telemetryResponse.json()) as { sectorStarts?: unknown };
-        if (validNativeStarts(telemetry.sectorStarts)) return { starts: telemetry.sectorStarts };
-      }
-      return { starts: null };
-    },
-    enabled: !!gameId && native && trackOrdinal >= 0,
-    staleTime: 30_000,
-  });
+  const boundaries = useTrackSectorBoundaryData(trackOrdinal, gameId);
 
   const data = useMemo<TrackTimingSectorLayout>(() => {
     if (native) {
-      const starts = nativeQuery.data?.starts ?? null;
+      const starts = validNativeStarts(boundaries.data?.sectorStarts) ? boundaries.data.sectorStarts : null;
       return { starts, ownership: "game", editable: false, hasRecording: starts !== null };
     }
     const bounds = boundaries.data;
-    const starts = bounds && Number.isFinite(bounds.s1End) && Number.isFinite(bounds.s2End) && 0 < bounds.s1End && bounds.s1End < bounds.s2End && bounds.s2End < 1 ? [0, bounds.s1End, bounds.s2End] : null;
+    if (!bounds || bounds.ownership !== "raceiq") return { starts: null, ownership: "raceiq", editable: true, hasRecording: false };
+    const { s1End, s2End } = bounds;
+    const starts = Number.isFinite(s1End) && Number.isFinite(s2End) && 0 < s1End && s1End < s2End && s2End < 1 ? [0, s1End, s2End] : null;
     return { starts, ownership: "raceiq", editable: true, hasRecording: starts !== null };
-  }, [boundaries.data, native, nativeQuery.data]);
+  }, [boundaries.data, native]);
 
-  const query = native ? nativeQuery : boundaries;
   return {
-    ...query,
+    ...boundaries,
     data,
   };
 }
