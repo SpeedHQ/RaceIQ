@@ -65,7 +65,7 @@ jobs:
           name: ${{ inputs.dist-artifact }}
           path: dist
       - name: Restore compiled server permissions
-        if: inputs.dist-artifact != ''
+        if: inputs.dist-artifact != '' && runner.os != 'Windows'
         run: chmod +x dist/raceiq
 
 
