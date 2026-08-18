@@ -1,5 +1,8 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { open, type FileHandle } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { pipeline } from "node:stream/promises";
 import { Hono } from "hono";
 import sharp from "sharp";
 import { z } from "zod";
@@ -34,6 +37,7 @@ import { writeAtomicJson } from "../../../shared/platform/runtime/atomic-json";
 
 const MAX_TRACK_IMAGE_BYTES = 100 * 1024 * 1024;
 const MAX_TRACK_IMAGE_PIXELS = 200_000_000;
+const MAX_MANUAL_IMAGE_STRIP_BYTES = 64 * 1024 * 1024;
 const SUPPORTED_FORMATS: Record<string, string> = { png: "png", jpeg: "jpg", webp: "webp" };
 const SAFE_ID = /^[a-z0-9][a-z0-9-]*$/;
 const openImageryBaseRequestSchema = z.object({
@@ -182,24 +186,64 @@ function packageMetadata(
     bounds,
   };
 }
+async function readFully(file: FileHandle, buffer: Buffer, position: number): Promise<void> {
+  let offset = 0;
+  while (offset < buffer.length) {
+    const { bytesRead } = await file.read(buffer, offset, buffer.length - offset, position + offset);
+    if (bytesRead === 0) throw new Error("Unexpected end of resized manual imagery");
+    offset += bytesRead;
+  }
+}
 async function* manualImageryTiles(
   image: ValidatedImage,
   tileSize: number,
   outputWidth: number,
   outputHeight: number,
 ): AsyncIterable<{ tier: "hq"; x: number; y: number; width: number; height: number; format: "webp"; data: Uint8Array }> {
-  for (let y = 0; y < outputHeight; y += tileSize) {
-    for (let x = 0; x < outputWidth; x += tileSize) {
-      const width = Math.min(tileSize, outputWidth - x);
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), "raceiq-manual-imagery-"));
+  const resizedPath = join(temporaryDirectory, "resized.raw");
+  let resizedFile: FileHandle | undefined;
+  try {
+    const resize = sharp(image.bytes, { limitInputPixels: MAX_TRACK_IMAGE_PIXELS }).resize(outputWidth, outputHeight, { fit: "fill" }).raw();
+    let channels: 1 | 2 | 3 | 4 | undefined;
+    resize.on("info", (info) => {
+      channels = info.channels;
+    });
+    await pipeline(resize, createWriteStream(resizedPath));
+    if (!channels) throw new Error("Unable to resize manual imagery");
+
+    resizedFile = await open(resizedPath, "r");
+    const rowStride = outputWidth * channels;
+    for (let y = 0; y < outputHeight; y += tileSize) {
       const height = Math.min(tileSize, outputHeight - y);
-      const data = new Uint8Array(
-        await sharp(image.bytes, { limitInputPixels: MAX_TRACK_IMAGE_PIXELS })
-          .resize(outputWidth, outputHeight, { fit: "fill" })
-          .extract({ left: x, top: y, width, height })
-          .webp({ quality: 90, effort: 4 })
-          .toBuffer(),
-      );
-      yield { tier: "hq", x: Math.floor(x / tileSize), y: Math.floor(y / tileSize), width, height, format: "webp", data };
+      const stripByteLength = rowStride * height;
+      const stripPixels = stripByteLength <= MAX_MANUAL_IMAGE_STRIP_BYTES ? Buffer.allocUnsafe(stripByteLength) : undefined;
+      if (stripPixels) await readFully(resizedFile, stripPixels, y * rowStride);
+
+      for (let x = 0; x < outputWidth; x += tileSize) {
+        const width = Math.min(tileSize, outputWidth - x);
+        const tileRowStride = width * channels;
+        const tilePixels = Buffer.allocUnsafe(tileRowStride * height);
+        if (stripPixels) {
+          for (let row = 0; row < height; row += 1) {
+            const sourceStart = row * rowStride + x * channels;
+            stripPixels.copy(tilePixels, row * tileRowStride, sourceStart, sourceStart + tileRowStride);
+          }
+        } else {
+          for (let row = 0; row < height; row += 1) {
+            const targetStart = row * tileRowStride;
+            await readFully(resizedFile, tilePixels.subarray(targetStart, targetStart + tileRowStride), (y + row) * rowStride + x * channels);
+          }
+        }
+        const data = await sharp(tilePixels, { raw: { width, height, channels } }).webp({ quality: 90, effort: 4 }).toBuffer();
+        yield { tier: "hq", x: Math.floor(x / tileSize), y: Math.floor(y / tileSize), width, height, format: "webp", data };
+      }
+    }
+  } finally {
+    try {
+      await resizedFile?.close();
+    } finally {
+      rmSync(temporaryDirectory, { recursive: true, force: true });
     }
   }
 }

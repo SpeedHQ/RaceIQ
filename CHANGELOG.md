@@ -29,6 +29,7 @@
 - Keep satellite imagery track maps responsive during Analyse playback instead of rebuilding the static raster for every telemetry frame
 - Show track workbench status cards immediately and resolve native sector layouts without a per-lap request waterfall
 - Complete large venue imagery imports reliably by batching source downloads and retrying transient provider failures
+- Complete large manually uploaded venue imagery imports without stalling the development server under multi-tile workloads
 - Keep viewport-loaded aerial imagery seamless and stable while progressively sharpening it during Analyse map zoom
 - Show connected iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, keep source SVGs hidden while generated thumbnails load, and exclude pit artwork from lap-distance calculations
 - Draw imported iRacing IBT driving paths on Analyse maps from recorded GPS coordinates

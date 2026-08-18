@@ -10,7 +10,7 @@ import { trackConfigurationDevRoutes } from "../server/routes/dev/track-configur
 import { trackImageryDevRoutes } from "../server/routes/dev/track-imagery-routes";
 import { trackImageryRoutes } from "../server/routes/tracks/imagery-routes";
 import { deleteTrackConfiguration } from "../server/tracks/configuration";
-import { readTrackImageryPackMetadata, writeTrackImageryPack, type TrackImageryPackTile } from "../server/tracks/imagery-pack";
+import { readTrackImageryPackMetadata, readTrackImageryPackTile, writeTrackImageryPack, type TrackImageryPackTile } from "../server/tracks/imagery-pack";
 import { trackImageryLayoutPath, trackImageryVenueDirectory } from "../server/tracks/imagery";
 
 const venueRootId = `route-test-${Date.now()}`;
@@ -211,6 +211,59 @@ test("serves one physical HQ venue package to two layouts with transparent overl
   expect(trackConfigurationCanonicalId(confirmed)).toBe(`${venueId}/road-course`);
   expect(confirmed.confirmation).toEqual({ confirmedAt: "2026-08-17", confirmedBy: "RaceIQ maintainer", commitId: "abcdef1" });
   expect(resolveTrackName(trackOrdinal, gameId)).toBe("Route Test — Historical — 2011 — Road Course");
+});
+
+test("imports resized manual imagery across a multi-tile grid", async () => {
+  const manualVenueId = `${venueRootId}/manual`;
+  const manualDirectory = trackImageryVenueDirectory(manualVenueId);
+  const bounds = { west: -81.01, south: 28.99, east: -80.99, north: 29.01 };
+  const calibration = { originLatitudeDeg: 29, originLongitudeDeg: -81, imageToEnu: [200, 0, 0, -100, -100, 50] };
+  const image = await sharp({ create: { width: 2_050, height: 1_026, channels: 3, background: { r: 20, g: 40, b: 60 } } })
+    .png()
+    .toBuffer();
+  const form = new FormData();
+  form.set("file", new File([image], "manual.png", { type: "image/png" }));
+  form.set(
+    "manifest",
+    JSON.stringify({
+      version: TRACK_IMAGERY_MANIFEST_VERSION,
+      venueId: manualVenueId,
+      calibration,
+      base: {
+        pack: TRACK_IMAGERY_PACKAGE_NAME,
+        tileSize: 512,
+        bounds,
+        source: { name: "Manual test texture", provider: "manual", license: "owned", attribution: "", sourceResolutionM: 0.05, storedResolutionM: 0.05 },
+      },
+      layers: [],
+    }),
+  );
+
+  const response = await app.request(`/api/dev/track-imagery/venues/base?venueId=${encodeURIComponent(manualVenueId)}`, { method: "POST", body: form });
+  expect(response.status).toBe(201);
+  expect(await response.json()).toMatchObject({
+    base: { pack: TRACK_IMAGERY_PACKAGE_NAME, tileSize: 512, bounds, source: { provider: "manual", sourceResolutionM: 0.05, storedResolutionM: 0.1, quality: "hq" } },
+  });
+
+  const packPath = resolve(manualDirectory, TRACK_IMAGERY_PACKAGE_NAME);
+  const metadata = readTrackImageryPackMetadata(packPath);
+  expect(metadata).toMatchObject({ width: 1_025, height: 513, tileSize: 512, columns: 3, rows: 2, resolutionM: 0.1 });
+  const expectedSizes = [
+    [512, 512],
+    [512, 512],
+    [1, 512],
+    [512, 1],
+    [512, 1],
+    [1, 1],
+  ] as const;
+  for (let y = 0; y < metadata.rows; y += 1) {
+    for (let x = 0; x < metadata.columns; x += 1) {
+      const tile = readTrackImageryPackTile(packPath, x, y, metadata);
+      const [width, height] = expectedSizes[y * metadata.columns + x]!;
+      expect(tile).toMatchObject({ tier: "hq", x, y, width, height, format: "webp" });
+      expect(await sharp(tile!.data).metadata()).toMatchObject({ format: "webp", width, height });
+    }
+  }
 });
 
 test("resolves lap-free imagery calibration through an exact iRacing layout peer", async () => {
