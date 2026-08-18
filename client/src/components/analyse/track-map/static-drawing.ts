@@ -144,7 +144,6 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     }
   }
   if (imagery) {
-    imagery.requestVisibleTiles?.(transform, viewportCamera);
     const [a, b, c, d, e, f] = imagery.imageToTrack;
     const { width, height, tileSize, tiles } = imagery.base;
     for (const tile of tiles) {
@@ -155,12 +154,12 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       const tileV = tile.height / height;
       const imageX = a * u + c * v + e;
       const imageZ = b * u + d * v + f;
-      const overlapU = 0.5 / Math.max(1, tile.decodeWidth ?? tile.width);
-      const overlapV = 0.5 / Math.max(1, tile.decodeHeight ?? tile.height);
+      const overlapU = 1 / Math.max(1, tile.decodeWidth ?? tile.width);
+      const overlapV = 1 / Math.max(1, tile.decodeHeight ?? tile.height);
       ctx.save();
       ctx.transform(-a * scale * tileU, b * scale * tileU, -c * scale * tileV, d * scale * tileV, offsetX + (maxX - imageX) * scale, offsetZ + (imageZ - minZ) * scale);
-      // Half-source-pixel overdraw hides bilinear edge sampling without changing
-      // any tile's logical position in the venue-wide coordinate system.
+      // One decoded-pixel overdraw covers antialiased transformed edges without
+      // changing any tile's logical position in the venue-wide coordinate system.
       ctx.drawImage(tile.image, -overlapU, -overlapV, 1 + overlapU * 2, 1 + overlapV * 2);
       ctx.restore();
     }
@@ -171,6 +170,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.drawImage(texture.image, 0, 0, 1, 1);
       ctx.restore();
     }
+    imagery.requestVisibleTiles?.(transform, viewportCamera);
   }
 
   drawPitLines(ctx, flippedPitLines, toCanvas);

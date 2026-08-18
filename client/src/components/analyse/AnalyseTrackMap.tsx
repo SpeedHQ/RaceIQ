@@ -138,7 +138,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   );
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
   const directVectorRender = zoom > TRACK_MAP_MAX_RENDER_ZOOM;
-  useEffect(() => {
+  useLayoutEffect(() => {
     imageryTileManagerRef.current?.close();
     imageryTileManagerRef.current = null;
     setImageryTiles([]);
@@ -156,6 +156,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     const cache = new Map<string, LoadedImageryTile>();
     const queued = new Set<string>();
     const queue: { x: number; y: number; decodeWidth: number; decodeHeight: number }[] = [];
+    let wanted = new Map<string, { x: number; y: number; decodeWidth: number; decodeHeight: number }>();
     const key = `${base.tileUrlTemplate}|${width}x${height}|${tileSize}|${gameId ?? ""}`;
     const publish = () => {
       if (!closed) setImageryTiles([...cache.values()]);
@@ -173,6 +174,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     const load = async (x: number, y: number, decodeWidth: number, decodeHeight: number) => {
       const tileWidth = Math.max(1, Math.min(tileSize, width - x * tileSize));
       const tileHeight = Math.max(1, Math.min(tileSize, height - y * tileSize));
+      const tileKey = `${x}:${y}`;
       try {
         const image = await loadImagerySource(imageryTileUrl(base.tileUrlTemplate, x, y, gameId), abortController.signal, {
           width: decodeWidth,
@@ -182,9 +184,19 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
           releaseImagerySource(image);
           return;
         }
-        const tileKey = `${x}:${y}`;
+        const desired = wanted.get(tileKey);
+        if (!desired) {
+          releaseImagerySource(image);
+          return;
+        }
         const previous = cache.get(tileKey);
         const tile: LoadedImageryTile = { x, y, width: tileWidth, height: tileHeight, decodeWidth, decodeHeight, image, released: false };
+        if (previous && previous.decodeWidth >= tile.decodeWidth && previous.decodeHeight >= tile.decodeHeight) {
+          releaseImageryTile(tile);
+          cache.delete(tileKey);
+          cache.set(tileKey, previous);
+          return;
+        }
         cache.delete(tileKey);
         cache.set(tileKey, tile);
         if (previous) releaseImageryTile(previous);
@@ -200,7 +212,17 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
         // Abort and unavailable tiles leave neighboring tiles visible.
       } finally {
         inFlight--;
-        queued.delete(`${x}:${y}`);
+        queued.delete(tileKey);
+        const desired = wanted.get(tileKey);
+        const cached = cache.get(tileKey);
+        if (
+          desired &&
+          (desired.decodeWidth > decodeWidth || desired.decodeHeight > decodeHeight) &&
+          (!cached || cached.decodeWidth < desired.decodeWidth || cached.decodeHeight < desired.decodeHeight)
+        ) {
+          queued.add(tileKey);
+          queue.unshift(desired);
+        }
         pump();
       }
     };
@@ -260,7 +282,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       const x1 = Math.min(columns - 1, Math.floor((Math.min(1, uMax) * width) / tileSize) + 1);
       const y0 = Math.max(0, Math.floor((Math.max(0, vMin) * height) / tileSize) - 1);
       const y1 = Math.min(rows - 1, Math.floor((Math.min(1, vMax) * height) / tileSize) + 1);
-      const wanted = new Map<string, { x: number; y: number; decodeWidth: number; decodeHeight: number }>();
+      const nextWanted = new Map<string, { x: number; y: number; decodeWidth: number; decodeHeight: number }>();
       const deviceScale = window.devicePixelRatio || 1;
       const fullTileScreenWidth = (Math.hypot(matrix[0], matrix[1]) * transform.scale * tileSize * deviceScale) / width;
       const fullTileScreenHeight = (Math.hypot(matrix[2], matrix[3]) * transform.scale * tileSize * deviceScale) / height;
@@ -268,7 +290,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
         for (let x = x0; x <= x1; x++) {
           const logicalWidth = Math.min(tileSize, width - x * tileSize);
           const logicalHeight = Math.min(tileSize, height - y * tileSize);
-          wanted.set(`${x}:${y}`, {
+          nextWanted.set(`${x}:${y}`, {
             x,
             y,
             decodeWidth: Math.max(1, Math.min(logicalWidth, Math.ceil((fullTileScreenWidth * logicalWidth) / tileSize))),
@@ -276,6 +298,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
           });
         }
       }
+      wanted = nextWanted;
       cacheLimit = Math.max(IMAGERY_TILE_CACHE_FLOOR, wanted.size);
       for (let index = queue.length - 1; index >= 0; index--) {
         const queuedTile = queue[index];
@@ -287,20 +310,26 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       }
       for (const [tileKey, desired] of wanted) {
         const cached = cache.get(tileKey);
-        if (cached && (cached.decodeWidth < desired.decodeWidth || cached.decodeHeight < desired.decodeHeight)) {
-          // Keep lower-resolution imagery visible until its sharper replacement finishes decoding.
-        } else if (cached) {
+        if (cached) {
           cache.delete(tileKey);
           cache.set(tileKey, cached);
-          continue;
+          if (cached.decodeWidth >= desired.decodeWidth && cached.decodeHeight >= desired.decodeHeight) continue;
         }
-        if (!queued.has(tileKey)) {
+        const pending = queue.find((tile) => tile.x === desired.x && tile.y === desired.y);
+        if (pending) {
+          pending.decodeWidth = Math.max(pending.decodeWidth, desired.decodeWidth);
+          pending.decodeHeight = Math.max(pending.decodeHeight, desired.decodeHeight);
+        } else if (!queued.has(tileKey)) {
           queued.add(tileKey);
           queue.push(desired);
         }
       }
+      const centerTileX = (((Math.max(0, uMin) + Math.min(1, uMax)) / 2) * width) / tileSize;
+      const centerTileY = (((Math.max(0, vMin) + Math.min(1, vMax)) / 2) * height) / tileSize;
+      queue.sort((left, right) => (left.x - centerTileX) ** 2 + (left.y - centerTileY) ** 2 - ((right.x - centerTileX) ** 2 + (right.y - centerTileY) ** 2));
+      const hasAllWanted = [...wanted.keys()].every((tileKey) => cache.has(tileKey));
       let evicted = false;
-      while (cache.size > cacheLimit) {
+      while (hasAllWanted && cache.size > cacheLimit) {
         const oldestKey = cache.keys().next().value as string | undefined;
         if (!oldestKey) break;
         const oldest = cache.get(oldestKey);
