@@ -26,7 +26,7 @@ jobs:
           - name: tunes-unseeded
             server_set: tunes-unseeded
             projects: --project=tunes-unseeded
-            runs_on: '["whitesmith-windows-x64", "2VCPU", "5G"]'
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
           - name: seeded
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
