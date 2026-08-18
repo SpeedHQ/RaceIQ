@@ -91,7 +91,7 @@ jobs:
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
-          PW_WORKERS: "10"
+          PW_WORKERS: "2"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
         run: bun run ../scripts/playwright-ci.ts test --list
@@ -101,7 +101,7 @@ jobs:
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
-          PW_WORKERS: "10"
+          PW_WORKERS: "2"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd

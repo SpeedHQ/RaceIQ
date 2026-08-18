@@ -10,13 +10,30 @@ on:
 
 jobs:
   playwright:
+    name: Playwright E2E (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fresh
+            server_set: fresh
+            projects: --project=fresh-install --project=mobile-device --project=tablet-device
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "5G"]'
+          - name: tunes
+            server_set: tunes
+            projects: --project=tunes
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "5G"]'
+          - name: seeded
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "8G"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      server-set: all
-      projects: --project=fresh-install --project=tunes --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-      runs-on: '["whitesmith-windows-x64", "10VCPU", "25G"]'
+      server-set: ${{ matrix.server_set }}
+      projects: ${{ matrix.projects }}
+      runs-on: ${{ matrix.runs_on }}
       dist-artifact: raceiq-dist-windows
-      artifact-name: playwright
-      diagnostic-artifact-name: server-diagnostics
+      artifact-name: playwright-${{ matrix.name }}
+      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
       target-ref: ${{ inputs.target-ref }}

@@ -154,13 +154,32 @@ jobs:
   playwright-test:
     if: github.event_name == 'workflow_dispatch'
     needs: build
+    name: Release E2E (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fresh
+            server_set: fresh
+            projects: --project=fresh-install --project=mobile-device --project=tablet-device
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "5G"]'
+          - name: tunes
+            server_set: tunes
+            projects: --project=tunes
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "5G"]'
+          - name: seeded
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "8G"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      server-set: all
-      runs-on: '["whitesmith-windows-x64", "4VCPU", "5G"]'
+      server-set: ${{ matrix.server_set }}
+      projects: ${{ matrix.projects }}
+      runs-on: ${{ matrix.runs_on }}
       dist-artifact: raceiq-dist-windows
-      artifact-name: playwright-compiled
+      artifact-name: playwright-compiled-${{ matrix.name }}
+      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
   draft-release:
     if: github.event_name == 'workflow_dispatch'
     needs: [compute-version, build, playwright-test]
