@@ -113,6 +113,7 @@ export const naipProvider: TrackImageryProvider = {
       bboxSR: "4326",
       imageSR: "4326",
       size: `${width},${height}`,
+      adjustAspectRatio: "false",
       format: "jpg",
       pixelType: "U8",
       renderingRule: JSON.stringify({ rasterFunction: "NaturalColor" }),

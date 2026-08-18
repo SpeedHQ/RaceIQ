@@ -7,6 +7,7 @@ import {
   trackImageryProvidersForLocation,
 } from "../server/tracks/imagery-providers";
 import { sentinel2Provider } from "../server/tracks/imagery-providers/sentinel2";
+import { naipProvider } from "../server/tracks/imagery-providers/naip";
 import { request } from "../server/tracks/imagery-providers/http";
 import type { TrackImageryCandidate } from "../shared/racing/tracks/imagery";
 import type { TrackImageryFetcher, TrackImageryLocation } from "../server/tracks/imagery-providers/types";
@@ -116,6 +117,30 @@ test("PDOK advertises 0.08m source detail while normalized source pipeline must 
   expect(pdok).toBeDefined();
   const [candidateValue] = await pdok!.search({ bounds: zandvoortBounds, location: zandvoort, fetcher: registryFetcher([]) });
   expect(candidateValue).toMatchObject({ id: "pdok-netherlands-rgb:2026-orthohr", sourceResolutionM: 0.08, quality: "hq" });
+});
+
+test("NAIP preserves exact geographic bounds across chunked exports", async () => {
+  let exportUrl = "";
+  const fetcher = (async (input: string | URL | Request) => {
+    exportUrl = String(input);
+    return new Response(Uint8Array.from([1, 2, 3]).buffer, { headers: { "Content-Type": "image/jpeg" } });
+  }) as TrackImageryFetcher;
+  await naipProvider.fetch(
+    {
+      candidate: candidate({
+        id: "usgs-naip:latest",
+        provider: "usgs-naip",
+        sourceResolutionM: 0.3,
+        license: "Public domain",
+        attribution: "USDA NAIP",
+      }),
+    },
+    usBounds,
+    512,
+    256,
+    fetcher,
+  );
+  expect(new URL(exportUrl).searchParams.get("adjustAspectRatio")).toBe("false");
 });
 
 test("ranking prioritizes coverage, quality, resolution, reliability, recency, cloud, stability, then provider and id", () => {

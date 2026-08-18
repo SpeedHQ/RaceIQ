@@ -143,10 +143,15 @@ async function renderImageryPackPreview(path: string): Promise<{ bytes: Uint8Arr
       const tileWidth = Math.min(metadata.tileSize, metadata.width - x * metadata.tileSize);
       const tileHeight = Math.min(metadata.tileSize, metadata.height - y * metadata.tileSize);
       if (tileWidth <= 0 || tileHeight <= 0) continue;
+      const left = Math.round(((x * metadata.tileSize) / metadata.width) * width);
+      const right = Math.round(((x * metadata.tileSize + tileWidth) / metadata.width) * width);
+      const top = Math.round(((y * metadata.tileSize) / metadata.height) * height);
+      const bottom = Math.round(((y * metadata.tileSize + tileHeight) / metadata.height) * height);
+      if (right <= left || bottom <= top) continue;
       const resized = await sharp(tile)
-        .resize(Math.max(1, Math.round((tileWidth / metadata.width) * width)), Math.max(1, Math.round((tileHeight / metadata.height) * height)), { fit: "fill" })
+        .resize(right - left, bottom - top, { fit: "fill" })
         .toBuffer();
-      composites.push({ input: resized, left: Math.round(((x * metadata.tileSize) / metadata.width) * width), top: Math.round(((y * metadata.tileSize) / metadata.height) * height) });
+      composites.push({ input: resized, left, top });
     }
   }
   if (composites.length === 0) throw new Error("Imagery package contains no HQ tiles");
