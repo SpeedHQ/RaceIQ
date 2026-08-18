@@ -8,7 +8,7 @@
 
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Drag and deeply zoom crisp Fixed and Follow Analyse track maps without scrolling the page to inspect any point independently of car position
-- Find, preview, and install legally reusable, venue-shared HQ aerial imagery at source resolution, then inspect it through seamless viewport-loaded tiles with reusable game, layout, and correction overlays
+- Find, rank, preview, and install legally reusable, location-matched aerial imagery from authoritative regional sources or OpenAerialMap, with Sentinel-2 context fallback, then inspect venue-shared imagery through seamless viewport-loaded tiles and reusable overlays
 - Curate every game’s pre-populated definitive track registry through expandable track, layout, and game hierarchies backed by one bundled SQLite catalog for canonical corner names and per-game distances, then record confirmation date, maintainer, and commit
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Enriched iRacing car and track catalogs with current specifications, capabilities, official map layers, and contextual car-class metadata
@@ -23,6 +23,7 @@
 
 ### Fixes
 
+- Complete large venue imagery imports reliably by batching source downloads and retrying transient provider failures
 - Show connected iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, keep source SVGs hidden while generated thumbnails load, and exclude pit artwork from lap-distance calculations
 - Draw imported iRacing IBT driving paths on Analyse maps from recorded GPS coordinates
 - Orient imported iRacing cars from recorded north-referenced heading, pitch, and roll on Analyse views

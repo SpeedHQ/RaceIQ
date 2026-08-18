@@ -16,6 +16,7 @@ import {
   type TrackImageryLayoutManifest,
   type TrackImageryVenueManifest,
 } from "../../../shared/racing/tracks/imagery";
+import type { TrackImageryLocation } from "../../tracks/imagery-providers/types";
 import { TRACK_IMAGERY_PACKAGE_NAME, readTrackImageryPackMetadata, readTrackImageryPackTile, writeTrackImageryPack, type TrackImageryPackMetadata } from "../../tracks/imagery-pack";
 import { loadTrackConfiguration } from "../../tracks/configuration";
 import { loadOpenTrackImageryAsset, loadOpenTrackImageryRaster, searchOpenTrackImagery } from "../../tracks/imagery-sources";
@@ -31,7 +32,30 @@ const openImageryBaseRequestSchema = z.object({
   candidateId: z.string().trim().min(1),
   bounds: TrackImageryGeographicBoundsSchema,
   calibration: TrackImageryCalibrationSchema,
+  gameId: GameIdSchema,
+  trackOrdinal: z.number().int().nonnegative(),
 });
+const trackImageryIdentitySchema = z.object({
+  gameId: GameIdSchema,
+  trackOrdinal: z.number().int().nonnegative(),
+});
+
+function trackIdentityFromQuery(c: { req: { query: (key: string) => string | undefined } }): { gameId: GameId; trackOrdinal: number } {
+  const gameId = GameIdSchema.parse(c.req.query("gameId"));
+  const trackOrdinal = Number.parseInt(c.req.query("trackOrdinal") ?? "", 10);
+  if (!Number.isSafeInteger(trackOrdinal) || trackOrdinal < 0) throw new Error("Invalid track ordinal");
+  return { gameId, trackOrdinal };
+}
+
+function resolveImageryLocation(gameId: GameId, trackOrdinal: number): TrackImageryLocation {
+  const source = resolveTrackGeographicCatalogSource(gameId, trackOrdinal);
+  if (!source) throw new Error("Unable to resolve geographic venue for selected track");
+  return {
+    center: { latitudeDeg: source.track.latitude, longitudeDeg: source.track.longitude },
+    country: source.track.country.trim(),
+    region: source.track.location.trim(),
+  };
+}
 
 interface ValidatedImage {
   bytes: Uint8Array;
@@ -212,8 +236,12 @@ export const trackImageryDevRoutes = new Hono()
   })
   .post("/api/dev/track-imagery/sources/search", async (c) => {
     try {
-      const raw = (await c.req.json()) as { bounds?: unknown };
-      return c.json(await searchOpenTrackImagery(raw.bounds));
+      const requestBody = z
+        .object({ bounds: TrackImageryGeographicBoundsSchema })
+        .merge(trackImageryIdentitySchema)
+        .parse(await c.req.json());
+      const location = resolveImageryLocation(requestBody.gameId, requestBody.trackOrdinal);
+      return c.json(await searchOpenTrackImagery(requestBody.bounds, location));
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to search open imagery" }, 400);
     }
@@ -222,7 +250,10 @@ export const trackImageryDevRoutes = new Hono()
     try {
       const candidateId = c.req.query("candidateId");
       if (!candidateId) return c.json({ error: "Missing imagery source" }, 400);
-      const raster = await loadOpenTrackImageryRaster(candidateId, imageryBoundsFromQuery(c), "preview");
+      const { gameId, trackOrdinal } = trackIdentityFromQuery(c);
+      const bounds = imageryBoundsFromQuery(c);
+      const location = resolveImageryLocation(gameId, trackOrdinal);
+      const raster = await loadOpenTrackImageryRaster(candidateId, bounds, location, "preview");
       return new Response(Uint8Array.from(raster.bytes).buffer, {
         headers: {
           "Cache-Control": "no-store",
@@ -239,7 +270,8 @@ export const trackImageryDevRoutes = new Hono()
     try {
       const venueId = venueIdFromQuery(c);
       const requestBody = openImageryBaseRequestSchema.parse(await c.req.json());
-      const asset = await loadOpenTrackImageryAsset(requestBody.candidateId, requestBody.bounds, 512);
+      const location = resolveImageryLocation(requestBody.gameId, requestBody.trackOrdinal);
+      const asset = await loadOpenTrackImageryAsset(requestBody.candidateId, requestBody.bounds, location, 512);
       const current = loadTrackImageryVenue(venueId);
       const manifest = TrackImageryVenueManifestSchema.parse({
         version: TRACK_IMAGERY_MANIFEST_VERSION,

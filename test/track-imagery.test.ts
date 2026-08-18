@@ -66,6 +66,18 @@ test("creates a north-up venue footprint that fully covers GPS path", () => {
   expect(d).toBeLessThanOrEqual(-100);
   expect(a / Math.abs(d)).toBeCloseTo(2, 8);
 });
+test("keeps surrounding satellite context available for manual rotation and translation", () => {
+  const originLatitudeDeg = 29;
+  const originLongitudeDeg = -81;
+  const geographic = [geographicFromEnu(-200, -100, originLatitudeDeg, originLongitudeDeg), geographicFromEnu(200, 100, originLatitudeDeg, originLongitudeDeg)];
+  const bounds = trackImageryGeographicBounds(geographic);
+  expect(bounds).not.toBeNull();
+  const calibration = trackImageryCalibrationFromBounds(geographic, bounds!);
+  expect(calibration).not.toBeNull();
+  expect(calibration!.imageToEnu[0]).toBeCloseTo(800, 5);
+  expect(calibration!.imageToEnu[3]).toBeCloseTo(-400, 5);
+});
+
 test("calibrates an API raster to its exact geographic bounds", () => {
   const originLatitudeDeg = 29;
   const originLongitudeDeg = -81;

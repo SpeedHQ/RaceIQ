@@ -44,9 +44,13 @@ function sourcePayload(source: TrackImagerySource): TrackImagerySource {
     attribution: source.attribution.trim(),
     provider: source.provider,
     ...(source.quality ? { quality: source.quality } : {}),
-    ...(source.resolutionM ? { resolutionM: source.resolutionM } : {}),
+    ...(source.coverage ? { coverage: source.coverage } : {}),
     ...(source.sourceResolutionM ? { sourceResolutionM: source.sourceResolutionM } : {}),
     ...(source.storedResolutionM ? { storedResolutionM: source.storedResolutionM } : {}),
+    ...(source.geographicReliability ? { geographicReliability: source.geographicReliability } : {}),
+    ...(source.cloudCoverPercent === undefined ? {} : { cloudCoverPercent: source.cloudCoverPercent }),
+    ...(source.providerStability ? { providerStability: source.providerStability } : {}),
+    ...(source.redistribution ? { redistribution: source.redistribution } : {}),
   };
 }
 
@@ -320,7 +324,7 @@ export function TrackImageryCalibrationPanel() {
       minZ = Math.min(minZ, point.z);
       maxZ = Math.max(maxZ, point.z);
     }
-    const padding = Math.max(maxX - minX, maxZ - minZ) * 0.25 || 10;
+    const padding = Math.max(maxX - minX, maxZ - minZ) * 0.75 || 10;
     return { minX: minX - padding, minZ: minZ - padding, width: maxX - minX + padding * 2, height: maxZ - minZ + padding * 2 };
   }, [gpsPath]);
   const calibrationHandles = useMemo(() => {
@@ -448,7 +452,7 @@ export function TrackImageryCalibrationPanel() {
         response = await fetch(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ candidateId: selectedImageryCandidate.id, bounds: openImageryBounds, calibration }),
+          body: JSON.stringify({ candidateId: selectedImageryCandidate.id, bounds: openImageryBounds, calibration, gameId, trackOrdinal }),
         });
       } else {
         response = await fetch(`/api/dev/track-imagery/venues/manifest?venueId=${encodeURIComponent(venueId)}`, {
@@ -466,7 +470,9 @@ export function TrackImageryCalibrationPanel() {
       setOpenImageryPreviewUrl(null);
       await saveLayout(selectedLayers.filter((id) => savedVenue.layers.some((layer) => layer.id === id)));
       setAssetVersion((version) => version + 1);
-      setStatus(selectedImageryCandidate ? `${selectedImageryCandidate.quality.toUpperCase()} open imagery imported and assigned.` : "Opaque venue base and layout assignment saved.");
+      setStatus(
+        selectedImageryCandidate ? `${selectedImageryCandidate.quality === "hq" ? "HQ" : "Context fallback"} open imagery imported and assigned.` : "Opaque venue base and layout assignment saved.",
+      );
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save venue base");
     } finally {
@@ -542,11 +548,18 @@ export function TrackImageryCalibrationPanel() {
       license: candidate.license,
       attribution: candidate.attribution,
       provider: candidate.provider,
-      ...(candidate.resolutionM ? { sourceResolutionM: candidate.resolutionM, storedResolutionM: Math.max(candidate.resolutionM, 0.1) } : {}),
+      quality: candidate.quality,
+      coverage: candidate.coverage,
+      sourceResolutionM: candidate.sourceResolutionM,
+      storedResolutionM: Math.max(candidate.sourceResolutionM, 0.1),
+      geographicReliability: candidate.geographicReliability,
+      ...(candidate.cloudCoverPercent === undefined ? {} : { cloudCoverPercent: candidate.cloudCoverPercent }),
+      providerStability: candidate.providerStability,
+      redistribution: candidate.redistribution,
     });
     setCalibration(nextCalibration);
     setError(null);
-    setStatus(`${candidate.quality.toUpperCase()} imagery selected. Inspect reference alignment, then import.`);
+    setStatus(`${candidate.quality === "hq" ? "HQ" : "Context fallback"} imagery selected. Inspect reference alignment, then import.`);
   };
 
   return (
@@ -589,7 +602,13 @@ export function TrackImageryCalibrationPanel() {
 
         <section className="mb-4 rounded border border-app-border p-3">
           <h2 className="mb-2 text-sm font-semibold text-app-text">Opaque venue base</h2>
-          <OpenTrackImageryPicker bounds={configuration ? openImageryBounds : null} selectedCandidateId={selectedImageryCandidate?.id ?? null} onSelect={handleOpenImagerySelect} />
+          <OpenTrackImageryPicker
+            bounds={configuration ? openImageryBounds : null}
+            gameId={gameId}
+            trackOrdinal={trackOrdinal}
+            selectedCandidateId={selectedImageryCandidate?.id ?? null}
+            onSelect={handleOpenImagerySelect}
+          />
           <input
             className="mb-2 block w-full text-xs text-app-text-muted"
             type="file"
@@ -607,7 +626,7 @@ export function TrackImageryCalibrationPanel() {
           </Button>
           <SourceEditor title="Base provenance" source={baseSource} onChange={setBaseSource} readOnly={!!selectedImageryCandidate} />
           <Button type="button" onClick={() => void saveBase()} disabled={!canSaveBase || saving}>
-            {saving ? "Saving…" : selectedImageryCandidate ? `Import ${selectedImageryCandidate.quality.toUpperCase()} image` : venue ? "Update base" : "Save base"}
+            {saving ? "Saving…" : selectedImageryCandidate ? `Import ${selectedImageryCandidate.quality === "hq" ? "HQ" : "context fallback"} image` : venue ? "Update base" : "Save base"}
           </Button>
         </section>
 

@@ -4,7 +4,11 @@ import { TrackVenueIdSchema } from "./configuration";
 
 export const TRACK_IMAGERY_MANIFEST_VERSION = 2 as const;
 export const TRACK_IMAGERY_PACKAGE_NAME = "imagery.rqi" as const;
-export const TrackImageryQualitySchema = z.literal("hq");
+export const TrackImageryQualitySchema = z.enum(["hq", "context"]);
+export const TrackImageryCoverageSchema = z.enum(["full", "partial", "unknown"]);
+export const TrackImageryGeographicReliabilitySchema = z.enum(["authoritative", "community", "satellite"]);
+export const TrackImageryProviderStabilitySchema = z.enum(["authoritative", "stable", "opportunistic"]);
+export const TrackImageryRedistributionSchema = z.literal("allowed");
 
 const finiteNumber = z.number().finite();
 const safeId = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, digits, and hyphens");
@@ -17,6 +21,11 @@ const imageSourceSchema = z.object({
   license: z.string().trim().min(1),
   attribution: z.string().trim(),
   quality: TrackImageryQualitySchema.optional(),
+  coverage: TrackImageryCoverageSchema.optional(),
+  geographicReliability: TrackImageryGeographicReliabilitySchema.optional(),
+  cloudCoverPercent: finiteNumber.min(0).max(100).optional(),
+  providerStability: TrackImageryProviderStabilitySchema.optional(),
+  redistribution: TrackImageryRedistributionSchema.optional(),
   resolutionM: finiteNumber.positive().optional(),
   sourceResolutionM: finiteNumber.positive().optional(),
   storedResolutionM: finiteNumber.positive().optional(),
@@ -50,11 +59,16 @@ export const TrackImageryCalibrationSchema = z.object({
 
 export const TrackImageryCandidateSchema = z.object({
   id: z.string().trim().min(1),
-  provider: z.enum(["naip", "openaerialmap"]),
+  provider: z.string().trim().min(1),
   quality: TrackImageryQualitySchema,
+  coverage: TrackImageryCoverageSchema,
   title: z.string().trim().min(1),
   capturedAt: z.string().trim().optional(),
-  resolutionM: finiteNumber.positive().optional(),
+  sourceResolutionM: finiteNumber.positive(),
+  geographicReliability: TrackImageryGeographicReliabilitySchema,
+  cloudCoverPercent: finiteNumber.min(0).max(100).optional(),
+  providerStability: TrackImageryProviderStabilitySchema,
+  redistribution: TrackImageryRedistributionSchema,
   license: z.string().trim().min(1),
   attribution: z.string().trim().min(1),
   sourceUrl: z.string().url(),
@@ -187,7 +201,13 @@ export function geographicTrackImageryPointFromEnu(point: TrackImageryPoint, ori
     longitudeDeg: originLongitudeDeg + ((point.x / (EARTH_RADIUS_M * Math.cos(latitudeRad))) * 180) / Math.PI,
   };
 }
-export function trackImageryGeographicBounds(geographic: readonly (TrackImageryGeographicPoint | null)[], paddingFraction = 0.1): TrackImageryGeographicBounds | null {
+const DEFAULT_TRACK_IMAGERY_PADDING_FRACTION = 0.5;
+
+/** Include broad surrounding context because catalog outlines have no geographic heading and must be rotated into place. */
+export function trackImageryGeographicBounds(
+  geographic: readonly (TrackImageryGeographicPoint | null)[],
+  paddingFraction = DEFAULT_TRACK_IMAGERY_PADDING_FRACTION,
+): TrackImageryGeographicBounds | null {
   const valid = geographic.filter(finiteGeographicPoint);
   if (valid.length < 2) return null;
   let west = Infinity;
@@ -200,7 +220,7 @@ export function trackImageryGeographicBounds(geographic: readonly (TrackImageryG
     east = Math.max(east, point.longitudeDeg);
     north = Math.max(north, point.latitudeDeg);
   }
-  const safePadding = Number.isFinite(paddingFraction) ? Math.max(0, paddingFraction) : 0.1;
+  const safePadding = Number.isFinite(paddingFraction) ? Math.max(0, paddingFraction) : DEFAULT_TRACK_IMAGERY_PADDING_FRACTION;
   const longitudePadding = Math.max((east - west) * safePadding, 0.000_01);
   const latitudePadding = Math.max((north - south) * safePadding, 0.000_01);
   return TrackImageryGeographicBoundsSchema.parse({

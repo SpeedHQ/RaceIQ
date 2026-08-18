@@ -148,26 +148,27 @@ test("serves one physical HQ venue package to two layouts with transparent overl
   expect(layerTexture.status).toBe(200);
   expect(layerTexture.headers.get("content-type")).toBe("image/webp");
 
-  const sourceBounds = { west: -81.0001, south: 28.9999, east: -81, north: 29 };
+  const sourceBounds = { west: 5.9697, south: 50.4368, east: 5.97, north: 50.4371 };
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.includes("USGSNAIPImagery/ImageServer/query")) {
-      return new Response(JSON.stringify({ features: [{ attributes: { Year: 2025, resolution_value: 0.25 } }] }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    if (url.includes("USGSNAIPImagery/ImageServer/exportImage")) {
-      return new Response(Uint8Array.from(packTileBytes).buffer, { headers: { "Content-Type": "image/webp" } });
+    if (url.includes("geoservices.wallonie.be/arcgis/services/IMAGERIE/ORTHO_LAST/MapServer/WMSServer")) {
+      return new Response(Uint8Array.from(packTileBytes).buffer, { headers: { "Content-Type": "image/jpeg" } });
     }
     throw new Error(`Unexpected external request ${url}`);
   }) as typeof fetch;
   let sourceImportResponse: Response;
   try {
-    sourceImportResponse = await app.request(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}`, {
+    sourceImportResponse = await app.request(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}&gameId=iracing&trackOrdinal=523`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ candidateId: "naip", bounds: sourceBounds, calibration }),
+      body: JSON.stringify({
+        candidateId: "wallonia-spw:ortho-last",
+        bounds: sourceBounds,
+        calibration,
+        gameId,
+        trackOrdinal: 523,
+      }),
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -178,7 +179,16 @@ test("serves one physical HQ venue package to two layouts with transparent overl
       pack: "imagery.rqi",
       tileSize: 512,
       bounds: sourceBounds,
-      source: { provider: "naip", sourceResolutionM: 0.25, storedResolutionM: 0.25 },
+      source: {
+        provider: "wallonia-spw",
+        sourceResolutionM: 0.25,
+        storedResolutionM: 0.25,
+        quality: "hq",
+        coverage: "full",
+        geographicReliability: "authoritative",
+        providerStability: "stable",
+        redistribution: "allowed",
+      },
     },
   });
   const importedMetadata = readTrackImageryPackMetadata(resolve(venueDirectory, "imagery.rqi"));
@@ -216,4 +226,13 @@ test("resolves lap-free imagery calibration through an exact iRacing layout peer
   expect(reference.outlineSource).not.toBe("estimated");
   expect(reference.geographicPositions.length).toBeGreaterThan(100);
   expect(reference.geographicPositions.every((point) => Number.isFinite(point.latitudeDeg) && Number.isFinite(point.longitudeDeg))).toBe(true);
+});
+
+test("imagery source search requires server track identity", async () => {
+  const response = await app.request("/api/dev/track-imagery/sources/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bounds: { west: 5.9697, south: 50.4368, east: 5.97, north: 50.4371 } }),
+  });
+  expect(response.status).toBe(400);
 });
