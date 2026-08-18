@@ -24,6 +24,7 @@ export interface StaticTrackImageryTile {
   width: number;
   height: number;
   image: CanvasImageSource;
+  released?: boolean;
 }
 
 export interface StaticTrackImagery {
@@ -145,6 +146,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     const [a, b, c, d, e, f] = imagery.imageToTrack;
     const { width, height, tileSize, tiles } = imagery.base;
     for (const tile of tiles) {
+      if (tile.released) continue;
       const u = (tile.x * tileSize) / width;
       const v = (tile.y * tileSize) / height;
       const tileU = tile.width / width;

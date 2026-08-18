@@ -21,6 +21,7 @@ type LoadedImageryTile = {
   decodeWidth: number;
   decodeHeight: number;
   image: LoadedImagerySource;
+  released: boolean;
 };
 type ImageryTileCamera = {
   mode: "direct" | "composite";
@@ -44,6 +45,12 @@ function releaseImagerySource(source: CanvasImageSource | null | undefined): voi
   if (!source) return;
   if ("close" in source && typeof source.close === "function") source.close();
   else if ("src" in source && typeof source.src === "string") (source as HTMLImageElement).src = "";
+}
+
+function releaseImageryTile(tile: LoadedImageryTile): void {
+  if (tile.released) return;
+  tile.released = true;
+  releaseImagerySource(tile.image);
 }
 
 async function loadImagerySource(url: string, signal: AbortSignal, resize?: { width: number; height: number }): Promise<LoadedImagerySource> {
@@ -159,7 +166,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       abortController.abort();
       queue.length = 0;
       queued.clear();
-      for (const tile of cache.values()) releaseImagerySource(tile.image);
+      for (const tile of cache.values()) releaseImageryTile(tile);
       cache.clear();
       if (imageryTileManagerRef.current?.key === key) imageryTileManagerRef.current = null;
     };
@@ -175,13 +182,18 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
           releaseImagerySource(image);
           return;
         }
-        cache.set(`${x}:${y}`, { x, y, width: tileWidth, height: tileHeight, decodeWidth, decodeHeight, image });
+        const tileKey = `${x}:${y}`;
+        const previous = cache.get(tileKey);
+        const tile: LoadedImageryTile = { x, y, width: tileWidth, height: tileHeight, decodeWidth, decodeHeight, image, released: false };
+        cache.delete(tileKey);
+        cache.set(tileKey, tile);
+        if (previous) releaseImageryTile(previous);
         while (cache.size > cacheLimit) {
           const oldestKey = cache.keys().next().value as string | undefined;
           if (!oldestKey) break;
           const oldest = cache.get(oldestKey);
           cache.delete(oldestKey);
-          if (oldest) releaseImagerySource(oldest.image);
+          if (oldest) releaseImageryTile(oldest);
         }
         publish();
       } catch {
@@ -195,8 +207,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     const pump = () => {
       while (!closed && inFlight < IMAGERY_TILE_CONCURRENCY && queue.length > 0) {
         const tile = queue.shift()!;
-        if (cache.has(`${tile.x}:${tile.y}`)) {
-          queued.delete(`${tile.x}:${tile.y}`);
+        const tileKey = `${tile.x}:${tile.y}`;
+        const cached = cache.get(tileKey);
+        if (cached && cached.decodeWidth >= tile.decodeWidth && cached.decodeHeight >= tile.decodeHeight) {
+          queued.delete(tileKey);
           continue;
         }
         inFlight++;
@@ -274,8 +288,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       for (const [tileKey, desired] of wanted) {
         const cached = cache.get(tileKey);
         if (cached && (cached.decodeWidth < desired.decodeWidth || cached.decodeHeight < desired.decodeHeight)) {
-          cache.delete(tileKey);
-          releaseImagerySource(cached.image);
+          // Keep lower-resolution imagery visible until its sharper replacement finishes decoding.
         } else if (cached) {
           cache.delete(tileKey);
           cache.set(tileKey, cached);
@@ -286,13 +299,16 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
           queue.push(desired);
         }
       }
+      let evicted = false;
       while (cache.size > cacheLimit) {
         const oldestKey = cache.keys().next().value as string | undefined;
         if (!oldestKey) break;
         const oldest = cache.get(oldestKey);
         cache.delete(oldestKey);
-        if (oldest) releaseImagerySource(oldest.image);
+        if (oldest) releaseImageryTile(oldest);
+        evicted = true;
       }
+      if (evicted) publish();
       pump();
     };
     const manager: ImageryTileManager = { key, close, request };
