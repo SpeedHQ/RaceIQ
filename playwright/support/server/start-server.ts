@@ -40,7 +40,7 @@ try {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
-  seedE2ESetupData(repoDir, dir);
+  if (process.env.PW_SERVER_SET === "tunes") seedE2ESetupData(repoDir, dir);
   seedScreenshotData(repoDir, dir);
 } catch (error) {
   rmSync(dir, { recursive: true, force: true });
