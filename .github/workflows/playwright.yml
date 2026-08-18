@@ -12,7 +12,7 @@ on:
         description: "Runner labels as JSON array; Windows is required for compiled native binary"
         required: false
         type: string
-        default: '["whitesmith-windows-x64", "4VCPU", "5G"]'
+        default: '["whitesmith-windows-x64", "4VCPU", "10G"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
