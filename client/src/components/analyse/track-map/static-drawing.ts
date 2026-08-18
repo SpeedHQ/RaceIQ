@@ -18,11 +18,25 @@ interface ViewportTrackCamera {
   rotation?: number;
   drawFollowCar?: boolean;
 }
-export interface StaticTrackImagery {
-  imageToTrack: TrackImageryMatrix;
-  textures: readonly { image: CanvasImageSource; opacity: number }[];
+export interface StaticTrackImageryTile {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  image: CanvasImageSource;
 }
 
+export interface StaticTrackImagery {
+  imageToTrack: TrackImageryMatrix;
+  base: {
+    width: number;
+    height: number;
+    tileSize: number;
+    tiles: readonly StaticTrackImageryTile[];
+  };
+  textures: readonly { image: CanvasImageSource; opacity: number }[];
+  requestVisibleTiles?: (transform: TrackTransform, viewportCamera?: ViewportTrackCamera) => void;
+}
 export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
   bufferCanvas: HTMLCanvasElement | null;
@@ -127,7 +141,25 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     }
   }
   if (imagery) {
+    imagery.requestVisibleTiles?.(transform, viewportCamera);
     const [a, b, c, d, e, f] = imagery.imageToTrack;
+    const { width, height, tileSize, tiles } = imagery.base;
+    for (const tile of tiles) {
+      const u = (tile.x * tileSize) / width;
+      const v = (tile.y * tileSize) / height;
+      const tileU = tile.width / width;
+      const tileV = tile.height / height;
+      const imageX = a * u + c * v + e;
+      const imageZ = b * u + d * v + f;
+      const overlapU = 0.5 / Math.max(1, tile.width);
+      const overlapV = 0.5 / Math.max(1, tile.height);
+      ctx.save();
+      ctx.transform(-a * scale * tileU, b * scale * tileU, -c * scale * tileV, d * scale * tileV, offsetX + (maxX - imageX) * scale, offsetZ + (imageZ - minZ) * scale);
+      // Half-source-pixel overdraw hides bilinear edge sampling without changing
+      // any tile's logical position in the venue-wide coordinate system.
+      ctx.drawImage(tile.image, -overlapU, -overlapV, 1 + overlapU * 2, 1 + overlapV * 2);
+      ctx.restore();
+    }
     for (const texture of imagery.textures) {
       ctx.save();
       ctx.globalAlpha = texture.opacity;

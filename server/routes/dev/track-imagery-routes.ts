@@ -6,6 +6,7 @@ import { z } from "zod";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../../shared/racing/tracks/configuration";
 import {
+  TRACK_IMAGERY_MANIFEST_VERSION,
   TrackImageryCalibrationSchema,
   TrackImageryGeographicBoundsSchema,
   TrackImageryGeographicReferenceSchema,
@@ -15,8 +16,9 @@ import {
   type TrackImageryLayoutManifest,
   type TrackImageryVenueManifest,
 } from "../../../shared/racing/tracks/imagery";
+import { TRACK_IMAGERY_PACKAGE_NAME, readTrackImageryPackMetadata, readTrackImageryPackTile, writeTrackImageryPack, type TrackImageryPackMetadata } from "../../tracks/imagery-pack";
 import { loadTrackConfiguration } from "../../tracks/configuration";
-import { loadOpenTrackImageryRaster, searchOpenTrackImagery } from "../../tracks/imagery-sources";
+import { loadOpenTrackImageryAsset, loadOpenTrackImageryRaster, searchOpenTrackImagery } from "../../tracks/imagery-sources";
 import { resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
 import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
 import { resolveTrackOutline } from "../tracks/support";
@@ -34,6 +36,8 @@ const openImageryBaseRequestSchema = z.object({
 interface ValidatedImage {
   bytes: Uint8Array;
   extension: string;
+  width: number;
+  height: number;
 }
 
 function gameAndTrack(c: { req: { param: (key: string) => string; query: (key: string) => string | undefined } }): { gameId: GameId; trackOrdinal: number } {
@@ -66,7 +70,7 @@ async function validatedImage(file: File, requireAlpha: boolean): Promise<Valida
   const extension = metadata.format ? SUPPORTED_FORMATS[metadata.format] : undefined;
   if (!extension || !metadata.width || !metadata.height) throw new Error("Track image must be PNG, JPEG, or WebP");
   if (requireAlpha && !metadata.hasAlpha) throw new Error("Overlay layer must contain an alpha channel");
-  return { bytes, extension };
+  return { bytes, extension, width: metadata.width, height: metadata.height };
 }
 
 function writeJson(path: string, value: unknown): void {
@@ -89,6 +93,85 @@ function replaceTexture(directory: string, stem: string, image: ValidatedImage):
   return fileName;
 }
 
+function imageryPackPath(venueId: string): string {
+  return resolve(trackImageryVenueDirectory(venueId), TRACK_IMAGERY_PACKAGE_NAME);
+}
+
+function removeLooseBaseFiles(directory: string): void {
+  if (!existsSync(directory)) return;
+  for (const entry of readdirSync(directory)) {
+    if (/^base\.(?:png|jpe?g|webp)$/i.test(entry)) unlinkSync(resolve(directory, entry));
+  }
+}
+
+async function renderImageryPackPreview(path: string): Promise<{ bytes: Uint8Array; width: number; height: number }> {
+  const metadata = readTrackImageryPackMetadata(path);
+  if (metadata.tier !== "hq" || !Number.isSafeInteger(metadata.width) || !Number.isSafeInteger(metadata.height) || metadata.width < 1 || metadata.height < 1)
+    throw new Error("Imagery package has invalid HQ dimensions");
+  const width = Math.max(1, Math.min(1_000, metadata.width));
+  const height = Math.max(1, Math.min(1_000, Math.round((metadata.height / metadata.width) * width)));
+  const composites: Array<{ input: Buffer; left: number; top: number }> = [];
+  for (let y = 0; y < metadata.rows; y += 1) {
+    for (let x = 0; x < metadata.columns; x += 1) {
+      const value = readTrackImageryPackTile(path, x, y, metadata);
+      if (!value) continue;
+      const tile = value.data;
+      const tileWidth = Math.min(metadata.tileSize, metadata.width - x * metadata.tileSize);
+      const tileHeight = Math.min(metadata.tileSize, metadata.height - y * metadata.tileSize);
+      if (tileWidth <= 0 || tileHeight <= 0) continue;
+      const resized = await sharp(tile)
+        .resize(Math.max(1, Math.round((tileWidth / metadata.width) * width)), Math.max(1, Math.round((tileHeight / metadata.height) * height)), { fit: "fill" })
+        .toBuffer();
+      composites.push({ input: resized, left: Math.round(((x * metadata.tileSize) / metadata.width) * width), top: Math.round(((y * metadata.tileSize) / metadata.height) * height) });
+    }
+  }
+  if (composites.length === 0) throw new Error("Imagery package contains no HQ tiles");
+  const bytes = new Uint8Array(
+    await sharp({ create: { width, height, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+      .composite(composites)
+      .webp({ quality: 90, effort: 4 })
+      .toBuffer(),
+  );
+  return { bytes, width, height };
+}
+
+function packageMetadata(
+  asset: { width: number; height: number; tileSize: number; columns: number; rows: number; resolutionM?: number },
+  bounds: TrackImageryGeographicBounds,
+): TrackImageryPackMetadata {
+  return {
+    schemaVersion: 1,
+    tier: "hq",
+    width: asset.width,
+    height: asset.height,
+    tileSize: asset.tileSize,
+    columns: asset.columns,
+    rows: asset.rows,
+    ...(asset.resolutionM === undefined ? {} : { resolutionM: asset.resolutionM }),
+    bounds,
+  };
+}
+async function* manualImageryTiles(
+  image: ValidatedImage,
+  tileSize: number,
+  outputWidth: number,
+  outputHeight: number,
+): AsyncIterable<{ tier: "hq"; x: number; y: number; width: number; height: number; format: "webp"; data: Uint8Array }> {
+  for (let y = 0; y < outputHeight; y += tileSize) {
+    for (let x = 0; x < outputWidth; x += tileSize) {
+      const width = Math.min(tileSize, outputWidth - x);
+      const height = Math.min(tileSize, outputHeight - y);
+      const data = new Uint8Array(
+        await sharp(image.bytes, { limitInputPixels: MAX_TRACK_IMAGE_PIXELS })
+          .resize(outputWidth, outputHeight, { fit: "fill" })
+          .extract({ left: x, top: y, width, height })
+          .webp({ quality: 90, effort: 4 })
+          .toBuffer(),
+      );
+      yield { tier: "hq", x: Math.floor(x / tileSize), y: Math.floor(y / tileSize), width, height, format: "webp", data };
+    }
+  }
+}
 function removeLayerFromLayouts(venueId: string, layerId: string): void {
   for (const layout of listTrackImageryConfigurations().layouts) {
     const configuration = loadTrackConfiguration(layout.gameId, layout.trackOrdinal);
@@ -156,17 +239,23 @@ export const trackImageryDevRoutes = new Hono()
     try {
       const venueId = venueIdFromQuery(c);
       const requestBody = openImageryBaseRequestSchema.parse(await c.req.json());
-      const raster = await loadOpenTrackImageryRaster(requestBody.candidateId, requestBody.bounds, "asset");
+      const asset = await loadOpenTrackImageryAsset(requestBody.candidateId, requestBody.bounds, 512);
       const current = loadTrackImageryVenue(venueId);
       const manifest = TrackImageryVenueManifestSchema.parse({
-        version: 1,
+        version: TRACK_IMAGERY_MANIFEST_VERSION,
         venueId,
         calibration: requestBody.calibration,
-        base: { image: "base.webp", source: raster.source },
+        base: {
+          pack: TRACK_IMAGERY_PACKAGE_NAME,
+          tileSize: asset.tileSize,
+          bounds: requestBody.bounds,
+          source: asset.source,
+        },
         layers: current?.layers ?? [],
       });
       const directory = trackImageryVenueDirectory(venueId);
-      replaceTexture(directory, "base", { bytes: raster.bytes, extension: "webp" });
+      await writeTrackImageryPack(imageryPackPath(venueId), packageMetadata(asset, requestBody.bounds), asset.tiles);
+      removeLooseBaseFiles(directory);
       writeJson(resolve(directory, "manifest.json"), manifest);
       return c.json(manifest, 201);
     } catch (error) {
@@ -180,19 +269,25 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery venue" }, 400);
     }
   })
-  .get("/api/dev/track-imagery/venues/texture/:textureId", (c) => {
+  .get("/api/dev/track-imagery/venues/texture/:textureId", async (c) => {
     try {
       const venueId = venueIdFromQuery(c);
       const textureId = c.req.param("textureId") === "base" ? "base" : safeId(c.req.param("textureId"), "Texture ID");
       const venue = loadTrackImageryVenue(venueId);
       if (!venue) return c.json({ error: "Imagery venue not found" }, 404);
-      const fileName = textureId === "base" ? venue.base.image : venue.layers.find((layer) => layer.id === textureId)?.image;
+      if (textureId === "base") {
+        const path = imageryPackPath(venueId);
+        if (!existsSync(path)) return c.json({ error: "Imagery package not found" }, 404);
+        const preview = await renderImageryPackPreview(path);
+        return new Response(Uint8Array.from(preview.bytes).buffer, {
+          headers: { "Cache-Control": "no-store", "Content-Type": "image/webp", "X-Imagery-Height": String(preview.height), "X-Imagery-Width": String(preview.width) },
+        });
+      }
+      const fileName = venue.layers.find((layer) => layer.id === textureId)?.image;
       if (!fileName) return c.json({ error: "Imagery texture not found" }, 404);
-      const path = textureId === "base" ? resolve(trackImageryVenueDirectory(venueId), fileName) : resolve(trackImageryVenueDirectory(venueId), "layers", fileName);
+      const path = resolve(trackImageryVenueDirectory(venueId), "layers", fileName);
       if (!existsSync(path)) return c.json({ error: "Imagery texture file not found" }, 404);
-      return new Response(Bun.file(path), {
-        headers: { "Cache-Control": "no-store", "Content-Type": trackImageryContentType(path) },
-      });
+      return new Response(Bun.file(path), { headers: { "Cache-Control": "no-store", "Content-Type": trackImageryContentType(path) } });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery texture" }, 400);
     }
@@ -204,16 +299,48 @@ export const trackImageryDevRoutes = new Hono()
       const file = form.get("file");
       if (!(file instanceof File)) return c.json({ error: "Missing base texture" }, 400);
       const image = await validatedImage(file, false);
-      const directory = trackImageryVenueDirectory(venueId);
-      const imageName = `base.${image.extension}`;
-      const raw = JSON.parse(String(form.get("manifest") ?? "null")) as Record<string, unknown>;
+      const raw = z.record(z.string(), z.unknown()).parse(JSON.parse(String(form.get("manifest") ?? "null")));
+      const rawBase: Record<string, unknown> = raw.base && typeof raw.base === "object" && raw.base !== null ? (raw.base as Record<string, unknown>) : {};
+      const rawSource: Record<string, unknown> = "source" in rawBase && rawBase.source && typeof rawBase.source === "object" ? (rawBase.source as Record<string, unknown>) : {};
+      const sourceResolutionM = "sourceResolutionM" in rawSource && typeof rawSource.sourceResolutionM === "number" && rawSource.sourceResolutionM > 0 ? rawSource.sourceResolutionM : undefined;
+      const storedResolutionM = sourceResolutionM ? Math.max(sourceResolutionM, 0.1) : undefined;
+      const bounds = TrackImageryGeographicBoundsSchema.parse("bounds" in rawBase ? rawBase.bounds : undefined);
+      const tileSize = 512;
+      const scale = sourceResolutionM && storedResolutionM ? Math.min(1, sourceResolutionM / storedResolutionM) : 1;
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const columns = Math.ceil(width / tileSize);
+      const rows = Math.ceil(height / tileSize);
+      const source = {
+        ...rawSource,
+        provider: typeof rawSource.provider === "string" && rawSource.provider.trim() ? rawSource.provider : "manual",
+        name: typeof rawSource.name === "string" && rawSource.name.trim() ? rawSource.name : file.name || "Manual imagery upload",
+        quality: "hq",
+        ...(sourceResolutionM ? { sourceResolutionM, storedResolutionM } : {}),
+      };
       const manifest = TrackImageryVenueManifestSchema.parse({
         ...raw,
-        version: 1,
+        version: TRACK_IMAGERY_MANIFEST_VERSION,
         venueId,
-        base: { ...(raw.base as Record<string, unknown> | undefined), image: imageName },
+        base: { pack: TRACK_IMAGERY_PACKAGE_NAME, tileSize, bounds, source },
       });
-      replaceTexture(directory, "base", image);
+      const directory = trackImageryVenueDirectory(venueId);
+      await writeTrackImageryPack(
+        imageryPackPath(venueId),
+        {
+          schemaVersion: 1,
+          tier: "hq",
+          width,
+          height,
+          tileSize,
+          columns,
+          rows,
+          ...(storedResolutionM ? { resolutionM: storedResolutionM } : {}),
+          bounds,
+        },
+        manualImageryTiles(image, tileSize, width, height),
+      );
+      removeLooseBaseFiles(directory);
       writeJson(resolve(directory, "manifest.json"), manifest);
       return c.json(manifest, 201);
     } catch (error) {
@@ -229,9 +356,9 @@ export const trackImageryDevRoutes = new Hono()
       const layersById = new Map(current.layers.map((layer) => [layer.id, layer]));
       const manifest = TrackImageryVenueManifestSchema.parse({
         ...raw,
-        version: 1,
+        version: TRACK_IMAGERY_MANIFEST_VERSION,
         venueId,
-        base: { ...raw.base, image: current.base.image },
+        base: current.base,
         layers: raw.layers.map((layer) => ({
           ...layer,
           image: layersById.get(layer.id)?.image ?? layer.image,
@@ -300,7 +427,7 @@ export const trackImageryDevRoutes = new Hono()
       const configuration = loadTrackConfiguration(gameId, trackOrdinal);
       if (!configuration) return c.json({ error: "Save track venue assignment before imagery layers" }, 404);
       const raw = (await c.req.json()) as TrackImageryLayoutManifest;
-      const layout = TrackImageryLayoutManifestSchema.parse({ ...raw, version: 1, gameId, trackOrdinal });
+      const layout = TrackImageryLayoutManifestSchema.parse({ ...raw, version: TRACK_IMAGERY_MANIFEST_VERSION, gameId, trackOrdinal });
       const venueId = trackConfigurationVenueId(configuration);
       const venue = loadTrackImageryVenue(venueId);
       if (!venue) return c.json({ error: `Imagery venue ${venueId} not found` }, 404);

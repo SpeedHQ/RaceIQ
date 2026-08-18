@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, relative, resolve, sep } from "node:path";
 import {
+  TRACK_IMAGERY_PACKAGE_NAME,
   TrackImageryLayoutManifestSchema,
   TrackImageryVenueManifestSchema,
   type TrackImagery,
@@ -12,6 +13,7 @@ import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../shared/raci
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { SHARED_DIR } from "../runtime/config/paths";
 import { loadTrackConfiguration } from "./configuration";
+import { readTrackImageryPackMetadata, type TrackImageryPackMetadata } from "./imagery-pack";
 
 const TRACK_IMAGERY_ROOT = resolve(SHARED_DIR, "tracks", "imagery");
 const TRACK_IMAGERY_VENUES_ROOT = resolve(TRACK_IMAGERY_ROOT, "venues");
@@ -24,6 +26,8 @@ export interface LoadedTrackImageryTexture {
 export interface LoadedTrackImagery {
   imagery: TrackImagery;
   textures: Record<string, LoadedTrackImageryTexture>;
+  packPath: string;
+  packMetadata: TrackImageryPackMetadata;
 }
 
 export function trackImageryVenueDirectory(venueId: string): string {
@@ -102,7 +106,17 @@ export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTr
   const venue = loadTrackImageryVenue(venueId);
   if (!venue) throw new Error(`Missing track imagery venue ${venueId}`);
   const directory = trackImageryVenueDirectory(venueId);
-  const textures: Record<string, LoadedTrackImageryTexture> = { base: textureFile(directory, venue.base.image) };
+  if (venue.base.pack !== TRACK_IMAGERY_PACKAGE_NAME) throw new Error(`Unsupported imagery package ${venue.base.pack}`);
+  const packPath = resolve(directory, TRACK_IMAGERY_PACKAGE_NAME);
+  if (!existsSync(packPath)) throw new Error(`Missing track imagery package ${packPath}`);
+  const packMetadata = readTrackImageryPackMetadata(packPath);
+  const boundsMatch = JSON.stringify(packMetadata.bounds) === JSON.stringify(venue.base.bounds);
+  const resolutionMatch = venue.base.source.storedResolutionM === undefined || venue.base.source.storedResolutionM === packMetadata.resolutionM;
+  if (packMetadata.tier !== "hq" || packMetadata.tileSize !== venue.base.tileSize || !boundsMatch || !resolutionMatch || !packMetadata.contentHash) {
+    throw new Error(`Imagery package metadata mismatch in ${packPath}`);
+  }
+  const packageVersion = packMetadata.contentHash;
+  const textures: Record<string, LoadedTrackImageryTexture> = {};
   const selectedLayers = [];
   const seen = new Set<string>();
   for (const layerId of layout.layers) {
@@ -113,16 +127,36 @@ export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTr
     textures[layer.id] = textureFile(resolve(directory, "layers"), layer.image);
     selectedLayers.push(layer);
   }
-  const publicTextures = [
-    { id: "base", kind: "base" as const, opacity: 1, source: venue.base.source, url: "" },
-    ...selectedLayers.map((layer) => ({ id: layer.id, kind: layer.kind, opacity: layer.opacity, source: layer.source, url: "" })),
-  ].map((texture) => ({
-    ...texture,
-    url: `/api/track-imagery/${trackOrdinal}/texture/${encodeURIComponent(texture.id)}?gameId=${encodeURIComponent(gameId)}&v=${Math.round(textures[texture.id]!.modifiedAtMs)}`,
+  const publicTextures = selectedLayers.map((layer) => ({
+    id: layer.id,
+    kind: layer.kind,
+    opacity: layer.opacity,
+    source: layer.source,
+    url: `/api/track-imagery/${trackOrdinal}/texture/${encodeURIComponent(layer.id)}?gameId=${encodeURIComponent(gameId)}&v=${Math.round(textures[layer.id]!.modifiedAtMs)}`,
   }));
   return {
-    imagery: { version: 1, venueId: venue.venueId, calibration: venue.calibration, textures: publicTextures },
+    imagery: {
+      version: 2,
+      venueId: venue.venueId,
+      calibration: venue.calibration,
+      base: {
+        tier: packMetadata.tier,
+        width: packMetadata.width,
+        height: packMetadata.height,
+        tileSize: packMetadata.tileSize,
+        columns: packMetadata.columns,
+        rows: packMetadata.rows,
+        bounds: venue.base.bounds,
+        contentHash: packageVersion,
+        ...(packMetadata.resolutionM === undefined ? {} : { resolutionM: packMetadata.resolutionM }),
+        source: venue.base.source,
+        tileUrlTemplate: `/api/track-imagery/${trackOrdinal}/base/hq/{x}/{y}?gameId=${encodeURIComponent(gameId)}&v=${encodeURIComponent(packageVersion)}`,
+      },
+      textures: publicTextures,
+    },
     textures,
+    packPath,
+    packMetadata,
   };
 }
 

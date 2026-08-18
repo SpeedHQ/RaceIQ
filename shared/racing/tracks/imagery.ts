@@ -2,21 +2,24 @@ import { z } from "zod";
 import { GameIdSchema } from "../../games/ids";
 import { TrackVenueIdSchema } from "./configuration";
 
-export const TRACK_IMAGERY_MANIFEST_VERSION = 1 as const;
-export const TRACK_IMAGERY_EXTENSIONS = ["png", "jpg", "jpeg", "webp"] as const;
-export const TrackImageryQualitySchema = z.enum(["hq", "lq"]);
+export const TRACK_IMAGERY_MANIFEST_VERSION = 2 as const;
+export const TRACK_IMAGERY_PACKAGE_NAME = "imagery.rqi" as const;
+export const TrackImageryQualitySchema = z.literal("hq");
 
 const finiteNumber = z.number().finite();
 const safeId = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, digits, and hyphens");
 const imageFileName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.(?:png|jpe?g|webp)$/i, "Image must be PNG, JPEG, or WebP");
 const imageSourceSchema = z.object({
   name: z.string().trim().min(1),
+  provider: z.string().trim().min(1).optional(),
   url: z.string().trim().optional(),
   capturedAt: z.string().trim().optional(),
   license: z.string().trim().min(1),
   attribution: z.string().trim(),
   quality: TrackImageryQualitySchema.optional(),
   resolutionM: finiteNumber.positive().optional(),
+  sourceResolutionM: finiteNumber.positive().optional(),
+  storedResolutionM: finiteNumber.positive().optional(),
 });
 const textureSchema = z.object({
   image: imageFileName,
@@ -47,7 +50,7 @@ export const TrackImageryCalibrationSchema = z.object({
 
 export const TrackImageryCandidateSchema = z.object({
   id: z.string().trim().min(1),
-  provider: z.enum(["naip", "openaerialmap", "nasa-hls"]),
+  provider: z.enum(["naip", "openaerialmap"]),
   quality: TrackImageryQualitySchema,
   title: z.string().trim().min(1),
   capturedAt: z.string().trim().optional(),
@@ -66,11 +69,27 @@ export const TrackImageryGeographicReferenceSchema = z.object({
   geographicPositions: z.array(TrackImageryGeographicPointSchema).min(4),
 });
 
+const baseSourceSchema = imageSourceSchema.extend({ provider: z.string().trim().min(1) }).superRefine((source, context) => {
+  if (source.provider === "manual" && source.sourceResolutionM === undefined && source.storedResolutionM === undefined) return;
+  if (source.sourceResolutionM === undefined || source.storedResolutionM === undefined) {
+    context.addIssue({ code: "custom", message: "Packed source requires source and stored resolution" });
+    return;
+  }
+  if (source.storedResolutionM < Math.max(source.sourceResolutionM, 0.1)) {
+    context.addIssue({ code: "custom", message: "Stored imagery resolution must not upscale its source or exceed the 0.10 m/pixel detail target" });
+  }
+});
+
 export const TrackImageryVenueManifestSchema = z.object({
   version: z.literal(TRACK_IMAGERY_MANIFEST_VERSION),
   venueId: TrackVenueIdSchema,
   calibration: TrackImageryCalibrationSchema,
-  base: z.object({ image: imageFileName, source: imageSourceSchema }),
+  base: z.object({
+    pack: z.literal(TRACK_IMAGERY_PACKAGE_NAME),
+    tileSize: z.number().int().positive(),
+    bounds: TrackImageryGeographicBoundsSchema,
+    source: baseSourceSchema,
+  }),
   layers: z.array(
     textureSchema.extend({
       id: safeId,
@@ -106,16 +125,31 @@ export type TrackImageryLayerKind = TrackImageryVenueManifest["layers"][number][
 
 export interface TrackImageryTexture {
   id: string;
-  kind: "base" | TrackImageryLayerKind;
+  kind: TrackImageryLayerKind;
   url: string;
   opacity: number;
   source: TrackImagerySource;
+}
+
+export interface TrackImageryBase {
+  tier: "hq";
+  width: number;
+  height: number;
+  tileSize: number;
+  columns: number;
+  rows: number;
+  bounds: TrackImageryGeographicBounds;
+  contentHash: string;
+  resolutionM?: number;
+  source: TrackImagerySource;
+  tileUrlTemplate: string;
 }
 
 export interface TrackImagery {
   version: typeof TRACK_IMAGERY_MANIFEST_VERSION;
   venueId: string;
   calibration: TrackImageryCalibration;
+  base: TrackImageryBase;
   textures: TrackImageryTexture[];
 }
 

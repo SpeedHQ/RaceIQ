@@ -99,11 +99,9 @@ export function AnalyseTrackPanel({
 }: AnalyseTrackPanelProps) {
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
   const anyTrackOverlay = Object.values(trackOverlays).some(Boolean);
-  const imageryAttribution =
-    imagery?.textures
-      .map((texture) => texture.source.attribution)
-      .filter((value, index, values) => value && values.indexOf(value) === index)
-      .join(" · ") ?? "";
+  const imageryAttribution = [imagery?.base.source.attribution, ...(imagery?.textures.map((texture) => texture.source.attribution) ?? [])]
+    .filter((value, index, values) => value && values.indexOf(value) === index)
+    .join(" · ");
   const overlayItems = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
     .filter((overlay) => overlay !== "racingLine" || hasRacingLine)
     .map((overlay) => ({

@@ -48,24 +48,24 @@ export function OpenTrackImageryPicker({ bounds, selectedCandidateId, onSelect }
     }
   };
 
-  const hasHighQuality = result?.candidates.some((candidate) => candidate.quality === "hq") ?? false;
+  const hqCandidates = result?.candidates.filter((candidate) => candidate.quality === "hq") ?? [];
   return (
     <div className="mb-3 rounded border border-app-border bg-app-surface-alt p-2">
       <div className="mb-1 flex items-center justify-between gap-2">
         <div>
           <div className="text-xs font-semibold text-app-text-secondary">Open aerial imagery</div>
-          <div className="text-[10px] text-app-text-muted">HQ: USGS NAIP or OpenAerialMap · LQ: NASA HLS Sentinel-2</div>
+          <div className="text-[10px] text-app-text-muted">HQ imagery: USGS NAIP or OpenAerialMap, stored at source resolution.</div>
         </div>
         <Button type="button" onClick={() => void search()} disabled={!bounds || loading}>
           {loading ? "Searching…" : "Find imagery"}
         </Button>
       </div>
       {!bounds && <p className="text-[11px] text-severity-caution">Select a lap containing GPS coordinates.</p>}
-      {result && !hasHighQuality && <p className="mb-1 text-[11px] text-severity-caution">No free HQ image fully covers this track. LQ scenes remain available when listed.</p>}
+      {result && hqCandidates.length === 0 && <p className="mb-1 text-[11px] text-severity-caution">No free HQ image fully covers this track.</p>}
       {result?.candidates.length === 0 && <p className="text-[11px] text-severity-caution">No reusable open imagery covers this GPS footprint.</p>}
-      {result && result.candidates.length > 0 && (
+      {hqCandidates.length > 0 && (
         <div className="mt-2 space-y-1">
-          {result.candidates.map((candidate) => (
+          {hqCandidates.map((candidate) => (
             <button
               key={candidate.id}
               type="button"
@@ -74,11 +74,7 @@ export function OpenTrackImageryPicker({ bounds, selectedCandidateId, onSelect }
               }`}
               onClick={() => bounds && onSelect(candidate, openTrackImageryPreviewUrl(candidate.id, bounds))}
             >
-              <span
-                className={`mr-2 inline-flex rounded px-1 font-mono text-[9px] font-semibold uppercase ${candidate.quality === "hq" ? "bg-severity-nominal/15 text-severity-nominal" : "bg-severity-caution/15 text-severity-caution"}`}
-              >
-                {candidate.quality}
-              </span>
+              <span className="mr-2 inline-flex rounded bg-severity-nominal/15 px-1 font-mono text-[9px] font-semibold uppercase text-severity-nominal">HQ</span>
               <span>{candidate.title}</span>
               {candidate.resolutionM && <span className="ml-2 text-app-text-muted">{candidate.resolutionM.toFixed(candidate.resolutionM < 1 ? 1 : 0)} m</span>}
             </button>

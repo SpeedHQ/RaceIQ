@@ -12,6 +12,77 @@ const TRACK_MAP_MAX_WHEEL_DELTA_PER_FRAME = 240;
 const TRACK_MAP_MAX_BUFFERED_WHEEL_DELTA = TRACK_MAP_MAX_WHEEL_DELTA_PER_FRAME * 4;
 const TRACK_MAP_WHEEL_LINE_HEIGHT = 16;
 
+type LoadedImagerySource = CanvasImageSource & { close?: () => void };
+type LoadedImageryTile = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  decodeWidth: number;
+  decodeHeight: number;
+  image: LoadedImagerySource;
+};
+type ImageryTileCamera = {
+  mode: "direct" | "composite";
+  panX: number;
+  panY: number;
+  centerX?: number;
+  centerY?: number;
+  rotation?: number;
+};
+
+type ImageryTileManager = {
+  key: string;
+  close: () => void;
+  request: (matrix: [number, number, number, number, number, number], transform: TrackTransform, camera: ImageryTileCamera) => void;
+};
+
+const IMAGERY_TILE_CONCURRENCY = 4;
+const IMAGERY_TILE_CACHE_FLOOR = 96;
+
+function releaseImagerySource(source: CanvasImageSource | null | undefined): void {
+  if (!source) return;
+  if ("close" in source && typeof source.close === "function") source.close();
+  else if ("src" in source && typeof source.src === "string") (source as HTMLImageElement).src = "";
+}
+
+async function loadImagerySource(url: string, signal: AbortSignal, resize?: { width: number; height: number }): Promise<LoadedImagerySource> {
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Unable to load imagery tile: ${response.status}`);
+  const blob = await response.blob();
+  if (typeof createImageBitmap === "function") {
+    return (await createImageBitmap(blob, resize ? { resizeWidth: resize.width, resizeHeight: resize.height, resizeQuality: "high" } : undefined)) as LoadedImagerySource;
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.decoding = "async";
+    const loaded = new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Unable to decode imagery image"));
+    });
+    image.src = objectUrl;
+    await loaded;
+    return image;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function imageryTileUrl(template: string, x: number, y: number, gameId?: string): string {
+  const replaced = template
+    .replace(/\{x\}/g, String(x))
+    .replace(/\{y\}/g, String(y))
+    .replace(/\{tier\}/g, "hq");
+  const url = new URL(replaced, window.location.href);
+  if (gameId && !url.searchParams.has("gameId")) url.searchParams.set("gameId", gameId);
+  return url.toString();
+}
+
+function imagerySourceUrl(url: string): string {
+  return new URL(url, window.location.href).toString();
+}
+
 export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(function AnalyseTrackMap(props, ref) {
   const {
     gameId,
@@ -50,7 +121,9 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const wheelDeltaRef = useRef(0);
   const wheelPointerRef = useRef({ x: 0, y: 0 });
   const wheelTargetZoomRef = useRef<number | null>(null);
-  const [imageryTextures, setImageryTextures] = useState<readonly { image: HTMLImageElement; opacity: number }[]>([]);
+  const [imageryTextures, setImageryTextures] = useState<readonly { image: LoadedImagerySource; opacity: number }[]>([]);
+  const imageryTileManagerRef = useRef<ImageryTileManager | null>(null);
+  const [imageryTiles, setImageryTiles] = useState<readonly LoadedImageryTile[]>([]);
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, gameId), [telemetry, outline, gameId]);
   const imageryMatrix = useMemo(
     () => (showImagery && imagery && geographicPositions ? resolveTrackImageryMatrix(resolvedPositions, geographicPositions, imagery.calibration) : null),
@@ -59,32 +132,243 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
   const directVectorRender = zoom > TRACK_MAP_MAX_RENDER_ZOOM;
   useEffect(() => {
+    imageryTileManagerRef.current?.close();
+    imageryTileManagerRef.current = null;
+    setImageryTiles([]);
+    if (!showImagery || !imagery) return;
+    const base = imagery.base;
+    const width = Math.max(1, base.width);
+    const height = Math.max(1, base.height);
+    const tileSize = Math.max(1, base.tileSize);
+    const columns = Math.max(1, base.columns || Math.ceil(width / tileSize));
+    const rows = Math.max(1, base.rows || Math.ceil(height / tileSize));
+    const abortController = new AbortController();
+    let closed = false;
+    let inFlight = 0;
+    let cacheLimit = IMAGERY_TILE_CACHE_FLOOR;
+    const cache = new Map<string, LoadedImageryTile>();
+    const queued = new Set<string>();
+    const queue: { x: number; y: number; decodeWidth: number; decodeHeight: number }[] = [];
+    const key = `${base.tileUrlTemplate}|${width}x${height}|${tileSize}|${gameId ?? ""}`;
+    const publish = () => {
+      if (!closed) setImageryTiles([...cache.values()]);
+    };
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      abortController.abort();
+      queue.length = 0;
+      queued.clear();
+      for (const tile of cache.values()) releaseImagerySource(tile.image);
+      cache.clear();
+      if (imageryTileManagerRef.current?.key === key) imageryTileManagerRef.current = null;
+    };
+    const load = async (x: number, y: number, decodeWidth: number, decodeHeight: number) => {
+      const tileWidth = Math.max(1, Math.min(tileSize, width - x * tileSize));
+      const tileHeight = Math.max(1, Math.min(tileSize, height - y * tileSize));
+      try {
+        const image = await loadImagerySource(imageryTileUrl(base.tileUrlTemplate, x, y, gameId), abortController.signal, {
+          width: decodeWidth,
+          height: decodeHeight,
+        });
+        if (closed) {
+          releaseImagerySource(image);
+          return;
+        }
+        cache.set(`${x}:${y}`, { x, y, width: tileWidth, height: tileHeight, decodeWidth, decodeHeight, image });
+        while (cache.size > cacheLimit) {
+          const oldestKey = cache.keys().next().value as string | undefined;
+          if (!oldestKey) break;
+          const oldest = cache.get(oldestKey);
+          cache.delete(oldestKey);
+          if (oldest) releaseImagerySource(oldest.image);
+        }
+        publish();
+      } catch {
+        // Abort and unavailable tiles leave neighboring tiles visible.
+      } finally {
+        inFlight--;
+        queued.delete(`${x}:${y}`);
+        pump();
+      }
+    };
+    const pump = () => {
+      while (!closed && inFlight < IMAGERY_TILE_CONCURRENCY && queue.length > 0) {
+        const tile = queue.shift()!;
+        if (cache.has(`${tile.x}:${tile.y}`)) {
+          queued.delete(`${tile.x}:${tile.y}`);
+          continue;
+        }
+        inFlight++;
+        void load(tile.x, tile.y, tile.decodeWidth, tile.decodeHeight);
+      }
+    };
+    const request = (matrix: [number, number, number, number, number, number], transform: TrackTransform, camera: ImageryTileCamera) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect || rect.width <= 0 || rect.height <= 0) return;
+      const screenToBuffer = (screenX: number, screenY: number): [number, number] => {
+        if (camera.centerX !== undefined && camera.centerY !== undefined) {
+          const angle = -(camera.rotation ?? 0);
+          const dx = screenX - (transform.w / 2 + camera.panX);
+          const dy = screenY - (transform.h / 2 + camera.panY);
+          return [camera.centerX + dx * Math.cos(angle) - dy * Math.sin(angle), camera.centerY! + dx * Math.sin(angle) + dy * Math.cos(angle)];
+        }
+        return camera.mode === "direct"
+          ? [screenX - camera.panX, screenY - camera.panY]
+          : [screenX - (transform.w - transform.offW) / 2 - camera.panX, screenY - (transform.h - transform.offH) / 2 - camera.panY];
+      };
+      const determinant = matrix[0] * matrix[3] - matrix[2] * matrix[1];
+      if (Math.abs(determinant) < Number.EPSILON) return;
+      const corners = [
+        [0, 0],
+        [rect.width, 0],
+        [0, rect.height],
+        [rect.width, rect.height],
+      ];
+      let uMin = Infinity,
+        uMax = -Infinity,
+        vMin = Infinity,
+        vMax = -Infinity;
+      for (const [screenX, screenY] of corners) {
+        const [bufferX, bufferY] = screenToBuffer(screenX, screenY);
+        const trackX = transform.maxX - (bufferX - transform.offsetX) / transform.scale;
+        const trackZ = transform.minZ + (bufferY - transform.offsetZ) / transform.scale;
+        const dx = trackX - matrix[4];
+        const dz = trackZ - matrix[5];
+        const u = (matrix[3] * dx - matrix[2] * dz) / determinant;
+        const v = (-matrix[1] * dx + matrix[0] * dz) / determinant;
+        uMin = Math.min(uMin, u);
+        uMax = Math.max(uMax, u);
+        vMin = Math.min(vMin, v);
+        vMax = Math.max(vMax, v);
+      }
+      const x0 = Math.max(0, Math.floor((Math.max(0, uMin) * width) / tileSize) - 1);
+      const x1 = Math.min(columns - 1, Math.floor((Math.min(1, uMax) * width) / tileSize) + 1);
+      const y0 = Math.max(0, Math.floor((Math.max(0, vMin) * height) / tileSize) - 1);
+      const y1 = Math.min(rows - 1, Math.floor((Math.min(1, vMax) * height) / tileSize) + 1);
+      const wanted = new Map<string, { x: number; y: number; decodeWidth: number; decodeHeight: number }>();
+      const deviceScale = window.devicePixelRatio || 1;
+      const fullTileScreenWidth = (Math.hypot(matrix[0], matrix[1]) * transform.scale * tileSize * deviceScale) / width;
+      const fullTileScreenHeight = (Math.hypot(matrix[2], matrix[3]) * transform.scale * tileSize * deviceScale) / height;
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const logicalWidth = Math.min(tileSize, width - x * tileSize);
+          const logicalHeight = Math.min(tileSize, height - y * tileSize);
+          wanted.set(`${x}:${y}`, {
+            x,
+            y,
+            decodeWidth: Math.max(1, Math.min(logicalWidth, Math.ceil((fullTileScreenWidth * logicalWidth) / tileSize))),
+            decodeHeight: Math.max(1, Math.min(logicalHeight, Math.ceil((fullTileScreenHeight * logicalHeight) / tileSize))),
+          });
+        }
+      }
+      cacheLimit = Math.max(IMAGERY_TILE_CACHE_FLOOR, wanted.size);
+      for (let index = queue.length - 1; index >= 0; index--) {
+        const queuedTile = queue[index];
+        const queuedKey = `${queuedTile.x}:${queuedTile.y}`;
+        if (!wanted.has(queuedKey)) {
+          queue.splice(index, 1);
+          queued.delete(queuedKey);
+        }
+      }
+      for (const [tileKey, desired] of wanted) {
+        const cached = cache.get(tileKey);
+        if (cached && (cached.decodeWidth < desired.decodeWidth || cached.decodeHeight < desired.decodeHeight)) {
+          cache.delete(tileKey);
+          releaseImagerySource(cached.image);
+        } else if (cached) {
+          cache.delete(tileKey);
+          cache.set(tileKey, cached);
+          continue;
+        }
+        if (!queued.has(tileKey)) {
+          queued.add(tileKey);
+          queue.push(desired);
+        }
+      }
+      while (cache.size > cacheLimit) {
+        const oldestKey = cache.keys().next().value as string | undefined;
+        if (!oldestKey) break;
+        const oldest = cache.get(oldestKey);
+        cache.delete(oldestKey);
+        if (oldest) releaseImagerySource(oldest.image);
+      }
+      pump();
+    };
+    const manager: ImageryTileManager = { key, close, request };
+    imageryTileManagerRef.current = manager;
+    return close;
+  }, [gameId, imagery?.base.columns, imagery?.base.height, imagery?.base.rows, imagery?.base.tileSize, imagery?.base.tileUrlTemplate, imagery?.base.width, showImagery]);
+  useEffect(() => {
     setImageryTextures([]);
     if (!showImagery || !imagery) return;
+    const abortController = new AbortController();
     let cancelled = false;
-    void Promise.all(
-      imagery.textures.map(
-        (texture) =>
-          new Promise<{ image: HTMLImageElement; opacity: number }>((resolve, reject) => {
-            const image = new Image();
-            image.decoding = "async";
-            image.onload = () => resolve({ image, opacity: texture.opacity });
-            image.onerror = () => reject(new Error(`Unable to load track texture ${texture.id}`));
-            image.src = texture.url;
-          }),
-      ),
-    )
-      .then((textures) => {
-        if (!cancelled) setImageryTextures(textures);
-      })
-      .catch(() => {
-        if (!cancelled) setImageryTextures([]);
-      });
+    const ownedSources = new Set<LoadedImagerySource>();
+    void (async () => {
+      for (const texture of imagery.textures) {
+        if (cancelled) return;
+        try {
+          const image = await loadImagerySource(imagerySourceUrl(texture.url), abortController.signal);
+          if (cancelled) {
+            releaseImagerySource(image);
+            return;
+          }
+          ownedSources.add(image);
+          setImageryTextures((current) => [...current, { image, opacity: texture.opacity }]);
+        } catch {
+          if (cancelled) return;
+        }
+      }
+    })();
     return () => {
       cancelled = true;
+      abortController.abort();
+      setImageryTextures([]);
+      for (const source of ownedSources) releaseImagerySource(source);
+      ownedSources.clear();
     };
   }, [imagery, showImagery]);
-  const renderedImagery = useMemo(() => (imageryMatrix && imageryTextures.length > 0 ? { imageToTrack: imageryMatrix, textures: imageryTextures } : null), [imageryMatrix, imageryTextures]);
+  const requestVisibleTiles = useCallback(
+    (transform: TrackTransform, viewportCamera?: { panX: number; panY: number; center?: { x: number; z: number }; rotation?: number }) => {
+      const manager = imageryTileManagerRef.current;
+      if (!manager || !imageryMatrix) return;
+      const position = resolvedPositions[cursorRef.current];
+      const path = resolvedDirections[cursorRef.current];
+      const rotation = path ? -Math.PI / 2 - Math.atan2(path[1], -path[0]) : 0;
+      let camera: ImageryTileCamera;
+      if (viewportCamera?.center) {
+        camera = { mode: "direct", panX: viewportCamera.panX, panY: viewportCamera.panY, centerX: transform.w / 2, centerY: transform.h / 2, rotation: viewportCamera.rotation };
+      } else if (directVectorRender) {
+        camera = { mode: "direct", panX: panRef.current.x, panY: panRef.current.y };
+      } else if (rotateWithCar && position) {
+        camera = {
+          mode: "composite",
+          panX: panRef.current.x,
+          panY: panRef.current.y,
+          centerX: transform.offsetX + (transform.maxX - position.x) * transform.scale,
+          centerY: transform.offsetZ + (position.z - transform.minZ) * transform.scale,
+          rotation,
+        };
+      } else {
+        camera = { mode: "composite", panX: panRef.current.x, panY: panRef.current.y };
+      }
+      manager.request(imageryMatrix, transform, camera);
+    },
+    [directVectorRender, imageryMatrix, resolvedDirections, resolvedPositions, rotateWithCar],
+  );
+  const renderedImagery = useMemo(
+    () =>
+      imageryMatrix && imagery
+        ? {
+            imageToTrack: imageryMatrix,
+            base: { width: imagery.base.width, height: imagery.base.height, tileSize: imagery.base.tileSize, tiles: imageryTiles },
+            textures: imageryTextures,
+            requestVisibleTiles,
+          }
+        : null,
+    [imagery, imageryMatrix, imageryTextures, imageryTiles, requestVisibleTiles],
+  );
 
   const drawStatic = useCallback(
     (idx = cursorRef.current) => {
@@ -178,6 +462,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     (idx: number) => {
       const opts = renderOverlayOptions();
       compositeTrack(opts, idx);
+      if (transformRef.current) requestVisibleTiles(transformRef.current);
       const pkt = telemetry[idx],
         pos = resolvedPositions[idx];
       if (pkt && pos && transformRef.current)
@@ -189,7 +474,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
           angle: -Math.PI / 2,
         };
     },
-    [renderOverlayOptions, telemetry, resolvedPositions],
+    [renderOverlayOptions, requestVisibleTiles, telemetry, resolvedPositions],
   );
   const drawCar = useCallback(
     (idx: number) => {
@@ -327,10 +612,13 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       if (directVectorRender) {
         drawStatic(cursorRef.current);
         if (!rotateWithCar) drawCar(cursorRef.current);
-      } else if (rotateWithCar) composite(cursorRef.current);
-      else drawFixed(cursorRef.current);
+      } else {
+        if (transformRef.current) requestVisibleTiles(transformRef.current);
+        if (rotateWithCar) composite(cursorRef.current);
+        else drawFixed(cursorRef.current);
+      }
     },
-    [composite, directVectorRender, drawCar, drawFixed, drawStatic, rotateWithCar],
+    [composite, directVectorRender, drawCar, drawFixed, drawStatic, requestVisibleTiles, rotateWithCar],
   );
   const handlePointerEnd = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;

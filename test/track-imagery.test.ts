@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { TrackConfigurationSchema, trackConfigurationCanonicalId, trackConfigurationVenueId } from "../shared/racing/tracks/configuration";
 import {
+  TRACK_IMAGERY_MANIFEST_VERSION,
+  TRACK_IMAGERY_PACKAGE_NAME,
   TrackImageryVenueManifestSchema,
   composeTrackImageryMatrices,
   defaultVenueImageryCalibration,
@@ -110,14 +112,34 @@ test("resolves one GPS-calibrated venue texture into mirrored game-local coordin
   }
 });
 
-test("keeps venue base opaque while layers retain independent alpha", () => {
+test("keeps package base opaque while layers retain independent alpha", () => {
   const manifest = TrackImageryVenueManifestSchema.parse({
-    version: 1,
+    version: TRACK_IMAGERY_MANIFEST_VERSION,
     venueId: "daytona",
     calibration: { originLatitudeDeg: 29, originLongitudeDeg: -81, imageToEnu: [1, 0, 0, -1, 0, 0] },
-    base: { image: "base.webp", opacity: 0.2, source: { name: "Owned base", license: "owned", attribution: "" } },
+    base: {
+      pack: TRACK_IMAGERY_PACKAGE_NAME,
+      tileSize: 512,
+      bounds: { west: -81.01, south: 28.99, east: -80.99, north: 29.01 },
+      source: {
+        name: "Owned base",
+        provider: "manual",
+        license: "owned",
+        attribution: "",
+        sourceResolutionM: 0.1,
+        storedResolutionM: 0.1,
+      },
+    },
     layers: [{ id: "road-course", kind: "layout", image: "road-course.webp", opacity: 0.65, source: { name: "Owned correction", license: "owned", attribution: "" } }],
   });
+  expect(manifest.version).toBe(2);
+  expect(manifest.base).toMatchObject({
+    pack: "imagery.rqi",
+    tileSize: 512,
+    bounds: { west: -81.01, south: 28.99, east: -80.99, north: 29.01 },
+    source: { provider: "manual", sourceResolutionM: 0.1, storedResolutionM: 0.1 },
+  });
   expect("opacity" in manifest.base).toBe(false);
+  expect("image" in manifest.base).toBe(false);
   expect(manifest.layers[0]?.opacity).toBe(0.65);
 });

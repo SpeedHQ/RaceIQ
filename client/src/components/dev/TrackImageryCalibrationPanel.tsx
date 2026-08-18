@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { trackConfigurationVenueId, type TrackConfiguration } from "../../../../shared/racing/tracks/configuration";
 import {
+  TRACK_IMAGERY_MANIFEST_VERSION,
   defaultVenueImageryCalibration,
   geographicTrackImageryPoint,
   rotateTrackImageryMatrix,
@@ -23,8 +24,7 @@ import { useGameId, useGameStore } from "../../stores/game";
 import { TrackConfigurationBrowser, type TrackConfigurationSelection } from "./TrackConfigurationBrowser";
 import { OpenTrackImageryPicker } from "./OpenTrackImageryPicker";
 import { Button } from "../ui/button";
-
-const EMPTY_SOURCE: TrackImagerySource = { name: "", url: "", capturedAt: "", license: "", attribution: "" };
+const EMPTY_SOURCE: TrackImagerySource = { name: "", url: "", capturedAt: "", license: "", attribution: "", provider: "manual" };
 const SAFE_ID = /^[a-z0-9][a-z0-9-]*$/;
 
 function normalizedId(value: string): string {
@@ -42,8 +42,11 @@ function sourcePayload(source: TrackImagerySource): TrackImagerySource {
     ...(source.capturedAt?.trim() ? { capturedAt: source.capturedAt.trim() } : {}),
     license: source.license.trim(),
     attribution: source.attribution.trim(),
+    provider: source.provider,
     ...(source.quality ? { quality: source.quality } : {}),
     ...(source.resolutionM ? { resolutionM: source.resolutionM } : {}),
+    ...(source.sourceResolutionM ? { sourceResolutionM: source.sourceResolutionM } : {}),
+    ...(source.storedResolutionM ? { storedResolutionM: source.storedResolutionM } : {}),
   };
 }
 
@@ -348,7 +351,8 @@ export function TrackImageryCalibrationPanel() {
   const gpsPolyline = gpsPath.map((point) => `${point.x},${point.z}`).join(" ");
   const displayedLayers = venue?.layers.filter((candidate) => selectedLayers.includes(candidate.id)) ?? [];
   const baseSourceValid = !!baseSource.name.trim() && !!baseSource.license.trim();
-  const canSaveBase = !!gameId && trackOrdinal != null && !!configuration && !!calibration && baseSourceValid && (!!baseFile || !!selectedImageryCandidate || !!venue);
+  const baseBounds = openImageryBounds ?? venue?.base.bounds ?? null;
+  const canSaveBase = !!gameId && trackOrdinal != null && !!configuration && !!calibration && !!baseBounds && baseSourceValid && (!!baseFile || !!selectedImageryCandidate || !!venue);
   const layerSourceValid = !!layerSource.name.trim() && !!layerSource.license.trim();
   const canSaveLayer = !!venue && SAFE_ID.test(layerId) && !!layerFile && layerSourceValid;
 
@@ -409,7 +413,7 @@ export function TrackImageryCalibrationPanel() {
 
   const saveLayout = async (layers = selectedLayers) => {
     if (!gameId || trackOrdinal == null) throw new Error("Select a catalog track");
-    const payload: TrackImageryLayoutManifest = { version: 1, gameId, trackOrdinal, layers };
+    const payload: TrackImageryLayoutManifest = { version: TRACK_IMAGERY_MANIFEST_VERSION, gameId, trackOrdinal, layers };
     const response = await fetch(`/api/dev/track-imagery/layouts/${trackOrdinal}?gameId=${encodeURIComponent(gameId)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -427,10 +431,10 @@ export function TrackImageryCalibrationPanel() {
     setError(null);
     setStatus(null);
     const manifest: TrackImageryVenueManifest = {
-      version: 1,
+      version: TRACK_IMAGERY_MANIFEST_VERSION,
       venueId,
       calibration,
-      base: { image: venue?.base.image ?? baseFile?.name ?? "base.webp", source: sourcePayload(baseSource) },
+      base: { pack: "imagery.rqi", tileSize: 512, bounds: baseBounds, source: { ...sourcePayload(baseSource), provider: baseSource.provider ?? "manual" } },
       layers: venue?.layers ?? [],
     };
     try {
@@ -537,8 +541,8 @@ export function TrackImageryCalibrationPanel() {
       ...(candidate.capturedAt ? { capturedAt: candidate.capturedAt } : {}),
       license: candidate.license,
       attribution: candidate.attribution,
-      quality: candidate.quality,
-      ...(candidate.resolutionM ? { resolutionM: candidate.resolutionM } : {}),
+      provider: candidate.provider,
+      ...(candidate.resolutionM ? { sourceResolutionM: candidate.resolutionM, storedResolutionM: Math.max(candidate.resolutionM, 0.1) } : {}),
     });
     setCalibration(nextCalibration);
     setError(null);
@@ -549,8 +553,8 @@ export function TrackImageryCalibrationPanel() {
     <div className="grid h-full min-h-0 grid-cols-[minmax(25rem,32rem)_minmax(19rem,25rem)_1fr] bg-app-bg">
       <TrackConfigurationBrowser selection={selectedTrack} onSelect={handleSelectTrack} onConfigurationChange={() => setConfigurationRevision((revision) => revision + 1)} />
       <aside className="overflow-y-auto border-r border-app-border p-4">
-        <h1 className="mb-1 text-lg font-semibold text-app-text">Texture calibration</h1>
-        <p className="mb-4 text-xs text-app-text-muted">One opaque venue base; reusable transparent game, layout, and correction layers.</p>
+        <h1 className="mb-1 text-lg font-semibold text-app-text">Imagery calibration</h1>
+        <p className="mb-4 text-xs text-app-text-muted">One HQ venue package; reusable transparent game, layout, and correction layers.</p>
 
         <label className="mb-3 block text-xs font-medium text-app-text-secondary">
           Calibration reference
