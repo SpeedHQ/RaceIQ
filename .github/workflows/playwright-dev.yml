@@ -5,41 +5,12 @@ on:
 
 jobs:
   playwright:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: fresh
-            server-set: fresh
-            projects: --project=fresh-install
-            memory: 10G
-            cpu: 2VCPU
-          - name: tunes
-            server-set: tunes
-            projects: --project=tunes
-            memory: 5G
-            cpu: 2VCPU
-          - name: seeded-imports
-            server-set: seeded
-            projects: --project=seeded-imports
-            memory: 8G
-            cpu: 4VCPU
-          - name: seeded-read
-            server-set: seeded
-            projects: --project=seeded-e2e --project=mobile-device --project=tablet-device
-            memory: 10G
-            cpu: 4VCPU
-          - name: seeded-routes
-            server-set: seeded
-            projects: --project=seeded-routes
-            memory: 10G
-            cpu: 4VCPU
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      server-set: ${{ matrix.server-set }}
-      projects: ${{ matrix.projects }}
-      runs-on: '["whitesmith-windows-x64", "${{ matrix.cpu }}", "${{ matrix.memory }}"]'
+      server-set: all
+      projects: --project=fresh-install --project=tunes --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+      runs-on: '["whitesmith-windows-x64", "10VCPU", "25G"]'
       dist-artifact: raceiq-dist-windows
-      artifact-name: playwright-${{ matrix.name }}
-      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
+      artifact-name: playwright
+      diagnostic-artifact-name: server-diagnostics
