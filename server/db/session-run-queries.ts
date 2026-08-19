@@ -5,13 +5,16 @@ import {
   gt,
   gte,
   inArray,
+  isNull,
+  lt,
+  ne,
   lte,
   or,
   sql,
   type SQL,
 } from "drizzle-orm";
-
 import {
+  ComparableSessionRunPageSchema,
   SessionRunEvidencePageSchema,
   SessionRunEvidenceSchema,
   SessionRunEvidenceRoleSchema,
@@ -35,10 +38,15 @@ import {
 import { resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import {
   RaceEventIdSchema,
+  RaceEventSchema,
   type RaceEvent,
   type RaceEventId,
 } from "../../shared/racing/events/contracts";
-import type { PreparedSessionRunUpdate } from "../session-runs/builder";
+import {
+  SessionRunBuilder,
+  type PreparedSessionRunUpdate,
+} from "../session-runs/builder";
+import type { CompletedSessionRunLap } from "../../shared/racing/runs/summary";
 import {
   appendRaceEvents,
   attachRaceEventsToLap,
@@ -160,7 +168,7 @@ function decodeRunCursor(cursor: string): RunCursor {
   }
 }
 
-function decodePairCursor(cursor: string): readonly [number, string] {
+function decodePairCursor(cursor: string): readonly [number, RaceEventId] {
   try {
     const value: unknown = JSON.parse(
       Buffer.from(cursor, "base64url").toString("utf8"),
@@ -170,12 +178,11 @@ function decodePairCursor(cursor: string): readonly [number, string] {
       value.length !== 2 ||
       !Number.isSafeInteger(value[0]) ||
       value[0] < 0 ||
-      typeof value[1] !== "string" ||
-      value[1].length === 0
+      !RaceEventIdSchema.safeParse(value[1]).success
     ) {
       throw new SessionRunCursorError();
     }
-    return value as unknown as readonly [number, string];
+    return value as unknown as readonly [number, RaceEventId];
   } catch (error) {
     if (error instanceof SessionRunCursorError) throw error;
     throw new SessionRunCursorError();
@@ -527,6 +534,110 @@ export function appendSessionRunArtifacts(
   return db.transaction((tx) => appendSessionRunArtifactsInTransaction(tx, input));
 }
 
+async function rebuildPersistedSessionRunsInTransaction(
+  tx: DbTransaction,
+  sessionId: number,
+): Promise<SessionRun[]> {
+  const session = await tx
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .get();
+  if (!session) throw new SessionRunNotFoundError();
+
+  const eventRows = await tx
+    .select()
+    .from(raceEvents)
+    .where(eq(raceEvents.sessionId, sessionId))
+    .orderBy(
+      asc(raceEvents.timelineEpoch),
+      asc(raceEvents.sequence),
+      asc(raceEvents.eventOrder),
+      asc(raceEvents.eventId),
+    )
+    .all();
+  const events = eventRows.map((row) => RaceEventSchema.parse(row));
+  const completedByLapNumber = new Map<number, RaceEvent[]>();
+  for (const event of events) {
+    if (event.eventType !== "lap_completed") continue;
+    const values =
+      completedByLapNumber.get(event.payload.lapNumber) ?? [];
+    values.push(event);
+    completedByLapNumber.set(event.payload.lapNumber, values);
+  }
+  const lapRows = await tx
+    .select()
+    .from(laps)
+    .where(eq(laps.sessionId, sessionId))
+    .orderBy(asc(laps.lapNumber), asc(laps.id))
+    .all();
+  const lapsByCompletionEventId = new Map<
+    RaceEventId,
+    CompletedSessionRunLap
+  >();
+  for (const lap of lapRows) {
+    const candidates = completedByLapNumber.get(lap.lapNumber) ?? [];
+    const event =
+      candidates.find(
+        (candidate) =>
+          candidate.participantKind === "player" &&
+          candidate.lapId === lap.id,
+      ) ??
+      candidates.find(
+        (candidate) => candidate.participantKind === "player",
+      );
+    if (!event) continue;
+    lapsByCompletionEventId.set(event.eventId, {
+      lapEventId: event.eventId,
+      lapId: lap.id,
+      lapNumber: lap.lapNumber,
+      lapTimeMs:
+        Number.isFinite(lap.lapTime) && lap.lapTime > 0
+          ? lap.lapTime * 1_000
+          : null,
+      isValid: lap.isValid,
+      phase: lap.phase,
+      conditions: lap.conditions,
+      quality: lap.quality ?? null,
+      eligibility: lap.eligibility ?? null,
+      qualityGeneration: lap.qualityGeneration,
+      qualityStale: lap.qualityGeneration === "legacy",
+      qualitySchemaVersion: lap.qualitySchemaVersion,
+      qualityPolicyVersion: lap.qualityPolicyVersion,
+      qualityConfigVersion: lap.qualityConfigVersion,
+    });
+  }
+
+  const builder = new SessionRunBuilder();
+  const consumed = builder.consume({ events, lapsByCompletionEventId });
+  consumed.commit();
+  const finalized = builder.finalize({ sessionId });
+  finalized.commit();
+  const artifacts: SessionRunArtifacts = {
+    runs: [...consumed.runs, ...finalized.runs],
+    memberships: [...consumed.memberships, ...finalized.memberships],
+    evidence: [...consumed.evidence, ...finalized.evidence],
+  };
+  await tx
+    .delete(sessionRuns)
+    .where(eq(sessionRuns.sessionId, sessionId))
+    .run();
+  await appendSessionRunArtifactsInTransaction(tx, artifacts);
+  return [...artifacts.runs];
+}
+
+export function rebuildPersistedSessionRuns(
+  sessionId: number,
+  transaction?: DbTransaction,
+): Promise<SessionRun[]> {
+  if (transaction) {
+    return rebuildPersistedSessionRunsInTransaction(transaction, sessionId);
+  }
+  return db.transaction((tx) =>
+    rebuildPersistedSessionRunsInTransaction(tx, sessionId),
+  );
+}
+
 export function appendRaceEventsWithSessionRunUpdate(
   events: readonly RaceEvent[],
   lapLinks: readonly RaceEventLapLink[],
@@ -610,28 +721,42 @@ async function listConditions(
     if (!relation || relation.runKind !== "tire" || (sessionId != null && relation.sessionId !== sessionId)) {
       throw new SessionRunNotFoundError();
     }
-    const relationLapRows = await db
-      .select({ lapEventId: sessionRunLaps.lapEventId })
-      .from(sessionRunLaps)
-      .where(eq(sessionRunLaps.runId, relation.runId))
-      .all();
-    if (relationLapRows.length === 0) {
-      conditions.push(sql`0 = 1`);
-    } else {
-      const overlapRows = await db
-        .select({ runId: sessionRunLaps.runId })
-        .from(sessionRunLaps)
-        .where(
-          inArray(
-            sessionRunLaps.lapEventId,
-            relationLapRows.map(({ lapEventId }) => lapEventId),
-          ),
-        )
-        .all();
-      const runIds = [...new Set(overlapRows.map(({ runId }) => runId))];
-      conditions.push(
-        runIds.length === 0 ? sql`0 = 1` : inArray(sessionRuns.runId, runIds),
-      );
+    conditions.push(
+      eq(sessionRuns.sessionId, relation.sessionId),
+      relation.participantId === null
+        ? isNull(sessionRuns.participantId)
+        : eq(sessionRuns.participantId, relation.participantId),
+      eq(sessionRuns.timelineEpoch, relation.timelineEpoch),
+      or(
+        gt(sessionRuns.openingSequence, relation.openingSequence),
+        and(
+          eq(sessionRuns.openingSequence, relation.openingSequence),
+          gte(sessionRuns.openingEventOrder, relation.openingEventOrder),
+        ),
+      )!,
+    );
+    if (relation.closingBoundary.eventId !== null) {
+      const closing = await db
+        .select({
+          timelineEpoch: raceEvents.timelineEpoch,
+          sequence: raceEvents.sequence,
+          eventOrder: raceEvents.eventOrder,
+        })
+        .from(raceEvents)
+        .where(eq(raceEvents.eventId, relation.closingBoundary.eventId))
+        .get();
+      if (!closing) throw new SessionRunNotFoundError();
+      if (closing.timelineEpoch === relation.timelineEpoch) {
+        conditions.push(
+          or(
+            lt(sessionRuns.openingSequence, closing.sequence),
+            and(
+              eq(sessionRuns.openingSequence, closing.sequence),
+              lt(sessionRuns.openingEventOrder, closing.eventOrder),
+            ),
+          )!,
+        );
+      }
     }
   }
   if (query.cursor !== undefined) conditions.push(cursorCondition(decodeRunCursor(query.cursor)));
@@ -802,55 +927,126 @@ export async function listComparableSessionRuns(
   query: ComparableSessionRunListQuery = {},
 ): Promise<ComparableSessionRunPage> {
   const reference = await getRun(runId);
+  const referenceSession = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.id, reference.sessionId))
+    .get();
+  if (!referenceSession) throw new SessionRunNotFoundError();
+
   const limit = requestedLimit(query.limit);
-  const runPage = await listRuns(null, {
+  const conditions = await listConditions(null, {
     participantId: query.participantId,
     driverId: query.driverId,
     observedPhase: query.observedPhase,
     minCompletedLaps: query.minCompletedLaps,
     maxCompletedLaps: query.maxCompletedLaps,
     cursor: query.cursor,
-    limit,
     runKind: reference.runKind,
   });
-  const sessionIds = [...new Set(runPage.items.map(({ sessionId }) => sessionId))];
-  const sessionRows =
-    sessionIds.length === 0
+  conditions.push(ne(sessionRuns.runId, reference.runId));
+  if (query.gameId) conditions.push(eq(sessions.gameId, query.gameId));
+  if (query.trackId) {
+    conditions.push(
+      sql`CAST(${sessions.trackOrdinal} AS TEXT) = ${query.trackId}`,
+    );
+  }
+  if (query.classId) conditions.push(eq(sessionRuns.classId, query.classId));
+  if (query.requireEnvironmentEvidence) conditions.push(sql`0 = 1`);
+
+  const rows = await db
+    .select({ run: sessionRuns, session: sessions })
+    .from(sessionRuns)
+    .innerJoin(sessions, eq(sessionRuns.sessionId, sessions.id))
+    .where(and(...conditions))
+    .orderBy(
+      asc(sessionRuns.timelineEpoch),
+      asc(sessionRuns.openingSequence),
+      asc(sessionRuns.openingEventOrder),
+      asc(sessionRuns.runId),
+    )
+    .limit(limit + 1)
+    .all();
+  const hasNextPage = rows.length > limit;
+  const pageRows = hasNextPage ? rows.slice(0, limit) : rows;
+  const parsedRows = pageRows.map(({ run, session }) => ({
+    run: parseSessionRunRow(run),
+    session,
+  }));
+  const pageRunIds = parsedRows.map(({ run }) => run.runId);
+  const membershipRows =
+    pageRunIds.length === 0
       ? []
       : await db
-          .select()
-          .from(sessions)
-          .where(inArray(sessions.id, sessionIds))
+          .select({
+            runId: sessionRunLaps.runId,
+            lapId: sessionRunLaps.lapId,
+            conditions: laps.conditions,
+          })
+          .from(sessionRunLaps)
+          .leftJoin(laps, eq(sessionRunLaps.lapId, laps.id))
+          .where(inArray(sessionRunLaps.runId, pageRunIds))
           .all();
-  const sessionById = new Map(sessionRows.map((row) => [row.id, row] as const));
-  const items = runPage.items.flatMap((run) => {
-    const session = sessionById.get(run.sessionId);
-    if (!session) return [];
-    if (query.gameId && session.gameId !== query.gameId) return [];
-    if (query.trackId && String(session.trackOrdinal) !== query.trackId) return [];
-    if (query.classId && run.classId !== query.classId) return [];
-    if (query.requireEnvironmentEvidence) return [];
+  const membershipByRun = new Map<
+    SessionRunId,
+    Array<(typeof membershipRows)[number]>
+  >();
+  for (const membership of membershipRows) {
+    const values = membershipByRun.get(membership.runId) ?? [];
+    values.push(membership);
+    membershipByRun.set(membership.runId, values);
+  }
+
+  const items = parsedRows.map(({ run, session }) => {
+    const memberships = membershipByRun.get(run.runId) ?? [];
+    const missingLapMetadata = memberships.some(
+      ({ lapId, conditions: lapConditions }) =>
+        lapId === null || lapConditions === null,
+    );
+    const memberConditions = missingLapMetadata
+      ? null
+      : [
+          ...new Set(
+            memberships.flatMap(({ conditions: lapConditions }) =>
+              lapConditions ?? [],
+            ),
+          ),
+        ].sort();
     const limitations = [
+      ...(session.gameId === referenceSession.gameId
+        ? []
+        : ["game_mismatch"]),
+      ...(session.trackOrdinal === referenceSession.trackOrdinal
+        ? []
+        : ["track_mismatch"]),
+      ...(run.classId && reference.classId && run.classId !== reference.classId
+        ? ["class_mismatch"]
+        : []),
       ...(run.classId ? [] : ["class_evidence_unavailable"]),
       "environment_evidence_unavailable",
-      ...(run.summary.cautionLapCount > 0 ? ["contains_caution_laps"] : []),
+      ...(missingLapMetadata ? ["member_conditions_unavailable"] : []),
+      ...(run.summary.cautionLapCount > 0
+        ? ["contains_caution_laps"]
+        : []),
       ...(run.summary.normalPaceLapCount < run.summary.completedLapCount
         ? ["contains_non_pace_laps"]
         : []),
     ];
-    return [
-      {
-        run,
-        gameId: session.gameId,
-        trackId: String(session.trackOrdinal),
-        classEvidence: run.classId,
-        environmentEvidence: null,
-        compatibilityLimitations: limitations,
-      },
-    ];
+    return {
+      run,
+      gameId: session.gameId,
+      trackId: String(session.trackOrdinal),
+      classEvidence: run.classId,
+      environmentEvidence: null,
+      memberConditions,
+      compatibilityLimitations: limitations,
+    };
   });
-  return {
+  return ComparableSessionRunPageSchema.parse({
     items,
-    nextCursor: runPage.nextCursor,
-  };
+    nextCursor:
+      hasNextPage && parsedRows.length > 0
+        ? encodeCursor(runOrderTuple(parsedRows.at(-1)!.run))
+        : null,
+  });
 }

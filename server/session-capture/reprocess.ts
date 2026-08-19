@@ -18,6 +18,7 @@ import {
   type RaceEventResultProjection,
   type ReplayableLapReplacement,
 } from "../db/race-event-queries";
+import { rebuildPersistedSessionRuns } from "../db/session-run-queries";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { sessions } from "../db/schema";
 import {
@@ -254,6 +255,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     await updateSessionRawFile(sessionId, session.rawFile!, rebuilt.detectorId, versionIdentity, tx);
     qualityGeneration = (await updateSessionQuality(sessionId, mergedQuality, tx)).provenance.outputGeneration;
     await linkSessionQualityEvents(sessionId, tx);
+    await rebuildPersistedSessionRuns(sessionId, tx);
   });
   for (const lap of existingLaps) cacheDelete(lap.id);
 

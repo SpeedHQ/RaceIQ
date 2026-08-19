@@ -3,8 +3,12 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { SessionRunsCompletedMessageSchema } from "../../shared/racing/runs/contracts";
 import { initGameAdapters } from "../../shared/games/init";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { RaceEvent } from "../../shared/racing/events/contracts";
 import { initServerGameAdapters } from "../../server/games/init";
-import { MemoryRaceEventStore } from "../../server/race-events/store";
+import {
+  MemoryRaceEventStore,
+  type RaceEventLapLink,
+} from "../../server/race-events/store";
 import {
   CapturingDbAdapter,
   CapturingWsAdapter,
@@ -15,6 +19,7 @@ import {
   LiveTelemetryPipeline,
   stopMaintenanceTasks,
 } from "../../server/telemetry/live-pipeline";
+import type { PreparedSessionRunUpdate } from "../../server/session-runs/builder";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -90,8 +95,20 @@ describe("live session run integration", () => {
 
   test("store failure advances neither run builder nor run publication", async () => {
     class FailingStore extends MemoryRaceEventStore {
-      override appendWithSessionRunUpdate(): Promise<never> {
-        return Promise.reject(new Error("run-store-failed"));
+      fail = true;
+
+      override appendWithSessionRunUpdate(
+        events: readonly RaceEvent[],
+        links: readonly RaceEventLapLink[],
+        update: Pick<
+          PreparedSessionRunUpdate,
+          "runs" | "memberships" | "evidence"
+        >,
+      ) {
+        if (this.fail) {
+          return Promise.reject(new Error("run-store-failed"));
+        }
+        return super.appendWithSessionRunUpdate(events, links, update);
       }
     }
     const store = new FailingStore();
@@ -107,16 +124,26 @@ describe("live session run integration", () => {
         ({ type }) => type === "session-runs-completed",
       ),
     ).toHaveLength(0);
+
+    store.fail = false;
+    await live.value.processPacket(
+      packet({ TimestampMS: 2_000, CurrentLap: 40 }),
+    );
+    expect(live.value.openSessionRuns).toHaveLength(4);
   });
 
-  test("publisher failure happens after durable store and builder commit", async () => {
+  test("publisher failure cannot block durable session finalization", async () => {
     const store = new MemoryRaceEventStore();
     const ws = new CapturingWsAdapter();
+    let replacementAttempts = 0;
     const publisher: SessionRunPublisher = {
       publishCompleted() {
         throw new Error("run-publisher-failed");
       },
-      publishReplaced() {},
+      publishReplaced() {
+        replacementAttempts += 1;
+        throw new Error("run-replacement-publisher-failed");
+      },
     };
     const live = new LiveTelemetryPipeline(new CapturingDbAdapter(), ws, {
       bypassPacketRateFilter: true,
@@ -137,10 +164,51 @@ describe("live session run integration", () => {
       }),
     );
 
-    await expect(live.finalizeCurrentSession()).rejects.toThrow(
-      "run-publisher-failed",
-    );
+    await expect(live.finalizeCurrentSession()).resolves.toBeUndefined();
     expect(store.listSessionRuns()).toHaveLength(4);
     expect(live.openSessionRuns).toHaveLength(0);
+    expect(replacementAttempts).toBe(1);
+    expect(
+      ws.broadcastedNotifications.some(
+        ({ type }) => type === "quality-updated",
+      ),
+    ).toBe(true);
+  });
+
+  test("retries closed run finalization after store failure", async () => {
+    class FinalizationStore extends MemoryRaceEventStore {
+      failFinalization = true;
+
+      override appendSessionRunUpdate(
+        update: Pick<
+          PreparedSessionRunUpdate,
+          "runs" | "memberships" | "evidence"
+        >,
+      ) {
+        if (this.failFinalization && update.runs.length > 0) {
+          this.failFinalization = false;
+          return Promise.reject(new Error("run-finalization-failed"));
+        }
+        return super.appendSessionRunUpdate(update);
+      }
+    }
+    const store = new FinalizationStore();
+    const live = pipeline(store);
+    await live.value.processPacket(packet());
+    await live.value.processPacket(
+      packet({
+        TimestampMS: 2_000,
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 5_000,
+      }),
+    );
+    await expect(live.value.finalizeCurrentSession()).rejects.toThrow(
+      "run-finalization-failed",
+    );
+    expect(store.listSessionRuns()).toHaveLength(0);
+    await expect(live.value.finalizeCurrentSession()).resolves.toBeUndefined();
+    expect(store.listSessionRuns()).toHaveLength(4);
   });
 });

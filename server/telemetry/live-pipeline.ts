@@ -93,6 +93,21 @@ type StagedCompletedSessionRunLap = Omit<
   "lapEventId"
 >;
 
+interface PendingTimelineBatch {
+  events: RaceEvent[];
+  lapLinks: RaceEventLapLink[];
+  lapsByCompletionEventId: Map<
+    RaceEvent["eventId"],
+    CompletedSessionRunLap
+  >;
+  diagnosticQueued: boolean;
+}
+
+interface PendingClosedRunFinalization {
+  closed: ClosedRecordingSession;
+  endReason: string;
+}
+
 interface CaptureFinalizationResult {
   finalization: Promise<void> | null;
 }
@@ -135,7 +150,10 @@ export class LiveTelemetryPipeline {
   private _resultFinalizations = new Map<number, Promise<void>>();
   private _captureOperationQueue = Promise.resolve();
   private readonly _sessionFinalizations = new Map<number, Promise<void>>();
-  private readonly _sessionFinalizationFailures: unknown[] = [];
+  private readonly _sessionFinalizationFailures: Array<{
+    sessionId: number;
+    error: unknown;
+  }> = [];
   private _timelineSourceSequence = new SourceSequenceTracker();
   private _pendingTimelinePreflight: RaceEventPreflightResult | null = null;
   private _timelineEventsStaged = false;
@@ -147,6 +165,11 @@ export class LiveTelemetryPipeline {
     StagedCompletedSessionRunLap
   >();
   private readonly _deferredSessionFinalizations: ClosedRecordingSession[] = [];
+  private readonly _pendingTimelineBatches: PendingTimelineBatch[] = [];
+  private readonly _pendingClosedRunFinalizations = new Map<
+    number,
+    PendingClosedRunFinalization
+  >();
   private _lastTimelinePacket: TelemetryPacket | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
@@ -248,80 +271,109 @@ export class LiveTelemetryPipeline {
     events: readonly RaceEvent[],
     lapLinks: readonly RaceEventLapLink[] = [],
   ): Promise<RaceEvent[]> {
-    if (events.length === 0) return [];
-    const ordered = [...events].sort(compareRaceEvents);
-    const lapsByCompletionEventId = new Map<
-      RaceEvent["eventId"],
-      CompletedSessionRunLap
-    >();
-    for (const event of ordered) {
-      if (event.eventType !== "lap_completed") continue;
-      const metadata = this._stagedCompletedRunLaps.get(
-        `${event.sessionId}:${event.payload.lapNumber}`,
-      );
-      if (metadata) {
-        lapsByCompletionEventId.set(event.eventId, {
-          ...metadata,
-          lapEventId: event.eventId,
-        });
-      }
-    }
-    const preparedUpdate = this.sessionRunBuilder.consume({
-      events: ordered,
-      lapsByCompletionEventId,
-    });
-    let inserted: RaceEvent[];
-    let insertedRuns;
-    try {
-      const appended = await this.raceEventStore.appendWithSessionRunUpdate(
-        ordered,
-        lapLinks,
-        preparedUpdate,
-      );
-      inserted = appended.events;
-      insertedRuns = appended.runs;
-    } catch (error) {
-      const diagnostic = this.raceEvents.noteStorageFailure({
-        kind: "failure",
-        operation: "append-race-events",
-        details: error instanceof Error ? error.message : String(error),
-      });
-      if (diagnostic.length > 0) {
-        try {
-          const persistedDiagnostic = await this.raceEventStore.append(diagnostic);
-          for (const event of persistedDiagnostic) {
-            this.raceEventPublisher.publishAppended(event.sessionId, [event]);
-          }
-        } catch {
-          // Preserve original persistence failure.
+    if (events.length > 0) {
+      const ordered = [...events].sort(compareRaceEvents);
+      const lapsByCompletionEventId = new Map<
+        RaceEvent["eventId"],
+        CompletedSessionRunLap
+      >();
+      for (const event of ordered) {
+        if (event.eventType !== "lap_completed") continue;
+        const metadata = this._stagedCompletedRunLaps.get(
+          `${event.sessionId}:${event.payload.lapNumber}`,
+        );
+        if (metadata) {
+          lapsByCompletionEventId.set(event.eventId, {
+            ...metadata,
+            lapEventId: event.eventId,
+          });
         }
       }
-      throw new Error(
-        `Failed to persist race events: ${ordered.map(({ eventType }) => eventType).join(", ")}`,
-        { cause: error },
-      );
+      this._pendingTimelineBatches.push({
+        events: ordered,
+        lapLinks: [...lapLinks],
+        lapsByCompletionEventId,
+        diagnosticQueued: false,
+      });
     }
-    preparedUpdate.commit();
 
-    const eventsBySession = new Map<number, RaceEvent[]>();
-    for (const event of inserted) {
-      const values = eventsBySession.get(event.sessionId);
-      if (values) values.push(event);
-      else eventsBySession.set(event.sessionId, [event]);
+    const insertedEvents: RaceEvent[] = [];
+    while (this._pendingTimelineBatches.length > 0) {
+      const batch = this._pendingTimelineBatches[0]!;
+      const preparedUpdate = this.sessionRunBuilder.consume({
+        events: batch.events,
+        lapsByCompletionEventId: batch.lapsByCompletionEventId,
+      });
+      let appended;
+      try {
+        appended = await this.raceEventStore.appendWithSessionRunUpdate(
+          batch.events,
+          batch.lapLinks,
+          preparedUpdate,
+        );
+      } catch (error) {
+        if (!batch.diagnosticQueued) {
+          batch.diagnosticQueued = true;
+          const diagnostic = this.raceEvents.noteStorageFailure({
+            kind: "failure",
+            operation: "append-race-events",
+            details:
+              error instanceof Error ? error.message : String(error),
+          });
+          if (diagnostic.length > 0) {
+            this._pendingTimelineBatches.splice(1, 0, {
+              events: [...diagnostic].sort(compareRaceEvents),
+              lapLinks: [],
+              lapsByCompletionEventId: new Map(),
+              diagnosticQueued: true,
+            });
+          }
+        }
+        throw new Error(
+          `Failed to persist race events: ${batch.events
+            .map(({ eventType }) => eventType)
+            .join(", ")}`,
+          { cause: error },
+        );
+      }
+      preparedUpdate.commit();
+      this._pendingTimelineBatches.shift();
+      insertedEvents.push(...appended.events);
+
+      const eventsBySession = new Map<number, RaceEvent[]>();
+      for (const event of appended.events) {
+        const values = eventsBySession.get(event.sessionId);
+        if (values) values.push(event);
+        else eventsBySession.set(event.sessionId, [event]);
+      }
+      for (const [sessionId, values] of eventsBySession) {
+        try {
+          this.raceEventPublisher.publishAppended(sessionId, values);
+        } catch (error) {
+          console.error(
+            `[Live Telemetry] Race-event publication failed for session ${sessionId}:`,
+            error,
+          );
+        }
+      }
+      const runsBySession = new Map<number, typeof appended.runs>();
+      for (const run of appended.runs) {
+        const values = runsBySession.get(run.sessionId);
+        if (values) values.push(run);
+        else runsBySession.set(run.sessionId, [run]);
+      }
+      for (const [sessionId, values] of runsBySession) {
+        try {
+          this.sessionRunPublisher.publishCompleted(sessionId, values);
+        } catch (error) {
+          console.error(
+            `[Live Telemetry] Session-run publication failed for session ${sessionId}:`,
+            error,
+          );
+        }
+      }
     }
-    for (const [sessionId, values] of eventsBySession) {
-      this.raceEventPublisher.publishAppended(sessionId, values);
-    }
-    const runsBySession = new Map<number, typeof insertedRuns>();
-    for (const run of insertedRuns) {
-      const values = runsBySession.get(run.sessionId);
-      if (values) values.push(run);
-      else runsBySession.set(run.sessionId, [run]);
-    }
-    for (const [sessionId, values] of runsBySession) {
-      this.sessionRunPublisher.publishCompleted(sessionId, values);
-    }
-    return inserted;
+    return insertedEvents;
   }
 
   private async _emitTimelineEvents(events: readonly RaceEvent[]): Promise<void> {
@@ -385,7 +437,7 @@ export class LiveTelemetryPipeline {
     finalization = this._finalizeRecordedSession(closed, endReason)
       .catch((error) => {
         console.error(`[Live Telemetry] Session ${sessionId} finalization failed:`, error);
-        this._sessionFinalizationFailures.push(error);
+        this._sessionFinalizationFailures.push({ sessionId, error });
         throw error;
       })
       .finally(() => {
@@ -404,7 +456,10 @@ export class LiveTelemetryPipeline {
     }
     const failures = this._sessionFinalizationFailures.splice(0);
     if (failures.length > 0) {
-      throw new AggregateError(failures, "Session finalization failed");
+      throw new AggregateError(
+        failures.map(({ error }) => error),
+        "Session finalization failed",
+      );
     }
   }
 
@@ -529,15 +584,36 @@ export class LiveTelemetryPipeline {
         transportVerification: closed.transportVerification,
         canonicalVerification: closed.canonicalVerification,
       });
-      const finalized = await this.db.updateSessionQuality(closed.session.sessionId, summary);
-      await this.raceEventStore.refreshQualityLinks(closed.session.sessionId);
+      const finalized = await this.db.updateSessionQuality(
+        closed.session.sessionId,
+        summary,
+      );
+      await this.raceEventStore.refreshQualityLinks(
+        closed.session.sessionId,
+      );
       if (!finalized.provenance.sourceGeneration.startsWith("provisional:")) {
         await this.raceEventStore.finalizeSourceGeneration(
           closed.session.sessionId,
           finalized.provenance.sourceGeneration,
         );
       }
-      await this._refreshFinalizedSessionLaps(closed.session.sessionId, closed.session.gameId);
+      await this.raceEventStore.refreshSessionRuns(
+        closed.session.sessionId,
+      );
+      try {
+        this.sessionRunPublisher.publishReplaced(
+          closed.session.sessionId,
+        );
+      } catch (error) {
+        console.error(
+          `[Live Telemetry] Session-run replacement publication failed for session ${closed.session.sessionId}:`,
+          error,
+        );
+      }
+      await this._refreshFinalizedSessionLaps(
+        closed.session.sessionId,
+        closed.session.gameId,
+      );
       await this._reconcileRecordedSession(closed.session);
       this.ws.broadcastNotification({
         type: "quality-updated",
@@ -556,7 +632,45 @@ export class LiveTelemetryPipeline {
     );
     preparedUpdate.commit();
     if (inserted.length > 0) {
-      this.sessionRunPublisher.publishCompleted(sessionId, inserted);
+      try {
+        this.sessionRunPublisher.publishCompleted(sessionId, inserted);
+      } catch (error) {
+        console.error(
+          `[Live Telemetry] Session-run publication failed for session ${sessionId}:`,
+          error,
+        );
+      }
+    }
+  }
+
+  private async _finalizeClosedSession(
+    closed: ClosedRecordingSession,
+    endReason: string,
+  ): Promise<void> {
+    const sessionId = closed.session.sessionId;
+    this._pendingClosedRunFinalizations.set(sessionId, {
+      closed,
+      endReason,
+    });
+    await this._finalizeSessionRuns(sessionId);
+    await this._trackSessionFinalization(closed, endReason);
+    for (
+      let index = this._sessionFinalizationFailures.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
+      if (this._sessionFinalizationFailures[index]!.sessionId === sessionId) {
+        this._sessionFinalizationFailures.splice(index, 1);
+      }
+    }
+    this._pendingClosedRunFinalizations.delete(sessionId);
+  }
+
+  private async _retryPendingClosedSessionFinalizations(): Promise<void> {
+    for (const { closed, endReason } of [
+      ...this._pendingClosedRunFinalizations.values(),
+    ]) {
+      await this._finalizeClosedSession(closed, endReason);
     }
   }
 
@@ -564,6 +678,10 @@ export class LiveTelemetryPipeline {
     session = this._recordingSession,
     endReason = "session-ended",
   ): Promise<CaptureFinalizationResult> {
+    if (!session && this._pendingClosedRunFinalizations.size > 0) {
+      await this._retryPendingClosedSessionFinalizations();
+      return { finalization: null };
+    }
     const closed = await withSessionCaptureMaintenanceLock(async () => {
       if (!session) {
         if (!this._recordingSession) await this.recorder.stop();
@@ -572,13 +690,9 @@ export class LiveTelemetryPipeline {
       return this._closeRecordedSession(session);
     });
     if (closed) {
-      await this._finalizeSessionRuns(closed.session.sessionId);
+      await this._finalizeClosedSession(closed, endReason);
     }
-    return {
-      finalization: closed
-        ? this._trackSessionFinalization(closed, endReason)
-        : null,
-    };
+    return { finalization: null };
   }
 
   private _buildCallbacks(): LapDetectorCallbacks {
@@ -888,6 +1002,7 @@ export class LiveTelemetryPipeline {
   }
 
   private async _processPacketCore(packet: TelemetryPacket, sourceFrame?: Buffer): Promise<void> {
+    await this._retryPendingClosedSessionFinalizations();
     this._totalProcessed++;
     const receivedAtMs = Date.now();
     let recorderWriteFailure: unknown = null;
@@ -1004,7 +1119,7 @@ export class LiveTelemetryPipeline {
     for (const action of lapSavedActions) await action();
     const deferredFinalizations = this._deferredSessionFinalizations.splice(0);
     for (const closed of deferredFinalizations) {
-      await this._trackSessionFinalization(closed, "session-rotated");
+      await this._finalizeClosedSession(closed, "session-rotated");
     }
 
     const sectors = this.sectorTracker.feed(packet);

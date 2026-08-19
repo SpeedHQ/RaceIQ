@@ -11,6 +11,7 @@ import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
 import {
+  isComparableSessionRunQueryKey,
   qualityUpdatedQueryKeys,
   queryKeys,
   sessionRunsUpdatedQueryKeys,
@@ -98,6 +99,10 @@ export function useWebSocket() {
             queryKey: queryKeys.sessionRunDetails,
             refetchType: "active",
           });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.driverStintPages,
+            refetchType: "active",
+          });
         }
         hasOpenedRef.current = true;
         if (useDevTelemetryStore.getState().subscriptionWanted) {
@@ -139,6 +144,14 @@ export function useWebSocket() {
                 runIds,
               )) {
                 void queryClient.invalidateQueries({ queryKey });
+              }
+              if (
+                sessionRunMessage.data.type === "session-runs-completed"
+              ) {
+                void queryClient.invalidateQueries({
+                  predicate: ({ queryKey }) =>
+                    isComparableSessionRunQueryKey(queryKey),
+                });
               }
               if (sessionRunMessage.data.type === "session-runs-replaced") {
                 void queryClient.invalidateQueries({

@@ -12,8 +12,15 @@ import {
   replaceReplayableSessionArtifacts,
 } from "../../server/db/race-event-queries";
 import { client, db } from "../../server/db";
-import { laps, raceEvents, sessionResults, sessions } from "../../server/db/schema";
+import {
+  laps,
+  raceEvents,
+  sessionResults,
+  sessionRunLaps,
+  sessions,
+} from "../../server/db/schema";
 import { DatabaseRaceEventStore } from "../../server/race-events/store";
+import { SessionRunBuilder } from "../../server/session-runs/builder";
 
 function eventId(value: number): RaceEventId {
   return `race-event:sha256:${value.toString(16).padStart(64, "0")}` as RaceEventId;
@@ -400,5 +407,123 @@ describe("race event persistence", () => {
         evidence: [],
       }),
     ).rejects.toBeInstanceOf(RaceEventConflictError);
+  });
+
+  test("keeps opponent memberships detached from player lap rows", async () => {
+    const playerJoined = raceEvent(10, "participant_joined", {
+      sourceId: "player",
+      identityState: "stable",
+      displayName: "Player",
+      vehicleId: "player-car",
+    });
+    const opponentJoined = raceEvent(
+      11,
+      "participant_joined",
+      {
+        sourceId: "opponent",
+        identityState: "stable",
+        displayName: "Opponent",
+        vehicleId: "opponent-car",
+      },
+      {
+        participantId: "opponent",
+        participantKind: "opponent",
+      },
+    );
+    const playerLap = raceEvent(
+      12,
+      "lap_completed",
+      {
+        lapNumber: 1,
+        lapTimeMs: 90_000,
+        isValid: true,
+        phase: "flying",
+        conditions: [],
+      },
+      { lapNumber: 1 },
+    );
+    const opponentLap = raceEvent(
+      13,
+      "lap_completed",
+      {
+        lapNumber: 1,
+        lapTimeMs: 91_000,
+        isValid: true,
+        phase: "flying",
+        conditions: [],
+      },
+      {
+        participantId: "opponent",
+        participantKind: "opponent",
+        lapNumber: 1,
+      },
+    );
+    const ended = raceEvent(
+      14,
+      "session_ended",
+      {
+        phase: "finished",
+        previousPhase: "green",
+        reason: "complete",
+        terminalObserved: true,
+        nativeCode: null,
+      },
+      { participantId: null, participantKind: null },
+    );
+    const events = [
+      playerJoined,
+      opponentJoined,
+      playerLap,
+      opponentLap,
+      ended,
+    ];
+    const builder = new SessionRunBuilder();
+    const artifacts = builder.consume({
+      events,
+      lapsByCompletionEventId: {},
+    });
+    const activated = await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events,
+      runs: artifacts.runs,
+      memberships: artifacts.memberships,
+      evidence: artifacts.evidence,
+      laps: [{ lapNumber: 1, lapTime: 90 }],
+    });
+    const rows = await db
+      .select({
+        lapEventId: sessionRunLaps.lapEventId,
+        lapId: sessionRunLaps.lapId,
+      })
+      .from(sessionRunLaps);
+    expect(
+      rows
+        .filter(({ lapEventId }) => lapEventId === playerLap.eventId)
+        .every(({ lapId }) => lapId === activated.lapIdsByNumber.get(1)),
+    ).toBe(true);
+    expect(
+      rows
+        .filter(({ lapEventId }) => lapEventId === opponentLap.eventId)
+        .every(({ lapId }) => lapId === null),
+    ).toBe(true);
+
+    await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events,
+      runs: artifacts.runs,
+      memberships: artifacts.memberships,
+      evidence: artifacts.evidence,
+    });
+    const preservedRows = await db
+      .select({
+        lapEventId: sessionRunLaps.lapEventId,
+        lapId: sessionRunLaps.lapId,
+      })
+      .from(sessionRunLaps);
+    expect(
+      preservedRows
+        .filter(({ lapEventId }) => lapEventId === playerLap.eventId)
+        .every(({ lapId }) => lapId === activated.lapIdsByNumber.get(1)),
+    ).toBe(true);
   });
 });

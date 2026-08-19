@@ -658,7 +658,16 @@ async function replaceReplayableSessionArtifactsInTransaction(
     .run();
 
   const lapIdsByNumber = new Map<number, number>();
-  if (input.laps !== undefined) {
+  if (input.laps === undefined) {
+    const preservedLaps = await tx
+      .select({ id: laps.id, lapNumber: laps.lapNumber })
+      .from(laps)
+      .where(eq(laps.sessionId, input.sessionId))
+      .all();
+    for (const lap of preservedLaps) {
+      lapIdsByNumber.set(lap.lapNumber, lap.id);
+    }
+  } else {
     const oldLaps = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, input.sessionId)).all();
     const oldLapIds = oldLaps.map(({ id }) => id);
     if (oldLapIds.length > 0) {
@@ -692,25 +701,30 @@ async function replaceReplayableSessionArtifactsInTransaction(
     }
   }
 
-  const remappedEvents = eventsToInsert.map((event) => {
-    if (input.laps === undefined) return event;
-    return {
-      ...event,
-      lapId: event.lapNumber == null ? null : lapIdsByNumber.get(event.lapNumber) ?? null,
-    };
-  });
+  const remappedEvents = eventsToInsert.map((event) => ({
+    ...event,
+    lapId:
+      event.participantKind === "player" && event.lapNumber != null
+        ? (lapIdsByNumber.get(event.lapNumber) ?? null)
+        : null,
+  }));
   await assertSessionOwnership(tx, remappedEvents);
   if (remappedEvents.length > 0) await insertRaceEventRows(tx, remappedEvents);
   await applyPitPhaseProjection(tx, remappedEvents);
 
 
-  const remappedMemberships = runArtifacts.memberships.map((membership) => ({
-    ...membership,
-    lapId:
-      input.laps === undefined
-        ? membership.lapId
-        : (lapIdsByNumber.get(membership.lapNumber) ?? null),
-  }));
+  const remappedMemberships = runArtifacts.memberships.map((membership) => {
+    const membershipEvent =
+      proposedById.get(membership.lapEventId) ??
+      retainedById.get(membership.lapEventId);
+    return {
+      ...membership,
+      lapId:
+        membershipEvent?.participantKind === "player"
+          ? (lapIdsByNumber.get(membership.lapNumber) ?? null)
+          : null,
+    };
+  });
   const lapIdByEventId = new Map(
     remappedMemberships.map((membership) => [
       membership.lapEventId,
@@ -814,6 +828,19 @@ async function finalizeRaceEventSourceGenerationInTransaction(
       and(
         eq(raceEvents.sessionId, sessionId),
         or(isNull(raceEvents.sourceGeneration), like(raceEvents.sourceGeneration, "provisional:%")),
+      ),
+    )
+    .run();
+  await tx
+    .update(sessionRuns)
+    .set({ sourceGeneration })
+    .where(
+      and(
+        eq(sessionRuns.sessionId, sessionId),
+        or(
+          isNull(sessionRuns.sourceGeneration),
+          like(sessionRuns.sourceGeneration, "provisional:%"),
+        ),
       ),
     )
     .run();

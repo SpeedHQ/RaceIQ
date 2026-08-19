@@ -32,6 +32,12 @@ export const SessionRunKindSchema = z.enum([
 ]);
 export type SessionRunKind = z.infer<typeof SessionRunKindSchema>;
 
+export const SessionRunLapConditionSchema = z.enum([
+  "caution",
+  "slow_zone",
+  "formation",
+]);
+
 export const SessionRunStatusSchema = z.enum(["complete", "incomplete"]);
 export type SessionRunStatus = z.infer<typeof SessionRunStatusSchema>;
 
@@ -415,6 +421,7 @@ export const ComparableSessionRunSchema = z
     trackId: z.string().min(1),
     classEvidence: z.string().min(1).nullable(),
     environmentEvidence: z.record(z.string(), z.unknown()).nullable(),
+    memberConditions: z.array(SessionRunLapConditionSchema).nullable(),
     compatibilityLimitations: z.array(z.string().min(1)),
   })
   .strict();

@@ -205,4 +205,147 @@ describe("SessionRunBuilder", () => {
       ),
     ).toHaveLength(2);
   });
+
+  test("deduplicates exact same-batch events and rejects conflicting ones", () => {
+    eventOrdinal = 0;
+    const builder = new SessionRunBuilder();
+    const joined = participantJoined();
+    const lap = completedLap(1);
+    const ended = raceEvent(
+      "session_ended",
+      {
+        phase: "finished",
+        previousPhase: "green",
+        reason: "complete",
+        terminalObserved: true,
+        nativeCode: null,
+      },
+      { participantId: null, participantKind: null },
+    );
+    const prepared = builder.consume({
+      events: [joined, lap, lap, ended],
+      lapsByCompletionEventId: {},
+    });
+    expect(
+      prepared.runs.every(
+        ({ summary }) => summary.completedLapCount === 1,
+      ),
+    ).toBe(true);
+    expect(prepared.memberships).toHaveLength(4);
+
+    const other = {
+      ...joined,
+      contentHash: `sha256:${"f".repeat(64)}`,
+    } as RaceEvent;
+    expect(() =>
+      new SessionRunBuilder().consume({
+        events: [joined, other],
+        lapsByCompletionEventId: {},
+      }),
+    ).toThrow(RaceEventConflictError);
+  });
+
+  test("clears tire identity across source recovery", () => {
+    eventOrdinal = 0;
+    const builder = new SessionRunBuilder();
+    const joined = participantJoined();
+    const lap1 = completedLap(1);
+    const tire = raceEvent("tire_service_observed", {
+      changedCorners: ["fl", "fr"],
+      previousCompound: "medium",
+      currentCompound: "soft",
+      beforeWear: null,
+      afterWear: null,
+    });
+    const lap2 = completedLap(2);
+    const disconnected = raceEvent("source_disconnected", {
+      lifecycleKind: "timeout",
+      details: null,
+    });
+    const recovered = raceEvent("source_recovered", {
+      lifecycleKind: "reconnect",
+      details: null,
+    });
+    const prepared = builder.consume({
+      events: [joined, lap1, tire, lap2, disconnected, recovered],
+      lapsByCompletionEventId: {},
+    });
+    expect(
+      prepared.nextBuilderState.every(
+        ({ tireCompound, tireSetId }) =>
+          tireCompound === null && tireSetId === null,
+      ),
+    ).toBe(true);
+    expect(
+      prepared.nextBuilderState.every(({ qualityFlags }) =>
+        qualityFlags.includes("source_continuity_unknown"),
+      ),
+    ).toBe(true);
+  });
+
+  test("keeps null and literal unknown participants distinct", () => {
+    eventOrdinal = 0;
+    const builder = new SessionRunBuilder();
+    const unknownLap = {
+      ...completedLap(1),
+      participantId: null,
+      participantKind: null,
+      driverId: null,
+    } as RaceEvent;
+    const literalJoin = {
+      ...participantJoined(),
+      participantId: "<unknown>",
+    } as RaceEvent;
+    const prepared = builder.consume({
+      events: [unknownLap, literalJoin],
+      lapsByCompletionEventId: {},
+    });
+    expect(
+      new Set(prepared.nextBuilderState.map(({ participantId }) => participantId)),
+    ).toEqual(new Set([null, "<unknown>"]));
+    expect(prepared.nextBuilderState).toHaveLength(8);
+  });
+
+  test("normalizes empty canonical text and validates finalization shape", () => {
+    eventOrdinal = 0;
+    const builder = new SessionRunBuilder();
+    const joined = {
+      ...participantJoined(),
+      participantId: "",
+      driverId: "",
+      teamId: "",
+      sourceGeneration: "",
+    } as RaceEvent;
+    const lap = {
+      ...completedLap(1),
+      participantId: "",
+      driverId: "",
+      teamId: "",
+      sourceGeneration: "",
+    } as RaceEvent;
+    const prepared = builder.consume({
+      events: [joined, lap],
+      lapsByCompletionEventId: {},
+    });
+    expect(
+      prepared.nextBuilderState.every(
+        ({ participantId, driverId, teamId, sourceGeneration }) =>
+          participantId === null &&
+          driverId === null &&
+          teamId === null &&
+          sourceGeneration === null,
+      ),
+    ).toBe(true);
+    prepared.commit();
+    expect(() =>
+      builder.finalize({ reason: "session-ended" } as never),
+    ).toThrow("requires a session_ended event");
+    expect(() =>
+      builder.finalize({ event: joined } as never),
+    ).toThrow("cannot include an event");
+    const finalized = builder.finalize();
+    expect(finalized.runs.every(({ createdAt }) => createdAt === joined.createdAt)).toBe(
+      true,
+    );
+  });
 });

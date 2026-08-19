@@ -16,6 +16,7 @@ export const queryKeys = {
   sessionRunPages: ["session-runs"] as const,
   sessionRuns: (sessionId: number | null, query: unknown = null) =>
     ["session-runs", sessionId, query] as const,
+  driverStintPages: ["driver-stints"] as const,
   driverStints: (driverId: string | null, query: unknown = null) =>
     ["driver-stints", driverId, query] as const,
   sessionRunDetails: ["session-run-details"] as const,
@@ -38,6 +39,15 @@ export const queryKeys = {
   raceResultRecents: ["race-result-recent"] as const,
   raceResultRecent: (gameId: GameId | null) => ["race-result-recent", gameId] as const,
 };
+
+export function isComparableSessionRunQueryKey(
+  queryKey: readonly unknown[],
+): boolean {
+  return (
+    queryKey[0] === "session-run-details" &&
+    queryKey[2] === "comparable"
+  );
+}
 
 export function sessionRunsUpdatedQueryKeys(
   sessionId: number,

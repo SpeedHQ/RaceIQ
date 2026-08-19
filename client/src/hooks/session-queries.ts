@@ -119,7 +119,7 @@ export function useSessionRuns(
       });
       return rpcJson<SessionRunPage>(response);
     },
-    initialPageParam: undefined as string | undefined,
+    initialPageParam: query.cursor,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: enabled && sessionId != null,
   });
@@ -140,7 +140,7 @@ export function useDriverStints(
       });
       return rpcJson<SessionRunPage>(response);
     },
-    initialPageParam: undefined as string | undefined,
+    initialPageParam: query.cursor,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: enabled && !!driverId,
   });
@@ -165,7 +165,7 @@ export function useSessionRunLaps(
       });
       return rpcJson<SessionRunLapPage>(response);
     },
-    initialPageParam: undefined as string | undefined,
+    initialPageParam: query.cursor,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: enabled && !!runId,
   });
@@ -237,7 +237,7 @@ export function useComparableSessionRuns(
       });
       return rpcJson<ComparableSessionRunPage>(response);
     },
-    initialPageParam: undefined as string | undefined,
+    initialPageParam: query.cursor,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: enabled && !!runId,
   });

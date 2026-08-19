@@ -191,6 +191,9 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
         if (error instanceof SessionRunCursorError) {
           return c.json({ error: error.message }, 400);
         }
+        if (error instanceof SessionRunNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
         throw error;
       }
     },

@@ -105,6 +105,7 @@ interface RunAccumulator {
   evidence: Array<{ eventId: RaceEventId; role: SessionRunEvidenceRole }>;
   firstContentEvent: RaceEvent | null;
   lastContentEvent: RaceEvent | null;
+  openingCreatedAt: string;
 }
 
 interface BuilderState {
@@ -126,11 +127,17 @@ export interface SessionRunBuilderInput {
     | Readonly<Record<string, CompletedSessionRunLap>>;
 }
 
-export interface SessionRunFinalization {
-  sessionId?: number;
-  event?: RaceEvent | null;
-  reason?: "source-ended" | "session-ended";
-}
+export type SessionRunFinalization =
+  | {
+      sessionId?: number;
+      reason?: "source-ended";
+      event?: null;
+    }
+  | {
+      sessionId?: number;
+      reason: "session-ended";
+      event: RaceEvent;
+    };
 
 export interface PreparedSessionRunUpdate {
   readonly runs: readonly SessionRun[];
@@ -155,8 +162,12 @@ interface PreprocessedBatch {
   >;
 }
 
+function normalizedText(value: string | null): string | null {
+  return value && value.length > 0 ? value : null;
+}
+
 function participantKey(sessionId: number, participantId: string | null): string {
-  return `${sessionId}:${participantId ?? "<unknown>"}`;
+  return canonicalJson([sessionId, normalizedText(participantId)]);
 }
 
 function accumulatorKey(
@@ -165,7 +176,12 @@ function accumulatorKey(
   timelineEpoch: number,
   runKind: SessionRunKind,
 ): string {
-  return `${participantKey(sessionId, participantId)}:${timelineEpoch}:${runKind}`;
+  return canonicalJson([
+    sessionId,
+    normalizedText(participantId),
+    timelineEpoch,
+    runKind,
+  ]);
 }
 
 function pendingEvidenceKey(
@@ -173,11 +189,49 @@ function pendingEvidenceKey(
   participantId: string | null,
   runKind: SessionRunKind,
 ): string {
-  return `${participantKey(sessionId, participantId)}:${runKind}`;
+  return canonicalJson([sessionId, normalizedText(participantId), runKind]);
 }
 
 function addUnique<T>(values: T[], value: T): void {
   if (!values.includes(value)) values.push(value);
+}
+
+function withUnique<T>(values: readonly T[], value: T): T[] {
+  return values.includes(value) ? [...values] : [...values, value];
+}
+
+function cloneState(state: BuilderState): BuilderState {
+  return {
+    revision: state.revision,
+    consumedEvents: state.consumedEvents,
+    participants: new Map(
+      [...state.participants].map(([key, participant]) => [
+        key,
+        { ...participant },
+      ]),
+    ),
+    accumulators: new Map(
+      [...state.accumulators].map(([key, accumulator]) => [
+        key,
+        {
+          ...accumulator,
+          open: { ...accumulator.open },
+        },
+      ]),
+    ),
+    pendingEvidence: new Map(
+      [...state.pendingEvidence].map(([key, eventIds]) => [
+        key,
+        [...eventIds],
+      ]),
+    ),
+    phases: new Map(state.phases),
+    epochs: new Map(state.epochs),
+    awaitingRedRestart: new Set(state.awaitingRedRestart),
+    tireState: new Map(
+      [...state.tireState].map(([key, tire]) => [key, { ...tire }]),
+    ),
+  };
 }
 
 function eventMatches(
@@ -222,7 +276,12 @@ function preprocess(events: readonly RaceEvent[]): PreprocessedBatch {
   const ordered = [...events].sort(compareRaceEvents);
   const groups = new Map<string, RaceEvent[]>();
   for (const event of ordered) {
-    const key = `${event.timelineEpoch}:${event.sequence}:${event.participantId ?? "<unknown>"}`;
+    const key = canonicalJson([
+      event.sessionId,
+      event.timelineEpoch,
+      event.sequence,
+      normalizedText(event.participantId),
+    ]);
     const group = groups.get(key) ?? [];
     group.push(event);
     groups.set(key, group);
@@ -301,21 +360,30 @@ export class SessionRunBuilder {
 
   consume(input: SessionRunBuilderInput): PreparedSessionRunUpdate {
     const baseRevision = this.state.revision;
-    const next = structuredClone(this.state) as BuilderState;
+    const next = cloneState(this.state);
     const artifacts: PreparedArtifacts = {
       runs: [],
       memberships: [],
       evidence: [],
     };
     const unseen: RaceEvent[] = [];
+    const batchById = new Map<RaceEventId, RaceEvent>();
     for (const event of input.events) {
-      const existing = next.consumedEvents.get(event.eventId);
+      const existing = this.state.consumedEvents.get(event.eventId);
       if (existing) {
         if (!eventMatches(existing, event)) {
           throw new RaceEventConflictError(existing, event);
         }
         continue;
       }
+      const batchExisting = batchById.get(event.eventId);
+      if (batchExisting) {
+        if (!eventMatches(batchExisting, event)) {
+          throw new RaceEventConflictError(batchExisting, event);
+        }
+        continue;
+      }
+      batchById.set(event.eventId, event);
       unseen.push(event);
     }
     if (unseen.length === 0) {
@@ -333,15 +401,29 @@ export class SessionRunBuilder {
         Math.max(currentEpoch ?? event.timelineEpoch, event.timelineEpoch),
       );
       this.reduceEvent(next, artifacts, event, input, prepared);
-      next.consumedEvents.set(event.eventId, event);
     }
     next.revision = baseRevision + 1;
-    return this.preparedUpdate(baseRevision, next, artifacts, true);
+    return this.preparedUpdate(
+      baseRevision,
+      next,
+      artifacts,
+      true,
+      prepared.events,
+    );
   }
 
   finalize(input: SessionRunFinalization = {}): PreparedSessionRunUpdate {
+    if (input.reason === "session-ended") {
+      if (!input.event || input.event.eventType !== "session_ended") {
+        throw new Error(
+          "session-ended run finalization requires a session_ended event",
+        );
+      }
+    } else if (input.event != null) {
+      throw new Error("source-ended run finalization cannot include an event");
+    }
     const baseRevision = this.state.revision;
-    const next = structuredClone(this.state) as BuilderState;
+    const next = cloneState(this.state);
     const artifacts: PreparedArtifacts = {
       runs: [],
       memberships: [],
@@ -350,13 +432,27 @@ export class SessionRunBuilder {
     const reason: SessionRunBoundaryReason =
       input.reason === "session-ended" ? "session_ended" : "source_ended";
     for (const [key, accumulator] of [...next.accumulators]) {
-      if (input.sessionId != null && accumulator.open.sessionId !== input.sessionId) {
+      if (
+        input.sessionId != null &&
+        accumulator.open.sessionId !== input.sessionId
+      ) {
         continue;
       }
       const event = input.event ?? null;
-      this.closeAccumulator(next, artifacts, key, accumulator, reason, event, []);
+      this.closeAccumulator(
+        next,
+        artifacts,
+        key,
+        accumulator,
+        reason,
+        event,
+        [],
+      );
     }
-    if (artifacts.runs.length === 0 && next.accumulators.size === this.state.accumulators.size) {
+    if (
+      artifacts.runs.length === 0 &&
+      next.accumulators.size === this.state.accumulators.size
+    ) {
       return this.preparedUpdate(baseRevision, this.state, artifacts, false);
     }
     next.revision = baseRevision + 1;
@@ -380,6 +476,7 @@ export class SessionRunBuilder {
     next: BuilderState,
     artifacts: PreparedArtifacts,
     changed: boolean,
+    consumedEvents: readonly RaceEvent[] = [],
   ): PreparedSessionRunUpdate {
     let committed = false;
     const openRuns = [...next.accumulators.values()].map(({ open }) =>
@@ -396,7 +493,12 @@ export class SessionRunBuilder {
           throw new Error("Session run builder state changed before commit");
         }
         committed = true;
-        if (changed) this.state = next;
+        if (changed) {
+          for (const event of consumedEvents) {
+            next.consumedEvents.set(event.eventId, event);
+          }
+          this.state = next;
+        }
       },
     };
   }
@@ -430,6 +532,9 @@ export class SessionRunBuilder {
     for (const key of participants) {
       const participant = state.participants.get(key);
       if (!participant?.available) continue;
+      state.tireState.delete(
+        participantKey(participant.sessionId, participant.participantId),
+      );
       const openingReason =
         event.eventType === "source_recovered"
           ? "source_recovered"
@@ -473,7 +578,10 @@ export class SessionRunBuilder {
       );
       return;
     }
-    if (event.eventType === "lap_completed" && event.participantId === null) {
+    if (
+      event.eventType === "lap_completed" &&
+      normalizedText(event.participantId) === null
+    ) {
       const key = participantKey(event.sessionId, null);
       let participant = state.participants.get(key);
       if (!participant) {
@@ -506,6 +614,9 @@ export class SessionRunBuilder {
     }
     if (event.eventType === "source_recovered") {
       this.forEachActiveParticipant(state, event.sessionId, (participant) => {
+        state.tireState.delete(
+          participantKey(participant.sessionId, participant.participantId),
+        );
         if (!this.hasAnyAccumulator(state, participant, event.timelineEpoch)) {
           this.openAll(state, participant, event, "source_recovered", [
             "source_continuity_unknown",
@@ -516,7 +627,10 @@ export class SessionRunBuilder {
     }
     if (event.eventType === "storage_drop" || event.eventType === "storage_failure") {
       this.forEachTargetAccumulator(state, event, (accumulator) => {
-        addUnique(accumulator.open.qualityFlags, "source_storage_degraded");
+        accumulator.open.qualityFlags = withUnique(
+          accumulator.open.qualityFlags,
+          "source_storage_degraded",
+        );
       });
       return;
     }
@@ -570,7 +684,7 @@ export class SessionRunBuilder {
 
     if (event.eventType === "driver_started_stint") {
       const participant = this.upsertParticipant(state, event, true);
-      participant.driverId = event.payload.driverId;
+      participant.driverId = normalizedText(event.payload.driverId);
       this.splitKinds(
         state,
         artifacts,
@@ -585,7 +699,7 @@ export class SessionRunBuilder {
       event.eventType === "driver_service_observed"
     ) {
       const participant = this.upsertParticipant(state, event, true);
-      participant.driverId = event.payload.driverId;
+      participant.driverId = normalizedText(event.payload.driverId);
       const kinds = [...(prepared.splitKindsByEvent.get(event.eventId) ?? [])];
       const reason = "driver_changed";
       this.splitKinds(
@@ -612,7 +726,7 @@ export class SessionRunBuilder {
             : "repair_service";
       if (event.eventType === "tire_service_observed") {
         state.tireState.set(participantKey(event.sessionId, event.participantId), {
-          compound: event.payload.currentCompound,
+          compound: normalizedText(event.payload.currentCompound),
           setId: event.eventId,
         });
       }
@@ -640,10 +754,16 @@ export class SessionRunBuilder {
         eligibility: null,
       };
       this.forEachTargetAccumulator(state, event, (accumulator) => {
-        accumulator.laps.push(lap);
-        addUnique(accumulator.open.lapEventIds, event.eventId);
+        accumulator.laps = [...accumulator.laps, lap];
+        accumulator.open.lapEventIds = withUnique(
+          accumulator.open.lapEventIds,
+          event.eventId,
+        );
         if (!lap.quality) {
-          addUnique(accumulator.open.qualityFlags, "lap_metadata_unavailable");
+          accumulator.open.qualityFlags = withUnique(
+            accumulator.open.qualityFlags,
+            "lap_metadata_unavailable",
+          );
         }
       });
     }
@@ -654,21 +774,24 @@ export class SessionRunBuilder {
     event: RaceEvent,
     available: boolean,
   ): ParticipantState {
-    const key = participantKey(event.sessionId, event.participantId);
+    const participantId = normalizedText(event.participantId);
+    const key = participantKey(event.sessionId, participantId);
     const existing = state.participants.get(key);
     if (existing) {
       existing.available = available;
-      existing.participantKind = event.participantKind ?? existing.participantKind;
-      existing.driverId = event.driverId ?? existing.driverId;
-      existing.teamId = event.teamId ?? existing.teamId;
+      existing.participantKind =
+        event.participantKind ?? existing.participantKind;
+      existing.driverId =
+        normalizedText(event.driverId) ?? existing.driverId;
+      existing.teamId = normalizedText(event.teamId) ?? existing.teamId;
       return existing;
     }
     const participant: ParticipantState = {
       sessionId: event.sessionId,
-      participantId: event.participantId,
+      participantId,
       participantKind: event.participantKind,
-      driverId: event.driverId,
-      teamId: event.teamId,
+      driverId: normalizedText(event.driverId),
+      teamId: normalizedText(event.teamId),
       classId: null,
       available,
     };
@@ -741,8 +864,8 @@ export class SessionRunBuilder {
         sessionId: participant.sessionId,
         participantId: participant.participantId,
         participantKind: participant.participantKind,
-        driverId: runKind === "driver" ? participant.driverId : participant.driverId,
-        teamId: participant.teamId,
+        driverId: participant.driverId,
+        teamId: normalizedText(participant.teamId),
         classId: participant.classId,
         runKind,
         openingPhase: phase,
@@ -761,10 +884,10 @@ export class SessionRunBuilder {
         endTrackDistanceM: null,
         startTrackDistancePct: null,
         endTrackDistancePct: null,
-        tireCompound: tire?.compound ?? null,
-        tireSetId: tire?.setId ?? null,
-        sourceGeneration: event.sourceGeneration,
-        analysisGenerationId: event.analysisGenerationId,
+        tireCompound: normalizedText(tire?.compound ?? null),
+        tireSetId: normalizedText(tire?.setId ?? null),
+        sourceGeneration: normalizedText(event.sourceGeneration),
+        analysisGenerationId: normalizedText(event.analysisGenerationId),
         qualityFlags: [...qualityFlags],
         evidenceEventIds: evidence.map(({ eventId }) => eventId),
         lapEventIds: [],
@@ -774,6 +897,7 @@ export class SessionRunBuilder {
       evidence,
       firstContentEvent: null,
       lastContentEvent: null,
+      openingCreatedAt: event.createdAt,
     });
   }
 
@@ -810,10 +934,19 @@ export class SessionRunBuilder {
         ? "service"
         : "closing";
     if (event) {
-      accumulator.evidence.push({ eventId: event.eventId, role: closingRole });
+      accumulator.evidence = [
+        ...accumulator.evidence,
+        { eventId: event.eventId, role: closingRole },
+      ];
     }
-    for (const eventId of supporting) {
-      accumulator.evidence.push({ eventId, role: "supporting" });
+    if (supporting.length > 0) {
+      accumulator.evidence = [
+        ...accumulator.evidence,
+        ...supporting.map((eventId) => ({
+          eventId,
+          role: "supporting" as const,
+        })),
+      ];
     }
     const firstLap = accumulator.laps[0] ?? null;
     const lastLap = accumulator.laps.at(-1) ?? null;
@@ -824,9 +957,7 @@ export class SessionRunBuilder {
       membershipCount: accumulator.open.lapEventIds.length,
       qualityLimitations: accumulator.open.qualityFlags,
     });
-    const createdAt = event?.createdAt ?? accumulator.open.openingBoundary.eventId
-      ? (event?.createdAt ?? "1970-01-01T00:00:00.000Z")
-      : "1970-01-01T00:00:00.000Z";
+    const createdAt = event?.createdAt ?? accumulator.openingCreatedAt;
     const runWithoutHash: Omit<SessionRun, "contentHash" | "createdAt"> = {
       runId: accumulator.open.runId,
       schemaVersion: accumulator.open.schemaVersion,
@@ -1147,7 +1278,10 @@ export class SessionRunBuilder {
   ): void {
     for (const accumulator of state.accumulators.values()) {
       if (accumulator.open.sessionId === sessionId) {
-        addUnique(accumulator.open.observedPhases, phase);
+        accumulator.open.observedPhases = withUnique(
+          accumulator.open.observedPhases,
+          phase,
+        );
       }
     }
   }

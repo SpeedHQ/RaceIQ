@@ -67,6 +67,19 @@ describe("session run routes", () => {
       `/api/sessions/42/runs?overlapsRunId=${encodeURIComponent(runId)}`,
     );
     expect(overlapResponse.status).toBe(404);
+
+    const missingDriverOverlap = createSessionRoutes({
+      listDriverStints: async () => {
+        throw new SessionRunNotFoundError();
+      },
+    });
+    expect(
+      (
+        await missingDriverOverlap.request(
+          `/api/drivers/driver-1/stints?overlapsRunId=${encodeURIComponent(runId)}`,
+        )
+      ).status,
+    ).toBe(404);
   });
 
   test("validates branded run and nonempty driver params", async () => {

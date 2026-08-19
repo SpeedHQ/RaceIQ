@@ -4,7 +4,11 @@ import {
   SessionRunsCompletedMessageSchema,
   SessionRunsReplacedMessageSchema,
 } from "../../shared/racing/runs/contracts";
-import { sessionRunsUpdatedQueryKeys } from "../src/hooks/query-keys";
+import {
+  isComparableSessionRunQueryKey,
+  queryKeys,
+  sessionRunsUpdatedQueryKeys,
+} from "../src/hooks/query-keys";
 
 const runId = `session-run:sha256:${"a".repeat(64)}`;
 
@@ -38,5 +42,17 @@ describe("session run websocket invalidation", () => {
       ["session-runs", 42],
       ["driver-stints"],
     ]);
+  });
+
+  test("targets comparable caches and reconnect driver pages", () => {
+    expect(
+      isComparableSessionRunQueryKey(
+        queryKeys.comparableSessionRuns(runId, { gameId: "acc" }),
+      ),
+    ).toBe(true);
+    expect(
+      isComparableSessionRunQueryKey(queryKeys.sessionRunLaps(runId)),
+    ).toBe(false);
+    expect(queryKeys.driverStintPages).toEqual(["driver-stints"]);
   });
 });
