@@ -19,6 +19,7 @@
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 - Render per-car tire dimensions and independent front/rear spring geometry from each 3D model definition
 - Share GPS locations, imagery calibration outlines, sectors, guides, and corner names across games assigned to the same exact catalog layout, so calibration no longer requires a recorded lap
+- Browse tracks by venue, switch among subtracks from base-track details, and upload a shared satellite image under Imagery
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
@@ -113,6 +114,7 @@
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog
+- Deduplicate telemetry catalog provenance hashes so generated review diffs stay focused on meaningful mapping changes
 - Organized automated tests by domain, split oversized suites, and centralized shared test support
 - Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics

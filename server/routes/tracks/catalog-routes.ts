@@ -11,7 +11,9 @@ import { getF1Tracks } from "../../../shared/racing/tracks/catalogs/f1";
 import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "../../../shared/racing/tracks/catalogs/iracing";
+import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
+import { getBaseTrackImageUrl } from "../../tracks/imagery";
 
 export const trackCatalogInfoRoutes = new Hono()
 
@@ -36,6 +38,8 @@ export const trackCatalogInfoRoutes = new Hono()
     (c) => {
       const { ordinal } = c.req.valid("param");
       const { gameId } = c.req.valid("query");
+      const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
+      if (serverAdapter) return c.text(serverAdapter.getTrackName(ordinal));
       return c.text(resolveTrackName(ordinal, gameId));
     },
   );
@@ -54,7 +58,7 @@ export const trackCatalogRoutes = new Hono()
           const hasBundled = !!getTrackOutlineByOrdinal(id, "f1-2025", info.commonTrackName);
           return {
             ordinal: id,
-            name: resolveTrackName(id, "f1-2025"),
+            name: info.name,
             location: info.location,
             country: info.country,
             variant: info.variant,
@@ -62,6 +66,7 @@ export const trackCatalogRoutes = new Hono()
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             commonTrackName: info.commonTrackName || null,
+            baseImageUrl: getBaseTrackImageUrl("f1-2025", info.name),
             createdAt: null,
             lapCount: lapCounts.get(id) ?? 0,
           };
@@ -77,13 +82,14 @@ export const trackCatalogRoutes = new Hono()
           const hasBundled = !!getTrackOutlineByOrdinal(id, "acc", info.commonTrackName ?? undefined);
           return {
             ordinal: id,
-            name: resolveTrackName(id, "acc"),
+            name: info.name,
             location: "",
             country: "",
             variant: info.variant,
             lengthKm: 0,
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
+            baseImageUrl: getBaseTrackImageUrl("acc", info.name),
             createdAt: null,
             lapCount: lapCounts.get(id) ?? 0,
           };
@@ -99,13 +105,14 @@ export const trackCatalogRoutes = new Hono()
           const hasBundled = !!getTrackOutlineByOrdinal(id, "ac-evo", info.commonTrackName ?? undefined);
           return {
             ordinal: id,
-            name: resolveTrackName(id, "ac-evo"),
+            name: info.name,
             location: "",
             country: "",
             variant: info.variant,
             lengthKm: 0,
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
+            baseImageUrl: getBaseTrackImageUrl("ac-evo", info.name),
             createdAt: null,
             lapCount: lapCounts.get(id) ?? 0,
           };
@@ -138,7 +145,7 @@ export const trackCatalogRoutes = new Hono()
             hasShared || hasOfficialSvg || hasGenerated;
           return {
             ordinal: info.ordinal,
-            name: resolveTrackName(info.ordinal, "iracing"),
+            name: info.name,
             location: info.location,
             country: info.country,
             variant: info.variant,
@@ -167,6 +174,7 @@ export const trackCatalogRoutes = new Hono()
                   ? "generated"
                   : null,
             commonTrackName: info.commonTrackName || null,
+            baseImageUrl: getBaseTrackImageUrl("iracing", info.name),
             createdAt: null,
             lapCount: lapCounts.get(info.ordinal) ?? 0,
           };
@@ -198,6 +206,7 @@ export const trackCatalogRoutes = new Hono()
             mapUrl: null,
             outlineSource: null,
             commonTrackName: null,
+            baseImageUrl: getBaseTrackImageUrl("iracing", track.name),
             createdAt: track.createdAt,
             lapCount: lapCounts.get(track.ordinal) ?? 0,
           }));
@@ -221,13 +230,14 @@ export const trackCatalogRoutes = new Hono()
         const hasBundled = !!getTrackOutlineByOrdinal(ordinal, "fm-2023");
         return {
           ordinal,
-          name: resolveTrackName(ordinal, "fm-2023"),
+          name: info.name,
           location: info.location,
           country: info.country,
           variant: info.variant,
           lengthKm: info.lengthKm,
           hasOutline: hasBundled,
           outlineSource: hasBundled ? "bundled" : null,
+          baseImageUrl: getBaseTrackImageUrl("fm-2023", info.name),
           createdAt: null,
           lapCount: lapCounts.get(ordinal) ?? 0,
         };

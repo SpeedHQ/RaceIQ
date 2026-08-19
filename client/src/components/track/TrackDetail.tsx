@@ -22,6 +22,8 @@ import { LapManagement } from "./detail/LapManagement";
 import { TrackCanvasPanel } from "./detail/TrackCanvasPanel";
 import type { TrackLap } from "./detail/types";
 import { useTrackGeometryEditor } from "./detail/useTrackGeometryEditor";
+import { TrackBaseImagery } from "./TrackBaseImagery";
+import { TrackLayoutSelector } from "./TrackLayoutSelector";
 import { TrackInfoPanel } from "./TrackInfoPanel";
 import type { TrackInfo } from "./types";
 
@@ -31,11 +33,15 @@ import type { TrackInfo } from "./types";
  */
 export function TrackDetail({
   track,
+  layouts,
+  onTrackChange,
   onBack,
   tab,
   onTabChange,
 }: {
   track: TrackInfo;
+  layouts: TrackInfo[];
+  onTrackChange: (track: TrackInfo) => void;
   onBack: () => void;
   /** The active tab, from the route. This component doesn't own it. */
   tab: string;
@@ -86,12 +92,12 @@ export function TrackDetail({
   const hasCatalogSetups = hasForzaTunes || isAcEvo;
   // "info" leads: reference data and index route for unfamiliar tracks.
   const allTabs = hasCatalogSetups
-    ? (["info", "laps", "setups", "debug"] as const)
+    ? (["info", "imagery", "laps", "setups", "debug"] as const)
     : isF125
-      ? (["info", "laps", "setups", "guide", "debug"] as const)
+      ? (["info", "imagery", "laps", "setups", "guide", "debug"] as const)
       : isAcc
-        ? (["info", "laps", "setups", "guide", "debug"] as const)
-        : (["info", "laps", "debug"] as const);
+        ? (["info", "imagery", "laps", "setups", "guide", "debug"] as const)
+        : (["info", "imagery", "laps", "debug"] as const);
   type Tab = (typeof allTabs)[number];
   const validTabs = allTabs;
   // The tab is the route — the URL owns it, not this component. A tab the
@@ -266,8 +272,9 @@ export function TrackDetail({
           <div className="min-w-0">
             <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
             <div className="text-app-label text-app-text-muted">
-              {track.variant} · {track.location}, {countryName(track.country)}
-              {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+              {track.variant} · {track.location}
+              {track.country && `, ${countryName(track.country)}`}
+              {track.lengthKm > 0 && ` · ${track.lengthKm} km`} · {layouts.length} {layouts.length === 1 ? m.trackcard_layout() : m.trackcard_layouts()}
             </div>
           </div>
         </div>
@@ -280,13 +287,15 @@ export function TrackDetail({
                   ? `${m.label_laps()} (${trackLaps.length})`
                   : tab === "info"
                     ? m.track_detail_info_tab()
-                    : tab === "guide"
-                      ? m.track_detail_guides_tab()
-                      : tab === "setups"
-                        ? m.track_detail_setup_tab()
-                        : tab === "debug"
-                          ? m.trackdetail_debug_tab()
-                          : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    : tab === "imagery"
+                      ? m.track_detail_imagery_tab()
+                      : tab === "guide"
+                        ? m.track_detail_guides_tab()
+                        : tab === "setups"
+                          ? m.track_detail_setup_tab()
+                          : tab === "debug"
+                            ? m.trackdetail_debug_tab()
+                            : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -308,11 +317,12 @@ export function TrackDetail({
         <div className="flex flex-col gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col gap-4 @3xl/workspace:overflow-hidden">
             {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
-            {activeTab !== "setups" && (
+            {activeTab !== "setups" && activeTab !== "imagery" && (
               <div className={`flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${activeTab === "guide" && isF125 ? "@3xl/workspace:h-[160px]" : "@3xl/workspace:h-[320px]"}`}>
-                {/* Info summary left of map, same shape as the laps leaderboard */}
+                {/* Base-track layouts and selected layout summary */}
                 {activeTab === "info" && (
-                  <div className="order-2 min-h-[200px] w-full shrink-0 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
+                  <div className="order-2 flex min-h-[200px] w-full shrink-0 flex-col gap-3 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
+                    <TrackLayoutSelector layouts={layouts} selectedOrdinal={track.ordinal} onSelect={onTrackChange} />
                     <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
                   </div>
                 )}
@@ -344,6 +354,11 @@ export function TrackDetail({
 
             {/* Tab content */}
             <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {activeTab === "imagery" && (
+                <div className="min-h-0 flex-1 overflow-auto p-1">
+                  <TrackBaseImagery baseTrackName={track.name} imageUrl={track.baseImageUrl ?? null} />
+                </div>
+              )}
               {/* Setups tab — no outer scroll, component handles its own */}
               {activeTab === "setups" && (
                 <div className="flex-1 min-h-0">
@@ -364,7 +379,9 @@ export function TrackDetail({
                 </div>
               )}
 
-              <div className={`min-h-0 flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
+              <div
+                className={`min-h-0 flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" || activeTab === "imagery" ? "hidden" : ""}`}
+              >
                 {/* Info tab — guide + segments read full width under the map */}
                 {activeTab === "info" && (
                   <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />

@@ -1,5 +1,7 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, relative, resolve, sep } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { basename, join, relative, resolve, sep } from "node:path";
+import sharp from "sharp";
 import {
   TRACK_IMAGERY_PACKAGE_NAME,
   TrackImageryLayoutManifestSchema,
@@ -11,6 +13,7 @@ import {
 } from "../../shared/racing/tracks/imagery";
 import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../shared/racing/tracks/configuration";
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
+import { USER_TRACKS_DIR } from "../../shared/platform/runtime/data-paths";
 import { SHARED_DIR } from "../runtime/config/paths";
 import { loadTrackConfiguration } from "./configuration";
 import { readTrackImageryPackMetadata, type TrackImageryPackMetadata } from "./imagery-pack";
@@ -165,4 +168,44 @@ export function trackImageryContentType(fileName: string): string {
   if (lower.endsWith(".png")) return "image/png";
   if (lower.endsWith(".webp")) return "image/webp";
   return "image/jpeg";
+}
+
+const TRACK_BASE_IMAGERY_DIR = join(USER_TRACKS_DIR, "imagery");
+const MAX_BASE_IMAGE_DIMENSION = 2560;
+const baseImageUrlByPath = new Map<string, string | null>();
+
+export function getBaseTrackImagePath(gameId: GameId, baseTrackName: string): string {
+  const identity = `${gameId}\0${baseTrackName.trim().normalize("NFKC").toLocaleLowerCase()}`;
+  const digest = createHash("sha256").update(identity).digest("hex").slice(0, 24);
+  return join(TRACK_BASE_IMAGERY_DIR, `${gameId}-${digest}.webp`);
+}
+
+export function getBaseTrackImageUrl(gameId: GameId, baseTrackName: string): string | null {
+  const path = getBaseTrackImagePath(gameId, baseTrackName);
+  const cached = baseImageUrlByPath.get(path);
+  if (cached !== undefined) return cached;
+
+  try {
+    const modifiedAt = Math.trunc(statSync(path).mtimeMs);
+    const url = `/api/track-base-image?gameId=${encodeURIComponent(gameId)}&baseTrackName=${encodeURIComponent(baseTrackName)}&v=${modifiedAt}`;
+    baseImageUrlByPath.set(path, url);
+    return url;
+  } catch {
+    baseImageUrlByPath.set(path, null);
+    return null;
+  }
+}
+
+export async function saveBaseTrackImage(gameId: GameId, baseTrackName: string, input: ArrayBuffer): Promise<string> {
+  const image = await sharp(input, { failOn: "error", limitInputPixels: 40_000_000 })
+    .rotate()
+    .resize({ width: MAX_BASE_IMAGE_DIMENSION, height: MAX_BASE_IMAGE_DIMENSION, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 88 })
+    .toBuffer();
+
+  mkdirSync(TRACK_BASE_IMAGERY_DIR, { recursive: true });
+  const path = getBaseTrackImagePath(gameId, baseTrackName);
+  await Bun.write(path, image);
+  baseImageUrlByPath.delete(path);
+  return getBaseTrackImageUrl(gameId, baseTrackName)!;
 }
