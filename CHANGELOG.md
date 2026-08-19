@@ -20,6 +20,7 @@
 ### Fixes
 
 - Prevent unfinished or stale lap-quality generations and decisions from driving pace, experiment, AI, or cached lap-metric analysis
+- Keep new-session telemetry capture moving while prior lap, quality, and result writes finish without publishing old-session laps into current live state
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence

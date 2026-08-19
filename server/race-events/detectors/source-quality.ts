@@ -1,28 +1,12 @@
-import type {
-  SourceLifecycleEvidence,
-} from "../../../shared/racing/quality/contracts";
-import type {
-  SourceSequenceBoundary,
-  SourceSequenceFinalized,
-  SourceSequenceGapBoundary,
-} from "../../../shared/telemetry/source-sequence";
-import {
-  EVENT_ORDER_PRIORITY,
-  type DetectorContext,
-  type DetectorEventDraft,
-} from "../types";
+import type { SourceLifecycleEvidence } from "../../../shared/racing/quality/contracts";
+import type { SourceSequenceBoundary, SourceSequenceFinalized, SourceSequenceGapBoundary } from "../../../shared/telemetry/source-sequence";
+import { EVENT_ORDER_PRIORITY, type DetectorContext, type DetectorEventDraft } from "../types";
 
 export const SOURCE_QUALITY_DETECTOR_ID = "source-quality";
-export const SOURCE_QUALITY_DETECTOR_VERSION = "1";
+export const SOURCE_QUALITY_DETECTOR_VERSION = "2";
 
-function boundaryDraft(
-  _context: DetectorContext,
-  boundary: SourceSequenceBoundary,
-): DetectorEventDraft {
-  const eventType =
-    boundary.kind === "duplicate"
-      ? "duplicate_input_suppressed"
-      : "out_of_order_input";
+function boundaryDraft(_context: DetectorContext, boundary: SourceSequenceBoundary): DetectorEventDraft {
+  const eventType = boundary.kind === "duplicate" ? "duplicate_input_suppressed" : "out_of_order_input";
   return {
     eventType,
     payload: {
@@ -51,10 +35,7 @@ function boundaryDraft(
   };
 }
 
-function gapDraft(
-  _context: DetectorContext,
-  gap: SourceSequenceGapBoundary,
-): DetectorEventDraft {
+function gapDraft(_context: DetectorContext, gap: SourceSequenceGapBoundary): DetectorEventDraft {
   return {
     eventType: "telemetry_gap",
     payload: {
@@ -111,24 +92,15 @@ export class SourceQualityDetector {
     ];
   }
 
-  boundaries(
-    context: DetectorContext,
-    boundaries: readonly SourceSequenceBoundary[],
-  ): DetectorEventDraft[] {
+  boundaries(context: DetectorContext, boundaries: readonly SourceSequenceBoundary[]): DetectorEventDraft[] {
     return boundaries.map((boundary) => boundaryDraft(context, boundary));
   }
 
-  finalizeGaps(
-    context: DetectorContext,
-    finalized: SourceSequenceFinalized,
-  ): DetectorEventDraft[] {
+  finalizeGaps(context: DetectorContext, finalized: SourceSequenceFinalized): DetectorEventDraft[] {
     return finalized.gaps.map((gap) => gapDraft(context, gap));
   }
 
-  lifecycle(
-    _context: DetectorContext,
-    evidence: SourceLifecycleEvidence,
-  ): DetectorEventDraft[] {
+  lifecycle(_context: DetectorContext, evidence: SourceLifecycleEvidence): DetectorEventDraft[] {
     if (evidence.kind === "start") {
       if (this.connected) return [];
       this.connected = true;
@@ -160,23 +132,14 @@ export class SourceQualityDetector {
       detectorId: SOURCE_QUALITY_DETECTOR_ID,
       detectorVersion: SOURCE_QUALITY_DETECTOR_VERSION,
       priority: EVENT_ORDER_PRIORITY.sourceQuality,
-      boundaryKey:
-        input.boundaryKey ??
-        `${context.boundaryKey}:storage:${input.kind}:${input.operation}`,
+      boundaryKey: input.boundaryKey ?? `${context.boundaryKey}:storage:${input.kind}:${input.operation}`,
       evidenceKind: "observed",
       confidence: "high",
       qualityState: "degraded",
     };
   }
 
-  private lifecycleDraft(
-    eventType:
-      | "source_connected"
-      | "source_disconnected"
-      | "source_stale"
-      | "source_recovered",
-    evidence: SourceLifecycleEvidence,
-  ): DetectorEventDraft {
+  private lifecycleDraft(eventType: "source_connected" | "source_disconnected" | "source_stale" | "source_recovered", evidence: SourceLifecycleEvidence): DetectorEventDraft {
     return {
       eventType,
       payload: {
@@ -186,15 +149,12 @@ export class SourceQualityDetector {
       detectorId: SOURCE_QUALITY_DETECTOR_ID,
       detectorVersion: SOURCE_QUALITY_DETECTOR_VERSION,
       priority: EVENT_ORDER_PRIORITY.sourceQuality,
-      boundaryKey:
-        evidence.eventId ??
-        `source-lifecycle:${evidence.kind}:${evidence.timestampMs}`,
+      boundaryKey: evidence.eventId ?? `source-lifecycle:${evidence.kind}:${evidence.timestampMs}`,
       sourceTimeMs: evidence.timestampMs,
       sourceEndTimeMs: evidence.timestampMs,
       evidenceKind: "observed",
       confidence: "high",
-      qualityState:
-        eventType === "source_stale" ? "unavailable" : "available",
+      qualityState: eventType === "source_stale" ? "unavailable" : "available",
     };
   }
 }

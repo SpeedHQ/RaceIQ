@@ -40,6 +40,16 @@ Stable IDs are SHA-256 identities over semantic boundary coordinates: schema ver
 
 An existing ID with the same content hash is an idempotent no-op. An existing ID with different semantic content is a conflict. Live append rejects the conflict; a full rebuild may replace an event only under the detector-version conflict rules after validating the complete candidate set.
 
+## Lifecycle identity and links
+
+Lifecycle IDs identify episodes rather than individual events. The coordinator derives each ID from the opening event's semantic coordinates: session, participant when applicable, epoch, opening event type, detector, and detector boundary. The opening event ID is then derived from that lifecycle ID. Event IDs never feed lifecycle identity, which avoids a circular digest and makes replay reproduce both identities.
+
+Supported paired episodes are `caution_started` / `caution_ended`, `damage_warning_started` / `damage_warning_cleared`, `penalty_issued` / `penalty_cleared`, `source_stale` / `source_recovered`, and `source_connected` / `source_disconnected`. Events in one episode share the opening lifecycle ID. A proven closing event sets `linkedEventId` to the opening event ID. Source freshness and source connection are separate episodes, so a timeout does not replace the connection lifecycle.
+
+Pit detector lifecycle IDs remain stable for the whole visit. When an emitted opening pit event exists, later visit and service events link to that opening event while retaining the detector-owned visit ID. A visit first observed in an unsupported or unknown state is not given a fabricated opening link.
+
+Epoch and session resets clear active lifecycle state. Participant disappearance also clears participant-scoped damage, penalty, and pit state. A reconnect carries the immediately preceding stale opening across the epoch boundary only long enough for `source_recovered` to close it; the independent source connection remains open until proven `source_disconnected`. A close without known opening evidence keeps both lifecycle and event links null.
+
 ## Live, import, and raw rebuild flow
 
 The live path is serialized around normalized observations:
@@ -84,7 +94,7 @@ Lap classification, pit phase, quality facts, and tune findings consume canonica
 
 ## Interrupted sessions
 
-Source disappearance is represented independently from a proven session end. A disconnect or stale source can close source-quality lifecycles. If a pit visit is open, finalization emits `pit_visit_incomplete`; it does not fabricate pit exit, service completion, or a terminal session. `session_ended` is emitted only when terminal evidence or an actual session rotation proves the boundary.
+Source disappearance is represented independently from a proven session end. `source_stale` opens a freshness episode, `source_recovered` closes it, and `source_disconnected` closes the separate connection episode. If a pit visit is open, finalization emits `pit_visit_incomplete`; it does not fabricate pit exit, service completion, or a terminal session. `session_ended` is emitted only when terminal evidence or an actual session rotation proves the boundary.
 
 Transport and storage diagnostics survive replayable timeline replacement. Their lap links may be cleared or relinked as appropriate, but raw rebuild must not erase evidence that the original capture was interrupted or degraded.
 

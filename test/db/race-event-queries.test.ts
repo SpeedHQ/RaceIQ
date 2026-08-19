@@ -23,12 +23,7 @@ function contentHash(value: number): string {
   return `sha256:${value.toString(16).padStart(64, "0")}`;
 }
 
-function raceEvent(
-  value: number,
-  eventType: RaceEvent["eventType"],
-  payload: RaceEvent["payload"],
-  overrides: Partial<RaceEvent> = {},
-): RaceEvent {
+function raceEvent(value: number, eventType: RaceEvent["eventType"], payload: RaceEvent["payload"], overrides: Partial<RaceEvent> = {}): RaceEvent {
   return {
     eventId: eventId(value),
     eventType,
@@ -91,9 +86,7 @@ describe("race event persistence", () => {
 
     expect((await appendRaceEvents([joined, joined])).map((event) => event.eventId)).toEqual([joined.eventId]);
     expect(await appendRaceEvents([joined])).toEqual([]);
-    await expect(
-      appendRaceEvents([{ ...joined, contentHash: contentHash(999) }]),
-    ).rejects.toBeInstanceOf(RaceEventConflictError);
+    await expect(appendRaceEvents([{ ...joined, contentHash: contentHash(999) }])).rejects.toBeInstanceOf(RaceEventConflictError);
 
     const stored = await db.select().from(raceEvents);
     expect(stored).toHaveLength(1);
@@ -115,20 +108,10 @@ describe("race event persistence", () => {
     expect(await db.select().from(raceEvents)).toEqual([]);
   });
   test("append with lap links commits before session quality exists", async () => {
-    const lapId = (
-      await db.insert(laps).values({ sessionId: 1, lapNumber: 1, lapTime: 90 }).returning({ id: laps.id }).get()
-    ).id;
-    const event = raceEvent(
-      1,
-      "position_changed",
-      { previousPosition: 2, position: 1 },
-      { lapNumber: 1 },
-    );
+    const lapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 1, lapTime: 90 }).returning({ id: laps.id }).get()).id;
+    const event = raceEvent(1, "position_changed", { previousPosition: 2, position: 1 }, { lapNumber: 1 });
 
-    const stored = await new DatabaseRaceEventStore().appendWithLapLinks(
-      [event],
-      [{ sessionId: 1, lapNumber: 1, lapId }],
-    );
+    const stored = await new DatabaseRaceEventStore().appendWithLapLinks([event], [{ sessionId: 1, lapNumber: 1, lapId }]);
 
     expect(stored).toHaveLength(1);
     expect(stored[0]?.lapId).toBe(lapId);
@@ -150,18 +133,8 @@ describe("race event persistence", () => {
   });
 
   test("list filters intersect and the opaque cursor preserves total order", async () => {
-    const sourceConnected = raceEvent(
-      1,
-      "source_connected",
-      { lifecycleKind: "start", details: null },
-      { participantId: null, participantKind: null, eventOrder: 0 },
-    );
-    const position = raceEvent(
-      2,
-      "position_changed",
-      { previousPosition: 5, position: 4 },
-      { sequence: 2, eventOrder: 20, lapNumber: 7, sourceTimeMs: 2_000, sourceEndTimeMs: 2_000 },
-    );
+    const sourceConnected = raceEvent(1, "source_connected", { lifecycleKind: "start", details: null }, { participantId: null, participantKind: null, eventOrder: 0 });
+    const position = raceEvent(2, "position_changed", { previousPosition: 5, position: 4 }, { sequence: 2, eventOrder: 20, lapNumber: 7, sourceTimeMs: 2_000, sourceEndTimeMs: 2_000 });
     const pitEntry = raceEvent(
       3,
       "pit_entry",
@@ -175,12 +148,7 @@ describe("race event persistence", () => {
         lifecycleId: "pit-visit:1",
       },
     );
-    const opponentPosition = raceEvent(
-      4,
-      "position_changed",
-      { previousPosition: 8, position: 7 },
-      { participantId: "opponent:7", participantKind: "opponent", lapNumber: 7 },
-    );
+    const opponentPosition = raceEvent(4, "position_changed", { previousPosition: 8, position: 7 }, { participantId: "opponent:7", participantKind: "opponent", lapNumber: 7 });
     await appendRaceEvents([opponentPosition, pitEntry, position, sourceConnected]);
 
     const first = await listSessionRaceEvents(1, { limit: 2 });
@@ -199,18 +167,12 @@ describe("race event persistence", () => {
       lifecycleId: "pit-visit:1",
     });
     expect(filtered.items.map((event) => event.eventId)).toEqual([pitEntry.eventId]);
-    expect((await listSessionRaceEvents(1, { qualityOnly: true })).items.map((event) => event.eventId)).toEqual([
-      sourceConnected.eventId,
-    ]);
-    await expect(listSessionRaceEvents(1, { cursor: "not-a-cursor" })).rejects.toThrow(
-      "Invalid race-event cursor",
-    );
+    expect((await listSessionRaceEvents(1, { qualityOnly: true })).items.map((event) => event.eventId)).toEqual([sourceConnected.eventId]);
+    await expect(listSessionRaceEvents(1, { cursor: "not-a-cursor" })).rejects.toThrow("Invalid race-event cursor");
   });
 
   test("lap, lifecycle, pit-visit, and source-generation helpers return validated rows", async () => {
-    const lapId = (
-      await db.insert(laps).values({ sessionId: 1, lapNumber: 7, lapTime: 90 }).returning({ id: laps.id }).get()
-    ).id;
+    const lapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 7, lapTime: 90 }).returning({ id: laps.id }).get()).id;
     const pitEntry = raceEvent(
       1,
       "pit_entry",
@@ -235,33 +197,15 @@ describe("race event persistence", () => {
         linkedEventId: pitEntry.eventId,
       },
     );
-    const incident = raceEvent(
-      3,
-      "incident_observed",
-      { previousCount: 0, currentCount: 2, delta: 2 },
-      { lapNumber: 7, lapId, lifecycleId: "incident:1", eventOrder: 70 },
-    );
+    const incident = raceEvent(3, "incident_observed", { previousCount: 0, currentCount: 2, delta: 2 }, { lapNumber: 7, lapId, lifecycleId: "incident:1", eventOrder: 70 });
     await appendRaceEvents([pitEntry, fuel, incident]);
 
-    expect((await listRaceEventsForLap(lapId)).map((event) => event.eventId)).toEqual([
-      pitEntry.eventId,
-      fuel.eventId,
-      incident.eventId,
-    ]);
-    expect((await listRaceEventsForLifecycle(1, "pit-visit:1")).map((event) => event.eventId)).toEqual([
-      pitEntry.eventId,
-      fuel.eventId,
-    ]);
-    expect((await listPitVisitRaceEvents(1, "pit-visit:1")).map((event) => event.eventId)).toEqual([
-      pitEntry.eventId,
-      fuel.eventId,
-    ]);
+    expect((await listRaceEventsForLap(lapId)).map((event) => event.eventId)).toEqual([pitEntry.eventId, fuel.eventId, incident.eventId]);
+    expect((await listRaceEventsForLifecycle(1, "pit-visit:1")).map((event) => event.eventId)).toEqual([pitEntry.eventId, fuel.eventId]);
+    expect((await listPitVisitRaceEvents(1, "pit-visit:1")).map((event) => event.eventId)).toEqual([pitEntry.eventId, fuel.eventId]);
 
     expect(await finalizeRaceEventSourceGeneration(1, "raw:verified:abc123")).toBe(3);
-    const generations = await db
-      .select({ eventId: raceEvents.eventId, sourceGeneration: raceEvents.sourceGeneration })
-      .from(raceEvents)
-      .orderBy(raceEvents.eventId);
+    const generations = await db.select({ eventId: raceEvents.eventId, sourceGeneration: raceEvents.sourceGeneration }).from(raceEvents).orderBy(raceEvents.eventId);
     expect(generations).toEqual([
       { eventId: pitEntry.eventId, sourceGeneration: "raw:verified:abc123" },
       { eventId: fuel.eventId, sourceGeneration: "raw:verified:abc123" },
@@ -271,21 +215,9 @@ describe("race event persistence", () => {
   });
 
   test("replay replacement rolls back every staged mutation and then atomically activates", async () => {
-    const oldLapId = (
-      await db.insert(laps).values({ sessionId: 1, lapNumber: 7, lapTime: 91 }).returning({ id: laps.id }).get()
-    ).id;
-    const transport = raceEvent(
-      1,
-      "source_connected",
-      { lifecycleKind: "start", details: null },
-      { participantId: null, participantKind: null, eventOrder: 0, lapNumber: null, lapId: null },
-    );
-    const oldEvent = raceEvent(
-      2,
-      "position_changed",
-      { previousPosition: 5, position: 4 },
-      { lapNumber: 7, lapId: oldLapId },
-    );
+    const oldLapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 7, lapTime: 91 }).returning({ id: laps.id }).get()).id;
+    const transport = raceEvent(1, "source_connected", { lifecycleKind: "start", details: null }, { participantId: null, participantKind: null, eventOrder: 0, lapNumber: null, lapId: null });
+    const oldEvent = raceEvent(2, "position_changed", { previousPosition: 5, position: 4 }, { lapNumber: 7, lapId: oldLapId });
     await appendRaceEvents([transport, oldEvent]);
     await db.insert(sessionResults).values({
       sessionId: 1,
@@ -294,12 +226,7 @@ describe("race event persistence", () => {
       eventIds: [oldEvent.eventId],
     });
 
-    const replacement = raceEvent(
-      3,
-      "pit_exit",
-      { previousState: "pit-lane", state: "out" },
-      { eventOrder: 50, lapNumber: 8, lifecycleId: "pit-visit:2" },
-    );
+    const replacement = raceEvent(3, "pit_exit", { previousState: "pit-lane", state: "out" }, { eventOrder: 50, lapNumber: 8, lifecycleId: "pit-visit:2" });
     const result = {
       processorVersion: "race-result-v3",
       sessionType: "race",
@@ -336,16 +263,9 @@ describe("race event persistence", () => {
     ).rejects.toThrow();
     await client.execute("DROP TRIGGER fail_race_event_activation");
 
-    expect(await db.select({ id: laps.id, lapNumber: laps.lapNumber }).from(laps)).toEqual([
-      { id: oldLapId, lapNumber: 7 },
-    ]);
-    expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([
-      transport.eventId,
-      oldEvent.eventId,
-    ]);
-    expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([
-      oldEvent.eventId,
-    ]);
+    expect(await db.select({ id: laps.id, lapNumber: laps.lapNumber }).from(laps)).toEqual([{ id: oldLapId, lapNumber: 7 }]);
+    expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([transport.eventId, oldEvent.eventId]);
+    expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([oldEvent.eventId]);
 
     const activated = await replaceReplayableRaceEvents({
       sessionId: 1,
@@ -357,13 +277,59 @@ describe("race event persistence", () => {
     const newLapId = activated.lapIdsByNumber.get(8);
     expect(typeof newLapId).toBe("number");
     expect(activated.events[0]).toMatchObject({ eventId: replacement.eventId, lapId: newLapId });
-    expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([
-      transport.eventId,
-      replacement.eventId,
-    ]);
-    expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([
-      replacement.eventId,
-    ]);
+    expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([transport.eventId, replacement.eventId]);
+    expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([replacement.eventId]);
+  });
+
+  test("replaces retained pre-lifecycle source facts instead of duplicating them", async () => {
+    const legacyConnected = raceEvent(
+      21,
+      "source_connected",
+      { lifecycleKind: "start", details: "first accepted session observation" },
+      {
+        participantId: null,
+        participantKind: null,
+        eventOrder: 0,
+        detectorId: "source-quality",
+        detectorVersion: "1",
+        sourceSequenceFamily: "kunos-graphics",
+        sourceSequence: 11,
+      },
+    );
+    await appendRaceEvents([legacyConnected]);
+
+    const lifecycleId = "race-lifecycle:sha256:source-connection";
+    const connected = {
+      ...legacyConnected,
+      eventId: eventId(22),
+      lifecycleId,
+      sourceSequenceFamily: "kunos-physics",
+      sourceSequence: 63,
+      detectorVersion: "2",
+      contentHash: contentHash(22),
+    } as RaceEvent;
+    const disconnected = raceEvent(
+      23,
+      "source_disconnected",
+      { lifecycleKind: "stop", details: null },
+      {
+        participantId: null,
+        participantKind: null,
+        eventOrder: 0,
+        lifecycleId,
+        linkedEventId: connected.eventId,
+        detectorId: "source-quality",
+        detectorVersion: "2",
+      },
+    );
+
+    const replaced = await replaceReplayableRaceEvents({
+      sessionId: 1,
+      events: [connected, disconnected],
+    });
+
+    expect(replaced.events.map(({ eventId }) => eventId)).toEqual([connected.eventId, disconnected.eventId]);
+    expect((await listSessionRaceEvents(1)).items.map(({ eventId }) => eventId)).toEqual([connected.eventId, disconnected.eventId]);
   });
 
   test("replay replacement permits changed-version conflicts but rejects same-version conflicts", async () => {

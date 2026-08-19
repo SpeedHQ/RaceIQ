@@ -36,12 +36,7 @@ import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
-import {
-  detectSessionBoundary,
-  detectLapBoundary,
-  detectLapReset,
-  type SessionBoundaryReason,
-} from "./boundaries";
+import { detectSessionBoundary, detectLapBoundary, detectLapReset, type SessionBoundaryReason } from "./boundaries";
 
 export interface SessionState {
   sessionId: number;
@@ -225,16 +220,11 @@ export class LapDetector implements ILapDetector {
     const sessionBoundaryReason = this.sessionBoundaryReason(packet, now);
     if (sessionBoundaryReason) {
       // If we have a lap in progress, save it before starting new session
-      const endingSessionId = this.currentSession?.sessionId ?? null;
       await this.finalizeLapIfNeeded();
-      if (endingSessionId != null) {
-        await this.waitForPendingLapWrites(endingSessionId);
-      }
+      // Durable session finalization drains these writes. Waiting here would
+      // block the new recorder and lose packets while the old DB write stalls.
       if (this.currentSession) {
-        await this.onSessionEnd?.(
-          { ...this.currentSession },
-          { reason: sessionBoundaryReason, terminalObserved: false },
-        );
+        await this.onSessionEnd?.({ ...this.currentSession }, { reason: sessionBoundaryReason, terminalObserved: false });
         this.currentSession = null;
         this.lapBuffer = [];
         this.currentLapNumber = -1;
@@ -400,9 +390,7 @@ export class LapDetector implements ILapDetector {
 
       // Structural validity and pace classification remain independent.
       const recordingAssessment = assessLapRecording(this.lapBuffer, lapTime);
-      const classification = classifyLap(
-        this.lapTimelineContext.classificationForLap(session.sessionId, lapNum),
-      );
+      const classification = classifyLap(this.lapTimelineContext.classificationForLap(session.sessionId, lapNum));
       const valid = this.lapIsValid && recordingAssessment.valid;
       const invalidReason = this.invalidReason ?? recordingAssessment.reason;
       const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
@@ -449,12 +437,7 @@ export class LapDetector implements ILapDetector {
       // for layouts without exact shared geometry (or when the official SVG
       // cannot be reached). Higher-quality shared/SVG sources still win in the
       // outline resolver.
-      if (
-        normalPaceEligible &&
-        session.gameId === "iracing" &&
-        session.trackOrdinal > 0 &&
-        !getIRacingSharedTrackName(session.trackOrdinal)
-      ) {
+      if (normalPaceEligible && session.gameId === "iracing" && session.trackOrdinal > 0 && !getIRacingSharedTrackName(session.trackOrdinal)) {
         const path = lapPath(this.lapBuffer);
         const trace = path.x.map((x, index) => ({
           x,
@@ -521,8 +504,6 @@ export class LapDetector implements ILapDetector {
       }
     }
 
-
-
     this.resetLapState(newLapFirstPacket);
   }
 
@@ -539,12 +520,7 @@ export class LapDetector implements ILapDetector {
       if (lapTime >= 10) {
         const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
         const lapPackets = this.lapBuffer;
-        const classification = classifyLap(
-          this.lapTimelineContext.classificationForLap(
-            session.sessionId,
-            lapNumber,
-          ),
-        );
+        const classification = classifyLap(this.lapTimelineContext.classificationForLap(session.sessionId, lapNumber));
         const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
         const quality = summarizeLapQuality({
           packets: lapPackets,
@@ -621,9 +597,7 @@ export class LapDetector implements ILapDetector {
       const packetCount = this.lapBuffer.length;
       const lapPackets = this.lapBuffer;
       const recordingAssessment = assessLapRecording(lapPackets, lapTime);
-      const classification = classifyLap(
-        this.lapTimelineContext.classificationForLap(session.sessionId, lapNum),
-      );
+      const classification = classifyLap(this.lapTimelineContext.classificationForLap(session.sessionId, lapNum));
       const valid = isComplete && this.lapIsValid && recordingAssessment.valid;
       const invalidReason = isComplete ? (this.invalidReason ?? recordingAssessment.reason) : "incomplete";
       const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);

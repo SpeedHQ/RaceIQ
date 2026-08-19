@@ -1,21 +1,11 @@
 import { createHash } from "node:crypto";
 
-import type {
-  PitObservationState,
-  PitServiceAction,
-} from "../../../shared/racing/events/contracts";
-import type {
-  FourCornerRaceEventValue,
-  RaceParticipantObservation,
-} from "../../games/types";
-import {
-  EVENT_ORDER_PRIORITY,
-  type DetectorContext,
-  type DetectorEventDraft,
-} from "../types";
+import type { PitObservationState, PitServiceAction } from "../../../shared/racing/events/contracts";
+import type { FourCornerRaceEventValue, RaceParticipantObservation } from "../../games/types";
+import { EVENT_ORDER_PRIORITY, type DetectorContext, type DetectorEventDraft } from "../types";
 
 export const PIT_SERVICE_DETECTOR_ID = "pit-service";
-export const PIT_SERVICE_DETECTOR_VERSION = "1";
+export const PIT_SERVICE_DETECTOR_VERSION = "2";
 
 const LOW_SPEED_MPS = 0.5;
 const HIGH_SPEED_MPS = 2;
@@ -50,14 +40,7 @@ interface PitParticipantState {
 
 function lifecycleId(context: DetectorContext, participantId: string): string {
   const digest = createHash("sha256")
-    .update(
-      JSON.stringify([
-        context.sessionId,
-        participantId,
-        context.timelineEpoch,
-        context.boundaryKey,
-      ]),
-    )
+    .update(JSON.stringify([context.sessionId, participantId, context.timelineEpoch, context.boundaryKey]))
     .digest("hex");
   return `pit-visit:sha256:${digest}`;
 }
@@ -65,11 +48,7 @@ function lifecycleId(context: DetectorContext, participantId: string): string {
 function transitionDraft(
   context: DetectorContext,
   participant: RaceParticipantObservation,
-  eventType:
-    | "pit_entry"
-    | "pit_stall_arrival"
-    | "pit_stall_departure"
-    | "pit_exit",
+  eventType: "pit_entry" | "pit_stall_arrival" | "pit_stall_departure" | "pit_exit",
   previousState: PitObservationState,
   state: PitObservationState,
   visit: PitVisit,
@@ -99,65 +78,39 @@ function serviceDraft(
   suffix: string = eventType ?? "event",
   qualityState: DetectorEventDraft["qualityState"] = "available",
 ): DetectorEventDraft {
-  const rangedStart =
-    eventType === "pit_service_completed"
-      ? visit.serviceStartTimeMs
-      : eventType === "drive_through_observed" ||
-          eventType === "pit_visit_incomplete"
-        ? visit.startTimeMs
-        : null;
+  const rangedStart = eventType === "pit_service_completed" ? visit.serviceStartTimeMs : eventType === "drive_through_observed" || eventType === "pit_visit_incomplete" ? visit.startTimeMs : null;
   return {
     eventType,
     payload,
     detectorId: PIT_SERVICE_DETECTOR_ID,
     detectorVersion: PIT_SERVICE_DETECTOR_VERSION,
-    priority:
-      eventType === "pit_service_completed" ||
-      eventType === "drive_through_observed" ||
-      eventType === "pit_visit_incomplete"
-        ? EVENT_ORDER_PRIORITY.pitVisit
-        : EVENT_ORDER_PRIORITY.pitService,
+    priority: eventType === "pit_service_completed" || eventType === "drive_through_observed" || eventType === "pit_visit_incomplete" ? EVENT_ORDER_PRIORITY.pitVisit : EVENT_ORDER_PRIORITY.pitService,
     boundaryKey: `${context.boundaryKey}:${suffix}:${participant.participantId}`,
     participant,
     lifecycleId: visit.lifecycleId,
     sourceTimeMs: rangedStart ?? undefined,
-    sourceEndTimeMs:
-      rangedStart == null ? undefined : context.observation.sourceTimeMs,
+    sourceEndTimeMs: rangedStart == null ? undefined : context.observation.sourceTimeMs,
     evidenceKind: "derived",
     confidence: qualityState === "ambiguous" ? "low" : "high",
     qualityState,
   } as DetectorEventDraft;
 }
 
-function aggregateDamage(
-  damage: Readonly<Record<string, number>> | null,
-): number | null {
+function aggregateDamage(damage: Readonly<Record<string, number>> | null): number | null {
   if (damage == null) return null;
   const values = Object.values(damage).filter(Number.isFinite);
   return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0);
 }
 
-function changedTireCorners(
-  previous: FourCornerRaceEventValue | null,
-  current: FourCornerRaceEventValue | null,
-): Array<keyof FourCornerRaceEventValue> {
+function changedTireCorners(previous: FourCornerRaceEventValue | null, current: FourCornerRaceEventValue | null): Array<keyof FourCornerRaceEventValue> {
   if (previous == null || current == null) return [];
-  return (["fl", "fr", "rl", "rr"] as const).filter(
-    (corner) => previous[corner] - current[corner] >= TIRE_WEAR_DECREASE,
-  );
+  return (["fl", "fr", "rl", "rr"] as const).filter((corner) => previous[corner] - current[corner] >= TIRE_WEAR_DECREASE);
 }
 
-function repairedComponents(
-  previous: Readonly<Record<string, number>> | null,
-  current: Readonly<Record<string, number>> | null,
-): string[] {
+function repairedComponents(previous: Readonly<Record<string, number>> | null, current: Readonly<Record<string, number>> | null): string[] {
   if (previous == null || current == null) return [];
   return Object.keys(previous)
-    .filter(
-      (component) =>
-        current[component] != null &&
-        previous[component]! - current[component]! >= DAMAGE_DECREASE,
-    )
+    .filter((component) => current[component] != null && previous[component]! - current[component]! >= DAMAGE_DECREASE)
     .sort();
 }
 
@@ -192,10 +145,7 @@ export class PitServiceDetector {
           visit,
           "pit_visit_incomplete",
           {
-            durationMs: Math.max(
-              0,
-              context.observation.sourceTimeMs - visit.startTimeMs,
-            ),
+            durationMs: Math.max(0, context.observation.sourceTimeMs - visit.startTimeMs),
             observedActions: [...visit.observedActions].sort(),
             state: state.state,
           },
@@ -208,16 +158,10 @@ export class PitServiceDetector {
     return drafts;
   }
 
-  private observeParticipant(
-    context: DetectorContext,
-    participant: RaceParticipantObservation,
-  ): DetectorEventDraft[] {
+  private observeParticipant(context: DetectorContext, participant: RaceParticipantObservation): DetectorEventDraft[] {
     const existing = this.participants.get(participant.participantId);
     if (!existing || context.seed) {
-      const visit =
-        participant.pitState === "pit-lane" || participant.pitState === "pit-stall"
-          ? this.openVisit(context, participant, false)
-          : null;
+      const visit = participant.pitState === "pit-lane" || participant.pitState === "pit-stall" ? this.openVisit(context, participant, false) : null;
       this.participants.set(participant.participantId, {
         state: participant.pitState,
         last: participant,
@@ -237,55 +181,23 @@ export class PitServiceDetector {
     const visitWasOpen = visit != null;
     let state = existing.state;
 
-    if (
-      state === "out" &&
-      (participant.pitState === "pit-lane" || participant.pitState === "pit-stall")
-    ) {
+    if (state === "out" && (participant.pitState === "pit-lane" || participant.pitState === "pit-stall")) {
       visit = this.openVisit(context, participant, true);
       existing.visit = visit;
-      drafts.push(
-        transitionDraft(
-          context,
-          participant,
-          "pit_entry",
-          state,
-          participant.pitState,
-          visit,
-        ),
-      );
+      drafts.push(transitionDraft(context, participant, "pit_entry", state, participant.pitState, visit));
       state = participant.pitState;
       if (state === "pit-stall") {
-        drafts.push(
-          ...this.arriveAtStall(
-            context,
-            participant,
-            existing,
-            visit,
-            "observed",
-            "pit-lane",
-          ),
-        );
+        drafts.push(...this.arriveAtStall(context, participant, existing, visit, "observed", "pit-lane"));
       }
     } else if (participant.pitState === "pit-stall" && state !== "pit-stall") {
       visit ??= this.openVisit(context, participant, false);
       existing.visit = visit;
-      drafts.push(
-        ...this.arriveAtStall(
-          context,
-          participant,
-          existing,
-          visit,
-          "observed",
-          state,
-        ),
-      );
+      drafts.push(...this.arriveAtStall(context, participant, existing, visit, "observed", state));
       state = "pit-stall";
     }
 
     if (visit != null && visitWasOpen) {
-      drafts.push(
-        ...this.detectServiceActions(context, participant, existing.last, visit),
-      );
+      drafts.push(...this.detectServiceActions(context, participant, existing.last, visit));
     }
 
     if (state === "pit-lane" && participant.pitState === "pit-lane" && visit) {
@@ -295,21 +207,8 @@ export class PitServiceDetector {
           observations: 0,
         };
         existing.lowSpeed.observations += 1;
-        if (
-          existing.lowSpeed.observations >= 2 &&
-          context.observation.sourceTimeMs - existing.lowSpeed.timeMs >=
-            STALL_CONFIRMATION_MS
-        ) {
-          drafts.push(
-            ...this.arriveAtStall(
-              context,
-              participant,
-              existing,
-              visit,
-              "inferred",
-              "pit-lane",
-            ),
-          );
+        if (existing.lowSpeed.observations >= 2 && context.observation.sourceTimeMs - existing.lowSpeed.timeMs >= STALL_CONFIRMATION_MS) {
+          drafts.push(...this.arriveAtStall(context, participant, existing, visit, "inferred", "pit-lane"));
           state = "pit-stall";
           existing.lowSpeed = null;
         }
@@ -320,20 +219,10 @@ export class PitServiceDetector {
 
     if (state === "pit-stall" && participant.pitState !== "pit-stall" && visit) {
       const directExit = participant.pitState === "out";
-      const directLaneDeparture =
-        participant.pitState === "pit-lane" && visit.stallEvidence === "observed";
+      const directLaneDeparture = participant.pitState === "pit-lane" && visit.stallEvidence === "observed";
       if (directExit || directLaneDeparture) {
         drafts.push(...this.completeService(context, participant, visit, "pit-stall"));
-        drafts.push(
-          transitionDraft(
-            context,
-            participant,
-            "pit_stall_departure",
-            "pit-stall",
-            "pit-lane",
-            visit,
-          ),
-        );
+        drafts.push(transitionDraft(context, participant, "pit_stall_departure", "pit-stall", "pit-lane", visit));
         state = "pit-lane";
       } else if (participant.speedMps != null && participant.speedMps >= HIGH_SPEED_MPS) {
         existing.highSpeed ??= {
@@ -343,17 +232,7 @@ export class PitServiceDetector {
         existing.highSpeed.observations += 1;
         if (existing.highSpeed.observations >= 2) {
           drafts.push(...this.completeService(context, participant, visit, "pit-stall"));
-          drafts.push(
-            transitionDraft(
-              context,
-              participant,
-              "pit_stall_departure",
-              "pit-stall",
-              "pit-lane",
-              visit,
-              "inferred",
-            ),
-          );
+          drafts.push(transitionDraft(context, participant, "pit_stall_departure", "pit-stall", "pit-lane", visit, "inferred"));
           state = "pit-lane";
           existing.highSpeed = null;
         }
@@ -368,25 +247,13 @@ export class PitServiceDetector {
       } else if (!visit.stallObserved) {
         drafts.push(
           serviceDraft(context, participant, visit, "drive_through_observed", {
-            durationMs: Math.max(
-              0,
-              context.observation.sourceTimeMs - visit.startTimeMs,
-            ),
+            durationMs: Math.max(0, context.observation.sourceTimeMs - visit.startTimeMs),
             observedActions: [],
             state,
           }),
         );
       }
-      drafts.push(
-        transitionDraft(
-          context,
-          participant,
-          "pit_exit",
-          state,
-          "out",
-          visit,
-        ),
-      );
+      drafts.push(transitionDraft(context, participant, "pit_exit", state, "out", visit));
       state = "out";
       existing.visit = null;
     }
@@ -396,11 +263,7 @@ export class PitServiceDetector {
     return drafts;
   }
 
-  private openVisit(
-    context: DetectorContext,
-    participant: RaceParticipantObservation,
-    enteredObserved: boolean,
-  ): PitVisit {
+  private openVisit(context: DetectorContext, participant: RaceParticipantObservation, enteredObserved: boolean): PitVisit {
     return {
       lifecycleId: lifecycleId(context, participant.participantId),
       startTimeMs: context.observation.sourceTimeMs,
@@ -424,17 +287,7 @@ export class PitServiceDetector {
     visit.stallObserved = true;
     visit.stallEvidence = evidenceKind;
     state.state = "pit-stall";
-    const drafts = [
-      transitionDraft(
-        context,
-        participant,
-        "pit_stall_arrival",
-        previousState,
-        "pit-stall",
-        visit,
-        evidenceKind,
-      ),
-    ];
+    const drafts = [transitionDraft(context, participant, "pit_stall_arrival", previousState, "pit-stall", visit, evidenceKind)];
     if (!visit.serviceStarted) {
       visit.serviceStarted = true;
       visit.serviceStartTimeMs = context.observation.sourceTimeMs;
@@ -447,17 +300,9 @@ export class PitServiceDetector {
     return drafts;
   }
 
-  private detectServiceActions(
-    context: DetectorContext,
-    current: RaceParticipantObservation,
-    previous: RaceParticipantObservation,
-    visit: PitVisit,
-  ): DetectorEventDraft[] {
+  private detectServiceActions(context: DetectorContext, current: RaceParticipantObservation, previous: RaceParticipantObservation, visit: PitVisit): DetectorEventDraft[] {
     const drafts: DetectorEventDraft[] = [];
-    const fuelAdded =
-      current.fuelLitres != null && previous.fuelLitres != null
-        ? current.fuelLitres - previous.fuelLitres
-        : 0;
+    const fuelAdded = current.fuelLitres != null && previous.fuelLitres != null ? current.fuelLitres - previous.fuelLitres : 0;
     if (fuelAdded >= FUEL_INCREASE_LITRES && !visit.observedActions.has("fuel")) {
       drafts.push(...this.ensureServiceStarted(context, current, visit));
       visit.observedActions.add("fuel");
@@ -471,10 +316,7 @@ export class PitServiceDetector {
     }
 
     const corners = changedTireCorners(previous.tireWear, current.tireWear);
-    const compoundChanged =
-      previous.tireCompound != null &&
-      current.tireCompound != null &&
-      previous.tireCompound !== current.tireCompound;
+    const compoundChanged = previous.tireCompound != null && current.tireCompound != null && previous.tireCompound !== current.tireCompound;
     if ((compoundChanged || corners.length > 0) && !visit.observedActions.has("tires")) {
       drafts.push(...this.ensureServiceStarted(context, current, visit));
       visit.observedActions.add("tires");
@@ -492,12 +334,7 @@ export class PitServiceDetector {
     const previousDamage = aggregateDamage(previous.damage);
     const currentDamage = aggregateDamage(current.damage);
     const repaired = repairedComponents(previous.damage, current.damage);
-    if (
-      previousDamage != null &&
-      currentDamage != null &&
-      previousDamage - currentDamage >= DAMAGE_DECREASE &&
-      !visit.observedActions.has("repair")
-    ) {
+    if (previousDamage != null && currentDamage != null && previousDamage - currentDamage >= DAMAGE_DECREASE && !visit.observedActions.has("repair")) {
       drafts.push(...this.ensureServiceStarted(context, current, visit));
       visit.observedActions.add("repair");
       drafts.push(
@@ -509,12 +346,7 @@ export class PitServiceDetector {
       );
     }
 
-    if (
-      previous.driverId != null &&
-      current.driverId != null &&
-      previous.driverId !== current.driverId &&
-      !visit.observedActions.has("driver")
-    ) {
+    if (previous.driverId != null && current.driverId != null && previous.driverId !== current.driverId && !visit.observedActions.has("driver")) {
       drafts.push(...this.ensureServiceStarted(context, current, visit));
       visit.observedActions.add("driver");
       drafts.push(
@@ -527,11 +359,7 @@ export class PitServiceDetector {
     return drafts;
   }
 
-  private ensureServiceStarted(
-    context: DetectorContext,
-    participant: RaceParticipantObservation,
-    visit: PitVisit,
-  ): DetectorEventDraft[] {
+  private ensureServiceStarted(context: DetectorContext, participant: RaceParticipantObservation, visit: PitVisit): DetectorEventDraft[] {
     if (visit.serviceStarted) return [];
     visit.serviceStarted = true;
     visit.serviceStartTimeMs = context.observation.sourceTimeMs;
@@ -542,12 +370,7 @@ export class PitServiceDetector {
     ];
   }
 
-  private completeService(
-    context: DetectorContext,
-    participant: RaceParticipantObservation,
-    visit: PitVisit,
-    state: PitObservationState,
-  ): DetectorEventDraft[] {
+  private completeService(context: DetectorContext, participant: RaceParticipantObservation, visit: PitVisit, state: PitObservationState): DetectorEventDraft[] {
     if (!visit.serviceStarted || visit.serviceStartTimeMs == null) return [];
     const actions = [...visit.observedActions].sort();
     visit.serviceStarted = false;
@@ -558,10 +381,7 @@ export class PitServiceDetector {
         visit,
         "pit_service_completed",
         {
-          durationMs: Math.max(
-            0,
-            context.observation.sourceTimeMs - visit.serviceStartTimeMs,
-          ),
+          durationMs: Math.max(0, context.observation.sourceTimeMs - visit.serviceStartTimeMs),
           observedActions: actions,
           state,
         },
@@ -572,10 +392,7 @@ export class PitServiceDetector {
   }
 }
 
-function mergeKnown(
-  previous: RaceParticipantObservation,
-  current: RaceParticipantObservation,
-): RaceParticipantObservation {
+function mergeKnown(previous: RaceParticipantObservation, current: RaceParticipantObservation): RaceParticipantObservation {
   return {
     ...current,
     pitState: previous.pitState,

@@ -1,16 +1,9 @@
 import type { RaceParticipantObservation } from "../../games/types";
-import {
-  damageVectorAtOrBelow,
-  increasedDamageComponents,
-} from "../../../shared/racing/quality/damage";
-import {
-  EVENT_ORDER_PRIORITY,
-  type DetectorContext,
-  type DetectorEventDraft,
-} from "../types";
+import { damageVectorAtOrBelow, increasedDamageComponents } from "../../../shared/racing/quality/damage";
+import { EVENT_ORDER_PRIORITY, type DetectorContext, type DetectorEventDraft } from "../types";
 
 export const INCIDENT_PENALTY_DETECTOR_ID = "incident-damage-penalty";
-export const INCIDENT_PENALTY_DETECTOR_VERSION = "1";
+export const INCIDENT_PENALTY_DETECTOR_VERSION = "2";
 
 const DAMAGE_WARNING_DELTA = 1;
 const DAMAGE_CLEAR_MAX = 0.5;
@@ -23,17 +16,11 @@ interface ParticipantIncidentState {
 }
 
 /** Shared damage-vector comparison used by quality and event projections. */
-export function changedDamageComponents(
-  previous: Readonly<Record<string, number>>,
-  current: Readonly<Record<string, number>>,
-  minimumIncrease = DAMAGE_WARNING_DELTA,
-): string[] {
+export function changedDamageComponents(previous: Readonly<Record<string, number>>, current: Readonly<Record<string, number>>, minimumIncrease = DAMAGE_WARNING_DELTA): string[] {
   return increasedDamageComponents(previous, current, minimumIncrease);
 }
 
-export function damageVectorCleared(
-  current: Readonly<Record<string, number>>,
-): boolean {
+export function damageVectorCleared(current: Readonly<Record<string, number>>): boolean {
   return damageVectorAtOrBelow(current, DAMAGE_CLEAR_MAX);
 }
 
@@ -79,20 +66,14 @@ export class IncidentPenaltyDetector {
       if (!previous || context.seed) {
         this.participants.set(participant.participantId, {
           participant,
-          damageWarningActive:
-            participant.damage != null && !damageVectorCleared(participant.damage),
-          penaltyActive:
-            participant.penaltyValue != null && participant.penaltyValue > 0,
+          damageWarningActive: participant.damage != null && !damageVectorCleared(participant.damage),
+          penaltyActive: participant.penaltyValue != null && participant.penaltyValue > 0,
           retired: participant.retirementStatus === "retired",
         });
         continue;
       }
 
-      if (
-        previous.participant.incidentCount != null &&
-        participant.incidentCount != null &&
-        participant.incidentCount > previous.participant.incidentCount
-      ) {
+      if (previous.participant.incidentCount != null && participant.incidentCount != null && participant.incidentCount > previous.participant.incidentCount) {
         drafts.push(
           draft(context, participant, "incident_observed", {
             previousCount: previous.participant.incidentCount,
@@ -103,10 +84,7 @@ export class IncidentPenaltyDetector {
       }
 
       if (previous.participant.damage != null && participant.damage != null) {
-        const changed = changedDamageComponents(
-          previous.participant.damage,
-          participant.damage,
-        );
+        const changed = changedDamageComponents(previous.participant.damage, participant.damage);
         if (changed.length > 0 && !previous.damageWarningActive) {
           drafts.push(
             draft(
@@ -122,10 +100,7 @@ export class IncidentPenaltyDetector {
             ),
           );
           previous.damageWarningActive = true;
-        } else if (
-          previous.damageWarningActive &&
-          damageVectorCleared(participant.damage)
-        ) {
+        } else if (previous.damageWarningActive && damageVectorCleared(participant.damage)) {
           drafts.push(
             draft(
               context,
@@ -145,11 +120,7 @@ export class IncidentPenaltyDetector {
 
       const previousPenalty = previous.participant.penaltyValue;
       const currentPenalty = participant.penaltyValue;
-      if (
-        currentPenalty != null &&
-        (previousPenalty == null || currentPenalty > previousPenalty) &&
-        currentPenalty > 0
-      ) {
+      if (currentPenalty != null && (previousPenalty == null || currentPenalty > previousPenalty) && currentPenalty > 0) {
         drafts.push(
           draft(context, participant, "penalty_issued", {
             previousValue: previousPenalty,
@@ -158,12 +129,7 @@ export class IncidentPenaltyDetector {
           }),
         );
         previous.penaltyActive = true;
-      } else if (
-        previousPenalty != null &&
-        previous.penaltyActive &&
-        currentPenalty != null &&
-        currentPenalty < previousPenalty
-      ) {
+      } else if (previousPenalty != null && previous.penaltyActive && currentPenalty != null && currentPenalty < previousPenalty) {
         drafts.push(
           draft(context, participant, "penalty_cleared", {
             previousValue: previousPenalty,
@@ -175,11 +141,7 @@ export class IncidentPenaltyDetector {
         previous.penaltyActive = currentPenalty > 0;
       }
 
-      if (
-        !previous.retired &&
-        participant.retirementStatus === "retired" &&
-        participant.nativeRetirementCode != null
-      ) {
+      if (!previous.retired && participant.retirementStatus === "retired" && participant.nativeRetirementCode != null) {
         drafts.push(
           draft(context, participant, "retirement_observed", {
             nativeCode: participant.nativeRetirementCode,

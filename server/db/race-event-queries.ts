@@ -1,36 +1,8 @@
-import {
-  and,
-  asc,
-  eq,
-  gt,
-  gte,
-  inArray,
-  isNull,
-  like,
-  lte,
-  notInArray,
-  or,
-  type SQL,
-} from "drizzle-orm";
-import {
-  RaceEventIdSchema,
-  RaceEventSchema,
-  type RaceEvent,
-  type RaceEventId,
-  type RaceEventPage,
-  type RaceEventQuery,
-  type RaceEventType,
-} from "../../shared/racing/events/contracts";
+import { and, asc, eq, gt, gte, inArray, isNull, like, lte, notInArray, or, type SQL } from "drizzle-orm";
+import { RaceEventIdSchema, RaceEventSchema, type RaceEvent, type RaceEventId, type RaceEventPage, type RaceEventQuery, type RaceEventType } from "../../shared/racing/events/contracts";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { db } from "./index";
-import {
-  compareAnalyses,
-  lapAnalyses,
-  laps,
-  raceEvents,
-  sessionResults,
-  sessions,
-} from "./schema";
+import { compareAnalyses, lapAnalyses, laps, raceEvents, sessionResults, sessions } from "./schema";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -50,14 +22,24 @@ const SOURCE_QUALITY_EVENT_TYPES = [
   "timeline_discontinuity",
 ] as const satisfies readonly RaceEventType[];
 
-const TRANSPORT_EVENT_TYPES = [
-  "source_connected",
-  "source_disconnected",
-  "source_stale",
-  "source_recovered",
-  "storage_drop",
-  "storage_failure",
-] as const satisfies readonly RaceEventType[];
+const TRANSPORT_EVENT_TYPES = ["source_connected", "source_disconnected", "source_stale", "source_recovered", "storage_drop", "storage_failure"] as const satisfies readonly RaceEventType[];
+
+const SOURCE_LIFECYCLE_EVENT_TYPES = ["source_connected", "source_disconnected", "source_stale", "source_recovered"] as const satisfies readonly RaceEventType[];
+
+function sourceLifecycleReplacementKey(event: RaceEvent): string {
+  return JSON.stringify([
+    event.eventType,
+    event.participantId,
+    event.timelineEpoch,
+    event.sequence,
+    event.eventOrder,
+    event.sourceTimeMs,
+    event.sourceEndTimeMs,
+    event.lapNumber,
+    event.detectorId,
+    event.payload,
+  ]);
+}
 
 const PIT_VISIT_EVENT_TYPES = [
   "pit_entry",
@@ -74,27 +56,16 @@ const PIT_VISIT_EVENT_TYPES = [
   "drive_through_observed",
 ] as const satisfies readonly RaceEventType[];
 
-type EventCursor = readonly [
-  timelineEpoch: number,
-  sequence: number,
-  eventOrder: number,
-  eventId: RaceEventId,
-];
+type EventCursor = readonly [timelineEpoch: number, sequence: number, eventOrder: number, eventId: RaceEventId];
 
 export type RaceEventListQuery = Omit<RaceEventQuery, "limit"> & { limit?: number };
 
-export type ReplayableLapReplacement = Omit<
-  typeof laps.$inferInsert,
-  "id" | "sessionId" | "createdAt" | "lapNumber" | "lapTime"
-> & {
+export type ReplayableLapReplacement = Omit<typeof laps.$inferInsert, "id" | "sessionId" | "createdAt" | "lapNumber" | "lapTime"> & {
   lapNumber: number;
   lapTime: number;
 };
 
-export type RaceEventResultProjection = Omit<
-  typeof sessionResults.$inferInsert,
-  "id" | "sessionId" | "createdAt" | "updatedAt" | "eventIds"
-> & {
+export type RaceEventResultProjection = Omit<typeof sessionResults.$inferInsert, "id" | "sessionId" | "createdAt" | "updatedAt" | "eventIds"> & {
   eventIds: RaceEventId[];
 };
 
@@ -203,22 +174,14 @@ async function insertRaceEventRows(tx: DbTransaction, events: readonly RaceEvent
   }
   for (const event of events) {
     if (event.linkedEventId == null) continue;
-    await tx
-      .update(raceEvents)
-      .set({ linkedEventId: event.linkedEventId })
-      .where(eq(raceEvents.eventId, event.eventId))
-      .run();
+    await tx.update(raceEvents).set({ linkedEventId: event.linkedEventId }).where(eq(raceEvents.eventId, event.eventId)).run();
   }
 }
 
 async function assertSessionOwnership(tx: DbTransaction, events: readonly RaceEvent[]): Promise<void> {
   if (events.length === 0) return;
   const sessionIds = [...new Set(events.map((event) => event.sessionId))];
-  const persistedSessions = await tx
-    .select({ id: sessions.id })
-    .from(sessions)
-    .where(inArray(sessions.id, sessionIds))
-    .all();
+  const persistedSessions = await tx.select({ id: sessions.id }).from(sessions).where(inArray(sessions.id, sessionIds)).all();
   if (persistedSessions.length !== sessionIds.length) {
     throw new Error("Race events reference a session that does not exist");
   }
@@ -226,21 +189,13 @@ async function assertSessionOwnership(tx: DbTransaction, events: readonly RaceEv
   const eventSessions = new Map(events.map((event) => [event.eventId, event.sessionId]));
   const eventIds = new Set(eventSessions.keys());
   for (const event of events) {
-    if (
-      event.linkedEventId != null &&
-      eventSessions.has(event.linkedEventId) &&
-      eventSessions.get(event.linkedEventId) !== event.sessionId
-    ) {
+    if (event.linkedEventId != null && eventSessions.has(event.linkedEventId) && eventSessions.get(event.linkedEventId) !== event.sessionId) {
       throw new Error(`Race event ${event.eventId} has a cross-session linked event`);
     }
   }
   const lapIds = [...new Set(events.flatMap((event) => (event.lapId == null ? [] : [event.lapId])))];
   if (lapIds.length > 0) {
-    const lapRows = await tx
-      .select({ id: laps.id, sessionId: laps.sessionId })
-      .from(laps)
-      .where(inArray(laps.id, lapIds))
-      .all();
+    const lapRows = await tx.select({ id: laps.id, sessionId: laps.sessionId }).from(laps).where(inArray(laps.id, lapIds)).all();
     const lapSession = new Map(lapRows.map((lap) => [lap.id, lap.sessionId]));
     for (const event of events) {
       if (event.lapId != null && lapSession.get(event.lapId) !== event.sessionId) {
@@ -249,26 +204,12 @@ async function assertSessionOwnership(tx: DbTransaction, events: readonly RaceEv
     }
   }
 
-  const externalLinkedIds = [
-    ...new Set(
-      events.flatMap((event) =>
-        event.linkedEventId != null && !eventIds.has(event.linkedEventId) ? [event.linkedEventId] : [],
-      ),
-    ),
-  ];
+  const externalLinkedIds = [...new Set(events.flatMap((event) => (event.linkedEventId != null && !eventIds.has(event.linkedEventId) ? [event.linkedEventId] : [])))];
   if (externalLinkedIds.length > 0) {
-    const linkedRows = await tx
-      .select({ eventId: raceEvents.eventId, sessionId: raceEvents.sessionId })
-      .from(raceEvents)
-      .where(inArray(raceEvents.eventId, externalLinkedIds))
-      .all();
+    const linkedRows = await tx.select({ eventId: raceEvents.eventId, sessionId: raceEvents.sessionId }).from(raceEvents).where(inArray(raceEvents.eventId, externalLinkedIds)).all();
     const linkedSessions = new Map(linkedRows.map((event) => [event.eventId, event.sessionId]));
     for (const event of events) {
-      if (
-        event.linkedEventId != null &&
-        !eventIds.has(event.linkedEventId) &&
-        linkedSessions.get(event.linkedEventId) !== event.sessionId
-      ) {
+      if (event.linkedEventId != null && !eventIds.has(event.linkedEventId) && linkedSessions.get(event.linkedEventId) !== event.sessionId) {
         throw new Error(`Race event ${event.eventId} has a missing or cross-session linked event`);
       }
     }
@@ -289,13 +230,7 @@ async function applyPitPhaseProjection(tx: DbTransaction, events: readonly RaceE
     const pitTransitions = await tx
       .select({ eventType: raceEvents.eventType })
       .from(raceEvents)
-      .where(
-        and(
-          eq(raceEvents.sessionId, sessionId),
-          eq(raceEvents.lapNumber, lapNumber),
-          inArray(raceEvents.eventType, ["pit_entry", "pit_exit"]),
-        ),
-      )
+      .where(and(eq(raceEvents.sessionId, sessionId), eq(raceEvents.lapNumber, lapNumber), inArray(raceEvents.eventType, ["pit_entry", "pit_exit"])))
       .all();
     const hasEntry = pitTransitions.some(({ eventType }) => eventType === "pit_entry");
     const hasExit = pitTransitions.some(({ eventType }) => eventType === "pit_exit");
@@ -335,12 +270,7 @@ async function applyPitPhaseProjection(tx: DbTransaction, events: readonly RaceE
     .from(sessions)
     .where(inArray(sessions.id, affectedSessionIds))
     .all();
-  const sourceGenerationBySession = new Map(
-    sessionRows.map((session) => [
-      session.id,
-      session.recordingQuality?.provenance.sourceGeneration ?? session.qualityGeneration ?? "legacy",
-    ]),
-  );
+  const sourceGenerationBySession = new Map(sessionRows.map((session) => [session.id, session.recordingQuality?.provenance.sourceGeneration ?? session.qualityGeneration ?? "legacy"]));
 
   for (const lap of affected) {
     if (!lap.quality) continue;
@@ -378,19 +308,11 @@ async function applyPitPhaseProjection(tx: DbTransaction, events: readonly RaceE
   await tx.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, uniqueAffectedLapIds)).run();
   await tx
     .delete(compareAnalyses)
-    .where(
-      or(
-        inArray(compareAnalyses.lapAId, uniqueAffectedLapIds),
-        inArray(compareAnalyses.lapBId, uniqueAffectedLapIds),
-      ),
-    )
+    .where(or(inArray(compareAnalyses.lapAId, uniqueAffectedLapIds), inArray(compareAnalyses.lapBId, uniqueAffectedLapIds)))
     .run();
 }
 
-async function appendRaceEventsInTransaction(
-  tx: DbTransaction,
-  input: readonly RaceEvent[],
-): Promise<RaceEvent[]> {
+async function appendRaceEventsInTransaction(tx: DbTransaction, input: readonly RaceEvent[]): Promise<RaceEvent[]> {
   const events = deduplicateEvents(validateEvents(input));
   if (events.length === 0) return [];
   await assertSessionOwnership(tx, events);
@@ -398,12 +320,19 @@ async function appendRaceEventsInTransaction(
   const existingRows = await tx
     .select()
     .from(raceEvents)
-    .where(inArray(raceEvents.eventId, events.map((event) => event.eventId)))
+    .where(
+      inArray(
+        raceEvents.eventId,
+        events.map((event) => event.eventId),
+      ),
+    )
     .all();
-  const existingById = new Map(existingRows.map((row) => {
-    const event = parseRaceEventRow(row);
-    return [event.eventId, event] as const;
-  }));
+  const existingById = new Map(
+    existingRows.map((row) => {
+      const event = parseRaceEventRow(row);
+      return [event.eventId, event] as const;
+    }),
+  );
   const inserted: RaceEvent[] = [];
   for (const event of events) {
     const existing = existingById.get(event.eventId);
@@ -417,13 +346,13 @@ async function appendRaceEventsInTransaction(
   const rows = await tx
     .select()
     .from(raceEvents)
-    .where(inArray(raceEvents.eventId, inserted.map((event) => event.eventId)))
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
+    .where(
+      inArray(
+        raceEvents.eventId,
+        inserted.map((event) => event.eventId),
+      ),
     )
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .all();
   return rows.map(parseRaceEventRow);
 }
@@ -433,10 +362,7 @@ async function appendRaceEventsInTransaction(
  * participates in the caller's commit; without one, publication-safe rows are
  * returned only after the local transaction commits.
  */
-export function appendRaceEvents(
-  events: readonly RaceEvent[],
-  transaction?: DbTransaction,
-): Promise<RaceEvent[]> {
+export function appendRaceEvents(events: readonly RaceEvent[], transaction?: DbTransaction): Promise<RaceEvent[]> {
   if (transaction) return appendRaceEventsInTransaction(transaction, events);
   return db.transaction((tx) => appendRaceEventsInTransaction(tx, events));
 }
@@ -463,10 +389,7 @@ function assertReplacementLaps(lapRows: readonly ReplayableLapReplacement[] | un
   }
 }
 
-function assertProjectedResult(
-  result: RaceEventResultProjection | undefined,
-  resultingEventIds: ReadonlySet<RaceEventId>,
-): void {
+function assertProjectedResult(result: RaceEventResultProjection | undefined, resultingEventIds: ReadonlySet<RaceEventId>): void {
   if (!result) return;
   if (new Set(result.eventIds).size !== result.eventIds.length) {
     throw new Error("Materialized race result contains duplicate event ids");
@@ -478,11 +401,7 @@ function assertProjectedResult(
   }
 }
 
-async function replaceReplayableRaceEventsInTransaction(
-  tx: DbTransaction,
-  input: ReplaceReplayableRaceEventsInput,
-  events: readonly RaceEvent[],
-): Promise<ReplaceReplayableRaceEventsResult> {
+async function replaceReplayableRaceEventsInTransaction(tx: DbTransaction, input: ReplaceReplayableRaceEventsInput, events: readonly RaceEvent[]): Promise<ReplaceReplayableRaceEventsResult> {
   const session = await tx.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, input.sessionId)).get();
   if (!session) throw new Error(`Session ${input.sessionId} does not exist`);
 
@@ -490,16 +409,25 @@ async function replaceReplayableRaceEventsInTransaction(
     .select()
     .from(raceEvents)
     .where(eq(raceEvents.sessionId, input.sessionId))
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    )
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .all();
   const existing = existingRows.map(parseRaceEventRow);
+  const proposedIds = new Set(events.map((event) => event.eventId));
+  const proposedSourceLifecycleKeys = new Set(
+    events.filter((event) => SOURCE_LIFECYCLE_EVENT_TYPES.includes(event.eventType as (typeof SOURCE_LIFECYCLE_EVENT_TYPES)[number])).map(sourceLifecycleReplacementKey),
+  );
+  const supersededTransportIds = new Set(
+    existing
+      .filter(
+        (event) =>
+          SOURCE_LIFECYCLE_EVENT_TYPES.includes(event.eventType as (typeof SOURCE_LIFECYCLE_EVENT_TYPES)[number]) &&
+          !proposedIds.has(event.eventId) &&
+          proposedSourceLifecycleKeys.has(sourceLifecycleReplacementKey(event)),
+      )
+      .map((event) => event.eventId),
+  );
   const existingById = new Map(existing.map((event) => [event.eventId, event]));
-  const retained = existing.filter((event) => TRANSPORT_EVENT_TYPES.includes(event.eventType as (typeof TRANSPORT_EVENT_TYPES)[number]));
+  const retained = existing.filter((event) => TRANSPORT_EVENT_TYPES.includes(event.eventType as (typeof TRANSPORT_EVENT_TYPES)[number]) && !supersededTransportIds.has(event.eventId));
   const retainedById = new Map(retained.map((event) => [event.eventId, event]));
   let conflictCount = 0;
 
@@ -526,22 +454,20 @@ async function replaceReplayableRaceEventsInTransaction(
       throw new Error(`Race event ${event.eventId} has a missing or cross-session linked event`);
     }
   }
-  const resultingEventIds = new Set<RaceEventId>([
-    ...retained.map((event) => event.eventId),
-    ...events.map((event) => event.eventId),
-  ]);
+  const resultingEventIds = new Set<RaceEventId>([...retained.map((event) => event.eventId), ...events.map((event) => event.eventId)]);
   assertProjectedResult(input.result, resultingEventIds);
   const eventsToInsert = events.filter((event) => !retainedById.has(event.eventId));
 
   await tx
     .delete(raceEvents)
-    .where(
-      and(
-        eq(raceEvents.sessionId, input.sessionId),
-        notInArray(raceEvents.eventType, [...TRANSPORT_EVENT_TYPES]),
-      ),
-    )
+    .where(and(eq(raceEvents.sessionId, input.sessionId), notInArray(raceEvents.eventType, [...TRANSPORT_EVENT_TYPES])))
     .run();
+  if (supersededTransportIds.size > 0) {
+    await tx
+      .delete(raceEvents)
+      .where(inArray(raceEvents.eventId, [...supersededTransportIds]))
+      .run();
+  }
 
   const lapIdsByNumber = new Map<number, number>();
   if (input.laps !== undefined) {
@@ -567,13 +493,7 @@ async function replaceReplayableRaceEventsInTransaction(
       await tx
         .update(raceEvents)
         .set({ lapId })
-        .where(
-          and(
-            eq(raceEvents.sessionId, input.sessionId),
-            eq(raceEvents.lapNumber, lapNumber),
-            inArray(raceEvents.eventType, [...TRANSPORT_EVENT_TYPES]),
-          ),
-        )
+        .where(and(eq(raceEvents.sessionId, input.sessionId), eq(raceEvents.lapNumber, lapNumber), inArray(raceEvents.eventType, [...TRANSPORT_EVENT_TYPES])))
         .run();
     }
   }
@@ -582,7 +502,7 @@ async function replaceReplayableRaceEventsInTransaction(
     if (input.laps === undefined) return event;
     return {
       ...event,
-      lapId: event.lapNumber == null ? null : lapIdsByNumber.get(event.lapNumber) ?? null,
+      lapId: event.lapNumber == null ? null : (lapIdsByNumber.get(event.lapNumber) ?? null),
     };
   });
   await assertSessionOwnership(tx, remappedEvents);
@@ -591,11 +511,7 @@ async function replaceReplayableRaceEventsInTransaction(
 
   if (input.result) {
     const now = new Date().toISOString();
-    const existingResult = await tx
-      .select({ id: sessionResults.id })
-      .from(sessionResults)
-      .where(eq(sessionResults.sessionId, input.sessionId))
-      .get();
+    const existingResult = await tx.select({ id: sessionResults.id }).from(sessionResults).where(eq(sessionResults.sessionId, input.sessionId)).get();
     const values = { ...input.result, sessionId: input.sessionId, updatedAt: now };
     if (existingResult) {
       await tx.update(sessionResults).set(values).where(eq(sessionResults.id, existingResult.id)).run();
@@ -604,19 +520,20 @@ async function replaceReplayableRaceEventsInTransaction(
     }
   }
 
-  const persistedRows = events.length === 0
-    ? []
-    : await tx
-        .select()
-        .from(raceEvents)
-        .where(inArray(raceEvents.eventId, events.map((event) => event.eventId)))
-        .orderBy(
-          asc(raceEvents.timelineEpoch),
-          asc(raceEvents.sequence),
-          asc(raceEvents.eventOrder),
-          asc(raceEvents.eventId),
-        )
-        .all();
+  const persistedRows =
+    events.length === 0
+      ? []
+      : await tx
+          .select()
+          .from(raceEvents)
+          .where(
+            inArray(
+              raceEvents.eventId,
+              events.map((event) => event.eventId),
+            ),
+          )
+          .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
+          .all();
   return {
     events: persistedRows.map(parseRaceEventRow),
     lapIdsByNumber,
@@ -629,10 +546,7 @@ async function replaceReplayableRaceEventsInTransaction(
  * and storage diagnostics survive replacement; every other timeline fact is
  * validated before destructive work starts and replaced in one transaction.
  */
-export function replaceReplayableRaceEvents(
-  input: ReplaceReplayableRaceEventsInput,
-  transaction?: DbTransaction,
-): Promise<ReplaceReplayableRaceEventsResult> {
+export function replaceReplayableRaceEvents(input: ReplaceReplayableRaceEventsInput, transaction?: DbTransaction): Promise<ReplaceReplayableRaceEventsResult> {
   const validatedEvents = validateEvents(input.events);
   assertReplacementOrder(validatedEvents);
   const events = deduplicateEvents(validatedEvents);
@@ -641,42 +555,24 @@ export function replaceReplayableRaceEvents(
   return db.transaction((tx) => replaceReplayableRaceEventsInTransaction(tx, input, events));
 }
 
-async function finalizeRaceEventSourceGenerationInTransaction(
-  tx: DbTransaction,
-  sessionId: number,
-  sourceGeneration: string,
-): Promise<number> {
+async function finalizeRaceEventSourceGenerationInTransaction(tx: DbTransaction, sessionId: number, sourceGeneration: string): Promise<number> {
   if (sourceGeneration.length === 0 || sourceGeneration.startsWith("provisional:")) {
     throw new Error("Final race-event source generation must be verified and non-provisional");
   }
   const result = await tx
     .update(raceEvents)
     .set({ sourceGeneration })
-    .where(
-      and(
-        eq(raceEvents.sessionId, sessionId),
-        or(isNull(raceEvents.sourceGeneration), like(raceEvents.sourceGeneration, "provisional:%")),
-      ),
-    )
+    .where(and(eq(raceEvents.sessionId, sessionId), or(isNull(raceEvents.sourceGeneration), like(raceEvents.sourceGeneration, "provisional:%"))))
     .run();
   return Number(result.rowsAffected ?? 0);
 }
 
-export function finalizeRaceEventSourceGeneration(
-  sessionId: number,
-  sourceGeneration: string,
-  transaction?: DbTransaction,
-): Promise<number> {
+export function finalizeRaceEventSourceGeneration(sessionId: number, sourceGeneration: string, transaction?: DbTransaction): Promise<number> {
   if (transaction) return finalizeRaceEventSourceGenerationInTransaction(transaction, sessionId, sourceGeneration);
   return db.transaction((tx) => finalizeRaceEventSourceGenerationInTransaction(tx, sessionId, sourceGeneration));
 }
 
-async function attachRaceEventsToLapInTransaction(
-  tx: DbTransaction,
-  sessionId: number,
-  lapNumber: number,
-  lapId: number,
-): Promise<RaceEvent[]> {
+async function attachRaceEventsToLapInTransaction(tx: DbTransaction, sessionId: number, lapNumber: number, lapId: number): Promise<RaceEvent[]> {
   const [lap] = await tx
     .select({ id: laps.id })
     .from(laps)
@@ -692,22 +588,12 @@ async function attachRaceEventsToLapInTransaction(
     .select()
     .from(raceEvents)
     .where(and(eq(raceEvents.sessionId, sessionId), eq(raceEvents.lapNumber, lapNumber)))
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    )
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .all();
   return rows.map(parseRaceEventRow);
 }
 
-export function attachRaceEventsToLap(
-  sessionId: number,
-  lapNumber: number,
-  lapId: number,
-  transaction?: DbTransaction,
-): Promise<RaceEvent[]> {
+export function attachRaceEventsToLap(sessionId: number, lapNumber: number, lapId: number, transaction?: DbTransaction): Promise<RaceEvent[]> {
   if (transaction) return attachRaceEventsToLapInTransaction(transaction, sessionId, lapNumber, lapId);
   return db.transaction((tx) => attachRaceEventsToLapInTransaction(tx, sessionId, lapNumber, lapId));
 }
@@ -716,17 +602,8 @@ function cursorCondition(cursor: EventCursor): SQL {
   return or(
     gt(raceEvents.timelineEpoch, cursor[0]),
     and(eq(raceEvents.timelineEpoch, cursor[0]), gt(raceEvents.sequence, cursor[1])),
-    and(
-      eq(raceEvents.timelineEpoch, cursor[0]),
-      eq(raceEvents.sequence, cursor[1]),
-      gt(raceEvents.eventOrder, cursor[2]),
-    ),
-    and(
-      eq(raceEvents.timelineEpoch, cursor[0]),
-      eq(raceEvents.sequence, cursor[1]),
-      eq(raceEvents.eventOrder, cursor[2]),
-      gt(raceEvents.eventId, cursor[3]),
-    ),
+    and(eq(raceEvents.timelineEpoch, cursor[0]), eq(raceEvents.sequence, cursor[1]), gt(raceEvents.eventOrder, cursor[2])),
+    and(eq(raceEvents.timelineEpoch, cursor[0]), eq(raceEvents.sequence, cursor[1]), eq(raceEvents.eventOrder, cursor[2]), gt(raceEvents.eventId, cursor[3])),
   )!;
 }
 
@@ -743,10 +620,7 @@ function listConditions(sessionId: number, query: RaceEventListQuery): SQL[] {
   return conditions;
 }
 
-export async function listSessionRaceEvents(
-  sessionId: number,
-  query: RaceEventListQuery = {},
-): Promise<RaceEventPage> {
+export async function listSessionRaceEvents(sessionId: number, query: RaceEventListQuery = {}): Promise<RaceEventPage> {
   const requestedLimit = query.limit ?? DEFAULT_PAGE_LIMIT;
   if (!Number.isSafeInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > MAX_PAGE_LIMIT) {
     throw new RangeError(`Race-event page limit must be between 1 and ${MAX_PAGE_LIMIT}`);
@@ -755,12 +629,7 @@ export async function listSessionRaceEvents(
     .select()
     .from(raceEvents)
     .where(and(...listConditions(sessionId, query)))
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    )
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .limit(requestedLimit + 1)
     .all();
   const hasNextPage = rows.length > requestedLimit;
@@ -778,54 +647,27 @@ export async function listRaceEventsForLap(lapId: number): Promise<RaceEvent[]> 
     .from(raceEvents)
     .innerJoin(laps, eq(raceEvents.lapId, laps.id))
     .where(eq(laps.id, lapId))
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    )
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .all();
   return rows.map(({ event }) => parseRaceEventRow(event));
 }
 
-export async function listRaceEventsForLifecycle(
-  sessionId: number,
-  lifecycleId: string,
-): Promise<RaceEvent[]> {
+export async function listRaceEventsForLifecycle(sessionId: number, lifecycleId: string): Promise<RaceEvent[]> {
   const rows = await db
     .select()
     .from(raceEvents)
     .where(and(eq(raceEvents.sessionId, sessionId), eq(raceEvents.lifecycleId, lifecycleId)))
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    )
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .all();
   return rows.map(parseRaceEventRow);
 }
 
-export async function listPitVisitRaceEvents(
-  sessionId: number,
-  lifecycleId: string,
-): Promise<RaceEvent[]> {
+export async function listPitVisitRaceEvents(sessionId: number, lifecycleId: string): Promise<RaceEvent[]> {
   const rows = await db
     .select()
     .from(raceEvents)
-    .where(
-      and(
-        eq(raceEvents.sessionId, sessionId),
-        eq(raceEvents.lifecycleId, lifecycleId),
-        inArray(raceEvents.eventType, [...PIT_VISIT_EVENT_TYPES]),
-      ),
-    )
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    )
+    .where(and(eq(raceEvents.sessionId, sessionId), eq(raceEvents.lifecycleId, lifecycleId), inArray(raceEvents.eventType, [...PIT_VISIT_EVENT_TYPES])))
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .all();
   return rows.map(parseRaceEventRow);
 }

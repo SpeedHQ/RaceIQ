@@ -6,10 +6,7 @@ export interface SourceSequenceObservation {
 }
 
 export type SourceSequenceBoundaryKind = "duplicate" | "out-of-order";
-export type SourceSequenceCountMethod =
-  | "native-sequence"
-  | "timestamp-estimate"
-  | "unavailable";
+export type SourceSequenceCountMethod = "native-sequence" | "timestamp-estimate" | "unavailable";
 
 export interface SourceSequenceBoundary {
   kind: SourceSequenceBoundaryKind;
@@ -84,9 +81,7 @@ interface TimestampBoundary {
 }
 
 /** Native packet coordinate(s) used consistently by quality and event code. */
-export function packetSequences(
-  packet: TelemetryPacket,
-): SourceSequenceObservation[] {
+export function packetSequences(packet: TelemetryPacket): SourceSequenceObservation[] {
   if (packet.iracing && Number.isFinite(packet.iracing.sessionTick)) {
     return [
       {
@@ -98,41 +93,24 @@ export function packetSequences(
   if (packet.gameId === "f1-2025") {
     const overall = packet.f1?.overallFrameIdentifier;
     const packetId = packet.f1?.packetId;
-    return typeof overall === "number" &&
-      Number.isFinite(overall) &&
-      typeof packetId === "number" &&
-      Number.isFinite(packetId)
-      ? [{ family: `f1-packet-${packetId}`, sequence: overall }]
-      : [];
+    return typeof overall === "number" && Number.isFinite(overall) && typeof packetId === "number" && Number.isFinite(packetId) ? [{ family: `f1-packet-${packetId}`, sequence: overall }] : [];
   }
-  const observations: SourceSequenceObservation[] = [];
-  const physics =
-    packet.acc?.physicsPacketId ?? packet.acc?.acEvo?.physicsPacketId;
+  const physics = packet.acc?.physicsPacketId ?? packet.acc?.acEvo?.physicsPacketId;
   if (typeof physics === "number" && Number.isFinite(physics)) {
-    observations.push({ family: "kunos-physics", sequence: physics });
+    return [{ family: "kunos-physics", sequence: physics }];
   }
-  const graphics =
-    packet.acc?.graphicsPacketId ?? packet.acc?.acEvo?.graphicsPacketId;
-  if (typeof graphics === "number" && Number.isFinite(graphics)) {
-    observations.push({ family: "kunos-graphics", sequence: graphics });
-  }
-  return observations;
+  const graphics = packet.acc?.graphicsPacketId ?? packet.acc?.acEvo?.graphicsPacketId;
+  return typeof graphics === "number" && Number.isFinite(graphics) ? [{ family: "kunos-graphics", sequence: graphics }] : [];
 }
 
-export function weightedMedian(
-  counts: ReadonlyMap<number, number>,
-  count: number,
-  fallback: number,
-): number {
+export function weightedMedian(counts: ReadonlyMap<number, number>, count: number, fallback: number): number {
   if (count <= 0) return fallback;
   const lowerIndex = Math.floor((count - 1) / 2);
   const upperIndex = Math.floor(count / 2);
   let seen = 0;
   let lower = fallback;
   let upper = fallback;
-  for (const [value, occurrences] of [...counts].sort(
-    ([left], [right]) => left - right,
-  )) {
+  for (const [value, occurrences] of [...counts].sort(([left], [right]) => left - right)) {
     const end = seen + occurrences;
     if (seen <= lowerIndex && lowerIndex < end) lower = value;
     if (seen <= upperIndex && upperIndex < end) {
@@ -179,10 +157,7 @@ export class SourceSequenceTracker {
             previousObservationIndex: this.lastObservationIndex,
             currentObservationIndex,
           });
-          this.positiveTimestampDeltaCounts.set(
-            delta,
-            (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1,
-          );
+          this.positiveTimestampDeltaCounts.set(delta, (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1);
           this.positiveTimestampDeltaCount += 1;
         } else if (sourceSequences.length === 0) {
           const boundary: SourceSequenceBoundary = {
@@ -248,10 +223,7 @@ export class SourceSequenceTracker {
         previousObservationIndex: previous.lastObservationIndex,
         currentObservationIndex,
       });
-      previous.positiveStepCounts.set(
-        delta,
-        (previous.positiveStepCounts.get(delta) ?? 0) + 1,
-      );
+      previous.positiveStepCounts.set(delta, (previous.positiveStepCounts.get(delta) ?? 0) + 1);
       previous.positiveStepCount += 1;
       previous.lastSequence = observation.sequence;
       previous.lastSourceTimeMs = packet.TimestampMS;
@@ -277,27 +249,14 @@ export class SourceSequenceTracker {
       countMethod = "native-sequence";
       for (const [family, state] of this.nativeStates) {
         if (state.positiveStepCount === 0) continue;
-        const expectedStep = weightedMedian(
-          state.positiveStepCounts,
-          state.positiveStepCount,
-          1,
-        );
+        const expectedStep = weightedMedian(state.positiveStepCounts, state.positiveStepCount, 1);
         for (const boundary of state.positiveBoundaries) {
           const step = boundary.currentSequence - boundary.previousSequence;
-          const inferredMissing = Math.max(
-            0,
-            Math.round(step / expectedStep) - 1,
-          );
+          const inferredMissing = Math.max(0, Math.round(step / expectedStep) - 1);
           if (inferredMissing === 0) continue;
-          const durationMs = Math.max(
-            0,
-            boundary.currentSourceTimeMs - boundary.previousSourceTimeMs,
-          );
+          const durationMs = Math.max(0, boundary.currentSourceTimeMs - boundary.previousSourceTimeMs);
           missingCount += inferredMissing;
-          largestContiguousGapMs = Math.max(
-            largestContiguousGapMs,
-            durationMs,
-          );
+          largestContiguousGapMs = Math.max(largestContiguousGapMs, durationMs);
           gaps.push({
             sourceSequenceFamily: family,
             ...boundary,
@@ -309,24 +268,13 @@ export class SourceSequenceTracker {
       }
     } else if (this.positiveTimestampDeltaCount > 0) {
       countMethod = "timestamp-estimate";
-      const expectedIntervalMs = weightedMedian(
-        this.positiveTimestampDeltaCounts,
-        this.positiveTimestampDeltaCount,
-        1,
-      );
+      const expectedIntervalMs = weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1);
       for (const boundary of this.timestampBoundaries) {
-        const durationMs =
-          boundary.currentSourceTimeMs - boundary.previousSourceTimeMs;
-        const inferredMissing = Math.max(
-          0,
-          Math.round(durationMs / expectedIntervalMs) - 1,
-        );
+        const durationMs = boundary.currentSourceTimeMs - boundary.previousSourceTimeMs;
+        const inferredMissing = Math.max(0, Math.round(durationMs / expectedIntervalMs) - 1);
         if (inferredMissing === 0) continue;
         missingCount += inferredMissing;
-        largestContiguousGapMs = Math.max(
-          largestContiguousGapMs,
-          durationMs,
-        );
+        largestContiguousGapMs = Math.max(largestContiguousGapMs, durationMs);
         gaps.push({
           sourceSequenceFamily: null,
           previousSequence: null,
@@ -346,22 +294,14 @@ export class SourceSequenceTracker {
         expectedCount,
         observedCount: this.packetCount,
         totalMissingCount: measured ? missingCount : null,
-        totalMissingFraction:
-          measured && expectedCount > 0 ? missingCount / expectedCount : null,
+        totalMissingFraction: measured && expectedCount > 0 ? missingCount / expectedCount : null,
         largestContiguousGapMs,
         countMethod,
       },
       gaps,
       duplicates: [...this.duplicates],
       outOfOrder: [...this.outOfOrder],
-      inferredIntervalMs:
-        this.positiveTimestampDeltaCount > 0
-          ? weightedMedian(
-              this.positiveTimestampDeltaCounts,
-              this.positiveTimestampDeltaCount,
-              1,
-            )
-          : null,
+      inferredIntervalMs: this.positiveTimestampDeltaCount > 0 ? weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1) : null,
     };
   }
 }

@@ -1,11 +1,7 @@
-import type {
-  RaceEventObservation,
-  RaceParticipantObservation,
-} from "../../server/games/types";
+import type { RaceEventObservation, RaceParticipantObservation } from "../../server/games/types";
+import type { RaceEventLapEvaluation } from "../../server/race-events/types";
 
-export function participant(
-  overrides: Partial<RaceParticipantObservation> = {},
-): RaceParticipantObservation {
+export function participant(overrides: Partial<RaceParticipantObservation> = {}): RaceParticipantObservation {
   return {
     participantId: "local-player",
     participantKind: "player",
@@ -31,18 +27,13 @@ export function participant(
   };
 }
 
-export function observation(
-  sequence: number,
-  overrides: Partial<RaceEventObservation> = {},
-): RaceEventObservation {
+export function observation(sequence: number, overrides: Partial<RaceEventObservation> = {}): RaceEventObservation {
   return {
     gameId: "iracing",
     sessionUid: "session:1",
     receivedAtMs: 1_700_000_000_000 + sequence,
     sourceTimeMs: sequence * 100,
-    sourceSequences: [
-      { family: "iracing-session-tick", sequence },
-    ],
+    sourceSequences: [{ family: "iracing-session-tick", sequence }],
     lapNumber: 1,
     currentLapTimeMs: sequence * 100,
     lastLapTimeMs: 0,
@@ -56,6 +47,23 @@ export function observation(
     terminalObserved: null,
     participants: [participant()],
     rosterAuthoritative: false,
+    ...overrides,
+  };
+}
+
+export function lapEvaluation(overrides: Partial<RaceEventLapEvaluation> = {}): RaceEventLapEvaluation {
+  return {
+    lapNumber: 1,
+    lapTimeMs: 90_000,
+    isValid: true,
+    phase: "flying",
+    conditions: [],
+    invalidReason: null,
+    sectors: null,
+    position: null,
+    participantId: null,
+    rawBoundaryOffset: null,
+    rawBoundaryOrdinal: null,
     ...overrides,
   };
 }
