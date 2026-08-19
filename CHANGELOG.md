@@ -105,6 +105,7 @@
 
 ### Internal
 
+- Generate bundled track registry from deterministic, reviewable JSON sources and reject stale projections in CI
 - Replace Biome with Oxc for repository linting and formatting
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking

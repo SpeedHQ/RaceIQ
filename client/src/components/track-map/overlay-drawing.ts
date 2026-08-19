@@ -15,6 +15,35 @@ export interface OverlayOptions {
   showCar?: boolean;
 }
 
+export interface CarOverlayPosition {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  angle?: number;
+}
+
+export function drawCarPulse(context: CanvasRenderingContext2D, position: CarOverlayPosition, nowMs: number): void {
+  const cycle = nowMs % 2500;
+  if (cycle > 1000) return;
+  const progress = cycle / 1000;
+  const eased = 1 - (1 - progress) ** 3;
+  const size = 10 + eased * 6;
+  context.save();
+  context.translate(position.x, position.y);
+  if (position.angle !== undefined) context.rotate(position.angle);
+  context.beginPath();
+  context.moveTo(size, 0);
+  context.lineTo(-size * 0.6, -size * 0.6);
+  context.lineTo(-size * 0.6, size * 0.6);
+  context.closePath();
+  context.globalAlpha = 0.8 * (1 - progress);
+  context.strokeStyle = "var(--app-accent)";
+  context.lineWidth = 2;
+  context.stroke();
+  context.restore();
+}
+
 const direction = (frame: SemanticAnalysisFrame, path: [number, number] | null): [number, number] =>
   path ?? [Math.sin(semanticNumber(frame, "motion.yaw") ?? 0), Math.cos(semanticNumber(frame, "motion.yaw") ?? 0)];
 export function compositeFixedTrack(options: OverlayOptions): void {
@@ -71,7 +100,7 @@ export function compositeTrack(options: OverlayOptions, idx: number): void {
   }
   ctx.restore();
 }
-export function drawCarOverlay(options: OverlayOptions, idx: number): { x: number; y: number; w: number; h: number; angle?: number } | null {
+export function drawCarOverlay(options: OverlayOptions, idx: number): CarOverlayPosition | null {
   const { carCanvas, telemetry, resolvedPositions, resolvedDirections, transform: t, panX, panY, showCar = true } = options;
   if (!t) return null;
   syncCanvasSize(carCanvas, t.w, t.h, window.devicePixelRatio || 1, false);

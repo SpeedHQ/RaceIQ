@@ -1,29 +1,17 @@
 import { ChevronDownIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { TrackImageryCandidate, TrackImageryGeographicBounds, TrackImagerySourceSearchResult } from "../../../../shared/racing/tracks/imagery";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import type { GameId } from "../../../../../shared/games/ids";
+import type { TrackImageryCandidate, TrackImageryGeographicBounds, TrackImagerySourceSearchResult } from "../../../../../shared/racing/tracks/imagery";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../ui/collapsible";
+import { useImageryCandidates } from "./useImageryCandidates";
 
-interface OpenTrackImageryPickerProps {
+interface ImageryCandidatePanelProps {
   bounds: TrackImageryGeographicBounds | null;
-  gameId: string | null;
+  gameId: GameId | null;
   trackOrdinal: number | null;
   selectedCandidateId: string | null;
   onSelect: (candidate: TrackImageryCandidate, previewUrl: string) => void;
-}
-
-export function openTrackImageryPreviewUrl(candidateId: string, bounds: TrackImageryGeographicBounds, gameId: string, trackOrdinal: number): string {
-  const query = new URLSearchParams({
-    candidateId,
-    gameId,
-    trackOrdinal: String(trackOrdinal),
-    west: String(bounds.west),
-    south: String(bounds.south),
-    east: String(bounds.east),
-    north: String(bounds.north),
-  });
-  return `/api/dev/track-imagery/sources/preview?${query}`;
 }
 
 function capturedAtLabel(value: string | undefined): string {
@@ -35,13 +23,13 @@ function capturedAtLabel(value: string | undefined): string {
   return dates.join(" – ");
 }
 
-interface TrackImagerySourceListProps {
+interface ImageryCandidateListProps {
   sources: TrackImagerySourceSearchResult["sources"];
   selectedCandidateId: string | null;
   onSelect: (candidate: TrackImageryCandidate) => void;
 }
 
-export function TrackImagerySourceList({ sources, selectedCandidateId, onSelect }: TrackImagerySourceListProps) {
+export function ImageryCandidateList({ sources, selectedCandidateId, onSelect }: ImageryCandidateListProps) {
   return (
     <div className="flex flex-col gap-1">
       {sources.map((source) => (
@@ -93,34 +81,8 @@ export function TrackImagerySourceList({ sources, selectedCandidateId, onSelect 
   );
 }
 
-export function OpenTrackImageryPicker({ bounds, gameId, trackOrdinal, selectedCandidateId, onSelect }: OpenTrackImageryPickerProps) {
-  const [result, setResult] = useState<TrackImagerySourceSearchResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    setResult(null);
-    setError(null);
-  }, [bounds, gameId, trackOrdinal]);
-
-  const search = async () => {
-    if (!bounds || !gameId || trackOrdinal == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/dev/track-imagery/sources/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bounds, gameId, trackOrdinal }),
-      });
-      const payload = (await response.json()) as TrackImagerySourceSearchResult | { error?: string };
-      if (!response.ok) throw new Error((payload as { error?: string }).error ?? "Unable to search open imagery");
-      setResult(payload as TrackImagerySourceSearchResult);
-    } catch (searchError) {
-      setError(searchError instanceof Error ? searchError.message : "Unable to search open imagery");
-    } finally {
-      setLoading(false);
-    }
-  };
+export function ImageryCandidatePanel({ bounds, gameId, trackOrdinal, selectedCandidateId, onSelect }: ImageryCandidatePanelProps) {
+  const candidates = useImageryCandidates({ bounds, gameId, trackOrdinal });
 
   return (
     <div className="mb-3 rounded border border-app-border bg-app-surface-alt p-2">
@@ -129,8 +91,8 @@ export function OpenTrackImageryPicker({ bounds, gameId, trackOrdinal, selectedC
           <div className="text-xs font-semibold text-app-text-secondary">Open aerial imagery</div>
           <div className="text-[10px] text-app-text-muted">Ranked reusable imagery. HQ package sources preferred; context fallback remains manually selectable.</div>
         </div>
-        <Button type="button" onClick={() => void search()} disabled={!bounds || !gameId || trackOrdinal == null || loading}>
-          {loading ? "Searching…" : "Find imagery"}
+        <Button type="button" onClick={() => void candidates.search()} disabled={!bounds || !gameId || trackOrdinal == null || candidates.loading}>
+          {candidates.loading ? "Searching…" : "Find imagery"}
         </Button>
       </div>
       {!gameId || trackOrdinal == null ? (
@@ -138,22 +100,25 @@ export function OpenTrackImageryPicker({ bounds, gameId, trackOrdinal, selectedC
       ) : !bounds ? (
         <p className="text-[11px] text-severity-caution">Select a lap containing GPS coordinates.</p>
       ) : null}
-      {result && result.sources.length === 0 && <p className="text-[11px] text-severity-caution">No reusable imagery covers this GPS footprint.</p>}
-      {result && result.sources.length > 0 && (
+      {candidates.result && candidates.result.sources.length === 0 && <p className="text-[11px] text-severity-caution">No reusable imagery covers this GPS footprint.</p>}
+      {candidates.result && candidates.result.sources.length > 0 && (
         <div className="mt-2">
-          <TrackImagerySourceList
-            sources={result.sources}
+          <ImageryCandidateList
+            sources={candidates.result.sources}
             selectedCandidateId={selectedCandidateId}
-            onSelect={(candidate) => bounds && gameId && trackOrdinal != null && onSelect(candidate, openTrackImageryPreviewUrl(candidate.id, bounds, gameId, trackOrdinal))}
+            onSelect={(candidate) => {
+              const previewUrl = candidates.previewUrl(candidate.id);
+              if (previewUrl) onSelect(candidate, previewUrl);
+            }}
           />
         </div>
       )}
-      {result?.notices.map((notice) => (
+      {candidates.result?.notices.map((notice) => (
         <p key={notice} className="mt-1 text-[10px] text-app-text-muted">
           {notice}
         </p>
       ))}
-      {error && <p className="mt-1 text-[11px] text-severity-critical">{error}</p>}
+      {candidates.error && <p className="mt-1 text-[11px] text-severity-critical">{candidates.error}</p>}
     </div>
   );
 }

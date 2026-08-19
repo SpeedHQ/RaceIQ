@@ -8,7 +8,9 @@
     {
       "key": "turn-1",
       "name": "Turn 1",
-      "numbers": [1],
+      "numbers": [
+        1
+      ],
       "type": "heavy-braking right-hander",
       "technique": "Brake early to compensate for reduced aero grip at altitude, late apex",
       "trap": "Misjudging braking distance due to thinner air reducing downforce and drag"
@@ -16,7 +18,11 @@
     {
       "key": "turn-4-6",
       "name": "Turn 4-6",
-      "numbers": [4, 5, 6],
+      "numbers": [
+        4,
+        5,
+        6
+      ],
       "type": "fast, flowing esses",
       "technique": "Smooth, rhythmic direction changes, trust the grip despite the altitude",
       "trap": "Over-driving the reduced-grip conditions at altitude"
@@ -24,7 +30,9 @@
     {
       "key": "stadium-section",
       "name": "Stadium Section",
-      "numbers": [12],
+      "numbers": [
+        12
+      ],
       "type": "tight, technical corners through the Foro Sol baseball stadium",
       "technique": "Patient, precise low-speed inputs, use the atmosphere but stay focused on the tightening line",
       "trap": "Getting distracted by the stadium crowd and missing braking points"
@@ -32,11 +40,19 @@
     {
       "key": "final-corner",
       "name": "Final Corner",
-      "numbers": [15, 16, 17],
+      "numbers": [
+        15,
+        16,
+        17
+      ],
       "type": "long, tightening corner onto the pit straight",
       "technique": "Progressive throttle as the corner opens, clean exit is critical",
       "trap": "Early throttle application before the corner fully opens causes a slide"
     }
   ],
-  "priorityCorners": ["turn-1","stadium-section","final-corner"]
+  "priorityCorners": [
+    "turn-1",
+    "stadium-section",
+    "final-corner"
+  ]
 }
