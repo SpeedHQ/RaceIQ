@@ -36,7 +36,6 @@ export async function openStory(page: Page, storyUrl: string, timeoutMs = 60_000
       return;
     } catch (error) {
       lastError = error;
-      if (attempt === 0) await page.reload({ waitUntil: "commit", timeout: timeoutMs });
     }
   }
   throw lastError;
