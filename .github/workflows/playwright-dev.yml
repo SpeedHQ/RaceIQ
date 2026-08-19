@@ -1,13 +1,43 @@
-name: Playwright E2E (dev server)
+name: Playwright E2E (compiled PR gate)
 
 on:
   workflow_call:
+    inputs:
+      target-ref:
+        description: "Branch or ref to test"
+        required: false
+        type: string
 
 jobs:
-  playwright-dev:
+  playwright:
+    name: Playwright E2E (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fresh
+            server_set: fresh
+            projects: --project=fresh-install
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
+          - name: tunes
+            server_set: tunes
+            projects: --project=tunes
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
+          - name: tunes-unseeded
+            server_set: tunes-unseeded
+            projects: --project=tunes-unseeded
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
+          - name: seeded
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "10G"]'
     uses: ./.github/workflows/playwright.yml
     with:
-      server-mode: dev
-      runs-on: blacksmith-4vcpu-ubuntu-2204
-      projects: "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
-      artifact-name: playwright-dev-results
+      server-mode: compiled
+      server-set: ${{ matrix.server_set }}
+      projects: ${{ matrix.projects }}
+      runs-on: ${{ matrix.runs_on }}
+      dist-artifact: raceiq-dist-windows
+      artifact-name: playwright-${{ matrix.name }}
+      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
+      target-ref: ${{ inputs.target-ref }}

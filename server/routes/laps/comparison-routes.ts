@@ -121,6 +121,8 @@ export const comparisonRoutes = new Hono()
       },
       traces: {
         distance: result.distances,
+        sourceIndicesA: result.lapA.sourceIndices,
+        sourceIndicesB: result.lapB.sourceIndices,
         speedA: result.lapA.speed,
         speedB: result.lapB.speed,
         throttleA: result.lapA.throttle,

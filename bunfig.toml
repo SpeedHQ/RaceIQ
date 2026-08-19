@@ -5,4 +5,4 @@ root = "./test"
 # suites doing unconditional wipes destroy the real user DB.
 preload = ["./test/support/setup-data-dir.ts"]
 timeout = 30000
-maxConcurrency = 5
+maxConcurrency = 2

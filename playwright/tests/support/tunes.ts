@@ -19,17 +19,16 @@ export async function resetTunes(page: Page) {
  *  starts empty, so the first page load triggers it. We persist `settings`
  *  via the REST API so subsequent navigations skip the modal. */
 export async function completeOnboarding(page: Page) {
-  // Fastest path: write settings directly rather than clicking through the
-  // onboarding UI (which varies between wheel pickers, units, etc.).
-  const res = await page.request.get(`/api/settings`);
-  if (!res.ok()) {
-    throw new Error(`completeOnboarding: GET ${res.url()} failed with status ${res.status()}`);
-  }
-  const settings = await res.json();
-  if (settings.onboardingComplete) return;
-  await page.request.put(`/api/settings`, {
-    data: { ...settings, onboardingComplete: true },
+  // The settings endpoint merges partial updates server-side. Avoid a
+  // preliminary GET: on Windows, loading settings also queries launch-on-login
+  // state and can exceed Playwright's short request timeout on CI runners.
+  const res = await page.request.put(`/api/settings`, {
+    data: { onboardingComplete: true },
+    timeout: 60_000,
   });
+  if (!res.ok()) {
+    throw new Error(`completeOnboarding: PUT ${res.url()} failed with status ${res.status()}`);
+  }
 }
 
 /** Common guard used by each game's spec — waits for the SetupBrowser to
