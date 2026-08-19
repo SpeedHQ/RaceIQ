@@ -1,4 +1,5 @@
-import { CheckCircle2, RefreshCw, TriangleAlert } from "lucide-react";
+import { CheckCircle2, RefreshCw, TriangleAlert, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { canStartReprocess, submitStaleSessionReprocess } from "@/lib/reprocess-state";
@@ -20,6 +21,7 @@ export function StaleLapReprocessing() {
   const staleLapDetection = useTelemetryStore((state) => state.staleLapDetection);
   const reprocessState = useTelemetryStore((state) => state.reprocessState);
   const dismissReprocess = useTelemetryStore((state) => state.dismissReprocess);
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
 
   const handleReprocess = async () => {
     const store = useTelemetryStore.getState();
@@ -39,7 +41,7 @@ export function StaleLapReprocessing() {
     }
   };
 
-  const showNotification = staleLapDetection && reprocessState.status === "idle";
+  const showNotification = staleLapDetection && staleLapDetection.currentVersion !== dismissedVersion && reprocessState.status === "idle";
   const showDialog = reprocessState.status !== "idle";
 
   if (!showNotification && !showDialog) return null;
@@ -58,10 +60,13 @@ export function StaleLapReprocessing() {
   return (
     <>
       {showNotification && (
-        <div role="status" className="fixed right-4 bottom-4 z-50 w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl">
+        <div role="status" className="fixed right-4 bottom-4 z-40 w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl">
           <div className="mb-2 flex items-center gap-2">
             <RefreshCw aria-hidden="true" className="size-4 shrink-0 text-status-info" />
-            <span className="text-sm font-semibold text-app-text">{m.root_lap_detection_updated()}</span>
+            <span className="flex-1 text-sm font-semibold text-app-text">{m.root_lap_detection_updated()}</span>
+            <Button type="button" variant="close-action" size="icon-xs" onClick={() => setDismissedVersion(staleLapDetection.currentVersion)} aria-label={m.common_close()}>
+              <X aria-hidden="true" />
+            </Button>
           </div>
           <p className="mb-3 text-xs text-app-text-muted">
             {staleLapDetection.sessionCount === 1 ? m.root_lap_detection_updated_description_one() : m.root_lap_detection_updated_description({ count: staleLapDetection.sessionCount })}
