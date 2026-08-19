@@ -90,6 +90,9 @@ async function doInsertLap(
     .get();
   return result.id;
 }
+export async function updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
+  await db.update(laps).set({ carSetup: carSetup ? JSON.stringify(carSetup) : null }).where(eq(laps.id, lapId)).run();
+}
 
 /**
  * Backfill car/track ordinals on a session that was created before shared

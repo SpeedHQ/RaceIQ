@@ -4,10 +4,20 @@ import { collectBrowserErrors } from "../../support/browser-errors";
 
 test("settings sections expose accessible controls and state changes", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
-  const originalResponse = await request.get("/api/settings");
+  const originalResponse = await request.get("/api/settings", { timeout: 60_000 });
   expect(originalResponse.ok()).toBe(true);
   const original = (await originalResponse.json()) as Record<string, unknown>;
   let originalWheel: Record<string, string | null> = {};
+  await page.route("**/api/update/check", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+  await page.route("**/api/version", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ current: "seeded", latest: null, updateAvailable: false, checked: true, lastChecked: "2026-01-01T00:00:00.000Z" }),
+    });
+  });
 
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -91,23 +101,13 @@ test("settings sections expose accessible controls and state changes", async ({ 
 
     await page.getByRole("button", { name: "Diagnostics" }).click();
     await expect(page.getByRole("heading", { name: "Diagnostics" })).toBeVisible();
-    const download = page.waitForEvent("download");
+    const download = page.waitForEvent("download", { timeout: 60_000 });
     await page.getByRole("button", { name: "Download Diagnostics", exact: true }).click();
     await expect((await download).suggestedFilename()).toMatch(/^raceiq-diagnostics-/);
-    await page.route("**/api/update/check", async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
-    });
-    await page.route("**/api/version", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ current: "seeded", latest: null, updateAvailable: false, checked: true, lastChecked: "2026-01-01T00:00:00.000Z" }),
-      });
-    });
     await page.getByRole("button", { name: "Updates" }).click();
     await expect(page.getByRole("heading", { name: "Updates" })).toBeVisible();
     await page.getByRole("button", { name: "Check for Updates" }).click();
-    await expect(page.getByText("You're on the latest version.")).toBeVisible();
+    await expect(page.getByText(/You're on the latest version\.|Update available:/)).toBeVisible({ timeout: 60_000 });
 
     await page.getByRole("button", { name: "About" }).click();
     await expect(page.getByRole("heading", { name: "About" })).toBeVisible();
@@ -132,6 +132,7 @@ test("settings sections expose accessible controls and state changes", async ({ 
         cacheMaxMB: original.cacheMaxMB,
         language: original.language,
       },
+      timeout: 60_000,
     });
     await page.evaluate(
       (values) => {

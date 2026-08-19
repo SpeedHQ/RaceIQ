@@ -113,6 +113,7 @@ for (const game of SEEDED_GAME_CASES) {
       await resizeHandle.press("ArrowRight");
       await expect(resizeHandle).toHaveAttribute("aria-valuenow", String(widthBefore + 16));
       await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
       await expect(page.getByRole("separator", { name: "Resize track map" })).toHaveAttribute("aria-valuenow", String(widthBefore + 16));
 
       const aiToggle = page.getByRole("button", { name: /AI Analysis/ });
@@ -120,6 +121,7 @@ for (const game of SEEDED_GAME_CASES) {
       await aiToggle.click();
       await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
       await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible();
 
       expect(browserErrors.errors, `unexpected browser errors before injected Compare failure in ${game.name}`).toEqual([]);

@@ -56,7 +56,7 @@
     "postinstall": "lefthook install",
     "record:demo": "cd playwright && PW_SERVER_SET=fresh DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
     "test:screenshots": "cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx playwright test --project=mobile-screenshots",
-    "test:e2e": "cd playwright && PW_SERVER_SET=all bunx playwright test --project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device",
+    "test:e2e": "cd playwright && PW_SERVER_SET=all bunx playwright test --project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=mobile-device --project=tablet-device",
     "test:e2e:fresh": "cd playwright && PW_SERVER_SET=fresh bunx playwright test --project=fresh-install --max-failures=1",
     "test:e2e:tunes": "cd playwright && PW_SERVER_SET=tunes bunx playwright test --project=tunes --max-failures=1",
     "test:e2e:seeded": "cd playwright && PW_SERVER_SET=seeded bunx playwright test --project=seeded-e2e --max-failures=1",

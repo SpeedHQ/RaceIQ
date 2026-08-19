@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { seedScreenshotData } from "./seed-screenshot-data";
+import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
 
 // Cross-platform launcher for Playwright projects that target the compiled
 // raceiq binary.
@@ -40,6 +40,7 @@ try {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
+  if (process.env.PW_SERVER_SET === "tunes") seedE2ESetupData(repoDir, dir);
   seedScreenshotData(repoDir, dir);
 } catch (error) {
   rmSync(dir, { recursive: true, force: true });

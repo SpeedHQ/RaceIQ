@@ -40,8 +40,7 @@ export function StaleLapReprocessing() {
   };
 
   const showNotification = staleLapDetection && reprocessState.status === "idle";
-  const showDialog = reprocessState.status !== "idle";
-
+  const showDialog = reprocessState.open;
   if (!showNotification && !showDialog) return null;
 
   const title =
