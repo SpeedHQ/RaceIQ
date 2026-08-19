@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { ExperimentVersion } from "@/hooks/experiments";
 
 /** Render version forest recursively, keeping graph branch indentation in one owner. */
@@ -19,11 +19,21 @@ export function RecursiveVersionRows({
     const children = (childrenOf.get(node.id) ?? []).filter((child) => !visited.has(child.id));
     if (!children.length) return rendered;
     return (
-      <>
+      <Fragment key={node.id}>
         {rendered}
-        <div className="ml-3 pl-3 border-l border-app-border">{children.map((child, index) => renderBranch(child, depth + 1, index === children.length - 1))}</div>
-      </>
+        <div className="ml-3 pl-3 border-l border-app-border">
+          {children.map((child, index) => (
+            <Fragment key={child.id}>{renderBranch(child, depth + 1, index === children.length - 1)}</Fragment>
+          ))}
+        </div>
+      </Fragment>
     );
   };
-  return <>{roots.map((node, index) => renderBranch(node, 0, index === roots.length - 1))}</>;
+  return (
+    <>
+      {roots.map((node, index) => (
+        <Fragment key={node.id}>{renderBranch(node, 0, index === roots.length - 1)}</Fragment>
+      ))}
+    </>
+  );
 }

@@ -1,11 +1,14 @@
 import { expect, type Page } from "@playwright/test";
 
-export async function assertLapSelectors(page: Page): Promise<void> {
+export async function assertLapSelectors(page: Page, expectedLapNumber?: number): Promise<void> {
   for (const placeholder of ["Search tracks...", "Search cars..."]) {
     const selector = page.getByRole("combobox", { name: placeholder });
     await selector.click();
     await expect(page.getByRole("option", { selected: true }).first()).toBeVisible();
     await selector.press("Escape");
+  }
+  if (expectedLapNumber != null) {
+    await expect(page.getByRole("combobox", { name: "Search laps..." })).toHaveValue(new RegExp(`^Lap ${expectedLapNumber}\\b`));
   }
 }
 
@@ -69,11 +72,12 @@ export async function exercise3dGuide(page: Page, assertClosed = true): Promise<
   await page.getByRole("tab", { name: "3D", exact: true }).click();
   await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "2D", exact: true }).click();
-  const activeVizPanel = page.locator('[role="tabpanel"][data-state="active"]');
+  const activeVizPanel = page.getByRole("tabpanel", { name: "2D" });
+  await expect(activeVizPanel).toBeVisible();
   await expect(activeVizPanel.getByText(/\d+\s+(mph|km\/h)/i).first()).toBeVisible();
   await expect(activeVizPanel.locator("svg")).toHaveCount(4);
   await expect(activeVizPanel.locator("canvas")).toHaveCount(2);
-  await expect(activeVizPanel.getByText("Load", { exact: true })).toBeVisible();
+  await expect(activeVizPanel.getByText("FL", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });
@@ -91,8 +95,8 @@ export async function exerciseAiSetup(page: Page): Promise<void> {
   await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
 }
 
-export async function exerciseCrossGameControls(page: Page, hasF1Setup: boolean): Promise<void> {
-  await assertLapSelectors(page);
+export async function exerciseCrossGameControls(page: Page, hasF1Setup: boolean, expectedLapNumber?: number): Promise<void> {
+  await assertLapSelectors(page, expectedLapNumber);
   await assertTuneSelector(page);
 
   const insightsTab = page.getByRole("tab", { name: /Insights/ });

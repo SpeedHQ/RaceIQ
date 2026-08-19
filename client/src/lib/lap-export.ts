@@ -4,19 +4,21 @@
  * binary body, so we hand it to the browser as a download.
  */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { formatLapTime } from "./format";
 import { client } from "./rpc";
 
 /** Build a CSV string from lap telemetry and hand it to the browser as a download. */
-export function buildExportCsv(telemetry: TelemetryPacket[], carName: string, trackName: string, selectedLap: LapMeta | undefined, selectedLapId: number | null, driverName?: string): string {
+export function buildExportCsv(telemetry: ReadonlyArray<Record<string, unknown>>, carName: string, trackName: string, selectedLap: LapMeta | undefined, selectedLapId: number | null, driverName?: string): string {
+  const first = telemetry[0] ?? {};
+  const carOrdinal = selectedLap?.carOrdinal ?? first.CarOrdinal ?? "?";
+  const trackOrdinal = selectedLap?.trackOrdinal ?? first.TrackOrdinal ?? "?";
   const header = [
     `# Driver: ${driverName || "Unknown"}`,
-    `# Car: ${carName || `Ordinal ${telemetry[0].CarOrdinal}`} | CarOrdinal: ${selectedLap?.carOrdinal ?? telemetry[0].CarOrdinal}`,
-    `# Track: ${trackName || `Ordinal ${telemetry[0].TrackOrdinal}`} | TrackOrdinal: ${selectedLap?.trackOrdinal ?? telemetry[0].TrackOrdinal}`,
+    `# Car: ${carName || `Ordinal ${carOrdinal}`} | CarOrdinal: ${carOrdinal}`,
+    `# Track: ${trackName || `Ordinal ${trackOrdinal}`} | TrackOrdinal: ${trackOrdinal}`,
     `# Lap: ${selectedLap?.lapNumber ?? "?"} | LapId: ${selectedLapId} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"} | Session: ${selectedLap?.sessionId ?? "?"} | Game: ${selectedLap?.gameId ?? "?"} | PI: ${selectedLap?.pi ?? "?"} | Valid: ${selectedLap?.isValid ?? "?"}`,
   ].join("\n");
-  const csv = [header, Object.keys(telemetry[0]).join(","), ...telemetry.map((p) => Object.values(p).join(","))].join("\n");
+  const csv = [header, Object.keys(first).join(","), ...telemetry.map((packet) => Object.values(packet).join(","))].join("\n");
 
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);

@@ -24,7 +24,8 @@ export function formatLapTime(seconds: number): string {
 }
 
 export function lapOptionLabel(lap: SeededLapMeta): string {
-  return `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${lap.isValid ? "" : " (inv)"}`;
+  const ownership = lap.ownership === "others" ? "Others" : "Mine";
+  return `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${ownership}${lap.isValid ? "" : " (inv)"}`;
 }
 
 export function findTrackCarPairWithTwoLaps(laps: readonly SeededLapMeta[]): TrackCarLapPair | null {

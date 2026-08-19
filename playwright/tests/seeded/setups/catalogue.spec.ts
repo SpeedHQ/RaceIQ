@@ -52,7 +52,7 @@ async function assertPaginationAndFilters(page: Page, firstAuthor?: string) {
     if ((await options.count()) > 1) {
       const selectedLabel = (await options.nth(1).innerText()).trim();
       await options.nth(1).click();
-      await expect(listbox.getByRole("option", { selected: true })).toHaveText(selectedLabel);
+      await expect(filter).toHaveValue(selectedLabel);
     } else {
       await page.keyboard.press("Escape");
     }

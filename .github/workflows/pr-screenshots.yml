@@ -10,14 +10,12 @@ name: Render dashboard screenshots
 # NOT execute PR code.
 
 on:
-  pull_request:
-    paths:
-      - "client/**"
-      - "playwright/**"
-      - "scripts/ui/collect-screenshot-diffs.ts"
-      - "scripts/data/seed-db.ts"
-      - "scripts/ui/visual-diff-config.ts"
-    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_call:
+    inputs:
+      pr:
+        description: "Pull request number to render"
+        required: true
+        type: number
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
@@ -27,29 +25,28 @@ on:
         type: number
 
 concurrency:
-  group: pr-screenshots-${{ github.event.pull_request.number || inputs.pr }}
+  group: pr-screenshots-${{ inputs.pr || github.event.pull_request.number }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: blacksmith-2vcpu-ubuntu-2204
-    # Pin the render environment so responsive screenshots are reproducible:
-    # the Playwright image ships the exact Chromium + system fonts, and
-    # software GL (SwiftShader) renders deterministically across machines.
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.0-jammy
-    permissions:
-      contents: read
-      pull-requests: read
+    runs-on:
+      - whitesmith-windows-x64
+      - 4VCPU
+      - 5G
     env:
-      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+      PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
     steps:
       # Resolve through the API for both event types. This keeps manual runs
       # aligned with the PR's current base revision too.
       - name: Resolve pull request revisions
         id: pull-request
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = Number(process.env.PR_NUMBER);
@@ -63,30 +60,38 @@ jobs:
 
       # Check out the PR HEAD rather than GitHub's lazily updated merge ref,
       # then merge the resolved base revision ourselves.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
-      - name: Mark workspace safe for git (container runs as root)
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Mark workspace safe for git
+        shell: powershell
+        run: git config --global --add safe.directory "$env:GITHUB_WORKSPACE"
 
       - name: Merge pull request base into the PR head
         env:
+          BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "$BASE_SHA"
-          git merge --no-edit "$BASE_SHA"
+          git fetch --no-tags origin "+refs/heads/${env:BASE_REF}:refs/remotes/origin/${env:BASE_REF}"
+          $fetchedBaseSha = (git rev-parse --verify FETCH_HEAD).Trim()
+          if ($fetchedBaseSha -ne $env:BASE_SHA) {
+            git fetch --no-tags origin "${env:BASE_SHA}"
+            $fetchedBaseSha = (git rev-parse --verify FETCH_HEAD).Trim()
+          }
+          if ($fetchedBaseSha -ne $env:BASE_SHA) {
+            throw "Fetched base commit ${fetchedBaseSha} does not match ${env:BASE_SHA}"
+          }
+          git merge --no-edit "${env:BASE_SHA}"
 
       - name: Prepare base comparison worktree
         env:
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
 
-      - name: Install unzip (required by setup-bun in the container)
-        run: apt-get update && apt-get install -y --no-install-recommends unzip
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -109,17 +114,22 @@ jobs:
           E2E_SERVER_MODE: compiled
           PW_SCREENSHOT_ONLY: "1"
           PW_SEED_SCREENSHOTS: "1"
+        shell: powershell
         run: |
+          $ErrorActionPreference = "Stop"
           bun run build
-          cd playwright
-          set +e
-          bunx playwright test --project=mobile-screenshots
-          status=$?
-          set -e
-          if [ -d screenshots/mobile ]; then
-            mv screenshots/mobile "$RUNNER_TEMP/current-responsive"
-          fi
-          exit "$status"
+          Push-Location playwright
+          $ErrorActionPreference = "Continue"
+          & bunx playwright test --project=mobile-screenshots
+          $status = $LASTEXITCODE
+          $ErrorActionPreference = "Stop"
+          Pop-Location
+          $output = Join-Path $env:RUNNER_TEMP "current-responsive"
+          if (Test-Path "playwright/screenshots/mobile") {
+            Remove-Item $output -Recurse -Force -ErrorAction SilentlyContinue
+            Move-Item "playwright/screenshots/mobile" $output
+          }
+          exit $status
 
       - name: Capture base responsive screenshots with current tests
         id: base-responsive
@@ -129,54 +139,59 @@ jobs:
           E2E_SERVER_MODE: compiled
           PW_SCREENSHOT_ONLY: "1"
           PW_SEED_SCREENSHOTS: "1"
+        shell: powershell
         run: |
+          $ErrorActionPreference = "Stop"
           bun install
           bun run build
-          rm -rf "$GITHUB_WORKSPACE/dist"
-          cp -a dist "$GITHUB_WORKSPACE/dist"
-          cd "$GITHUB_WORKSPACE/playwright"
-          set +e
-          bunx playwright test --project=mobile-screenshots
-          status=$?
-          set -e
-          if [ -d screenshots/mobile ]; then
-            mv screenshots/mobile "$RUNNER_TEMP/base-responsive"
-          fi
-          exit "$status"
+          Remove-Item (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item "dist" (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE "playwright")
+          $ErrorActionPreference = "Continue"
+          & bunx playwright test --project=mobile-screenshots
+          $status = $LASTEXITCODE
+          $ErrorActionPreference = "Stop"
+          $output = Join-Path $env:RUNNER_TEMP "base-responsive"
+          if (Test-Path "screenshots/mobile") {
+            Remove-Item $output -Recurse -Force -ErrorAction SilentlyContinue
+            Move-Item "screenshots/mobile" $output
+          }
+          exit $status
 
       - name: Collect diffs
         id: collect
         working-directory: client
         # Container default shell is sh; this step uses bash process substitution.
-        shell: bash
+        shell: powershell
         run: |
-          out="$GITHUB_WORKSPACE/pr-preview"
-          mkdir -p "$out"
-          # Always record the PR number so the comment job can find the PR even
-          # for fork PRs (workflow_run.pull_requests is empty for forks).
-          echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
-          echo "${{ steps.pull-request.outputs.base-ref }}" > "$out/base-ref.txt"
+          $ErrorActionPreference = "Stop"
+          $out = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          "${{ github.event.pull_request.number || inputs.pr }}" | Set-Content (Join-Path $out "pr-number.txt")
+          "${{ steps.pull-request.outputs.base-ref }}" | Set-Content (Join-Path $out "base-ref.txt")
 
-          # Responsive tests write ordinary PNGs rather than Playwright
-          # snapshots. Render both revisions and compare the union of paths,
-          # which covers added, changed, and removed test screenshots.
-          bun "$GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" \
-            --base "$RUNNER_TEMP/base-responsive" \
-            --current "$RUNNER_TEMP/current-responsive" \
-            --out "$out" \
-            --prefix responsive
-          if [[ "${{ steps.current-responsive.outcome }}" == "failure" || "${{ steps.base-responsive.outcome }}" == "failure" ]]; then
-            echo "::warning::Responsive screenshot comparison is partial because one render failed."
-          fi
+          $diffArgs = @(
+            "--base", (Join-Path $env:RUNNER_TEMP "base-responsive"),
+            "--current", (Join-Path $env:RUNNER_TEMP "current-responsive"),
+            "--out", $out,
+            "--prefix", "responsive"
+          )
+          & bun (Join-Path $env:GITHUB_WORKSPACE "scripts/ui/collect-screenshot-diffs.ts") @diffArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          if compgen -G "$out/*-after.png" >/dev/null; then
-            echo "changed=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=0" >> "$GITHUB_OUTPUT"
-          fi
+          if ("${{ steps.current-responsive.outcome }}" -eq "failure" -or "${{ steps.base-responsive.outcome }}" -eq "failure") {
+            Write-Output "::warning::Responsive screenshot comparison is partial because one render failed."
+          }
+
+          $afterFiles = Get-ChildItem (Join-Path $out "*-after.png") -ErrorAction SilentlyContinue
+          if ($afterFiles) {
+            "changed=1" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "changed=0" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
 
       - name: Upload preview artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-screenshot-preview
           path: pr-preview/

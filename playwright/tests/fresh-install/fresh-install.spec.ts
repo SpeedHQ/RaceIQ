@@ -73,11 +73,15 @@ test.describe
 
       // Step 7: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
       await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
+      const saveSettings = page.waitForResponse((response) => {
+        if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
+        const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
+        return body?.onboardingComplete === true;
+      });
       await page.getByRole("button", { name: "Next" }).click();
+      expect((await saveSettings).ok(), "onboarding settings save").toBe(true);
 
-      // Onboarding modal gone, home page rendered — finishing persists
-      // onboardingComplete via PUT + query invalidation before the modal
-      // unmounts, so give this more headroom than the default 5s under CI.
+      // Onboarding modal closes after settings mutation invalidates cached settings.
       await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden({ timeout: 15_000 });
       await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();

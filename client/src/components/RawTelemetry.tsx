@@ -93,19 +93,19 @@ export function RawTelemetry({ packet }: Props) {
           const provenance = metadata
             ? metadata.link.kind === "unavailable"
               ? `unavailable:${metadata.link.reason}`
-              : `${metadata.link.provenance.origin}:${metadata.link.provenance.artifact}@${metadata.link.provenance.commit}`
+              : `${metadata.link.provenance.origin}:${metadata.link.provenance.artifact}@${TELEMETRY_CATALOG.metadata.sourceHashes[metadata.link.provenance.artifact]}`
             : undefined;
           return (
             <div
               key={key}
-              className="flex justify-between items-center py-0.5 border-b border-app-border/50"
+              className="flex min-w-0 justify-between items-center py-0.5 border-b border-app-border/50"
               data-telemetry-field={metadata ? key : undefined}
               data-telemetry-category={metadata?.category}
               data-telemetry-unit={metadata?.variable.canonicalUnit}
               data-telemetry-provenance={metadata ? provenance : undefined}
-              data-telemetry-source={metadata?.link.kind === "unavailable" ? undefined : metadata?.link.sources ? JSON.stringify(metadata?.link.sources) : undefined}
+              data-telemetry-source={metadata?.link.kind === "unavailable" ? undefined : metadata?.link.sources ? JSON.stringify(metadata.link.sources) : undefined}
             >
-              <span className="text-xs text-app-text-secondary truncate mr-2">
+              <span className="min-w-0 text-xs text-app-text-secondary truncate mr-2">
                 {key}
                 {metadata && (
                   <span className="ml-1 text-app-text-muted">
