@@ -35,6 +35,16 @@ export interface TrackImageryPackTile {
 
 export type TrackImageryPackTileSource = Iterable<TrackImageryPackTile> | AsyncIterable<TrackImageryPackTile>;
 
+export interface TrackImageryPackWriteOptions {
+  signal?: AbortSignal;
+  deadlineAtMs?: number;
+}
+
+function assertPackWriteActive(options: TrackImageryPackWriteOptions): void {
+  options.signal?.throwIfAborted();
+  if (options.deadlineAtMs !== undefined && Date.now() >= options.deadlineAtMs) throw new Error("Imagery import exceeded its job deadline");
+}
+
 const PACK_METADATA_KEYS = new Set(["schemaVersion", "tier", "width", "height", "tileSize", "columns", "rows", "resolutionM", "bounds", "contentHash"]);
 
 function fail(path: string, message: string): never {
@@ -160,11 +170,12 @@ function assertTile(tile: TrackImageryPackTile, metadata: TrackImageryPackMetada
   if (!(tile.data instanceof Uint8Array) || tile.data.byteLength === 0) fail(path, `tile data missing at (${tile.x},${tile.y})`);
 }
 
-function validateTileGrid(db: Database, metadata: TrackImageryPackMetadata, path: string): void {
+function validateTileGrid(db: Database, metadata: TrackImageryPackMetadata, path: string, options: TrackImageryPackWriteOptions): void {
   const rows = db.query("SELECT tier,x,y,width,height,format,length(data) AS dataLength FROM tiles").all() as Array<Omit<TrackImageryPackTile, "data"> & { dataLength: number }>;
   if (rows.length !== metadata.columns * metadata.rows) fail(path, `expected ${metadata.columns * metadata.rows} tiles, received ${rows.length}`);
   const seen = new Set<string>();
   for (const row of rows) {
+    assertPackWriteActive(options);
     if (!Number.isSafeInteger(row.dataLength) || row.dataLength <= 0) fail(path, `tile data missing at (${row.x},${row.y})`);
     const tile = { ...row, data: new Uint8Array([1]) };
     assertTile(tile, metadata, path);
@@ -216,7 +227,13 @@ function replacePack(tempPath: string, targetPath: string): void {
   }
 }
 
-export async function writeTrackImageryPack(targetPath: string, input: TrackImageryPackMetadata, tiles: TrackImageryPackTileSource): Promise<TrackImageryPackMetadata> {
+export async function writeTrackImageryPack(
+  targetPath: string,
+  input: TrackImageryPackMetadata,
+  tiles: TrackImageryPackTileSource,
+  options: TrackImageryPackWriteOptions = {},
+): Promise<TrackImageryPackMetadata> {
+  assertPackWriteActive(options);
   const target = resolve(targetPath);
   const metadata = validateMetadata(input, target);
   const tempPath = `${target}.tmp`;
@@ -235,6 +252,7 @@ export async function writeTrackImageryPack(targetPath: string, input: TrackImag
     const digests = new Map<string, string>();
     let count = 0;
     for await (const tile of tiles) {
+      assertPackWriteActive(options);
       assertTile(tile, metadata, target);
       const key = `${tile.x}:${tile.y}`;
       if (digests.has(key)) fail(target, `duplicate tile at (${tile.x},${tile.y})`);
@@ -242,17 +260,24 @@ export async function writeTrackImageryPack(targetPath: string, input: TrackImag
       insertTile.run(tile.tier, tile.x, tile.y, tile.width, tile.height, tile.format, tile.data);
       count++;
     }
+    assertPackWriteActive(options);
     if (count !== metadata.columns * metadata.rows) fail(target, `expected ${metadata.columns * metadata.rows} tiles, received ${count}`);
     db.exec("COMMIT");
     const contentHash = createHash("sha256").update(canonicalMetadata(metadata));
-    for (const [key, digest] of [...digests.entries()].sort(([a], [b]) => a.localeCompare(b))) contentHash.update(`${key}:${digest};`);
+    for (const [key, digest] of [...digests.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      assertPackWriteActive(options);
+      contentHash.update(`${key}:${digest};`);
+    }
     const completed = { ...metadata, contentHash: contentHash.digest("hex") };
     db.query("INSERT OR REPLACE INTO metadata (key,value) VALUES (?,?)").run("contentHash", completed.contentHash);
+    assertPackWriteActive(options);
     validateSchema(db, target);
     const completedRows = db.query("SELECT key,value FROM metadata ORDER BY key").all() as Array<{ key: string; value: string }>;
-    validateTileGrid(db, parseMetadataRows(target, completedRows), target);
+    validateTileGrid(db, parseMetadataRows(target, completedRows), target, options);
+    assertPackWriteActive(options);
     const integrity = db.query("PRAGMA integrity_check").get() as { integrity_check?: string } | null;
     if (integrity?.integrity_check !== "ok") fail(target, "SQLite integrity check failed");
+    assertPackWriteActive(options);
     db.close();
     db = undefined;
     replacePack(tempPath, target);

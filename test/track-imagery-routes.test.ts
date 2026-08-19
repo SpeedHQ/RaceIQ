@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import sharp from "sharp";
 import { trackConfigurationCanonicalId, type TrackConfiguration } from "../shared/racing/tracks/configuration";
 import { resolveTrackName } from "../shared/racing/tracks/resolve-name";
-import { TRACK_IMAGERY_MANIFEST_VERSION, TRACK_IMAGERY_PACKAGE_NAME, type TrackImagery } from "../shared/racing/tracks/imagery";
+import { TRACK_IMAGERY_MANIFEST_VERSION, TRACK_IMAGERY_PACKAGE_NAME, TrackImageryOutputBudgetResultSchema, type TrackImagery } from "../shared/racing/tracks/imagery";
 import { trackConfigurationDevRoutes } from "../server/routes/dev/track-configuration-routes";
 import { trackImageryDevRoutes } from "../server/routes/dev/track-imagery-routes";
 import { trackImageryRoutes } from "../server/routes/tracks/imagery-routes";
@@ -149,7 +149,11 @@ test("serves one physical HQ venue package to two layouts with transparent overl
   expect(layerTexture.headers.get("content-type")).toBe("image/webp");
 
   const sourceBounds = { west: 5.9697, south: 50.4368, east: 5.97, north: 50.4371 };
+  const unsafeSourceBounds = { west: 5.92, south: 50.405, east: 6.02, north: 50.468 };
   const originalFetch = globalThis.fetch;
+  const wmsStarted = Promise.withResolvers<void>();
+  const releaseWms = Promise.withResolvers<void>();
+  let wmsRequests = 0;
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
     if (url.includes("geoservices.wallonie.be/arcgis/rest/services/IMAGERIE/ORTHO_2023_ETE/MapServer/0?f=json")) {
@@ -158,24 +162,88 @@ test("serves one physical HQ venue package to two layouts with transparent overl
       });
     }
     if (url.includes("geoservices.wallonie.be/arcgis/services/IMAGERIE/ORTHO_2023_ETE/MapServer/WMSServer")) {
+      wmsRequests += 1;
+      wmsStarted.resolve();
+      await releaseWms.promise;
       return new Response(Uint8Array.from(packTileBytes).buffer, { headers: { "Content-Type": "image/jpeg" } });
     }
     throw new Error(`Unexpected external request ${url}`);
   }) as typeof fetch;
+  const safeImportBody = JSON.stringify({
+    candidateId: "wallonia-spw:ortho_2023_ete",
+    bounds: sourceBounds,
+    calibration,
+    gameId,
+    trackOrdinal: 523,
+  });
+  const unsafeImportBody = JSON.stringify({
+    candidateId: "wallonia-spw:ortho_2023_ete",
+    bounds: unsafeSourceBounds,
+    calibration,
+    gameId,
+    trackOrdinal: 523,
+  });
   let sourceImportResponse: Response;
   try {
-    sourceImportResponse = await app.request(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}&gameId=iracing&trackOrdinal=523`, {
+    const estimateResponse = await app.request("/api/dev/track-imagery/sources/estimate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        candidateId: "wallonia-spw:ortho_2023_ete",
-        bounds: sourceBounds,
-        calibration,
-        gameId,
-        trackOrdinal: 523,
-      }),
+      body: JSON.stringify({ candidateId: "wallonia-spw:ortho_2023_ete", bounds: sourceBounds, venueId, gameId, trackOrdinal: 523 }),
     });
+    expect(estimateResponse.status).toBe(200);
+    const estimated = TrackImageryOutputBudgetResultSchema.parse(await estimateResponse.json());
+    expect(estimated.budget).toMatchObject({
+      width: expect.any(Number),
+      height: expect.any(Number),
+      totalPixels: expect.any(Number),
+      columns: expect.any(Number),
+      rows: expect.any(Number),
+      totalTiles: expect.any(Number),
+      estimatedUncompressedBytes: expect.any(Number),
+      estimatedPackBytes: { minimum: expect.any(Number), maximum: expect.any(Number) },
+      availableDiskBytes: expect.any(Number),
+      maximumJobDurationMs: 30 * 60 * 1_000,
+      maximumConcurrency: 1,
+      safe: true,
+    });
+
+    const unsafeEstimateResponse = await app.request("/api/dev/track-imagery/sources/estimate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidateId: "wallonia-spw:ortho_2023_ete", bounds: unsafeSourceBounds, venueId, gameId, trackOrdinal: 523 }),
+    });
+    expect(unsafeEstimateResponse.status).toBe(200);
+    const unsafeEstimate = TrackImageryOutputBudgetResultSchema.parse(await unsafeEstimateResponse.json());
+    expect(unsafeEstimate.budget.safe).toBe(false);
+    expect(unsafeEstimate.budget.totalPixels).toBeGreaterThan(500_000_000);
+    expect(wmsRequests).toBe(0);
+
+    const unsafeImportResponse = await app.request(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: unsafeImportBody,
+    });
+    expect(unsafeImportResponse.status).toBe(400);
+    expect(await unsafeImportResponse.json()).toMatchObject({ error: expect.stringContaining("Unsafe imagery output") });
+    expect(wmsRequests).toBe(0);
+
+    const sourceImportPromise = app.request(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: safeImportBody,
+    });
+    await wmsStarted.promise;
+    const concurrentResponse = await app.request(`/api/dev/track-imagery/venues/base/source?venueId=${encodeURIComponent(venueId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: safeImportBody,
+    });
+    expect(concurrentResponse.status).toBe(409);
+    expect(await concurrentResponse.json()).toEqual({ error: "Only 1 imagery import may run at once" });
+    releaseWms.resolve();
+    sourceImportResponse = await sourceImportPromise;
   } finally {
+    releaseWms.resolve();
     globalThis.fetch = originalFetch;
   }
   expect(sourceImportResponse.status).toBe(201);

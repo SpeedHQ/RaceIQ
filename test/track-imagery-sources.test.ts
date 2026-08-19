@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test";
 import sharp from "sharp";
-import { loadOpenTrackImageryAsset, loadOpenTrackImageryRaster, searchOpenTrackImagery, trackImageryRasterDimensions } from "../server/tracks/imagery-sources";
+import {
+  assessTrackImageryOutputBudget,
+  loadOpenTrackImageryAsset,
+  loadOpenTrackImageryRaster,
+  searchOpenTrackImagery,
+  trackImageryOutputEstimate,
+  trackImageryRasterDimensions,
+} from "../server/tracks/imagery-sources";
 
 const bounds = { west: 39.24, south: -6.775, east: 39.243, north: -6.77 };
 const location = { center: { latitudeDeg: -6.7725, longitudeDeg: 39.2415 }, country: "Tanzania", region: "" };
@@ -153,6 +160,52 @@ test("batches provider downloads into source chunks before creating internal til
 
 test("rejects unknown legacy NASA/HLS candidates from asset import", async () => {
   await expect(loadOpenTrackImageryAsset("nasa-hls-2025-01-01", bounds, location, 512, catalogFetcher())).rejects.toThrow();
+});
+
+test("budgets complete provider output before source pixels are downloaded", async () => {
+  const fiveKilometresInDegrees = (5_000 / 6_378_137) * (180 / Math.PI);
+  const largeBounds = {
+    west: 39.24 - fiveKilometresInDegrees / 2,
+    south: -6.7725 - fiveKilometresInDegrees / 2,
+    east: 39.24 + fiveKilometresInDegrees / 2,
+    north: -6.7725 + fiveKilometresInDegrees / 2,
+  };
+  const estimate = trackImageryOutputEstimate(largeBounds, 0.1);
+  expect(estimate.width).toBeGreaterThanOrEqual(49_000);
+  expect(estimate.height).toBeGreaterThanOrEqual(49_000);
+  expect(estimate.totalPixels).toBeGreaterThan(2_400_000_000);
+  expect(estimate.totalTiles).toBe(estimate.columns * estimate.rows);
+  expect(estimate.estimatedUncompressedBytes).toBe(estimate.totalPixels * 4);
+  expect(estimate.estimatedPackBytes.minimum).toBeLessThan(estimate.estimatedPackBytes.maximum);
+  expect(estimate.estimatedJobDurationMs).toBeGreaterThan(0);
+
+  const budget = assessTrackImageryOutputBudget(estimate, 100 * 1024 ** 3);
+  expect(budget.safe).toBe(false);
+  expect(budget.problems).toEqual(
+    expect.arrayContaining([expect.stringContaining("pixels; maximum is"), expect.stringContaining("tiles; maximum is"), expect.stringContaining("30 minute job limit")]),
+  );
+  expect(budget.maximumConcurrency).toBe(1);
+  expect(budget.maximumJobDurationMs).toBe(30 * 60 * 1_000);
+
+  let sourcePixelRequests = 0;
+  const metadataFetcher = catalogFetcher(null, 0.1);
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input).startsWith("https://tiles.openaerialmap.org/")) sourcePixelRequests += 1;
+    return metadataFetcher(input, init);
+  }) as typeof fetch;
+  await expect(loadOpenTrackImageryAsset(`openaerialmap:${openAerialMapId}`, largeBounds, location, 512, fetcher)).rejects.toThrow("Unsafe imagery output");
+  expect(sourcePixelRequests).toBe(0);
+});
+
+test("includes temporary database overhead and available disk in output budget", () => {
+  const estimate = trackImageryOutputEstimate(bounds, 0.25);
+  const enoughDisk = assessTrackImageryOutputBudget(estimate, 10 * 1024 ** 3);
+  expect(enoughDisk.safe).toBe(true);
+  expect(enoughDisk.requiredDiskBytes).toBeGreaterThan(estimate.estimatedPackBytes.maximum * 2);
+
+  const insufficientDisk = assessTrackImageryOutputBudget(estimate, enoughDisk.requiredDiskBytes - 1);
+  expect(insufficientDisk.safe).toBe(false);
+  expect(insufficientDisk.problems).toContain("Available disk space is below the conservative pack, temporary database, and reserve requirement");
 });
 
 test("preview dimensions preserve geographic aspect ratio without asset-size cap", () => {

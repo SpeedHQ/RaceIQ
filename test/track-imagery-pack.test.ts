@@ -51,7 +51,7 @@ test("writes strict HQ SQLite package metadata and partial edge rows", async () 
   expect(() => readTrackImageryPackMetadata(path)).toThrow(/unexpected|Invalid imagery pack/);
 });
 
-test("accepts async tile producers and rejects duplicate HQ composite keys without replacing existing package", async () => {
+test("accepts async tile producers and rejects duplicate keys or expired jobs without replacing existing package", async () => {
   const directory = mkdtempSync(join(process.cwd(), ".imagery-pack-test-"));
   temporaryDirectories.push(directory);
   const path = join(directory, "imagery.rqi");
@@ -73,5 +73,7 @@ test("accepts async tile producers and rejects duplicate HQ composite keys witho
     yield tile(0, 0, 512, 512);
   }
   await expect(writeTrackImageryPack(path, metadata, tiles())).rejects.toThrow();
+  expect(readTrackImageryPackMetadata(path)).toEqual(before);
+  await expect(writeTrackImageryPack(path, metadata, [tile(0, 0, 512, 512)], { deadlineAtMs: Date.now() - 1 })).rejects.toThrow("job deadline");
   expect(readTrackImageryPackMetadata(path)).toEqual(before);
 });

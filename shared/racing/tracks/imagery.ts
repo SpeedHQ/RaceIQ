@@ -73,6 +73,34 @@ export const TrackImageryCandidateSchema = z.object({
   attribution: z.string().trim().min(1),
   sourceUrl: z.string().url(),
 });
+const imageryOutputCount = z.number().int().nonnegative();
+export const TrackImageryOutputEstimateSchema = z.object({
+  width: imageryOutputCount.positive(),
+  height: imageryOutputCount.positive(),
+  totalPixels: imageryOutputCount.positive(),
+  tileSize: imageryOutputCount.positive(),
+  columns: imageryOutputCount.positive(),
+  rows: imageryOutputCount.positive(),
+  totalTiles: imageryOutputCount.positive(),
+  sourceChunks: imageryOutputCount.positive(),
+  resolutionM: finiteNumber.positive(),
+  estimatedUncompressedBytes: imageryOutputCount.positive(),
+  estimatedPackBytes: z.object({ minimum: imageryOutputCount.positive(), maximum: imageryOutputCount.positive() }),
+  estimatedJobDurationMs: imageryOutputCount.positive(),
+});
+export const TrackImageryOutputBudgetSchema = TrackImageryOutputEstimateSchema.extend({
+  availableDiskBytes: imageryOutputCount.nullable(),
+  requiredDiskBytes: imageryOutputCount.positive(),
+  maximumJobDurationMs: imageryOutputCount.positive(),
+  maximumConcurrency: imageryOutputCount.positive(),
+  safe: z.boolean(),
+  overrideActive: z.boolean(),
+  problems: z.array(z.string().min(1)),
+});
+export const TrackImageryOutputBudgetResultSchema = z.object({
+  candidate: TrackImageryCandidateSchema,
+  budget: TrackImageryOutputBudgetSchema,
+});
 export const TrackImageryGeographicReferenceSchema = z.object({
   sourceGameId: z.literal("iracing"),
   sourceTrackOrdinal: z.number().int().nonnegative(),
@@ -133,6 +161,9 @@ export interface TrackImagerySourceSearchResult {
   sources: TrackImagerySourceSearchGroup[];
   notices: string[];
 }
+export type TrackImageryOutputEstimate = z.infer<typeof TrackImageryOutputEstimateSchema>;
+export type TrackImageryOutputBudget = z.infer<typeof TrackImageryOutputBudgetSchema>;
+export type TrackImageryOutputBudgetResult = z.infer<typeof TrackImageryOutputBudgetResultSchema>;
 export interface TrackImageryConfigurationIndex {
   venues: TrackImageryVenueManifest[];
   layouts: TrackImageryLayoutManifest[];

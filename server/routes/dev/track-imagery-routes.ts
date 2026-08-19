@@ -1,12 +1,13 @@
 import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
-import { open, type FileHandle } from "node:fs/promises";
+import { open, statfs, type FileHandle } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Hono } from "hono";
 import sharp from "sharp";
 import { z } from "zod";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
+import { IS_DEV } from "../../runtime/config/env";
 import { TrackVenueIdSchema, trackConfigurationVenueId } from "../../../shared/racing/tracks/configuration";
 import {
   TRACK_IMAGERY_MANIFEST_VERSION,
@@ -22,16 +23,17 @@ import {
 import type { TrackImageryLocation } from "../../tracks/imagery-providers/types";
 import { TRACK_IMAGERY_PACKAGE_NAME, readTrackImageryPackMetadata, readTrackImageryPackTile, writeTrackImageryPack, type TrackImageryPackMetadata } from "../../tracks/imagery-pack";
 import { loadTrackConfiguration } from "../../tracks/configuration";
-import { loadOpenTrackImageryAsset, loadOpenTrackImageryRaster, searchOpenTrackImagery } from "../../tracks/imagery-sources";
-import { resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
 import {
-  listTrackImageryConfigurations,
-  loadTrackImageryLayout,
-  loadTrackImageryVenue,
-  trackImageryContentType,
-  trackImageryLayoutPath,
-  trackImageryVenueDirectory,
-} from "../../tracks/imagery";
+  assessTrackImageryOutputBudget,
+  assertTrackImageryOutputBudget,
+  estimateOpenTrackImageryAsset,
+  loadOpenTrackImageryAsset,
+  loadOpenTrackImageryRaster,
+  searchOpenTrackImagery,
+  TRACK_IMAGERY_IMPORT_LIMITS,
+} from "../../tracks/imagery-sources";
+import { resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
+import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
 import { resolveTrackOutline } from "../tracks/support";
 import { writeAtomicJson } from "../../../shared/platform/runtime/atomic-json";
 
@@ -44,6 +46,13 @@ const openImageryBaseRequestSchema = z.object({
   candidateId: z.string().trim().min(1),
   bounds: TrackImageryGeographicBoundsSchema,
   calibration: TrackImageryCalibrationSchema,
+  gameId: GameIdSchema,
+  trackOrdinal: z.number().int().nonnegative(),
+});
+const openImageryEstimateRequestSchema = z.object({
+  candidateId: z.string().trim().min(1),
+  bounds: TrackImageryGeographicBoundsSchema,
+  venueId: TrackVenueIdSchema,
   gameId: GameIdSchema,
   trackOrdinal: z.number().int().nonnegative(),
 });
@@ -99,6 +108,37 @@ function imageryBoundsFromQuery(c: { req: { query: (key: string) => string | und
   });
 }
 
+let activeOpenImageryImports = 0;
+
+function existingDirectory(path: string): string {
+  let current = resolve(path);
+  while (!existsSync(current)) {
+    const parent = dirname(current);
+    if (parent === current) return current;
+    current = parent;
+  }
+  return current;
+}
+
+async function availableImageryDiskBytes(venueId: string): Promise<number | null> {
+  try {
+    const storage = await statfs(existingDirectory(trackImageryVenueDirectory(venueId)));
+    const availableBlocks = typeof storage.bavail === "number" ? storage.bavail : storage.bfree;
+    const availableBytes = availableBlocks * storage.bsize;
+    return Number.isSafeInteger(availableBytes) && availableBytes >= 0 ? availableBytes : null;
+  } catch {
+    return null;
+  }
+}
+
+function deadlineFetcher(signal: AbortSignal): typeof fetch {
+  return (async (input: string | URL | Request, init?: RequestInit) => {
+    const requestSignal = init?.signal;
+    const combinedSignal = requestSignal ? AbortSignal.any([signal, requestSignal]) : signal;
+    return globalThis.fetch(input, { ...init, signal: combinedSignal });
+  }) as typeof fetch;
+}
+
 async function validatedImage(file: File, requireAlpha: boolean): Promise<ValidatedImage> {
   if (file.size <= 0 || file.size > MAX_TRACK_IMAGE_BYTES) throw new Error("Track image must be between 1 byte and 100 MiB");
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -108,7 +148,6 @@ async function validatedImage(file: File, requireAlpha: boolean): Promise<Valida
   if (requireAlpha && !metadata.hasAlpha) throw new Error("Overlay layer must contain an alpha channel");
   return { bytes, extension, width: metadata.width, height: metadata.height };
 }
-
 
 function replaceTexture(directory: string, stem: string, image: ValidatedImage): string {
   mkdirSync(directory, { recursive: true });
@@ -297,6 +336,23 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to search open imagery" }, 400);
     }
   })
+  .post("/api/dev/track-imagery/sources/estimate", async (c) => {
+    try {
+      const requestBody = openImageryEstimateRequestSchema.parse(await c.req.json());
+      const location = resolveImageryLocation(requestBody.gameId, requestBody.trackOrdinal);
+      const [planned, availableDiskBytes] = await Promise.all([
+        estimateOpenTrackImageryAsset(requestBody.candidateId, requestBody.bounds, location, 512),
+        availableImageryDiskBytes(requestBody.venueId),
+      ]);
+      const overrideActive = IS_DEV && process.env.RACEIQ_UNSAFE_IMAGERY_IMPORT === "1";
+      return c.json({
+        candidate: planned.candidate,
+        budget: assessTrackImageryOutputBudget(planned.estimate, availableDiskBytes, overrideActive),
+      });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Unable to estimate open imagery output" }, 400);
+    }
+  })
   .get("/api/dev/track-imagery/sources/preview", async (c) => {
     try {
       const candidateId = c.req.query("candidateId");
@@ -319,34 +375,58 @@ export const trackImageryDevRoutes = new Hono()
     }
   })
   .post("/api/dev/track-imagery/venues/base/source", async (c) => {
+    let countedAsActive = false;
     try {
       const venueId = venueIdFromQuery(c);
       const requestBody = openImageryBaseRequestSchema.parse(await c.req.json());
-      console.info(`[Track Imagery] Starting ${requestBody.candidateId} import for venue ${venueId}`);
-      const location = resolveImageryLocation(requestBody.gameId, requestBody.trackOrdinal);
-      const asset = await loadOpenTrackImageryAsset(requestBody.candidateId, requestBody.bounds, location, 512);
-      const current = loadTrackImageryVenue(venueId);
-      const manifest = TrackImageryVenueManifestSchema.parse({
-        version: TRACK_IMAGERY_MANIFEST_VERSION,
-        venueId,
-        calibration: requestBody.calibration,
-        base: {
-          pack: TRACK_IMAGERY_PACKAGE_NAME,
-          tileSize: asset.tileSize,
-          bounds: requestBody.bounds,
-          source: asset.source,
-        },
-        layers: current?.layers ?? [],
-      });
-      const directory = trackImageryVenueDirectory(venueId);
-      await writeTrackImageryPack(imageryPackPath(venueId), packageMetadata(asset, requestBody.bounds), asset.tiles);
-      removeLooseBaseFiles(directory);
-      writeAtomicJson(resolve(directory, "manifest.json"), manifest);
-      console.info(`[Track Imagery] Completed ${requestBody.candidateId} import for venue ${venueId}: ${asset.width}x${asset.height}px, ${asset.columns * asset.rows} internal tiles`);
-      return c.json(manifest, 201);
+      if (activeOpenImageryImports >= TRACK_IMAGERY_IMPORT_LIMITS.maximumConcurrency) {
+        return c.json({ error: `Only ${TRACK_IMAGERY_IMPORT_LIMITS.maximumConcurrency} imagery import may run at once` }, 409);
+      }
+      activeOpenImageryImports += 1;
+      countedAsActive = true;
+      const controller = new AbortController();
+      const deadlineAtMs = Date.now() + TRACK_IMAGERY_IMPORT_LIMITS.maximumJobDurationMs;
+      const timeout = setTimeout(() => controller.abort(new Error("Imagery import exceeded the 30 minute job limit")), TRACK_IMAGERY_IMPORT_LIMITS.maximumJobDurationMs);
+      try {
+        const overrideActive = IS_DEV && process.env.RACEIQ_UNSAFE_IMAGERY_IMPORT === "1";
+        console.info(`[Track Imagery] Starting ${requestBody.candidateId} import for venue ${venueId}`);
+        const location = resolveImageryLocation(requestBody.gameId, requestBody.trackOrdinal);
+        const [asset, availableDiskBytes] = await Promise.all([
+          loadOpenTrackImageryAsset(requestBody.candidateId, requestBody.bounds, location, 512, deadlineFetcher(controller.signal), controller.signal, true),
+          availableImageryDiskBytes(venueId),
+        ]);
+        const budget = assessTrackImageryOutputBudget(asset.estimate, availableDiskBytes, overrideActive);
+        assertTrackImageryOutputBudget(budget);
+        const current = loadTrackImageryVenue(venueId);
+        const manifest = TrackImageryVenueManifestSchema.parse({
+          version: TRACK_IMAGERY_MANIFEST_VERSION,
+          venueId,
+          calibration: requestBody.calibration,
+          base: {
+            pack: TRACK_IMAGERY_PACKAGE_NAME,
+            tileSize: asset.tileSize,
+            bounds: requestBody.bounds,
+            source: asset.source,
+          },
+          layers: current?.layers ?? [],
+        });
+        const directory = trackImageryVenueDirectory(venueId);
+        await writeTrackImageryPack(imageryPackPath(venueId), packageMetadata(asset, requestBody.bounds), asset.tiles, {
+          signal: controller.signal,
+          deadlineAtMs,
+        });
+        removeLooseBaseFiles(directory);
+        writeAtomicJson(resolve(directory, "manifest.json"), manifest);
+        console.info(`[Track Imagery] Completed ${requestBody.candidateId} import for venue ${venueId}: ${asset.width}x${asset.height}px, ${asset.columns * asset.rows} internal tiles`);
+        return c.json(manifest, 201);
+      } finally {
+        clearTimeout(timeout);
+      }
     } catch (error) {
       console.error("[Track Imagery] Venue package import failed:", error);
       return c.json({ error: error instanceof Error ? error.message : "Unable to import open imagery" }, 400);
+    } finally {
+      if (countedAsActive) activeOpenImageryImports -= 1;
     }
   })
   .get("/api/dev/track-imagery/venues/manifest", (c) => {

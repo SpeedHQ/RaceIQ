@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { trackConfigurationVenueId, type TrackConfiguration } from "../../../../shared/racing/tracks/configuration";
 import {
   TRACK_IMAGERY_MANIFEST_VERSION,
+  TrackImageryOutputBudgetResultSchema,
   defaultVenueImageryCalibration,
   geographicTrackImageryPoint,
   rotateTrackImageryMatrix,
@@ -17,6 +18,7 @@ import {
   type TrackImageryLayerKind,
   type TrackImageryLayoutManifest,
   type TrackImagerySource,
+  type TrackImageryOutputBudget,
   type TrackImageryVenueManifest,
 } from "../../../../shared/racing/tracks/imagery";
 import { useLapSemanticTelemetry, useLaps } from "../../hooks/laps";
@@ -101,13 +103,37 @@ function SourceEditor({ title, source, onChange, readOnly = false }: { title: st
   );
 }
 
-export function TrackImageryCalibrationPanel({
-  selection,
-  configurationRevision,
-}: {
-  selection: TrackConfigurationSelection;
-  configurationRevision: number;
-}) {
+function formatBudgetBytes(bytes: number): string {
+  if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(bytes >= 10_000_000_000 ? 1 : 2)} GB`;
+  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(bytes >= 100_000_000 ? 0 : 1)} MB`;
+  return `${Math.ceil(bytes / 1_000).toLocaleString()} KB`;
+}
+
+export function TrackImageryOutputBudgetSummary({ budget }: { budget: TrackImageryOutputBudget }) {
+  return (
+    <div
+      role="status"
+      className={`mb-2 rounded border p-2 text-[11px] ${budget.safe ? "border-app-border bg-app-surface-alt text-app-text-muted" : "border-severity-critical text-severity-critical"}`}
+    >
+      <div className="font-semibold text-app-text">
+        Estimated output: {budget.totalTiles.toLocaleString()} tiles, approximately {formatBudgetBytes(budget.estimatedPackBytes.minimum)}–{formatBudgetBytes(budget.estimatedPackBytes.maximum)}
+      </div>
+      <div>
+        {budget.width.toLocaleString()} × {budget.height.toLocaleString()} px · {budget.totalPixels.toLocaleString()} pixels · {budget.columns.toLocaleString()} × {budget.rows.toLocaleString()} tile
+        grid
+      </div>
+      <div>
+        Uncompressed work {formatBudgetBytes(budget.estimatedUncompressedBytes)} · disk available {budget.availableDiskBytes === null ? "unknown" : formatBudgetBytes(budget.availableDiskBytes)}
+      </div>
+      <div>
+        Job limit {Math.round(budget.maximumJobDurationMs / 60_000)} min · {budget.maximumConcurrency} concurrent import
+      </div>
+      {budget.problems.length > 0 && <div className="mt-1">{budget.overrideActive ? `Development override active: ${budget.problems.join("; ")}` : budget.problems.join("; ")}</div>}
+    </div>
+  );
+}
+
+export function TrackImageryCalibrationPanel({ selection, configurationRevision }: { selection: TrackConfigurationSelection; configurationRevision: number }) {
   const queryClient = useQueryClient();
   const { data: laps = [] } = useLaps();
   const gameId = selection.gameId;
@@ -136,6 +162,8 @@ export function TrackImageryCalibrationPanel({
   const [baseSource, setBaseSource] = useState<TrackImagerySource>(EMPTY_SOURCE);
   const [selectedImageryCandidate, setSelectedImageryCandidate] = useState<TrackImageryCandidate | null>(null);
   const [openImageryPreviewUrl, setOpenImageryPreviewUrl] = useState<string | null>(null);
+  const [outputBudget, setOutputBudget] = useState<TrackImageryOutputBudget | null>(null);
+  const [estimatingOutput, setEstimatingOutput] = useState(false);
   const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
   const [layerId, setLayerId] = useState("");
   const [layerKind, setLayerKind] = useState<TrackImageryLayerKind>("layout");
@@ -148,6 +176,7 @@ export function TrackImageryCalibrationPanel({
   const [error, setError] = useState<string | null>(null);
   const [assetVersion, setAssetVersion] = useState(0);
   const dragRef = useRef<CalibrationDrag | null>(null);
+  const budgetRequestRef = useRef(0);
 
   useEffect(() => {
     setLapId(null);
@@ -156,6 +185,8 @@ export function TrackImageryCalibrationPanel({
     setSelectedImageryCandidate(null);
     setOpenImageryPreviewUrl(null);
     setLayerFile(null);
+    setOutputBudget(null);
+    setEstimatingOutput(false);
     setLayerId("");
     setLayerSource(EMPTY_SOURCE);
     setSelectedLayers([]);
@@ -167,6 +198,14 @@ export function TrackImageryCalibrationPanel({
     setStatus(null);
     setError(null);
   }, [gameId, trackOrdinal]);
+
+  useEffect(() => {
+    budgetRequestRef.current += 1;
+    setSelectedImageryCandidate(null);
+    setOpenImageryPreviewUrl(null);
+    setOutputBudget(null);
+    setEstimatingOutput(false);
+  }, [openImageryBounds]);
 
   useEffect(() => {
     if (!gameId || trackOrdinal == null) {
@@ -263,6 +302,7 @@ export function TrackImageryCalibrationPanel({
         setBaseSource(nextVenue?.base.source ?? EMPTY_SOURCE);
         setSelectedImageryCandidate(null);
         setOpenImageryPreviewUrl(null);
+        setOutputBudget(null);
       })
       .catch((loadError) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load imagery venue");
@@ -376,7 +416,15 @@ export function TrackImageryCalibrationPanel({
   const displayedLayers = venue?.layers.filter((candidate) => selectedLayers.includes(candidate.id)) ?? [];
   const baseSourceValid = !!baseSource.name.trim() && !!baseSource.license.trim();
   const baseBounds = openImageryBounds ?? venue?.base.bounds ?? null;
-  const canSaveBase = !!gameId && trackOrdinal != null && !!configuration && !!calibration && !!baseBounds && baseSourceValid && (!!baseFile || !!selectedImageryCandidate || !!venue);
+  const canSaveBase =
+    !!gameId &&
+    trackOrdinal != null &&
+    !!configuration &&
+    !!calibration &&
+    !!baseBounds &&
+    baseSourceValid &&
+    (!!baseFile || (!!selectedImageryCandidate && outputBudget?.safe === true) || !!venue) &&
+    !estimatingOutput;
   const layerSourceValid = !!layerSource.name.trim() && !!layerSource.license.trim();
   const canSaveLayer = !!venue && SAFE_ID.test(layerId) && !!layerFile && layerSourceValid;
 
@@ -539,34 +587,69 @@ export function TrackImageryCalibrationPanel({
       setSaving(false);
     }
   };
-  const handleOpenImagerySelect = (candidate: TrackImageryCandidate, previewUrl: string) => {
+  const handleOpenImagerySelect = async (candidate: TrackImageryCandidate, previewUrl: string) => {
     const nextCalibration = openImageryBounds ? trackImageryCalibrationFromBounds(geographicPositions, openImageryBounds) : null;
-    if (!nextCalibration) {
-      setError("Calibration reference needs at least two valid GPS positions.");
+    if (!nextCalibration || !gameId || trackOrdinal == null || !venueId || !openImageryBounds) {
+      setError("Calibration reference needs at least two valid GPS positions and an assigned venue.");
       return;
     }
-    setBaseFile(null);
-    setSelectedImageryCandidate(candidate);
-    setOpenImageryPreviewUrl(previewUrl);
-    setBaseSource({
-      name: candidate.title,
-      url: candidate.sourceUrl,
-      ...(candidate.capturedAt ? { capturedAt: candidate.capturedAt } : {}),
-      license: candidate.license,
-      attribution: candidate.attribution,
-      provider: candidate.provider,
-      quality: candidate.quality,
-      coverage: candidate.coverage,
-      sourceResolutionM: candidate.sourceResolutionM,
-      storedResolutionM: Math.max(candidate.sourceResolutionM, 0.1),
-      geographicReliability: candidate.geographicReliability,
-      ...(candidate.cloudCoverPercent === undefined ? {} : { cloudCoverPercent: candidate.cloudCoverPercent }),
-      providerStability: candidate.providerStability,
-      redistribution: candidate.redistribution,
-    });
-    setCalibration(nextCalibration);
+    const requestId = budgetRequestRef.current + 1;
+    budgetRequestRef.current = requestId;
+    setSelectedImageryCandidate(null);
+    setOpenImageryPreviewUrl(null);
+    setOutputBudget(null);
+    setEstimatingOutput(true);
     setError(null);
-    setStatus(`${candidate.quality === "hq" ? "HQ" : "Context fallback"} imagery selected. Inspect reference alignment, then import.`);
+    setStatus("Calculating complete output budget…");
+    try {
+      const response = await fetch("/api/dev/track-imagery/sources/estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId: candidate.id, bounds: openImageryBounds, venueId, gameId, trackOrdinal }),
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string" ? payload.error : "Unable to estimate open imagery output";
+        throw new Error(message);
+      }
+      const result = TrackImageryOutputBudgetResultSchema.parse(payload);
+      if (budgetRequestRef.current !== requestId) return;
+      const { candidate: resolvedCandidate, budget } = result;
+      setOutputBudget(budget);
+      if (!budget.safe) {
+        setStatus(null);
+        setError(`Import rejected before source download: ${budget.problems.join("; ")}`);
+        return;
+      }
+      setBaseFile(null);
+      setSelectedImageryCandidate(resolvedCandidate);
+      setOpenImageryPreviewUrl(previewUrl);
+      setBaseSource({
+        name: resolvedCandidate.title,
+        url: resolvedCandidate.sourceUrl,
+        ...(resolvedCandidate.capturedAt ? { capturedAt: resolvedCandidate.capturedAt } : {}),
+        license: resolvedCandidate.license,
+        attribution: resolvedCandidate.attribution,
+        provider: resolvedCandidate.provider,
+        quality: resolvedCandidate.quality,
+        coverage: resolvedCandidate.coverage,
+        sourceResolutionM: resolvedCandidate.sourceResolutionM,
+        storedResolutionM: Math.max(resolvedCandidate.sourceResolutionM, 0.1),
+        geographicReliability: resolvedCandidate.geographicReliability,
+        ...(resolvedCandidate.cloudCoverPercent === undefined ? {} : { cloudCoverPercent: resolvedCandidate.cloudCoverPercent }),
+        providerStability: resolvedCandidate.providerStability,
+        redistribution: resolvedCandidate.redistribution,
+      });
+      setCalibration(nextCalibration);
+      setStatus(`${resolvedCandidate.quality === "hq" ? "HQ" : "Context fallback"} imagery selected. Inspect reference alignment, then import.`);
+    } catch (estimateError) {
+      if (budgetRequestRef.current === requestId) {
+        setStatus(null);
+        setError(estimateError instanceof Error ? estimateError.message : "Unable to estimate open imagery output");
+      }
+    } finally {
+      if (budgetRequestRef.current === requestId) setEstimatingOutput(false);
+    }
   };
 
   return (
@@ -615,6 +698,8 @@ export function TrackImageryCalibrationPanel({
             selectedCandidateId={selectedImageryCandidate?.id ?? null}
             onSelect={handleOpenImagerySelect}
           />
+          {estimatingOutput && <p className="mb-2 text-[11px] text-app-text-muted">Calculating width, pixels, tiles, work, pack size, disk, duration, and concurrency…</p>}
+          {outputBudget && <TrackImageryOutputBudgetSummary budget={outputBudget} />}
           <input
             className="mb-2 block w-full text-xs text-app-text-muted"
             type="file"
@@ -624,6 +709,9 @@ export function TrackImageryCalibrationPanel({
               setBaseFile(file);
               setSelectedImageryCandidate(null);
               setOpenImageryPreviewUrl(null);
+              budgetRequestRef.current += 1;
+              setEstimatingOutput(false);
+              setOutputBudget(null);
               if (file) setBaseSource(EMPTY_SOURCE);
             }}
           />

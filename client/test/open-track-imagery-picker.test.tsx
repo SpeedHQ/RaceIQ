@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { TrackImageryCandidate, TrackImagerySourceSearchGroup } from "../../shared/racing/tracks/imagery";
+import type { TrackImageryCandidate, TrackImageryOutputBudget, TrackImagerySourceSearchGroup } from "../../shared/racing/tracks/imagery";
 import { TrackImagerySourceList } from "../src/components/dev/OpenTrackImageryPicker";
+import { TrackImageryOutputBudgetSummary } from "../src/components/dev/TrackImageryCalibrationPanel";
 
 function candidate(id: string, provider: string, title: string, capturedAt: string, quality: TrackImageryCandidate["quality"]): TrackImageryCandidate {
   return {
@@ -48,4 +49,36 @@ test("imagery picker groups dated options by source and exposes selected option"
   expect(markup).toContain("Latest Sentinel image");
   expect(markup).toContain("Earlier Sentinel image");
   expect(markup).toMatch(/aria-pressed="true"[^>]*>.*Selected/s);
+});
+
+test("calibration output budget shows complete pack size and processing limits", () => {
+  const budget: TrackImageryOutputBudget = {
+    width: 47_104,
+    height: 46_915,
+    totalPixels: 2_209_884_160,
+    tileSize: 512,
+    columns: 92,
+    rows: 92,
+    totalTiles: 8_464,
+    sourceChunks: 144,
+    resolutionM: 0.1,
+    estimatedUncompressedBytes: 8_839_536_640,
+    estimatedPackBytes: { minimum: 1_400_000_000, maximum: 3_800_000_000 },
+    estimatedJobDurationMs: 1_200_000,
+    availableDiskBytes: 20_000_000_000,
+    requiredDiskBytes: 8_700_000_000,
+    maximumJobDurationMs: 1_800_000,
+    maximumConcurrency: 1,
+    safe: false,
+    overrideActive: false,
+    problems: ["Output has 2,209,884,160 pixels; maximum is 500,000,000"],
+  };
+
+  const markup = renderToStaticMarkup(<TrackImageryOutputBudgetSummary budget={budget} />);
+  expect(markup).toContain("Estimated output: 8,464 tiles, approximately 1.40 GB–3.80 GB");
+  expect(markup).toContain("47,104 × 46,915 px");
+  expect(markup).toContain("Uncompressed work 8.84 GB");
+  expect(markup).toContain("disk available 20.0 GB");
+  expect(markup).toContain("Job limit 30 min · 1 concurrent import");
+  expect(markup).toContain("Output has 2,209,884,160 pixels; maximum is 500,000,000");
 });

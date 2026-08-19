@@ -24,6 +24,7 @@
 
 ### Fixes
 
+- Estimate complete aerial-imagery output, work, disk, duration, and concurrency before import, then reject unsafe jobs before downloading source pixels
 - Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list
 - Keep track geometry tools usable when optional curb data has not been recorded
 - Keep satellite imagery track maps responsive during Analyse playback instead of rebuilding the static raster for every telemetry frame
