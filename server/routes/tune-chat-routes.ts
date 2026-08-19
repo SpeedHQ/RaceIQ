@@ -5,8 +5,8 @@ import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import type { GameId } from "../../shared/games/ids";
 import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
-import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
+import { resolveLapCorners } from "../tracks/corner-resolution";
 import { symptomsToIssues } from "../ai/tune-issues";
 import { setLiveIssuesEnabled } from "../telemetry/live-pipeline";
 import { loadSettings } from "../runtime/config/settings";
@@ -70,7 +70,7 @@ export const tuneChatRoutes = new Hono()
       const packets = lap.telemetry;
       if (packets.length < 30) return c.json([]);
 
-      const corners = detectCorners(packets);
+      const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, packets);
       const symptoms = telemetryToSymptoms(packets, corners);
       const issues = symptomsToIssues(symptoms, lap.lapNumber);
       return c.json(issues);

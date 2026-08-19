@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
@@ -18,9 +19,9 @@ import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
 import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
+import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
-const noop = () => undefined;
 
 export function LapAnalyse() {
   return <LapAnalyseInner />;
@@ -93,6 +94,7 @@ function LapAnalyseInner() {
     if (search.ai === 1) setAiPanelOpen(true);
   }, [search.ai, setAiPanelOpen]);
   const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
+  const [setup, setSetup] = useState<F1CarSetup | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
   const lapLine = useMemo(() => {
@@ -259,6 +261,15 @@ function LapAnalyseInner() {
     queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
     enabled: !!selectedLap?.carOrdinal,
   });
+  const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
+    queryKey: ["lap-setup", gameId, selectedLapId],
+    queryFn: async () => {
+      const response = await fetch(`/api/laps/${selectedLapId}/setup`, { headers: { "X-Game-Id": gameId } });
+      if (!response.ok) throw new Error("Failed to load lap setup");
+      return response.json() as Promise<{ setup: F1CarSetup | null }>;
+    },
+    enabled: gameId === "f1-2025" && selectedLapId != null,
+  });
 
   const updateLapTune = useMutation({
     mutationFn: (tuneId: number | null) => client.api.laps[":id"].tune.$patch({ param: { id: String(selectedLapId) }, json: { tuneId } }).then((r) => r.json() as any),
@@ -309,8 +320,21 @@ function LapAnalyseInner() {
     },
     [hasRacingLine, setTrackOverlays],
   );
-
-  const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
+  const f1Setup = useMemo<F1CarSetup | null>(() => {
+    if (gameId !== "f1-2025") return null;
+    if (persistedF1Setup?.setup) return persistedF1Setup.setup;
+    if (!selectedLap?.carSetup) return null;
+    try {
+      return JSON.parse(selectedLap.carSetup) as F1CarSetup;
+    } catch {
+      return null;
+    }
+  }, [gameId, persistedF1Setup?.setup, selectedLap?.carSetup]);
+  const hasF1Setup = f1Setup != null;
+  const handleShowSetup = useCallback(() => {
+    if (f1Setup) setSetup(f1Setup);
+  }, [f1Setup]);
+  const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
     gameId,
     setSelectedTrack,
@@ -322,19 +346,26 @@ function LapAnalyseInner() {
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
-        onExport={noop}
-        onExportBin={noop}
+        onExport={() =>
+          buildExportCsv(
+            semanticFrames.map((frame) => frame.values),
+            carName,
+            trackName,
+            selectedLap,
+            selectedLapId,
+          )}
+        onExportBin={() => handleExportBin(selectedLapId)}
         selectedTrack={selectedTrack}
         selectedCar={selectedCar}
         selectedLapId={selectedLapId}
         selectedLap={selectedLap}
+        hasF1Setup={hasF1Setup}
         trackNames={trackNames}
         carNames={carNames}
         tracks={tracks}
         carsForTrack={carsForTrack}
         filteredLaps={filteredLaps}
         hasTelemetry={telemetry.length > 0}
-        hasF1Setup={false}
         availableTunes={availableTunes}
         tunePending={updateLapTune.isPending}
         loading={loading}
@@ -344,7 +375,7 @@ function LapAnalyseInner() {
         onLapChange={setSelectedLapId}
         onTuneChange={handleTuneChange}
         onViewTune={setViewingTuneId}
-        onShowSetup={noop}
+        onShowSetup={handleShowSetup}
         onImportBin={handleImportBin}
         exportingBin={exportingBin}
         importingBin={importingBin}
@@ -454,8 +485,8 @@ function LapAnalyseInner() {
         viewingTuneId={viewingTuneId}
         onCloseTune={() => setViewingTuneId(null)}
         ibtPreview={ibtPreview}
-        setup={null}
-        onCloseSetup={() => undefined}
+        setup={setup}
+        onCloseSetup={() => setSetup(null)}
         importingBin={importingBin}
         ownership={ownership}
         onOwnershipChange={setOwnership}

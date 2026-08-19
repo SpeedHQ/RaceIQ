@@ -123,8 +123,8 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     kunosTypesSource,
     iracingTypesSource,
   ] = await Promise.all(
-    TELEMETRY_TYPE_SOURCE_FILES.map((path) =>
-      readFile(resolve(ROOT, path), "utf8"),
+    TELEMETRY_TYPE_SOURCE_FILES.map(async (path) =>
+      (await readFile(resolve(ROOT, path), "utf8")).replace(/\r\n?/g, "\n"),
     ),
   );
   const typesTree = ast(typesSource);

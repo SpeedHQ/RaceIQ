@@ -14,6 +14,15 @@ import { getSeededLapTarget } from "../support/seeded/laps";
 
 const SCREENSHOT_DIR = process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/mobile";
 
+async function dismissTransientNotification(page: Page) {
+  await page.addStyleTag({
+    content: [
+      '[role="status"]:has(button),',
+      'div.fixed.bottom-4.right-4.z-50 { display: none !important; pointer-events: none !important; }',
+    ].join(""),
+  });
+}
+
 async function openSettings(page: Page, viewportWidth: number) {
   if (viewportWidth < 768) {
     await page.getByLabel("Open navigation").click();
@@ -38,6 +47,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         if (page.seedReadyText) {
           await expect(p.getByText(page.seedReadyText, { exact: false }).first()).toBeVisible();
         }
+        await dismissTransientNotification(p);
         await p.screenshot({
           path: `${SCREENSHOT_DIR}/${viewport.name}/${page.name}.png`,
           fullPage: true,
@@ -48,11 +58,13 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
 
     for (const screenshotCase of RESPONSIVE_INTERACTION_CASES) {
       if (screenshotCase.viewports && !screenshotCase.viewports.includes(viewport.name)) continue;
+      if (screenshotCase.mobileOnly && viewport.width >= 768) continue;
 
       test(screenshotCase.name, async ({ page: p, request }) => {
         const target = screenshotCase.kind === "analyse-data-panel-loaded" ? await getSeededLapTarget(request, "f1-2025") : null;
         const path = target ? `/${"f125"}/analyse?${new URLSearchParams({ track: String(target.trackOrdinal), car: String(target.carOrdinal), lap: String(target.id) })}` : screenshotCase.path;
         await p.goto(path, { waitUntil: "networkidle" });
+        await dismissTransientNotification(p);
         if (screenshotCase.kind === "analyse-data-panel-loaded") await expect(p.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();
         if (screenshotCase.kind === "nav-drawer") {
           await p.getByLabel("Open navigation").click();

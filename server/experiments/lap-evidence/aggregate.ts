@@ -22,11 +22,9 @@
  */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { Corner } from "../../lap-analysis/corners";
-import { detectCorners } from "../../lap-analysis/corners";
 import { getLapById } from "../../db/lap-read-queries";
 import { getLapsForExperiment, getLapMetaForExperimentVersion } from "../../db/experiment-lap-queries";
-import { getCorners } from "../../db/track-queries";
+import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { resolveActiveTestId } from "../../db/experiment-version-queries";
 import { telemetryToSymptoms, type TuneSymptoms, type TyreDeltas } from "../../ai/tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "../../ai/track-conditions";
@@ -310,7 +308,7 @@ async function representativeLapFallback(
     };
   }
 
-  const corners = detectCorners(lap.telemetry);
+  const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
   return {
     ok: true,
     lapIds: [lap.id],
@@ -381,13 +379,11 @@ export async function loadCleanLapAggregate(
 
   const fastestLoaded = loadedLaps.find((l) => l.meta.id === fastestMeta.id) ?? loadedLaps[0]!;
 
-  let corners: Corner[];
-  if (fastestLoaded.meta.trackOrdinal != null && fastestLoaded.meta.gameId != null) {
-    corners = await getCorners(fastestLoaded.meta.trackOrdinal, fastestLoaded.meta.gameId);
-    if (corners.length === 0) corners = detectCorners(fastestLoaded.telemetry);
-  } else {
-    corners = detectCorners(fastestLoaded.telemetry);
-  }
+  const corners = await resolveLapCorners(
+    fastestLoaded.meta.trackOrdinal,
+    fastestLoaded.meta.gameId,
+    fastestLoaded.telemetry,
+  );
 
   const perLapSymptoms = loadedLaps.map((l) => telemetryToSymptoms(l.telemetry, corners));
   const symptoms = aggregateSymptoms(perLapSymptoms);
