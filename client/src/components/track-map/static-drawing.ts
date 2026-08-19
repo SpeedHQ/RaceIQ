@@ -5,7 +5,7 @@ import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import type { GameId } from "../../../../shared/games/ids";
 import type { TrackImageryMatrix } from "../../../../shared/racing/tracks/imagery";
-import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform } from "./types";
+import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackMapOverlayContext, type TrackTransform } from "./types";
 
 const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
   good: { stroke: "color-mix(in srgb, var(--severity-nominal) 70%, transparent)", width: 6 },
@@ -41,11 +41,14 @@ export interface StaticTrackImagery {
   textures: readonly { image: CanvasImageSource; opacity: number }[];
   requestVisibleTiles?: (transform: TrackTransform, viewportCamera?: ViewportTrackCamera) => void;
 }
+
+type StaticTrackOverlayContext = Omit<TrackMapOverlayContext, "cursorIdx">;
 export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
   bufferCanvas: HTMLCanvasElement | null;
   telemetry: SemanticAnalysisFrame[];
   gameId?: GameId;
+  coordinatesPrepared?: boolean;
   resolvedPositions: Point[];
   outline: Point[] | null;
   showOutline?: boolean;
@@ -63,6 +66,8 @@ export interface StaticTrackOptions {
   rotateWithCar: boolean;
   zoom: number;
   viewportCamera?: ViewportTrackCamera;
+  drawWorldOverlay?: (overlay: StaticTrackOverlayContext) => void;
+  drawScreenOverlay?: (overlay: StaticTrackOverlayContext) => void;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
   const {
@@ -99,7 +104,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const displayOutline: Point[] = showTrace && hasTelemetryTrace ? telemetryPoints : (outline ?? (hasTelemetryTrace ? telemetryPoints : []));
   const visualOutline: Point[] = showOutline ? (outline ?? (hasTelemetryTrace ? telemetryPoints : [])) : showTrace && !hasTelemetryTrace ? (outline ?? []) : [];
   if (displayOutline.length < 2) return { bufferCanvas: null, transform: null };
-  const flip = needsTrackFlip(gameId);
+  const flip = !options.coordinatesPrepared && needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const flippedPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
@@ -448,6 +453,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       }
     }
   }
+  options.drawWorldOverlay?.({ context: ctx, toCanvas, width: w, height: h, transform });
   if (viewportCamera) {
     ctx.restore();
     if (viewportCamera.drawFollowCar) {
@@ -467,5 +473,6 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.restore();
     }
   }
+  options.drawScreenOverlay?.({ context: ctx, toCanvas, width: w, height: h, transform });
   return { bufferCanvas, transform };
 }

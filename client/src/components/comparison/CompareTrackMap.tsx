@@ -1,15 +1,20 @@
 import type { GameId } from "@shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import type { TrackImagery, TrackImageryGeographicPoint } from "@shared/racing/tracks/imagery";
 import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
-const value = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
-const numberValue = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=value(p,id); return typeof x === "number" ? x : undefined; }
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, type Point } from "@/lib/comparison-utils";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { TrackMapCanvas } from "@/components/track-map/TrackMapCanvas";
+import type { SemanticAnalysisFrame, TrackMapLayerState, TrackMapOverlayRenderer, TrackMapViewportCamera } from "@/components/track-map/types";
+import { type BoundaryData, computeZoom, drawComparisonWorldOverlay, drawInputsHUD, findTelemetryAtDistance, type Point } from "@/lib/comparison-utils";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { CompareSegmentTable } from "./CompareSegmentTable";
+
+const numberValue = (sample: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => {
+  const value = sample.values[id];
+  return typeof value === "number" ? value : undefined;
+};
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -32,23 +37,39 @@ interface CompareTrackMapProps {
   redrawRef: React.MutableRefObject<(() => void) | null>;
   trackOrdinal?: number | null;
   gameId?: GameId | null;
+  imagery?: TrackImagery | null;
+  geographicPositions?: readonly (TrackImageryGeographicPoint | null)[] | null;
 }
 
+const COMPARE_OVERVIEW_LAYERS: TrackMapLayerState = {
+  imagery: true,
+  boundaries: true,
+  pitLane: true,
+  outline: true,
+  racingLine: false,
+  segments: false,
+  sectors: false,
+  curbs: false,
+  trace: false,
+  inputs: false,
+  highlights: false,
+  car: false,
+};
+
+const COMPARE_ZOOM_LAYERS: TrackMapLayerState = {
+  ...COMPARE_OVERVIEW_LAYERS,
+  outline: false,
+};
+
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId }: CompareTrackMapProps) {
-  const overviewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
-  const overviewContainerRef = useRef<HTMLDivElement>(null);
-  const zoomContainerRef = useRef<HTMLDivElement>(null);
+export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId, imagery, geographicPositions }: CompareTrackMapProps) {
   const segmentTableRef = useRef<HTMLTableSectionElement>(null);
   const prevActiveSegRef = useRef<number>(-1);
+  const redrawFrameRef = useRef<number | null>(null);
+  const [drawRevision, setDrawRevision] = useState(0);
 
   const [boundaries, setBoundaries] = useState<BoundaryData | null>(null);
   const [followCar, setFollowCar] = useState(false);
-  const followCarRef = useRef(false);
-  useEffect(() => {
-    followCarRef.current = followCar;
-  }, [followCar]);
 
   // Fetch track boundaries
   useEffect(() => {
@@ -263,131 +284,193 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, telXFn: identity, trackRange: computeRange(newOutline) };
   }, [displayOutline, telemetryA, displayBoundaries]);
 
-  const drawBoth = useCallback(() => {
-    const hd = hoveredDistanceRef.current;
-
-    // Draw overview
-    const oc = overviewCanvasRef.current;
-    const ocont = overviewContainerRef.current;
-    if (oc && ocont && alignedOutline.length >= 2) {
-      const rect = ocont.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      oc.width = rect.width * dpr;
-      oc.height = rect.height * dpr;
-      oc.style.width = `${rect.width}px`;
-      oc.style.height = `${rect.height}px`;
-      const ctx = getSemanticCanvasContext(oc);
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-        const segPts =
-          segments.length > 0 && telemetryA.length >= 2
-            ? segments
-                .map((s) => {
-                  const idx = Math.round(s.startFrac * (telemetryA.length - 1));
-                  const p = telemetryA[idx];
-                  return { x: telXFn((numberValue(p, "motion.position-x") ?? 0)), z: (numberValue(p, "motion.position-z") ?? 0), type: s.type, label: s.name };
-                })
-                .filter((sp) => sp.x !== 0 || sp.z !== 0)
-            : undefined;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, null, segPts, undefined, alignedBoundaries, telXFn);
+  const displayTelemetryA = useMemo(
+    () =>
+      telemetryA.map((sample) => {
+        const x = numberValue(sample, "motion.position-x");
+        return x == null ? sample : { ...sample, values: { ...sample.values, "motion.position-x": telXFn(x) } };
+      }),
+    [telemetryA, telXFn],
+  );
+  const displayTelemetryB = useMemo(
+    () =>
+      telemetryB.map((sample) => {
+        const x = numberValue(sample, "motion.position-x");
+        return x == null ? sample : { ...sample, values: { ...sample.values, "motion.position-x": telXFn(x) } };
+      }),
+    [telemetryB, telXFn],
+  );
+  const mapTelemetryA = useMemo<SemanticAnalysisFrame[]>(
+    () => displayTelemetryA.map((sample) => ({ values: sample.values as SemanticAnalysisFrame["values"], states: {}, freshness: {} })),
+    [displayTelemetryA],
+  );
+  const hoveredDistance = hoveredDistanceRef.current;
+  const cursorIdx = hoveredDistance == null || displayTelemetryA.length < 2 ? 0 : findTelemetryAtDistance(displayTelemetryA, hoveredDistance);
+  const segmentPoints = useMemo(
+    () =>
+      segments.length > 0 && displayTelemetryA.length >= 2
+        ? segments
+            .map((segment) => {
+              const index = Math.round(segment.startFrac * (displayTelemetryA.length - 1));
+              const sample = displayTelemetryA[index];
+              return {
+                x: numberValue(sample, "motion.position-x") ?? 0,
+                z: numberValue(sample, "motion.position-z") ?? 0,
+                type: segment.type,
+                label: segment.name,
+              };
+            })
+            .filter((point) => point.x !== 0 || point.z !== 0)
+        : undefined,
+    [displayTelemetryA, segments],
+  );
+  const zoomView =
+    hoveredDistance == null
+      ? null
+      : computeZoom(displayTelemetryA, displayTelemetryB, hoveredDistance, trackRange, (x) => x, alignedOutline);
+  const zoom = zoomView ? Math.min(64, Math.max(1, trackRange / zoomView.range)) : 1;
+  const focusSample = hoveredDistance == null || displayTelemetryA.length < 2 ? null : displayTelemetryA[findTelemetryAtDistance(displayTelemetryA, hoveredDistance)];
+  const focusYaw = focusSample ? numberValue(focusSample, "motion.yaw") : undefined;
+  const zoomViewport: TrackMapViewportCamera | null = zoomView
+    ? {
+        center: { x: zoomView.centerX, z: zoomView.centerZ },
+        ...(followCar && focusYaw !== undefined ? { rotation: Math.PI - focusYaw } : {}),
       }
-    }
+    : null;
 
-    // Draw zoomed view
-    const zc = zoomCanvasRef.current;
-    const zcont = zoomContainerRef.current;
-    if (zc && zcont && alignedOutline.length >= 2) {
-      const rect = zcont.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      zc.width = rect.width * dpr;
-      zc.height = rect.height * dpr;
-      zc.style.width = `${rect.width}px`;
-      zc.style.height = `${rect.height}px`;
-      const ctx = getSemanticCanvasContext(zc);
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-        const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn, alignedOutline) : null;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true);
+  const renderOverviewOverlay = useCallback<TrackMapOverlayRenderer>(
+    ({ context, toCanvas, width, height }) => {
+      drawComparisonWorldOverlay({
+        context,
+        toCanvas,
+        width,
+        height,
+        outline: alignedOutline,
+        telemetryA: displayTelemetryA,
+        telemetryB: displayTelemetryB,
+        hoveredDistance,
+        zoomed: false,
+        segmentPoints,
+      });
+    },
+    [alignedOutline, displayTelemetryA, displayTelemetryB, hoveredDistance, segmentPoints],
+  );
+  const renderZoomOverlay = useCallback<TrackMapOverlayRenderer>(
+    ({ context, toCanvas, width, height }) => {
+      drawComparisonWorldOverlay({
+        context,
+        toCanvas,
+        width,
+        height,
+        outline: alignedOutline,
+        telemetryA: displayTelemetryA,
+        telemetryB: displayTelemetryB,
+        hoveredDistance,
+        zoomed: true,
+      });
+    },
+    [alignedOutline, displayTelemetryA, displayTelemetryB, hoveredDistance],
+  );
+  const renderZoomHud = useCallback<TrackMapOverlayRenderer>(
+    ({ context, width, height }) => {
+      if (hoveredDistance == null) return;
+      const sampleA = displayTelemetryA.length >= 2 ? displayTelemetryA[findTelemetryAtDistance(displayTelemetryA, hoveredDistance)] : null;
+      const sampleB = displayTelemetryB.length >= 2 ? displayTelemetryB[findTelemetryAtDistance(displayTelemetryB, hoveredDistance)] : null;
+      drawInputsHUD(context, width, height, sampleA, sampleB);
+    },
+    [displayTelemetryA, displayTelemetryB, hoveredDistance],
+  );
 
-        // Draw input HUDs when zoomed
-        if (hd != null) {
-          const pA = telemetryA.length >= 2 ? telemetryA[findTelemetryAtDistance(telemetryA, hd)] : null;
-          const pB = telemetryB.length >= 2 ? telemetryB[findTelemetryAtDistance(telemetryB, hd)] : null;
-          drawInputsHUD(ctx, rect.width, rect.height, pA, pB);
-        }
-      }
-    }
-    // Highlight active segment row
-    if (segmentTableRef.current && segments.length > 0) {
-      let activeIdx = -1;
-      if (hd != null && telemetryA.length >= 2) {
-        const totalDist = (numberValue(telemetryA[telemetryA.length - 1], "timing.distance-traveled") ?? 0) - (numberValue(telemetryA[0], "timing.distance-traveled") ?? 0);
-        if (totalDist > 0) {
-          const frac = hd / totalDist;
-          activeIdx = segments.findIndex((s) => frac >= s.startFrac && frac < s.endFrac);
-        }
-      }
-      if (activeIdx !== prevActiveSegRef.current) {
-        const rows = segmentTableRef.current.children;
-        if (prevActiveSegRef.current >= 0 && prevActiveSegRef.current < rows.length) {
-          (rows[prevActiveSegRef.current] as HTMLElement).classList.remove("bg-app-surface-alt/60");
-        }
-        if (activeIdx >= 0 && activeIdx < rows.length) {
-          (rows[activeIdx] as HTMLElement).classList.add("bg-app-surface-alt/60");
-          (rows[activeIdx] as HTMLElement).scrollIntoView({ block: "nearest" });
-        }
-        prevActiveSegRef.current = activeIdx;
-      }
-    }
-  }, [alignedOutline, telemetryA, telemetryB, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange]);
-
-  // Register redraw function so parent can trigger canvas updates without React re-render
   useEffect(() => {
-    redrawRef.current = drawBoth;
+    redrawRef.current = () => {
+      if (redrawFrameRef.current !== null) return;
+      redrawFrameRef.current = requestAnimationFrame(() => {
+        redrawFrameRef.current = null;
+        setDrawRevision((revision) => revision + 1);
+      });
+    };
     return () => {
       redrawRef.current = null;
+      if (redrawFrameRef.current !== null) cancelAnimationFrame(redrawFrameRef.current);
+      redrawFrameRef.current = null;
     };
-  }, [drawBoth, redrawRef]);
+  }, [redrawRef]);
 
   useEffect(() => {
-    drawBoth();
-    const observer = new ResizeObserver(drawBoth);
-    if (overviewContainerRef.current) observer.observe(overviewContainerRef.current);
-    if (zoomContainerRef.current) observer.observe(zoomContainerRef.current);
-    return () => observer.disconnect();
-  }, [drawBoth]);
+    if (!segmentTableRef.current || segments.length === 0) return;
+    let activeIndex = -1;
+    if (hoveredDistance != null && displayTelemetryA.length >= 2) {
+      const firstDistance = numberValue(displayTelemetryA[0], "timing.distance-traveled") ?? 0;
+      const lastDistance = numberValue(displayTelemetryA.at(-1)!, "timing.distance-traveled") ?? firstDistance;
+      const totalDistance = lastDistance - firstDistance;
+      if (totalDistance > 0) {
+        const fraction = hoveredDistance / totalDistance;
+        activeIndex = segments.findIndex((segment) => fraction >= segment.startFrac && fraction < segment.endFrac);
+      }
+    }
+    if (activeIndex === prevActiveSegRef.current) return;
+    const rows = segmentTableRef.current.children;
+    if (prevActiveSegRef.current >= 0 && prevActiveSegRef.current < rows.length) {
+      (rows[prevActiveSegRef.current] as HTMLElement).classList.remove("bg-app-surface-alt/60");
+    }
+    if (activeIndex >= 0 && activeIndex < rows.length) {
+      (rows[activeIndex] as HTMLElement).classList.add("bg-app-surface-alt/60");
+      (rows[activeIndex] as HTMLElement).scrollIntoView({ block: "nearest" });
+    }
+    prevActiveSegRef.current = activeIndex;
+  }, [displayTelemetryA, drawRevision, hoveredDistance, segments]);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto border border-app-border text-app-body text-app-text">
-      {/* Overview — full track, static */}
-      <div ref={overviewContainerRef} className="relative min-h-32 basis-56 shrink border-b border-app-border">
+      <div className="relative min-h-32 basis-56 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
-          <canvas ref={overviewCanvasRef} className="absolute inset-0" />
+          <TrackMapCanvas
+            gameId={gameId ?? undefined}
+            telemetry={mapTelemetryA}
+            cursorIdx={cursorIdx}
+            outline={alignedOutline}
+            imagery={imagery}
+            geographicPositions={geographicPositions ?? undefined}
+            boundaries={alignedBoundaries}
+            segments={null}
+            layers={COMPARE_OVERVIEW_LAYERS}
+            rotateWithCar={false}
+            zoom={1}
+            renderWorldOverlay={renderOverviewOverlay}
+            testId="compare-overview-track-map"
+            coordinatesPrepared
+          />
         )}
       </div>
-      {/* Zoomed — follows cursor position */}
-      <div ref={zoomContainerRef} className="relative min-h-40 basis-80 shrink border-b border-app-border">
+      <div className="relative min-h-40 basis-80 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
-        <Button
-          onClick={() => {
-            const next = !followCarRef.current;
-            followCarRef.current = next;
-            setFollowCar(next);
-            drawBoth();
-          }}
-          variant={followCar ? "selected-toggle" : "app-outline"}
-          size="app-sm"
-          className="absolute top-2 right-2 z-10"
-        >
+        <Button onClick={() => setFollowCar((current) => !current)} variant={followCar ? "selected-toggle" : "app-outline"} size="app-sm" className="absolute top-2 right-2 z-10">
           {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
         </Button>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
-          <canvas ref={zoomCanvasRef} className="absolute inset-0" />
+          <TrackMapCanvas
+            gameId={gameId ?? undefined}
+            telemetry={mapTelemetryA}
+            cursorIdx={cursorIdx}
+            outline={alignedOutline}
+            imagery={imagery}
+            geographicPositions={geographicPositions ?? undefined}
+            boundaries={alignedBoundaries}
+            segments={null}
+            layers={COMPARE_ZOOM_LAYERS}
+            rotateWithCar={false}
+            zoom={zoom}
+            viewport={zoomViewport}
+            renderWorldOverlay={renderZoomOverlay}
+            renderScreenOverlay={renderZoomHud}
+            testId="compare-zoom-track-map"
+            coordinatesPrepared
+          />
         )}
       </div>
       <CompareSegmentTable segments={segments} tableRef={segmentTableRef} />

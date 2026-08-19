@@ -24,6 +24,11 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
     rotateWithCar,
     zoom = 1,
     onZoomChange,
+    viewport,
+    renderWorldOverlay,
+    renderScreenOverlay,
+    coordinatesPrepared,
+    testId = "analyse-track-map-viewport",
   } = props;
   const {
     visibleBoundaries,
@@ -84,11 +89,14 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
       const position = resolvedPositions[idx];
       const path = resolvedDirections[idx];
       const rotation = path ? -Math.PI / 2 - Math.atan2(path[1], -path[0]) : Math.PI - (semanticNumber(frame, "motion.yaw") ?? 0);
+      const cameraCenter = viewport?.center ?? (rotateWithCar && showCar ? position : null);
+      const cameraRotation = viewport ? viewport.rotation : rotation;
       const result = drawStaticTrack({
         canvas,
         bufferCanvas: directVectorRender ? canvas : bufferCanvasRef.current,
         telemetry,
         gameId,
+        coordinatesPrepared,
         resolvedPositions,
         outline,
         showOutline,
@@ -109,9 +117,11 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
           ? {
               panX: panRef.current.x,
               panY: panRef.current.y,
-              ...(rotateWithCar && showCar && position ? { center: position, rotation, drawFollowCar: true } : {}),
+              ...(cameraCenter ? { center: cameraCenter, rotation: cameraRotation, drawFollowCar: !viewport && rotateWithCar && showCar } : {}),
             }
           : undefined,
+        drawWorldOverlay: renderWorldOverlay ? (overlay) => renderWorldOverlay({ ...overlay, cursorIdx: idx }) : undefined,
+        drawScreenOverlay: renderScreenOverlay ? (overlay) => renderScreenOverlay({ ...overlay, cursorIdx: idx }) : undefined,
       });
       transformRef.current = result.transform;
       if (!directVectorRender) bufferCanvasRef.current = result.bufferCanvas;
@@ -157,6 +167,10 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
       zoom,
       directVectorRender,
       panRef,
+      viewport,
+      renderWorldOverlay,
+      coordinatesPrepared,
+      renderScreenOverlay,
     ],
   );
 
@@ -276,6 +290,7 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
   }, [cursorIdx, drawCar, rotateWithCar]);
 
   useEffect(() => {
+    if (!showCar) return;
     const pulse = pulseRef.current;
     if (!pulse) return;
     let animationId: number;
@@ -298,12 +313,12 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
     };
     animationId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animationId);
-  }, []);
+  }, [showCar]);
 
   return (
     <div
       ref={viewportRef}
-      data-testid="analyse-track-map-viewport"
+      data-testid={testId}
       className="relative w-full h-full cursor-grab touch-none overscroll-contain active:cursor-grabbing"
       style={{ minHeight: 220 }}
       onPointerDown={pointerHandlers.onPointerDown}

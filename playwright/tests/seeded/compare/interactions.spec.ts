@@ -145,3 +145,18 @@ for (const game of SEEDED_GAME_CASES) {
     }
   });
 }
+
+test("iRacing Compare uses shared overview and zoom track canvases", async ({ page, request }) => {
+  const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "iracing")!;
+  const pair = await getDistinctPair(request, game.gameId);
+  await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
+
+  const workspace = page.getByTestId("lap-compare-workspace");
+  await expect(workspace.getByTestId("compare-overview-track-map")).toBeVisible({ timeout: 30_000 });
+  await expect(workspace.getByTestId("compare-zoom-track-map")).toBeVisible();
+  await assertSynchronizedCursors(page);
+
+  const fixedMode = page.getByRole("button", { name: "Fixed View", exact: true });
+  await fixedMode.click();
+  await expect(page.getByRole("button", { name: "Follow View", exact: true })).toBeVisible();
+});

@@ -3,8 +3,8 @@ const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof 
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLaps } from "@/hooks/laps";
-import { useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
+import { useLapSemanticTelemetry, useLaps } from "@/hooks/laps";
+import { useTrackImagery, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
 import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "@/lib/comparison-layout";
@@ -70,6 +70,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     const s = sectorsData as { segments?: { type: string; name: string; startFrac: number; endFrac: number }[] } | undefined;
     return s?.segments ?? null;
   }, [sectorsData]);
+  const { data: trackImagery = null } = useTrackImagery(selectedTrack ?? undefined);
+  const { data: lapAReplay = null } = useLapSemanticTelemetry(lapAId);
   const prevTrackRef = useRef<number | null | undefined>(undefined);
   const prevCarARef = useRef<number | null | undefined>(undefined);
   const prevCarBRef = useRef<number | null | undefined>(undefined);
@@ -394,6 +396,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               redrawRef={mapRedrawRef}
               trackOrdinal={selectedTrack}
               gameId={gameId}
+              imagery={trackImagery}
+              geographicPositions={lapAReplay?.geographicPositions ?? null}
             />
           </div>
 

@@ -25,7 +25,7 @@ export interface TrackMapRenderData {
 }
 
 export function useTrackMapRenderData(props: TrackMapProps): TrackMapRenderData {
-  const { gameId, telemetry, outline, boundaries, layers, zoom = 1, imagery, geographicPositions } = props;
+  const { gameId, telemetry, outline, boundaries, layers, zoom = 1, imagery, geographicPositions, viewport, coordinatesPrepared } = props;
 
   const {
     imagery: showImagery,
@@ -57,7 +57,7 @@ export function useTrackMapRenderData(props: TrackMapProps): TrackMapRenderData 
     [boundaries, showBoundaries, showPitLane, showRaceLine],
   );
 
-  const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, gameId), [telemetry, outline, gameId]);
+  const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, coordinatesPrepared ? undefined : gameId), [telemetry, outline, coordinatesPrepared, gameId]);
   const imageryLocalPositions = useMemo(() => (resolvedPositions.length > 0 ? resolvedPositions : outline ?? []), [resolvedPositions, outline]);
   const imageryMatrix = useMemo(
     () =>
@@ -68,7 +68,7 @@ export function useTrackMapRenderData(props: TrackMapProps): TrackMapRenderData 
   );
 
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
-  const directVectorRender = zoom > TRACK_MAP_MAX_RENDER_ZOOM;
+  const directVectorRender = zoom > TRACK_MAP_MAX_RENDER_ZOOM || viewport != null;
 
   return {
     visibleBoundaries,
