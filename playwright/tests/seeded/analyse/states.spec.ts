@@ -12,7 +12,8 @@ test("Analyse exposes loading and parse-error states", async ({ page, request })
   const loadingGate = new Promise<void>((resolve) => {
     releaseLoading = resolve;
   });
-  await page.route(new RegExp(`/api/laps/${target.id}$`), async (route) => {
+  const telemetryUrl = new RegExp(`/api/laps/${target.id}/semantic-telemetry$`);
+  await page.route(telemetryUrl, async (route) => {
     await loadingGate;
     await route.continue();
   });
@@ -20,14 +21,13 @@ test("Analyse exposes loading and parse-error states", async ({ page, request })
   await expect(page.getByText("Loading lap telemetry...", { exact: true })).toBeVisible();
   releaseLoading();
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
-  await page.unroute(new RegExp(`/api/laps/${target.id}$`));
+  await page.unroute(telemetryUrl);
 
-  await page.route(new RegExp(`/api/laps/${target.id}$`), async (route) => {
+  await page.route(telemetryUrl, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        telemetry: [],
         parseError: "seeded-e2e parse failure",
       }),
     });

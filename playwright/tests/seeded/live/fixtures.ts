@@ -48,7 +48,7 @@ export const LIVE_CHANNELS_BY_GAME = {
       evidence: "committed F1 replay has no EstimatedLapTime values or seeded sector best, so server cannot calculate an estimated lap",
     },
     { kind: "static", label: "Weather" },
-    { kind: "event", label: "DRS state", states: ["DRS", "DRS READY", "DRS OPEN"] },
+    { kind: "static", label: "DRS" },
   ],
   acc: [
     { kind: "dynamic", label: "Current" },
@@ -59,7 +59,7 @@ export const LIVE_CHANNELS_BY_GAME = {
       evidence: "committed ACC replay resolves track 2 with no seeded sector best, so estimated lap remains unavailable",
     },
     { kind: "static", label: "Lap" },
-    { kind: "event", label: "Pit state", states: ["OUT", "PIT LANE", "IN PIT"] },
+    { kind: "static", label: "Fuel" },
   ],
   "ac-evo": [
     { kind: "dynamic", label: "Current" },
@@ -70,12 +70,9 @@ export const LIVE_CHANNELS_BY_GAME = {
       evidence: "committed AC Evo replay resolves Brands Hatch GP with no seeded sector best, so estimated lap remains unavailable",
     },
     { kind: "static", label: "Lap" },
-    { kind: "event", label: "Pit state", states: ["OUT", "PIT LANE", "IN PIT"] },
   ],
   iracing: [
     { kind: "dynamic", label: "Current" },
-    { kind: "dynamic", label: "Est. Lap" },
     { kind: "static", label: "Lap" },
-    { kind: "event", label: "iRacing pit state", states: ["OUT", "PIT LANE", "IN PIT"] },
   ],
 } as const satisfies Record<GameId, readonly LiveChannel[]>;

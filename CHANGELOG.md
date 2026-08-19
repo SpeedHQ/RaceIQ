@@ -11,7 +11,10 @@
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
-- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
+- Show iRacing live fuel bars using tank capacity reported by simulator session data
+- Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
+- Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
+- Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
@@ -66,15 +69,18 @@
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
+- Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
 - Replace Biome with Oxc for repository linting and formatting
+- Consolidate game raw telemetry routes behind one dynamic route and default seeded E2E runs to two workers
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog
+- Deduplicate telemetry catalog provenance hashes so generated review diffs stay focused on meaningful mapping changes
 - Organized automated tests by domain, split oversized suites, and centralized shared test support
 - Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics

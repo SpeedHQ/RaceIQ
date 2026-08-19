@@ -181,6 +181,7 @@ export const replayRoutes = new Hono()
 
     wsManager.broadcastStatus({
       udpPps: 0,
+      telemetryPps: intervalMs > 0 ? Math.round(1000 / intervalMs) : 0,
       isRaceOn: true,
       droppedPackets: 0,
       udpPort: 0,
@@ -213,6 +214,7 @@ export const replayRoutes = new Hono()
     pitTracker.reset();
     pitTracker.setTireThresholds(getServerGame(gameId).tireHealthThresholds.yellow);
     for (const packet of packets) {
+      wsManager.stageDevTelemetry(structuredClone(packet));
       normalizeTelemetryPacket(
         packet,
         getServerGame(gameId).coordSystem === "standard-xyz",

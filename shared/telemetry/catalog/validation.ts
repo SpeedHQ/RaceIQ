@@ -1,13 +1,15 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../games/ids";
 import type { TelemetryPacket } from "../types";
-import type { TelemetryValueCardinality } from "./contracts";
+import type {
+  TelemetryCatalogData,
+  TelemetryValueCardinality,
+} from "./contracts";
 import {
   TELEMETRY_CATALOG,
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
 } from "./data";
-import { groupsById, variablesById } from "./query";
 
 function hasFiniteEnumDomain(domain: readonly string[] | undefined): boolean {
   if (!domain?.length) return false;
@@ -48,19 +50,25 @@ function sameCardinality(
   );
 }
 
-export function assertTelemetryCatalogComplete(): void {
-  if (TELEMETRY_CATALOG.format !== "raceiq-semantic-telemetry-catalog-v6") {
-    throw new Error(`Unexpected catalog format ${TELEMETRY_CATALOG.format}`);
+export function assertTelemetryCatalogComplete(
+  catalog: TelemetryCatalogData = TELEMETRY_CATALOG,
+): void {
+  if (catalog.format !== "raceiq-semantic-telemetry-catalog-v7") {
+    throw new Error(`Unexpected catalog format ${catalog.format}`);
   }
-  const metadata = TELEMETRY_CATALOG.metadata;
+  const metadata = catalog.metadata;
   if (
     !metadata.catalogVersion ||
     !metadata.schemaVersion ||
     !metadata.generator.name ||
     !metadata.generator.version ||
-    !/^[a-f0-9]{64}$/.test(metadata.generator.commit) ||
-    !/^[a-f0-9]{64}$/.test(metadata.contentHash) ||
-    Number.isNaN(Date.parse(metadata.generatedAt))
+    !/^[a-f0-9]{64}$/.test(metadata.generator.sourceHash) ||
+    !metadata.sourceHashes ||
+    Object.keys(metadata.sourceHashes).length === 0 ||
+    Object.values(metadata.sourceHashes).some(
+      (sourceHash) => !/^[a-f0-9]{64}$/.test(sourceHash),
+    ) ||
+    !/^[a-f0-9]{64}$/.test(metadata.contentHash)
   ) {
     throw new Error("Telemetry catalog metadata is incomplete");
   }
@@ -72,26 +80,28 @@ export function assertTelemetryCatalogComplete(): void {
     throw new Error("Generated telemetry catalog constants do not match metadata");
   }
   const normalizedFields = new Set(
-    TELEMETRY_CATALOG.variables.flatMap(
-      (variable) => variable.packetFields ?? [],
-    ),
+    catalog.variables.flatMap((variable) => variable.packetFields ?? []),
   );
   const sourcePathsByGame = Object.fromEntries(
     KNOWN_GAME_IDS.map((gameId) => [
       gameId,
-      new Set(TELEMETRY_CATALOG.sources[gameId].map((source) => source.path)),
+      new Set(catalog.sources[gameId].map((source) => source.path)),
     ]),
   ) as Record<GameId, Set<string>>;
+  const groupsById = new Map(catalog.groups.map((group) => [group.id, group]));
+  const variablesById = new Map(
+    catalog.variables.map((variable) => [variable.id, variable]),
+  );
 
   const nodeIds = new Set<string>();
-  for (const group of TELEMETRY_CATALOG.groups) {
+  for (const group of catalog.groups) {
     if (nodeIds.has(group.id)) throw new Error(`Duplicate node ${group.id}`);
     nodeIds.add(group.id);
     if (!group.label || !group.description) {
       throw new Error(`${group.id} must declare label and description`);
     }
   }
-  for (const variable of TELEMETRY_CATALOG.variables) {
+  for (const variable of catalog.variables) {
     if (nodeIds.has(variable.id)) throw new Error(`Duplicate node ${variable.id}`);
     nodeIds.add(variable.id);
     if (
@@ -212,7 +222,7 @@ export function assertTelemetryCatalogComplete(): void {
       if (
         !mapping.provenance.artifact ||
         !mapping.provenance.origin ||
-        !/^[a-f0-9]{64}$/.test(mapping.provenance.commit) ||
+        !metadata.sourceHashes[mapping.provenance.artifact] ||
         !Array.isArray(mapping.limitations)
       ) {
         throw new Error(`${variable.id} ${gameId} lacks mapping provenance`);
@@ -314,7 +324,7 @@ export function assertTelemetryCatalogComplete(): void {
     }
   }
 
-  for (const group of TELEMETRY_CATALOG.groups) {
+  for (const group of catalog.groups) {
     if (group.parentId) {
       const parent = groupsById.get(group.parentId);
       if (!parent?.children.includes(group.id)) {
@@ -329,8 +339,8 @@ export function assertTelemetryCatalogComplete(): void {
   }
 
   for (const gameId of KNOWN_GAME_IDS) {
-    const sources = TELEMETRY_CATALOG.sources[gameId];
-    const coverage = TELEMETRY_CATALOG.coverage.sourceCounts[gameId];
+    const sources = catalog.sources[gameId];
+    const coverage = catalog.coverage.sourceCounts[gameId];
     const expected = coverage.total;
     if (sources.length !== expected) {
       throw new Error(
@@ -382,12 +392,9 @@ export function assertTelemetryCatalogComplete(): void {
     }
   }
 
-  if (
-    normalizedFields.size !==
-    TELEMETRY_CATALOG.coverage.normalizedPacketFields
-  ) {
+  if (normalizedFields.size !== catalog.coverage.normalizedPacketFields) {
     throw new Error(
-      `Normalized field coverage expected ${TELEMETRY_CATALOG.coverage.normalizedPacketFields}, found ${normalizedFields.size}`,
+      `Normalized field coverage expected ${catalog.coverage.normalizedPacketFields}, found ${normalizedFields.size}`,
     );
   }
 }

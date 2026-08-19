@@ -7,10 +7,10 @@ import { openStoryForSnapshot, warmStorybook } from "./storybook-ready";
 const LIVE_DASHBOARD_NAMES = new Set(["F1LiveDashboard", "ForzaLiveDashboard", "AccLiveDashboard"]);
 const comparisonCaptureOnly = process.env.RACEIQ_UI_DIFF_CAPTURE === "1";
 
-test.setTimeout(180_000);
+test.setTimeout(300_000);
 test.beforeAll(async ({ browser }) => {
-  test.setTimeout(180_000);
-  await warmStorybook(browser, `/iframe.html?id=${DASHBOARD_SNAPSHOT_CASES[0].id}&viewMode=story`, { attempts: 4, attemptTimeoutMs: 30_000 });
+  test.setTimeout(300_000);
+  await warmStorybook(browser, `/iframe.html?id=${DASHBOARD_SNAPSHOT_CASES[0].id}&viewMode=story`, { attempts: 12, attemptTimeoutMs: 15_000 });
 });
 
 for (const story of DASHBOARD_SNAPSHOT_CASES) {

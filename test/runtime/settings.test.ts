@@ -2,12 +2,19 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import { loadSettings } from "../../server/runtime/config/settings";
-import { settingsRoutes } from "../../server/routes/settings-routes";
+import { settingsRoutes, shouldCheckCredentialStatus } from "../../server/routes/settings-routes";
 
 // Follows DATA_DIR so this never mutates the real dev settings.json —
 // `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).
 const SETTINGS_DIR = process.env.DATA_DIR ?? "./data";
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
+
+describe("E2E settings behavior", () => {
+  test("skips credential status checks in E2E mode", () => {
+    expect(shouldCheckCredentialStatus({ RACEIQ_E2E: "1" })).toBe(false);
+    expect(shouldCheckCredentialStatus({ RACEIQ_E2E: "0" })).toBe(true);
+  });
+});
 
 describe("settings with unit system", () => {
   let originalContent: string | null = null;

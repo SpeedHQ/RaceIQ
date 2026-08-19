@@ -17,8 +17,8 @@ test("successful session deletion removes only disposable API-created record", a
       .first();
     await expect(row).toBeVisible();
     await row.getByRole("checkbox").check();
-    await page.getByRole("button", { name: /^Delete / }).click();
     const deleted = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/sessions/bulk-delete");
+    await page.getByRole("button", { name: /^Delete / }).click();
     await page.getByRole("button", { name: "Yes", exact: true }).click();
     expect((await deleted).ok()).toBe(true);
     await expect(row).toHaveCount(0);

@@ -1,6 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import {
-  buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   getSourcesWithoutSemanticDefinition,
   getTelemetrySources,
@@ -14,13 +14,25 @@ import {
   telemetryCatalogSourceHash,
   assertTelemetryCatalogComplete,
 } from "../../support/telemetry/catalog";
+import {
+  ast,
+  interfaceFields,
+  interfaceLeafFields,
+} from "../../../scripts/catalog/ast-discovery";
 
 describe("semantic telemetry catalog artifacts", () => {
   test("generated artifact is current and structurally complete", async () => {
-    expect(JSON.stringify(await buildTelemetryCatalog())).toBe(
-      JSON.stringify(TELEMETRY_CATALOG),
+    const jsonArtifact = [...(await buildTelemetryCatalogArtifacts())].find(
+      ([path]) => path.endsWith("telemetry-catalog.generated.json"),
     );
-    expect(() => assertTelemetryCatalogComplete()).not.toThrow();
+    if (!jsonArtifact) {
+      throw new Error("Generated telemetry catalog JSON is missing");
+    }
+    const actualJson = readFileSync(jsonArtifact[0], "utf8");
+    expect(actualJson).toBe(jsonArtifact[1]);
+    expect(() =>
+      assertTelemetryCatalogComplete(JSON.parse(actualJson)),
+    ).not.toThrow();
   });
   test("rejects unconstrained structured and enum value contracts", () => {
     const structured = getTelemetryVariable("race.competitor.position");
@@ -55,13 +67,10 @@ describe("semantic telemetry catalog artifacts", () => {
         version: TELEMETRY_CATALOG_VERSION,
       },
     });
-    expect(TELEMETRY_CATALOG.metadata.generator.commit).toMatch(
+    expect(TELEMETRY_CATALOG.metadata.generator.sourceHash).toMatch(
       /^[a-f0-9]{64}$/,
     );
     expect(TELEMETRY_CATALOG.metadata.contentHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(TELEMETRY_CATALOG.metadata.generatedAt).toBe(
-      "1970-01-01T00:00:00.000Z",
-    );
 
     const first = await buildTelemetryCatalogArtifacts();
     const second = await buildTelemetryCatalogArtifacts();
@@ -87,6 +96,21 @@ describe("semantic telemetry catalog artifacts", () => {
     const lf = "alpha\nbeta\n";
     expect(telemetryCatalogSourceHash(lf)).toBe(
       telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")),
+    );
+  });
+  test("normalizes line endings in discovered source types", () => {
+    const lf = `interface Sample {
+  value: [
+    [number, number, number],
+    [number, number, number],
+  ];
+}`;
+    const crlf = lf.replaceAll("\n", "\r\n");
+    expect(interfaceFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceFields(lf, ast(lf), "Sample"),
+    );
+    expect(interfaceLeafFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceLeafFields(lf, ast(lf), "Sample"),
     );
   });
   test("covers every normalized packet field and every parser source inventory", () => {

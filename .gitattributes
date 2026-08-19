@@ -1,1 +1,2 @@
 *.bin.gz -text
+shared/telemetry/catalog/generated/* text eol=lf
