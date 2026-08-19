@@ -63,6 +63,17 @@ export function loadTrackConfiguration(gameId: GameId, trackOrdinal: number): Tr
   return row ? configurationFromRow(row, venueNodesByPath()) : null;
 }
 
+/** Resolve authored facts identity directly from generated registry SQLite. */
+export function loadTrackConfigurationFactsSlug(gameId: GameId, trackOrdinal: number): string | null {
+  const row = getTrackRegistry().query(`
+    SELECT l.facts_slug AS factsSlug
+      FROM game_tracks gt
+      JOIN layouts l ON l.canonical_id = gt.layout_id
+     WHERE gt.game_id = ? AND gt.track_ordinal = ?
+  `).get(gameId, trackOrdinal) as { factsSlug: string | null } | null;
+  return row?.factsSlug ?? null;
+}
+
 export function listTrackConfigurations(): TrackConfiguration[] {
   const venues = venueNodesByPath();
   const rows = getTrackRegistry().query(`${CONFIGURATION_SELECT} ORDER BY gt.game_id, gt.track_ordinal`).all() as ConfigurationRow[];

@@ -136,6 +136,8 @@ export function TrackGeometryWorkspace({ model, mode, layers, onLayerChange, edi
         editSegments={model.editSegments}
         saving={model.saving}
         saveError={model.saveError}
+        generatingSegments={model.generatingSegments}
+        generateSegmentsError={model.generateSegmentsError}
         sectorBounds={model.sectorBounds}
         timingSectors={model.timingSectors}
         timingSectorsLoading={model.timingSectorsLoading}
@@ -148,11 +150,12 @@ export function TrackGeometryWorkspace({ model, mode, layers, onLayerChange, edi
         segDisplayNames={names}
         startEditing={model.startEditing}
         saveSegments={model.saveSegments}
+        generateSegments={model.generateSegments}
         toggleSegType={model.toggleSegType}
         addSegment={model.addSegment}
         removeSegment={model.removeSegment}
         updateSegFrac={model.updateSegFrac}
-        setEditing={model.setEditing}
+        cancelEditing={model.cancelEditing}
         startEditingSectors={model.startEditingSectors}
         saveSectorBounds={model.saveSectorBounds}
         setEditingSectors={model.setEditingSectors}

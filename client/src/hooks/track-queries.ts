@@ -30,6 +30,7 @@ export function useTrackSectors(ord: number | undefined, gameIdOverride?: GameId
       return rpcJson(res);
     },
     enabled: ord != null && !!gameId,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 

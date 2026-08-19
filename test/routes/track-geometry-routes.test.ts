@@ -10,6 +10,7 @@ import {
 import {
   loadTrackRegistrySource,
   resolveTrackRegistryLocations,
+  updateTrackRegistrySource,
 } from "../../shared/racing/tracks/registry-source";
 import { trackSectorBoundaryRoutes, trackSegmentRoutes } from "../../server/routes/tracks/segments-routes";
 import { trackGeometryRoutes } from "../../server/routes/tracks/geometry-routes";
@@ -311,5 +312,80 @@ describe("track sector boundary routes", () => {
     });
     expectSourceFilesUnchanged(repoBefore, readTrackRegistrySourceFiles(REPO_TRACK_REGISTRY_SOURCE_DIR));
     expectSourceFilesUnchanged(testRootBefore, readTrackRegistrySourceFiles(TRACK_REGISTRY_LOCATIONS.sourceDirectory));
+  });
+
+  test("serves SQL only and persists explicit generated previews through canonical JSON", async () => {
+    const gameId = "iracing";
+    const trackOrdinal = 123;
+    const repoBefore = readTrackRegistrySourceFiles(REPO_TRACK_REGISTRY_SOURCE_DIR);
+    const isolatedBefore = loadTrackRegistrySource();
+    const isolatedFilesBefore = readTrackRegistrySourceFiles(TRACK_REGISTRY_LOCATIONS.sourceDirectory);
+    const isolatedDatabaseBefore = readFileSync(TRACK_REGISTRY_LOCATIONS.databasePath);
+    const assignmentBefore = isolatedBefore.configurations.assignments.find(
+      (entry) => entry.gameId === gameId && entry.trackOrdinal === trackOrdinal,
+    );
+    const layoutBefore = isolatedBefore.configurations.layouts.find((entry) => entry.id === assignmentBefore?.layoutId);
+    expect(assignmentBefore).toBeDefined();
+    expect(layoutBefore?.factsSlug).toBeUndefined();
+
+    try {
+      const missingResponse = await trackSegmentRoutes.request(
+        `/api/track-sectors/${trackOrdinal}?gameId=${gameId}`,
+      );
+      expect(missingResponse.status).toBe(200);
+      expect(await missingResponse.json()).toEqual({ segments: [] });
+
+      const generateResponse = await trackSegmentRoutes.request(
+        `/api/tracks/${trackOrdinal}/segments/generate?gameId=${gameId}`,
+        { method: "POST" },
+      );
+      expect(generateResponse.status).toBe(200);
+      const generated = await generateResponse.json() as {
+        source: string;
+        segments: Array<{ type: string; startFrac: number; endFrac: number }>;
+      };
+      expect(generated.source).toBe("auto");
+      expect(generated.segments.length).toBeGreaterThan(0);
+      expectSourceFilesUnchanged(isolatedFilesBefore, readTrackRegistrySourceFiles(TRACK_REGISTRY_LOCATIONS.sourceDirectory));
+      expect(readFileSync(TRACK_REGISTRY_LOCATIONS.databasePath)).toEqual(isolatedDatabaseBefore);
+
+      const saveResponse = await trackSegmentRoutes.request(
+        `/api/tracks/${trackOrdinal}/segments?gameId=${gameId}`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ segments: generated.segments }),
+        },
+      );
+      expect(saveResponse.status).toBe(200);
+
+      const sourceAfter = loadTrackRegistrySource();
+      const assignmentAfter = sourceAfter.configurations.assignments.find(
+        (entry) => entry.gameId === gameId && entry.trackOrdinal === trackOrdinal,
+      );
+      const layoutAfter = sourceAfter.configurations.layouts.find((entry) => entry.id === assignmentAfter?.layoutId);
+      expect(layoutAfter?.factsSlug).toBe(assignmentAfter?.layoutId.replaceAll("/", "-"));
+      const geometryAfter = sourceAfter.geometry.geometry.find(
+        (entry) => entry.factsSlug === layoutAfter?.factsSlug && entry.gameId === gameId,
+      );
+      expect(geometryAfter?.segments.length).toBe(generated.segments.length);
+      expect(loadTrackGeometryForGame(layoutAfter!.factsSlug!, gameId)?.segments).toEqual(geometryAfter?.segments);
+
+      const persistedResponse = await trackSegmentRoutes.request(
+        `/api/track-sectors/${trackOrdinal}?gameId=${gameId}`,
+      );
+      expect(persistedResponse.status).toBe(200);
+      const persisted = await persistedResponse.json() as {
+        source: string;
+        segments: Array<{ type: string; startFrac: number; endFrac: number }>;
+      };
+      expect(persisted.source).toBe("shared");
+      expect(persisted.segments.map(({ type, startFrac, endFrac }) => ({ type, startFrac, endFrac }))).toEqual(
+        generated.segments.map(({ type, startFrac, endFrac }) => ({ type, startFrac, endFrac })),
+      );
+      expectSourceFilesUnchanged(repoBefore, readTrackRegistrySourceFiles(REPO_TRACK_REGISTRY_SOURCE_DIR));
+    } finally {
+      updateTrackRegistrySource(() => isolatedBefore);
+    }
   });
 });

@@ -30,6 +30,7 @@
 - Keep track geometry tools usable when optional curb data has not been recorded
 - Keep satellite imagery track maps responsive during Analyse playback instead of rebuilding the static raster for every telemetry frame
 - Show track workbench status cards immediately and resolve native sector layouts without a per-lap request waterfall
+- Load saved track segments from generated SQLite immediately, label missing geometry without background detection, and generate editable previews only when requested
 - Complete large venue imagery imports reliably by batching source downloads and retrying transient provider failures
 - Complete large manually uploaded venue imagery imports without stalling the development server under multi-tile workloads
 - Keep viewport-loaded aerial imagery seamless and stable while progressively sharpening it during Analyse map zoom

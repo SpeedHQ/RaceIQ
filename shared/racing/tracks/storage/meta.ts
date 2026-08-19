@@ -223,11 +223,17 @@ export function saveTrackGeometry(slug: string, gameId: string, geometry: TrackG
   });
 }
 
+export interface TrackMetadataBinding {
+  gameId: GameId;
+  trackOrdinal: number;
+}
+
 /** Persist paired shared facts and selected native game geometry in one source transaction. */
 export function saveTrackMetadata(
   slug: string,
   facts: TrackFacts,
   geometryByGame: Readonly<Record<string, TrackGeometry>>,
+  binding?: TrackMetadataBinding,
 ): void {
   if (!slug) throw new Error("saveTrackMetadata: slug required");
   if (facts.slug !== slug) throw new Error(`saveTrackMetadata: identity mismatch ${facts.slug} !== ${slug}`);
@@ -235,8 +241,19 @@ export function saveTrackMetadata(
     gameId: GameIdSchema.parse(gameId),
     value,
   }));
+  const parsedBinding = binding
+    ? { gameId: GameIdSchema.parse(binding.gameId), trackOrdinal: binding.trackOrdinal }
+    : null;
   updateTrackRegistrySource((draft) => {
     upsertFactsSource(draft, facts);
     for (const entry of geometry) upsertGeometrySource(draft, slug, entry.gameId, entry.value);
+    if (!parsedBinding) return;
+    const assignment = draft.configurations.assignments.find(
+      (entry) => entry.gameId === parsedBinding.gameId && entry.trackOrdinal === parsedBinding.trackOrdinal,
+    );
+    if (!assignment) throw new Error(`Missing track assignment ${parsedBinding.gameId}/${parsedBinding.trackOrdinal}`);
+    const layout = draft.configurations.layouts.find((entry) => entry.id === assignment.layoutId);
+    if (!layout) throw new Error(`Missing track layout ${assignment.layoutId}`);
+    layout.factsSlug = slug;
   });
 }

@@ -6,6 +6,7 @@ import { tryGetGame } from "../../../shared/games/registry";
 import { tryGetServerGame } from "../../games/registry";
 import { formatTurnNumbers, turnNumbers } from "../../../shared/racing/tracks/segment-label";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
+import { trackConfigurationCanonicalId } from "../../../shared/racing/tracks/configuration";
 import { getCorners, saveCorners } from "../../db/track-queries";
 import { getLapById, getLapSummariesByTrack } from "../../db/lap-read-queries";
 import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
@@ -24,7 +25,9 @@ import { isValidNativeSectorStarts } from "../../lap-analysis/sectors";
 import { cornerNumbers } from "../../../shared/racing/tracks/facts";
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
 import { cornerKey } from "../../../shared/racing/tracks/keys";
+import { loadTrackConfiguration } from "../../tracks/configuration";
 import {
+  generateTrackSegments,
   computeOutlineLength,
   getSharedTrackName,
   requireGameId,
@@ -245,9 +248,11 @@ export const trackSegmentRoutes = new Hono()
         return c.json({ error: "segments array required" }, 400);
       }
 
-      const slug = getSharedTrackName(trackOrdinal, gameId);
+      const configuration = loadTrackConfiguration(gameId, trackOrdinal);
+      const configurationSlug = configuration ? trackConfigurationCanonicalId(configuration).replaceAll("/", "-") : undefined;
+      const slug = getSharedTrackName(trackOrdinal, gameId) ?? configurationSlug;
       if (!slug) {
-        return c.json({ error: "No shared track name for this ordinal" }, 400);
+        return c.json({ error: "No track configuration for this ordinal" }, 400);
       }
 
       // The editor hands back joined segments, so split them: fractions belong
@@ -270,10 +275,10 @@ export const trackSegmentRoutes = new Hono()
       const existingGeometry = loadTrackGeometryForGame(slug, gameId);
       saveTrackMetadata(slug, {
         slug,
-        track: existing?.track ?? slug,
-        layout: existing?.layout ?? "full",
-        layoutName: existing?.layoutName ?? "Full",
-        name: existing?.name ?? slug,
+        track: existing?.track ?? configuration?.venue.id ?? slug,
+        layout: existing?.layout ?? configuration?.track.id ?? "full",
+        layoutName: existing?.layoutName ?? configuration?.track.name ?? "Full",
+        name: existing?.name ?? configuration?.venue.name ?? slug,
         ...(existing?.source ? { source: existing.source } : {}),
         corners: [...byKey.values()].sort((a, b) => a.number - b.number),
         straights: [...byAfter.values()].sort((a, b) => a.after - b.after),
@@ -282,6 +287,9 @@ export const trackSegmentRoutes = new Hono()
           ...(existingGeometry?.sectors ? { sectors: existingGeometry.sectors } : {}),
           segments: geometry,
         },
+      }, {
+        gameId,
+        trackOrdinal,
       });
       console.log(`[Track] Saved ${geometry.length} segments for ${slug} (${gameId})`);
 
@@ -289,7 +297,20 @@ export const trackSegmentRoutes = new Hono()
     }
   )
 
-  // GET /api/track-sectors/:ordinal — returns user-edited, named, or auto-detected segments.
+  // POST /api/tracks/:trackOrdinal/segments/generate — create an unsaved editor preview.
+  .post("/api/tracks/:trackOrdinal/segments/generate",
+    zValidator("param", TrackOrdinalParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
+    async (c) => {
+      if (!IS_DEV && !IS_E2E) return c.json({ error: "Not available in production" }, 403);
+      const { trackOrdinal } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+      const generated = await generateTrackSegments(trackOrdinal, gameId);
+      return c.json(generated);
+    }
+  )
+
+  // GET /api/track-sectors/:ordinal — returns persisted registry segments.
   .get("/api/track-sectors/:ordinal",
     zValidator("param", OrdinalParamSchema),
     zValidator("query", GameIdQuerySchema),

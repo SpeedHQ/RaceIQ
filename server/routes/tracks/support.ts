@@ -165,18 +165,18 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
 // ─── Segment resolution ─────────────────────────────────────────────────────
 
 /**
- * The one place segment fractions come from. Curated shared-meta segments win;
- * otherwise the outline is run through the same auto-detector. Both
- * GET /api/track-sectors/:ordinal (track detail) and
- * GET /api/tracks/:trackOrdinal/corners (review dashboard / track focus) go
- * through here, so the two pages can never disagree about where a corner
- * starts and ends.
+ * Load persisted segment fractions from generated track-registry SQLite.
+ * Curated geometry wins; compatible canonical peers are the only fallback.
+ * Automatic detection is an explicit authoring action, never a runtime read.
  */
-export async function resolveTrackSegments(ordinal: number, gameId: string | undefined): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "canonical" | "auto" | "none" }> {
+export async function resolveTrackSegments(
+  ordinal: number,
+  gameId: string | undefined,
+): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "canonical" | "none" }> {
   const slug = getSharedTrackName(ordinal, gameId);
-  const metaSegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
-  if (metaSegments.length > 0) {
-    return { segments: metaSegments, totalDist: 0, source: "shared" };
+  const registrySegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
+  if (registrySegments.length > 0) {
+    return { segments: registrySegments, totalDist: 0, source: "shared" };
   }
 
   const parsedGameId = GameIdSchema.safeParse(gameId);
@@ -188,7 +188,15 @@ export async function resolveTrackSegments(ordinal: number, gameId: string | und
     }
   }
 
-  const resolved = gameId ? await resolveTrackOutline(ordinal, gameId) : null;
+  return { segments: [], totalDist: 0, source: "none" };
+}
+
+/** Generate an editable preview from outline assets without persisting it. */
+export async function generateTrackSegments(
+  ordinal: number,
+  gameId: string,
+): Promise<{ segments: NamedSegment[]; totalDist: number; source: "auto" | "none" }> {
+  const resolved = await resolveTrackOutline(ordinal, gameId);
   const outline = resolved?.points ?? null;
   if (!outline || outline.length < 20) {
     return { segments: [], totalDist: 0, source: "none" };
@@ -198,11 +206,10 @@ export async function resolveTrackSegments(ordinal: number, gameId: string | und
   const isFourTurnOval = iracingTrack?.category.endsWith("oval") === true && iracingTrack.cornersPerLap === 4;
   const ovalTurnAnchors = isFourTurnOval && resolved?.labels.length ? projectIRacingTurnAnchors(outline, resolved.labels) : [];
   const result = autoTrackSegments(outline, isFourTurnOval && ovalDirection ? { fourTurnOval: { direction: ovalDirection, turnAnchors: ovalTurnAnchors } } : {});
-
   const segments = gameId === "iracing" && !isFourTurnOval && resolved?.labels.length ? alignIRacingAutoSegmentsToTurnLabels(result.segments, outline, resolved.labels) : result.segments;
   return {
     segments,
     totalDist: result.totalDist,
-    source: "auto",
+    source: segments.length > 0 ? "auto" : "none",
   };
 }
