@@ -66,12 +66,17 @@ jobs:
 
       - name: Merge pull request base into the PR head
         env:
+          BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "$BASE_SHA"
-          git merge --no-edit "$BASE_SHA"
+          git fetch --no-tags origin "refs/heads/${BASE_REF}"
+          if ! git cat-file -e "${BASE_SHA}^{commit}"; then
+            echo "Base commit ${BASE_SHA} is not available after fetching ${BASE_REF}" >&2
+            exit 1
+          fi
+          git merge --no-edit "${BASE_SHA}"
 
       - name: Prepare base comparison worktree
         env:
