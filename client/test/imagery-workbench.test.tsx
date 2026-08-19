@@ -4,6 +4,7 @@ import type { TrackImageryCandidate, TrackImageryOutputBudget, TrackImagerySourc
 import { ImageryCandidateList } from "../src/components/dev/imagery/ImageryCandidatePanel";
 import { ImageryImportEstimate } from "../src/components/dev/imagery/ImageryImportEstimate";
 import { ImageryCalibrationEditor } from "../src/components/dev/imagery/ImageryEditors";
+import { ImageryPreview } from "../src/components/dev/imagery/ImageryPreview";
 
 function candidate(id: string, provider: string, title: string, capturedAt: string, quality: TrackImageryCandidate["quality"]): TrackImageryCandidate {
   return {
@@ -67,6 +68,32 @@ test("imagery calibration lists recorded lap times in seconds", () => {
 
   expect(markup).toContain("Recorded lap 3 · 1:50.536");
   expect(markup).not.toContain("0.111s");
+});
+
+test("imagery preview keeps track outline stroke constant across large venues", () => {
+  const markup = renderToStaticMarkup(
+    <ImageryPreview
+      calibration={{
+        referenceLoading: false,
+        viewBounds: { minX: 0, minZ: 0, width: 5_350, height: 4_600 },
+        calibration: {},
+        imageCorners: [],
+        handles: null,
+        gpsPolyline: "0,0 2000,1400",
+        handlePointerMove: () => undefined,
+        handlePointerEnd: () => undefined,
+      } as never}
+      baseUrl={null}
+      displayedLayers={[]}
+      layerPreviewUrl={null}
+      layerOpacity={1}
+      venueId="spa"
+      assetVersion={1}
+    />,
+  );
+
+  expect(markup).toMatch(/stroke="var\(--track-outline-strong\)" stroke-width="2"/);
+  expect(markup).toContain('vector-effect="non-scaling-stroke"');
 });
 
 test("calibration output budget shows complete pack size and processing limits", () => {

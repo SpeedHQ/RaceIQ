@@ -56,7 +56,7 @@ export function ImageryPreview({ calibration, baseUrl, displayedLayers, layerPre
             points={calibration.gpsPolyline}
             fill="none"
             stroke="var(--track-outline-strong)"
-            strokeWidth={viewBounds.width / 350}
+            strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
