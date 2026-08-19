@@ -1,7 +1,7 @@
 # Tracks
 
 Track domain owns static track facts, game-specific fractions, and label-ready helpers used by maps, AI prompts, telemetry transforms, and track tooling.
-`shared/racing/tracks/` is executable TypeScript. `shared/data/tracks/registry.sqlite` is bundled source of truth; adjacent JSON/CSV files contain guides, hints, and extracted geometry.
+`shared/racing/tracks/` is executable TypeScript. Four JSON files in `shared/data/tracks/registry-source/` are canonical registry source; runtime ships and reads generated `shared/data/tracks/registry.sqlite` only.
 
 ## Purpose
 - Keep track model split between **game-agnostic facts** and **per-game geometry**.
@@ -27,11 +27,20 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 - `guide/` — contracts and loaders for static data in `shared/data/tracks/guides/`.
 
 ## Data split and join contract
-- `track_facts`, `track_corners`, and `track_straights` registry rows contain physical roster only: turn numbers, names, groups, and straights.
-- `game_geometry` and `game_geometry_segments` rows contain per-game fractional ranges and sectors only.
+- `registry-source/facts.json` contains physical roster only: turn numbers, names, groups, and straights.
+- `registry-source/geometry.json` contains per-game fractional ranges and sectors only.
+- Generated `track_facts`, `track_corners`, `track_straights`, `game_geometry`, and `game_geometry_segments` SQLite rows project that source for runtime queries.
 - `joinSegments` builds display-ready labeled segments from facts plus one game's geometry.
 - `splitSegments` is inverse for editors and normalization loops.
 - Fact keys come from `keys.ts`; straight keys are `s<number>` and corner keys are `t<number>` or `tN-M`.
+
+## Registry ownership
+- `registry-source/configurations.json`, `facts.json`, `geometry.json`, and `verification.json` are editable authority.
+- `registry.sqlite` and `registry-report.json` are generated downstream. Do not edit rows or export SQLite back into source.
+- Authoring APIs update canonical source first, then refresh generated projection and report.
+- Resolve SQLite or report merge conflicts by merging source JSON, then running `bun run tracks:registry`.
+- Check source and generated artifacts with `bun run tracks:registry:check`.
+- Runtime builds package `registry.sqlite` only; source JSON and report remain development artifacts.
 
 ## Browser vs Node boundary
 ### Browser-safe imports
@@ -51,6 +60,7 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 ## Add/extend safely
 - Add or modify layout facts through `saveTrackFacts`; keep turn numbering complete and ordered.
 - Add or refresh one-game geometry through `saveTrackGeometry` or track-segment generation.
+- These authoring APIs mutate canonical JSON source, then rebuild generated SQLite and report artifacts.
 - For new game support, add a catalog loader under `catalogs/` and map shared names only when one-to-one equivalent exists.
 - For generated geometry, use:
   - `bun run tracks:segments --track <slug> [--game <gameId>]` for dry run.
@@ -62,6 +72,7 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 - Import explicit leaves (for example, `shared/racing/tracks/storage/meta` or `shared/racing/tracks/curation/generate`); this directory has no barrel contract.
 
 ## Verification
-- `curation/verified.ts` records human sign-off hashes in `curation_verification` registry rows.
+- `curation/verified.ts` records human sign-off in canonical `registry-source/verification.json`; generated SQLite mirrors that ledger.
+- Generation never creates or stamps verification. Only a human reviewer may use `--verify`.
 - `curation/coverage.ts` renders curation coverage.
 - `bun run tracks:coverage --write` refreshes generated coverage tables in track-curation contribution guide.

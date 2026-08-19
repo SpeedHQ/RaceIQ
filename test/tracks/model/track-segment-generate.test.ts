@@ -2,9 +2,8 @@
  * Runs the real segment generator (same code path as `bun run
  * tracks:segments`) over every curated track and asserts:
  *   1. every game centerline aligns cleanly (no unsanctioned fuzz), and
- *   2. committed registry rows exactly match what --write would produce —
- *      shared facts and every game's geometry. Names, detector, and geometry
- *      cannot drift apart.
+ *   2. canonical JSON exactly matches what --write would produce, then matches
+ *      generated SQLite readback. Names, detector, and geometry cannot drift.
  *
  * If this fails after editing a name list or the detector, regenerate with:
  *   bun run tracks:segments --all --write
@@ -13,16 +12,33 @@ import { describe, test, expect } from "bun:test";
 import {
   buildUpdatedMeta,
   generateTrackSegments,
-  listCuratedSlugs,
   writableAlignments,
 } from "../../../shared/racing/tracks/curation/generate";
-import { loadTrackFacts, loadTrackGeometry } from "../../../shared/racing/tracks/storage/meta";
+import { loadTrackFacts, loadTrackGeometryForGame } from "../../../shared/racing/tracks/storage/meta";
+import { loadTrackRegistrySource } from "../../../shared/racing/tracks/registry-source";
 import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
 import { officialTurnCount, validateFacts } from "../../../shared/racing/tracks/curation/segment-align-validate";
 import { loadDetectHints } from "../../../shared/racing/tracks/detect-hints";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_FUZZY_ALIGNMENTS } from "../../support/tracks/known-gaps";
 
-const slugs = listCuratedSlugs();
+const registrySource = loadTrackRegistrySource();
+const factsBySlug = Object.fromEntries(
+  registrySource.facts.facts.map((facts) => [facts.slug, facts]),
+) as Record<string, (typeof registrySource.facts.facts)[number]>;
+const geometryByKey = Object.fromEntries(registrySource.geometry.geometry.map((entry) => [
+  `${entry.factsSlug}/${entry.gameId}`,
+  {
+    ...(entry.sectors ? { sectors: entry.sectors } : {}),
+    segments: entry.segments,
+  } satisfies TrackGeometry,
+])) as Record<string, TrackGeometry>;
+const slugs = registrySource.facts.facts
+  .filter((facts) => facts.corners.length > 0)
+  .map((facts) => facts.slug);
+
+function loadSourceGeometry(slug: string, gameId: string): TrackGeometry | null {
+  return geometryByKey[`${slug}/${gameId}`] ?? null;
+}
 
 
 describe("track segment generator", () => {
@@ -32,7 +48,7 @@ describe("track segment generator", () => {
 
   for (const slug of slugs) {
     describe(slug, () => {
-      const facts = loadTrackFacts(slug)!;
+      const facts = factsBySlug[slug]!;
       const hints = loadDetectHints(slug);
       const { outcomes, aligned } = generateTrackSegments(slug, facts);
 
@@ -64,21 +80,29 @@ describe("track segment generator", () => {
         expect(writableAlignments(aligned)).toHaveLength(aligned.length - fuzzy);
       });
 
-      test("committed meta matches generator output (run tracks:segments --all --write if stale)", () => {
+      test("canonical source matches generator output and generated sqlite readback", () => {
         expect(facts).not.toBeNull();
         const writable = writableAlignments(aligned);
-        // Feeding the committed geometry back in is what proves curated sectors
-        // survive: a generated pair may only fill a game that has none.
-        const committed: Record<string, TrackGeometry> = {};
+        // Canonical JSON owns curated sectors and prior geometry. Feed source
+        // into regeneration before checking the generated SQLite projection.
+        const canonical: Record<string, TrackGeometry> = {};
         for (const a of writable) {
-          const geometry = loadTrackGeometry(slug, a.gameId);
-          expect(geometry, `${slug}/${a.gameId} has no committed geometry file`).not.toBeNull();
-          committed[a.gameId] = geometry!;
+          const geometry = loadSourceGeometry(slug, a.gameId);
+          expect(geometry, `${slug}/${a.gameId} has no canonical geometry source`).not.toBeNull();
+          canonical[a.gameId] = geometry!;
         }
-        const regenerated = buildUpdatedMeta(slug, facts, committed, writable);
+        const regenerated = buildUpdatedMeta(slug, facts, canonical, writable);
         expect(facts).toEqual(regenerated.facts);
         for (const [gameId, geometry] of Object.entries(regenerated.geometry)) {
-          expect(committed[gameId], `${slug}/${gameId} geometry is stale`).toEqual(geometry);
+          expect(canonical[gameId], `${slug}/${gameId} source geometry is stale`).toEqual(geometry);
+        }
+
+        expect(loadTrackFacts(slug), `${slug} generated facts differ from canonical source`).toEqual(facts);
+        for (const [gameId, geometry] of Object.entries(canonical)) {
+          expect(
+            loadTrackGeometryForGame(slug, gameId),
+            `${slug}/${gameId} generated geometry differs from canonical source`,
+          ).toEqual(geometry);
         }
       });
 
@@ -161,12 +185,11 @@ describe("track segment generator", () => {
             }
           });
 
-          // Sectors are per-game curation living in geometry, not something a
-          // regeneration derives, so the invariant is checked on what is
-          // committed for this game rather than on the alignment.
-          const sectors = loadTrackGeometry(slug, a.gameId)?.sectors;
+          // Sectors are per-game curation living in canonical geometry, not
+          // something regeneration derives.
+          const sectors = loadSourceGeometry(slug, a.gameId)?.sectors;
           if (sectors) {
-            test("committed sector boundaries split the lap in order", () => {
+            test("canonical sector boundaries split the lap in order", () => {
               expect(sectors.s1End).toBeGreaterThan(0);
               expect(sectors.s1End).toBeLessThan(sectors.s2End);
               expect(sectors.s2End).toBeLessThan(1);

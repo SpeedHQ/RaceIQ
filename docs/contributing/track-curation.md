@@ -2,24 +2,42 @@
 
 How corner data gets into RaceIQ, which layer wins, and what "verified" means.
 
-Short version: **curated geometry is the source of truth. The detector is a fallback. Curated is not the same as correct — verification is a separate, human-only claim.**
+Short version: **curated geometry wins over detector output. Curated is not same as correct — verification is separate, human-only claim.**
 
 ## The hierarchy
 
 Four layers, highest wins. Each one may be partial; lower layers fill the gaps.
 
-| Rank | Layer | Registry table | Authored by |
-|------|-------|----------------|-------------|
-| 1 | **Curated geometry** | `game_geometry`, `game_geometry_segments` | human, per game |
-| 2 | **Curated roster** (names, numbers, direction, groups) | `track_facts`, `track_corners`, `track_straights` | human, shared across games |
+| Rank | Layer | Canonical source | Authored by |
+|------|-------|------------------|-------------|
+| 1 | **Curated geometry** | `registry-source/geometry.json` | human, per game |
+| 2 | **Curated roster** (names, numbers, direction, groups) | `registry-source/facts.json` | human, shared across games |
 | 3 | **Detect hints** (nudges for fallback detector) | `shared/data/tracks/detect-hints.json` | human |
 | 4 | **Fallback detector** | `detectCornerRegions()` in `shared/racing/tracks/curation/segment-align-detect.ts` | code |
+
+### Registry storage and authoring
+
+Four JSON files under `shared/data/tracks/registry-source/` are canonical:
+`configurations.json`, `facts.json`, `geometry.json`, and `verification.json`.
+Editors and curation commands update these source files first, then regenerate
+`registry.sqlite` and `registry-report.json`. Never edit generated SQLite rows or
+export SQLite back into source.
+
+Runtime builds ship and read `registry.sqlite` only. Source JSON and report remain
+development and review artifacts. Resolve binary or report merge conflicts by
+merging canonical JSON, then run:
+
+```bash
+bun run tracks:registry
+bun run tracks:registry:check
+```
 
 ### Why the roster is shared but geometry is not
 
 Circuit corner names and numbering are properties of circuit. Spa's Eau Rouge is
-Eau Rouge in every game, so roster exists once in registry, keyed by facts slug.
-Corner location depends on game centerline, so geometry rows use `game_id` + slug.
+Eau Rouge in every game, so roster exists once in `registry-source/facts.json`,
+keyed by facts slug. Corner location depends on game centerline, so geometry
+entries in `registry-source/geometry.json` use game ID plus slug.
 
 iRacing is separate: native `SplitTimeInfo.Sectors` is variable-length session
 metadata and flows through telemetry as an array. Registry's curated boundaries
@@ -54,23 +72,24 @@ Three claims, weakest to strongest. They are tracked separately because each say
 
 | Claim | Means | Proof |
 |-------|-------|-------|
-| **Curated roster** | someone hand-authored non-empty corner facts | registry facts and corner rows |
-| **Facts human-verified** | someone checked roster against real turn-by-turn guide | `curation_verification` facts row |
-| **Geometry human-verified** | someone checked game's rendered geometry | `curation_verification` geometry row |
+| **Curated roster** | someone hand-authored non-empty corner facts | canonical facts entries |
+| **Facts human-verified** | someone checked roster against real turn-by-turn guide | facts entry in canonical verification ledger |
+| **Geometry human-verified** | someone checked game's rendered geometry | geometry entry in canonical verification ledger |
 
 ### Verification records
 
-Sign-offs live in `curation_verification` inside `shared/data/tracks/registry.sqlite`.
-Each row identifies `kind`, `facts_slug`, and optional `game_id`, then stores
-content hash, date, reviewer, and note.
+Sign-offs live in `shared/data/tracks/registry-source/verification.json`.
+Each entry identifies kind, facts slug, and optional game ID, then stores content
+hash, date, reviewer, and note. Generated `curation_verification` SQLite rows
+mirror this ledger for runtime queries; they are not an authoring surface.
 
-Facts verification hashes normalized roster rows. Geometry verification hashes
-normalized per-game geometry rows. Editing relevant registry data makes previous
+Facts verification hashes normalized roster source. Geometry verification hashes
+normalized per-game geometry source. Editing relevant source makes previous
 signature **stale**. Stale signatures stop counting and render as `+N stale` until
 human review stamps current hash.
 
-Nothing in generation pipeline writes verification rows. They only arrive from
-person running `--verify`.
+Nothing in generation pipeline creates or stamps verification. Records only
+arrive from human running `--verify`.
 
 
 Gap between columns 1 and 3 is whole point. F1 25 is 24/24 curated while geometry remains known-inaccurate—a correct roster says nothing about whether corners landed in right place.
@@ -91,7 +110,7 @@ Generated — do not hand-edit. This doc is the only place the numbers live; CLA
 
 Both verified columns read 0 on purpose. Sebring and Suzuka were curated carefully
 against real guides, but nobody has independently checked and signed current
-registry rows. Until someone does, honest number is zero.
+canonical source. Until someone does, honest number is zero.
 
 ### Reading the table
 
@@ -312,17 +331,17 @@ bun run tracks:coverage --verify segments:f1-2025/spa --by "svg render vs circui
 bun run tracks:coverage --write
 ```
 
-1. Check the roster against a real turn-by-turn guide, or check the committed render at `test/e2e/output/track-segments/<slug>-<gameId>.svg` against a circuit map.
-2. Run `--verify` for that file, with what you checked it against.
-3. Run `--write` to refresh the table.
-4. Say the same thing in the PR ("official Suzuka circuit map", "IMSA 17-turn numbering") — that sentence is the evidence.
+1. Check roster against real turn-by-turn guide, or check committed render at `test/e2e/output/track-segments/<slug>-<gameId>.svg` against circuit map.
+2. Run `--verify` for those source records, with what you checked them against.
+3. Run `--write` to refresh table.
+4. Say same thing in PR ("official Suzuka circuit map", "IMSA 17-turn numbering") — that sentence is evidence.
 
 Rules:
 
-- **Only a human verifies.** Nothing in the generation pipeline stamps the ledger. Claude proposes; the user confirms what they actually looked at.
-- **Signatures pin a content hash.** Edit a signed file and its entry goes stale — it drops out of the verified count and shows as `+N stale` until someone looks again.
+- **Only a human verifies.** Nothing in generation pipeline stamps ledger. Claude proposes; user confirms what they actually looked at.
+- **Signatures pin a content hash.** Edit signed source and its entry goes stale — it drops out of verified count and shows as `+N stale` until someone looks again.
 - **You cannot verify what was never curated.** Tests assert verified never exceeds curated.
-- **Low numbers are honest.** Not a metric to farm.
+- **Low numbers are honest.** Not metric to farm.
 
 ## Where effort belongs
 
@@ -334,11 +353,15 @@ If a track looks wrong in the app: fix that track's curated data.
 
 | Concern | Source |
 |---------|--------|
-| Registry facts, game assignments, geometry, verification | `shared/data/tracks/registry.sqlite` |
+| Venue/layout identity and game assignments | `shared/data/tracks/registry-source/configurations.json` |
+| Track facts and corner rosters | `shared/data/tracks/registry-source/facts.json` |
+| Per-game sectors and segment fractions | `shared/data/tracks/registry-source/geometry.json` |
+| Human verification ledger | `shared/data/tracks/registry-source/verification.json` |
+| Generated runtime projection and audit | `shared/data/tracks/registry.sqlite`, `shared/data/tracks/registry-report.json` |
 | Runtime registry access | `shared/racing/tracks/registry.ts`, `shared/racing/tracks/storage/meta.ts` |
 | Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |
 | Coverage stats and verification | `shared/racing/tracks/curation/coverage.ts`, `shared/racing/tracks/curation/verified.ts` |
 | CLI | `scripts/tracks/track-coverage.ts` |
 | Guards | `test/tracks/track-coverage.test.ts`, `test/support/tracks/known-gaps.ts` |
 
-`test/tracks/track-coverage.test.ts` fails if the committed table drifts from the repo, so none of this can silently rot.
+`test/tracks/track-coverage.test.ts` fails if committed coverage tables drift from repository data.

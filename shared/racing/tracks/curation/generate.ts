@@ -13,9 +13,8 @@ import { validateFacts } from "./segment-align-validate";
 import {
   listTrackFactSlugs,
   loadTrackFacts,
-  loadTrackGeometry,
-  saveTrackFacts,
-  saveTrackGeometry,
+  loadTrackGeometryForGame,
+  saveTrackMetadata,
 } from "../storage/meta";
 import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";
@@ -572,11 +571,10 @@ export function writeTrackMeta(
   if (writable.length === 0) return [];
   const existingGeometry: Record<string, TrackGeometry> = {};
   for (const a of writable) {
-    const geom = loadTrackGeometry(slug, a.gameId);
-    if (geom) existingGeometry[a.gameId] = geom;
+    const geometry = loadTrackGeometryForGame(slug, a.gameId);
+    if (geometry) existingGeometry[a.gameId] = geometry;
   }
-  const { facts: updatedFacts, geometry } = buildUpdatedMeta(slug, facts, existingGeometry, writable);
-  saveTrackFacts(slug, updatedFacts);
-  for (const [gameId, geom] of Object.entries(geometry)) saveTrackGeometry(slug, gameId, geom);
+  const updated = buildUpdatedMeta(slug, facts, existingGeometry, writable);
+  saveTrackMetadata(slug, updated.facts, updated.geometry);
   return writable.map((a) => a.gameId);
 }

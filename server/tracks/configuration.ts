@@ -1,6 +1,7 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { TrackConfigurationSchema, trackConfigurationCanonicalId, type TrackConfiguration, type TrackIdentityNode } from "../../shared/racing/tracks/configuration";
-import { getTrackRegistry, writeTrackRegistry } from "../../shared/racing/tracks/registry";
+import { updateTrackRegistrySource } from "../../shared/racing/tracks/registry-source";
+import { getTrackRegistry } from "../../shared/racing/tracks/registry";
 
 interface ConfigurationRow {
   gameId: GameId;
@@ -72,46 +73,52 @@ export function listTrackConfigurations(): TrackConfiguration[] {
 
 export function saveTrackConfiguration(configuration: TrackConfiguration): TrackConfiguration {
   const parsed = TrackConfigurationSchema.parse(configuration);
-  writeTrackRegistry((database) => {
-    let parentPath: string | null = null;
+  updateTrackRegistrySource((draft) => {
     const pathParts: string[] = [];
-    for (const [depth, node] of [parsed.venue, ...parsed.subVenues].entries()) {
+    for (const node of [parsed.venue, ...parsed.subVenues]) {
       pathParts.push(node.id);
-      const path = pathParts.join("/");
-      database.query(`
-        INSERT INTO venue_nodes (path, parent_path, slug, name, depth) VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(path) DO UPDATE SET parent_path = excluded.parent_path, slug = excluded.slug, name = excluded.name, depth = excluded.depth
-      `).run(path, parentPath, node.id, node.name, depth);
-      parentPath = path;
+      const venue = { id: pathParts.join("/"), name: node.name };
+      const venueIndex = draft.configurations.venues.findIndex((entry) => entry.id === venue.id);
+      if (venueIndex >= 0) draft.configurations.venues[venueIndex] = venue;
+      else draft.configurations.venues.push(venue);
     }
+
     const canonicalId = trackConfigurationCanonicalId(parsed);
-    database.query(`
-      INSERT INTO layouts (canonical_id, venue_path, slug, name) VALUES (?, ?, ?, ?)
-      ON CONFLICT(canonical_id) DO UPDATE SET venue_path = excluded.venue_path, slug = excluded.slug, name = excluded.name
-    `).run(canonicalId, parentPath, parsed.track.id, parsed.track.name);
-    database.query(`
-      INSERT INTO game_tracks (game_id, track_ordinal, layout_id, confirmed_at, confirmed_by, commit_id) VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(game_id, track_ordinal) DO UPDATE SET
-        layout_id = excluded.layout_id,
-        confirmed_at = excluded.confirmed_at,
-        confirmed_by = excluded.confirmed_by,
-        commit_id = excluded.commit_id
-    `).run(
-      parsed.gameId,
-      parsed.trackOrdinal,
-      canonicalId,
-      parsed.confirmation?.confirmedAt ?? null,
-      parsed.confirmation?.confirmedBy ?? null,
-      parsed.confirmation?.commitId ?? null,
+    const layoutIndex = draft.configurations.layouts.findIndex((entry) => entry.id === canonicalId);
+    if (layoutIndex >= 0) {
+      draft.configurations.layouts[layoutIndex] = {
+        ...draft.configurations.layouts[layoutIndex],
+        id: canonicalId,
+        name: parsed.track.name,
+      };
+    } else {
+      draft.configurations.layouts.push({ id: canonicalId, name: parsed.track.name });
+    }
+
+    const assignment = {
+      gameId: parsed.gameId,
+      trackOrdinal: parsed.trackOrdinal,
+      layoutId: canonicalId,
+      confirmation: parsed.confirmation,
+    };
+    const assignmentIndex = draft.configurations.assignments.findIndex(
+      (entry) => entry.gameId === parsed.gameId && entry.trackOrdinal === parsed.trackOrdinal,
     );
+    if (assignmentIndex >= 0) draft.configurations.assignments[assignmentIndex] = assignment;
+    else draft.configurations.assignments.push(assignment);
   });
   return parsed;
 }
 
 export function deleteTrackConfiguration(gameId: GameId, trackOrdinal: number): boolean {
   let deleted = false;
-  writeTrackRegistry((database) => {
-    deleted = database.query("DELETE FROM game_tracks WHERE game_id = ? AND track_ordinal = ?").run(gameId, trackOrdinal).changes > 0;
+  updateTrackRegistrySource((draft) => {
+    const index = draft.configurations.assignments.findIndex(
+      (entry) => entry.gameId === gameId && entry.trackOrdinal === trackOrdinal,
+    );
+    if (index < 0) return;
+    draft.configurations.assignments.splice(index, 1);
+    deleted = true;
   });
   return deleted;
 }

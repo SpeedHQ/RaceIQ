@@ -9,7 +9,6 @@ import { TRACK_IMAGERY_MANIFEST_VERSION, TRACK_IMAGERY_PACKAGE_NAME, TrackImager
 import { trackConfigurationDevRoutes } from "../server/routes/dev/track-configuration-routes";
 import { trackImageryDevRoutes } from "../server/routes/dev/track-imagery-routes";
 import { trackImageryRoutes } from "../server/routes/tracks/imagery-routes";
-import { deleteTrackConfiguration } from "../server/tracks/configuration";
 import { readTrackImageryPackMetadata, readTrackImageryPackTile, writeTrackImageryPack, type TrackImageryPackTile } from "../server/tracks/imagery-pack";
 import { trackImageryLayoutPath, trackImageryVenueDirectory } from "../server/tracks/imagery";
 
@@ -27,8 +26,6 @@ const source = { name: "Generated test texture", provider: "test-hq", license: "
 
 afterAll(() => {
   rmSync(venueRootDirectory, { recursive: true, force: true });
-  deleteTrackConfiguration(gameId, trackOrdinal);
-  deleteTrackConfiguration(gameId, peerTrackOrdinal);
   for (const path of [layoutPath, peerLayoutPath]) {
     if (existsSync(path)) unlinkSync(path);
   }

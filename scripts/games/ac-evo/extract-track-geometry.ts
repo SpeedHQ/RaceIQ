@@ -23,9 +23,10 @@ import { autoTrackSegments } from "../../../shared/racing/tracks/curation/genera
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
 import {
   loadTrackFacts,
-  loadTrackGeometry,
+  loadTrackGeometryForGame,
   saveTrackFacts,
   saveTrackGeometry,
+  saveTrackMetadata,
 } from "../../../shared/racing/tracks/storage/meta";
 import { GAMES_DIR, SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
 
@@ -184,9 +185,9 @@ function writeBoundariesJson(slug: string, centerline: { x: number; z: number }[
  * Seed a newly extracted layout's facts and this game's geometry, never
  * clobbering either if it is already there.
  *
- * The two halves are seeded independently on purpose: a circuit ACC already
- * curated has facts but no AC Evo geometry until AC Evo ships it, and that case
- * should still get its fractions written rather than being skipped wholesale.
+ * Missing halves are seeded independently. When both are absent, facts and
+ * native AC Evo geometry are committed together so source validation observes
+ * one complete update.
  *
  * `autoTrackSegments` emits `T<n>` tokens for corners it has no name for.
  * `splitSegments` drops those — a generated token is a display convention, not
@@ -198,21 +199,25 @@ function maybeWriteMeta(
   centerline: { x: number; z: number }[],
 ): "written" | "geometry-only" | "skipped-existing" | "skipped-no-corners" {
   const existingFacts = loadTrackFacts(slug);
-  const existingGeometry = loadTrackGeometry(slug, "ac-evo");
+  const existingGeometry = loadTrackGeometryForGame(slug, "ac-evo");
   if (existingFacts && existingGeometry) return "skipped-existing";
 
   const result = autoTrackSegments(centerline);
   if (result.segments.length === 0) return "skipped-no-corners";
   const { corners, straights, geometry } = splitSegments(result.segments);
+  const nativeGeometry = {
+    sectors: { s1End: 1 / 3, s2End: 2 / 3 },
+    segments: geometry,
+  };
 
-  if (!existingGeometry) {
-    saveTrackGeometry(slug, "ac-evo", { sectors: { s1End: 1 / 3, s2End: 2 / 3 }, segments: geometry });
+  if (existingFacts) {
+    saveTrackGeometry(slug, "ac-evo", nativeGeometry);
+    return "geometry-only";
   }
-  if (existingFacts) return "geometry-only";
 
   // New content lands in tracks.csv as variant GP (the game's table carries no
   // layout list), so the identity matches until an alt layout is added by hand.
-  saveTrackFacts(slug, {
+  const facts = {
     slug,
     track: slug,
     layout: "gp",
@@ -220,7 +225,9 @@ function maybeWriteMeta(
     name,
     corners,
     ...(straights.length ? { straights } : {}),
-  });
+  };
+  if (existingGeometry) saveTrackFacts(slug, facts);
+  else saveTrackMetadata(slug, facts, { "ac-evo": nativeGeometry });
   return "written";
 }
 

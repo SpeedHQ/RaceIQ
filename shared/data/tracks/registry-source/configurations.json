@@ -1,0 +1,6658 @@
+{
+  "version": 1,
+  "venues": [
+    {
+      "id": "adelaide-street-circuit",
+      "name": "Adelaide Street Circuit"
+    },
+    {
+      "id": "auto-club-speedway",
+      "name": "Auto Club Speedway"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez",
+      "name": "Autodromo Hermanos Rodriguez"
+    },
+    {
+      "id": "autodromo-internacional-do-algarve",
+      "name": "Autodromo Internacional do Algarve"
+    },
+    {
+      "id": "autodromo-internazionale-enzo-e-dino-ferrari",
+      "name": "Autodromo Internazionale Enzo e Dino Ferrari"
+    },
+    {
+      "id": "autodromo-jose-carlos-pace",
+      "name": "Autodromo Jose Carlos Pace"
+    },
+    {
+      "id": "autodromo-nazionale-monza",
+      "name": "Autodromo Nazionale Monza"
+    },
+    {
+      "id": "autodromo-nazionale-monza/2019",
+      "name": "2019"
+    },
+    {
+      "id": "bahrain-international-circuit",
+      "name": "Bahrain International Circuit"
+    },
+    {
+      "id": "baku-city-circuit",
+      "name": "Baku City Circuit"
+    },
+    {
+      "id": "barber-motorsports-park",
+      "name": "Barber Motorsports Park"
+    },
+    {
+      "id": "bark-river-international-raceway",
+      "name": "Bark River International Raceway"
+    },
+    {
+      "id": "brands-hatch",
+      "name": "Brands Hatch"
+    },
+    {
+      "id": "brands-hatch/2019",
+      "name": "2019"
+    },
+    {
+      "id": "bristol-motor-speedway",
+      "name": "Bristol Motor Speedway"
+    },
+    {
+      "id": "bristol-motor-speedway/2021",
+      "name": "2021"
+    },
+    {
+      "id": "cadwell-park-circuit",
+      "name": "Cadwell Park Circuit"
+    },
+    {
+      "id": "canadian-tire-motorsports-park",
+      "name": "Canadian Tire Motorsports Park"
+    },
+    {
+      "id": "cedar-lake-speedway",
+      "name": "Cedar Lake Speedway"
+    },
+    {
+      "id": "centripetal-circuit",
+      "name": "Centripetal Circuit"
+    },
+    {
+      "id": "charlotte-motor-speedway",
+      "name": "Charlotte Motor Speedway"
+    },
+    {
+      "id": "chicago-street-course",
+      "name": "Chicago Street Course"
+    },
+    {
+      "id": "chicagoland-speedway",
+      "name": "Chicagoland Speedway"
+    },
+    {
+      "id": "chili-bowl",
+      "name": "Chili Bowl"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya",
+      "name": "Circuit de Barcelona-Catalunya"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/2019",
+      "name": "2019"
+    },
+    {
+      "id": "circuit-de-la-sarthe",
+      "name": "Circuit de la Sarthe"
+    },
+    {
+      "id": "circuit-de-ledenon",
+      "name": "Circuit de Lédenon"
+    },
+    {
+      "id": "circuit-de-monaco",
+      "name": "Circuit de Monaco"
+    },
+    {
+      "id": "circuit-de-nevers-magny-cours",
+      "name": "Circuit de Nevers Magny-Cours"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps",
+      "name": "Circuit de Spa-Francorchamps"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/2010",
+      "name": "2010"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/2019",
+      "name": "2019"
+    },
+    {
+      "id": "circuit-gilles-villeneuve",
+      "name": "Circuit Gilles Villeneuve"
+    },
+    {
+      "id": "circuit-of-the-americas",
+      "name": "Circuit of the Americas"
+    },
+    {
+      "id": "circuit-paul-ricard",
+      "name": "Circuit Paul Ricard"
+    },
+    {
+      "id": "circuit-paul-ricard/2019",
+      "name": "2019"
+    },
+    {
+      "id": "circuit-ricardo-tormo",
+      "name": "Circuit Ricardo Tormo"
+    },
+    {
+      "id": "circuit-zandvoort",
+      "name": "Circuit Zandvoort"
+    },
+    {
+      "id": "circuit-zandvoort/2009",
+      "name": "2009"
+    },
+    {
+      "id": "circuit-zandvoort/2019",
+      "name": "2019"
+    },
+    {
+      "id": "circuit-zolder",
+      "name": "Circuit Zolder"
+    },
+    {
+      "id": "circuit-zolder/2019",
+      "name": "2019"
+    },
+    {
+      "id": "circuito-de-jerez-angel-nieto",
+      "name": "Circuito de Jerez - Ángel Nieto"
+    },
+    {
+      "id": "circuito-de-navarra",
+      "name": "Circuito de Navarra"
+    },
+    {
+      "id": "concord-speedway",
+      "name": "Concord Speedway"
+    },
+    {
+      "id": "crandon-international-raceway",
+      "name": "Crandon International Raceway"
+    },
+    {
+      "id": "darlington-raceway",
+      "name": "Darlington Raceway"
+    },
+    {
+      "id": "daytona-international-speedway",
+      "name": "Daytona International Speedway"
+    },
+    {
+      "id": "daytona-international-speedway/2008",
+      "name": "2008"
+    },
+    {
+      "id": "daytona-rallycross-and-dirt-road",
+      "name": "Daytona Rallycross and Dirt Road"
+    },
+    {
+      "id": "detroit-grand-prix-at-belle-isle",
+      "name": "Detroit Grand Prix at Belle Isle"
+    },
+    {
+      "id": "donington-park",
+      "name": "Donington Park"
+    },
+    {
+      "id": "dover-motor-speedway",
+      "name": "Dover Motor Speedway"
+    },
+    {
+      "id": "eaglerock-speedway",
+      "name": "Eaglerock Speedway"
+    },
+    {
+      "id": "echopark-speedway-atlanta",
+      "name": "EchoPark Speedway (Atlanta)"
+    },
+    {
+      "id": "echopark-speedway-atlanta/2008",
+      "name": "2008"
+    },
+    {
+      "id": "eldora-speedway",
+      "name": "Eldora Speedway"
+    },
+    {
+      "id": "fairbury-speedway",
+      "name": "Fairbury Speedway"
+    },
+    {
+      "id": "federated-auto-parts-raceway-at-i-55",
+      "name": "Federated Auto Parts Raceway at I-55"
+    },
+    {
+      "id": "firebird-motorsports-park",
+      "name": "Firebird Motorsports Park"
+    },
+    {
+      "id": "five-flags-speedway",
+      "name": "Five Flags Speedway"
+    },
+    {
+      "id": "fuji-speedway",
+      "name": "Fuji Speedway"
+    },
+    {
+      "id": "fujimi-kaido",
+      "name": "Fujimi Kaido"
+    },
+    {
+      "id": "grand-oak-raceway",
+      "name": "Grand Oak Raceway"
+    },
+    {
+      "id": "hakone",
+      "name": "Hakone"
+    },
+    {
+      "id": "hanoi-street-circuit",
+      "name": "Hanoi Street Circuit"
+    },
+    {
+      "id": "hickory-motor-speedway",
+      "name": "Hickory Motor Speedway"
+    },
+    {
+      "id": "hockenheimring",
+      "name": "Hockenheimring"
+    },
+    {
+      "id": "homestead-miami-speedway",
+      "name": "Homestead-Miami Speedway"
+    },
+    {
+      "id": "hungaroring",
+      "name": "Hungaroring"
+    },
+    {
+      "id": "hungaroring/2019",
+      "name": "2019"
+    },
+    {
+      "id": "huset-s-speedway",
+      "name": "Huset's Speedway"
+    },
+    {
+      "id": "indianapolis-motor-speedway",
+      "name": "Indianapolis Motor Speedway"
+    },
+    {
+      "id": "indianapolis-motor-speedway/2009",
+      "name": "2009"
+    },
+    {
+      "id": "iowa-speedway",
+      "name": "Iowa Speedway"
+    },
+    {
+      "id": "iowa-speedway/2011",
+      "name": "2011"
+    },
+    {
+      "id": "iowa-speedway/2017",
+      "name": "2017"
+    },
+    {
+      "id": "iracing-superspeedway",
+      "name": "iRacing Superspeedway"
+    },
+    {
+      "id": "irwindale-speedway",
+      "name": "Irwindale Speedway"
+    },
+    {
+      "id": "jeddah-corniche-circuit",
+      "name": "Jeddah Corniche Circuit"
+    },
+    {
+      "id": "kansas-speedway",
+      "name": "Kansas Speedway"
+    },
+    {
+      "id": "kentucky-speedway",
+      "name": "Kentucky Speedway"
+    },
+    {
+      "id": "kentucky-speedway/2011",
+      "name": "2011"
+    },
+    {
+      "id": "kevin-harvick-s-kern-raceway",
+      "name": "Kevin Harvick's Kern Raceway"
+    },
+    {
+      "id": "knockhill-racing-circuit",
+      "name": "Knockhill Racing Circuit"
+    },
+    {
+      "id": "knoxville-raceway",
+      "name": "Knoxville Raceway"
+    },
+    {
+      "id": "kokomo-speedway",
+      "name": "Kokomo Speedway"
+    },
+    {
+      "id": "kyalami-grand-prix-circuit",
+      "name": "Kyalami Grand Prix Circuit"
+    },
+    {
+      "id": "la-coliseum-raceway",
+      "name": "LA Coliseum Raceway"
+    },
+    {
+      "id": "langley-speedway",
+      "name": "Langley Speedway"
+    },
+    {
+      "id": "lanier-national-speedway",
+      "name": "Lanier National Speedway"
+    },
+    {
+      "id": "lankebanen-hell-rx",
+      "name": "Lånkebanen (Hell RX)"
+    },
+    {
+      "id": "las-vegas-motor-speedway",
+      "name": "Las Vegas Motor Speedway"
+    },
+    {
+      "id": "las-vegas-street-circuit",
+      "name": "Las Vegas Street Circuit"
+    },
+    {
+      "id": "lernerville-speedway",
+      "name": "Lernerville Speedway"
+    },
+    {
+      "id": "limaland-motorsports-park",
+      "name": "Limaland Motorsports Park"
+    },
+    {
+      "id": "lime-rock-park",
+      "name": "Lime Rock Park"
+    },
+    {
+      "id": "lincoln-speedway",
+      "name": "Lincoln Speedway"
+    },
+    {
+      "id": "long-beach-street-circuit",
+      "name": "Long Beach Street Circuit"
+    },
+    {
+      "id": "lucas-oil-indianapolis-raceway-park",
+      "name": "Lucas Oil Indianapolis Raceway Park"
+    },
+    {
+      "id": "lucas-oil-speedway",
+      "name": "Lucas Oil Speedway"
+    },
+    {
+      "id": "lusail-international-circuit",
+      "name": "Lusail International Circuit"
+    },
+    {
+      "id": "maple-valley",
+      "name": "Maple Valley"
+    },
+    {
+      "id": "marina-bay-street-circuit",
+      "name": "Marina Bay Street Circuit"
+    },
+    {
+      "id": "martinsville-speedway",
+      "name": "Martinsville Speedway"
+    },
+    {
+      "id": "melbourne-grand-prix-circuit",
+      "name": "Melbourne Grand Prix Circuit"
+    },
+    {
+      "id": "miami-international-autodrome",
+      "name": "Miami International Autodrome"
+    },
+    {
+      "id": "michigan-international-speedway",
+      "name": "Michigan International Speedway"
+    },
+    {
+      "id": "michigan-international-speedway/2009",
+      "name": "2009"
+    },
+    {
+      "id": "mid-ohio-sports-car-course",
+      "name": "Mid-Ohio Sports Car Course"
+    },
+    {
+      "id": "millbridge-speedway",
+      "name": "Millbridge Speedway"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli",
+      "name": "Misano World Circuit Marco Simoncelli"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/2007",
+      "name": "2007"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/2019",
+      "name": "2019"
+    },
+    {
+      "id": "mobility-resort-motegi",
+      "name": "Mobility Resort Motegi"
+    },
+    {
+      "id": "motorland-aragon",
+      "name": "MotorLand Aragón"
+    },
+    {
+      "id": "motorsport-arena-oschersleben",
+      "name": "Motorsport Arena Oschersleben"
+    },
+    {
+      "id": "mount-panorama-circuit",
+      "name": "Mount Panorama Circuit"
+    },
+    {
+      "id": "mount-washington-hillclimb",
+      "name": "Mount Washington Hillclimb"
+    },
+    {
+      "id": "mugello-circuit",
+      "name": "Mugello Circuit"
+    },
+    {
+      "id": "myrtle-beach-speedway",
+      "name": "Myrtle Beach Speedway"
+    },
+    {
+      "id": "nashville-fairgrounds-speedway",
+      "name": "Nashville Fairgrounds Speedway"
+    },
+    {
+      "id": "nashville-superspeedway",
+      "name": "Nashville Superspeedway"
+    },
+    {
+      "id": "new-hampshire-motor-speedway",
+      "name": "New Hampshire Motor Speedway"
+    },
+    {
+      "id": "new-jersey-motorsports-park",
+      "name": "New Jersey Motorsports Park"
+    },
+    {
+      "id": "new-smyrna-speedway",
+      "name": "New Smyrna Speedway"
+    },
+    {
+      "id": "north-wilkesboro-speedway",
+      "name": "North Wilkesboro Speedway"
+    },
+    {
+      "id": "north-wilkesboro-speedway/1987",
+      "name": "1987"
+    },
+    {
+      "id": "nurburgring",
+      "name": "Nürburgring"
+    },
+    {
+      "id": "nurburgring/2019",
+      "name": "2019"
+    },
+    {
+      "id": "okayama-international-circuit",
+      "name": "Okayama International Circuit"
+    },
+    {
+      "id": "oran-park-raceway",
+      "name": "Oran Park Raceway"
+    },
+    {
+      "id": "oswego-speedway",
+      "name": "Oswego Speedway"
+    },
+    {
+      "id": "oulton-park",
+      "name": "Oulton Park"
+    },
+    {
+      "id": "oxford-plains-speedway",
+      "name": "Oxford Plains Speedway"
+    },
+    {
+      "id": "phillip-island-circuit",
+      "name": "Phillip Island Circuit"
+    },
+    {
+      "id": "phoenix-raceway",
+      "name": "Phoenix Raceway"
+    },
+    {
+      "id": "phoenix-raceway/2008",
+      "name": "2008"
+    },
+    {
+      "id": "pocono-raceway",
+      "name": "Pocono Raceway"
+    },
+    {
+      "id": "pocono-raceway/2009",
+      "name": "2009"
+    },
+    {
+      "id": "port-royal-speedway",
+      "name": "Port Royal Speedway"
+    },
+    {
+      "id": "portland-international-raceway",
+      "name": "Portland International Raceway"
+    },
+    {
+      "id": "qualcomm-circuit-naval-base-coronado",
+      "name": "Qualcomm Circuit (Naval Base Coronado)"
+    },
+    {
+      "id": "red-bull-ring",
+      "name": "Red Bull Ring"
+    },
+    {
+      "id": "richmond-raceway",
+      "name": "Richmond Raceway"
+    },
+    {
+      "id": "road-america",
+      "name": "Road America"
+    },
+    {
+      "id": "road-atlanta",
+      "name": "Road Atlanta"
+    },
+    {
+      "id": "rockingham-speedway",
+      "name": "Rockingham Speedway"
+    },
+    {
+      "id": "rockingham-speedway/2012",
+      "name": "2012"
+    },
+    {
+      "id": "route-test-1787076567995",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787076567995/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787076567995/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787076607736",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787076607736/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787076607736/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787076641023",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787076641023/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787076641023/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787077685629",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787077685629/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787077685629/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787079971966",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787079971966/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787079971966/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787081126088",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787081126088/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787081126088/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787096982620",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787096982620/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787096982620/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787096997992",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787096997992/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787096997992/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787097006339",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787097006339/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787097006339/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787097139054",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787097139054/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787097139054/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787098001221",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787098001221/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787098001221/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787098321104",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787098321104/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787098321104/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "route-test-1787098684595",
+      "name": "Route Test"
+    },
+    {
+      "id": "route-test-1787098684595/historical",
+      "name": "Historical"
+    },
+    {
+      "id": "route-test-1787098684595/historical/2011",
+      "name": "2011"
+    },
+    {
+      "id": "rudskogen-motorsenter",
+      "name": "Rudskogen Motorsenter"
+    },
+    {
+      "id": "sachsenring",
+      "name": "Sachsenring"
+    },
+    {
+      "id": "sandown-international-motor-raceway",
+      "name": "Sandown International Motor Raceway"
+    },
+    {
+      "id": "sebring-international-raceway",
+      "name": "Sebring International Raceway"
+    },
+    {
+      "id": "shanghai-international-circuit",
+      "name": "Shanghai International Circuit"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend",
+      "name": "Shell V-Power Motorsport Park at The Bend"
+    },
+    {
+      "id": "silverstone-racing-circuit",
+      "name": "Silverstone Racing Circuit"
+    },
+    {
+      "id": "silverstone-racing-circuit/2008",
+      "name": "2008"
+    },
+    {
+      "id": "silverstone-racing-circuit/2019",
+      "name": "2019"
+    },
+    {
+      "id": "slinger-speedway",
+      "name": "Slinger Speedway"
+    },
+    {
+      "id": "snetterton-circuit",
+      "name": "Snetterton Circuit"
+    },
+    {
+      "id": "sochi-autodrom",
+      "name": "Sochi Autodrom"
+    },
+    {
+      "id": "sonoma-raceway",
+      "name": "Sonoma Raceway"
+    },
+    {
+      "id": "south-boston-speedway",
+      "name": "South Boston Speedway"
+    },
+    {
+      "id": "southern-national-motorsports-park",
+      "name": "Southern National Motorsports Park"
+    },
+    {
+      "id": "st-petersburg-grand-prix",
+      "name": "St. Petersburg Grand Prix"
+    },
+    {
+      "id": "stafford-motor-speedway",
+      "name": "Stafford Motor Speedway"
+    },
+    {
+      "id": "summit-point-raceway",
+      "name": "Summit Point Raceway"
+    },
+    {
+      "id": "sunset-peninsula",
+      "name": "Sunset Peninsula"
+    },
+    {
+      "id": "suzuka-circuit",
+      "name": "Suzuka Circuit"
+    },
+    {
+      "id": "talladega-superspeedway",
+      "name": "Talladega Superspeedway"
+    },
+    {
+      "id": "texas-motor-speedway",
+      "name": "Texas Motor Speedway"
+    },
+    {
+      "id": "texas-motor-speedway/2009",
+      "name": "2009"
+    },
+    {
+      "id": "the-bullring",
+      "name": "The Bullring"
+    },
+    {
+      "id": "the-dirt-track-at-charlotte",
+      "name": "The Dirt Track at Charlotte"
+    },
+    {
+      "id": "the-milwaukee-mile",
+      "name": "The Milwaukee Mile"
+    },
+    {
+      "id": "thompson-speedway-motorsports-park",
+      "name": "Thompson Speedway Motorsports Park"
+    },
+    {
+      "id": "thruxton-circuit",
+      "name": "Thruxton Circuit"
+    },
+    {
+      "id": "tsukuba-circuit",
+      "name": "Tsukuba Circuit"
+    },
+    {
+      "id": "usa-international-speedway",
+      "name": "USA International Speedway"
+    },
+    {
+      "id": "virginia-international-raceway",
+      "name": "Virginia International Raceway"
+    },
+    {
+      "id": "volusia-speedway-park",
+      "name": "Volusia Speedway Park"
+    },
+    {
+      "id": "watkins-glen-international",
+      "name": "Watkins Glen International"
+    },
+    {
+      "id": "weathertech-raceway-laguna-seca",
+      "name": "WeatherTech Raceway Laguna Seca"
+    },
+    {
+      "id": "weedsport-speedway",
+      "name": "Weedsport Speedway"
+    },
+    {
+      "id": "wild-west-motorsports-park",
+      "name": "Wild West Motorsports Park"
+    },
+    {
+      "id": "williams-grove-speedway",
+      "name": "Williams Grove Speedway"
+    },
+    {
+      "id": "willow-springs-international-raceway",
+      "name": "Willow Springs International Raceway"
+    },
+    {
+      "id": "winton-motor-raceway",
+      "name": "Winton Motor Raceway"
+    },
+    {
+      "id": "world-wide-technology-raceway-gateway",
+      "name": "World Wide Technology Raceway (Gateway)"
+    },
+    {
+      "id": "yas-marina-circuit",
+      "name": "Yas Marina Circuit"
+    }
+  ],
+  "layouts": [
+    {
+      "id": "adelaide-street-circuit/main",
+      "name": "Main"
+    },
+    {
+      "id": "auto-club-speedway/competition",
+      "name": "Competition"
+    },
+    {
+      "id": "auto-club-speedway/interior",
+      "name": "Interior"
+    },
+    {
+      "id": "auto-club-speedway/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "auto-club-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez/ev-circuit",
+      "name": "EV Circuit"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "mexico-city"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez/grand-prix-historic",
+      "name": "Grand Prix Historic"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez/national",
+      "name": "National"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez/national-historic",
+      "name": "National Historic"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez/oval-stadium",
+      "name": "Oval Stadium"
+    },
+    {
+      "id": "autodromo-internacional-do-algarve/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "autodromo-internacional-do-algarve/grand-prix-chicanes",
+      "name": "Grand Prix - Chicanes"
+    },
+    {
+      "id": "autodromo-internacional-do-algarve/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "autodromo-internacional-do-algarve/moto-chicanes",
+      "name": "Moto - Chicanes"
+    },
+    {
+      "id": "autodromo-internazionale-enzo-e-dino-ferrari/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "imola"
+    },
+    {
+      "id": "autodromo-internazionale-enzo-e-dino-ferrari/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "autodromo-jose-carlos-pace/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "interlagos"
+    },
+    {
+      "id": "autodromo-jose-carlos-pace/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "autodromo-nazionale-monza/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "autodromo-nazionale-monza/combined",
+      "name": "Combined"
+    },
+    {
+      "id": "autodromo-nazionale-monza/combined-without-chicanes",
+      "name": "Combined without chicanes"
+    },
+    {
+      "id": "autodromo-nazionale-monza/combined-without-first-chicane",
+      "name": "Combined without first chicane"
+    },
+    {
+      "id": "autodromo-nazionale-monza/gp-without-chicanes",
+      "name": "GP without chicanes"
+    },
+    {
+      "id": "autodromo-nazionale-monza/gp-without-first-chicane",
+      "name": "GP without first chicane"
+    },
+    {
+      "id": "autodromo-nazionale-monza/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "monza"
+    },
+    {
+      "id": "autodromo-nazionale-monza/junior",
+      "name": "Junior"
+    },
+    {
+      "id": "autodromo-nazionale-monza/oval-left-turning",
+      "name": "Oval - Left turning"
+    },
+    {
+      "id": "autodromo-nazionale-monza/oval-right-turning",
+      "name": "Oval - Right turning"
+    },
+    {
+      "id": "bahrain-international-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "sakhir"
+    },
+    {
+      "id": "bahrain-international-circuit/short",
+      "name": "Short"
+    },
+    {
+      "id": "baku-city-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "baku"
+    },
+    {
+      "id": "barber-motorsports-park/main",
+      "name": "Main"
+    },
+    {
+      "id": "bark-river-international-raceway/main",
+      "name": "Main"
+    },
+    {
+      "id": "brands-hatch/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "brands-hatch/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "brands-hatch"
+    },
+    {
+      "id": "brands-hatch/indy",
+      "name": "Indy",
+      "factsSlug": "brands-hatch-indy"
+    },
+    {
+      "id": "brands-hatch/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "bristol-motor-speedway/2021/dirt",
+      "name": "Dirt"
+    },
+    {
+      "id": "bristol-motor-speedway/dirt",
+      "name": "Dirt"
+    },
+    {
+      "id": "bristol-motor-speedway/dual-pit-roads",
+      "name": "Dual Pit Roads"
+    },
+    {
+      "id": "bristol-motor-speedway/single-pit-roads",
+      "name": "Single Pit Roads"
+    },
+    {
+      "id": "cadwell-park-circuit/club",
+      "name": "Club"
+    },
+    {
+      "id": "cadwell-park-circuit/full",
+      "name": "Full"
+    },
+    {
+      "id": "cadwell-park-circuit/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "cadwell-park-circuit/woodlands",
+      "name": "Woodlands"
+    },
+    {
+      "id": "canadian-tire-motorsports-park/main",
+      "name": "Main"
+    },
+    {
+      "id": "cedar-lake-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "centripetal-circuit/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "charlotte-motor-speedway/dirt-road",
+      "name": "Dirt Road"
+    },
+    {
+      "id": "charlotte-motor-speedway/infield-road-course",
+      "name": "Infield Road Course"
+    },
+    {
+      "id": "charlotte-motor-speedway/infield-road-course-long",
+      "name": "Infield Road Course Long"
+    },
+    {
+      "id": "charlotte-motor-speedway/legends-oval",
+      "name": "Legends Oval"
+    },
+    {
+      "id": "charlotte-motor-speedway/legends-road-course-2025",
+      "name": "Legends Road Course 2025"
+    },
+    {
+      "id": "charlotte-motor-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "charlotte-motor-speedway/rallyx",
+      "name": "Rallyx"
+    },
+    {
+      "id": "charlotte-motor-speedway/roval-2019",
+      "name": "Roval 2019"
+    },
+    {
+      "id": "charlotte-motor-speedway/roval-2025",
+      "name": "Roval 2025"
+    },
+    {
+      "id": "charlotte-motor-speedway/roval-no-chicanes",
+      "name": "Roval No Chicanes"
+    },
+    {
+      "id": "chicago-street-course/2023-cup",
+      "name": "2023 Cup"
+    },
+    {
+      "id": "chicago-street-course/prototype",
+      "name": "Prototype"
+    },
+    {
+      "id": "chicagoland-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "chili-bowl/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/club",
+      "name": "Club"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "catalunya"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/historic",
+      "name": "Historic"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/national",
+      "name": "National",
+      "factsSlug": "catalunya-s"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/national-alt",
+      "name": "National Alt",
+      "factsSlug": "catalunya-s2"
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "circuit-de-la-sarthe/full",
+      "name": "Full",
+      "factsSlug": "le-mans"
+    },
+    {
+      "id": "circuit-de-la-sarthe/old-mulsanne",
+      "name": "Old Mulsanne",
+      "factsSlug": "le-mans-old"
+    },
+    {
+      "id": "circuit-de-ledenon/main",
+      "name": "Main"
+    },
+    {
+      "id": "circuit-de-monaco/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "monaco"
+    },
+    {
+      "id": "circuit-de-nevers-magny-cours/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/2010/classic-pits",
+      "name": "Classic Pits"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/2010/endurance",
+      "name": "Endurance"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/2010/grand-prix-pits",
+      "name": "Grand Prix Pits"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/bike",
+      "name": "Bike"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/classic-pits",
+      "name": "Classic Pits"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/endurance",
+      "name": "Endurance"
+    },
+    {
+      "id": "circuit-de-spa-francorchamps/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "spa"
+    },
+    {
+      "id": "circuit-gilles-villeneuve/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "montreal"
+    },
+    {
+      "id": "circuit-of-the-americas/east",
+      "name": "East"
+    },
+    {
+      "id": "circuit-of-the-americas/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "austin"
+    },
+    {
+      "id": "circuit-of-the-americas/nascar-west",
+      "name": "NASCAR West"
+    },
+    {
+      "id": "circuit-of-the-americas/short",
+      "name": "Short"
+    },
+    {
+      "id": "circuit-of-the-americas/west",
+      "name": "West"
+    },
+    {
+      "id": "circuit-paul-ricard/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "circuit-paul-ricard/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "paul-ricard"
+    },
+    {
+      "id": "circuit-ricardo-tormo/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "valencia"
+    },
+    {
+      "id": "circuit-zandvoort/2009/chicane",
+      "name": "Chicane"
+    },
+    {
+      "id": "circuit-zandvoort/2009/club",
+      "name": "Club"
+    },
+    {
+      "id": "circuit-zandvoort/2009/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "circuit-zandvoort/2009/nationaal",
+      "name": "Nationaal"
+    },
+    {
+      "id": "circuit-zandvoort/2009/oostelijk",
+      "name": "Oostelijk"
+    },
+    {
+      "id": "circuit-zandvoort/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "circuit-zandvoort/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "zandvoort"
+    },
+    {
+      "id": "circuit-zandvoort/grand-prix-w-chicane",
+      "name": "Grand Prix w/chicane"
+    },
+    {
+      "id": "circuit-zandvoort/nationaal",
+      "name": "Nationaal"
+    },
+    {
+      "id": "circuit-zandvoort/oostelijk",
+      "name": "Oostelijk"
+    },
+    {
+      "id": "circuit-zolder/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "circuit-zolder/alternate",
+      "name": "Alternate"
+    },
+    {
+      "id": "circuit-zolder/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "zolder"
+    },
+    {
+      "id": "circuito-de-jerez-angel-nieto/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "circuito-de-jerez-angel-nieto/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "circuito-de-navarra/speed-circuit",
+      "name": "Speed Circuit"
+    },
+    {
+      "id": "circuito-de-navarra/speed-circuit-medium",
+      "name": "Speed Circuit - Medium"
+    },
+    {
+      "id": "circuito-de-navarra/speed-circuit-short",
+      "name": "Speed Circuit - Short"
+    },
+    {
+      "id": "concord-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "crandon-international-raceway/full",
+      "name": "Full"
+    },
+    {
+      "id": "crandon-international-raceway/short",
+      "name": "Short"
+    },
+    {
+      "id": "darlington-raceway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "daytona-international-speedway/2008/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "daytona-international-speedway/2008/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "daytona-international-speedway/2008/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "daytona-international-speedway/2008/short",
+      "name": "Short"
+    },
+    {
+      "id": "daytona-international-speedway/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "daytona-international-speedway/nascar-road",
+      "name": "NASCAR Road"
+    },
+    {
+      "id": "daytona-international-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "daytona-international-speedway/road-course",
+      "name": "Road Course",
+      "factsSlug": "daytona"
+    },
+    {
+      "id": "daytona-international-speedway/short",
+      "name": "Short"
+    },
+    {
+      "id": "daytona-rallycross-and-dirt-road/dirt-road-long",
+      "name": "Dirt Road Long"
+    },
+    {
+      "id": "daytona-rallycross-and-dirt-road/dirt-road-short",
+      "name": "Dirt Road Short"
+    },
+    {
+      "id": "daytona-rallycross-and-dirt-road/rallycross-long",
+      "name": "Rallycross Long"
+    },
+    {
+      "id": "daytona-rallycross-and-dirt-road/rallycross-short",
+      "name": "Rallycross Short"
+    },
+    {
+      "id": "detroit-grand-prix-at-belle-isle/belle-isle",
+      "name": "Belle Isle"
+    },
+    {
+      "id": "donington-park/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "donington"
+    },
+    {
+      "id": "donington-park/national",
+      "name": "National"
+    },
+    {
+      "id": "dover-motor-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "eaglerock-speedway/club",
+      "name": "Club",
+      "factsSlug": "eaglerock"
+    },
+    {
+      "id": "eaglerock-speedway/club-reverse",
+      "name": "Club Reverse",
+      "factsSlug": "eaglerock-r"
+    },
+    {
+      "id": "eaglerock-speedway/oval",
+      "name": "Oval",
+      "factsSlug": "eaglerock-oval"
+    },
+    {
+      "id": "echopark-speedway-atlanta/2008/legends-oval",
+      "name": "Legends Oval"
+    },
+    {
+      "id": "echopark-speedway-atlanta/2008/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "echopark-speedway-atlanta/2008/road",
+      "name": "Road"
+    },
+    {
+      "id": "echopark-speedway-atlanta/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "echopark-speedway-atlanta/rallycross-long",
+      "name": "Rallycross Long"
+    },
+    {
+      "id": "echopark-speedway-atlanta/rallycross-short",
+      "name": "Rallycross Short"
+    },
+    {
+      "id": "eldora-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "fairbury-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "federated-auto-parts-raceway-at-i-55/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "firebird-motorsports-park/main",
+      "name": "Main"
+    },
+    {
+      "id": "five-flags-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "fuji-speedway/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "fuji"
+    },
+    {
+      "id": "fuji-speedway/no-chicane",
+      "name": "No Chicane"
+    },
+    {
+      "id": "fujimi-kaido/full",
+      "name": "Full",
+      "factsSlug": "fujimi-kaido"
+    },
+    {
+      "id": "fujimi-kaido/full-reverse",
+      "name": "Full Reverse"
+    },
+    {
+      "id": "grand-oak-raceway/club",
+      "name": "Club",
+      "factsSlug": "grand-oak-s"
+    },
+    {
+      "id": "grand-oak-raceway/national",
+      "name": "National",
+      "factsSlug": "grand-oak"
+    },
+    {
+      "id": "grand-oak-raceway/national-reverse",
+      "name": "National Reverse",
+      "factsSlug": "grand-oak-r"
+    },
+    {
+      "id": "hakone/club",
+      "name": "Club",
+      "factsSlug": "hakone-s"
+    },
+    {
+      "id": "hakone/club-reverse",
+      "name": "Club Reverse",
+      "factsSlug": "hakone-sr"
+    },
+    {
+      "id": "hakone/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "hakone"
+    },
+    {
+      "id": "hanoi-street-circuit/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "hickory-motor-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "hockenheimring/full",
+      "name": "Full",
+      "factsSlug": "hockenheim"
+    },
+    {
+      "id": "hockenheimring/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "hockenheimring/national",
+      "name": "National",
+      "factsSlug": "hockenheim-s"
+    },
+    {
+      "id": "hockenheimring/national-a",
+      "name": "National A"
+    },
+    {
+      "id": "hockenheimring/national-b",
+      "name": "National B"
+    },
+    {
+      "id": "hockenheimring/outer",
+      "name": "Outer"
+    },
+    {
+      "id": "hockenheimring/porsche-experience-center-east",
+      "name": "Porsche Experience Center - East"
+    },
+    {
+      "id": "hockenheimring/porsche-experience-center-handling",
+      "name": "Porsche Experience Center - Handling"
+    },
+    {
+      "id": "hockenheimring/porsche-experience-center-outer",
+      "name": "Porsche Experience Center - Outer"
+    },
+    {
+      "id": "hockenheimring/porsche-experience-center-west",
+      "name": "Porsche Experience Center - West"
+    },
+    {
+      "id": "hockenheimring/short",
+      "name": "Short",
+      "factsSlug": "hockenheim-s2"
+    },
+    {
+      "id": "hockenheimring/short-a",
+      "name": "Short A"
+    },
+    {
+      "id": "hockenheimring/short-b",
+      "name": "Short B"
+    },
+    {
+      "id": "homestead-miami-speedway/open-wheel-oval",
+      "name": "Open Wheel Oval"
+    },
+    {
+      "id": "homestead-miami-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "homestead-miami-speedway/road",
+      "name": "Road",
+      "factsSlug": "homestead"
+    },
+    {
+      "id": "homestead-miami-speedway/road-course-a",
+      "name": "Road Course A"
+    },
+    {
+      "id": "homestead-miami-speedway/road-course-b",
+      "name": "Road Course B"
+    },
+    {
+      "id": "homestead-miami-speedway/speedway",
+      "name": "Speedway",
+      "factsSlug": "homestead-oval"
+    },
+    {
+      "id": "hungaroring/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "hungaroring/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "budapest"
+    },
+    {
+      "id": "hungaroring/main",
+      "name": "Main"
+    },
+    {
+      "id": "huset-s-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "indianapolis-motor-speedway/2009/bike",
+      "name": "Bike"
+    },
+    {
+      "id": "indianapolis-motor-speedway/2009/nascar-oval",
+      "name": "NASCAR Oval"
+    },
+    {
+      "id": "indianapolis-motor-speedway/2009/open-wheel-oval",
+      "name": "Open Wheel Oval"
+    },
+    {
+      "id": "indianapolis-motor-speedway/2009/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "indianapolis-motor-speedway/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "indianapolis"
+    },
+    {
+      "id": "indianapolis-motor-speedway/nascar-oval",
+      "name": "NASCAR Oval"
+    },
+    {
+      "id": "indianapolis-motor-speedway/the-brickyard-speedway",
+      "name": "The Brickyard Speedway",
+      "factsSlug": "indianapolis-oval"
+    },
+    {
+      "id": "iowa-speedway/2011/infield-legends",
+      "name": "Infield Legends"
+    },
+    {
+      "id": "iowa-speedway/2011/legends",
+      "name": "Legends"
+    },
+    {
+      "id": "iowa-speedway/2011/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "iowa-speedway/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "iowa-speedway/2017/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "iowa-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "iracing-superspeedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "irwindale-speedway/figure-eight",
+      "name": "Figure Eight"
+    },
+    {
+      "id": "irwindale-speedway/figure-eight-jump",
+      "name": "Figure Eight Jump"
+    },
+    {
+      "id": "irwindale-speedway/inner",
+      "name": "Inner"
+    },
+    {
+      "id": "irwindale-speedway/outer",
+      "name": "Outer"
+    },
+    {
+      "id": "irwindale-speedway/outer-inner",
+      "name": "Outer - Inner"
+    },
+    {
+      "id": "jeddah-corniche-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "jeddah"
+    },
+    {
+      "id": "kansas-speedway/infield-road-course",
+      "name": "Infield Road Course"
+    },
+    {
+      "id": "kansas-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "kansas-speedway/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "kentucky-speedway/2011/legends",
+      "name": "Legends"
+    },
+    {
+      "id": "kentucky-speedway/2011/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "kentucky-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "kevin-harvick-s-kern-raceway/asphalt-track",
+      "name": "Asphalt Track"
+    },
+    {
+      "id": "kevin-harvick-s-kern-raceway/dirt-mini-oval",
+      "name": "Dirt Mini Oval"
+    },
+    {
+      "id": "kevin-harvick-s-kern-raceway/dirt-track",
+      "name": "Dirt Track"
+    },
+    {
+      "id": "kevin-harvick-s-kern-raceway/legends",
+      "name": "Legends"
+    },
+    {
+      "id": "knockhill-racing-circuit/international",
+      "name": "International"
+    },
+    {
+      "id": "knockhill-racing-circuit/international-reverse",
+      "name": "International Reverse"
+    },
+    {
+      "id": "knockhill-racing-circuit/national",
+      "name": "National"
+    },
+    {
+      "id": "knockhill-racing-circuit/national-reverse",
+      "name": "National Reverse"
+    },
+    {
+      "id": "knockhill-racing-circuit/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "knockhill-racing-circuit/tri-oval",
+      "name": "Tri-Oval"
+    },
+    {
+      "id": "knoxville-raceway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "kokomo-speedway/tires-in",
+      "name": "Tires in"
+    },
+    {
+      "id": "kokomo-speedway/tires-out",
+      "name": "Tires out"
+    },
+    {
+      "id": "kyalami-grand-prix-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "kyalami"
+    },
+    {
+      "id": "la-coliseum-raceway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "langley-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "lanier-national-speedway/asphalt",
+      "name": "Asphalt"
+    },
+    {
+      "id": "lanier-national-speedway/dirt",
+      "name": "Dirt"
+    },
+    {
+      "id": "lankebanen-hell-rx/club",
+      "name": "Club"
+    },
+    {
+      "id": "lankebanen-hell-rx/hell-rallycross",
+      "name": "Hell Rallycross"
+    },
+    {
+      "id": "lankebanen-hell-rx/rallycross-short",
+      "name": "Rallycross Short"
+    },
+    {
+      "id": "lankebanen-hell-rx/road-long",
+      "name": "Road Long"
+    },
+    {
+      "id": "lankebanen-hell-rx/road-short",
+      "name": "Road Short"
+    },
+    {
+      "id": "las-vegas-motor-speedway/infield-legends-oval",
+      "name": "Infield Legends Oval"
+    },
+    {
+      "id": "las-vegas-motor-speedway/legends-oval",
+      "name": "Legends Oval"
+    },
+    {
+      "id": "las-vegas-motor-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "las-vegas-motor-speedway/road-course-combined",
+      "name": "Road Course Combined"
+    },
+    {
+      "id": "las-vegas-motor-speedway/road-course-long",
+      "name": "Road Course Long"
+    },
+    {
+      "id": "las-vegas-motor-speedway/road-course-short",
+      "name": "Road Course Short"
+    },
+    {
+      "id": "las-vegas-street-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "las-vegas"
+    },
+    {
+      "id": "lernerville-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "limaland-motorsports-park/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "lime-rock-park/chicanes",
+      "name": "Chicanes"
+    },
+    {
+      "id": "lime-rock-park/full",
+      "name": "Full",
+      "factsSlug": "lime-rock"
+    },
+    {
+      "id": "lime-rock-park/full-alt",
+      "name": "Full Alt",
+      "factsSlug": "lime-rock-alt"
+    },
+    {
+      "id": "lime-rock-park/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "lime-rock-park/school",
+      "name": "School"
+    },
+    {
+      "id": "lime-rock-park/south-chicane",
+      "name": "South Chicane",
+      "factsSlug": "lime-rock-sc"
+    },
+    {
+      "id": "lime-rock-park/west-bend-chicane",
+      "name": "West Bend Chicane"
+    },
+    {
+      "id": "lincoln-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "long-beach-street-circuit/main",
+      "name": "Main"
+    },
+    {
+      "id": "lucas-oil-indianapolis-raceway-park/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "lucas-oil-indianapolis-raceway-park/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "lucas-oil-speedway/dirt-oval",
+      "name": "Dirt Oval"
+    },
+    {
+      "id": "lucas-oil-speedway/dirt-road",
+      "name": "Dirt Road"
+    },
+    {
+      "id": "lusail-international-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "lusail"
+    },
+    {
+      "id": "maple-valley/full",
+      "name": "Full",
+      "factsSlug": "maple-valley"
+    },
+    {
+      "id": "maple-valley/short",
+      "name": "Short",
+      "factsSlug": "maple-valley-s"
+    },
+    {
+      "id": "maple-valley/short-reverse",
+      "name": "Short Reverse",
+      "factsSlug": "maple-valley-sr"
+    },
+    {
+      "id": "marina-bay-street-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "singapore"
+    },
+    {
+      "id": "martinsville-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "melbourne-grand-prix-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "melbourne"
+    },
+    {
+      "id": "miami-international-autodrome/extended-marina-loop",
+      "name": "Extended Marina Loop"
+    },
+    {
+      "id": "miami-international-autodrome/extended-mia-loop",
+      "name": "Extended MIA Loop"
+    },
+    {
+      "id": "miami-international-autodrome/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "miami"
+    },
+    {
+      "id": "miami-international-autodrome/marina-loop",
+      "name": "Marina Loop"
+    },
+    {
+      "id": "miami-international-autodrome/mia-loop",
+      "name": "MIA Loop"
+    },
+    {
+      "id": "michigan-international-speedway/2009/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "michigan-international-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "mid-ohio-sports-car-course/alt-oval",
+      "name": "Alt Oval"
+    },
+    {
+      "id": "mid-ohio-sports-car-course/chicane",
+      "name": "Chicane"
+    },
+    {
+      "id": "mid-ohio-sports-car-course/full",
+      "name": "Full",
+      "factsSlug": "mid-ohio"
+    },
+    {
+      "id": "mid-ohio-sports-car-course/full-course",
+      "name": "Full Course"
+    },
+    {
+      "id": "mid-ohio-sports-car-course/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "mid-ohio-sports-car-course/short",
+      "name": "Short",
+      "factsSlug": "mid-ohio-s"
+    },
+    {
+      "id": "millbridge-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/2007/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/club",
+      "name": "Club"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "misano"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/grand-prix-historic-reverse",
+      "name": "Grand Prix - Historic Reverse"
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli/truck",
+      "name": "Truck"
+    },
+    {
+      "id": "mobility-resort-motegi/east",
+      "name": "East"
+    },
+    {
+      "id": "mobility-resort-motegi/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "mobility-resort-motegi/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "mobility-resort-motegi/west",
+      "name": "West"
+    },
+    {
+      "id": "motorland-aragon/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "motorland-aragon/motorcycle-grand-prix",
+      "name": "Motorcycle Grand Prix"
+    },
+    {
+      "id": "motorland-aragon/motorcycle-national",
+      "name": "Motorcycle National"
+    },
+    {
+      "id": "motorland-aragon/national",
+      "name": "National"
+    },
+    {
+      "id": "motorland-aragon/outer",
+      "name": "Outer"
+    },
+    {
+      "id": "motorland-aragon/touring-car",
+      "name": "Touring Car"
+    },
+    {
+      "id": "motorland-aragon/west",
+      "name": "West"
+    },
+    {
+      "id": "motorsport-arena-oschersleben/alternate",
+      "name": "Alternate"
+    },
+    {
+      "id": "motorsport-arena-oschersleben/b-course",
+      "name": "B Course"
+    },
+    {
+      "id": "motorsport-arena-oschersleben/c-course",
+      "name": "C Course"
+    },
+    {
+      "id": "motorsport-arena-oschersleben/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "mount-panorama-circuit/circuit",
+      "name": "Circuit",
+      "factsSlug": "mount-panorama"
+    },
+    {
+      "id": "mount-washington-hillclimb/descent",
+      "name": "Descent"
+    },
+    {
+      "id": "mount-washington-hillclimb/hillclimb",
+      "name": "Hillclimb"
+    },
+    {
+      "id": "mugello-circuit/club",
+      "name": "Club",
+      "factsSlug": "mugello-s"
+    },
+    {
+      "id": "mugello-circuit/full",
+      "name": "Full",
+      "factsSlug": "mugello"
+    },
+    {
+      "id": "mugello-circuit/short",
+      "name": "Short"
+    },
+    {
+      "id": "myrtle-beach-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "nashville-fairgrounds-speedway/mini",
+      "name": "Mini"
+    },
+    {
+      "id": "nashville-fairgrounds-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "nashville-superspeedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "new-hampshire-motor-speedway/legends",
+      "name": "Legends"
+    },
+    {
+      "id": "new-hampshire-motor-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "new-hampshire-motor-speedway/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "new-hampshire-motor-speedway/road-course-with-north-oval",
+      "name": "Road Course with North Oval"
+    },
+    {
+      "id": "new-hampshire-motor-speedway/road-course-with-south-oval",
+      "name": "Road Course with South Oval"
+    },
+    {
+      "id": "new-jersey-motorsports-park/thunderbolt",
+      "name": "Thunderbolt"
+    },
+    {
+      "id": "new-jersey-motorsports-park/thunderbolt-w-both-chicanes",
+      "name": "Thunderbolt w/both chicanes"
+    },
+    {
+      "id": "new-jersey-motorsports-park/thunderbolt-w-first-chicane",
+      "name": "Thunderbolt w/first chicane"
+    },
+    {
+      "id": "new-jersey-motorsports-park/thunderbolt-w-second-chicane",
+      "name": "Thunderbolt w/second chicane"
+    },
+    {
+      "id": "new-smyrna-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "north-wilkesboro-speedway/1987/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "north-wilkesboro-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "nurburgring/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "nurburgring/bes-wec",
+      "name": "BES/WEC"
+    },
+    {
+      "id": "nurburgring/full-gp-nordschleife",
+      "name": "Full (GP + Nordschleife)",
+      "factsSlug": "nordschleife"
+    },
+    {
+      "id": "nurburgring/gesamtstrecke-long",
+      "name": "Gesamtstrecke Long"
+    },
+    {
+      "id": "nurburgring/gesamtstrecke-short-w-out-arena",
+      "name": "Gesamtstrecke Short w/out Arena"
+    },
+    {
+      "id": "nurburgring/gesamtstrecke-vln",
+      "name": "Gesamtstrecke VLN"
+    },
+    {
+      "id": "nurburgring/gp",
+      "name": "GP",
+      "factsSlug": "nurburgring"
+    },
+    {
+      "id": "nurburgring/grand-prix-w-out-arena",
+      "name": "Grand Prix w/out Arena"
+    },
+    {
+      "id": "nurburgring/kurzanbindung-w-out-arena",
+      "name": "Kurzanbindung w/out Arena"
+    },
+    {
+      "id": "nurburgring/mullenbachschleife",
+      "name": "Müllenbachschleife"
+    },
+    {
+      "id": "nurburgring/nordschleife",
+      "name": "Nordschleife",
+      "factsSlug": "nurburgring-nord"
+    },
+    {
+      "id": "nurburgring/sprint",
+      "name": "Sprint",
+      "factsSlug": "nurburgring-s"
+    },
+    {
+      "id": "nurburgring/touristenfahrten",
+      "name": "Touristenfahrten"
+    },
+    {
+      "id": "okayama-international-circuit/full-course",
+      "name": "Full Course"
+    },
+    {
+      "id": "okayama-international-circuit/short",
+      "name": "Short"
+    },
+    {
+      "id": "oran-park-raceway/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "oran-park-raceway/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "oran-park-raceway/north",
+      "name": "North"
+    },
+    {
+      "id": "oran-park-raceway/north-a",
+      "name": "North A"
+    },
+    {
+      "id": "oran-park-raceway/north-b",
+      "name": "North B"
+    },
+    {
+      "id": "oran-park-raceway/south",
+      "name": "South"
+    },
+    {
+      "id": "oswego-speedway/dirt",
+      "name": "Dirt"
+    },
+    {
+      "id": "oswego-speedway/mini-oval",
+      "name": "Mini Oval"
+    },
+    {
+      "id": "oswego-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "oulton-park/fosters",
+      "name": "Fosters"
+    },
+    {
+      "id": "oulton-park/fosters-w-hislop",
+      "name": "Fosters w/Hislop"
+    },
+    {
+      "id": "oulton-park/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "oulton-park"
+    },
+    {
+      "id": "oulton-park/intl-w-no-chicanes",
+      "name": "Intl w/no Chicanes"
+    },
+    {
+      "id": "oulton-park/intl-w-out-brittens",
+      "name": "Intl w/out Brittens"
+    },
+    {
+      "id": "oulton-park/intl-w-out-hislop",
+      "name": "Intl w/out Hislop"
+    },
+    {
+      "id": "oulton-park/island",
+      "name": "Island"
+    },
+    {
+      "id": "oulton-park/island-historic",
+      "name": "Island Historic"
+    },
+    {
+      "id": "oxford-plains-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "phillip-island-circuit/main",
+      "name": "Main"
+    },
+    {
+      "id": "phoenix-raceway/2008/dirt-road",
+      "name": "Dirt Road"
+    },
+    {
+      "id": "phoenix-raceway/2008/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "phoenix-raceway/2008/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "phoenix-raceway/2008/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "phoenix-raceway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "phoenix-raceway/oval-w-open-dogleg",
+      "name": "Oval w/open dogleg"
+    },
+    {
+      "id": "pocono-raceway/2009/east",
+      "name": "East"
+    },
+    {
+      "id": "pocono-raceway/2009/international",
+      "name": "International"
+    },
+    {
+      "id": "pocono-raceway/2009/north",
+      "name": "North"
+    },
+    {
+      "id": "pocono-raceway/2009/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "pocono-raceway/2009/south",
+      "name": "South"
+    },
+    {
+      "id": "pocono-raceway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "port-royal-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "portland-international-raceway/full-circuit",
+      "name": "Full Circuit"
+    },
+    {
+      "id": "portland-international-raceway/no-chicane",
+      "name": "No Chicane"
+    },
+    {
+      "id": "qualcomm-circuit-naval-base-coronado/main",
+      "name": "Main"
+    },
+    {
+      "id": "red-bull-ring/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "spielberg"
+    },
+    {
+      "id": "red-bull-ring/national",
+      "name": "National"
+    },
+    {
+      "id": "red-bull-ring/north",
+      "name": "North"
+    },
+    {
+      "id": "richmond-raceway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "road-america/bend",
+      "name": "Bend"
+    },
+    {
+      "id": "road-america/east-route",
+      "name": "East Route",
+      "factsSlug": "road-america-s"
+    },
+    {
+      "id": "road-america/full",
+      "name": "Full",
+      "factsSlug": "road-america"
+    },
+    {
+      "id": "road-atlanta/club",
+      "name": "Club",
+      "factsSlug": "road-atlanta-s"
+    },
+    {
+      "id": "road-atlanta/full",
+      "name": "Full",
+      "factsSlug": "road-atlanta"
+    },
+    {
+      "id": "road-atlanta/short",
+      "name": "Short"
+    },
+    {
+      "id": "rockingham-speedway/2012/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "rockingham-speedway/infield-road-course",
+      "name": "Infield Road Course"
+    },
+    {
+      "id": "rockingham-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "rockingham-speedway/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "rockingham-speedway/short-road-course",
+      "name": "Short Road Course"
+    },
+    {
+      "id": "route-test-1787076567995/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787076567995/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787076607736/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787076607736/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787076641023/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787076641023/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787077685629/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787077685629/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787079971966/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787079971966/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787081126088/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787081126088/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787096982620/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787096982620/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787096997992/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787096997992/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787097006339/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787097006339/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787097139054/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787097139054/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787098001221/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787098001221/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787098321104/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787098321104/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "route-test-1787098684595/historical/2011/alternate-course",
+      "name": "Alternate Course"
+    },
+    {
+      "id": "route-test-1787098684595/historical/2011/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "rudskogen-motorsenter/main",
+      "name": "Main"
+    },
+    {
+      "id": "sachsenring/main",
+      "name": "Main"
+    },
+    {
+      "id": "sandown-international-motor-raceway/main",
+      "name": "Main"
+    },
+    {
+      "id": "sebring-international-raceway/club",
+      "name": "Club"
+    },
+    {
+      "id": "sebring-international-raceway/full",
+      "name": "Full",
+      "factsSlug": "sebring"
+    },
+    {
+      "id": "sebring-international-raceway/modified",
+      "name": "Modified"
+    },
+    {
+      "id": "sebring-international-raceway/short",
+      "name": "Short",
+      "factsSlug": "sebring-s"
+    },
+    {
+      "id": "shanghai-international-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "shanghai"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend/east-circuit",
+      "name": "East Circuit"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend/gt-circuit",
+      "name": "GT Circuit"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend/international-circuit",
+      "name": "International Circuit"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend/south-west-circuit",
+      "name": "South West Circuit"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend/sprint-circuit",
+      "name": "Sprint Circuit"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend/west-circuit",
+      "name": "West Circuit"
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend/west-plus-circuit",
+      "name": "West Plus Circuit"
+    },
+    {
+      "id": "silverstone-racing-circuit/2008/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "silverstone-racing-circuit/2008/historical-grand-prix",
+      "name": "Historical Grand Prix"
+    },
+    {
+      "id": "silverstone-racing-circuit/2008/international",
+      "name": "International"
+    },
+    {
+      "id": "silverstone-racing-circuit/2008/national",
+      "name": "National"
+    },
+    {
+      "id": "silverstone-racing-circuit/2008/southern",
+      "name": "Southern"
+    },
+    {
+      "id": "silverstone-racing-circuit/2019/gp",
+      "name": "GP"
+    },
+    {
+      "id": "silverstone-racing-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "silverstone"
+    },
+    {
+      "id": "silverstone-racing-circuit/international",
+      "name": "International",
+      "factsSlug": "silverstone-s2"
+    },
+    {
+      "id": "silverstone-racing-circuit/national",
+      "name": "National",
+      "factsSlug": "silverstone-s"
+    },
+    {
+      "id": "silverstone-racing-circuit/short",
+      "name": "Short"
+    },
+    {
+      "id": "slinger-speedway/figure-8",
+      "name": "Figure 8"
+    },
+    {
+      "id": "slinger-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "snetterton-circuit/100",
+      "name": "100"
+    },
+    {
+      "id": "snetterton-circuit/200",
+      "name": "200"
+    },
+    {
+      "id": "snetterton-circuit/grand-prix",
+      "name": "Grand Prix",
+      "factsSlug": "snetterton"
+    },
+    {
+      "id": "sochi-autodrom/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "sonoma-raceway/cup-long",
+      "name": "Cup Long"
+    },
+    {
+      "id": "sonoma-raceway/cup-short",
+      "name": "Cup Short"
+    },
+    {
+      "id": "sonoma-raceway/indycar-2005-2007",
+      "name": "Indycar 2005-2007"
+    },
+    {
+      "id": "sonoma-raceway/indycar-2008-2011",
+      "name": "Indycar 2008-2011"
+    },
+    {
+      "id": "sonoma-raceway/indycar-2012-2018",
+      "name": "Indycar 2012-2018"
+    },
+    {
+      "id": "sonoma-raceway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "sonoma-raceway/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "sonoma-raceway/short",
+      "name": "Short"
+    },
+    {
+      "id": "sonoma-raceway/sportscar",
+      "name": "Sportscar"
+    },
+    {
+      "id": "sonoma-raceway/sportscar-alt",
+      "name": "Sportscar Alt"
+    },
+    {
+      "id": "south-boston-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "southern-national-motorsports-park/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "st-petersburg-grand-prix/grand-prix",
+      "name": "Grand Prix"
+    },
+    {
+      "id": "stafford-motor-speedway/full-course",
+      "name": "Full Course"
+    },
+    {
+      "id": "summit-point-raceway/jefferson-circuit",
+      "name": "Jefferson Circuit"
+    },
+    {
+      "id": "summit-point-raceway/jefferson-reverse",
+      "name": "Jefferson Reverse"
+    },
+    {
+      "id": "summit-point-raceway/school",
+      "name": "School"
+    },
+    {
+      "id": "summit-point-raceway/short",
+      "name": "Short"
+    },
+    {
+      "id": "summit-point-raceway/summit-point-raceway",
+      "name": "Summit Point Raceway"
+    },
+    {
+      "id": "sunset-peninsula/club",
+      "name": "Club",
+      "factsSlug": "sunset-peninsula-s"
+    },
+    {
+      "id": "sunset-peninsula/club-reverse",
+      "name": "Club Reverse",
+      "factsSlug": "sunset-peninsula-sr"
+    },
+    {
+      "id": "sunset-peninsula/full",
+      "name": "Full",
+      "factsSlug": "sunset-peninsula"
+    },
+    {
+      "id": "sunset-peninsula/full-reverse",
+      "name": "Full Reverse",
+      "factsSlug": "sunset-peninsula-r"
+    },
+    {
+      "id": "sunset-peninsula/speedway",
+      "name": "Speedway",
+      "factsSlug": "sunset-peninsula-oval"
+    },
+    {
+      "id": "suzuka-circuit/east",
+      "name": "East"
+    },
+    {
+      "id": "suzuka-circuit/east-circuit",
+      "name": "East Circuit"
+    },
+    {
+      "id": "suzuka-circuit/full",
+      "name": "Full",
+      "factsSlug": "suzuka"
+    },
+    {
+      "id": "suzuka-circuit/moto",
+      "name": "Moto"
+    },
+    {
+      "id": "suzuka-circuit/short",
+      "name": "Short"
+    },
+    {
+      "id": "suzuka-circuit/west",
+      "name": "West"
+    },
+    {
+      "id": "suzuka-circuit/west-w-chicane",
+      "name": "West w/chicane"
+    },
+    {
+      "id": "talladega-superspeedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "texas-motor-speedway/2009/legends-oval",
+      "name": "Legends Oval"
+    },
+    {
+      "id": "texas-motor-speedway/2009/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "texas-motor-speedway/2009/road-course-combined",
+      "name": "Road Course Combined"
+    },
+    {
+      "id": "texas-motor-speedway/2009/road-course-long",
+      "name": "Road Course Long"
+    },
+    {
+      "id": "texas-motor-speedway/2009/road-course-short-a",
+      "name": "Road Course Short A"
+    },
+    {
+      "id": "texas-motor-speedway/2009/road-course-short-b",
+      "name": "Road Course Short B"
+    },
+    {
+      "id": "texas-motor-speedway/legends-oval",
+      "name": "Legends Oval"
+    },
+    {
+      "id": "texas-motor-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "the-bullring/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "the-dirt-track-at-charlotte/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "the-milwaukee-mile/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "thompson-speedway-motorsports-park/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "thruxton-circuit/main",
+      "name": "Main"
+    },
+    {
+      "id": "tsukuba-circuit/1000-chicane",
+      "name": "1000 Chicane"
+    },
+    {
+      "id": "tsukuba-circuit/1000-full",
+      "name": "1000 Full"
+    },
+    {
+      "id": "tsukuba-circuit/1000-full-reverse",
+      "name": "1000 Full Reverse"
+    },
+    {
+      "id": "tsukuba-circuit/1000-outer",
+      "name": "1000 Outer"
+    },
+    {
+      "id": "tsukuba-circuit/2000-full",
+      "name": "2000 Full"
+    },
+    {
+      "id": "tsukuba-circuit/2000-moto",
+      "name": "2000 Moto"
+    },
+    {
+      "id": "tsukuba-circuit/2000-short",
+      "name": "2000 Short"
+    },
+    {
+      "id": "usa-international-speedway/asphalt",
+      "name": "Asphalt"
+    },
+    {
+      "id": "usa-international-speedway/dirt",
+      "name": "Dirt"
+    },
+    {
+      "id": "virginia-international-raceway/full",
+      "name": "Full",
+      "factsSlug": "vir"
+    },
+    {
+      "id": "virginia-international-raceway/grand-course",
+      "name": "Grand Course"
+    },
+    {
+      "id": "virginia-international-raceway/grand-east",
+      "name": "Grand East",
+      "factsSlug": "vir-ge"
+    },
+    {
+      "id": "virginia-international-raceway/grand-west",
+      "name": "Grand West",
+      "factsSlug": "vir-gw"
+    },
+    {
+      "id": "virginia-international-raceway/north",
+      "name": "North",
+      "factsSlug": "vir-n"
+    },
+    {
+      "id": "virginia-international-raceway/patriot-course",
+      "name": "Patriot Course"
+    },
+    {
+      "id": "virginia-international-raceway/south",
+      "name": "South",
+      "factsSlug": "vir-s"
+    },
+    {
+      "id": "volusia-speedway-park/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "watkins-glen-international/classic",
+      "name": "Classic"
+    },
+    {
+      "id": "watkins-glen-international/classic-boot",
+      "name": "Classic Boot"
+    },
+    {
+      "id": "watkins-glen-international/full",
+      "name": "Full",
+      "factsSlug": "watkins-glen"
+    },
+    {
+      "id": "watkins-glen-international/short",
+      "name": "Short",
+      "factsSlug": "watkins-glen-s"
+    },
+    {
+      "id": "weathertech-raceway-laguna-seca/full",
+      "name": "Full",
+      "factsSlug": "laguna-seca"
+    },
+    {
+      "id": "weathertech-raceway-laguna-seca/short",
+      "name": "Short",
+      "factsSlug": "laguna-seca-s"
+    },
+    {
+      "id": "weedsport-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "wild-west-motorsports-park/main",
+      "name": "Main"
+    },
+    {
+      "id": "williams-grove-speedway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "willow-springs-international-raceway/big-willow",
+      "name": "Big Willow"
+    },
+    {
+      "id": "winton-motor-raceway/club-circuit",
+      "name": "Club Circuit"
+    },
+    {
+      "id": "winton-motor-raceway/national-circuit",
+      "name": "National Circuit"
+    },
+    {
+      "id": "winton-motor-raceway/rallycross",
+      "name": "Rallycross"
+    },
+    {
+      "id": "world-wide-technology-raceway-gateway/oval",
+      "name": "Oval"
+    },
+    {
+      "id": "world-wide-technology-raceway-gateway/road-course",
+      "name": "Road Course"
+    },
+    {
+      "id": "yas-marina-circuit/full",
+      "name": "Full",
+      "factsSlug": "yas-marina"
+    },
+    {
+      "id": "yas-marina-circuit/north",
+      "name": "North",
+      "factsSlug": "yas-marina-n"
+    },
+    {
+      "id": "yas-marina-circuit/north-corkscrew",
+      "name": "North Corkscrew",
+      "factsSlug": "yas-marina-nc"
+    },
+    {
+      "id": "yas-marina-circuit/south",
+      "name": "South",
+      "factsSlug": "yas-marina-s"
+    }
+  ],
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 0,
+      "layoutId": "weathertech-raceway-laguna-seca/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1,
+      "layoutId": "weathertech-raceway-laguna-seca/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 3,
+      "layoutId": "road-america/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 5,
+      "layoutId": "road-america/east-route",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 16,
+      "layoutId": "road-atlanta/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 17,
+      "layoutId": "road-atlanta/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 21,
+      "layoutId": "silverstone-racing-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 22,
+      "layoutId": "silverstone-racing-circuit/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 23,
+      "layoutId": "silverstone-racing-circuit/international",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 31,
+      "layoutId": "nurburgring/full-gp-nordschleife",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 32,
+      "layoutId": "nurburgring/nordschleife",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 33,
+      "layoutId": "nurburgring/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 34,
+      "layoutId": "nurburgring/sprint",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 35,
+      "layoutId": "mugello-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 36,
+      "layoutId": "mugello-circuit/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 37,
+      "layoutId": "suzuka-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 38,
+      "layoutId": "suzuka-circuit/east-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 40,
+      "layoutId": "sebring-international-raceway/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 42,
+      "layoutId": "sebring-international-raceway/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 67,
+      "layoutId": "maple-valley/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 68,
+      "layoutId": "maple-valley/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 70,
+      "layoutId": "maple-valley/short-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 78,
+      "layoutId": "fujimi-kaido/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 83,
+      "layoutId": "fujimi-kaido/full-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 100,
+      "layoutId": "circuit-de-la-sarthe/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 101,
+      "layoutId": "circuit-de-la-sarthe/old-mulsanne",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 110,
+      "layoutId": "circuit-de-barcelona-catalunya/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 111,
+      "layoutId": "circuit-de-barcelona-catalunya/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 113,
+      "layoutId": "circuit-de-barcelona-catalunya/national-alt",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 231,
+      "layoutId": "indianapolis-motor-speedway/the-brickyard-speedway",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 232,
+      "layoutId": "indianapolis-motor-speedway/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 250,
+      "layoutId": "hockenheimring/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 251,
+      "layoutId": "hockenheimring/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 252,
+      "layoutId": "hockenheimring/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 510,
+      "layoutId": "yas-marina-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 511,
+      "layoutId": "yas-marina-circuit/north",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 512,
+      "layoutId": "yas-marina-circuit/south",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 513,
+      "layoutId": "yas-marina-circuit/north-corkscrew",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 530,
+      "layoutId": "circuit-de-spa-francorchamps/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 540,
+      "layoutId": "mount-panorama-circuit/circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 840,
+      "layoutId": "daytona-international-speedway/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 841,
+      "layoutId": "daytona-international-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 860,
+      "layoutId": "brands-hatch/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 861,
+      "layoutId": "brands-hatch/indy",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 870,
+      "layoutId": "watkins-glen-international/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 873,
+      "layoutId": "watkins-glen-international/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 880,
+      "layoutId": "lime-rock-park/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 882,
+      "layoutId": "lime-rock-park/south-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 883,
+      "layoutId": "lime-rock-park/full-alt",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 990,
+      "layoutId": "virginia-international-raceway/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 991,
+      "layoutId": "virginia-international-raceway/north",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 992,
+      "layoutId": "virginia-international-raceway/south",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 995,
+      "layoutId": "virginia-international-raceway/grand-west",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 996,
+      "layoutId": "virginia-international-raceway/grand-east",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1110,
+      "layoutId": "homestead-miami-speedway/speedway",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1111,
+      "layoutId": "homestead-miami-speedway/road",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1450,
+      "layoutId": "mid-ohio-sports-car-course/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1452,
+      "layoutId": "mid-ohio-sports-car-course/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1590,
+      "layoutId": "kyalami-grand-prix-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1620,
+      "layoutId": "sunset-peninsula/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1621,
+      "layoutId": "sunset-peninsula/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1622,
+      "layoutId": "sunset-peninsula/full-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1623,
+      "layoutId": "sunset-peninsula/club-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1624,
+      "layoutId": "sunset-peninsula/speedway",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1630,
+      "layoutId": "grand-oak-raceway/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1631,
+      "layoutId": "grand-oak-raceway/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1632,
+      "layoutId": "grand-oak-raceway/national-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1640,
+      "layoutId": "hakone/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1641,
+      "layoutId": "hakone/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1643,
+      "layoutId": "hakone/club-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1660,
+      "layoutId": "eaglerock-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1661,
+      "layoutId": "eaglerock-speedway/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1663,
+      "layoutId": "eaglerock-speedway/club-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 0,
+      "layoutId": "melbourne-grand-prix-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 1,
+      "layoutId": "circuit-paul-ricard/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 2,
+      "layoutId": "shanghai-international-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 3,
+      "layoutId": "bahrain-international-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 4,
+      "layoutId": "circuit-de-barcelona-catalunya/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 5,
+      "layoutId": "circuit-de-monaco/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 6,
+      "layoutId": "circuit-gilles-villeneuve/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 7,
+      "layoutId": "silverstone-racing-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 8,
+      "layoutId": "hockenheimring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 9,
+      "layoutId": "hungaroring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 10,
+      "layoutId": "circuit-de-spa-francorchamps/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 11,
+      "layoutId": "autodromo-nazionale-monza/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 12,
+      "layoutId": "marina-bay-street-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 13,
+      "layoutId": "suzuka-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 14,
+      "layoutId": "yas-marina-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 15,
+      "layoutId": "circuit-of-the-americas/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 16,
+      "layoutId": "autodromo-jose-carlos-pace/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 17,
+      "layoutId": "red-bull-ring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 18,
+      "layoutId": "sochi-autodrom/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 19,
+      "layoutId": "autodromo-hermanos-rodriguez/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 20,
+      "layoutId": "baku-city-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 21,
+      "layoutId": "bahrain-international-circuit/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 22,
+      "layoutId": "silverstone-racing-circuit/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 23,
+      "layoutId": "circuit-of-the-americas/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 24,
+      "layoutId": "suzuka-circuit/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 25,
+      "layoutId": "hanoi-street-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 26,
+      "layoutId": "circuit-zandvoort/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 27,
+      "layoutId": "autodromo-internazionale-enzo-e-dino-ferrari/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 28,
+      "layoutId": "autodromo-internacional-do-algarve/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 29,
+      "layoutId": "jeddah-corniche-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 30,
+      "layoutId": "miami-international-autodrome/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 31,
+      "layoutId": "las-vegas-street-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 32,
+      "layoutId": "lusail-international-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 0,
+      "layoutId": "autodromo-nazionale-monza/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 1,
+      "layoutId": "circuit-zolder/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 2,
+      "layoutId": "brands-hatch/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 3,
+      "layoutId": "silverstone-racing-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 4,
+      "layoutId": "circuit-paul-ricard/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 5,
+      "layoutId": "misano-world-circuit-marco-simoncelli/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 6,
+      "layoutId": "circuit-de-spa-francorchamps/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 7,
+      "layoutId": "nurburgring/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 8,
+      "layoutId": "circuit-de-barcelona-catalunya/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 9,
+      "layoutId": "hungaroring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 10,
+      "layoutId": "circuit-zandvoort/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 11,
+      "layoutId": "autodromo-nazionale-monza/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 12,
+      "layoutId": "circuit-zolder/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 13,
+      "layoutId": "brands-hatch/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 14,
+      "layoutId": "silverstone-racing-circuit/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 15,
+      "layoutId": "circuit-paul-ricard/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 16,
+      "layoutId": "misano-world-circuit-marco-simoncelli/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 17,
+      "layoutId": "circuit-de-spa-francorchamps/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 18,
+      "layoutId": "nurburgring/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 19,
+      "layoutId": "circuit-de-barcelona-catalunya/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 20,
+      "layoutId": "hungaroring/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 21,
+      "layoutId": "circuit-zandvoort/2019/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 22,
+      "layoutId": "kyalami-grand-prix-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 23,
+      "layoutId": "mount-panorama-circuit/circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 24,
+      "layoutId": "suzuka-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 25,
+      "layoutId": "weathertech-raceway-laguna-seca/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 26,
+      "layoutId": "oulton-park/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 27,
+      "layoutId": "donington-park/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 28,
+      "layoutId": "snetterton-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 29,
+      "layoutId": "autodromo-internazionale-enzo-e-dino-ferrari/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 30,
+      "layoutId": "watkins-glen-international/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 31,
+      "layoutId": "circuit-of-the-americas/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 32,
+      "layoutId": "indianapolis-motor-speedway/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 33,
+      "layoutId": "circuit-ricardo-tormo/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 34,
+      "layoutId": "red-bull-ring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 35,
+      "layoutId": "nurburgring/full-gp-nordschleife",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 0,
+      "layoutId": "autodromo-nazionale-monza/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 1,
+      "layoutId": "nurburgring/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 2,
+      "layoutId": "brands-hatch/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 3,
+      "layoutId": "mount-panorama-circuit/circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 4,
+      "layoutId": "misano-world-circuit-marco-simoncelli/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 5,
+      "layoutId": "circuit-de-spa-francorchamps/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 6,
+      "layoutId": "silverstone-racing-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 7,
+      "layoutId": "autodromo-internazionale-enzo-e-dino-ferrari/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 8,
+      "layoutId": "circuit-paul-ricard/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 9,
+      "layoutId": "weathertech-raceway-laguna-seca/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 10,
+      "layoutId": "nurburgring/full-gp-nordschleife",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 11,
+      "layoutId": "suzuka-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 12,
+      "layoutId": "kyalami-grand-prix-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 13,
+      "layoutId": "red-bull-ring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 14,
+      "layoutId": "circuit-de-barcelona-catalunya/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 15,
+      "layoutId": "hungaroring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 16,
+      "layoutId": "circuit-zandvoort/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 17,
+      "layoutId": "brands-hatch/indy",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 18,
+      "layoutId": "fuji-speedway/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 19,
+      "layoutId": "oulton-park/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 20,
+      "layoutId": "road-atlanta/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 21,
+      "layoutId": "sebring-international-raceway/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 22,
+      "layoutId": "watkins-glen-international/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 23,
+      "layoutId": "circuit-of-the-americas/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 24,
+      "layoutId": "donington-park/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 8,
+      "layoutId": "summit-point-raceway/jefferson-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 9,
+      "layoutId": "summit-point-raceway/summit-point-raceway",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 11,
+      "layoutId": "stafford-motor-speedway/full-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 12,
+      "layoutId": "oxford-plains-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 14,
+      "layoutId": "south-boston-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 15,
+      "layoutId": "concord-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 16,
+      "layoutId": "usa-international-speedway/asphalt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 17,
+      "layoutId": "lanier-national-speedway/asphalt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 18,
+      "layoutId": "road-america/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 19,
+      "layoutId": "irwindale-speedway/inner",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 20,
+      "layoutId": "homestead-miami-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 21,
+      "layoutId": "homestead-miami-speedway/road-course-a",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 22,
+      "layoutId": "homestead-miami-speedway/road-course-b",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 23,
+      "layoutId": "irwindale-speedway/outer",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 24,
+      "layoutId": "summit-point-raceway/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 26,
+      "layoutId": "daytona-international-speedway/2008/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 27,
+      "layoutId": "daytona-international-speedway/2008/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 28,
+      "layoutId": "daytona-international-speedway/2008/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 29,
+      "layoutId": "daytona-international-speedway/2008/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 30,
+      "layoutId": "irwindale-speedway/outer-inner",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 33,
+      "layoutId": "martinsville-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 41,
+      "layoutId": "silverstone-racing-circuit/2008/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 42,
+      "layoutId": "silverstone-racing-circuit/2008/historical-grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 43,
+      "layoutId": "silverstone-racing-circuit/2008/international",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 44,
+      "layoutId": "silverstone-racing-circuit/2008/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 45,
+      "layoutId": "silverstone-racing-circuit/2008/southern",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 50,
+      "layoutId": "road-america/bend",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 51,
+      "layoutId": "echopark-speedway-atlanta/2008/road",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 52,
+      "layoutId": "echopark-speedway-atlanta/2008/legends-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 53,
+      "layoutId": "echopark-speedway-atlanta/2008/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 94,
+      "layoutId": "the-milwaukee-mile/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 95,
+      "layoutId": "sebring-international-raceway/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 96,
+      "layoutId": "sebring-international-raceway/modified",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 97,
+      "layoutId": "sebring-international-raceway/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 101,
+      "layoutId": "bristol-motor-speedway/dual-pit-roads",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 103,
+      "layoutId": "las-vegas-motor-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 104,
+      "layoutId": "phoenix-raceway/2008/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 105,
+      "layoutId": "phoenix-raceway/2008/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 110,
+      "layoutId": "las-vegas-motor-speedway/legends-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 111,
+      "layoutId": "las-vegas-motor-speedway/road-course-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 112,
+      "layoutId": "las-vegas-motor-speedway/road-course-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 113,
+      "layoutId": "las-vegas-motor-speedway/infield-legends-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 114,
+      "layoutId": "las-vegas-motor-speedway/road-course-combined",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 115,
+      "layoutId": "darlington-raceway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 116,
+      "layoutId": "talladega-superspeedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 117,
+      "layoutId": "texas-motor-speedway/2009/road-course-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 118,
+      "layoutId": "texas-motor-speedway/2009/road-course-short-a",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 119,
+      "layoutId": "texas-motor-speedway/2009/road-course-short-b",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 120,
+      "layoutId": "texas-motor-speedway/2009/legends-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 121,
+      "layoutId": "texas-motor-speedway/2009/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 122,
+      "layoutId": "texas-motor-speedway/2009/road-course-combined",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 123,
+      "layoutId": "chicagoland-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 124,
+      "layoutId": "michigan-international-speedway/2009/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 126,
+      "layoutId": "road-atlanta/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 127,
+      "layoutId": "road-atlanta/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 128,
+      "layoutId": "road-atlanta/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 129,
+      "layoutId": "new-hampshire-motor-speedway/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 130,
+      "layoutId": "new-hampshire-motor-speedway/road-course-with-north-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 131,
+      "layoutId": "new-hampshire-motor-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 132,
+      "layoutId": "new-hampshire-motor-speedway/road-course-with-south-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 133,
+      "layoutId": "indianapolis-motor-speedway/2009/nascar-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 134,
+      "layoutId": "indianapolis-motor-speedway/2009/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 135,
+      "layoutId": "indianapolis-motor-speedway/2009/bike",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 136,
+      "layoutId": "pocono-raceway/2009/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 137,
+      "layoutId": "pocono-raceway/2009/east",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 138,
+      "layoutId": "pocono-raceway/2009/south",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 139,
+      "layoutId": "pocono-raceway/2009/north",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 140,
+      "layoutId": "pocono-raceway/2009/international",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 142,
+      "layoutId": "summit-point-raceway/jefferson-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 143,
+      "layoutId": "centripetal-circuit/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 144,
+      "layoutId": "canadian-tire-motorsports-park/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 145,
+      "layoutId": "brands-hatch/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 146,
+      "layoutId": "brands-hatch/indy",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 147,
+      "layoutId": "circuit-zandvoort/2009/chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 148,
+      "layoutId": "circuit-zandvoort/2009/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 149,
+      "layoutId": "circuit-zandvoort/2009/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 150,
+      "layoutId": "circuit-zandvoort/2009/nationaal",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 151,
+      "layoutId": "circuit-zandvoort/2009/oostelijk",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 152,
+      "layoutId": "phillip-island-circuit/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 153,
+      "layoutId": "mid-ohio-sports-car-course/full-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 154,
+      "layoutId": "mid-ohio-sports-car-course/chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 155,
+      "layoutId": "mid-ohio-sports-car-course/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 156,
+      "layoutId": "mid-ohio-sports-car-course/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 157,
+      "layoutId": "mid-ohio-sports-car-course/alt-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 159,
+      "layoutId": "summit-point-raceway/school",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 161,
+      "layoutId": "thompson-speedway-motorsports-park/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 162,
+      "layoutId": "dover-motor-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 163,
+      "layoutId": "circuit-de-spa-francorchamps/2010/grand-prix-pits",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 164,
+      "layoutId": "circuit-de-spa-francorchamps/2010/classic-pits",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 165,
+      "layoutId": "circuit-de-spa-francorchamps/2010/endurance",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 166,
+      "layoutId": "okayama-international-circuit/full-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 167,
+      "layoutId": "okayama-international-circuit/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 168,
+      "layoutId": "suzuka-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 169,
+      "layoutId": "iowa-speedway/2011/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 170,
+      "layoutId": "iowa-speedway/2011/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 171,
+      "layoutId": "iowa-speedway/2011/legends",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 172,
+      "layoutId": "iowa-speedway/2011/infield-legends",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 173,
+      "layoutId": "suzuka-circuit/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 174,
+      "layoutId": "suzuka-circuit/east",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 175,
+      "layoutId": "suzuka-circuit/west",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 176,
+      "layoutId": "suzuka-circuit/west-w-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 178,
+      "layoutId": "indianapolis-motor-speedway/2009/open-wheel-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 179,
+      "layoutId": "long-beach-street-circuit/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 180,
+      "layoutId": "oulton-park/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 181,
+      "layoutId": "oulton-park/fosters",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 182,
+      "layoutId": "oulton-park/island",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 183,
+      "layoutId": "oulton-park/intl-w-out-hislop",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 184,
+      "layoutId": "oulton-park/intl-w-out-brittens",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 185,
+      "layoutId": "oulton-park/intl-w-no-chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 186,
+      "layoutId": "oulton-park/fosters-w-hislop",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 187,
+      "layoutId": "oulton-park/island-historic",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 188,
+      "layoutId": "kentucky-speedway/2011/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 189,
+      "layoutId": "kentucky-speedway/2011/legends",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 190,
+      "layoutId": "new-smyrna-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 191,
+      "layoutId": "daytona-international-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 192,
+      "layoutId": "daytona-international-speedway/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 193,
+      "layoutId": "daytona-international-speedway/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 194,
+      "layoutId": "daytona-international-speedway/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 195,
+      "layoutId": "mobility-resort-motegi/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 196,
+      "layoutId": "mobility-resort-motegi/east",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 197,
+      "layoutId": "mobility-resort-motegi/west",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 198,
+      "layoutId": "mobility-resort-motegi/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 199,
+      "layoutId": "circuit-zolder/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 200,
+      "layoutId": "circuit-zolder/alternate",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 201,
+      "layoutId": "langley-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 202,
+      "layoutId": "oran-park-raceway/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 203,
+      "layoutId": "rockingham-speedway/2012/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 204,
+      "layoutId": "rockingham-speedway/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 205,
+      "layoutId": "rockingham-speedway/infield-road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 206,
+      "layoutId": "rockingham-speedway/short-road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 207,
+      "layoutId": "oran-park-raceway/north",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 208,
+      "layoutId": "oran-park-raceway/south",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 209,
+      "layoutId": "oran-park-raceway/north-a",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 210,
+      "layoutId": "oran-park-raceway/north-b",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 211,
+      "layoutId": "oran-park-raceway/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 212,
+      "layoutId": "autodromo-jose-carlos-pace/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 213,
+      "layoutId": "autodromo-jose-carlos-pace/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 214,
+      "layoutId": "kansas-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 215,
+      "layoutId": "kansas-speedway/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 216,
+      "layoutId": "kansas-speedway/infield-road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 217,
+      "layoutId": "irwindale-speedway/figure-eight",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 218,
+      "layoutId": "circuit-gilles-villeneuve/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 219,
+      "layoutId": "mount-panorama-circuit/circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 220,
+      "layoutId": "new-jersey-motorsports-park/thunderbolt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 221,
+      "layoutId": "new-jersey-motorsports-park/thunderbolt-w-both-chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 222,
+      "layoutId": "new-hampshire-motor-speedway/legends",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 223,
+      "layoutId": "new-jersey-motorsports-park/thunderbolt-w-first-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 224,
+      "layoutId": "new-jersey-motorsports-park/thunderbolt-w-second-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 225,
+      "layoutId": "auto-club-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 226,
+      "layoutId": "auto-club-speedway/competition",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 227,
+      "layoutId": "auto-club-speedway/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 228,
+      "layoutId": "auto-club-speedway/interior",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 229,
+      "layoutId": "circuit-of-the-americas/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 230,
+      "layoutId": "circuit-of-the-americas/east",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 231,
+      "layoutId": "circuit-of-the-americas/west",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 232,
+      "layoutId": "lucas-oil-indianapolis-raceway-park/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 233,
+      "layoutId": "donington-park/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 234,
+      "layoutId": "donington-park/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 238,
+      "layoutId": "world-wide-technology-raceway-gateway/road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 239,
+      "layoutId": "autodromo-nazionale-monza/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 240,
+      "layoutId": "autodromo-nazionale-monza/combined-without-chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 241,
+      "layoutId": "autodromo-nazionale-monza/junior",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 242,
+      "layoutId": "autodromo-nazionale-monza/gp-without-chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 243,
+      "layoutId": "autodromo-nazionale-monza/oval-right-turning",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 244,
+      "layoutId": "autodromo-nazionale-monza/gp-without-first-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 245,
+      "layoutId": "autodromo-nazionale-monza/oval-left-turning",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 246,
+      "layoutId": "autodromo-nazionale-monza/combined-without-first-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 247,
+      "layoutId": "autodromo-nazionale-monza/combined",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 248,
+      "layoutId": "five-flags-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 249,
+      "layoutId": "nurburgring/nordschleife",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 250,
+      "layoutId": "nurburgring/gp",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 252,
+      "layoutId": "nurburgring/full-gp-nordschleife",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 253,
+      "layoutId": "nurburgring/touristenfahrten",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 255,
+      "layoutId": "nurburgring/bes-wec",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 256,
+      "layoutId": "southern-national-motorsports-park/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 257,
+      "layoutId": "nurburgring/grand-prix-w-out-arena",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 259,
+      "layoutId": "nurburgring/sprint",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 260,
+      "layoutId": "nurburgring/kurzanbindung-w-out-arena",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 261,
+      "layoutId": "nurburgring/mullenbachschleife",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 262,
+      "layoutId": "nurburgring/gesamtstrecke-vln",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 263,
+      "layoutId": "nurburgring/gesamtstrecke-short-w-out-arena",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 264,
+      "layoutId": "nurburgring/gesamtstrecke-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 266,
+      "layoutId": "autodromo-internazionale-enzo-e-dino-ferrari/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 267,
+      "layoutId": "autodromo-internazionale-enzo-e-dino-ferrari/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 268,
+      "layoutId": "circuit-de-la-sarthe/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 269,
+      "layoutId": "circuit-de-la-sarthe/old-mulsanne",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 271,
+      "layoutId": "the-bullring/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 273,
+      "layoutId": "eldora-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 274,
+      "layoutId": "williams-grove-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 275,
+      "layoutId": "usa-international-speedway/dirt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 276,
+      "layoutId": "michigan-international-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 277,
+      "layoutId": "pocono-raceway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 279,
+      "layoutId": "volusia-speedway-park/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 286,
+      "layoutId": "myrtle-beach-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 287,
+      "layoutId": "bristol-motor-speedway/2021/dirt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 288,
+      "layoutId": "lanier-national-speedway/dirt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 290,
+      "layoutId": "brands-hatch/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 293,
+      "layoutId": "daytona-rallycross-and-dirt-road/rallycross-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 295,
+      "layoutId": "iowa-speedway/2017/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 296,
+      "layoutId": "daytona-rallycross-and-dirt-road/rallycross-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 297,
+      "layoutId": "snetterton-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 298,
+      "layoutId": "snetterton-circuit/200",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 299,
+      "layoutId": "snetterton-circuit/100",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 303,
+      "layoutId": "limaland-motorsports-park/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 304,
+      "layoutId": "lucas-oil-indianapolis-raceway-park/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 305,
+      "layoutId": "knoxville-raceway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 306,
+      "layoutId": "phoenix-raceway/2008/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 312,
+      "layoutId": "sonoma-raceway/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 314,
+      "layoutId": "the-dirt-track-at-charlotte/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 319,
+      "layoutId": "detroit-grand-prix-at-belle-isle/belle-isle",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 320,
+      "layoutId": "kokomo-speedway/tires-in",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 322,
+      "layoutId": "echopark-speedway-atlanta/rallycross-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 323,
+      "layoutId": "echopark-speedway-atlanta/rallycross-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 324,
+      "layoutId": "tsukuba-circuit/2000-full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 325,
+      "layoutId": "tsukuba-circuit/2000-moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 326,
+      "layoutId": "tsukuba-circuit/2000-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 327,
+      "layoutId": "tsukuba-circuit/1000-full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 328,
+      "layoutId": "tsukuba-circuit/1000-outer",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 329,
+      "layoutId": "tsukuba-circuit/1000-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 331,
+      "layoutId": "chili-bowl/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 332,
+      "layoutId": "wild-west-motorsports-park/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 333,
+      "layoutId": "tsukuba-circuit/1000-full-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 334,
+      "layoutId": "firebird-motorsports-park/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 341,
+      "layoutId": "silverstone-racing-circuit/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 342,
+      "layoutId": "silverstone-racing-circuit/international",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 343,
+      "layoutId": "silverstone-racing-circuit/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 344,
+      "layoutId": "fairbury-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 345,
+      "layoutId": "circuit-de-barcelona-catalunya/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 346,
+      "layoutId": "circuit-de-barcelona-catalunya/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 347,
+      "layoutId": "circuit-de-barcelona-catalunya/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 348,
+      "layoutId": "circuit-de-barcelona-catalunya/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 349,
+      "layoutId": "circuit-de-barcelona-catalunya/historic",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 351,
+      "layoutId": "lernerville-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 352,
+      "layoutId": "lime-rock-park/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 353,
+      "layoutId": "lime-rock-park/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 354,
+      "layoutId": "lime-rock-park/chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 355,
+      "layoutId": "lime-rock-park/west-bend-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 357,
+      "layoutId": "texas-motor-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 358,
+      "layoutId": "lankebanen-hell-rx/hell-rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 359,
+      "layoutId": "lankebanen-hell-rx/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 360,
+      "layoutId": "lankebanen-hell-rx/rallycross-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 361,
+      "layoutId": "lankebanen-hell-rx/road-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 362,
+      "layoutId": "homestead-miami-speedway/open-wheel-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 363,
+      "layoutId": "lankebanen-hell-rx/road-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 364,
+      "layoutId": "texas-motor-speedway/legends-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 365,
+      "layoutId": "bristol-motor-speedway/single-pit-roads",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 366,
+      "layoutId": "north-wilkesboro-speedway/1987/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 371,
+      "layoutId": "kentucky-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 373,
+      "layoutId": "weedsport-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 374,
+      "layoutId": "nashville-fairgrounds-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 380,
+      "layoutId": "nashville-fairgrounds-speedway/mini",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 381,
+      "layoutId": "daytona-international-speedway/nascar-road",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 382,
+      "layoutId": "crandon-international-raceway/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 383,
+      "layoutId": "crandon-international-raceway/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 384,
+      "layoutId": "iracing-superspeedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 386,
+      "layoutId": "circuit-de-barcelona-catalunya/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 387,
+      "layoutId": "cedar-lake-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 388,
+      "layoutId": "irwindale-speedway/figure-eight-jump",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 390,
+      "layoutId": "hockenheimring/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 391,
+      "layoutId": "hockenheimring/national-a",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 392,
+      "layoutId": "hockenheimring/national-b",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 393,
+      "layoutId": "hockenheimring/short-a",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 394,
+      "layoutId": "hockenheimring/short-b",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 395,
+      "layoutId": "hockenheimring/outer",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 396,
+      "layoutId": "bark-river-international-raceway/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 398,
+      "layoutId": "mount-washington-hillclimb/hillclimb",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 399,
+      "layoutId": "mount-washington-hillclimb/descent",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 400,
+      "layoutId": "nashville-superspeedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 403,
+      "layoutId": "red-bull-ring/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 404,
+      "layoutId": "red-bull-ring/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 405,
+      "layoutId": "chicago-street-course/prototype",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 407,
+      "layoutId": "red-bull-ring/north",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 413,
+      "layoutId": "hungaroring/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 414,
+      "layoutId": "hickory-motor-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 418,
+      "layoutId": "phoenix-raceway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 419,
+      "layoutId": "phoenix-raceway/oval-w-open-dogleg",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 423,
+      "layoutId": "knockhill-racing-circuit/international",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 424,
+      "layoutId": "knockhill-racing-circuit/international-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 425,
+      "layoutId": "knockhill-racing-circuit/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 426,
+      "layoutId": "knockhill-racing-circuit/national-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 427,
+      "layoutId": "knockhill-racing-circuit/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 428,
+      "layoutId": "hockenheimring/porsche-experience-center-east",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 429,
+      "layoutId": "hockenheimring/porsche-experience-center-outer",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 430,
+      "layoutId": "hockenheimring/porsche-experience-center-west",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 431,
+      "layoutId": "hockenheimring/porsche-experience-center-handling",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 432,
+      "layoutId": "watkins-glen-international/classic",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 433,
+      "layoutId": "watkins-glen-international/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 434,
+      "layoutId": "watkins-glen-international/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 435,
+      "layoutId": "watkins-glen-international/classic-boot",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 436,
+      "layoutId": "knockhill-racing-circuit/tri-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 437,
+      "layoutId": "la-coliseum-raceway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 438,
+      "layoutId": "federated-auto-parts-raceway-at-i-55/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 439,
+      "layoutId": "winton-motor-raceway/national-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 440,
+      "layoutId": "winton-motor-raceway/club-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 442,
+      "layoutId": "bristol-motor-speedway/dirt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 443,
+      "layoutId": "sandown-international-motor-raceway/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 444,
+      "layoutId": "fuji-speedway/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 445,
+      "layoutId": "fuji-speedway/no-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 446,
+      "layoutId": "port-royal-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 447,
+      "layoutId": "echopark-speedway-atlanta/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 448,
+      "layoutId": "indianapolis-motor-speedway/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 449,
+      "layoutId": "motorsport-arena-oschersleben/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 451,
+      "layoutId": "rudskogen-motorsenter/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 452,
+      "layoutId": "lucas-oil-speedway/dirt-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 453,
+      "layoutId": "indianapolis-motor-speedway/the-brickyard-speedway",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 454,
+      "layoutId": "motorsport-arena-oschersleben/alternate",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 455,
+      "layoutId": "motorsport-arena-oschersleben/b-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 456,
+      "layoutId": "motorsport-arena-oschersleben/c-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 462,
+      "layoutId": "lincoln-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 463,
+      "layoutId": "circuit-de-nevers-magny-cours/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 465,
+      "layoutId": "virginia-international-raceway/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 466,
+      "layoutId": "virginia-international-raceway/grand-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 467,
+      "layoutId": "virginia-international-raceway/north",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 468,
+      "layoutId": "virginia-international-raceway/south",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 469,
+      "layoutId": "virginia-international-raceway/patriot-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 470,
+      "layoutId": "daytona-rallycross-and-dirt-road/dirt-road-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 471,
+      "layoutId": "daytona-rallycross-and-dirt-road/dirt-road-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 472,
+      "layoutId": "phoenix-raceway/2008/dirt-road",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 473,
+      "layoutId": "circuito-de-jerez-angel-nieto/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 474,
+      "layoutId": "circuito-de-jerez-angel-nieto/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 475,
+      "layoutId": "motorland-aragon/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 476,
+      "layoutId": "motorland-aragon/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 477,
+      "layoutId": "motorland-aragon/west",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 478,
+      "layoutId": "motorland-aragon/motorcycle-grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 479,
+      "layoutId": "motorland-aragon/motorcycle-national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 480,
+      "layoutId": "motorland-aragon/outer",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 481,
+      "layoutId": "willow-springs-international-raceway/big-willow",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 482,
+      "layoutId": "motorland-aragon/touring-car",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 483,
+      "layoutId": "chicago-street-course/2023-cup",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 485,
+      "layoutId": "circuit-zandvoort/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 486,
+      "layoutId": "circuit-zandvoort/grand-prix-w-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 487,
+      "layoutId": "circuit-zandvoort/nationaal",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 488,
+      "layoutId": "circuit-zandvoort/oostelijk",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 489,
+      "layoutId": "circuit-de-ledenon/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 493,
+      "layoutId": "kevin-harvick-s-kern-raceway/asphalt-track",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 494,
+      "layoutId": "kevin-harvick-s-kern-raceway/dirt-track",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 496,
+      "layoutId": "kevin-harvick-s-kern-raceway/legends",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 497,
+      "layoutId": "kevin-harvick-s-kern-raceway/dirt-mini-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 498,
+      "layoutId": "mugello-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 499,
+      "layoutId": "mugello-circuit/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 500,
+      "layoutId": "slinger-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 501,
+      "layoutId": "misano-world-circuit-marco-simoncelli/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 502,
+      "layoutId": "misano-world-circuit-marco-simoncelli/2007/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 503,
+      "layoutId": "misano-world-circuit-marco-simoncelli/grand-prix-historic-reverse",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 504,
+      "layoutId": "misano-world-circuit-marco-simoncelli/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 505,
+      "layoutId": "misano-world-circuit-marco-simoncelli/truck",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 506,
+      "layoutId": "slinger-speedway/figure-8",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 508,
+      "layoutId": "lime-rock-park/school",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 509,
+      "layoutId": "autodromo-internacional-do-algarve/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 510,
+      "layoutId": "autodromo-internacional-do-algarve/grand-prix-chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 511,
+      "layoutId": "autodromo-internacional-do-algarve/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 512,
+      "layoutId": "autodromo-internacional-do-algarve/moto-chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 513,
+      "layoutId": "millbridge-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 514,
+      "layoutId": "kokomo-speedway/tires-out",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 515,
+      "layoutId": "circuito-de-navarra/speed-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 516,
+      "layoutId": "circuito-de-navarra/speed-circuit-medium",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 517,
+      "layoutId": "circuito-de-navarra/speed-circuit-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 518,
+      "layoutId": "oswego-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 519,
+      "layoutId": "oswego-speedway/mini-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 520,
+      "layoutId": "oswego-speedway/dirt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 521,
+      "layoutId": "sachsenring/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 522,
+      "layoutId": "indianapolis-motor-speedway/nascar-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 523,
+      "layoutId": "circuit-de-spa-francorchamps/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 524,
+      "layoutId": "circuit-de-spa-francorchamps/classic-pits",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 525,
+      "layoutId": "circuit-de-spa-francorchamps/endurance",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 526,
+      "layoutId": "circuit-de-spa-francorchamps/bike",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 527,
+      "layoutId": "cadwell-park-circuit/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 528,
+      "layoutId": "cadwell-park-circuit/club",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 529,
+      "layoutId": "cadwell-park-circuit/moto",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 530,
+      "layoutId": "cadwell-park-circuit/woodlands",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 531,
+      "layoutId": "huset-s-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 532,
+      "layoutId": "thruxton-circuit/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 533,
+      "layoutId": "miami-international-autodrome/marina-loop",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 534,
+      "layoutId": "miami-international-autodrome/mia-loop",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 535,
+      "layoutId": "miami-international-autodrome/extended-mia-loop",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 536,
+      "layoutId": "portland-international-raceway/full-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 537,
+      "layoutId": "portland-international-raceway/no-chicane",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 538,
+      "layoutId": "miami-international-autodrome/extended-marina-loop",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 539,
+      "layoutId": "miami-international-autodrome/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 540,
+      "layoutId": "shell-v-power-motorsport-park-at-the-bend/gt-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 541,
+      "layoutId": "shell-v-power-motorsport-park-at-the-bend/international-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 542,
+      "layoutId": "shell-v-power-motorsport-park-at-the-bend/east-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 543,
+      "layoutId": "shell-v-power-motorsport-park-at-the-bend/west-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 544,
+      "layoutId": "shell-v-power-motorsport-park-at-the-bend/west-plus-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 545,
+      "layoutId": "shell-v-power-motorsport-park-at-the-bend/sprint-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 546,
+      "layoutId": "shell-v-power-motorsport-park-at-the-bend/south-west-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 550,
+      "layoutId": "charlotte-motor-speedway/legends-road-course-2025",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 551,
+      "layoutId": "charlotte-motor-speedway/infield-road-course-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 552,
+      "layoutId": "charlotte-motor-speedway/infield-road-course",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 553,
+      "layoutId": "charlotte-motor-speedway/roval-2019",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 554,
+      "layoutId": "charlotte-motor-speedway/roval-2025",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 555,
+      "layoutId": "charlotte-motor-speedway/roval-no-chicanes",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 556,
+      "layoutId": "charlotte-motor-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 557,
+      "layoutId": "charlotte-motor-speedway/legends-oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 558,
+      "layoutId": "charlotte-motor-speedway/rallyx",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 559,
+      "layoutId": "iowa-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 560,
+      "layoutId": "world-wide-technology-raceway-gateway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 561,
+      "layoutId": "richmond-raceway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 562,
+      "layoutId": "north-wilkesboro-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 563,
+      "layoutId": "sonoma-raceway/indycar-2005-2007",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 564,
+      "layoutId": "sonoma-raceway/indycar-2008-2011",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 565,
+      "layoutId": "sonoma-raceway/indycar-2012-2018",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 566,
+      "layoutId": "sonoma-raceway/cup-long",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 567,
+      "layoutId": "sonoma-raceway/cup-short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 568,
+      "layoutId": "sonoma-raceway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 569,
+      "layoutId": "sonoma-raceway/short",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 570,
+      "layoutId": "sonoma-raceway/sportscar",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 571,
+      "layoutId": "sonoma-raceway/sportscar-alt",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 572,
+      "layoutId": "autodromo-hermanos-rodriguez/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 573,
+      "layoutId": "autodromo-hermanos-rodriguez/grand-prix-historic",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 574,
+      "layoutId": "autodromo-hermanos-rodriguez/national",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 575,
+      "layoutId": "autodromo-hermanos-rodriguez/national-historic",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 576,
+      "layoutId": "autodromo-hermanos-rodriguez/ev-circuit",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 577,
+      "layoutId": "autodromo-hermanos-rodriguez/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 578,
+      "layoutId": "autodromo-hermanos-rodriguez/oval-stadium",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 579,
+      "layoutId": "circuit-of-the-americas/nascar-west",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 580,
+      "layoutId": "adelaide-street-circuit/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 581,
+      "layoutId": "lucas-oil-speedway/dirt-road",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 582,
+      "layoutId": "winton-motor-raceway/rallycross",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 583,
+      "layoutId": "rockingham-speedway/oval",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 584,
+      "layoutId": "st-petersburg-grand-prix/grand-prix",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 585,
+      "layoutId": "barber-motorsports-park/main",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 586,
+      "layoutId": "weathertech-raceway-laguna-seca/full",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 587,
+      "layoutId": "charlotte-motor-speedway/dirt-road",
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 589,
+      "layoutId": "qualcomm-circuit-naval-base-coronado/main",
+      "confirmation": null
+    }
+  ]
+}

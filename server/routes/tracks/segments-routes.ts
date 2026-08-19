@@ -12,10 +12,10 @@ import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recordin
 import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
 import {
   loadTrackFacts,
-  loadTrackGeometry,
+  loadTrackGeometryForGame,
   loadTrackSectorsFor,
-  saveTrackFacts,
   saveTrackGeometry,
+  saveTrackMetadata,
 } from "../../../shared/racing/tracks/storage/meta";
 import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
@@ -218,10 +218,10 @@ export const trackSectorBoundaryRoutes = new Hono()
       // Sector boundaries are lap fractions, so they live with the rest of this
       // game's geometry rather than in the shared facts.
       if (slug) {
-        const geometry = loadTrackGeometry(slug, gameId);
+        const existingGeometry = loadTrackGeometryForGame(slug, gameId);
         saveTrackGeometry(slug, gameId, {
           sectors: { s1End, s2End },
-          segments: geometry?.segments ?? [],
+          segments: existingGeometry?.segments ?? [],
         });
       }
 
@@ -267,7 +267,8 @@ export const trackSegmentRoutes = new Hono()
       // stale on next check. Citation is carried outright: uncited name is
       // indistinguishable
       // from an invented one.
-      saveTrackFacts(slug, {
+      const existingGeometry = loadTrackGeometryForGame(slug, gameId);
+      saveTrackMetadata(slug, {
         slug,
         track: existing?.track ?? slug,
         layout: existing?.layout ?? "full",
@@ -276,11 +277,11 @@ export const trackSegmentRoutes = new Hono()
         ...(existing?.source ? { source: existing.source } : {}),
         corners: [...byKey.values()].sort((a, b) => a.number - b.number),
         straights: [...byAfter.values()].sort((a, b) => a.after - b.after),
-      });
-      const existingGeometry = loadTrackGeometry(slug, gameId);
-      saveTrackGeometry(slug, gameId, {
-        ...(existingGeometry?.sectors ? { sectors: existingGeometry.sectors } : {}),
-        segments: geometry,
+      }, {
+        [gameId]: {
+          ...(existingGeometry?.sectors ? { sectors: existingGeometry.sectors } : {}),
+          segments: geometry,
+        },
       });
       console.log(`[Track] Saved ${geometry.length} segments for ${slug} (${gameId})`);
 

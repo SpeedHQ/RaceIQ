@@ -1,0 +1,7587 @@
+{
+  "version": 1,
+  "facts": [
+    {
+      "slug": "austin",
+      "track": "austin",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit of the Americas",
+      "source": "Official COTA circuit map (all corners officially numbered, unnamed)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right",
+          "group": "T13/T14"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right",
+          "group": "T13/T14"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "covers": [
+            17,
+            18
+          ],
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 20,
+          "name": "",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 11,
+          "name": "Back Straight"
+        }
+      ]
+    },
+    {
+      "slug": "baku",
+      "track": "baku",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Baku City Circuit",
+      "source": "Official F1 track map (6.003 km street circuit, turns mostly unnamed); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "covers": [
+            9
+          ],
+          "name": "Castle Section",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 20,
+          "name": "",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 20,
+          "name": "Neftchiler Avenue",
+          "group": "Neftchiler Avenue"
+        }
+      ]
+    },
+    {
+      "slug": "brands-hatch",
+      "track": "brands-hatch",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Brands Hatch",
+      "source": "Official circuit map (3.916 km Grand Prix layout)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Paddock Hill Bend",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Druids",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "Graham Hill Bend",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Surtees",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Hawthorn Bend",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Westfield Bend",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Dingle Dell",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Sheene Curve",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Stirling's Bend",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "Clark Curve",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 3,
+          "name": "Cooper Straight"
+        },
+        {
+          "after": 10,
+          "name": "Brabham Straight",
+          "group": "Brabham Straight"
+        }
+      ]
+    },
+    {
+      "slug": "brands-hatch-indy",
+      "track": "brands-hatch",
+      "layout": "indy",
+      "layoutName": "Indy",
+      "name": "Brands Hatch",
+      "source": "Official circuit map (Indy layout)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Paddock Hill Bend",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Druids",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "Graham Hill Bend",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Surtees",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Clearways",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 3,
+          "name": "Cooper Straight"
+        },
+        {
+          "after": 5,
+          "name": "Brabham Straight"
+        }
+      ]
+    },
+    {
+      "slug": "budapest",
+      "track": "budapest",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Hungaroring",
+      "source": "Official Hungaroring circuit map / FIA F1 track guide (4.381 km)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right",
+          "group": "Chicane"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left",
+          "group": "Chicane"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "catalunya",
+      "track": "catalunya",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit de Barcelona-Catalunya",
+      "source": "Official circuit map (GP layout, chicane-era numbering, 16 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Elf",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Renault",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Repsol",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "Seat",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Würth",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Campsa",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "La Caixa",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Banc Sabadell",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 16,
+          "name": "New Holland",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "catalunya-s",
+      "track": "catalunya",
+      "layout": "national",
+      "layoutName": "National",
+      "name": "Circuit de Barcelona-Catalunya",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Würth",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Campsa",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "La Caixa",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "New Holland",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "catalunya-s2",
+      "track": "catalunya",
+      "layout": "national-alt",
+      "layoutName": "National Alt",
+      "name": "Circuit de Barcelona-Catalunya",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Würth",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Campsa",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "La Caixa",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Banc Sabadell",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "New Holland",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "daytona",
+      "track": "daytona",
+      "layout": "sports-car",
+      "layoutName": "Sports Car",
+      "name": "Daytona International Speedway",
+      "source": "IMSA road course landmarks, sequential numbering of detected corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "International Horseshoe",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "West Horseshoe",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "NASCAR 1-2 Banking",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "Bus Stop",
+          "direction": "left",
+          "group": "Bus Stop"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right",
+          "group": "Bus Stop"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left",
+          "group": "Bus Stop"
+        },
+        {
+          "number": 11,
+          "name": "NASCAR 3-4 Banking",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 7,
+          "name": "Backstretch"
+        }
+      ]
+    },
+    {
+      "slug": "donington",
+      "track": "donington",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Donington Park",
+      "source": "Official Donington Park GP circuit map — Wheatcroft Straight is the start/finish straight (the grid); Coppice leads onto Starkey's Straight, the circuit's fastest",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Redgate",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Craner Curves",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Old Hairpin",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "Starkey's Bridge",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Schwantz Curve",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "McLeans",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Coppice",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Fogarty Esses",
+          "direction": "left",
+          "group": "Fogarty Esses"
+        },
+        {
+          "number": 10,
+          "name": "Fogarty Esses",
+          "direction": "right",
+          "group": "Fogarty Esses"
+        },
+        {
+          "number": 11,
+          "name": "Melbourne Hairpin",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Goddards",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 8,
+          "name": "Starkey's Straight"
+        },
+        {
+          "after": 12,
+          "name": "Wheatcroft Straight",
+          "group": "Wheatcroft Straight"
+        }
+      ]
+    },
+    {
+      "slug": "eaglerock",
+      "track": "eaglerock",
+      "layout": "club",
+      "layoutName": "Club",
+      "name": "Eaglerock Speedway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "eaglerock-oval",
+      "track": "eaglerock",
+      "layout": "oval",
+      "layoutName": "Oval",
+      "name": "Eaglerock Speedway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "covers": [
+            2
+          ],
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "covers": [
+            4
+          ],
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "eaglerock-r",
+      "track": "eaglerock",
+      "layout": "club-reverse",
+      "layoutName": "Club Reverse",
+      "name": "Eaglerock Speedway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "fuji",
+      "track": "fuji",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Fuji Speedway",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "fujimi-kaido",
+      "track": "fujimi-kaido",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Fujimi Kaido",
+      "corners": []
+    },
+    {
+      "slug": "grand-oak",
+      "track": "grand-oak",
+      "layout": "national",
+      "layoutName": "National",
+      "name": "Grand Oak Raceway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "grand-oak-r",
+      "track": "grand-oak",
+      "layout": "national-reverse",
+      "layoutName": "National Reverse",
+      "name": "Grand Oak Raceway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "grand-oak-s",
+      "track": "grand-oak",
+      "layout": "club",
+      "layoutName": "Club",
+      "name": "Grand Oak Raceway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "hakone",
+      "track": "hakone",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Hakone",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "hakone-s",
+      "track": "hakone",
+      "layout": "club",
+      "layoutName": "Club",
+      "name": "Hakone",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "hakone-sr",
+      "track": "hakone",
+      "layout": "club-reverse",
+      "layoutName": "Club Reverse",
+      "name": "Hakone",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "hockenheim",
+      "track": "hockenheim",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Hockenheimring",
+      "source": "Official GP circuit map (17 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Nordkurve",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": ""
+        },
+        {
+          "number": 5,
+          "name": ""
+        },
+        {
+          "number": 6,
+          "name": "Spitzkehre",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": ""
+        },
+        {
+          "number": 12,
+          "name": "Sachskurve",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "covers": [
+            16,
+            17
+          ],
+          "name": "Südkurve",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 3,
+          "name": "Parabolika"
+        }
+      ]
+    },
+    {
+      "slug": "hockenheim-s",
+      "track": "hockenheim",
+      "layout": "national",
+      "layoutName": "National",
+      "name": "Hockenheimring",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Nordkurve",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Sachskurve",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "Südkurve",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "hockenheim-s2",
+      "track": "hockenheim",
+      "layout": "short",
+      "layoutName": "Short",
+      "name": "Hockenheimring",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Sachskurve",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Südkurve",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "homestead",
+      "track": "homestead",
+      "layout": "road",
+      "layoutName": "Road",
+      "name": "Homestead-Miami Speedway",
+      "source": "derived from track geometry (roval; no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "homestead-oval",
+      "track": "homestead",
+      "layout": "speedway",
+      "layoutName": "Speedway",
+      "name": "Homestead-Miami Speedway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "covers": [
+            2
+          ],
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "covers": [
+            4
+          ],
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "imola",
+      "track": "imola",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Autodromo Internazionale Enzo e Dino Ferrari",
+      "source": "Official Imola circuit map / F1 track guide (19-turn numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": ""
+        },
+        {
+          "number": 2,
+          "name": "Tamburello",
+          "direction": "left",
+          "group": "Tamburello"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right",
+          "group": "Tamburello"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left",
+          "group": "Tamburello"
+        },
+        {
+          "number": 5,
+          "name": "Villeneuve",
+          "direction": "left",
+          "group": "Villeneuve"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right",
+          "group": "Villeneuve"
+        },
+        {
+          "number": 7,
+          "name": "Tosa",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "Piratella",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "Acque Minerali",
+          "direction": "right",
+          "group": "Acque Minerali"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right",
+          "group": "Acque Minerali"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "Variante Alta",
+          "direction": "right",
+          "group": "Variante Alta"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right",
+          "group": "Variante Alta"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "Rivazza 1",
+          "direction": "left",
+          "group": "Rivazza"
+        },
+        {
+          "number": 18,
+          "name": "Rivazza 2",
+          "direction": "left",
+          "group": "Rivazza"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "indianapolis",
+      "track": "indianapolis",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Indianapolis Motor Speedway",
+      "source": "Official IMS road course map (14 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "covers": [
+            4
+          ],
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "indianapolis-oval",
+      "track": "indianapolis",
+      "layout": "oval",
+      "layoutName": "The Brickyard Speedway",
+      "name": "Indianapolis Motor Speedway",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "interlagos",
+      "track": "interlagos",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Autodromo Jose Carlos Pace",
+      "source": "Official F1 track map / FIA circuit guide (4.309 km GP layout); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Senna S",
+          "direction": "left",
+          "group": "Senna S"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right",
+          "group": "Senna S"
+        },
+        {
+          "number": 3,
+          "name": "Curva do Sol",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Descida do Lago",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Ferradura",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Laranja",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Pinheirinho",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "Bico de Pato",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Mergulho",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "Juncão",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "covers": [
+            14,
+            15
+          ],
+          "name": "Arquibancadas",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 3,
+          "name": "Reta Oposta"
+        }
+      ]
+    },
+    {
+      "slug": "jeddah",
+      "track": "jeddah",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Jeddah Corniche Circuit",
+      "source": "Official F1 track map (6.174 km street circuit, turns unnamed); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "covers": [
+            3
+          ],
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 17,
+          "covers": [
+            18
+          ],
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 20,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 21,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 22,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 23,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 24,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 25,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 26,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 27,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "kyalami",
+      "track": "kyalami",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Kyalami Grand Prix Circuit",
+      "source": "Sequential detected corners (official 16-turn numbering not reliably mapped to geometry)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "laguna-seca",
+      "track": "laguna-seca",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "WeatherTech Raceway Laguna Seca",
+      "source": "Official circuit map (11 turns); Corkscrew T8",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "Andretti Hairpin",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "Corkscrew",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Rainey Curve",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 6,
+          "name": "Rahal Straight"
+        }
+      ]
+    },
+    {
+      "slug": "laguna-seca-s",
+      "track": "laguna-seca",
+      "layout": "short",
+      "layoutName": "Short",
+      "name": "WeatherTech Raceway Laguna Seca",
+      "source": "Parent circuit names on shared corners; sequential numbering",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Corkscrew",
+          "direction": "left",
+          "group": "Corkscrew"
+        },
+        {
+          "number": 5,
+          "name": "Corkscrew",
+          "direction": "right",
+          "group": "Corkscrew"
+        },
+        {
+          "number": 6,
+          "name": "Rainey Curve",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "las-vegas",
+      "track": "las-vegas",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Las Vegas Street Circuit",
+      "source": "Official F1 track map (6.201 km street circuit, turns unnamed); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "covers": [
+            2
+          ],
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "covers": [
+            4
+          ],
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 13,
+          "name": "Las Vegas Strip"
+        }
+      ]
+    },
+    {
+      "slug": "le-mans",
+      "track": "le-mans",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Circuit de la Sarthe",
+      "source": "Official landmark names, sequential numbering of detected corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Dunlop Curve",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Dunlop Chicane",
+          "direction": "left",
+          "group": "Dunlop Chicane"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right",
+          "group": "Dunlop Chicane"
+        },
+        {
+          "number": 4,
+          "name": "Esses de la Forêt",
+          "direction": "right",
+          "group": "Esses de la Forêt"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left",
+          "group": "Esses de la Forêt"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right",
+          "group": "Esses de la Forêt"
+        },
+        {
+          "number": 7,
+          "name": "Tertre Rouge",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Mulsanne Chicane 1",
+          "direction": "right",
+          "group": "Mulsanne Chicane 1"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left",
+          "group": "Mulsanne Chicane 1"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right",
+          "group": "Mulsanne Chicane 1"
+        },
+        {
+          "number": 11,
+          "name": "Mulsanne Chicane 2",
+          "direction": "left",
+          "group": "Mulsanne Chicane 2"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right",
+          "group": "Mulsanne Chicane 2"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left",
+          "group": "Mulsanne Chicane 2"
+        },
+        {
+          "number": 14,
+          "name": "Mulsanne Corner",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 16,
+          "name": "Indianapolis",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "Arnage",
+          "direction": "right"
+        },
+        {
+          "number": 18,
+          "name": "Porsche Curves",
+          "direction": "right",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 20,
+          "name": "",
+          "direction": "left",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 21,
+          "name": "",
+          "direction": "right",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 22,
+          "name": "",
+          "direction": "left",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 23,
+          "name": "Ford Chicane 1",
+          "direction": "left",
+          "group": "Ford Chicane 1"
+        },
+        {
+          "number": 24,
+          "name": "",
+          "direction": "right",
+          "group": "Ford Chicane 1"
+        },
+        {
+          "number": 25,
+          "name": "Ford Chicane 2",
+          "direction": "left",
+          "group": "Ford Chicane 2"
+        },
+        {
+          "number": 26,
+          "name": "",
+          "direction": "right",
+          "group": "Ford Chicane 2"
+        }
+      ],
+      "straights": [
+        {
+          "after": 7,
+          "name": "Mulsanne Straight"
+        }
+      ]
+    },
+    {
+      "slug": "le-mans-old",
+      "track": "le-mans",
+      "layout": "old-mulsanne",
+      "layoutName": "Old Mulsanne",
+      "name": "Circuit de la Sarthe",
+      "source": "Official landmark names, sequential numbering of detected corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Dunlop Curve",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Dunlop Chicane",
+          "direction": "left",
+          "group": "Dunlop Chicane"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right",
+          "group": "Dunlop Chicane"
+        },
+        {
+          "number": 4,
+          "name": "Esses de la Forêt",
+          "direction": "right",
+          "group": "Esses de la Forêt"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left",
+          "group": "Esses de la Forêt"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right",
+          "group": "Esses de la Forêt"
+        },
+        {
+          "number": 7,
+          "name": "Tertre Rouge",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Mulsanne Corner",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Indianapolis",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "Arnage",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Porsche Curves",
+          "direction": "right",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left",
+          "group": "Porsche Curves"
+        },
+        {
+          "number": 17,
+          "name": "Ford Chicane 1",
+          "direction": "left",
+          "group": "Ford Chicane 1"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "right",
+          "group": "Ford Chicane 1"
+        },
+        {
+          "number": 19,
+          "name": "Ford Chicane 2",
+          "direction": "left",
+          "group": "Ford Chicane 2"
+        },
+        {
+          "number": 20,
+          "name": "",
+          "direction": "right",
+          "group": "Ford Chicane 2"
+        }
+      ],
+      "straights": [
+        {
+          "after": 7,
+          "name": "Mulsanne Straight"
+        }
+      ]
+    },
+    {
+      "slug": "lime-rock",
+      "track": "lime-rock",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Lime Rock Park",
+      "source": "Official circuit map corner names",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Big Bend",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "The Esses",
+          "direction": "left",
+          "group": "The Esses"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right",
+          "group": "The Esses"
+        },
+        {
+          "number": 4,
+          "name": "Uphill",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "West Bend",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Downhill",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 3,
+          "name": "No Name Straight"
+        },
+        {
+          "after": 6,
+          "name": "Sam Posey Straight",
+          "group": "Sam Posey Straight"
+        }
+      ]
+    },
+    {
+      "slug": "lime-rock-alt",
+      "track": "lime-rock",
+      "layout": "full-alt",
+      "layoutName": "Full Alt",
+      "name": "Lime Rock Park",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Big Bend",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "The Esses",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "West Bend",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "Downhill",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "lime-rock-sc",
+      "track": "lime-rock",
+      "layout": "south-chicane",
+      "layoutName": "South Chicane",
+      "name": "Lime Rock Park",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Big Bend",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "The Esses",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "West Bend",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Downhill",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "lusail",
+      "track": "lusail",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Lusail International Circuit",
+      "source": "Official F1 track map (5.419 km, turns unnamed); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "covers": [
+            8
+          ],
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right",
+          "group": "Triple Right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right",
+          "group": "Triple Right"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right",
+          "group": "Triple Right"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "maple-valley",
+      "track": "maple-valley",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Maple Valley",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "maple-valley-s",
+      "track": "maple-valley",
+      "layout": "short",
+      "layoutName": "Short",
+      "name": "Maple Valley",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "maple-valley-sr",
+      "track": "maple-valley",
+      "layout": "short-reverse",
+      "layoutName": "Short Reverse",
+      "name": "Maple Valley",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "melbourne",
+      "track": "melbourne",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Melbourne Grand Prix Circuit",
+      "source": "Official F1 track map (5.278 km, post-2022 layout, 14 turns, unnamed); directions derived from F1 2025 centerline geometry (mirror-corrected)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "mexico-city",
+      "track": "mexico-city",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Autodromo Hermanos Rodriguez",
+      "source": "Official F1 track map (17 turns); Foro Sol stadium section",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "Foro Sol",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "covers": [
+            16,
+            17
+          ],
+          "name": "Peraltada",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 3,
+          "name": "Back Straight"
+        },
+        {
+          "after": 15,
+          "name": "Start/Finish",
+          "group": "Start/Finish"
+        }
+      ]
+    },
+    {
+      "slug": "miami",
+      "track": "miami",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Miami International Autodrome",
+      "source": "Official F1 track guides (5.412 km, turns unnamed); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "covers": [
+            7,
+            8
+          ],
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right",
+          "group": "T14-15 chicane"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right",
+          "group": "T14-15 chicane"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "mid-ohio",
+      "track": "mid-ohio",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Mid-Ohio Sports Car Course",
+      "source": "Official circuit map (13 turns); Keyhole T2",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "The Keyhole",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": ""
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 2,
+          "name": "Back Straight"
+        }
+      ]
+    },
+    {
+      "slug": "mid-ohio-s",
+      "track": "mid-ohio",
+      "layout": "short",
+      "layoutName": "Short",
+      "name": "Mid-Ohio Sports Car Course",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "misano",
+      "track": "misano",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Misano World Circuit Marco Simoncelli",
+      "source": "Official Misano circuit map",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Variante del Parco",
+          "direction": "right",
+          "group": "Variante del Parco"
+        },
+        {
+          "number": 2,
+          "name": "Variante del Parco",
+          "direction": "left",
+          "group": "Variante del Parco"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Quercia",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "Curvone",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "monaco",
+      "track": "monaco",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit de Monaco",
+      "source": "Official F1 track map / ACM circuit guide (3.337 km); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Sainte Dévote",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Beau Rivage",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Massenet",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Casino",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "Mirabeau",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Fairmont Hairpin",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Mirabeau Bas",
+          "direction": "right",
+          "group": "Portier"
+        },
+        {
+          "number": 8,
+          "name": "Portier",
+          "direction": "right",
+          "group": "Portier"
+        },
+        {
+          "number": 9,
+          "name": "Tunnel",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Nouvelle Chicane",
+          "direction": "left",
+          "group": "Nouvelle Chicane"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right",
+          "group": "Nouvelle Chicane"
+        },
+        {
+          "number": 12,
+          "name": "Tabac",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "Louis Chiron",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "Piscine",
+          "direction": "right",
+          "group": "Piscine"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right",
+          "group": "Piscine"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 18,
+          "name": "Rascasse",
+          "direction": "right",
+          "group": "Rascasse / Antony Noghès"
+        },
+        {
+          "number": 19,
+          "name": "Antony Noghès",
+          "direction": "right",
+          "group": "Rascasse / Antony Noghès"
+        }
+      ]
+    },
+    {
+      "slug": "montreal",
+      "track": "montreal",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit Gilles Villeneuve",
+      "source": "Official F1 track map (4.361 km); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "L'Épingle",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": ""
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 14,
+          "name": "Wall of Champions",
+          "group": "Wall of Champions"
+        }
+      ]
+    },
+    {
+      "slug": "monza",
+      "track": "monza",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Autodromo Nazionale Monza",
+      "source": "Official circuit map / FIA F1 track guide (5.793 km GP layout)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Variante del Rettifilo",
+          "direction": "right",
+          "group": "Variante del Rettifilo"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left",
+          "group": "Variante del Rettifilo"
+        },
+        {
+          "number": 3,
+          "name": "Curva Grande",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Variante della Roggia",
+          "direction": "left",
+          "group": "Variante della Roggia"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right",
+          "group": "Variante della Roggia"
+        },
+        {
+          "number": 6,
+          "name": "Lesmo 1",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Lesmo 2",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Variante Ascari",
+          "direction": "left",
+          "group": "Variante Ascari"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right",
+          "group": "Variante Ascari"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left",
+          "group": "Variante Ascari"
+        },
+        {
+          "number": 11,
+          "name": "Parabolica",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 2,
+          "name": "Curva Grande approach"
+        },
+        {
+          "after": 7,
+          "name": "Serraglio"
+        },
+        {
+          "after": 11,
+          "name": "Start/Finish",
+          "group": "Start/Finish"
+        }
+      ]
+    },
+    {
+      "slug": "mount-panorama",
+      "track": "mount-panorama",
+      "layout": "full",
+      "layoutName": "Circuit",
+      "name": "Mount Panorama Circuit",
+      "source": "Official corner names, sequential numbering of detected corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Hell Corner",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "Griffins Bend",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "The Cutting",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Reid Park",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "Sulman Park",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "McPhillamy Park",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "The Esses",
+          "direction": "right",
+          "group": "The Esses"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left",
+          "group": "The Esses"
+        },
+        {
+          "number": 9,
+          "name": "The Dipper",
+          "direction": "right",
+          "group": "The Esses"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left",
+          "group": "The Esses"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Forrest's Elbow",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "The Chase",
+          "direction": "left",
+          "group": "The Chase"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right",
+          "group": "The Chase"
+        },
+        {
+          "number": 15,
+          "name": "Murray's Corner",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 1,
+          "name": "Mountain Straight"
+        },
+        {
+          "after": 12,
+          "name": "Conrod Straight"
+        },
+        {
+          "after": 15,
+          "name": "Pit Straight",
+          "group": "Pit Straight"
+        }
+      ]
+    },
+    {
+      "slug": "mugello",
+      "track": "mugello",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Mugello Circuit",
+      "source": "Official circuit map (15 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "San Donato",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Luco",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Poggio Secco",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Materassi",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Borgo San Lorenzo",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Casanova",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Savelli",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "Arrabbiata 1",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Arrabbiata 2",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Scarperia",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "Palagio",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "Correntaio",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "Biondetti 1",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "Biondetti 2",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "Bucine",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "mugello-s",
+      "track": "mugello",
+      "layout": "club",
+      "layoutName": "Club",
+      "name": "Mugello Circuit",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "San Donato",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Luco",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Poggio Secco",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Materassi",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Borgo San Lorenzo",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Casanova",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "nordschleife",
+      "track": "nurburgring",
+      "layout": "full",
+      "layoutName": "Full (GP + Nordschleife)",
+      "name": "Nürburgring",
+      "source": "Nordschleife section names placed by distance; sequential numbering of detected corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Castrol-S",
+          "direction": "right",
+          "group": "Castrol-S"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left",
+          "group": "Castrol-S"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "Dunlop-Kehre",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Michael-Schumacher-S",
+          "direction": "left",
+          "group": "Michael-Schumacher-S"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right",
+          "group": "Michael-Schumacher-S"
+        },
+        {
+          "number": 9,
+          "name": "NGK-Schikane",
+          "direction": "left",
+          "group": "NGK-Schikane"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right",
+          "group": "NGK-Schikane"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "Hatzenbach",
+          "direction": "right",
+          "group": "Hatzenbach"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left",
+          "group": "Hatzenbach"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "right",
+          "group": "Hatzenbach"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "left",
+          "group": "Hatzenbach"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "right",
+          "group": "Hatzenbach"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left",
+          "group": "Hatzenbach"
+        },
+        {
+          "number": 20,
+          "name": "Flugplatz",
+          "direction": "right"
+        },
+        {
+          "number": 21,
+          "name": "Aremberg",
+          "direction": "right"
+        },
+        {
+          "number": 22,
+          "name": "Adenauer Forst",
+          "direction": "right",
+          "group": "Adenauer Forst"
+        },
+        {
+          "number": 23,
+          "name": "",
+          "direction": "left",
+          "group": "Adenauer Forst"
+        },
+        {
+          "number": 24,
+          "name": "",
+          "direction": "right",
+          "group": "Adenauer Forst"
+        },
+        {
+          "number": 25,
+          "name": "Metzgesfeld",
+          "direction": "left",
+          "group": "Metzgesfeld"
+        },
+        {
+          "number": 26,
+          "name": "",
+          "direction": "left",
+          "group": "Metzgesfeld"
+        },
+        {
+          "number": 27,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 28,
+          "name": "Kallenhard",
+          "direction": "right"
+        },
+        {
+          "number": 29,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 30,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 31,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 32,
+          "name": "Wehrseifen",
+          "direction": "left"
+        },
+        {
+          "number": 33,
+          "name": "Breidscheid",
+          "direction": "right"
+        },
+        {
+          "number": 34,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 35,
+          "name": "Ex-Mühle",
+          "direction": "right"
+        },
+        {
+          "number": 36,
+          "name": "Bergwerk",
+          "direction": "right"
+        },
+        {
+          "number": 37,
+          "name": "Kesselchen",
+          "direction": "left"
+        },
+        {
+          "number": 38,
+          "name": "Klostertal",
+          "direction": "right"
+        },
+        {
+          "number": 39,
+          "name": "Karussell",
+          "direction": "left"
+        },
+        {
+          "number": 40,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 41,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 42,
+          "name": "Hohe Acht",
+          "direction": "right"
+        },
+        {
+          "number": 43,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 44,
+          "name": "Wippermann",
+          "direction": "left",
+          "group": "Wippermann"
+        },
+        {
+          "number": 45,
+          "name": "",
+          "direction": "right",
+          "group": "Wippermann"
+        },
+        {
+          "number": 46,
+          "name": "",
+          "direction": "right",
+          "group": "Wippermann"
+        },
+        {
+          "number": 47,
+          "name": "Eschbach",
+          "direction": "left"
+        },
+        {
+          "number": 48,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 49,
+          "name": "Brünnchen",
+          "direction": "right"
+        },
+        {
+          "number": 50,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 51,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 52,
+          "name": "Pflanzgarten",
+          "direction": "right",
+          "group": "Pflanzgarten"
+        },
+        {
+          "number": 53,
+          "name": "",
+          "direction": "left",
+          "group": "Pflanzgarten"
+        },
+        {
+          "number": 54,
+          "name": "",
+          "direction": "right",
+          "group": "Pflanzgarten"
+        },
+        {
+          "number": 55,
+          "name": "Schwalbenschwanz",
+          "direction": "right"
+        },
+        {
+          "number": 56,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 57,
+          "name": "Kleines Karussell",
+          "direction": "left"
+        },
+        {
+          "number": 58,
+          "name": "Galgenkopf",
+          "direction": "right"
+        },
+        {
+          "number": 59,
+          "name": "Tiergarten",
+          "direction": "right"
+        },
+        {
+          "number": 60,
+          "name": "Hohenrain",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 58,
+          "name": "Döttinger Höhe"
+        }
+      ]
+    },
+    {
+      "slug": "nurburgring",
+      "track": "nurburgring",
+      "layout": "gp",
+      "layoutName": "GP",
+      "name": "Nürburgring",
+      "source": "Landmark corner names, sequential numbering of detected corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Castrol-S",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Mercedes Arena",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Dunlop-Kehre",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Michael-Schumacher-S",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "NGK-Schikane",
+          "direction": "left",
+          "group": "NGK-Schikane"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right",
+          "group": "NGK-Schikane"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "nurburgring-nord",
+      "track": "nurburgring",
+      "layout": "nordschleife",
+      "layoutName": "Nordschleife",
+      "name": "Nürburgring",
+      "source": "derived from track geometry (sequential numbering; section names TODO)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Hatzenbach",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Flugplatz",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Aremberg",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "Adenauer Forst",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Metzgesfeld",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "Kallenhard",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 19,
+          "name": "Wehrseifen",
+          "direction": "right"
+        },
+        {
+          "number": 20,
+          "name": "Breidscheid",
+          "direction": "right"
+        },
+        {
+          "number": 21,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 22,
+          "name": "Ex-Mühle",
+          "direction": "right"
+        },
+        {
+          "number": 23,
+          "name": "Bergwerk",
+          "direction": "right"
+        },
+        {
+          "number": 24,
+          "name": "Kesselchen",
+          "direction": "left"
+        },
+        {
+          "number": 25,
+          "name": "Klostertal",
+          "direction": "right"
+        },
+        {
+          "number": 26,
+          "name": "Karussell",
+          "direction": "left"
+        },
+        {
+          "number": 27,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 28,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 29,
+          "name": "Hohe Acht",
+          "direction": "left"
+        },
+        {
+          "number": 30,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 31,
+          "name": "Wippermann",
+          "direction": "right"
+        },
+        {
+          "number": 32,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 33,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 34,
+          "name": "Eschbach",
+          "direction": "left"
+        },
+        {
+          "number": 35,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 36,
+          "name": "Brünnchen",
+          "direction": "right"
+        },
+        {
+          "number": 37,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 38,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 39,
+          "name": "Pflanzgarten",
+          "direction": "left"
+        },
+        {
+          "number": 40,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 41,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 42,
+          "name": "Schwalbenschwanz",
+          "direction": "left"
+        },
+        {
+          "number": 43,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 44,
+          "name": "Kleines Karussell",
+          "direction": "right"
+        },
+        {
+          "number": 45,
+          "name": "Galgenkopf",
+          "direction": "left"
+        },
+        {
+          "number": 46,
+          "name": "Tiergarten",
+          "direction": "left"
+        },
+        {
+          "number": 47,
+          "name": "Hohenrain",
+          "direction": "right"
+        },
+        {
+          "number": 48,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 49,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 50,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 51,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 52,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 53,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 54,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 55,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 56,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 57,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "nurburgring-s",
+      "track": "nurburgring",
+      "layout": "sprint",
+      "layoutName": "Sprint",
+      "name": "Nürburgring",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "NGK-Schikane",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "oulton-park",
+      "track": "oulton-park",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Oulton Park",
+      "source": "Official Oulton Park circuit map",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Old Hall Corner",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Cascades",
+          "direction": "left",
+          "group": "Cascades"
+        },
+        {
+          "number": 3,
+          "name": "Cascades",
+          "direction": "left",
+          "group": "Cascades"
+        },
+        {
+          "number": 4,
+          "name": "Island Bend",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "Lodge Corner",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Foulston",
+          "direction": "right",
+          "group": "Foulston"
+        },
+        {
+          "number": 8,
+          "name": "Foulston",
+          "direction": "left",
+          "group": "Foulston"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Deer Leap",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "paul-ricard",
+      "track": "paul-ricard",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit Paul Ricard",
+      "source": "Official Circuit Paul Ricard circuit map",
+      "corners": [
+        {
+          "number": 1,
+          "name": "S de la Verrerie",
+          "direction": "left",
+          "group": "S de la Verrerie"
+        },
+        {
+          "number": 2,
+          "name": "S de la Verrerie",
+          "direction": "right",
+          "group": "S de la Verrerie"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Sainte-Beaume",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Signes",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Beausset",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "Bendor",
+          "direction": "right",
+          "group": "Bendor"
+        },
+        {
+          "number": 11,
+          "name": "Bendor",
+          "direction": "left",
+          "group": "Bendor"
+        },
+        {
+          "number": 12,
+          "name": "Bendor",
+          "direction": "right",
+          "group": "Bendor"
+        }
+      ],
+      "straights": [
+        {
+          "after": 6,
+          "name": "Mistral Straight"
+        }
+      ]
+    },
+    {
+      "slug": "road-america",
+      "track": "road-america",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Road America",
+      "source": "Official circuit map (14 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": ""
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": ""
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "covers": [
+            10
+          ],
+          "name": "The Carousel",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "The Kink",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Canada Corner",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 1,
+          "name": "Moraine Sweep"
+        },
+        {
+          "after": 3,
+          "name": "Hurry Downs"
+        }
+      ]
+    },
+    {
+      "slug": "road-america-s",
+      "track": "road-america",
+      "layout": "east",
+      "layoutName": "East Route",
+      "name": "Road America",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "road-atlanta",
+      "track": "road-atlanta",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Road Atlanta",
+      "source": "Official circuit map (12 turns); 10a/10b chicane",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "The Esses",
+          "direction": "right",
+          "group": "The Esses"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left",
+          "group": "The Esses"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right",
+          "group": "The Esses"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left",
+          "group": "The Esses"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right",
+          "group": "T6/T7"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right",
+          "group": "T6/T7"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "10a/10b Chicane",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right",
+          "group": "T11/T12"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right",
+          "group": "T11/T12"
+        }
+      ],
+      "straights": [
+        {
+          "after": 7,
+          "name": "Back Straight"
+        }
+      ]
+    },
+    {
+      "slug": "road-atlanta-s",
+      "track": "road-atlanta",
+      "layout": "club",
+      "layoutName": "Club",
+      "name": "Road Atlanta",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "10a/10b Chicane",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "sakhir",
+      "track": "sakhir",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Bahrain International Circuit",
+      "source": "Official F1 track map (15 turns); numbered corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left",
+          "group": "T9-10"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left",
+          "group": "T9-10"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "covers": [
+            14
+          ],
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": ""
+        }
+      ]
+    },
+    {
+      "slug": "sebring",
+      "track": "sebring",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Sebring International Raceway",
+      "source": "Official Sebring 17-turn Grand Prix numbering; names per 24h-lemans.com and IMSA corner-name guides; directions cross-checked against the Le Mans Ultimate and The Track Source turn-by-turn guides",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Big Bend",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Hairpin",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Fangio",
+          "direction": "right",
+          "group": "Fangio Chicane"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left",
+          "group": "Fangio Chicane"
+        },
+        {
+          "number": 10,
+          "name": "Cunningham Corner",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "Collier Curve",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "Tower Turn",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "Bishop Bend",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "The S"
+        },
+        {
+          "number": 16,
+          "name": "Le Mans",
+          "direction": "right"
+        },
+        {
+          "number": 17,
+          "name": "Sunset Bend",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 16,
+          "name": "Ulmann Straight"
+        }
+      ]
+    },
+    {
+      "slug": "sebring-s",
+      "track": "sebring",
+      "layout": "short",
+      "layoutName": "Short",
+      "name": "Sebring International Raceway",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Sunset Bend",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "sepang",
+      "track": "sepang",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Sepang International Circuit",
+      "corners": []
+    },
+    {
+      "slug": "shanghai",
+      "track": "shanghai",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Shanghai International Circuit",
+      "source": "Official F1 track map (16 turns); Snail T1-2",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Snail",
+          "direction": "right",
+          "group": "Snail"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right",
+          "group": "Snail"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left",
+          "group": "T3-4"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left",
+          "group": "T3-4"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right",
+          "group": "T12-13"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right",
+          "group": "T12-13"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": ""
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 13,
+          "name": "Back Straight"
+        }
+      ]
+    },
+    {
+      "slug": "silverstone",
+      "track": "silverstone",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Silverstone Racing Circuit",
+      "source": "Official Silverstone GP circuit map (Arena layout, 18 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Abbey",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Farm Curve",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Village",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "The Loop",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Aintree",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Brooklands",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Luffield",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Woodcote",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "Copse",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Maggotts",
+          "direction": "left",
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "number": 11,
+          "name": "Becketts",
+          "direction": "right",
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left",
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right",
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "number": 14,
+          "name": "Chapel",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "Stowe",
+          "direction": "right"
+        },
+        {
+          "number": 16,
+          "name": "Vale",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "covers": [
+            18
+          ],
+          "name": "Club",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 4,
+          "name": "Wellington Straight"
+        },
+        {
+          "after": 14,
+          "name": "Hangar Straight"
+        },
+        {
+          "after": 17,
+          "name": "Hamilton Straight",
+          "group": "Hamilton Straight"
+        }
+      ]
+    },
+    {
+      "slug": "silverstone-s",
+      "track": "silverstone",
+      "layout": "national",
+      "layoutName": "National",
+      "name": "Silverstone Racing Circuit",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Copse",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Maggotts",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Brooklands",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Luffield",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Woodcote",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "silverstone-s2",
+      "track": "silverstone",
+      "layout": "international",
+      "layoutName": "International",
+      "name": "Silverstone Racing Circuit",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Abbey",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Farm Curve",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "Stowe",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Vale",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "Club",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "singapore",
+      "track": "singapore",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Marina Bay Street Circuit",
+      "source": "Official F1 track map (2023+ 19-turn layout, 4.940 km); directions verified against F1 2025 centerline geometry",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "Memorial",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "snetterton",
+      "track": "snetterton",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Snetterton Circuit",
+      "source": "Official circuit map (12 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Riches",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Montreal",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "Palmer",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Agostini",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Hamilton",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Oggies",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Williams",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Brundle",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "Nelson",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Bomb Hole",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "Coram",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Murrays",
+          "direction": "left"
+        }
+      ],
+      "straights": [
+        {
+          "after": 7,
+          "name": "Bentley Straight"
+        }
+      ]
+    },
+    {
+      "slug": "sochi",
+      "track": "sochi",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Sochi Autodrom",
+      "corners": []
+    },
+    {
+      "slug": "spa",
+      "track": "spa",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Circuit de Spa-Francorchamps",
+      "source": "Official circuit map / FIA F1 track guide (7.004 km GP layout)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "La Source",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right",
+          "group": "Eau Rouge/Raidillon"
+        },
+        {
+          "number": 3,
+          "name": "Eau Rouge",
+          "direction": "left",
+          "group": "Eau Rouge/Raidillon"
+        },
+        {
+          "number": 4,
+          "name": "Raidillon",
+          "direction": "right",
+          "group": "Eau Rouge/Raidillon"
+        },
+        {
+          "number": 5,
+          "name": "Les Combes",
+          "direction": "right",
+          "group": "Les Combes"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left",
+          "group": "Les Combes"
+        },
+        {
+          "number": 7,
+          "name": "Malmedy",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "Rivage",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "covers": [
+            11
+          ],
+          "name": "Pouhon",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "Les Fagnes",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "Piff Paff",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "Campus",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "Stavelot",
+          "direction": "right"
+        },
+        {
+          "number": 16,
+          "name": "Courbe Paul Frère",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "Blanchimont",
+          "direction": "left"
+        },
+        {
+          "number": 18,
+          "name": "Bus Stop",
+          "direction": "right",
+          "group": "Bus Stop"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left",
+          "group": "Bus Stop"
+        }
+      ],
+      "straights": [
+        {
+          "after": 4,
+          "name": "Kemmel"
+        }
+      ]
+    },
+    {
+      "slug": "spielberg",
+      "track": "spielberg",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Red Bull Ring",
+      "source": "Official Red Bull Ring circuit map (post-2021 corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Niki Lauda Kurve",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Remus",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Schlossgold",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Rauch",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "Rindt",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "Red Bull Mobile",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "sunset-peninsula",
+      "track": "sunset-peninsula",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Sunset Peninsula",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "sunset-peninsula-oval",
+      "track": "sunset-peninsula",
+      "layout": "speedway",
+      "layoutName": "Speedway",
+      "name": "Sunset Peninsula",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "covers": [
+            2,
+            3,
+            4
+          ],
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "sunset-peninsula-r",
+      "track": "sunset-peninsula",
+      "layout": "full-reverse",
+      "layoutName": "Full Reverse",
+      "name": "Sunset Peninsula",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "sunset-peninsula-s",
+      "track": "sunset-peninsula",
+      "layout": "club",
+      "layoutName": "Club",
+      "name": "Sunset Peninsula",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "sunset-peninsula-sr",
+      "track": "sunset-peninsula",
+      "layout": "club-reverse",
+      "layoutName": "Club Reverse",
+      "name": "Sunset Peninsula",
+      "source": "derived from track geometry (no official corner names)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "suzuka",
+      "track": "suzuka",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Suzuka Circuit",
+      "source": "Official Suzuka circuit map (18-turn numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "First Curve",
+          "direction": "right",
+          "group": "First Curve"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right",
+          "group": "First Curve"
+        },
+        {
+          "number": 3,
+          "name": "S Curves",
+          "direction": "left",
+          "group": "S Curves"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right",
+          "group": "S Curves"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left",
+          "group": "S Curves"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right",
+          "group": "S Curves"
+        },
+        {
+          "number": 7,
+          "name": "Dunlop",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "Degner 1",
+          "direction": "right",
+          "group": "Degner"
+        },
+        {
+          "number": 9,
+          "name": "Degner 2",
+          "direction": "right",
+          "group": "Degner"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "Hairpin",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "Spoon",
+          "direction": "left",
+          "group": "Spoon"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left",
+          "group": "Spoon"
+        },
+        {
+          "number": 15,
+          "name": "130R",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "Casio Triangle",
+          "direction": "right",
+          "group": "Casio Triangle"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "left",
+          "group": "Casio Triangle"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 14,
+          "name": "Back Straight"
+        }
+      ]
+    },
+    {
+      "slug": "valencia",
+      "track": "valencia",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit Ricardo Tormo",
+      "source": "Sequential detected corners (flowing layout; official 14-turn numbering not reliably mapped)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "vir",
+      "track": "vir",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Virginia International Raceway",
+      "source": "Official circuit map (17 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Horseshoe",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": ""
+        },
+        {
+          "number": 3,
+          "name": "NASCAR Bend",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Left Hook",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Climbing Esses",
+          "direction": "right",
+          "group": "Climbing Esses"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left",
+          "group": "Climbing Esses"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right",
+          "group": "Climbing Esses"
+        },
+        {
+          "number": 10,
+          "name": "South Bend",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "covers": [
+            12
+          ],
+          "name": "Oak Tree",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "Roller Coaster",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "Hog Pen",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 11,
+          "name": "Back Straight"
+        }
+      ]
+    },
+    {
+      "slug": "vir-ge",
+      "track": "vir",
+      "layout": "grand-east",
+      "layoutName": "Grand East",
+      "name": "Virginia International Raceway",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Horseshoe",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "NASCAR Bend",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Left Hook",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 17,
+          "name": "South Bend",
+          "direction": "left"
+        },
+        {
+          "number": 18,
+          "name": "Oak Tree",
+          "direction": "right"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 20,
+          "name": "Roller Coaster",
+          "direction": "right"
+        },
+        {
+          "number": 21,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 22,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 23,
+          "name": "Hog Pen",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "vir-gw",
+      "track": "vir",
+      "layout": "grand-west",
+      "layoutName": "Grand West",
+      "name": "Virginia International Raceway",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Horseshoe",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "NASCAR Bend",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Left Hook",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Climbing Esses",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "South Bend",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "Oak Tree",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 16,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 17,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 18,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 19,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 20,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 21,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 22,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 23,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 24,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 25,
+          "name": "Hog Pen",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "vir-n",
+      "track": "vir",
+      "layout": "north",
+      "layoutName": "North",
+      "name": "Virginia International Raceway",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Horseshoe",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "NASCAR Bend",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "Left Hook",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "Roller Coaster",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 15,
+          "name": "Hog Pen",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "vir-s",
+      "track": "vir",
+      "layout": "south",
+      "layoutName": "South",
+      "name": "Virginia International Raceway",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "South Bend",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Oak Tree",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "watkins-glen",
+      "track": "watkins-glen",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Watkins Glen International",
+      "source": "Official circuit map (long course with Boot, 11 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "The 90",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "The Esses",
+          "direction": "right",
+          "group": "The Esses"
+        },
+        {
+          "number": 3,
+          "covers": [
+            4
+          ],
+          "name": "",
+          "direction": "right",
+          "group": "The Esses"
+        },
+        {
+          "number": 5,
+          "name": "Inner Loop",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "Outer Loop",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "The Toe",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "The Boot",
+          "direction": "right"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 3,
+          "name": "Back Straight"
+        }
+      ]
+    },
+    {
+      "slug": "watkins-glen-s",
+      "track": "watkins-glen",
+      "layout": "short",
+      "layoutName": "Short",
+      "name": "Watkins Glen International",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "The 90",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "The Esses",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 7,
+          "name": "Outer Loop",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "yas-marina",
+      "track": "yas-marina",
+      "layout": "full",
+      "layoutName": "Full",
+      "name": "Yas Marina Circuit",
+      "source": "Official F1 track map (2021 layout, 16 turns)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "covers": [
+            4
+          ],
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "Hairpin",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left",
+          "group": "T6-7 Chicane"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right",
+          "group": "T6-7 Chicane"
+        },
+        {
+          "number": 8,
+          "covers": [
+            9
+          ],
+          "name": "Banked Hairpin",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 13,
+          "name": "Marina Bend",
+          "direction": "left"
+        },
+        {
+          "number": 14,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 15,
+          "covers": [
+            16
+          ],
+          "name": "",
+          "direction": "right"
+        }
+      ],
+      "straights": [
+        {
+          "after": 5,
+          "name": "Back Straight"
+        },
+        {
+          "after": 7,
+          "name": "Second Straight"
+        }
+      ]
+    },
+    {
+      "slug": "yas-marina-n",
+      "track": "yas-marina",
+      "layout": "north",
+      "layoutName": "North",
+      "name": "Yas Marina Circuit",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Hairpin",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "yas-marina-nc",
+      "track": "yas-marina",
+      "layout": "north-corkscrew",
+      "layoutName": "North Corkscrew",
+      "name": "Yas Marina Circuit",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "yas-marina-s",
+      "track": "yas-marina",
+      "layout": "south",
+      "layoutName": "South",
+      "name": "Yas Marina Circuit",
+      "source": "derived from track geometry (layout variant, sequential numbering)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Banked Hairpin",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left"
+        }
+      ]
+    },
+    {
+      "slug": "zandvoort",
+      "track": "zandvoort",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit Zandvoort",
+      "source": "Official Circuit Zandvoort map (14-turn GP layout)",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Tarzanbocht",
+          "direction": "right"
+        },
+        {
+          "number": 2,
+          "name": "Gerlachbocht",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "Hugenholtzbocht",
+          "direction": "left"
+        },
+        {
+          "number": 4,
+          "name": "Hunzerug",
+          "direction": "left"
+        },
+        {
+          "number": 5,
+          "name": "Slotemakerbocht",
+          "direction": "right",
+          "group": "Slotemaker/Scheivlak"
+        },
+        {
+          "number": 6,
+          "name": "Scheivlak",
+          "direction": "right",
+          "group": "Slotemaker/Scheivlak"
+        },
+        {
+          "number": 7,
+          "name": "Mastersbocht",
+          "direction": "right"
+        },
+        {
+          "number": 8,
+          "covers": [
+            9
+          ],
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "covers": [
+            12
+          ],
+          "name": "Hans Ernst Bocht",
+          "direction": "left"
+        },
+        {
+          "number": 13,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 14,
+          "name": "Arie Luyendykbocht",
+          "direction": "right"
+        }
+      ]
+    },
+    {
+      "slug": "zolder",
+      "track": "zolder",
+      "layout": "gp",
+      "layoutName": "Grand Prix",
+      "name": "Circuit Zolder",
+      "source": "Official corner names, sequential numbering of detected corners",
+      "corners": [
+        {
+          "number": 1,
+          "name": "Eerste Linkse",
+          "direction": "left"
+        },
+        {
+          "number": 2,
+          "name": "Sterrewachtbocht",
+          "direction": "right"
+        },
+        {
+          "number": 3,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 4,
+          "name": "Sacramentshelling",
+          "direction": "left",
+          "group": "Sacramentshelling"
+        },
+        {
+          "number": 5,
+          "name": "",
+          "direction": "right",
+          "group": "Sacramentshelling"
+        },
+        {
+          "number": 6,
+          "name": "",
+          "direction": "left"
+        },
+        {
+          "number": 7,
+          "name": "Villeneuve Chicane",
+          "direction": "right",
+          "group": "Villeneuve Chicane"
+        },
+        {
+          "number": 8,
+          "name": "",
+          "direction": "left",
+          "group": "Villeneuve Chicane"
+        },
+        {
+          "number": 9,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 10,
+          "name": "",
+          "direction": "right"
+        },
+        {
+          "number": 11,
+          "name": "Jacky Ickx Chicane",
+          "direction": "left",
+          "group": "Jacky Ickx Chicane"
+        },
+        {
+          "number": 12,
+          "name": "",
+          "direction": "right",
+          "group": "Jacky Ickx Chicane"
+        }
+      ]
+    }
+  ]
+}

@@ -9,9 +9,23 @@
  * user DB — and those wipes destroy live tuning sessions.
  */
 import { afterAll } from "bun:test";
-import { mkdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { USER_DATA_DIR } from "../../server/runtime/config/paths";
+
+function prepareIsolatedTrackRegistryDir(testDataDir: string) {
+  const tracksSource = resolve(import.meta.dir, "../..", "shared", "data", "tracks");
+  const trackRegistryDir = resolve(testDataDir, "track-registry");
+  rmSync(trackRegistryDir, { recursive: true, force: true });
+  const isolatedSourceDirectory = resolve(trackRegistryDir, "registry-source");
+  mkdirSync(isolatedSourceDirectory, { recursive: true });
+  for (const filename of ["configurations.json", "facts.json", "geometry.json", "verification.json"]) {
+    cpSync(resolve(tracksSource, "registry-source", filename), resolve(isolatedSourceDirectory, filename));
+  }
+  cpSync(resolve(tracksSource, "registry.sqlite"), resolve(trackRegistryDir, "registry.sqlite"));
+  cpSync(resolve(tracksSource, "registry-report.json"), resolve(trackRegistryDir, "registry-report.json"));
+  process.env.RACEIQ_TRACK_REGISTRY_DIR = trackRegistryDir;
+}
 
 const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
 for (const line of releaseEnvironment.split(/\r?\n/)) {
@@ -24,6 +38,7 @@ for (const line of releaseEnvironment.split(/\r?\n/)) {
 
 const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
 process.env.RACEIQ_TEST_MODE = "1";
+prepareIsolatedTrackRegistryDir(TEST_DATA_DIR);
 
 if (!process.env.DATA_DIR) {
   process.env.DATA_DIR = TEST_DATA_DIR;

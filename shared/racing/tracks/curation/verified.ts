@@ -2,7 +2,8 @@
 
 import { createHash } from "node:crypto";
 import type { GameId } from "@shared/games/ids";
-import { getTrackRegistry, writeTrackRegistry } from "../registry";
+import { getTrackRegistry } from "../registry";
+import { updateTrackRegistrySource } from "../registry-source";
 import { loadTrackFacts, loadTrackGeometry } from "../storage/meta";
 
 export interface VerifiedEntry {
@@ -50,25 +51,8 @@ export function loadVerified(): VerifiedLedger {
 }
 
 export function saveVerified(ledger: VerifiedLedger): void {
-  writeTrackRegistry((database) => {
-    database.query("DELETE FROM curation_verification").run();
-    for (const [key, entry] of Object.entries(ledger).sort(([a], [b]) => a.localeCompare(b))) {
-      const meta = /^meta:(.+)$/.exec(key);
-      const segments = /^segments:([^/]+)\/(.+)$/.exec(key);
-      if (!meta && !segments) throw new Error(`Invalid verification key ${key}`);
-      database.query(`
-        INSERT INTO curation_verification (kind, facts_slug, game_id, data_hash, verified_date, verified_by, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        meta ? "meta" : "segments",
-        meta?.[1] ?? segments![2],
-        segments?.[1] ?? "",
-        entry.hash,
-        entry.date,
-        entry.by ?? null,
-        entry.note ?? null,
-      );
-    }
+  updateTrackRegistrySource((draft) => {
+    draft.verification.entries = ledger;
   });
 }
 

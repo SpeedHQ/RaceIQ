@@ -20,55 +20,43 @@
  * `shared/racing/tracks/keys.ts`; the join itself in `shared/racing/tracks/curation/join.ts`.
  */
 
+import { z } from "zod";
+
+const trackFactId = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, digits, and hyphens");
+
+export const CornerFactSchema = z.object({
+  number: z.number().int().positive(),
+  covers: z.array(z.number().int().positive()).optional(),
+  name: z.string(),
+  direction: z.enum(["left", "right"]).optional(),
+  group: z.string().optional(),
+});
+
+export const StraightFactSchema = z.object({
+  after: z.number().int().positive(),
+  name: z.string(),
+  group: z.string().optional(),
+});
+
+export const TrackFactsSchema = z.object({
+  slug: trackFactId,
+  track: trackFactId,
+  layout: trackFactId,
+  layoutName: z.string().min(1),
+  name: z.string().min(1),
+  source: z.string().optional(),
+  corners: z.array(CornerFactSchema),
+  straights: z.array(StraightFactSchema).optional(),
+});
+
 /** One officially numbered corner. `number` plus `covers` is its identity. */
-export interface CornerFact {
-  /** Official turn number. Lowest number when the corner spans several. */
-  number: number;
-  /** Further official numbers this one corner subsumes (Pouhon: 10, covers [11]). */
-  covers?: number[];
-  /** Canonical name, untranslated. Empty when the circuit doesn't name this turn. */
-  name: string;
-  direction?: "left" | "right";
-  /**
-   * Complex this corner belongs to (Rivazza, Senna S, Bus Stop). Members share
-   * the key so consumers can label the piece once instead of once per apex.
-   */
-  group?: string;
-  // No detector allowances here — how many arcs a centerline resolves this
-  // corner into, or whether a game draws it at all, is not a property of the
-  // circuit. Those live in shared/data/tracks/detect-hints.json.
-}
+export type CornerFact = z.infer<typeof CornerFactSchema>;
 
 /** A named gap between corners. Unnamed gaps get no entry — they're derived. */
-export interface StraightFact {
-  /** Turn number this straight follows. The pre-T1 straight follows the last corner. */
-  after: number;
-  name: string;
-  group?: string;
-}
+export type StraightFact = z.infer<typeof StraightFactSchema>;
 
 /** The facts file. No fractions, no per-game anything. */
-export interface TrackFacts {
-  slug: string;
-  /** Physical venue, groups layouts: brands-hatch-indy and brands-hatch-gp share "brands-hatch". */
-  track: string;
-  /** Layout id within the venue: "gp", "indy", "national". */
-  layout: string;
-  /** Display layout name, rendered as "<name> — <layoutName>". */
-  layoutName: string;
-  /** Venue name, identical across layouts of the same venue. */
-  name: string;
-  /**
-   * Where these corner names came from — official circuit map, FIA track guide,
-   * or an explicit admission that the numbering was detected rather than sourced
-   * ("Sequential detected corners"). Names in this file are real-world claims;
-   * this is the citation that makes them auditable. Never invent one.
-   */
-  source?: string;
-  corners: CornerFact[];
-  /** Only gaps that carry a real name. */
-  straights?: StraightFact[];
-}
+export type TrackFacts = z.infer<typeof TrackFactsSchema>;
 
 /** Turn numbers a corner fact occupies, sorted. */
 export function cornerNumbers(c: CornerFact): number[] {
