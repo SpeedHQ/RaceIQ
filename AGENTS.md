@@ -1,10 +1,19 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
+
 
 ## Project Overview
 
 RaceIQ is a full-stack racing telemetry analysis app for Forza Motorsport 2023, F1 25, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing. UDP and native Windows telemetry sources feed a Bun server, SQLite storage, and a React dashboard. See [architecture overview](docs/architecture/overview.md).
+
+## Codebase Discovery
+
+When available, try the DeepWiki MCP first (`read_wiki_structure`,
+`read_wiki_contents`, or `ask_question`) to learn the app's architecture and
+feature flows before broad code searches. Use DeepWiki for orientation, then
+verify implementation details against the current checkout because its content
+may be stale or unavailable. Fall back to repository search when needed.
 
 ## Commands
 
@@ -23,6 +32,10 @@ bun run test                        # use bun run test, not bun test (sets --tim
 bun test --timeout 60000 test/parser.test.ts   # single test file
 
 # Database
+bun run db:seed              # populate DATA_DIR with committed real-lap demo data
+bun run db:seed --reset      # remove only seeded rows and regenerate demo data
+bun run db:seed --games fm-2023,acc,ac-evo,iracing
+bun run db:seed --force      # explicitly allow seeding alongside existing user data
 bun run db:push       # sync Drizzle schema to SQLite (dev introspection only — see note below)
 bun run db:generate   # generate Drizzle migration files (not used at runtime — see note below)
 
@@ -115,16 +128,55 @@ The pipeline uses `DbAdapter` and `WsAdapter` interfaces for testability:
 
 ### AI Analysis System
 
-The AI system uses Mastra agents backed by Codex API with streaming and prompt caching.
+The AI system uses Mastra agents backed by configured Gemini, OpenAI, or local-compatible providers with streaming and prompt caching.
 
 **Agents** (`server/ai/agents.ts`):
 - Lap Analyst — single-lap breakdown with corner-by-corner analysis
 - Compare Engineer — head-to-head lap comparison (inputs-focused)
 - Chat Agent — interactive Q&A about laps and comparisons
+- Race Engineer (`mastra/agents/setup-engineer.ts`, id `setup-engineer`) — owns the CAR in an experiment; the only agent with `apply_changes`
+- Driver Coach (`mastra/agents/driver-coach.ts`, id `driver-coach`) — owns the DRIVER in an experiment; the only agent with `record_drill`
+
+The experiment chat picks between the last two by `experiments.focus` via
+`sessionAgentForFocus()` — a switch over a column the driver set, not a
+coordinator agent inferring a route. Both share one session thread
+(`tune-session-<id>`) so switching focus mid-conversation keeps its history,
+and neither can do the other's job because the tool is simply not on it.
+There is deliberately no agent-to-agent consult: handover is the driver
+flipping focus. See [Experiment focus](#experiment-focus).
 
 **Prompt files** (`server/ai/`): `analyst-prompt.ts`, `chat-prompt.ts`, `compare-engineer.ts`, `compare-chat-prompt.ts`, `inputs-compare-prompt.ts`, `corner-data.ts`, `format-tune.ts`
 
 **Mastra directory** (`mastra/`): Agent definitions + the `mastra` instance (LibSQL default store + DuckDB observability). In dev it is mounted **in-process** onto the RaceIQ Hono app under `/studio-api` (see `server/runtime/dev-studio.ts`), so the server is the sole DuckDB writer and `bun run mastra:studio` reads its real traces over HTTP — no second `mastra dev` process, no DuckDB file lock. Excluded from the prod binary via `NODE_ENV` gating.
+
+### Experiment focus
+
+An experiment has a **focus** — what it is currently varying — and the driver
+switches it mid-session from the workspace header (fix the balance, then work
+on braking, same experiment).
+
+| Level | Column / field | Values | Mutable? |
+|-------|----------------|--------|----------|
+| Experiment mode | `experiments.focus` | `car` \| `driver` | **Yes** — switchable any time |
+| Arm | `experiment_versions.kind` | `setup` \| `drill` | No — fixed at creation |
+| One change inside an arm | `TestChange.kind` (`shared/types.ts`) | `setup` \| `drill` | No |
+
+⚠️ **The three levels deliberately do NOT share a vocabulary.** Keep mode as
+`car`/`driver`; source of truth is `shared/experiment-focus.ts`
+(`versionKindForFocus`, `focusForVersionKind`, `headlineMetricForVersionKind`).
+
+**Focus decides the NEXT arm; it never rewrites arms already recorded.**
+Switching to `driver` does not turn prior versions into drills. Each arm is
+judged on its own metric: setup arm → best lap, drill → lap-time spread.
+
+**Focus ledger** — every switch is appended to `experiment_focus_events`
+(append-only; a no-op re-select writes nothing) with `from_version_id`, the head
+at the moment of the switch, so the version tree can mark where each era began.
+Surfaced by `FocusTimeline` in the History panel and an era badge in
+`VersionGraph`.
+
+Migrations: **v39** adds the column + ledger, **v40** normalises databases that
+ran v39 before the `car`/`driver` rename.
 
 **Caching**: Analysis results cached in DB (`lapAnalyses` for single laps, `compareAnalyses` for lap pairs with a `kind` discriminator).
 
@@ -142,7 +194,7 @@ The AI system uses Mastra agents backed by Codex API with streaming and prompt c
   - `TrackMap.tsx` — Track visualization
   - `TelemetryChart.tsx` — Data charting (uplot)
   - `BodyAttitude.tsx` — 3D car orientation (Three.js / React Three Fiber)
-  - `AiAnalysisModal.tsx` — AI-powered analysis via Codex API
+  - `AiAnalysisModal.tsx` — AI-powered analysis using configured AI provider
   - `Settings.tsx` — App settings modal (UDP port, units)
   - `TuneCatalog.tsx` — Vehicle setup tuning
 
@@ -168,7 +220,7 @@ The AI system uses Mastra agents backed by Codex API with streaming and prompt c
 - Client proxies `/api` and `/ws` requests to `localhost:3117` via Vite dev server config
 - **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes/index.ts`) — do not use raw `fetch` for API routes
 - **gameId travels via `X-Game-Id` header** — not query params or effect-populated stores
-- Database file: `data/forza-telemetry.db` (SQLite)
+- Database file: `<DATA_DIR>/app.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4
 - **Theme contract:** client UI must use semantic `text-app-*`, `tracking-app-*`, `bg-*`, `border-*`, and `shadow-*` tokens; do not add arbitrary typography utilities or raw/palette colors. Run `bun test test/theme-contract.test.ts --timeout 60000` after styling changes.
@@ -206,7 +258,7 @@ The wheel picker in Settings and Setup Wizard automatically discovers all images
 | Styling | Tailwind CSS v4 + shadcn |
 | Charts | uplot |
 | 3D | Three.js + React Three Fiber |
-| AI | Codex API (lap analysis) |
+| AI | Configured Gemini, OpenAI, or local-compatible provider |
 
 ### Game Adapter System
 
@@ -236,15 +288,49 @@ The app uses a registry-based adapter pattern to support multiple racing games. 
 - `shared/games/ac-evo/` + `server/games/ac-evo/` — Assetto Corsa Evo
 - `shared/games/iracing/` + `server/games/iracing/` — iRacing
 
-### Adding a New Game
-
 Follow the registry and boundary model in [architecture overview](docs/architecture/overview.md). Implement shared and server adapters, register both, then add game-specific parsing, routes, data, and focused tests. Never introduce an implicit fallback game.
+
+### Track Segments: curated geometry is the source of truth
+
+⚠️ **`shared/track-segment-generate.ts` (`bun run tracks:segments`) is a FALLBACK detector, not a ground truth.** It infers corner regions from a centerline polyline so that a track with no curated geometry still gets usable segments. It will never be 100% accurate, and that is by design.
+
+The hierarchy:
+
+1. **Curated geometry** (`shared/tracks/<gameId>/<slug>-segments.json` — per-game `segments` + `sectors`) — authoritative.
+2. **Curated facts / roster** (`shared/tracks/meta/<slug>.json` — corner numbers, names, `direction`, `group`) — authoritative.
+3. **Detection** (`detectCornerRegions`) — best-effort. Only fills gaps; must never overwrite curated data.
+
+**Therefore: a detector miss on a track that already ships curated geometry costs nothing.** Do not loosen detection thresholds or reshape shared rosters around one game's centerline. Fix curated data when a shipped track looks wrong; touch generator only for general bugs affecting every track.
+
+The sanctioned-gap ledgers in `test/helpers/track-known-gaps.ts` (`KNOWN_ALIGNMENT_GAPS`, `KNOWN_FUZZY_ALIGNMENTS`, `KNOWN_TURN_GAPS`) record accepted centerline misses. They are **shrink-only**: each entry is asserted to remain broken, so a fix forces deletion.
+
+#### Curation coverage
+
+Three separate claims, weakest to strongest:
+
+| Column | Means |
+|--------|-------|
+| **Curated roster** | `shared/tracks/meta/<slug>.json` has a hand-authored non-empty `corners` array. |
+| **Meta human-verified** | A person checked roster against a real turn-by-turn guide and signed it off. |
+| **Segments human-verified** | A person checked game's rendered geometry and signed it off. Kept separate from meta because correct roster says nothing about corner placement. |
+
+Counts live in `docs/contributing/track-curation.md`. Refresh after curation:
+
+```bash
+bun run tracks:coverage
+bun run tracks:coverage --write
+```
+
+Signatures live in `shared/tracks/verified.json`; edits make signatures stale.
+`test/track-coverage.test.ts` fails if committed table drifts from repo.
+
+Full write-up: [track curation](docs/contributing/track-curation.md).
 
 ### Pre-commit Hooks (Lefthook)
 
-Installed via `postinstall` script. Runs in parallel on staged client files:
-- **lint** — ESLint on staged `client/src/**/*.{ts,tsx}`
-- **typecheck** — full client build (`cd client && bun run build`)
+Installed via `postinstall` script. Runs repository-wide checks before every commit:
+- **lint** — `bun run lint`
+- **typecheck** — `bun run typecheck`
 
 
 ### Pull Request Creation
@@ -258,7 +344,7 @@ When creating or updating a pull request:
 
 ### Pull Request Changelog
 
-Every pull request must include a concise bullet in `CHANGELOG.md` under `## Unreleased`. Use `### Internal` for implementation, CI, tooling, and maintenance changes that are not user-visible; keep `### Breaking`, `### Features`, and `### Fixes` for user-facing changes. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
+Every pull request must include a concise user-facing bullet in `CHANGELOG.md` under `## Unreleased`; do not omit it for implementation, CI, tooling, or maintenance work. Describe the observable benefit in `### Breaking`, `### Features`, or `### Fixes` rather than documenting internal mechanics. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
 
 ### AI Evaluators
 
@@ -271,6 +357,7 @@ Lap Analyst and Compare Engineer outputs are gated by deterministic scorers unde
 - `unit-consistency` — metric fixtures must not leak imperial units, and vice versa. Threshold 1.0.
 - `compare-directionality` — compare output correctly names the faster lap. Threshold 0.9.
 - `chat-freeform-shape` — chat output is non-empty, cites real corners, no hallucinated corner names. Threshold 0.8.
+- `drill-quality` — a Driver Coach drill is LOCATED (0.3), ACTIONABLE (0.3), SINGULAR (0.3), and CONCRETE (0.1). Threshold 0.75.
 
 **Schema source of truth:** every game adapter prompt (FM, F1, ACC, AC Evo) renders its JSON output shape via `renderAnalystSchemaForPrompt()` from `server/ai/schemas.ts`, so the scorer and the model's instructions stay in lockstep. Per-game prompts still own their own category guidelines and domain rules, but the shape is centralised.
 
@@ -305,26 +392,7 @@ initServerGameAdapters();
 - **PR/main**: GitHub Actions runs `bun test` and client build (`.github/workflows/build-test.yml`)
 - **Release tags**: Windows x64 binary compilation via `.github/workflows/release.yml` — Bun compiles server to `raceiq.exe`, bundles with Vite client output into `raceiq-windows-x64.zip`
 
-### Memory
-
-Project memory is stored in `.Codex/memory/` in the repo root (not the default `~/.Codex/projects/` path). This is version-controlled so all contributors share context. Read and write memory files there.
 
 ### Documentation
 
-Use [docs landing page](docs/README.md) for maintained documentation, [architecture overview](docs/architecture/overview.md) for system boundaries, and [track curation](docs/contributing/track-curation.md) before changing track metadata or segment geometry.
-
-Respond terse like smart caveman. All technical substance stay. Only fluff die.
-
-Rules:
-- Drop: articles (a/an/the), filler (just/really/basically), pleasantries, hedging
-- Fragments OK. Short synonyms. Technical terms exact. Code unchanged.
-- Pattern: [thing] [action] [reason]. [next step].
-- Not: "Sure! I'd be happy to help you with that."
-- Yes: "Bug in auth middleware. Fix:"
-
-Switch level: /caveman lite|full|ultra|wenyan
-Stop: "stop caveman" or "normal mode"
-
-Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
-
-Boundaries: code/commits/PRs written normal.
+Use [docs landing page](docs/README.md) for maintained documentation, [architecture overview](docs/architecture/overview.md) for current service, adapter, and data-flow boundaries, and [track curation](docs/contributing/track-curation.md) before changing track metadata or segment geometry.

@@ -28,6 +28,7 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
     packetsPerSec: 60,
     serverStatus: {
       udpPps: 60,
+      telemetryPps: 60,
       isRaceOn: true,
       droppedPackets: 0,
       udpPort: 5300,

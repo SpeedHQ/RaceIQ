@@ -35,6 +35,7 @@ class UdpListener {
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
   private _lastRaceOn = false;
   private _lastWsPacketCount = 0;
+  private _lastStatusAt = performance.now();
   private _statusTimer: ReturnType<typeof setInterval> | null = null;
 
   get droppedPackets(): number {
@@ -101,8 +102,13 @@ class UdpListener {
     // Update packets/sec every second. Own the handle so restart replaces,
     // rather than stacks, status/flush loops.
     clearInterval(this._statusTimer ?? undefined);
+    this._lastStatusAt = performance.now();
+    this._lastWsPacketCount = wsManager.packetCount;
     this._statusTimer = setInterval(() => {
-      this._packetsPerSec = this._packetsInWindow;
+      const statusAt = performance.now();
+      const elapsedMs = Math.max(1, statusAt - this._lastStatusAt);
+      this._lastStatusAt = statusAt;
+      this._packetsPerSec = Math.round((this._packetsInWindow * 1000) / elapsedMs);
       this._packetsInWindow = 0;
 
       // Flush the session recorder's in-memory write buffer so rawByteOffset
@@ -120,9 +126,9 @@ class UdpListener {
       // source (UDP, ACC SHM, AC Evo SHM). isRaceOn must reflect all sources,
       // not just UDP — otherwise shared-memory games show "Waiting" forever.
       const wsCount = wsManager.packetCount;
-      const streamPps = wsCount - this._lastWsPacketCount;
+      const telemetryPps = Math.round(((wsCount - this._lastWsPacketCount) * 1000) / elapsedMs);
       this._lastWsPacketCount = wsCount;
-      const raceOn = this._receiving || streamPps > 0;
+      const raceOn = this._receiving || telemetryPps > 0;
 
       // Broadcast full server status to clients (replaces REST polling)
       const runningGame = getRunningGame();
@@ -152,6 +158,7 @@ class UdpListener {
 
       wsManager.broadcastStatus({
         udpPps: this._packetsPerSec,
+        telemetryPps,
         isRaceOn: raceOn,
         droppedPackets: this._droppedPackets,
         udpPort: this._port,

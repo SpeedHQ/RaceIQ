@@ -29,7 +29,7 @@ jobs:
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Compute new version
         id: bump
@@ -53,7 +53,7 @@ jobs:
     needs: compute-version
     runs-on: blacksmith-2vcpu-windows-2025
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
 
@@ -119,7 +119,7 @@ jobs:
           cp node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
 
       - name: Upload dist artifact (for E2E test)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: raceiq-dist-windows
           path: dist/
@@ -139,12 +139,12 @@ jobs:
           SET VERSION=${{ needs.compute-version.outputs.version }}
           iscc /DMyAppVersion=%VERSION% installer\raceiq.iss
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: raceiq-v${{ needs.compute-version.outputs.version }}-setup
           path: RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: raceiq-v${{ needs.compute-version.outputs.version }}-release-note
           path: |
@@ -154,19 +154,42 @@ jobs:
   playwright-test:
     if: github.event_name == 'workflow_dispatch'
     needs: build
+    name: Release E2E (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fresh
+            server_set: fresh
+            projects: --project=fresh-install --project=mobile-device --project=tablet-device
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
+          - name: tunes
+            server_set: tunes
+            projects: --project=tunes
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
+          - name: tunes-unseeded
+            server_set: tunes-unseeded
+            projects: --project=tunes-unseeded
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
+          - name: seeded
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "10G"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      runs-on: blacksmith-4vcpu-windows-2025
-      projects: "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
+      server-set: ${{ matrix.server_set }}
+      projects: ${{ matrix.projects }}
+      runs-on: ${{ matrix.runs_on }}
       dist-artifact: raceiq-dist-windows
-      artifact-name: playwright-compiled-results
+      artifact-name: playwright-compiled-${{ matrix.name }}
+      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
   draft-release:
     if: github.event_name == 'workflow_dispatch'
     needs: [compute-version, build, playwright-test]
     runs-on: blacksmith-2vcpu-ubuntu-2204
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: raceiq-v*
@@ -185,7 +208,7 @@ jobs:
           fi
 
       - name: Create draft release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: RaceIQ v${{ needs.compute-version.outputs.version }}
@@ -198,7 +221,7 @@ jobs:
     if: github.event_name == 'release'
     runs-on: blacksmith-2vcpu-ubuntu-2204
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
       - uses: oven-sh/setup-bun@v2
@@ -221,6 +244,7 @@ jobs:
           VERSION="${TAG#v}"
           PUBLISHED_AT="${{ github.event.release.published_at }}"
           bun scripts/release/rollover-changelog.ts "$VERSION" "$PUBLISHED_AT"
+
 
       - name: Update version in package.json
         shell: bash

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
-import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
+import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
@@ -15,9 +16,10 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import { semanticNumber, type Point, type TrackMapHandle } from "./track-map/types";
+import { type Point, semanticNumber, type TrackMapHandle } from "./track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
+import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -90,6 +92,7 @@ function LapAnalyseInner() {
     if (search.ai === 1) setAiPanelOpen(true);
   }, [search.ai, setAiPanelOpen]);
   const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
+  const [setup, setSetup] = useState<F1CarSetup | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
   const lapLine = useMemo(() => {
@@ -167,6 +170,7 @@ function LapAnalyseInner() {
     w.__setFrame = (n: number) => {
       const idx = Math.max(0, Math.min(telemetry.length - 1, n));
       setCursorIdx(idx);
+      cursorRef.current = idx;
       trackMapRef.current?.updateCursor(idx);
       chartsPanelRef.current?.updateCursor(idx);
     };
@@ -245,7 +249,7 @@ function LapAnalyseInner() {
     return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
   }, [currentFrame, cursorIdx, telemetry]);
   const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
-  const currentTime = playing ? interpolatedTimeRef.current : semanticNumber(currentFrame, "timing.current-lap") ?? 0;
+  const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const totalTime = selectedLap?.lapTime ?? 0;
 
@@ -254,6 +258,15 @@ function LapAnalyseInner() {
     queryKey: ["tunes", selectedLap?.carOrdinal],
     queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
     enabled: !!selectedLap?.carOrdinal,
+  });
+  const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
+    queryKey: ["lap-setup", gameId, selectedLapId],
+    queryFn: async () => {
+      const response = await fetch(`/api/laps/${selectedLapId}/setup`, { headers: { "X-Game-Id": gameId } });
+      if (!response.ok) throw new Error("Failed to load lap setup");
+      return response.json() as Promise<{ setup: F1CarSetup | null }>;
+    },
+    enabled: gameId === "f1-2025" && selectedLapId != null,
   });
 
   const updateLapTune = useMutation({
@@ -289,14 +302,34 @@ function LapAnalyseInner() {
 
   const handleDeleteLap = useCallback(() => {
     if (!selectedLapId) return;
-    const lap = filteredLaps.find((l) => l.id === selectedLapId);
+    const lap = filteredLaps.find((candidate) => candidate.id === selectedLapId);
     const label = lap ? `Lap ${lap.lapNumber}` : `Lap ${selectedLapId}`;
     if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     deleteLapMutation.mutate(selectedLapId);
-  }, [selectedLapId, filteredLaps, deleteLapMutation]);
-
-
-  const { exportingBin, importingBin, importResult, ibtPreview, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
+  }, [selectedLapId, filteredLaps, deleteLapMutation.mutate]);
+  const handleTuneChange = useCallback((tuneId: number | null) => updateLapTune.mutate(tuneId), [updateLapTune.mutate]);
+  const handleNotesChange = useCallback((notes: string) => updateLapNotesMutation.mutate(notes), [updateLapNotesMutation.mutate]);
+  const handleToggleAi = useCallback(() => setAiPanelOpen((open) => !open), [setAiPanelOpen]);
+  const handleRotateWithCarToggle = useCallback(() => setRotateWithCar((rotate) => !rotate), [setRotateWithCar]);
+  const handleTrackOverlayCycle = useCallback(
+    () => setTrackOverlay((overlay) => (overlay === "none" ? "inputs" : overlay === "inputs" ? "segments" : overlay === "segments" ? "sectors" : "none")),
+    [setTrackOverlay],
+  );
+  const f1Setup = useMemo<F1CarSetup | null>(() => {
+    if (gameId !== "f1-2025") return null;
+    if (persistedF1Setup?.setup) return persistedF1Setup.setup;
+    if (!selectedLap?.carSetup) return null;
+    try {
+      return JSON.parse(selectedLap.carSetup) as F1CarSetup;
+    } catch {
+      return null;
+    }
+  }, [gameId, persistedF1Setup?.setup, selectedLap?.carSetup]);
+  const hasF1Setup = f1Setup != null;
+  const handleShowSetup = useCallback(() => {
+    if (f1Setup) setSetup(f1Setup);
+  }, [f1Setup]);
+  const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
     gameId,
     setSelectedTrack,
@@ -308,19 +341,26 @@ function LapAnalyseInner() {
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
-        onExport={() => undefined}
-        onExportBin={() => undefined}
+        onExport={() =>
+          buildExportCsv(
+            semanticFrames.map((frame) => frame.values),
+            carName,
+            trackName,
+            selectedLap,
+            selectedLapId,
+          )}
+        onExportBin={() => handleExportBin(selectedLapId)}
         selectedTrack={selectedTrack}
         selectedCar={selectedCar}
         selectedLapId={selectedLapId}
         selectedLap={selectedLap}
+        hasF1Setup={hasF1Setup}
         trackNames={trackNames}
         carNames={carNames}
         tracks={tracks}
         carsForTrack={carsForTrack}
         filteredLaps={filteredLaps}
         hasTelemetry={telemetry.length > 0}
-        hasF1Setup={false}
         availableTunes={availableTunes}
         tunePending={updateLapTune.isPending}
         loading={loading}
@@ -328,15 +368,17 @@ function LapAnalyseInner() {
         onTrackChange={handleTrackChange}
         onCarChange={handleCarChange}
         onLapChange={setSelectedLapId}
-        onTuneChange={(tuneId) => updateLapTune.mutate(tuneId)}
+        onTuneChange={handleTuneChange}
         onViewTune={setViewingTuneId}
-        onShowSetup={() => undefined}
+        onShowSetup={handleShowSetup}
         onImportBin={handleImportBin}
         exportingBin={exportingBin}
         importingBin={importingBin}
-        onToggleAi={() => setAiPanelOpen((v) => !v)}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onToggleAi={handleToggleAi}
         onDeleteLap={handleDeleteLap}
-        onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}
+        onNotesChange={handleNotesChange}
       />
 
       {telemetry.length === 0 && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
@@ -366,8 +408,8 @@ function LapAnalyseInner() {
             rotateWithCar,
             trackOverlay,
             mapZoom,
-            onRotateWithCarToggle: () => setRotateWithCar((r) => !r),
-            onTrackOverlayCycle: () => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none")),
+            onRotateWithCarToggle: handleRotateWithCarToggle,
+            onTrackOverlayCycle: handleTrackOverlayCycle,
             onMapZoomChange: setMapZoom,
             vizMode,
             onVizModeChange: setWheelTab,
@@ -438,9 +480,11 @@ function LapAnalyseInner() {
         viewingTuneId={viewingTuneId}
         onCloseTune={() => setViewingTuneId(null)}
         ibtPreview={ibtPreview}
-        setup={null}
-        onCloseSetup={() => undefined}
+        setup={setup}
+        onCloseSetup={() => setSetup(null)}
         importingBin={importingBin}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
         onCommitIbt={() => void handleCommitIbt()}
         onCancelIbt={handleCancelIbt}
         importResult={importResult}

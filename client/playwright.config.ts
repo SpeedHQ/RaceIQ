@@ -35,7 +35,9 @@ export default defineConfig({
     reducedMotion: "reduce",
   },
   webServer: {
-    command: `bunx storybook dev -p ${STORYBOOK_PORT} --ci --no-open --exact-port`,
+    // Storybook's Vite preview can exceed Node's default ~2 GB heap while
+    // compiling the full snapshot inventory in the constrained CI runner.
+    command: `NODE_OPTIONS=--max-old-space-size=4096 bunx storybook dev -p ${STORYBOOK_PORT} --ci --no-open --exact-port`,
     cwd: STORYBOOK_ROOT,
     url: `http://localhost:${STORYBOOK_PORT}/index.json`,
     reuseExistingServer: false,

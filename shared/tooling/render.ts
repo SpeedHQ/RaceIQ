@@ -44,6 +44,7 @@ export function renderUnreleasedBody(markdown: string): string {
   return renderReleaseBody(markdown.slice(start, end));
 }
 
+
 export function parseChangelog(markdown: string): ChangelogEntry[] {
   const releases = [...markdown.matchAll(RELEASE_HEADING)];
   return releases.map((release, index) => {

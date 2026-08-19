@@ -5,7 +5,7 @@ import { GameIdQuerySchema, IdParamSchema } from "@shared/platform/http/route-sc
 import { GameIdSchema } from "../../shared/games/ids";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds } from "../db/session-result-queries";
-import { reprocessSession } from "../session-capture/reprocess";
+import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "../session-capture/reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
@@ -93,13 +93,20 @@ export const sessionRoutes = new Hono()
       getAllServerGames().map((adapter) => adapter.id),
     );
     const results = [];
+    const skipped: { sessionId: number; reason: "raw-file-missing" }[] = [];
     for (const id of staleIds) {
-      const result = await reprocessSession(id);
-      wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
-      results.push(result);
+      try {
+        const result = await reprocessSession(id);
+        wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
+        results.push(result);
+      } catch (error) {
+        if (!(error instanceof SessionRawFileMissingError)) throw error;
+        console.warn(`[Reprocess] Skipping session ${id}: ${error.message}`);
+        skipped.push({ sessionId: id, reason: "raw-file-missing" });
+      }
     }
     wsManager.setStaleSessionsNotification(null);
-    return c.json({ reprocessed: results.length, results });
+    return c.json({ reprocessed: results.length, skipped, results });
   })
   .post("/api/sessions/bulk-delete", zValidator("json", z.object({ ids: z.array(z.number().int()) })), async (c) => {
     const { ids } = c.req.valid("json");

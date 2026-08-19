@@ -30,6 +30,8 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   await page.goto(`/${fm23.prefix}/compare?${query}`, { waitUntil: "domcontentloaded" });
   expect(comparison.traces.distance.length, "trace length").toBeGreaterThan(1);
   expect(comparison.traces.distance).toHaveLength(comparison.timeDelta.length);
+  expect(comparison.traces.sourceIndicesA).toHaveLength(comparison.traces.distance.length);
+  expect(comparison.traces.sourceIndicesB).toHaveLength(comparison.traces.distance.length);
   expect(comparison.timeDelta).not.toHaveLength(0);
 
   const workspace = page.getByTestId("lap-compare-workspace");

@@ -5,6 +5,13 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 
+export function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
+  return {
+    value: String(lap.id),
+    label: `${m.compare_lap_label({}, { locale })} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " (inv)" : ""}`,
+  };
+}
+
 type TrackGroup = { trackOrdinal: number; trackName: string; laps: LapMeta[] };
 
 export function ComparisonSelectors({
@@ -81,15 +88,22 @@ export function ComparisonSelectors({
         <label htmlFor="compare-lap-a" className="text-app-caption text-app-text-muted uppercase tracking-wider">
           {m.compare_lap_a()}
         </label>
-        <SearchSelect
-          id="compare-lap-a"
-          value={lapAId != null ? String(lapAId) : ""}
-          onChange={(v) => setLapAId(v ? Number(v) : null)}
-          options={carALaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
-          placeholder={m.compare_search_laps()}
-          disabled={!carAOrd}
-          focusColor="orange-500"
-        />
+        <div className="flex items-center gap-2">
+          <SearchSelect
+            id="compare-lap-a"
+            value={lapAId != null ? String(lapAId) : ""}
+            onChange={(v) => setLapAId(v ? Number(v) : null)}
+            options={carALaps.map((lap) => buildComparisonLapOption(lap))}
+            placeholder={m.compare_search_laps()}
+            disabled={!carAOrd}
+            focusColor="orange-500"
+          />
+          {lapAId != null && (
+            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+              {carALaps.find((lap) => lap.id === lapAId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[220px]">
         <div className="flex items-center gap-1.5">
@@ -112,15 +126,21 @@ export function ComparisonSelectors({
         <label htmlFor="compare-lap-b" className="text-app-caption text-app-text-muted uppercase tracking-wider">
           {m.compare_lap_b()}
         </label>
-        <SearchSelect
-          id="compare-lap-b"
-          value={lapBId != null ? String(lapBId) : ""}
-          onChange={(v) => setLapBId(v ? Number(v) : null)}
-          options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
-          placeholder={m.compare_search_laps()}
-          disabled={!carBOrd}
-          focusColor="blue-500"
-        />
+        <div className="flex items-center gap-2">
+          <SearchSelect
+            id="compare-lap-b"
+            value={lapBId != null ? String(lapBId) : ""}
+            onChange={(v) => setLapBId(v ? Number(v) : null)}
+            disabled={!carBOrd}
+            options={carBLaps.map((lap) => buildComparisonLapOption(lap))}
+            focusColor="blue-500"
+          />
+          {lapBId != null && (
+            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+              {carBLaps.find((lap) => lap.id === lapBId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+            </span>
+          )}
+        </div>
       </div>
       <div className="ml-auto flex w-full flex-col gap-1 self-end @3xl/workspace:w-auto">
         <Button

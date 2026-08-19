@@ -72,11 +72,13 @@ function pushFourWheelSample(
 export class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
   private _packetCount = 0;
-  private broadcastIntervalMs = 16; // default 60Hz
+  private broadcastPeriodMs = 1000 / 60;
   private gripSampleCounter = 0; // Counts to 6 for 10Hz history sampling
   private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
   /** Last broadcast JSON — sent to new clients so they don't start blank */
   private lastSchemaJson: string | null = null;
+  /** Schema waiting for delivery to clients already connected when it changed. */
+  private pendingSchemaJson: string | null = null;
   private lastFrameJson: string | null = null;
   private lastDevPacketJson: string | null = null;
   private readonly allowDevTelemetry = IS_DEV || IS_E2E;
@@ -125,8 +127,8 @@ export class WebSocketManager {
 
   setRefreshRate(hz: string): void {
     const rate = parseInt(hz, 10) || 60;
-    this.broadcastIntervalMs = rate > 0 ? Math.round(1000 / rate) : 16;
-    if (this._broadcastTimer) this.startBroadcastTimer(); // restart with new interval
+    this.broadcastPeriodMs = 1000 / (rate > 0 ? rate : 60);
+    if (this._broadcastTimer) this.startBroadcastTimer();
   }
 
   addClient(ws: ServerWebSocket<WSData>): void {
@@ -179,6 +181,7 @@ export class WebSocketManager {
    * Fired every 1s from the UDP listener's interval timer.
    */
   broadcastStatus(status: {
+    telemetryPps: number;
     udpPps: number;
     isRaceOn: boolean;
     droppedPackets: number;
@@ -212,7 +215,10 @@ export class WebSocketManager {
   }
 
   publishTelemetry(projection: LiveProjection): void {
-    if (projection.schema) this.lastSchemaJson = JSON.stringify(projection.schema);
+    if (projection.schema) {
+      this.lastSchemaJson = JSON.stringify(projection.schema);
+      if (this.clients.size > 0) this.pendingSchemaJson = this.lastSchemaJson;
+    }
     if (projection.frame) this.lastFrameJson = JSON.stringify(projection.frame);
   }
 
@@ -277,29 +283,40 @@ export class WebSocketManager {
     }
   }
 
-  /** Start the broadcast timer at the configured Hz. */
+  /** Start a deadline-based broadcast loop that preserves fractional periods. */
   private startBroadcastTimer(): void {
     this.stopBroadcastTimer();
-    this._broadcastTimer = setInterval(() => this._pushToClients(), this.broadcastIntervalMs);
+    const periodMs = this.broadcastPeriodMs;
+    let nextBroadcastAt = performance.now() + periodMs;
+    const tick = () => {
+      this._pushToClients();
+      nextBroadcastAt += periodMs;
+      const now = performance.now();
+      if (nextBroadcastAt <= now) nextBroadcastAt += (Math.floor((now - nextBroadcastAt) / periodMs) + 1) * periodMs;
+      this._broadcastTimer = setTimeout(tick, Math.max(0, nextBroadcastAt - now));
+    };
+    this._broadcastTimer = setTimeout(tick, periodMs);
   }
 
   /** Stop the broadcast timer. */
   private stopBroadcastTimer(): void {
     if (this._broadcastTimer) {
-      clearInterval(this._broadcastTimer);
+      clearTimeout(this._broadcastTimer);
       this._broadcastTimer = null;
     }
   }
 
   private _pushToClients(): void {
+    const schemaJson = this.pendingSchemaJson;
     const deadClients: ServerWebSocket<WSData>[] = [];
     for (const client of this.clients) {
       try {
-        if (this.lastSchemaJson) client.send(this.lastSchemaJson);
+        if (schemaJson) client.send(schemaJson);
         if (this.lastFrameJson) client.send(this.lastFrameJson);
         if (this.lastDevPacketJson && client.data.devTelemetrySubscribed) client.send(this.lastDevPacketJson);
       } catch { deadClients.push(client); }
     }
+    this.pendingSchemaJson = null;
     for (const dead of deadClients) this.clients.delete(dead);
   }
 }

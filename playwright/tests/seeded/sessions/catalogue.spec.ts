@@ -68,16 +68,16 @@ test("sessions filter, notes, recap, export, and deletion confirmation preserve 
 
 test("sessions recorded and imported tabs expose true-empty state", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
-  await page.goto("/ac-evo/sessions?tab=imported", { waitUntil: "domcontentloaded" });
+  await page.goto("/ac-evo/sessions?tab=others", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Sessions" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Imported", exact: true })).toHaveAttribute("class", /bg-app-accent/);
+  await expect(page.getByRole("button", { name: "Others", exact: true })).toHaveAttribute("class", /bg-app-accent/);
   const search = page.getByPlaceholder("Search track, car, notes…");
   await search.fill("definitely-no-imported-session");
-  await expect(page.getByText("No imported logs yet", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText("No sessions from other drivers yet", { exact: true }).last()).toBeVisible();
   await search.fill("");
-  await page.getByRole("button", { name: "Recorded", exact: true }).click();
+  await page.getByRole("button", { name: "Mine", exact: true }).click();
   await expect(page).toHaveURL(/\/ac-evo\/sessions(?:\?.*)?$/);
-  await expect(page.getByRole("button", { name: "Recorded", exact: true })).toHaveAttribute("class", /bg-app-accent/);
+  await expect(page.getByRole("button", { name: "Mine", exact: true })).toHaveAttribute("class", /bg-app-accent/);
   expect(browserErrors.errors).toEqual([]);
 });
 

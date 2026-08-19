@@ -19,6 +19,7 @@ export interface RecapSessionInput {
   trackOrdinal: number;
   gameId: GameId;
   createdAt: string;
+  ownership?: "mine" | "others";
 }
 
 export interface ComputeRecapInput {

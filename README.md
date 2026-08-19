@@ -87,6 +87,8 @@ RaceIQ checks for new releases automatically and notifies you when one is availa
 
 ## Platform
 
+> **Slow 3D wireframe playback?** Enable hardware acceleration in your browser when supported. Without GPU acceleration, Analyse playback may run far below the configured 60 or 120 FPS.
+
 **Game on Windows is recommended.** RaceIQ runs on the same PC as the game for two reasons:
 
 - **UDP reliability** — loopback delivery is lossless and low-latency, avoiding the packet loss and timing jitter of network routing.
@@ -102,16 +104,6 @@ All data stays on your machine in `%APPDATA%/raceiq`:
 - **Settings** — UDP port, units, active profile, and thresholds
 
 The database is created automatically on first run. No cloud account or external service required.
-
-### Seed a disposable development database
-
-From a fresh checkout, populate `DATA_DIR` with real committed telemetry:
-
-```bash
-bun run db:seed
-```
-
-The command imports representative Forza Motorsport, F1 2025, ACC, AC Evo, and iRacing captures and adds demo tunes, comparisons, cached analyses, and experiments. It marks onboarding complete so the dashboard opens directly to seeded data. It is idempotent. Use `bun run db:seed --reset` to regenerate only the seeded rows, or `DATA_DIR=.data-dev bun run db:seed` for a disposable database. The command refuses to mix seed data into a database containing captured user data unless `--force` is explicit.
 
 ## AI Coaching Setup
 

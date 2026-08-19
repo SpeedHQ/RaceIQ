@@ -1,16 +1,24 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import { memo, useMemo, useRef, useState } from "react";
+import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
+import { SearchSelect } from "../ui/SearchSelect";
+
+export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
+  return {
+    value: String(lap.id),
+    label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " ✕" : ""}`,
+  };
+}
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
-import { SearchSelect } from "../ui/SearchSelect";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
-
+import { OwnershipChoice } from "../import/OwnershipChoice";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
   // Selection state
   selectedTrack: number | null;
@@ -42,12 +50,14 @@ interface Props {
   onImportBin: (file: File) => void;
   exportingBin: boolean;
   importingBin: boolean;
+  ownership: SessionOwnership;
+  onOwnershipChange: (value: SessionOwnership) => void;
   onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
 }
 
-export function AnalyseLapHeader({
+export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -74,6 +84,8 @@ export function AnalyseLapHeader({
   onImportBin,
   exportingBin,
   importingBin,
+  ownership,
+  onOwnershipChange,
   onToggleAi,
   onDeleteLap,
   onNotesChange,
@@ -83,6 +95,23 @@ export function AnalyseLapHeader({
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const trackOptions = useMemo(() => tracks.map(([ordinal, count]) => ({ value: String(ordinal), label: `${trackNames[ordinal] || `Track ${ordinal}`} (${count})` })), [trackNames, tracks]);
+  const carOptions = useMemo(() => carsForTrack.map(([ordinal, count]) => ({ value: String(ordinal), label: `${carNames[ordinal] || `Car ${ordinal}`} (${count})` })), [carNames, carsForTrack]);
+  const lapOptions = useMemo(() => {
+    const sessions = new Map<number, LapMeta[]>();
+    for (const lap of filteredLaps) {
+      const sessionLaps = sessions.get(lap.sessionId);
+      if (sessionLaps) sessionLaps.push(lap);
+      else sessions.set(lap.sessionId, [lap]);
+    }
+    return filteredLaps.map((lap) => {
+      const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
+      const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
+      const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
+      return { ...buildAnalyseLapOption(lap), group: sessionLabel };
+    });
+  }, [filteredLaps]);
+  const [pendingImport, setPendingImport] = useState<File | null>(null);
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
@@ -90,7 +119,7 @@ export function AnalyseLapHeader({
         <SearchSelect
           value={selectedTrack != null ? String(selectedTrack) : ""}
           onChange={(v) => onTrackChange(v ? Number(v) : null)}
-          options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
+          options={trackOptions}
           placeholder={m.analyse_search_tracks_placeholder()}
           className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
@@ -100,38 +129,35 @@ export function AnalyseLapHeader({
         <SearchSelect
           value={selectedCar != null ? String(selectedCar) : ""}
           onChange={(v) => onCarChange(v ? Number(v) : null)}
-          options={carsForTrack.map(([ord, count]) => ({ value: String(ord), label: `${carNames[ord] || `Car ${ord}`} (${count})` }))}
+          options={carOptions}
           placeholder={m.analyse_search_cars_placeholder()}
           disabled={selectedTrack == null}
           className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
         />
 
-        {/* Lap selector */}
-        <SearchSelect
-          value={selectedLapId != null ? String(selectedLapId) : ""}
-          onChange={(v) => onLapChange(v ? Number(v) : null)}
-          options={filteredLaps.map((lap) => {
-            const sessionLaps = filteredLaps.filter((l) => l.sessionId === lap.sessionId);
-            const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
-            const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
-            return {
-              value: String(lap.id),
-              label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)}${!lap.isValid ? " ✕" : ""}`,
-              group: sessionLabel,
-            };
-          })}
-          placeholder={m.analyse_search_laps_placeholder()}
-          disabled={selectedCar == null}
-          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
-          fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
-        />
+        <div className="flex items-center gap-2">
+          <SearchSelect
+            value={selectedLapId != null ? String(selectedLapId) : ""}
+            onChange={(v) => onLapChange(v ? Number(v) : null)}
+            options={lapOptions}
+            placeholder={m.analyse_search_laps_placeholder()}
+            disabled={selectedCar == null}
+            className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
+            fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
+          />
+          {selectedLapId != null && (
+            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+              {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+            </span>
+          )}
+        </div>
 
         {/* Tune / setup controls.
           F1 25 laps capture the full car setup on-packet, surfaced via the
           Car Setup modal — the Forza-style tune picker doesn't apply there,
           so we hide it and render only the Car Setup button. */}
-        {selectedLapId && hasTelemetry && (
+        {selectedLapId && (hasTelemetry || hasF1Setup) && (
           <div className="flex items-center gap-2 text-sm">
             {hasF1Setup ? (
               <Button variant="app-outline" size="app-md" onClick={onShowSetup}>
@@ -201,7 +227,10 @@ export function AnalyseLapHeader({
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) onImportBin(file);
+              if (file) {
+                if (file.name.toLowerCase().endsWith(".ibt")) onImportBin(file);
+                else setPendingImport(file);
+              }
               e.target.value = "";
             }}
           />
@@ -258,6 +287,33 @@ export function AnalyseLapHeader({
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
         </div>
       </div>
+      {pendingImport && (
+        <Dialog open onOpenChange={(open) => !open && setPendingImport(null)}>
+          <DialogContent size="sm">
+            <DialogHeader>
+              <DialogTitle>Choose lap ownership</DialogTitle>
+            </DialogHeader>
+            <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
+            <DialogFooter>
+              <Button variant="app-ghost" size="app-sm" disabled={importingBin} onClick={() => setPendingImport(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="app-primary"
+                size="app-sm"
+                disabled={importingBin}
+                onClick={() => {
+                  const file = pendingImport;
+                  setPendingImport(null);
+                  onImportBin(file);
+                }}
+              >
+                Import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       {guideOpen && <DataGuideModal onClose={() => setGuideOpen(false)} />}
       {motecOpen && (
         <MotecImportModal
@@ -273,4 +329,4 @@ export function AnalyseLapHeader({
       )}
     </>
   );
-}
+});

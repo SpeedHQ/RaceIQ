@@ -1,14 +1,24 @@
 ## Unreleased
 
+### Breaking
+- Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
+
 ### Features
+- Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
+- Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
-- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
+- Show iRacing live fuel bars using tank capacity reported by simulator session data
+- Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
+- Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
+- Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip recordings from games unavailable in the current RaceIQ build during stale-session checks and bulk reprocessing
+- Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
+- Keep newly started session captures from being removed by concurrent storage cleanup
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
 - Show actionable, neutral guidance when AI provider, credentials, or model configuration is incomplete
 - Keep iRacing lap replay within saved frame boundaries so telemetry from the following lap is not included
@@ -30,6 +40,7 @@
 - Treat tracks without optional boundary geometry as available instead of failed requests
 - Open Analyse from home and session recaps without a full-page white flash
 - Keep Analyse responsive while loading and playing large laps or recovering from server disconnects
+- Keep Analyse 3D playback at configured 60 or 120 FPS while telemetry panels update
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
@@ -46,7 +57,7 @@
 - Highlight the active sector-blip setting with a cyan border
 - Keep analysis and comparison pages usable on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
-- Keep the iRacing analysis car indicator aligned with track direction in fixed and follow map views
+- Keep Compare map markers, telemetry inputs, and deltas aligned by track position after crashes, spins, shortcuts, and off-track detours
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
 - Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
 - Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
@@ -59,13 +70,18 @@
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
+- Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
+- Replace Biome with Oxc for repository linting and formatting
+- Consolidate game raw telemetry routes behind one dynamic route and default seeded E2E runs to two workers
+- Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog
+- Deduplicate telemetry catalog provenance hashes so generated review diffs stay focused on meaningful mapping changes
 - Organized automated tests by domain, split oversized suites, and centralized shared test support
 - Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics
@@ -74,6 +90,7 @@
 - Restored live-dashboard Storybook runtime context and added same-renderer local visual comparison before canonical Linux baseline generation
 - Expanded visual regression coverage to 97 fixture-seeded responsive app states plus 17 Storybook states, covering every game, high-risk screens, track and experiment details, reusable primitives, navigation, dialogs, and viewport-positioned menus
 - Added a local main-versus-worktree UI comparison report using the same responsive and Storybook screenshot inventory as pull-request previews
+- Compare screenshot previews against each pull request's base branch and revision instead of current main
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
 - Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
 - Add fixture-seeded cross-game route and lap playback end-to-end coverage

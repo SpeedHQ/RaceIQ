@@ -18,6 +18,7 @@ const trace = {
   gear: [1, 2, 3],
   posX: [0, 0, 0],
   posZ: [0, 0, 0],
+  sourceIndices: [0, 1, 2],
 };
 
 const comparison = {

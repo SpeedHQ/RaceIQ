@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
+import type { SessionOwnership } from "../../shared/racing/sessions/types";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -105,6 +106,7 @@ export const sessions = sqliteTable("sessions", {
 	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
 	// racing line is dead-reckoned rather than logged — see server/motec/.
 	source: text("source"),
+	ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 export const sessionResults = sqliteTable(
