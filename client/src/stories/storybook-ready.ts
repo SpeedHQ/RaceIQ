@@ -28,8 +28,18 @@ interface WarmStorybookOptions {
  * chrome or a coincidental component class as story readiness.
  */
 export async function openStory(page: Page, storyUrl: string, timeoutMs = 60_000): Promise<void> {
-  await page.goto(storyUrl, { waitUntil: "commit", timeout: timeoutMs });
-  await page.locator(STORY_ROOT_CHILD).first().waitFor({ state: "visible", timeout: timeoutMs });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(storyUrl, { waitUntil: "commit", timeout: timeoutMs });
+      await page.locator(STORY_ROOT_CHILD).first().waitFor({ state: "visible", timeout: timeoutMs });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0) await page.reload({ waitUntil: "commit", timeout: timeoutMs });
+    }
+  }
+  throw lastError;
 }
 
 async function installSnapshotMode(page: Page): Promise<void> {
