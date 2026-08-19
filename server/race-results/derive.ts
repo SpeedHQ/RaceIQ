@@ -9,8 +9,11 @@ import {
   resolveRaceResultSourceStatusFromAuthority,
 } from "./authority";
 import type {
+  RaceEvent,
+  RaceEventId,
+} from "../../shared/racing/events/contracts";
+import type {
   DerivedRaceResult,
-  PitEvent,
   RaceSourceObservation,
   ResultClassification,
   ResultSessionType,
@@ -109,17 +112,55 @@ function derivePodium(position: number | null, classification: ResultClassificat
   return position <= 3;
 }
 
-function stableEvents(events: PitEvent[] | undefined): PitEvent[] {
-  return [...(events ?? [])]
-    .sort((a, b) => {
-      const lapA = a.lapNumber ?? Number.MAX_SAFE_INTEGER;
-      const lapB = b.lapNumber ?? Number.MAX_SAFE_INTEGER;
-      return lapA - lapB || a.sequence - b.sequence;
-    })
-    .map((event, index) => ({ ...event, sequence: index + 1 }));
+function playerTimeline(events: readonly RaceEvent[]): RaceEvent[] {
+  return events.filter((event) => event.participantKind !== "opponent");
 }
 
-export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResult {
+function projectPitTimeline(events: readonly RaceEvent[]): {
+  pitCount: number;
+  eventIds: RaceEventId[];
+  tyreStrategy: unknown;
+  fuelStrategy: unknown;
+} {
+  const relevant = playerTimeline(events).filter((event) =>
+    event.eventType === "pit_entry" ||
+    event.eventType === "tire_service_observed" ||
+    event.eventType === "fuel_service_observed" ||
+    event.eventType === "pit_service_completed",
+  );
+  const visits = new Set(
+    relevant
+      .filter((event) => event.eventType === "pit_entry")
+      .map((event) => event.lifecycleId ?? event.eventId),
+  );
+  const tyreServices = relevant
+    .filter((event): event is Extract<RaceEvent, { eventType: "tire_service_observed" }> => event.eventType === "tire_service_observed")
+    .map((event) => ({
+      eventId: event.eventId,
+      lapNumber: event.lapNumber,
+      lifecycleId: event.lifecycleId,
+      ...event.payload,
+    }));
+  const fuelServices = relevant
+    .filter((event): event is Extract<RaceEvent, { eventType: "fuel_service_observed" }> => event.eventType === "fuel_service_observed")
+    .map((event) => ({
+      eventId: event.eventId,
+      lapNumber: event.lapNumber,
+      lifecycleId: event.lifecycleId,
+      ...event.payload,
+    }));
+  return {
+    pitCount: visits.size,
+    eventIds: relevant.map((event) => event.eventId),
+    tyreStrategy: tyreServices.length > 0 ? { services: tyreServices } : null,
+    fuelStrategy: fuelServices.length > 0 ? { services: fuelServices } : null,
+  };
+}
+
+export function deriveRaceResult(
+  source: RaceSourceObservation,
+  timeline?: readonly RaceEvent[],
+): DerivedRaceResult {
   const sessionType = normalizeSessionType(source.sessionType);
   const classificationInput = classificationEvidence(source, sessionType);
   const classificationDecision = arbitrateRaceResultClaim(
@@ -136,11 +177,16 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     classification,
     status: resolveRaceResultSourceStatusFromAuthority(winningEvidence?.authority),
   };
-  const events = stableEvents([...(source.pitEvents ?? []), ...(source.positionChanges ?? [])]);
+  const pitProjection = projectPitTimeline(timeline ?? []);
   const reasons = [...new Set(source.reasons)];
   const conflicts = [...source.evidence.conflicts];
   const fieldStatus = { ...source.evidence.fieldStatus };
   fieldStatus.classification = classificationResult.status;
+  fieldStatus.pitTimeline = timeline === undefined ? "unavailable" : "derived";
+  if (timeline !== undefined) {
+    fieldStatus.tyreStrategy = pitProjection.tyreStrategy == null ? "unavailable" : "direct";
+    fieldStatus.fuelStrategy = pitProjection.fuelStrategy == null ? "unavailable" : "direct";
+  }
 
   if (source.classification && sessionType === "qualifying" && source.classification !== "qualifying") {
     conflicts.push(`classification-vs-session-type:${source.classification}|${sessionType}`);
@@ -151,7 +197,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
   if (!source.sessionType) reasons.push("session-type-missing");
   if (source.finishingPosition == null && sessionType === "race") reasons.push("finishing-position-unknown");
   if (source.isFastestLap == null) reasons.push("fastest-lap-unknown");
-  if (source.pitEvents == null) reasons.push("pit-ledger-unsupported");
+  if (timeline === undefined) reasons.push("pit-timeline-unavailable");
   if (classificationResult.status === "derived") reasons.push("classification-derived-fallback");
   if (classificationResult.status === "simplified") reasons.push("classification-provisional-source");
   if (classificationResult.status === "unavailable") reasons.push("classification-unavailable");
@@ -170,10 +216,10 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     qualifyingPosition: source.qualifyingPosition ?? null,
     isPodium,
     isFastestLap: source.isFastestLap ?? null,
-    pitCount: events.filter((event) => (event.eventType ?? "pit") !== "position-change").length,
-    events,
-    tyreStrategy: source.tyreStrategy ?? null,
-    fuelStrategy: source.fuelStrategy ?? null,
+    pitCount: pitProjection.pitCount,
+    eventIds: pitProjection.eventIds,
+    tyreStrategy: pitProjection.tyreStrategy ?? source.tyreStrategy ?? null,
+    fuelStrategy: pitProjection.fuelStrategy ?? source.fuelStrategy ?? null,
     provenance: source.provenance,
     outcomeStatus,
     evidence: {

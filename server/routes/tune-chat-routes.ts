@@ -6,6 +6,7 @@ import type { GameId } from "../../shared/games/ids";
 import { eligibilityDecisionText } from "../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { getLapById } from "../db/lap-read-queries";
+import { listRaceEventsForLap } from "../db/race-event-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
@@ -78,7 +79,11 @@ export const tuneChatRoutes = new Hono()
 
       const corners = detectCorners(packets);
       const symptoms = telemetryToSymptoms(packets, corners);
-      const issues = symptomsToIssues(symptoms, lap.lapNumber);
+      const eventIds = (await listRaceEventsForLap(id)).map((event) => event.eventId);
+      const issues = symptomsToIssues(symptoms, lap.lapNumber).map((issue) => ({
+        ...issue,
+        eventIds,
+      }));
       return c.json(issues);
     }
   )

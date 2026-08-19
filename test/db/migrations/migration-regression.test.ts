@@ -271,6 +271,139 @@ describe("migration regressions", () => {
     expect(row.computed_at).toBe("2026-01-01T00:00:00.000Z");
     client.close();
   });
+
+  test("v63 backfills canonical events, preserves durable ids, and removes the pit ledger", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 62);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source)
+       VALUES (1, 10, 20, 'iracing', 'native-live')`,
+    );
+    await client.execute(
+      `INSERT INTO laps (id, session_id, lap_number, lap_time)
+       VALUES (11, 1, 7, 100), (12, 1, 8, 99)`,
+    );
+    await client.execute(
+      `INSERT INTO session_results (
+         id, session_id, session_type, classification, pit_count,
+         processor_version, outcome_status
+       )
+       VALUES (21, 1, 'race', 'finished', 1, 'race-result-v2', 'confirmed')`,
+    );
+    await client.execute({
+      sql: `INSERT INTO pit_events (
+         id, result_id, sequence, event_type, position_before, position_after,
+         lap_number, elapsed_seconds, duration_seconds, service, tyre_change,
+         fuel_added, fuel_before, fuel_after, linkage, source, created_at
+       ) VALUES
+         (31, 21, 4, 'pit', NULL, NULL, 7, 700.25, 31.5, 'combined', ?, 12.5, 10, 22.5, 'linked', '{}', '2026-01-02 03:04:05'),
+         (32, 21, 5, 'position-change', 8, 5, 8, 800, NULL, 'unknown', NULL, NULL, NULL, NULL, 'linked', '{}', '2026-01-02 03:05:05')`,
+      args: [JSON.stringify({ from: "soft", to: "medium" })],
+    });
+
+    await runMigrations(client, 63);
+
+    const tables = await client.execute("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    const tableNames = tables.rows.map((row) => String(row.name));
+    expect(tableNames).toContain("race_events");
+    expect(tableNames).not.toContain("pit_events");
+
+    const eventRows = await client.execute(
+      `SELECT event_id, event_type, session_id, participant_id, timeline_epoch,
+              sequence, event_order, source_time_ms, source_end_time_ms,
+              lap_id, evidence_kind, confidence, quality_state, source_kind,
+              payload, lifecycle_id, linked_event_id, detector_id,
+              detector_version, source_generation, content_hash, created_at
+       FROM race_events
+       ORDER BY timeline_epoch, sequence, event_order, event_id`,
+    );
+    const migrated: Array<Record<string, unknown>> = eventRows.rows.map((row) => ({
+      ...(row as Record<string, unknown>),
+      payload: JSON.parse(String(row.payload)),
+    }));
+    expect(migrated.map((event) => event.event_id)).toEqual([
+      "pit-event:31",
+      "pit-event:31:fuel-service",
+      "pit-event:31:tire-service",
+      "position-event:32",
+    ]);
+    expect(migrated[0]).toMatchObject({
+      event_type: "pit_entry",
+      session_id: 1,
+      participant_id: "local-player",
+      timeline_epoch: 0,
+      sequence: 4,
+      event_order: 50,
+      source_time_ms: 700250,
+      source_end_time_ms: 700250,
+      lap_id: 11,
+      evidence_kind: "derived",
+      confidence: "unknown",
+      quality_state: "ambiguous",
+      source_kind: "native-live",
+      payload: { previousState: "unknown", state: "pit-lane" },
+      lifecycle_id: "legacy:pit-visit:31",
+      linked_event_id: null,
+      detector_id: "legacy-race-result",
+      detector_version: "legacy-v1",
+      source_generation: "legacy",
+      content_hash: null,
+      created_at: "2026-01-02T03:04:05.000Z",
+    });
+    expect(migrated[1]).toMatchObject({
+      event_type: "fuel_service_observed",
+      event_order: 60,
+      linked_event_id: "pit-event:31",
+      payload: { beforeLitres: 10, afterLitres: 22.5, addedLitres: 12.5 },
+    });
+    expect(migrated[2]).toMatchObject({
+      event_type: "tire_service_observed",
+      event_order: 60,
+      linked_event_id: "pit-event:31",
+      payload: {
+        changedCorners: [],
+        previousCompound: "soft",
+        currentCompound: "medium",
+        beforeWear: null,
+        afterWear: null,
+      },
+    });
+    expect(migrated[3]).toMatchObject({
+      event_type: "position_changed",
+      event_order: 20,
+      lifecycle_id: null,
+      payload: { previousPosition: 8, position: 5 },
+    });
+
+    const resultRow = (
+      await client.execute("SELECT event_ids FROM session_results WHERE id = 21")
+    ).rows[0]!;
+    expect(JSON.parse(String(resultRow.event_ids))).toEqual([
+      "pit-event:31",
+      "pit-event:31:fuel-service",
+      "pit-event:31:tire-service",
+      "position-event:32",
+    ]);
+
+    await client.execute("DELETE FROM laps WHERE id = 11");
+    const lapLinks = await client.execute(
+      "SELECT event_id, lap_id FROM race_events WHERE event_id LIKE 'pit-event:31%' ORDER BY event_id",
+    );
+    expect(lapLinks.rows.every((row) => row.lap_id === null)).toBe(true);
+
+    await client.execute("DELETE FROM race_events WHERE event_id = 'pit-event:31'");
+    const selfLinks = await client.execute(
+      "SELECT linked_event_id FROM race_events WHERE event_id LIKE 'pit-event:31:%'",
+    );
+    expect(selfLinks.rows.every((row) => row.linked_event_id === null)).toBe(true);
+
+    await client.execute("DELETE FROM sessions WHERE id = 1");
+    const remaining = await client.execute("SELECT count(*) AS count FROM race_events");
+    expect(Number(remaining.rows[0]!.count)).toBe(0);
+    client.close();
+  });
+
   test("v58 normalizes pre-existing null and invalid ownership values", async () => {
     const client = newClient();
     await bootstrap(client);

@@ -5,7 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { GameId } from "../../shared/games/ids";
 import type { RaceResultAggregate } from "../../shared/racing/results/types";
 import { db } from "../db";
-import { pitEvents, sessionResults, sessions } from "../db/schema";
+import { raceEvents, sessionResults, sessions } from "../db/schema";
 
 // Results are materialized when a session completes or through explicit
 // backfill. Read endpoints never derive incomplete live sessions.
@@ -94,11 +94,10 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
     .where(and(...filters))
     .all();
   const [pit] = await db
-    .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
-    .from(pitEvents)
-    .innerJoin(sessionResults, eq(pitEvents.resultId, sessionResults.id))
-    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
-    .where(and(...filters))
+    .select({ duration: sql<number | null>`sum(json_extract(${raceEvents.payload}, '$.durationMs')) / 1000.0` })
+    .from(raceEvents)
+    .innerJoin(sessions, eq(raceEvents.sessionId, sessions.id))
+    .where(and(...filters, eq(raceEvents.eventType, "pit_service_completed")))
     .all();
   const sessionRows = await db
     .select({ id: sessions.id })

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { RaceEventsAppendedMessageSchema, RaceEventsReplacedMessageSchema } from "@shared/racing/events/contracts";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
@@ -29,6 +30,7 @@ export function useWebSocket() {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const versionRequestControllerRef = useRef<AbortController | null>(null);
   const versionRequestTimeoutRef = useRef<number | undefined>(undefined);
+  const hasOpenedRef = useRef(false);
 
   useEffect(() => {
     const abortVersionRequest = () => {
@@ -78,6 +80,10 @@ export function useWebSocket() {
       ws.onopen = () => {
         store.setConnected(true);
         startVersionRequest();
+        if (hasOpenedRef.current) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.sessionEventTimelines, refetchType: "active" });
+        }
+        hasOpenedRef.current = true;
         if (useDevTelemetryStore.getState().subscriptionWanted) {
           ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
         }
@@ -86,7 +92,15 @@ export function useWebSocket() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "status") {
+          const raceEventMessage =
+            data.type === "race-events-appended" ? RaceEventsAppendedMessageSchema.safeParse(data) : data.type === "race-events-replaced" ? RaceEventsReplacedMessageSchema.safeParse(data) : null;
+          if (raceEventMessage) {
+            if (raceEventMessage.success) {
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.sessionEvents(raceEventMessage.data.sessionId),
+              });
+            }
+          } else if (data.type === "status") {
             const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
             useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
@@ -108,16 +122,18 @@ export function useWebSocket() {
             useTelemetryStore.getState().setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           } else if (data.type === "race-result-reconciled") {
             const store = useTelemetryStore.getState();
-            const done = data.done as number;
-            const total = data.total as number;
-            const failedNow = data.status === "error";
-            const failedEarlier = done > 1 && store.raceResultReprocessError != null;
-            if (done === 1) store.setRaceResultReprocessError(null);
-            store.setRaceResultReprocessProgress({ done, total });
-            if (failedNow) store.setRaceResultReprocessError(RACE_RESULT_REPROCESS_ERROR);
-            if (done === total) {
-              if (!failedEarlier && !failedNow) store.setStaleRaceResults(null);
-              store.setRaceResultReprocessProgress(null);
+            if (typeof data.done === "number" && typeof data.total === "number") {
+              const done = data.done;
+              const total = data.total;
+              const failedNow = data.status === "error";
+              const failedEarlier = done > 1 && store.raceResultReprocessError != null;
+              if (done === 1) store.setRaceResultReprocessError(null);
+              store.setRaceResultReprocessProgress({ done, total });
+              if (failedNow) store.setRaceResultReprocessError(RACE_RESULT_REPROCESS_ERROR);
+              if (done === total) {
+                if (!failedEarlier && !failedNow) store.setStaleRaceResults(null);
+                store.setRaceResultReprocessProgress(null);
+              }
             }
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessionResults });

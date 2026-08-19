@@ -1,21 +1,43 @@
-/**
- * Session reprocessing: replay raw .bin frames through the current lap detector
- * to update lap boundaries after a lap detection algorithm change.
- */
-import { getServerGame } from "../games/registry";
-import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
-import type { GameId } from "../../shared/games/ids";
-import { gunzipBuffer, iterateSessionFrameRecords, readFrameStreamStart } from "./framing";
-import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
-import { updateSessionQuality, updateSessionRawFile } from "../db/session-queries";
-import { db } from "../db/index";
-import { sessions } from "../db/schema";
+/** Deterministic, atomic raw-session rebuild. */
 import { eq } from "drizzle-orm";
-import { LOCAL_PLAYER_EVIDENCE, type EvidenceSourceKind } from "../../shared/racing/quality/contracts";
-import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
-import { sha256ContentHash } from "./identity";
+import type { GameId } from "../../shared/games/ids";
+import {
+  RaceEventsReplacedMessageSchema,
+} from "../../shared/racing/events/contracts";
+import {
+  LOCAL_PLAYER_EVIDENCE,
+  type EvidenceSourceKind,
+  type SourceLifecycleEvidence,
+} from "../../shared/racing/quality/contracts";
+import { db } from "../db";
+import { getLapsForSession } from "../db/lap-reprocessing-queries";
+import { cacheDelete } from "../db/telemetry-replay-storage";
+import {
+  replaceReplayableRaceEvents,
+  type RaceEventResultProjection,
+  type ReplayableLapReplacement,
+} from "../db/race-event-queries";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
+import { sessions } from "../db/schema";
+import {
+  updateSessionQuality,
+  updateSessionRawFile,
+} from "../db/session-queries";
+import { extractRaceSource } from "../race-results/source";
+import { deriveRaceResult, normalizeSessionType } from "../race-results/derive";
+import { rebuildRaceEventTimeline } from "../race-events/rebuild";
+import { wsManager } from "../runtime/websocket-manager";
+import {
+  gunzipBuffer,
+  iterateSessionFrameRecords,
+  readFrameStreamStart,
+} from "./framing";
+import {
+  rawCaptureObjectId,
+  sha256ContentHash,
+} from "./identity";
 import { mergeReprocessedRecordingQuality } from "./reprocess-quality";
+import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 
 interface ReprocessResult {
   sessionId: number;
@@ -38,15 +60,122 @@ export class SessionNotFoundError extends Error {
   }
 }
 
-/**
- * Replay a session's raw .bin file through the current lap detector.
- * Updates lap frame indexes and metadata in the DB.
- */
+function retainedLifecycleEvidence(
+  quality: (typeof sessions.$inferSelect)["recordingQuality"],
+): SourceLifecycleEvidence[] {
+  if (!quality) return [];
+  const evidence: SourceLifecycleEvidence[] = [];
+  for (const fact of quality.facts) {
+    const kind = fact.code === "source_reconnect"
+      ? "reconnect"
+      : fact.code === "timeline_discontinuity"
+        ? "timeout"
+        : null;
+    const timestampMs = fact.timeRange?.startMs;
+    if (!kind || timestampMs == null) continue;
+    evidence.push({
+      kind,
+      timestampMs,
+      ...(fact.eventIds[0] ? { eventId: fact.eventIds[0] } : {}),
+      ...(typeof fact.details?.details === "string" ? { details: fact.details.details } : {}),
+    });
+  }
+  return evidence;
+}
+
+function replacementLaps(
+  detected: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>["laps"],
+  existing: Awaited<ReturnType<typeof getLapsForSession>>,
+): ReplayableLapReplacement[] {
+  const candidates = new Map<number, typeof existing>();
+  for (const lap of existing) {
+    const values = candidates.get(lap.lapNumber);
+    if (values) values.push(lap);
+    else candidates.set(lap.lapNumber, [lap]);
+  }
+  return detected.map((lap) => {
+    const values = candidates.get(lap.lapNumber) ?? [];
+    const exact = values.findIndex((candidate) => candidate.rawByteOffset === lap.rawByteOffset);
+    const preserved = values.splice(exact >= 0 ? exact : 0, 1)[0];
+    return {
+      lapNumber: lap.lapNumber,
+      lapTime: lap.lapTime,
+      isValid: lap.isValid,
+      phase: lap.phase,
+      conditions: lap.conditions,
+      paceEligibility: lap.paceEligibility,
+      invalidReason: lap.invalidReason,
+      notes: preserved?.notes ?? null,
+      profileId: lap.profileId,
+      tuneId: preserved?.tuneId ?? lap.tuneId,
+      sectorTimes: lap.sectors,
+      rawByteOffset: lap.rawByteOffset,
+      rawFrameCount: lap.rawFrameCount,
+      ...(lap.versionIdentity ?? {}),
+      quality: lap.quality,
+      eligibility: lap.eligibility,
+      qualitySchemaVersion: lap.quality?.provenance.schemaVersion ?? null,
+      qualityPolicyVersion: lap.quality?.provenance.policyVersion ?? null,
+      qualityConfigVersion: lap.quality?.provenance.configurationVersion ?? null,
+      qualityGeneration: lap.quality?.provenance.outputGeneration ?? null,
+    };
+  });
+}
+
+function resultProjection(
+  sessionId: number,
+  gameId: GameId,
+  sessionType: string | null,
+  rebuilt: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>,
+  rawContentHash: string,
+): RaceEventResultProjection {
+  const source = extractRaceSource(gameId, rebuilt.packets);
+  if (sessionType) {
+    if (!source.sessionType) {
+      source.sessionType = sessionType;
+      source.evidence.fieldStatus.sessionType = "direct";
+    } else if (normalizeSessionType(sessionType) !== normalizeSessionType(source.sessionType)) {
+      source.evidence.conflicts.push(`session-type:session-row=${sessionType}|telemetry=${source.sessionType}`);
+    }
+  }
+  const derived = deriveRaceResult(source, rebuilt.events);
+  derived.provenance = {
+    ...derived.provenance,
+    rawInput: { objectId: rawCaptureObjectId(sessionId), contentHash: rawContentHash },
+    canonicalInput: rebuilt.packets.length === 0 ? null : {
+      sessionId: String(sessionId),
+      firstSequence: 0,
+      lastSequence: rebuilt.packets.length - 1,
+      contentHash: sha256ContentHash(
+        Buffer.from(rebuilt.packets.map((packet) => JSON.stringify(packet)).join("\n")),
+      ),
+    },
+  };
+  return {
+    processorVersion: "race-result-v4",
+    sessionType: derived.sessionType,
+    classification: derived.classification,
+    outcomeStatus: derived.outcomeStatus,
+    finishingPosition: derived.finishingPosition,
+    qualifyingPosition: derived.qualifyingPosition,
+    isPodium: derived.isPodium,
+    isFastestLap: derived.isFastestLap,
+    pitCount: derived.pitCount,
+    eventIds: derived.eventIds,
+    tyreStrategy: derived.tyreStrategy,
+    fuelStrategy: derived.fuelStrategy,
+    provenance: derived.provenance,
+    evidence: derived.evidence,
+    reasons: derived.reasons,
+  };
+}
+
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
   const session = await db
     .select({
       rawFile: sessions.rawFile,
       gameId: sessions.gameId,
+      sessionType: sessions.sessionType,
       source: sessions.source,
       recordingQuality: sessions.recordingQuality,
       sourceChannelProfile: sessions.sourceChannelProfile,
@@ -54,158 +183,85 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .get();
+  if (!session) throw new SessionNotFoundError(sessionId);
+  if (!session.rawFile) throw new SessionRawFileMissingError(sessionId);
 
-  if (!session) {
-    throw new SessionNotFoundError(sessionId);
-  }
-  if (!session.rawFile) {
-    throw new SessionRawFileMissingError(sessionId);
-  }
-
+  const file = Bun.file(session.rawFile);
+  if (!(await file.exists())) throw new SessionRawFileMissingError(sessionId, session.rawFile);
+  const stored = Buffer.from(await file.arrayBuffer());
+  const bytes = session.rawFile.endsWith(".gz") ? await gunzipBuffer(stored) : stored;
+  const frameStreamStart = readFrameStreamStart(bytes);
   const gameId = session.gameId as GameId;
-  const serverGame = getServerGame(gameId);
-  const versionIdentity = currentTelemetryVersionIdentity(gameId);
   const sourceKind = (session.source as EvidenceSourceKind | null) ?? "unknown";
-  const participant = session.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE;
-  const recordingQuality = new RecordingQualityAccumulator(sourceKind, participant, versionIdentity);
-
-  // Read the raw session file
-  const rawFileHandle = Bun.file(session.rawFile);
-  if (!(await rawFileHandle.exists())) {
-    throw new SessionRawFileMissingError(sessionId, session.rawFile);
-  }
-  const rawBuffer = Buffer.from(await rawFileHandle.arrayBuffer());
-  // Decompress if file is gzipped
-  const buf = session.rawFile.endsWith(".gz") ? await gunzipBuffer(rawBuffer) : rawBuffer;
-
-  const frameStreamStart = readFrameStreamStart(buf);
-
-  // Replay all frames through a capturing lap detector
-  const capturingDb = new CapturingDbAdapter();
-  const detector = serverGame.createLapDetector({
-    db: capturingDb,
-    bypassPacketRateFilter: true,
-    sourceKind,
-    participant,
-    sourceChannelProfile: session.sourceChannelProfile ?? undefined,
-    versionIdentity,
-  });
-  const parserState = serverGame.createParserState?.() ?? null;
-
-  for (const { offset, frame } of iterateSessionFrameRecords(buf, frameStreamStart, {
-    skipMetaFrames: true,
-    allowEmptyFrames: false,
-    strict: true,
-    validateDeclaredFrameCount: true,
-  })) {
-    const packet = serverGame.tryParse(frame, parserState);
-    if (packet) {
-      recordingQuality.observe(packet);
-      await detector.feed(packet, offset);
-    }
-  }
-
-  await detector.flushIncompleteLap?.();
-
-  const detectedLaps = capturingDb.laps;
-  const existingLaps = await getLapsForSession(sessionId);
-
-  let strategy: "in-place" | "replace";
-  let lapsUpdated = 0;
-
-  if (detectedLaps.length === existingLaps.length) {
-    // Same count — update frame indexes and metadata in-place, matched by lap number
-    strategy = "in-place";
-    const existingByLapNum = new Map(existingLaps.map((l) => [l.lapNumber, l]));
-    for (const detected of detectedLaps) {
-      const existing = existingByLapNum.get(detected.lapNumber);
-      if (!existing) continue;
-      const sectors = detected.sectors ? [...detected.sectors] : null;
-      await updateLapRawIndex({
-        lapId: existing.id,
-        rawByteOffset: detected.rawByteOffset,
-        rawFrameCount: detected.rawFrameCount,
-        lapTime: detected.lapTime,
-        isValid: detected.isValid,
-        invalidReason: detected.invalidReason,
-        sectors,
-        classification: {
-          phase: detected.phase,
-          conditions: detected.conditions,
-          paceEligibility: detected.paceEligibility,
-        },
-        quality: detected.quality!,
-        eligibility: detected.eligibility!,
-        versionIdentity,
-      });
-      lapsUpdated++;
-    }
-  } else {
-    // Count changed — rebuild detected laps. Match old rows by lap number and
-    // raw offset so notes and tune links survive on detected replacements.
-    // Existing rows without a detected replacement are removed.
-    strategy = "replace";
-    const candidatesByLapNumber = new Map<number, (typeof existingLaps)[number][]>();
-    for (const existing of existingLaps) {
-      const candidates = candidatesByLapNumber.get(existing.lapNumber);
-      if (candidates) candidates.push(existing);
-      else candidatesByLapNumber.set(existing.lapNumber, [existing]);
-    }
-    const replacements = detectedLaps.map((detected) => {
-      const candidates = candidatesByLapNumber.get(detected.lapNumber) ?? [];
-      const exactIndex = candidates.findIndex((candidate) => candidate.rawByteOffset === detected.rawByteOffset);
-      const candidateIndex = exactIndex >= 0 ? exactIndex : 0;
-      const preserved = candidates.length > 0 ? candidates.splice(candidateIndex, 1)[0] : undefined;
-      return { detected, preserved };
-    });
-    await deleteLapsForSession(sessionId);
-    for (const { detected, preserved } of replacements) {
-      const sectors = detected.sectors ? [...detected.sectors] : null;
-      await insertReprocessedLap({
-        sessionId,
-        lapNumber: detected.lapNumber,
-        lapTime: detected.lapTime,
-        isValid: detected.isValid,
-        rawByteOffset: detected.rawByteOffset,
-        rawFrameCount: detected.rawFrameCount,
-        tuneId: preserved?.tuneId ?? null,
-        notes: preserved?.notes ?? null,
-        invalidReason: detected.invalidReason,
-        sectors,
-        classification: {
-          phase: detected.phase,
-          conditions: detected.conditions,
-          paceEligibility: detected.paceEligibility,
-        },
-        quality: detected.quality!,
-        eligibility: detected.eligibility!,
-        versionIdentity,
-      });
-      lapsUpdated++;
-    }
-  }
-
-  // Update session lap detector version
-  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
+  const versionIdentity = currentTelemetryVersionIdentity(gameId);
+  const rawContentHash = sha256ContentHash(bytes);
   const sourceVerification = session.recordingQuality?.archiveVerification ?? {
     state: "unknown" as const,
     sourceGeneration: "legacy",
     details: "Original source verification is unavailable",
   };
-  const recomputedQuality = recordingQuality.finalize("reprocessed", sourceVerification, {
-    transportVerification: session.recordingQuality?.transportVerification,
-    canonicalVerification: {
-      state: "verified",
-      sourceGeneration: sha256ContentHash(buf),
-    },
+  const frames = (function* () {
+    for (const { offset, frame } of iterateSessionFrameRecords(bytes, frameStreamStart, {
+      skipMetaFrames: true,
+      allowEmptyFrames: false,
+      strict: true,
+      validateDeclaredFrameCount: true,
+    })) {
+      yield { frame, rawByteOffset: offset };
+    }
+  })();
+  const rebuilt = await rebuildRaceEventTimeline({
+    sessionId,
+    gameId,
+    frames,
+    sourceKind,
+    participant: session.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE,
+    versionIdentity,
+    ...(session.sourceChannelProfile
+      ? { sourceChannelProfile: session.sourceChannelProfile }
+      : {}),
+    sourceVerification,
+    ...(session.recordingQuality?.transportVerification
+      ? { transportVerification: session.recordingQuality.transportVerification }
+      : {}),
+    canonicalVerification: { state: "verified", sourceGeneration: rawContentHash },
+    sourceLifecycle: retainedLifecycleEvidence(session.recordingQuality),
   });
-  await updateSessionQuality(sessionId, mergeReprocessedRecordingQuality(session.recordingQuality, recomputedQuality));
-  await linkSessionQualityEvents(sessionId);
+  const existingLaps = await getLapsForSession(sessionId);
+  const laps = replacementLaps(rebuilt.laps, existingLaps);
+  const strategy = rebuilt.laps.length === existingLaps.length ? "in-place" as const : "replace" as const;
+  const mergedQuality = mergeReprocessedRecordingQuality(
+    session.recordingQuality,
+    rebuilt.recordingQuality,
+  );
+  const result = resultProjection(sessionId, gameId, session.sessionType, rebuilt, rawContentHash);
+  let qualityGeneration = mergedQuality.provenance.outputGeneration;
 
+  await db.transaction(async (tx) => {
+    await replaceReplayableRaceEvents({ sessionId, events: rebuilt.events, laps, result }, tx);
+    await updateSessionRawFile(sessionId, session.rawFile!, rebuilt.detectorId, versionIdentity, tx);
+    qualityGeneration = (await updateSessionQuality(sessionId, mergedQuality, tx)).provenance.outputGeneration;
+    await linkSessionQualityEvents(sessionId, tx);
+  });
+  for (const lap of existingLaps) cacheDelete(lap.id);
+
+  wsManager.broadcastNotification(
+    RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
+  );
+  wsManager.broadcastNotification({
+    type: "race-result-reconciled",
+    sessionId,
+    status: result.outcomeStatus === "confirmed" ? "enriched" : "ambiguous",
+  });
+  wsManager.broadcastNotification({
+    type: "quality-updated",
+    sessionId,
+    qualityGeneration,
+  });
   return {
     sessionId,
-    lapsDetected: detectedLaps.length,
-    lapsUpdated,
+    lapsDetected: rebuilt.laps.length,
+    lapsUpdated: rebuilt.laps.length,
     strategy,
   };
 }

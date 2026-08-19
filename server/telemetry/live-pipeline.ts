@@ -2,6 +2,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { RaceEvent } from "../../shared/racing/events/contracts";
 import { isEligibilityUsable } from "../../shared/racing/quality/policies";
 import {
   LOCAL_PLAYER_EVIDENCE,
@@ -14,10 +15,20 @@ import {
   type SourceLifecycleEvidence,
 } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
+import { SourceSequenceTracker } from "../../shared/telemetry/source-sequence";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, currentTelemetryVersionIdentity, RealDbAdapter, RealSessionRecorderAdapter } from "./pipeline-ports";
+import {
+  type DbAdapter,
+  type RaceEventPublisher,
+  type WsAdapter,
+  type SessionRecorderAdapter,
+  currentTelemetryVersionIdentity,
+  RealDbAdapter,
+  RealSessionRecorderAdapter,
+  WsRaceEventPublisher,
+} from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
-import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
+import type { ILapDetector, LapDetectorCallbacks, SessionEndReason } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
 import { feedCalibrationPosition } from "../tracks/calibration";
@@ -31,6 +42,16 @@ import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
+import { RaceEventCoordinator } from "../race-events/coordinator";
+import type { RaceEventPreflightResult } from "../race-events/types";
+import {
+  compareRaceEvents,
+  DatabaseRaceEventStore,
+  MemoryRaceEventStore,
+  type RaceEventLapLink,
+  type RaceEventStore,
+} from "../race-events/store";
+import type { SessionBoundaryReason } from "../lap-detection/boundaries";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 export function resolveLapIssueEligibility(eligibility: EligibilityDecisionSet): EligibilityDecision {
@@ -75,6 +96,9 @@ export class LiveTelemetryPipeline {
   private db: DbAdapter;
   private ws: WsAdapter;
   private recorder: SessionRecorderAdapter;
+  private readonly raceEvents: RaceEventCoordinator;
+  private readonly raceEventStore: RaceEventStore;
+  private readonly raceEventPublisher: RaceEventPublisher;
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
@@ -100,6 +124,14 @@ export class LiveTelemetryPipeline {
   private _captureOperationQueue = Promise.resolve();
   private readonly _sessionFinalizations = new Map<number, Promise<void>>();
   private readonly _sessionFinalizationFailures: unknown[] = [];
+  private _timelineSourceSequence = new SourceSequenceTracker();
+  private _pendingTimelinePreflight: RaceEventPreflightResult | null = null;
+  private _timelineEventsStaged = false;
+  private readonly _stagedTimelineEvents: RaceEvent[] = [];
+  private readonly _stagedTimelineLapLinks: RaceEventLapLink[] = [];
+  private readonly _stagedLapSavedActions: Array<() => Promise<void>> = [];
+  private readonly _deferredSessionFinalizations: ClosedRecordingSession[] = [];
+  private _lastTimelinePacket: TelemetryPacket | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -121,6 +153,10 @@ export class LiveTelemetryPipeline {
         return;
       }
       this._recordingQuality?.noteSourceLifecycle(event);
+      if (event.kind === "reconnect") this._timelineSourceSequence.markDiscontinuity();
+      await this._persistTimelineEvents(
+        this.raceEvents.noteSourceLifecycle(event, source?.sessionId),
+      );
     });
   }
 
@@ -149,6 +185,9 @@ export class LiveTelemetryPipeline {
       sourceTransportVerification?: ArchiveVerification;
       versionIdentity?: TelemetryVersionIdentity;
       sourceChannelProfile?: SourceChannelProfile;
+      raceEventCoordinator?: RaceEventCoordinator;
+      raceEventStore?: RaceEventStore;
+      raceEventPublisher?: RaceEventPublisher;
     },
   ) {
     this.db = db;
@@ -164,6 +203,11 @@ export class LiveTelemetryPipeline {
     this._sourceChannelProfile = options?.sourceChannelProfile;
     this._sourceArchiveVerification = options?.sourceArchiveVerification;
     this._sourceTransportVerification = options?.sourceTransportVerification;
+    this.raceEvents = options?.raceEventCoordinator ?? new RaceEventCoordinator({
+      sourceKind: this._sourceKind,
+    });
+    this.raceEventStore = options?.raceEventStore ?? new MemoryRaceEventStore();
+    this.raceEventPublisher = options?.raceEventPublisher ?? new WsRaceEventPublisher(ws);
   }
 
   private _enqueueCaptureOperation<T>(operation: () => Promise<T>): Promise<T> {
@@ -173,6 +217,91 @@ export class LiveTelemetryPipeline {
       release = resolve;
     });
     return previous.then(operation).finally(release);
+  }
+
+  private async _persistTimelineEvents(
+    events: readonly RaceEvent[],
+    lapLinks: readonly RaceEventLapLink[] = [],
+  ): Promise<RaceEvent[]> {
+    if (events.length === 0) return [];
+    const ordered = [...events].sort(compareRaceEvents);
+    let inserted: RaceEvent[];
+    try {
+      inserted = lapLinks.length > 0
+        ? await this.raceEventStore.appendWithLapLinks(ordered, lapLinks)
+        : await this.raceEventStore.append(ordered);
+    } catch (error) {
+      const diagnostic = this.raceEvents.noteStorageFailure({
+        kind: "failure",
+        operation: "append-race-events",
+        details: error instanceof Error ? error.message : String(error),
+      });
+      if (diagnostic.length > 0) {
+        try {
+          const persistedDiagnostic = await this.raceEventStore.append(diagnostic);
+          for (const event of persistedDiagnostic) {
+            this.raceEventPublisher.publishAppended(event.sessionId, [event]);
+          }
+        } catch {
+          // Preserve the original persistence failure.
+        }
+      }
+      throw new Error(
+        `Failed to persist race events: ${ordered.map(({ eventType }) => eventType).join(", ")}`,
+        { cause: error },
+      );
+    }
+    const bySession = new Map<number, RaceEvent[]>();
+    for (const event of inserted) {
+      const values = bySession.get(event.sessionId);
+      if (values) values.push(event);
+      else bySession.set(event.sessionId, [event]);
+    }
+    for (const [sessionId, values] of bySession) {
+      this.raceEventPublisher.publishAppended(sessionId, values);
+    }
+    return inserted;
+  }
+
+  private async _emitTimelineEvents(events: readonly RaceEvent[]): Promise<void> {
+    if (events.length === 0) return;
+    if (this._timelineEventsStaged) {
+      this._stagedTimelineEvents.push(...events);
+      return;
+    }
+    await this._persistTimelineEvents(events);
+  }
+
+  private _timelineSessionBoundary(packet: TelemetryPacket): {
+    sessionBoundaryReason?: SessionBoundaryReason;
+    lapReset?: boolean;
+    resetReason?: string;
+  } {
+    const session = this._lapDetector?.session;
+    const previous = this._lastTimelinePacket;
+    if (!session) return {};
+    if (packet.gameId !== session.gameId) {
+      return { sessionBoundaryReason: "car-changed", resetReason: "game-changed" };
+    }
+    if (packet.sessionUID && session.sessionUID && packet.sessionUID !== session.sessionUID) {
+      return { sessionBoundaryReason: "session-uid-changed" };
+    }
+    if (packet.CarOrdinal !== session.carOrdinal) return { sessionBoundaryReason: "car-changed" };
+    if (packet.TrackOrdinal && packet.TrackOrdinal !== session.trackOrdinal) {
+      return { sessionBoundaryReason: "track-changed" };
+    }
+    if (previous && previous.LapNumber > 1 && packet.LapNumber === 1) {
+      return { sessionBoundaryReason: "lap-number-reset", lapReset: true };
+    }
+    if (
+      previous &&
+      !session.sessionUID &&
+      previous.DistanceTraveled > 1_000 &&
+      packet.DistanceTraveled < 500
+    ) {
+      return { sessionBoundaryReason: "distance-reset", lapReset: true };
+    }
+    return {};
   }
 
   private _lapIssueKey(sessionId: number, lapNumber: number): string {
@@ -248,6 +377,14 @@ export class LiveTelemetryPipeline {
     await this._lapReconciliations.get(sessionId);
   }
 
+  private _publishRaceResultInvalidation(sessionId: number): void {
+    this.ws.broadcastNotification({
+      type: "race-result-reconciled",
+      sessionId,
+      status: "updated",
+    });
+  }
+
   private _reconcileRecordedSession(session: { sessionId: number; gameId: GameId }): Promise<void> {
     if (this._finalizedResultSessions.has(session.sessionId)) {
       return Promise.resolve();
@@ -256,7 +393,10 @@ export class LiveTelemetryPipeline {
     if (pending) return pending;
     const finalization = (async () => {
       await this._drainLapReconciliations(session.sessionId);
-      await this._onSessionFinalized?.(session.sessionId, session.gameId);
+      if (this._onSessionFinalized) {
+        await this._onSessionFinalized(session.sessionId, session.gameId);
+        this._publishRaceResultInvalidation(session.sessionId);
+      }
       this._finalizedResultSessions.add(session.sessionId);
     })();
     this._resultFinalizations.set(session.sessionId, finalization);
@@ -274,6 +414,9 @@ export class LiveTelemetryPipeline {
     if (this._recordingSession?.sessionId !== session.sessionId) return null;
 
     const qualityAccumulator = this._recordingQuality;
+    await this._persistTimelineEvents(
+      this.raceEvents.noteSourceSequenceFinalized(this._timelineSourceSequence.finalize()),
+    );
     this._recordingSession = null;
     this._recordingQuality = null;
 
@@ -282,11 +425,27 @@ export class LiveTelemetryPipeline {
       canonicalVerification = await this.recorder.stop();
     } catch (error) {
       qualityAccumulator?.noteWriterFailure(error);
+      await this._persistTimelineEvents(
+        this.raceEvents.noteStorageFailure({
+          kind: "failure",
+          operation: "stop-session-recorder",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+      );
       canonicalVerification = {
         state: "corrupt" as const,
         sourceGeneration: null,
         details: error instanceof Error ? error.message : String(error),
       };
+    }
+    if (canonicalVerification.state === "corrupt" || canonicalVerification.state === "truncated") {
+      await this._persistTimelineEvents(
+        this.raceEvents.noteStorageFailure({
+          kind: "failure",
+          operation: "verify-session-recorder",
+          details: canonicalVerification.details ?? canonicalVerification.state,
+        }),
+      );
     }
     const hasOriginalSourceVerification = this._sourceArchiveVerification !== undefined;
     return {
@@ -310,12 +469,21 @@ export class LiveTelemetryPipeline {
         canonicalVerification: closed.canonicalVerification,
       });
       const finalized = await this.db.updateSessionQuality(closed.session.sessionId, summary);
+      await this.raceEventStore.refreshQualityLinks(closed.session.sessionId);
+      if (!finalized.provenance.sourceGeneration.startsWith("provisional:")) {
+        await this.raceEventStore.finalizeSourceGeneration(
+          closed.session.sessionId,
+          finalized.provenance.sourceGeneration,
+        );
+      }
       await this._refreshFinalizedSessionLaps(closed.session.sessionId, closed.session.gameId);
+      await this._reconcileRecordedSession(closed.session);
       this.ws.broadcastNotification({
         type: "quality-updated",
         sessionId: closed.session.sessionId,
         qualityGeneration: finalized.provenance.outputGeneration,
       });
+      return;
     }
     await this._reconcileRecordedSession(closed.session);
   }
@@ -335,7 +503,7 @@ export class LiveTelemetryPipeline {
 
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
-      onSessionStart: async (session) => {
+      onSessionStart: async (session, context) => {
         const closedPrevious = await withSessionCaptureMaintenanceLock(async () => {
           const previousSession = this._recordingSession;
           const closed = previousSession ? await this._closeRecordedSession(previousSession) : (await this.recorder.stop(), null);
@@ -354,6 +522,20 @@ export class LiveTelemetryPipeline {
           return closed;
         });
 
+        if (closedPrevious) {
+          this._timelineSourceSequence = new SourceSequenceTracker();
+          this._timelineSourceSequence.observe(context.packet);
+        }
+        const observation =
+          this._pendingTimelinePreflight?.observation ??
+          getServerGame(session.gameId).toRaceEventObservation(context.packet, {
+            receivedAtMs: Date.now(),
+          });
+        this.raceEvents.bindSession(session.sessionId, {
+          reason: context.reason,
+          observation,
+        });
+
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
         const adapter = getServerGame(session.gameId);
@@ -367,11 +549,32 @@ export class LiveTelemetryPipeline {
         this._broadcastSessionLaps();
 
         if (closedPrevious) {
-          this._trackSessionFinalization(closedPrevious, "session-rotated");
+          this._deferredSessionFinalizations.push(closedPrevious);
         }
       },
 
-      onLapEvaluated: (event, context) => {
+      onSessionEnd: async (_session, context) => {
+        await this._emitTimelineEvents(this.raceEvents.endSession(context));
+      },
+
+      onLapEvaluated: async (event, context) => {
+        const lastPacket = event.packets.at(-1);
+        await this._emitTimelineEvents(
+          this.raceEvents.noteLapEvaluated({
+            lapNumber: context.lapNumber,
+            lapTimeMs: Number.isFinite(event.lapTime) ? event.lapTime * 1_000 : null,
+            isValid: event.isValid,
+            phase: event.phase,
+            conditions: event.conditions,
+            invalidReason: event.quality.invalidReason,
+            sectors: event.sectors,
+            position:
+              lastPacket && Number.isInteger(lastPacket.RacePosition) && lastPacket.RacePosition > 0
+                ? lastPacket.RacePosition
+                : null,
+            rawBoundaryOrdinal: event.packets.length,
+          }),
+        );
         this.pitTracker.acceptCompletedLap(event.eligibility);
         if (isEligibilityUsable(event.eligibility["tire-analysis"]) && getServerGame(context.session.gameId).runtime.pit.useDistanceBasedWearCurves) {
           this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
@@ -383,7 +586,13 @@ export class LiveTelemetryPipeline {
           try {
             const corners = detectCorners(event.packets);
             const symptoms = telemetryToSymptoms(event.packets, corners);
-            issues = symptomsToIssues(symptoms);
+            issues = symptomsToIssues(symptoms).map((issue) => ({
+              ...issue,
+              eventIds: this.raceEvents.eventIdsForLap(
+                context.session.sessionId,
+                context.lapNumber,
+              ),
+            }));
           } catch {
             issues = null;
           }
@@ -399,30 +608,52 @@ export class LiveTelemetryPipeline {
         }
       },
 
-      onLapSaved: (event, context) => {
+      onLapSaved: async (event, context) => {
         const session = context.session;
-        this._scheduleLapReconciliation(session.sessionId, session.gameId);
-
-        const issueKey = this._lapIssueKey(session.sessionId, context.lapNumber);
-        const pendingIssues = this._pendingLapIssues.get(issueKey);
-        this._pendingLapIssues.delete(issueKey);
-
-        const isActiveSession = this._recordingSession?.sessionId === session.sessionId && this._recordingSession.gameId === session.gameId;
-        if (!isActiveSession) return;
-
-        this.ws.broadcastNotification({ type: "lap-saved", ...event });
-        if (pendingIssues) {
-          const issues = (pendingIssues.issues ?? []).map((issue) => ({ ...issue, lapNumber: event.lapNumber }));
-          this.ws.broadcastNotification({
-            type: "lap-issues",
+        const staged = this._timelineEventsStaged;
+        this.raceEvents.noteLapSaved(context.lapNumber, event.lapId);
+        if (staged) {
+          this._stagedTimelineLapLinks.push({
+            sessionId: session.sessionId,
+            lapNumber: context.lapNumber,
             lapId: event.lapId,
-            lapNumber: event.lapNumber,
-            issues,
-            eligibility: pendingIssues.eligibility,
           });
         }
+        const action = async () => {
+          if (!staged) {
+            await this.raceEventStore.attachLap(session.sessionId, context.lapNumber, event.lapId);
+          }
+          this._scheduleLapReconciliation(session.sessionId, session.gameId);
+          await this._drainLapReconciliations(session.sessionId);
+          if (this._onSessionFinalized) {
+            this._publishRaceResultInvalidation(session.sessionId);
+          }
 
-        this._sessionLaps.push({
+          const issueKey = this._lapIssueKey(session.sessionId, context.lapNumber);
+          const pendingIssues = this._pendingLapIssues.get(issueKey);
+          this._pendingLapIssues.delete(issueKey);
+
+          const isActiveSession = this._recordingSession?.sessionId === session.sessionId && this._recordingSession.gameId === session.gameId;
+          if (!isActiveSession) return;
+
+          this.ws.broadcastNotification({ type: "lap-saved", ...event });
+          if (pendingIssues) {
+            const eventIds = this.raceEvents.eventIdsForLap(session.sessionId, context.lapNumber);
+            const issues = (pendingIssues.issues ?? []).map((issue) => ({
+              ...issue,
+              lapNumber: event.lapNumber,
+              eventIds,
+            }));
+            this.ws.broadcastNotification({
+              type: "lap-issues",
+              lapId: event.lapId,
+              lapNumber: event.lapNumber,
+              issues,
+              eligibility: pendingIssues.eligibility,
+            });
+          }
+
+          this._sessionLaps.push({
           id: event.lapId,
           sessionId: session.sessionId,
           lapNumber: event.lapNumber,
@@ -441,11 +672,17 @@ export class LiveTelemetryPipeline {
           eligibility: event.eligibility,
           qualityGeneration: event.quality.provenance.outputGeneration,
           qualityStale: event.quality.provenance.outputGeneration === "legacy",
-        });
-        if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
-          this._sessionLaps.splice(0, this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
+          });
+          if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
+            this._sessionLaps.splice(0, this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
+          }
+          this._broadcastSessionLaps();
+        };
+        if (this._timelineEventsStaged) {
+          this._stagedLapSavedActions.push(action);
+          return;
         }
-        this._broadcastSessionLaps();
+        await action();
       },
     };
   }
@@ -456,6 +693,12 @@ export class LiveTelemetryPipeline {
       const serverAdapter = getServerGame(gameId);
       this._lapDetector = serverAdapter.createLapDetector({
         db: this.db,
+        lapTimelineContext: {
+          classificationForLap: (sessionId, lapNumber) =>
+            this.raceEvents.classificationForLap(sessionId, lapNumber),
+          eventIdsForLap: (sessionId, lapNumber) =>
+            this.raceEvents.eventIdsForLap(sessionId, lapNumber),
+        },
         bypassPacketRateFilter: this._bypassPacketRateFilter,
         callbacks: this._buildCallbacks(),
         sourceKind: this._sourceKind,
@@ -479,11 +722,11 @@ export class LiveTelemetryPipeline {
   }
 
   /** Finalize detector, durable capture, then authoritative session result. */
-  async finalizeCurrentSession(): Promise<void> {
+  async finalizeCurrentSession(reason: SessionEndReason = "stream-ended"): Promise<void> {
     const result = await this._enqueueCaptureOperation(async () => {
       const session = this._recordingSession;
-      await this._lapDetector?.finalizeCurrentSession?.();
-      return this._finishRecordedSessionCore(session);
+      await this._lapDetector?.finalizeCurrentSession?.(reason);
+      return this._finishRecordedSessionCore(session, reason);
     });
     await this._awaitCaptureFinalization(result);
   }
@@ -544,6 +787,8 @@ export class LiveTelemetryPipeline {
 
   private async _processPacketCore(packet: TelemetryPacket, sourceFrame?: Buffer): Promise<void> {
     this._totalProcessed++;
+    const receivedAtMs = Date.now();
+    let recorderWriteFailure: unknown = null;
 
     // Snapshot byte offset BEFORE writing so it points to this packet's position
     let rawByteOffset: number | undefined;
@@ -555,6 +800,7 @@ export class LiveTelemetryPipeline {
       } catch (error) {
         rawByteOffset = undefined;
         this._recordingQuality?.noteWriterFailure(error);
+        recorderWriteFailure = error;
       }
     }
 
@@ -567,8 +813,36 @@ export class LiveTelemetryPipeline {
     // Normalize coordinates and derived channels using the adapter profile.
     normalizeTelemetryPacket(packet, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
 
+    const sequenceEvidence = this._timelineSourceSequence.observe(packet);
+    const observation = adapter.toRaceEventObservation(packet, { receivedAtMs });
+    const preflight = this.raceEvents.preflight(observation, {
+      ...this._timelineSessionBoundary(packet),
+      sourceSequenceBoundaries: sequenceEvidence.boundaries,
+    });
+    this._pendingTimelinePreflight = preflight;
+    if (!preflight.accepted) {
+      this._recordingQuality?.observe(packet);
+      const rejected = this.raceEvents.processPreflight(preflight);
+      await this._persistTimelineEvents(rejected.events);
+      this._pendingTimelinePreflight = null;
+      return;
+    }
+
     const detector = this._getOrCreateDetector(packet.gameId);
-    await detector.feed(packet, rawByteOffset);
+    this._timelineEventsStaged = true;
+    this._stagedTimelineEvents.length = 0;
+    this._stagedTimelineLapLinks.length = 0;
+    this._stagedLapSavedActions.length = 0;
+    try {
+      await detector.feed(packet, rawByteOffset);
+    } catch (error) {
+      this._timelineEventsStaged = false;
+      this._pendingTimelinePreflight = null;
+      this._stagedTimelineEvents.length = 0;
+      this._stagedTimelineLapLinks.length = 0;
+      this._stagedLapSavedActions.length = 0;
+      throw error;
+    }
 
     // If a new session was created during feed — either the very first
     // session (recorder was null) or a rotation (car-changed, etc.) — the
@@ -582,9 +856,53 @@ export class LiveTelemetryPipeline {
         detector.setCurrentLapByteOffset?.(firstOffset);
       } catch (error) {
         this._recordingQuality?.noteWriterFailure(error);
+        recorderWriteFailure = error;
       }
     }
     this._recordingQuality?.observe(packet);
+    const processed = this.raceEvents.processPreflight(preflight);
+    this._stagedTimelineEvents.push(...processed.events);
+    if (processed.rejectedDrafts.length > 0) {
+      this._stagedTimelineEvents.push(
+        ...this.raceEvents.noteStorageFailure({
+          kind: "failure",
+          operation: "validate-race-event-drafts",
+          details: processed.rejectedDrafts.map(({ eventType, error }) => `${eventType}: ${error}`).join("; "),
+        }),
+      );
+    }
+    if (recorderWriteFailure != null) {
+      this._stagedTimelineEvents.push(
+        ...this.raceEvents.noteStorageFailure({
+          kind: "drop",
+          operation: "write-session-record",
+          details: recorderWriteFailure instanceof Error ? recorderWriteFailure.message : String(recorderWriteFailure),
+        }),
+      );
+    }
+    const timelineSessionId = detector.session?.sessionId ?? this._recordingSession?.sessionId;
+    if (timelineSessionId != null && this._stagedTimelineEvents.length > 0) {
+      await detector.waitForPendingLapWrites?.(timelineSessionId);
+    }
+    let lapSavedActions: Array<() => Promise<void>> = [];
+    try {
+      await this._persistTimelineEvents(
+        this._stagedTimelineEvents,
+        this._stagedTimelineLapLinks,
+      );
+      lapSavedActions = this._stagedLapSavedActions.splice(0);
+    } finally {
+      this._timelineEventsStaged = false;
+      this._pendingTimelinePreflight = null;
+      this._stagedTimelineEvents.length = 0;
+      this._stagedTimelineLapLinks.length = 0;
+    }
+    this._lastTimelinePacket = packet;
+    for (const action of lapSavedActions) await action();
+    const deferredFinalizations = this._deferredSessionFinalizations.splice(0);
+    for (const closed of deferredFinalizations) {
+      await this._trackSessionFinalization(closed, "session-rotated");
+    }
 
     const sectors = this.sectorTracker.feed(packet);
 
@@ -617,7 +935,7 @@ export class LiveTelemetryPipeline {
       sectors,
       pit,
       liveIssues,
-      receivedAtMs: Date.now(),
+      receivedAtMs,
     });
     this.ws.publishTelemetry({ packet, sectors, pit, liveIssues, projection });
 
@@ -656,6 +974,7 @@ const _defaultWs: WsAdapter = {
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };
 const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
+  raceEventStore: new DatabaseRaceEventStore(),
   onSessionFinalized: async (sessionId, gameId) => {
     try {
       await reconcileSessionResult(sessionId, gameId);
@@ -681,8 +1000,8 @@ export const lapDetector = {
   get tireWearHistory() {
     return _default.lapDetector?.tireWearHistory ?? [];
   },
-  async finalizeCurrentSession() {
-    await _default.finalizeCurrentSession();
+  async finalizeCurrentSession(reason: SessionEndReason = "stream-ended") {
+    await _default.finalizeCurrentSession(reason);
   },
 };
 export function noteSourceLifecycle(event: SourceLifecycleEvidence, source?: LiveSourceScope): Promise<void> {

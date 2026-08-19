@@ -11,6 +11,8 @@ export const queryKeys = {
   trackSectorBoundaries: (ord: number) => ["track-sector-boundaries", ord] as const,
   trackOutline: (ord: number) => ["track-outline", ord] as const,
   sessions: ["sessions"] as const,
+  sessionEventTimelines: ["session-events"] as const,
+  sessionEvents: (sessionId: number | null) => ["session-events", sessionId] as const,
   tracks: ["tracks"] as const,
   carName: (ord: number) => ["car-name", ord] as const,
   userTunes: ["user-tunes"] as const,

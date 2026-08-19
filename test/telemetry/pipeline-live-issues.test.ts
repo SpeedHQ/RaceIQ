@@ -119,7 +119,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     pipeline.setLiveIssuesEnabled(true);
     await pipeline.processPacket(pkt());
     pipeline.setLiveIssuesEnabled(false);
-    await pipeline.processPacket(pkt());
+    await pipeline.processPacket(pkt({ TimestampMS: 1_001 }));
     expect(ws.broadcastedPackets[1].liveIssues).toBeUndefined();
   });
 

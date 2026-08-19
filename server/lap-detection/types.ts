@@ -7,6 +7,9 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
 import type { EvidenceSourceKind, ParticipantEvidence, SourceChannelProfile } from "../../shared/racing/quality/contracts";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { RaceEventId } from "../../shared/racing/events/contracts";
+import type { LapTimelineClassificationContext } from "../../shared/racing/laps/classification";
+import type { SessionBoundaryReason } from "./boundaries";
 
 // Re-export all event/state types so callers only need one import point
 export type {
@@ -23,15 +26,49 @@ import type { SessionState, LapEventContext, LapSavedEvent, LapSavedNotification
 
 /** Optional event callbacks available to every detector implementation. */
 export interface LapDetectorCallbacks {
-  onLapSaved?: (event: LapSavedEvent | LapSavedNotification, context: LapEventContext) => void;
-  onSessionStart?: (session: SessionState) => void | Promise<void>;
-  onLapEvaluated?: (event: LapCompleteEvent, context: LapEventContext) => void;
-  onLapComplete?: (event: LapCompleteEvent, context: LapEventContext) => void;
+  onLapSaved?: (event: LapSavedEvent | LapSavedNotification, context: LapEventContext) => void | Promise<void>;
+  onSessionStart?: (session: SessionState, context: SessionStartContext) => void | Promise<void>;
+  onSessionEnd?: (session: SessionState, context: SessionEndContext) => void | Promise<void>;
+  onLapEvaluated?: (event: LapCompleteEvent, context: LapEventContext) => void | Promise<void>;
+  onLapComplete?: (event: LapCompleteEvent, context: LapEventContext) => void | Promise<void>;
 }
+
+export type SessionEndReason =
+  | SessionBoundaryReason
+  | "source-disconnected"
+  | "source-stale"
+  | "stream-ended"
+  | "session-rotated";
+
+export interface SessionStartContext {
+  reason: SessionBoundaryReason;
+  packet: TelemetryPacket;
+}
+
+export interface SessionEndContext {
+  reason: SessionEndReason;
+  terminalObserved: boolean;
+}
+
+export interface LapTimelineContextProvider {
+  classificationForLap(
+    sessionId: number,
+    lapNumber: number,
+  ): LapTimelineClassificationContext;
+  eventIdsForLap(sessionId: number, lapNumber: number): RaceEventId[];
+}
+
+/** Explicit empty provider for fixtures whose scenario contains no timeline facts. */
+export const EMPTY_LAP_TIMELINE_CONTEXT: LapTimelineContextProvider = {
+  classificationForLap: () => ({ pitPhase: null, conditions: [], gridStart: false }),
+  eventIdsForLap: () => [],
+};
 
 /** Unified constructor options accepted by all lap detector implementations. */
 export interface LapDetectorOptions {
   db: DbAdapter;
+  /** Required authoritative source for pit/race-control lap classification. */
+  lapTimelineContext: LapTimelineContextProvider;
   callbacks?: LapDetectorCallbacks;
   /** Bypass an implementation's packet-rate guard when supported (used in tests). */
   bypassPacketRateFilter?: boolean;
@@ -59,7 +96,7 @@ export interface ILapDetector {
   /** Flush any in-progress lap at end-of-stream as an invalid incomplete lap. */
   flushIncompleteLap?(): Promise<void>;
   /** Finalize current session immediately (e.g., when game disconnects). */
-  finalizeCurrentSession?(): Promise<void>;
+  finalizeCurrentSession?(reason?: SessionEndReason): Promise<void>;
   /**
    * Overwrite the current in-progress lap's byte offset. Called by the
    * pipeline when the session recorder is created mid-feed and the first

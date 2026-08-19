@@ -1,5 +1,6 @@
 import type { RaceResult } from "@shared/racing/results/types";
-import { useQuery } from "@tanstack/react-query";
+import type { RaceEventPage } from "@shared/racing/events/contracts";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { GameId } from "../../../shared/games/ids";
 import type { SessionMeta, SessionRecap } from "../../../shared/racing/sessions/types";
 import { client } from "../lib/rpc";
@@ -39,5 +40,25 @@ export function useSessionResult(sessionId: number | null | undefined, gameId: G
       return rpcJson<RaceResult>(response);
     },
     enabled: enabled && sessionId != null && !!gameId,
+  });
+}
+
+export function useSessionRaceEvents(sessionId: number | null | undefined, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.sessionEvents(sessionId ?? null),
+    queryFn: async ({ pageParam }) => {
+      if (sessionId == null) throw new Error("useSessionRaceEvents: sessionId is required");
+      const response = await client.api.sessions[":id"].events.$get({
+        param: { id: String(sessionId) },
+        query: {
+          limit: "200",
+          ...(pageParam ? { cursor: pageParam } : {}),
+        },
+      });
+      return rpcJson<RaceEventPage>(response);
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: enabled && sessionId != null,
   });
 }

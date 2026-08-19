@@ -8,6 +8,11 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { ArchiveVerification, EligibilityDecisionSet, EvidenceSourceKind, LapQualitySummary, RecordingQualitySummary, SourceChannelProfile } from "../../shared/racing/quality/contracts";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import {
+  RaceEventsAppendedMessageSchema,
+  RaceEventsReplacedMessageSchema,
+  type RaceEvent,
+} from "../../shared/racing/events/contracts";
 import type { LiveProjection } from "./live-projector";
 import {
   TELEMETRY_CATALOG_HASH,
@@ -133,6 +138,42 @@ export interface WsAdapter {
   publishTelemetry(publication: LiveTelemetryPublication): void;
   broadcastNotification(event: Record<string, unknown>): void;
   broadcastDevState(state: Record<string, unknown>): void;
+}
+
+export interface RaceEventPublisher {
+  publishAppended(sessionId: number, events: readonly RaceEvent[]): void;
+  publishReplaced(sessionId: number): void;
+}
+
+/** Validates the browser-safe event message contract at the publication edge. */
+export class WsRaceEventPublisher implements RaceEventPublisher {
+  private readonly ws: WsAdapter;
+
+  constructor(ws: WsAdapter) {
+    this.ws = ws;
+  }
+
+  publishAppended(sessionId: number, events: readonly RaceEvent[]): void {
+    if (events.length === 0) return;
+    this.ws.broadcastNotification(
+      RaceEventsAppendedMessageSchema.parse({
+        type: "race-events-appended",
+        sessionId,
+        events: [...events],
+      }),
+    );
+  }
+
+  publishReplaced(sessionId: number): void {
+    this.ws.broadcastNotification(
+      RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
+    );
+  }
+}
+
+export class NullRaceEventPublisher implements RaceEventPublisher {
+  publishAppended(_sessionId: number, _events: readonly RaceEvent[]): void {}
+  publishReplaced(_sessionId: number): void {}
 }
 
 /** Delegates to the real query functions. Used in production. */

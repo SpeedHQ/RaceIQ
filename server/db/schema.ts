@@ -7,9 +7,11 @@ import {
 	index,
 	unique,
 	primaryKey,
+	type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
+import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
 import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type {
 	EligibilityDecisionSet,
@@ -144,6 +146,7 @@ export const sessionResults = sqliteTable(
 		provenance: text("provenance", { mode: "json" }).$type<RaceResultProvenance>(),
 		reasons: text("reasons", { mode: "json" }).$type<string[]>(),
 		evidence: text("evidence", { mode: "json" }).$type<RaceResultEvidence>(),
+		eventIds: text("event_ids", { mode: "json" }).$type<RaceEventId[]>().notNull().default(sql`'[]'`),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
@@ -152,36 +155,6 @@ export const sessionResults = sqliteTable(
 		index("idx_session_results_session").on(table.sessionId),
 	],
 );
-
-export const pitEvents = sqliteTable(
-	"pit_events",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		resultId: integer("result_id")
-			.notNull()
-			.references(() => sessionResults.id, { onDelete: "cascade" }),
-		sequence: integer("sequence").notNull(),
-		eventType: text("event_type").notNull().default("pit"),
-		positionBefore: integer("position_before"),
-		positionAfter: integer("position_after"),
-		lapNumber: integer("lap_number"),
-		elapsedSeconds: real("elapsed_seconds"),
-		durationSeconds: real("duration_seconds"),
-		service: text("service").notNull().default("unknown"),
-		tyreChange: text("tyre_change", { mode: "json" }).$type<unknown>(),
-		fuelAdded: real("fuel_added"),
-		fuelBefore: real("fuel_before"),
-		fuelAfter: real("fuel_after"),
-		linkage: text("linkage").notNull().default("unknown"),
-		source: text("source", { mode: "json" }).$type<unknown>(),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [
-		unique().on(table.resultId, table.sequence),
-		index("idx_pit_events_result").on(table.resultId, table.sequence),
-	],
-);
-
 
 export const laps = sqliteTable(
 	"laps",
@@ -659,5 +632,90 @@ export const driverProfileRuns = sqliteTable(
 	(table) => [
 		index("driver_profile_runs_scope_status_idx").on(table.scopeKey, table.status),
 		index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
+	],
+);
+
+/**
+ * Canonical, session-owned racing facts. Event identity and order are stable
+ * across live ingestion and deterministic replay; insertion order is never a
+ * timeline coordinate.
+ */
+export const raceEvents = sqliteTable(
+	"race_events",
+	{
+		eventId: text("event_id").$type<RaceEventId>().primaryKey(),
+		eventType: text("event_type").$type<RaceEvent["eventType"]>().notNull(),
+		schemaVersion: text("schema_version").$type<RaceEvent["schemaVersion"]>().notNull(),
+		sessionId: integer("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		participantId: text("participant_id"),
+		participantKind: text("participant_kind").$type<RaceEvent["participantKind"]>(),
+		driverId: text("driver_id"),
+		teamId: text("team_id"),
+		timelineEpoch: integer("timeline_epoch").notNull(),
+		sequence: integer("sequence").notNull(),
+		eventOrder: integer("event_order").notNull(),
+		sourceTimeMs: integer("source_time_ms"),
+		sourceEndTimeMs: integer("source_end_time_ms"),
+		sourceSequenceFamily: text("source_sequence_family"),
+		sourceSequence: integer("source_sequence"),
+		receivedAtMs: integer("received_at_ms").notNull(),
+		lapNumber: integer("lap_number"),
+		lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+		trackDistanceM: real("track_distance_m"),
+		trackDistancePct: real("track_distance_pct"),
+		worldPosition: text("world_position", { mode: "json" }).$type<RaceEvent["worldPosition"]>(),
+		evidenceKind: text("evidence_kind").$type<RaceEvent["evidenceKind"]>().notNull(),
+		confidence: text("confidence").$type<RaceEvent["confidence"]>().notNull(),
+		qualityState: text("quality_state").$type<RaceEvent["qualityState"]>().notNull(),
+		sourceKind: text("source_kind").$type<RaceEvent["sourceKind"]>().notNull(),
+		payload: text("payload", { mode: "json" }).$type<RaceEvent["payload"]>().notNull(),
+		lifecycleId: text("lifecycle_id"),
+		linkedEventId: text("linked_event_id")
+			.$type<RaceEventId>()
+			.references((): AnySQLiteColumn => raceEvents.eventId, { onDelete: "set null" }),
+		detectorId: text("detector_id").notNull(),
+		detectorVersion: text("detector_version").notNull(),
+		sourceGeneration: text("source_generation"),
+		analysisGenerationId: text("analysis_generation_id"),
+		contentHash: text("content_hash"),
+		createdAt: text("created_at")
+			.notNull()
+			.default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [
+		index("idx_race_events_session_order").on(
+			table.sessionId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_participant").on(
+			table.sessionId,
+			table.participantId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_lap").on(
+			table.lapId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_source_time").on(table.sessionId, table.sourceTimeMs, table.sourceEndTimeMs),
+		index("idx_race_events_lifecycle").on(
+			table.sessionId,
+			table.lifecycleId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_linked_event").on(table.linkedEventId),
 	],
 );

@@ -18,17 +18,20 @@ import { computeRecap } from "../lap-analysis/recap";
 import { tryGetGame } from "../../shared/games/registry";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
+import { backfillRaceResults, reconcileStaleSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
 import { getQualityRebuildStatus, rebuildSessionEligibility } from "../lap-analysis/quality-rebuild";
 import { assessEvidenceRetention } from "../lap-analysis/evidence-retention";
 import { getSessionCanonicalAvailability } from "../lap-analysis/canonical-archive-availability";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
+import { RaceEventQuerySchema } from "../../shared/racing/events/contracts";
+import { listSessionRaceEvents, RaceEventCursorError } from "../db/race-event-queries";
 
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
 export interface SessionRouteDependencies {
   sessionExists: (sessionId: number) => Promise<boolean>;
+  listSessionRaceEvents: typeof listSessionRaceEvents;
   getQualityRebuildStatus: typeof getQualityRebuildStatus;
   getLapsForSession: typeof getLapsForSession;
   reprocessSession: typeof reprocessSession;
@@ -44,6 +47,7 @@ const DEFAULT_SESSION_ROUTE_DEPENDENCIES: SessionRouteDependencies = {
     const session = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, sessionId)).get();
     return session != null;
   },
+  listSessionRaceEvents,
   getQualityRebuildStatus,
   getLapsForSession,
   reprocessSession,
@@ -92,6 +96,25 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       }),
     );
   })
+  .get(
+    "/api/sessions/:id/events",
+    zValidator("param", IdParamSchema),
+    zValidator("query", RaceEventQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      if (!(await dependencies.sessionExists(id))) {
+        return c.json({ error: "Session not found" }, 404);
+      }
+      try {
+        return c.json(await dependencies.listSessionRaceEvents(id, c.req.valid("query")));
+      } catch (error) {
+        if (error instanceof RaceEventCursorError) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    },
+  )
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
     const { gameId } = c.req.valid("query");
@@ -115,7 +138,7 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       try {
         const session = (await getSessions()).find((candidate) => candidate.id === sessionId);
         if (!session?.gameId) throw new Error(`Session ${sessionId} has no game`);
-        const result = await reconcileSessionResult(sessionId, session.gameId);
+        const result = await reconcileStaleSessionResult(sessionId, session.gameId);
         results.push(result);
         if (result.status === "error") failed = true;
         wsManager.broadcastNotification({ type: "race-result-reconciled", sessionId, done: index + 1, total, status: result.status });

@@ -8,6 +8,7 @@ import {
 import type {
   ILapDetector,
   LapDetectorOptions,
+  SessionEndReason,
 } from "../../lap-detection/types";
 
 export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v5";
@@ -125,13 +126,13 @@ export class LapDetectorIRacing implements ILapDetector {
       if (Date.now() - this.lastActivePacketTime < 10_000) return;
       // A physical lap ended but iRacing never published its authoritative
       // timing rollover. Do not turn the sampled CurrentLap peak into a result.
-      await this.finalizeCurrentSession();
+      await this.finalizeCurrentSession("source-stale");
       return;
     }
     await this.detector.flushStaleLap();
   }
 
-  async finalizeCurrentSession(): Promise<void> {
+  async finalizeCurrentSession(reason: SessionEndReason = "source-disconnected"): Promise<void> {
     this.deferred = [];
     this.pendingUnexpectedLap = null;
     this.sessionKey = undefined;
@@ -140,7 +141,7 @@ export class LapDetectorIRacing implements ILapDetector {
     this.staleLastLap = 0;
     this.peakNativeCurrentLap = 0;
     this.lastActivePacketTime = 0;
-    await this.detector.finalizeCurrentSession();
+    await this.detector.finalizeCurrentSession(reason);
   }
 
   async waitForPendingLapWrites(sessionId: number): Promise<void> {

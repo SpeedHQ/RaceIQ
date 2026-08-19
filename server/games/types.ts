@@ -1,6 +1,83 @@
 import type { GameAdapter } from "../../shared/games/types";
+import type { GameId } from "../../shared/games/ids";
+import type {
+  CautionKind,
+  PitObservationState,
+  RaceSessionPhase,
+} from "../../shared/racing/events/contracts";
+import type {
+  ParticipantKind,
+  ParticipantEvidence,
+} from "../../shared/racing/quality/contracts";
+import type { SourceSequenceObservation } from "../../shared/telemetry/source-sequence";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapDetectorFactory } from "../lap-detection/types";
+
+export interface FourCornerRaceEventValue {
+  fl: number;
+  fr: number;
+  rl: number;
+  rr: number;
+}
+
+export type ParticipantRetirementStatus =
+  | "unknown"
+  | "active"
+  | "finished"
+  | "retired"
+  | "disqualified";
+
+export interface RaceParticipantObservation {
+  participantId: string;
+  participantKind: ParticipantKind;
+  sourceId: string | null;
+  identityState: ParticipantEvidence["identityState"];
+  driverId: string | null;
+  teamId: string | null;
+  displayName: string | null;
+  vehicleId: string | null;
+  pitState: PitObservationState;
+  /** Native pit code is retained without treating a code as stall evidence. */
+  nativePitCode: string | number | null;
+  position: number | null;
+  speedMps: number | null;
+  fuelLitres: number | null;
+  tireCompound: string | null;
+  tireWear: FourCornerRaceEventValue | null;
+  /** Component damage in percent, 0 (undamaged) through 100. */
+  damage: Readonly<Record<string, number>> | null;
+  penaltyValue: number | null;
+  incidentCount: number | null;
+  retirementStatus: ParticipantRetirementStatus;
+  nativeRetirementCode: string | number | null;
+}
+
+export interface RaceEventObservation {
+  gameId: GameId;
+  sessionUid: string | null;
+  receivedAtMs: number;
+  sourceTimeMs: number;
+  sourceSequences: SourceSequenceObservation[];
+  lapNumber: number | null;
+  currentLapTimeMs: number | null;
+  lastLapTimeMs: number | null;
+  trackDistanceM: number | null;
+  trackDistancePct: number | null;
+  worldPosition: { x: number; y: number; z: number } | null;
+  sessionPhase: RaceSessionPhase;
+  nativeRaceControlCode: string | number | null;
+  cautionKind: CautionKind;
+  gridStart: boolean | null;
+  terminalObserved: boolean | null;
+  participants: RaceParticipantObservation[];
+  /** True only when absence from this snapshot is meaningful. */
+  rosterAuthoritative: boolean;
+}
+
+export interface RaceEventObservationContext {
+  /** Wall-clock diagnostic receipt time; never used as semantic source time. */
+  receivedAtMs: number;
+}
 
 /** Server-only runtime behavior owned by each game implementation. */
 export interface ServerGameRuntimePolicy {
@@ -44,6 +121,12 @@ export interface ServerGameAdapter extends GameAdapter {
 
   /** Create per-game parser state (e.g. F1's multi-packet accumulator). null = stateless. */
   createParserState(): unknown;
+
+  /** Normalize game-owned facts for the shared deterministic event detectors. */
+  toRaceEventObservation(
+    packet: TelemetryPacket,
+    context: RaceEventObservationContext,
+  ): RaceEventObservation;
 
   /** AI analyst system prompt for this game */
   aiSystemPrompt: string;

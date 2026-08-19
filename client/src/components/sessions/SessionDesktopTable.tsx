@@ -3,7 +3,7 @@ import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { Fragment } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
-import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
+import { RaceEventTimeline } from "@/components/race-events/RaceEventTimeline";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
@@ -187,7 +187,7 @@ export function SessionDesktopTable({
                   {isExpanded && gameId && (
                     <TRow variant="separator">
                       <TD colSpan={colCount}>
-                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
+                        <RaceEventTimeline sessionId={session.id} enabled={isExpanded} />
                       </TD>
                     </TRow>
                   )}

@@ -173,6 +173,8 @@ export class F1StateAccumulator {
 
         const history = this.driverHistory.get(i);
         grid.push({
+          carIndex: i,
+          isPlayer: i === this.playerCarIndex,
           position: car.position,
           driverId: participant.driverId,
           teamId: participant.teamId,
@@ -206,6 +208,8 @@ export class F1StateAccumulator {
     const f1: F1ExtendedData = {
       overallFrameIdentifier: header.overallFrameIdentifier,
       packetId: header.packetId,
+      playerCarIndex: this.playerCarIndex,
+      pitStatus: ld.pitStatus,
       drsAllowed: cs?.drsAllowed ?? false,
       drsActivated: ct.drs,
       drsZoneApproaching: false, // TODO: from motion extra data

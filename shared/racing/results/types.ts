@@ -1,4 +1,5 @@
 import type { GameId } from "@shared/games/ids";
+import type { RaceEventId } from "@shared/racing/events/contracts";
 import type { EligibilityDecision, EligibilityPolicyId, EligibilityStatus, QualityReasonCode } from "@shared/racing/quality/contracts";
 
 export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
@@ -134,7 +135,7 @@ export interface RaceResultEvidence {
     qualifyingPosition: RaceResultSourceStatus;
     isPodium: RaceResultSourceStatus;
     isFastestLap: RaceResultSourceStatus;
-    pitEvents: RaceResultSourceStatus;
+    pitTimeline: RaceResultSourceStatus;
     tyreStrategy: RaceResultSourceStatus;
     fuelStrategy: RaceResultSourceStatus;
   };
@@ -177,6 +178,7 @@ export interface RaceResult {
   isPodium: boolean | null;
   isFastestLap: boolean | null;
   pitCount: number;
+  eventIds: RaceEventId[];
   tyreStrategy: unknown;
   fuelStrategy: unknown;
   provenance: RaceResultProvenance;
@@ -184,22 +186,6 @@ export interface RaceResult {
   outcomeStatus: RaceResultOutcomeStatus;
   evidence: RaceResultEvidence;
   lapQuality: RaceResultLapQualityEvidence[];
-  events: Array<{
-    eventType?: "pit" | "position-change";
-    sequence: number;
-    lapNumber: number | null;
-    elapsedSeconds: number | null;
-    durationSeconds: number | null;
-    service: "tyres" | "fuel" | "combined" | "unknown";
-    tyreChange: unknown;
-    fuelAdded: number | null;
-    fuelBefore: number | null;
-    fuelAfter: number | null;
-    positionBefore?: number | null;
-    positionAfter?: number | null;
-    linkage: "linked" | "unlinked" | "unknown";
-    source: unknown;
-  }>;
 }
 
 export interface RaceResultAggregate {
