@@ -11,10 +11,12 @@ name: Render dashboard snapshots
 # NOT execute PR code.
 
 on:
-  pull_request:
-    paths:
-      - "client/**"
-    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_call:
+    inputs:
+      pr:
+        description: "Pull request number to render"
+        required: true
+        type: number
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
@@ -27,21 +29,22 @@ concurrency:
   group: pr-snapshots-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: blacksmith-2vcpu-ubuntu-2204
     container:
       image: mcr.microsoft.com/playwright:v1.62.0-jammy
-    permissions:
-      contents: read
-      pull-requests: read
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
       - name: Resolve pull request revisions
         id: pull-request
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = Number(process.env.PR_NUMBER);
@@ -53,7 +56,7 @@ jobs:
             core.setOutput("base-ref", pull.base.ref);
             core.setOutput("base-sha", pull.base.sha);
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
@@ -63,11 +66,21 @@ jobs:
 
       - name: Merge pull request base into the PR head
         env:
+          BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "$BASE_SHA"
+          git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          fetched_base_sha="$(git rev-parse --verify FETCH_HEAD)"
+          if [ "$fetched_base_sha" != "$BASE_SHA" ]; then
+            git fetch --no-tags origin "$BASE_SHA"
+            fetched_base_sha="$(git rev-parse --verify FETCH_HEAD)"
+          fi
+          if [ "$fetched_base_sha" != "$BASE_SHA" ]; then
+            echo "Fetched base commit $fetched_base_sha does not match $BASE_SHA" >&2
+            exit 1
+          fi
           git merge --no-edit "$BASE_SHA"
 
       - name: Prepare base comparison worktree
@@ -135,7 +148,7 @@ jobs:
           fi
 
       - name: Upload preview artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-screenshot-preview
           path: pr-preview/

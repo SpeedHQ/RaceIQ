@@ -35,6 +35,11 @@ export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
   return getProviders();
 }
 
+export function shouldCheckCredentialStatus(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.RACEIQ_E2E !== "1";
+}
+
+
 export const settingsRoutes = new Hono()
   // GET /api/status
   .get("/api/status", (c) => {
@@ -63,9 +68,14 @@ export const settingsRoutes = new Hono()
   // GET /api/settings
   .get("/api/settings", async (c) => {
     const settings = withOnboardingOverride(loadSettings());
-    const hasGeminiKey = !!(await getSecret("gemini-api-key"));
-    const hasOpenaiKey = !!(await getSecret("openai-api-key"));
-    const hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
+    let hasGeminiKey = false;
+    let hasOpenaiKey = false;
+    let hasAnthropicKey = false;
+    if (shouldCheckCredentialStatus()) {
+      hasGeminiKey = !!(await getSecret("gemini-api-key"));
+      hasOpenaiKey = !!(await getSecret("openai-api-key"));
+      hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
+    }
     return c.json({
       ...settings,
       udpPort: udpListener.port,

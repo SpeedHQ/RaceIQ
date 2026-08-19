@@ -7,6 +7,12 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Branch or ref to build and test"
+        required: false
+        type: string
 concurrency:
   group: build-test-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -14,11 +20,18 @@ concurrency:
 jobs:
   build-test:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    # Always retain compiled dist for downstream E2E diagnostics and reruns.
+    # Upload step uses always() so failures before or during tests do not skip it.
     # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
-    runs-on: blacksmith-4vcpu-ubuntu-2204
+    runs-on: 
+      - whitesmith-windows-x64
+      - 10VCPU
+      - 15G
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
 
       - uses: oven-sh/setup-bun@v2
 
@@ -38,35 +51,64 @@ jobs:
           bun scripts/release/check-changelog.ts
 
       - name: Check generated telemetry catalog
+        shell: powershell
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
-            baseline="$RUNNER_TEMP/telemetry-catalog-baseline.json"
-            if git show "origin/${{ github.base_ref }}:shared/telemetry/catalog/generated/telemetry-catalog.generated.json" > "$baseline" 2>/dev/null \
-              || git show "origin/${{ github.base_ref }}:shared/telemetry-catalog.generated.json" > "$baseline" 2>/dev/null; then
-              bun run telemetry:catalog:check --baseline "$baseline"
-            else
-              echo "Base branch has no telemetry catalog; checking current artifacts without a compatibility baseline."
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            $baseRef = "${{ github.base_ref }}"
+            git fetch --no-tags --depth=1 origin "${baseRef}:refs/remotes/origin/${baseRef}"
+            $baseline = Join-Path $env:RUNNER_TEMP "telemetry-catalog-baseline.json"
+            $catalog = git show "origin/${baseRef}:shared/telemetry/catalog/generated/telemetry-catalog.generated.json" 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              $catalog = git show "origin/${baseRef}:shared/telemetry-catalog.generated.json" 2>$null
+            }
+            if ($LASTEXITCODE -eq 0) {
+              [System.IO.File]::WriteAllLines($baseline, [string[]]$catalog, [System.Text.UTF8Encoding]::new($false))
+              bun run telemetry:catalog:check --baseline $baseline
+            } else {
+              Write-Output "Base branch has no telemetry catalog; checking current artifacts without a compatibility baseline."
               bun run telemetry:catalog:check
-            fi
-          else
+            }
+          } else {
             bun run telemetry:catalog:check
-          fi
+          }
 
-      - name: Build client and compiled E2E binary
-        run: bun --env-file=.env.development run build
+      - name: Build RaceIQ
+        run: bun run build
 
-      - name: Upload compiled E2E binary
-        uses: actions/upload-artifact@v4
+      - name: Upload Windows E2E dist artifact
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
-          name: raceiq-dist-linux
+          name: raceiq-dist-windows
           path: dist/
+          if-no-files-found: ignore
           retention-days: 1
 
       - name: Run tests
         run: bun run test
 
   playwright-dev:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: (github.event_name == 'pull_request' && !github.event.pull_request.draft) || github.event_name == 'workflow_dispatch'
     needs: build-test
     uses: ./.github/workflows/playwright-dev.yml
+    with:
+      target-ref: ${{ inputs.target_ref || github.ref }}
+
+  screenshots:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    needs: build-test
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/pr-screenshots.yml
+    with:
+      pr: ${{ github.event.pull_request.number }}
+  snapshots:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    needs: build-test
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/pr-snapshots.yml
+    with:
+      pr: ${{ github.event.pull_request.number }}
