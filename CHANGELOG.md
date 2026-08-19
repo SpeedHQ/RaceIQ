@@ -27,6 +27,7 @@
 
 - Estimate complete aerial-imagery output, work, disk, duration, and concurrency before import, then reject unsafe jobs before downloading source pixels
 - Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list
+- Show recorded GPS calibration laps with their correct lap times in track imagery tools
 - Keep track geometry tools usable when optional curb data has not been recorded
 - Keep satellite imagery track maps responsive during Analyse playback instead of rebuilding the static raster for every telemetry frame
 - Show track workbench status cards immediately and resolve native sector layouts without a per-lap request waterfall

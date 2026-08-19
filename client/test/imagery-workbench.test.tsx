@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { TrackImageryCandidate, TrackImageryOutputBudget, TrackImagerySourceSearchGroup } from "../../shared/racing/tracks/imagery";
 import { ImageryCandidateList } from "../src/components/dev/imagery/ImageryCandidatePanel";
 import { ImageryImportEstimate } from "../src/components/dev/imagery/ImageryImportEstimate";
+import { ImageryCalibrationEditor } from "../src/components/dev/imagery/ImageryEditors";
 
 function candidate(id: string, provider: string, title: string, capturedAt: string, quality: TrackImageryCandidate["quality"]): TrackImageryCandidate {
   return {
@@ -49,6 +50,23 @@ test("imagery picker groups dated options by source and exposes selected option"
   expect(markup).toContain("Latest Sentinel image");
   expect(markup).toContain("Earlier Sentinel image");
   expect(markup).toMatch(/aria-pressed="true"[^>]*>.*Selected/s);
+});
+
+test("imagery calibration lists recorded lap times in seconds", () => {
+  const markup = renderToStaticMarkup(
+    <ImageryCalibrationEditor
+      model={{
+        lapId: null,
+        setLapId: () => undefined,
+        referenceLoading: false,
+        catalogReference: null,
+        selectableLaps: [{ id: 7, lapNumber: 3, lapTime: 110.536 }],
+      } as never}
+    />,
+  );
+
+  expect(markup).toContain("Recorded lap 3 · 1:50.536");
+  expect(markup).not.toContain("0.111s");
 });
 
 test("calibration output budget shows complete pack size and processing limits", () => {

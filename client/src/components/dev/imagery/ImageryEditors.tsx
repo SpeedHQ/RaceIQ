@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { TrackConfiguration } from "../../../../../shared/racing/tracks/configuration";
 import type { TrackImageryCandidate, TrackImagerySource, TrackImageryVenueManifest } from "../../../../../shared/racing/tracks/imagery";
+import { formatLapTime } from "@/lib/format";
 import { Button } from "../../ui/button";
 import { Checkbox } from "../../ui/checkbox";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "../../ui/field";
@@ -63,7 +64,7 @@ export function ImageryCalibrationEditor({ model }: { model: ImageryCalibrationM
         {model.selectableLaps.length === 0 && <option disabled>No recorded laps for selected track</option>}
         {model.selectableLaps.map((lap) => (
           <option key={lap.id} value={lap.id}>
-            Recorded lap {lap.lapNumber} · {(lap.lapTime / 1000).toFixed(3)}s
+            Recorded lap {lap.lapNumber} · {formatLapTime(lap.lapTime)}
           </option>
         ))}
       </select>
