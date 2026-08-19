@@ -1491,5 +1491,21 @@
   "trackdetailroute_not_found": "Strecke nicht gefunden",
   "trackinfo_guide": "Experten-Leitfaden",
   "trackinfo_priority": "Priorität",
-  "trackinfo_trap": "Falle:"
+  "trackinfo_trap": "Falle:",
+  "trackviewer_base_tracks": "{count} Basisstrecken",
+  "trackcard_layout": "Variante",
+  "trackcard_layouts": "Varianten",
+  "track_detail_imagery_tab": "Bildmaterial",
+  "track_layouts_heading": "Unterstrecken",
+  "track_layout_selected": "Ausgewählt",
+  "track_imagery_title": "Basis-Satellitenbild",
+  "track_imagery_description": "Wird für diese Basisstrecke und alle Unterstrecken verwendet.",
+  "track_imagery_empty": "Kein Satellitenbild festgelegt.",
+  "track_imagery_upload": "Bild hochladen",
+  "track_imagery_replace": "Bild ersetzen",
+  "track_imagery_uploading": "Wird hochgeladen...",
+  "track_imagery_invalid_file": "JPEG-, PNG-, WebP- oder AVIF-Bild auswählen.",
+  "track_imagery_too_large": "Bild darf höchstens 20 MB groß sein.",
+  "trackviewer_with_imagery": "mit Bildmaterial",
+  "trackviewer_without_imagery": "ohne Bildmaterial"
 }

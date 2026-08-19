@@ -10,6 +10,8 @@ export interface TrackInfo {
   hasMap?: boolean;
   /** Public static map for layouts without RaceIQ centerline points. */
   mapUrl?: string | null;
+  /** Curated satellite image shared by every layout at this venue. */
+  baseImageUrl?: string | null;
   category?: string;
   createdAt: string | null;
   lapCount?: number;

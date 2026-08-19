@@ -42,12 +42,18 @@ export function TrackCard({
   track,
   onSelect,
   gameId,
+  layoutCount,
+  lapCount,
+  baseImageUrl,
   setupCount,
   guideCount,
 }: {
   track: TrackInfo;
   onSelect: (t: TrackInfo) => void;
   gameId?: GameId | null;
+  layoutCount: number;
+  lapCount: number;
+  baseImageUrl?: string | null;
   setupCount?: number;
   guideCount?: number;
 }) {
@@ -97,21 +103,23 @@ export function TrackCard({
         <div className="flex items-start justify-between gap-2">
           <div className="text-app-body font-medium text-app-text">{track.name}</div>
           <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">
-            {track.lapCount ?? 0} {(track.lapCount ?? 0) === 1 ? m.trackcard_lap_singular() : m.pitwindow_laps()}
+            {lapCount} {lapCount === 1 ? m.trackcard_lap_singular() : m.pitwindow_laps()}
           </span>
         </div>
         <div className="text-app-label text-app-text-muted">
-          {track.variant} · {track.location}, {countryName(track.country)}
-          {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+          {layoutCount} {layoutCount === 1 ? m.trackcard_layout() : m.trackcard_layouts()} · {track.location}
+          {track.country && `, ${countryName(track.country)}`}
         </div>
       </div>
       <div className="bg-app-bg relative" style={{ height: 150 }}>
-        {outline ? (
-          <canvas ref={canvasRef} className="w-full h-full" />
+        {baseImageUrl ? (
+          <img src={baseImageUrl} alt={`${track.name} satellite`} className="size-full object-cover" loading="lazy" decoding="async" />
+        ) : outline ? (
+          <canvas ref={canvasRef} className="size-full" />
         ) : track.mapUrl ? (
-          <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
+          <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="size-full object-contain p-3" loading="lazy" decoding="async" />
         ) : (
-          <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackcard_no_outline()}</div>
+          <div className="flex h-full items-center justify-center text-app-subtext text-app-text-dim">{m.trackcard_no_outline()}</div>
         )}
         {(setupCount !== undefined || guideCount !== undefined) && (
           <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-1 pointer-events-none">
