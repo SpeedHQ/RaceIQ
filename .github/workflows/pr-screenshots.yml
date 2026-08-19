@@ -76,7 +76,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "refs/heads/${env:BASE_REF}"
+          git fetch --no-tags origin "+refs/heads/${env:BASE_REF}:refs/remotes/origin/${env:BASE_REF}"
+          if (-not (git cat-file -e "${env:BASE_SHA}^{commit}" 2>$null)) {
+            git fetch --no-tags origin "${env:BASE_SHA}"
+          }
           if (-not (git cat-file -e "${env:BASE_SHA}^{commit}" 2>$null)) {
             throw "Base commit ${env:BASE_SHA} is not available after fetching ${env:BASE_REF}"
           }
