@@ -404,6 +404,141 @@ describe("migration regressions", () => {
     client.close();
   });
 
+  test("v64 adds semantic run artifacts without inventing historical runs", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 63);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
+       VALUES (1, 10, 20, 'iracing')`,
+    );
+    await client.execute(
+      `INSERT INTO laps (id, session_id, lap_number, lap_time)
+       VALUES (11, 1, 7, 90)`,
+    );
+    for (const [eventId, eventType, sequence] of [
+      ["race-event:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "participant_joined", 1],
+      ["race-event:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "lap_completed", 2],
+      ["race-event:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "session_ended", 3],
+    ] as const) {
+      await client.execute({
+        sql: `INSERT INTO race_events (
+          event_id, event_type, schema_version, session_id, timeline_epoch,
+          sequence, event_order, received_at_ms, evidence_kind, confidence,
+          quality_state, source_kind, payload, detector_id, detector_version,
+          created_at
+        ) VALUES (?, ?, 'race-event-v1', 1, 0, ?, 10, ?, 'observed',
+          'high', 'available', 'native-live', '{}', 'test', '1',
+          '2026-08-19T00:00:00.000Z')`,
+        args: [eventId, eventType, sequence, sequence * 1_000],
+      });
+    }
+
+    await runMigrations(client, 64);
+    for (const table of [
+      "session_runs",
+      "session_run_laps",
+      "session_run_evidence",
+    ]) {
+      const rows = await client.execute(`SELECT count(*) AS count FROM ${table}`);
+      expect(Number(rows.rows[0]!.count)).toBe(0);
+    }
+
+    const runId =
+      "session-run:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+    await client.execute({
+      sql: `INSERT INTO session_runs (
+        run_id, schema_version, algorithm_version, session_id, run_kind,
+        status, opening_phase, observed_phases, timeline_epoch,
+        opening_sequence, opening_event_order, opening_reason,
+        opening_event_id, opening_confidence, opening_evidence_kind,
+        closing_reason, closing_event_id, closing_confidence,
+        closing_evidence_kind, start_lap_event_id, end_lap_event_id,
+        start_lap_id, end_lap_id, quality_flags, summary, content_hash,
+        created_at
+      ) VALUES (?, 'session-run-v1', 'session-run-builder-v1', 1, 'tire',
+        'complete', 'green', '["green"]', 0, 1, 10, 'participant_joined',
+        'race-event:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'high', 'observed', 'session_ended',
+        'race-event:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        'high', 'observed',
+        'race-event:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        'race-event:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        11, 11, '[]', '{}',
+        'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        '2026-08-19T00:00:00.000Z')`,
+      args: [runId],
+    });
+    await client.execute({
+      sql: `INSERT INTO session_run_laps (
+        run_id, lap_event_id, lap_id, lap_number, ordinal, entry_event_id,
+        exit_event_id
+      ) VALUES (?, ?, 11, 7, 0, ?, ?)`,
+      args: [
+        runId,
+        "race-event:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "race-event:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "race-event:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      ],
+    });
+    await client.execute({
+      sql: `INSERT INTO session_run_evidence (run_id, event_id, role)
+            VALUES (?, ?, 'opening')`,
+      args: [
+        runId,
+        "race-event:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ],
+    });
+    await expect(
+      client.execute({
+        sql: `INSERT INTO session_runs (
+          run_id, schema_version, algorithm_version, session_id, run_kind,
+          status, opening_phase, observed_phases, timeline_epoch,
+          opening_sequence, opening_event_order, opening_reason,
+          opening_event_id, opening_confidence, opening_evidence_kind,
+          closing_reason, closing_event_id, closing_confidence,
+          closing_evidence_kind, quality_flags, summary, content_hash, created_at
+        ) SELECT ?, schema_version, algorithm_version, session_id, run_kind,
+          status, opening_phase, observed_phases, timeline_epoch,
+          opening_sequence, opening_event_order, opening_reason,
+          opening_event_id, opening_confidence, opening_evidence_kind,
+          closing_reason, closing_event_id, closing_confidence,
+          closing_evidence_kind, quality_flags, summary, content_hash, created_at
+          FROM session_runs WHERE run_id = ?`,
+        args: [
+          "session-run:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          runId,
+        ],
+      }),
+    ).rejects.toThrow();
+
+    await client.execute("DELETE FROM laps WHERE id = 11");
+    const nullableLinks = (
+      await client.execute(
+        "SELECT start_lap_id, end_lap_id FROM session_runs WHERE run_id = ?",
+        [runId],
+      )
+    ).rows[0]!;
+    expect(nullableLinks.start_lap_id).toBeNull();
+    expect(nullableLinks.end_lap_id).toBeNull();
+    const membership = (
+      await client.execute(
+        "SELECT lap_id FROM session_run_laps WHERE run_id = ?",
+        [runId],
+      )
+    ).rows[0]!;
+    expect(membership.lap_id).toBeNull();
+
+    await client.execute(
+      "DELETE FROM race_events WHERE event_id = 'race-event:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+    );
+    const remaining = await client.execute(
+      "SELECT count(*) AS count FROM session_runs",
+    );
+    expect(Number(remaining.rows[0]!.count)).toBe(0);
+    client.close();
+  });
+
   test("v58 normalizes pre-existing null and invalid ownership values", async () => {
     const client = newClient();
     await bootstrap(client);

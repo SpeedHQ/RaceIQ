@@ -13,6 +13,18 @@ export const queryKeys = {
   sessions: ["sessions"] as const,
   sessionEventTimelines: ["session-events"] as const,
   sessionEvents: (sessionId: number | null) => ["session-events", sessionId] as const,
+  sessionRunPages: ["session-runs"] as const,
+  sessionRuns: (sessionId: number | null, query: unknown = null) =>
+    ["session-runs", sessionId, query] as const,
+  driverStints: (driverId: string | null, query: unknown = null) =>
+    ["driver-stints", driverId, query] as const,
+  sessionRunDetails: ["session-run-details"] as const,
+  sessionRunLaps: (runId: string | null, query: unknown = null) =>
+    ["session-run-details", runId, "laps", query] as const,
+  sessionRunEvidence: (runId: string | null, query: unknown = null) =>
+    ["session-run-details", runId, "evidence", query] as const,
+  comparableSessionRuns: (runId: string | null, query: unknown = null) =>
+    ["session-run-details", runId, "comparable", query] as const,
   tracks: ["tracks"] as const,
   carName: (ord: number) => ["car-name", ord] as const,
   userTunes: ["user-tunes"] as const,
@@ -26,6 +38,17 @@ export const queryKeys = {
   raceResultRecents: ["race-result-recent"] as const,
   raceResultRecent: (gameId: GameId | null) => ["race-result-recent", gameId] as const,
 };
+
+export function sessionRunsUpdatedQueryKeys(
+  sessionId: number,
+  runIds: readonly string[] = [],
+) {
+  return [
+    ["session-runs", sessionId] as const,
+    ["driver-stints"] as const,
+    ...runIds.map((runId) => ["session-run-details", runId] as const),
+  ] as const;
+}
 
 export function qualityUpdatedQueryKeys(sessionId: number) {
   return [

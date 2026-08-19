@@ -51,5 +51,9 @@ describe("raw race-event replay parity", () => {
     expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(
       first.laps.map(({ lapNumber }) => lapNumber),
     );
+    expect(first.runs.length).toBeGreaterThan(0);
+    expect(second.runs).toEqual(first.runs);
+    expect(second.memberships).toEqual(first.memberships);
+    expect(second.evidence).toEqual(first.evidence);
   });
 });

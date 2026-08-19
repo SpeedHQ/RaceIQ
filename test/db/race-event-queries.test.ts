@@ -9,7 +9,7 @@ import {
   listRaceEventsForLap,
   listRaceEventsForLifecycle,
   listSessionRaceEvents,
-  replaceReplayableRaceEvents,
+  replaceReplayableSessionArtifacts,
 } from "../../server/db/race-event-queries";
 import { client, db } from "../../server/db";
 import { laps, raceEvents, sessionResults, sessions } from "../../server/db/schema";
@@ -327,9 +327,12 @@ describe("race event persistence", () => {
        END`,
     );
     await expect(
-      replaceReplayableRaceEvents({
+      replaceReplayableSessionArtifacts({
         sessionId: 1,
         events: [replacement],
+        runs: [],
+        memberships: [],
+        evidence: [],
         laps: [{ lapNumber: 8, lapTime: 89 }],
         result,
       }),
@@ -347,9 +350,12 @@ describe("race event persistence", () => {
       oldEvent.eventId,
     ]);
 
-    const activated = await replaceReplayableRaceEvents({
+    const activated = await replaceReplayableSessionArtifacts({
       sessionId: 1,
       events: [replacement],
+      runs: [],
+      memberships: [],
+      evidence: [],
       laps: [{ lapNumber: 8, lapTime: 89 }],
       result,
     });
@@ -375,14 +381,23 @@ describe("race event persistence", () => {
       payload: { previousPosition: 3, position: 1 },
       contentHash: contentHash(99),
     } as RaceEvent;
-    const replaced = await replaceReplayableRaceEvents({ sessionId: 1, events: [changed] });
+    const replaced = await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events: [changed],
+      runs: [],
+      memberships: [],
+      evidence: [],
+    });
     expect(replaced.conflictCount).toBe(1);
     expect(replaced.events[0]).toMatchObject({ detectorVersion: "2", payload: changed.payload });
 
     await expect(
-      replaceReplayableRaceEvents({
+      replaceReplayableSessionArtifacts({
         sessionId: 1,
         events: [{ ...changed, contentHash: contentHash(100) }],
+        runs: [],
+        memberships: [],
+        evidence: [],
       }),
     ).rejects.toBeInstanceOf(RaceEventConflictError);
   });

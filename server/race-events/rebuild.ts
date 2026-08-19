@@ -1,6 +1,12 @@
 import type { GameId } from "../../shared/games/ids";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
 import type {
+  SessionRun,
+  SessionRunEvidence,
+  SessionRunLapMembership,
+} from "../../shared/racing/runs/contracts";
+import type { CompletedSessionRunLap } from "../../shared/racing/runs/summary";
+import type {
   ArchiveVerification,
   EvidenceSourceKind,
   ParticipantEvidence,
@@ -20,6 +26,10 @@ import {
 } from "../telemetry/pipeline-ports";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { RaceEventCoordinator } from "./coordinator";
+import {
+  SessionRunBuilder,
+  type SessionRunFinalization,
+} from "../session-runs/builder";
 
 export interface RaceEventRebuildFrame {
   frame: Buffer;
@@ -44,8 +54,17 @@ export interface RebuiltRaceEventTimeline {
   detectorId: string;
   events: RaceEvent[];
   laps: CapturedLap[];
+  runs: SessionRun[];
+  memberships: SessionRunLapMembership[];
+  evidence: SessionRunEvidence[];
   packets: TelemetryPacket[];
   recordingQuality: RecordingQualitySummary;
+}
+
+export interface BuiltSessionRuns {
+  runs: SessionRun[];
+  memberships: SessionRunLapMembership[];
+  evidence: SessionRunEvidence[];
 }
 
 function lapEvaluation(
@@ -67,6 +86,58 @@ function lapEvaluation(
           : null,
       rawBoundaryOrdinal: event.packets.length,
     });
+  };
+}
+
+export function buildSessionRunsFromTimeline(
+  events: readonly RaceEvent[],
+  laps: readonly CapturedLap[],
+  finalization: SessionRunFinalization = { reason: "source-ended" },
+): BuiltSessionRuns {
+  const completedEventsByLapNumber = new Map<number, RaceEvent[]>();
+  for (const event of events) {
+    if (event.eventType !== "lap_completed") continue;
+    const values = completedEventsByLapNumber.get(event.payload.lapNumber);
+    if (values) values.push(event);
+    else completedEventsByLapNumber.set(event.payload.lapNumber, [event]);
+  }
+  const lapsByCompletionEventId = new Map<
+    RaceEvent["eventId"],
+    CompletedSessionRunLap
+  >();
+  for (const lap of laps) {
+    const candidates = completedEventsByLapNumber.get(lap.lapNumber) ?? [];
+    const event =
+      candidates.find(({ participantKind }) => participantKind === "player") ??
+      candidates[0];
+    if (!event) continue;
+    lapsByCompletionEventId.set(event.eventId, {
+      lapEventId: event.eventId,
+      lapId: null,
+      lapNumber: lap.lapNumber,
+      lapTimeMs: Number.isFinite(lap.lapTime) ? lap.lapTime * 1_000 : null,
+      isValid: lap.isValid,
+      phase: lap.phase,
+      conditions: lap.conditions,
+      quality: lap.quality,
+      eligibility: lap.eligibility,
+      qualityGeneration: lap.quality?.provenance.outputGeneration ?? null,
+      qualityStale: lap.quality?.provenance.outputGeneration === "legacy",
+      qualitySchemaVersion: lap.quality?.provenance.schemaVersion ?? null,
+      qualityPolicyVersion: lap.quality?.provenance.policyVersion ?? null,
+      qualityConfigVersion:
+        lap.quality?.provenance.configurationVersion ?? null,
+    });
+  }
+  const builder = new SessionRunBuilder();
+  const consumed = builder.consume({ events, lapsByCompletionEventId });
+  consumed.commit();
+  const finalized = builder.finalize(finalization);
+  finalized.commit();
+  return {
+    runs: [...consumed.runs, ...finalized.runs],
+    memberships: [...consumed.memberships, ...finalized.memberships],
+    evidence: [...consumed.evidence, ...finalized.evidence],
   };
 }
 
@@ -173,10 +244,18 @@ export async function rebuildRaceEventTimeline(
   if (db.sessions.length > 1) {
     throw new Error("Raw rebuild contains multiple detected session boundaries");
   }
+  const runArtifacts = buildSessionRunsFromTimeline(
+    coordinator.events(),
+    db.laps,
+    { sessionId: input.sessionId, reason: "source-ended" },
+  );
   return {
     detectorId: detector.detectorId,
     events: coordinator.events(),
     laps: [...db.laps],
+    runs: runArtifacts.runs,
+    memberships: runArtifacts.memberships,
+    evidence: runArtifacts.evidence,
     packets,
     recordingQuality: recordingQuality.finalize("reprocessed", input.sourceVerification, {
       transportVerification: input.transportVerification,

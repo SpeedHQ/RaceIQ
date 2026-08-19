@@ -3,6 +3,8 @@ import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
+import type { OpenSessionRun } from "../../shared/racing/runs/contracts";
+import type { CompletedSessionRunLap } from "../../shared/racing/runs/summary";
 import { isEligibilityUsable } from "../../shared/racing/quality/policies";
 import {
   LOCAL_PLAYER_EVIDENCE,
@@ -20,12 +22,14 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import {
   type DbAdapter,
   type RaceEventPublisher,
+  type SessionRunPublisher,
   type WsAdapter,
   type SessionRecorderAdapter,
   currentTelemetryVersionIdentity,
   RealDbAdapter,
   RealSessionRecorderAdapter,
   WsRaceEventPublisher,
+  WsSessionRunPublisher,
 } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
 import type { ILapDetector, LapDetectorCallbacks, SessionEndReason } from "../lap-detection/types";
@@ -52,6 +56,7 @@ import {
   type RaceEventStore,
 } from "../race-events/store";
 import type { SessionBoundaryReason } from "../lap-detection/boundaries";
+import { SessionRunBuilder } from "../session-runs/builder";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 export function resolveLapIssueEligibility(eligibility: EligibilityDecisionSet): EligibilityDecision {
@@ -83,6 +88,11 @@ interface PendingLapIssueEvaluation {
   eligibility: EligibilityDecision;
 }
 
+type StagedCompletedSessionRunLap = Omit<
+  CompletedSessionRunLap,
+  "lapEventId"
+>;
+
 interface CaptureFinalizationResult {
   finalization: Promise<void> | null;
 }
@@ -99,6 +109,8 @@ export class LiveTelemetryPipeline {
   private readonly raceEvents: RaceEventCoordinator;
   private readonly raceEventStore: RaceEventStore;
   private readonly raceEventPublisher: RaceEventPublisher;
+  private readonly sessionRunBuilder: SessionRunBuilder;
+  private readonly sessionRunPublisher: SessionRunPublisher;
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
@@ -130,6 +142,10 @@ export class LiveTelemetryPipeline {
   private readonly _stagedTimelineEvents: RaceEvent[] = [];
   private readonly _stagedTimelineLapLinks: RaceEventLapLink[] = [];
   private readonly _stagedLapSavedActions: Array<() => Promise<void>> = [];
+  private readonly _stagedCompletedRunLaps = new Map<
+    string,
+    StagedCompletedSessionRunLap
+  >();
   private readonly _deferredSessionFinalizations: ClosedRecordingSession[] = [];
   private _lastTimelinePacket: TelemetryPacket | null = null;
 
@@ -170,6 +186,10 @@ export class LiveTelemetryPipeline {
     return this._sessionLaps;
   }
 
+  get openSessionRuns(): readonly OpenSessionRun[] {
+    return this.sessionRunBuilder.openRuns();
+  }
+
   constructor(
     db: DbAdapter,
     ws: WsAdapter,
@@ -188,6 +208,8 @@ export class LiveTelemetryPipeline {
       raceEventCoordinator?: RaceEventCoordinator;
       raceEventStore?: RaceEventStore;
       raceEventPublisher?: RaceEventPublisher;
+      sessionRunBuilder?: SessionRunBuilder;
+      sessionRunPublisher?: SessionRunPublisher;
     },
   ) {
     this.db = db;
@@ -208,6 +230,9 @@ export class LiveTelemetryPipeline {
     });
     this.raceEventStore = options?.raceEventStore ?? new MemoryRaceEventStore();
     this.raceEventPublisher = options?.raceEventPublisher ?? new WsRaceEventPublisher(ws);
+    this.sessionRunBuilder = options?.sessionRunBuilder ?? new SessionRunBuilder();
+    this.sessionRunPublisher =
+      options?.sessionRunPublisher ?? new WsSessionRunPublisher(ws);
   }
 
   private _enqueueCaptureOperation<T>(operation: () => Promise<T>): Promise<T> {
@@ -225,11 +250,36 @@ export class LiveTelemetryPipeline {
   ): Promise<RaceEvent[]> {
     if (events.length === 0) return [];
     const ordered = [...events].sort(compareRaceEvents);
+    const lapsByCompletionEventId = new Map<
+      RaceEvent["eventId"],
+      CompletedSessionRunLap
+    >();
+    for (const event of ordered) {
+      if (event.eventType !== "lap_completed") continue;
+      const metadata = this._stagedCompletedRunLaps.get(
+        `${event.sessionId}:${event.payload.lapNumber}`,
+      );
+      if (metadata) {
+        lapsByCompletionEventId.set(event.eventId, {
+          ...metadata,
+          lapEventId: event.eventId,
+        });
+      }
+    }
+    const preparedUpdate = this.sessionRunBuilder.consume({
+      events: ordered,
+      lapsByCompletionEventId,
+    });
     let inserted: RaceEvent[];
+    let insertedRuns;
     try {
-      inserted = lapLinks.length > 0
-        ? await this.raceEventStore.appendWithLapLinks(ordered, lapLinks)
-        : await this.raceEventStore.append(ordered);
+      const appended = await this.raceEventStore.appendWithSessionRunUpdate(
+        ordered,
+        lapLinks,
+        preparedUpdate,
+      );
+      inserted = appended.events;
+      insertedRuns = appended.runs;
     } catch (error) {
       const diagnostic = this.raceEvents.noteStorageFailure({
         kind: "failure",
@@ -243,7 +293,7 @@ export class LiveTelemetryPipeline {
             this.raceEventPublisher.publishAppended(event.sessionId, [event]);
           }
         } catch {
-          // Preserve the original persistence failure.
+          // Preserve original persistence failure.
         }
       }
       throw new Error(
@@ -251,14 +301,25 @@ export class LiveTelemetryPipeline {
         { cause: error },
       );
     }
-    const bySession = new Map<number, RaceEvent[]>();
+    preparedUpdate.commit();
+
+    const eventsBySession = new Map<number, RaceEvent[]>();
     for (const event of inserted) {
-      const values = bySession.get(event.sessionId);
+      const values = eventsBySession.get(event.sessionId);
       if (values) values.push(event);
-      else bySession.set(event.sessionId, [event]);
+      else eventsBySession.set(event.sessionId, [event]);
     }
-    for (const [sessionId, values] of bySession) {
+    for (const [sessionId, values] of eventsBySession) {
       this.raceEventPublisher.publishAppended(sessionId, values);
+    }
+    const runsBySession = new Map<number, typeof insertedRuns>();
+    for (const run of insertedRuns) {
+      const values = runsBySession.get(run.sessionId);
+      if (values) values.push(run);
+      else runsBySession.set(run.sessionId, [run]);
+    }
+    for (const [sessionId, values] of runsBySession) {
+      this.sessionRunPublisher.publishCompleted(sessionId, values);
     }
     return inserted;
   }
@@ -488,7 +549,21 @@ export class LiveTelemetryPipeline {
     await this._reconcileRecordedSession(closed.session);
   }
 
-  private async _finishRecordedSessionCore(session = this._recordingSession, endReason = "session-ended"): Promise<CaptureFinalizationResult> {
+  private async _finalizeSessionRuns(sessionId: number): Promise<void> {
+    const preparedUpdate = this.sessionRunBuilder.finalize({ sessionId });
+    const inserted = await this.raceEventStore.appendSessionRunUpdate(
+      preparedUpdate,
+    );
+    preparedUpdate.commit();
+    if (inserted.length > 0) {
+      this.sessionRunPublisher.publishCompleted(sessionId, inserted);
+    }
+  }
+
+  private async _finishRecordedSessionCore(
+    session = this._recordingSession,
+    endReason = "session-ended",
+  ): Promise<CaptureFinalizationResult> {
     const closed = await withSessionCaptureMaintenanceLock(async () => {
       if (!session) {
         if (!this._recordingSession) await this.recorder.stop();
@@ -496,8 +571,13 @@ export class LiveTelemetryPipeline {
       }
       return this._closeRecordedSession(session);
     });
+    if (closed) {
+      await this._finalizeSessionRuns(closed.session.sessionId);
+    }
     return {
-      finalization: closed ? this._trackSessionFinalization(closed, endReason) : null,
+      finalization: closed
+        ? this._trackSessionFinalization(closed, endReason)
+        : null,
     };
   }
 
@@ -618,6 +698,28 @@ export class LiveTelemetryPipeline {
             lapNumber: context.lapNumber,
             lapId: event.lapId,
           });
+          this._stagedCompletedRunLaps.set(
+            `${session.sessionId}:${context.lapNumber}`,
+            {
+              lapId: event.lapId,
+              lapNumber: event.lapNumber,
+              lapTimeMs: Number.isFinite(event.lapTime)
+                ? event.lapTime * 1_000
+                : null,
+              isValid: event.isValid,
+              phase: event.phase,
+              conditions: event.conditions,
+              quality: event.quality,
+              eligibility: event.eligibility,
+              qualityGeneration: event.quality.provenance.outputGeneration,
+              qualityStale:
+                event.quality.provenance.outputGeneration === "legacy",
+              qualitySchemaVersion: event.quality.provenance.schemaVersion,
+              qualityPolicyVersion: event.quality.provenance.policyVersion,
+              qualityConfigVersion:
+                event.quality.provenance.configurationVersion,
+            },
+          );
         }
         const action = async () => {
           if (!staged) {
@@ -896,6 +998,7 @@ export class LiveTelemetryPipeline {
       this._pendingTimelinePreflight = null;
       this._stagedTimelineEvents.length = 0;
       this._stagedTimelineLapLinks.length = 0;
+      this._stagedCompletedRunLaps.clear();
     }
     this._lastTimelinePacket = packet;
     for (const action of lapSavedActions) await action();

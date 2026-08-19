@@ -1,12 +1,20 @@
 import { useEffect, useRef } from "react";
 import { RaceEventsAppendedMessageSchema, RaceEventsReplacedMessageSchema } from "@shared/racing/events/contracts";
+import {
+  SessionRunsCompletedMessageSchema,
+  SessionRunsReplacedMessageSchema,
+} from "@shared/racing/runs/contracts";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
-import { qualityUpdatedQueryKeys, queryKeys } from "./query-keys";
+import {
+  qualityUpdatedQueryKeys,
+  queryKeys,
+  sessionRunsUpdatedQueryKeys,
+} from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
@@ -82,6 +90,14 @@ export function useWebSocket() {
         startVersionRequest();
         if (hasOpenedRef.current) {
           void queryClient.invalidateQueries({ queryKey: queryKeys.sessionEventTimelines, refetchType: "active" });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.sessionRunPages,
+            refetchType: "active",
+          });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.sessionRunDetails,
+            refetchType: "active",
+          });
         }
         hasOpenedRef.current = true;
         if (useDevTelemetryStore.getState().subscriptionWanted) {
@@ -93,12 +109,42 @@ export function useWebSocket() {
         try {
           const data = JSON.parse(event.data);
           const raceEventMessage =
-            data.type === "race-events-appended" ? RaceEventsAppendedMessageSchema.safeParse(data) : data.type === "race-events-replaced" ? RaceEventsReplacedMessageSchema.safeParse(data) : null;
+            data.type === "race-events-appended"
+              ? RaceEventsAppendedMessageSchema.safeParse(data)
+              : data.type === "race-events-replaced"
+                ? RaceEventsReplacedMessageSchema.safeParse(data)
+                : null;
+          const sessionRunMessage =
+            data.type === "session-runs-completed"
+              ? SessionRunsCompletedMessageSchema.safeParse(data)
+              : data.type === "session-runs-replaced"
+                ? SessionRunsReplacedMessageSchema.safeParse(data)
+                : null;
           if (raceEventMessage) {
             if (raceEventMessage.success) {
               void queryClient.invalidateQueries({
-                queryKey: queryKeys.sessionEvents(raceEventMessage.data.sessionId),
+                queryKey: queryKeys.sessionEvents(
+                  raceEventMessage.data.sessionId,
+                ),
               });
+            }
+          } else if (sessionRunMessage) {
+            if (sessionRunMessage.success) {
+              const runIds =
+                sessionRunMessage.data.type === "session-runs-completed"
+                  ? sessionRunMessage.data.runs.map(({ runId }) => runId)
+                  : [];
+              for (const queryKey of sessionRunsUpdatedQueryKeys(
+                sessionRunMessage.data.sessionId,
+                runIds,
+              )) {
+                void queryClient.invalidateQueries({ queryKey });
+              }
+              if (sessionRunMessage.data.type === "session-runs-replaced") {
+                void queryClient.invalidateQueries({
+                  queryKey: queryKeys.sessionRunDetails,
+                });
+              }
             }
           } else if (data.type === "status") {
             const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars

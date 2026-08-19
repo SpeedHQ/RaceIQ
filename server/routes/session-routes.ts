@@ -25,13 +25,46 @@ import { assessEvidenceRetention } from "../lap-analysis/evidence-retention";
 import { getSessionCanonicalAvailability } from "../lap-analysis/canonical-archive-availability";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { RaceEventQuerySchema } from "../../shared/racing/events/contracts";
+import {
+  ComparableSessionRunQuerySchema,
+  SessionRunIdSchema,
+  SessionRunLapQuerySchema,
+  SessionRunQuerySchema,
+} from "../../shared/racing/runs/contracts";
 import { listSessionRaceEvents, RaceEventCursorError } from "../db/race-event-queries";
+import {
+  listComparableSessionRuns,
+  listDriverStints,
+  listSessionRunEvidence,
+  listSessionRunLaps,
+  listSessionRuns,
+  SessionRunCursorError,
+  SessionRunNotFoundError,
+} from "../db/session-run-queries";
 
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
+
+export const DriverIdParamSchema = z
+  .object({ driverId: z.string().min(1) })
+  .strict();
+export const SessionRunIdParamSchema = z
+  .object({ runId: SessionRunIdSchema })
+  .strict();
+const SessionRunEvidenceQuerySchema = z
+  .object({
+    cursor: z.string().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(1000).default(200),
+  })
+  .strict();
 
 export interface SessionRouteDependencies {
   sessionExists: (sessionId: number) => Promise<boolean>;
   listSessionRaceEvents: typeof listSessionRaceEvents;
+  listSessionRuns: typeof listSessionRuns;
+  listDriverStints: typeof listDriverStints;
+  listSessionRunLaps: typeof listSessionRunLaps;
+  listSessionRunEvidence: typeof listSessionRunEvidence;
+  listComparableSessionRuns: typeof listComparableSessionRuns;
   getQualityRebuildStatus: typeof getQualityRebuildStatus;
   getLapsForSession: typeof getLapsForSession;
   reprocessSession: typeof reprocessSession;
@@ -48,6 +81,11 @@ const DEFAULT_SESSION_ROUTE_DEPENDENCIES: SessionRouteDependencies = {
     return session != null;
   },
   listSessionRaceEvents,
+  listSessionRuns,
+  listDriverStints,
+  listSessionRunLaps,
+  listSessionRunEvidence,
+  listComparableSessionRuns,
   getQualityRebuildStatus,
   getLapsForSession,
   reprocessSession,
@@ -110,6 +148,117 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       } catch (error) {
         if (error instanceof RaceEventCursorError) {
           return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    },
+  )
+  .get(
+    "/api/sessions/:id/runs",
+    zValidator("param", IdParamSchema),
+    zValidator("query", SessionRunQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      if (!(await dependencies.sessionExists(id))) {
+        return c.json({ error: "Session not found" }, 404);
+      }
+      try {
+        return c.json(await dependencies.listSessionRuns(id, c.req.valid("query")));
+      } catch (error) {
+        if (error instanceof SessionRunCursorError) {
+          return c.json({ error: error.message }, 400);
+        }
+        if (error instanceof SessionRunNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    },
+  )
+  .get(
+    "/api/drivers/:driverId/stints",
+    zValidator("param", DriverIdParamSchema),
+    zValidator("query", SessionRunQuerySchema),
+    async (c) => {
+      try {
+        return c.json(
+          await dependencies.listDriverStints(
+            c.req.valid("param").driverId,
+            c.req.valid("query"),
+          ),
+        );
+      } catch (error) {
+        if (error instanceof SessionRunCursorError) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    },
+  )
+  .get(
+    "/api/session-runs/:runId/laps",
+    zValidator("param", SessionRunIdParamSchema),
+    zValidator("query", SessionRunLapQuerySchema),
+    async (c) => {
+      try {
+        return c.json(
+          await dependencies.listSessionRunLaps(
+            c.req.valid("param").runId,
+            c.req.valid("query"),
+          ),
+        );
+      } catch (error) {
+        if (error instanceof SessionRunCursorError) {
+          return c.json({ error: error.message }, 400);
+        }
+        if (error instanceof SessionRunNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    },
+  )
+  .get(
+    "/api/session-runs/:runId/evidence",
+    zValidator("param", SessionRunIdParamSchema),
+    zValidator("query", SessionRunEvidenceQuerySchema),
+    async (c) => {
+      try {
+        return c.json(
+          await dependencies.listSessionRunEvidence(
+            c.req.valid("param").runId,
+            c.req.valid("query"),
+          ),
+        );
+      } catch (error) {
+        if (error instanceof SessionRunCursorError) {
+          return c.json({ error: error.message }, 400);
+        }
+        if (error instanceof SessionRunNotFoundError) {
+          return c.json({ error: error.message }, 404);
+        }
+        throw error;
+      }
+    },
+  )
+  .get(
+    "/api/session-runs/:runId/comparable",
+    zValidator("param", SessionRunIdParamSchema),
+    zValidator("query", ComparableSessionRunQuerySchema),
+    async (c) => {
+      try {
+        return c.json(
+          await dependencies.listComparableSessionRuns(
+            c.req.valid("param").runId,
+            c.req.valid("query"),
+          ),
+        );
+      } catch (error) {
+        if (error instanceof SessionRunCursorError) {
+          return c.json({ error: error.message }, 400);
+        }
+        if (error instanceof SessionRunNotFoundError) {
+          return c.json({ error: error.message }, 404);
         }
         throw error;
       }

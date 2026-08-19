@@ -21,13 +21,26 @@ import {
   type RaceEventQuery,
   type RaceEventType,
 } from "../../shared/racing/events/contracts";
+import {
+  SessionRunEvidenceSchema,
+  SessionRunLapMembershipSchema,
+  SessionRunSchema,
+  type SessionRun,
+  type SessionRunEvidence,
+  type SessionRunLapMembership,
+} from "../../shared/racing/runs/contracts";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
+import {
+  appendSessionRunArtifactsInTransaction,
+  SessionRunConflictError,
+} from "./session-run-queries";
 import { db } from "./index";
 import {
   compareAnalyses,
   lapAnalyses,
   laps,
   raceEvents,
+  sessionRuns,
   sessionResults,
   sessions,
 } from "./schema";
@@ -98,17 +111,23 @@ export type RaceEventResultProjection = Omit<
   eventIds: RaceEventId[];
 };
 
-export interface ReplaceReplayableRaceEventsInput {
+export interface ReplaceReplayableSessionArtifactsInput {
   sessionId: number;
   events: readonly RaceEvent[];
+  runs: readonly SessionRun[];
+  memberships: readonly SessionRunLapMembership[];
+  evidence: readonly SessionRunEvidence[];
   /** Undefined preserves laps; an empty array deliberately removes them all. */
   laps?: readonly ReplayableLapReplacement[];
   /** Undefined preserves the materialized result. */
   result?: RaceEventResultProjection;
 }
 
-export interface ReplaceReplayableRaceEventsResult {
+export interface ReplaceReplayableSessionArtifactsResult {
   events: RaceEvent[];
+  runs: SessionRun[];
+  memberships: SessionRunLapMembership[];
+  evidence: SessionRunEvidence[];
   lapIdsByNumber: Map<number, number>;
   conflictCount: number;
 }
@@ -478,11 +497,83 @@ function assertProjectedResult(
   }
 }
 
-async function replaceReplayableRaceEventsInTransaction(
+function validateReplacementRunArtifacts(
+  input: ReplaceReplayableSessionArtifactsInput,
+  resultingEventIds: ReadonlySet<RaceEventId>,
+): {
+  runs: SessionRun[];
+  memberships: SessionRunLapMembership[];
+  evidence: SessionRunEvidence[];
+} {
+  const runs = input.runs.map((run) => SessionRunSchema.parse(run));
+  const memberships = input.memberships.map((membership) =>
+    SessionRunLapMembershipSchema.parse(membership),
+  );
+  const evidence = input.evidence.map((item) =>
+    SessionRunEvidenceSchema.parse(item),
+  );
+  const runById = new Map(runs.map((run) => [run.runId, run] as const));
+  if (runById.size !== runs.length) {
+    throw new Error("Replacement session runs contain duplicate run ids");
+  }
+  for (const run of runs) {
+    if (run.sessionId !== input.sessionId) {
+      throw new Error(`Session run ${run.runId} does not belong to replacement session`);
+    }
+    for (const eventId of [
+      run.openingBoundary.eventId,
+      run.closingBoundary.eventId,
+      run.startLapEventId,
+      run.endLapEventId,
+    ]) {
+      if (eventId && !resultingEventIds.has(eventId)) {
+        throw new Error(`Session run ${run.runId} references missing event ${eventId}`);
+      }
+    }
+  }
+  const membershipKeys = new Set<string>();
+  for (const membership of memberships) {
+    if (!runById.has(membership.runId)) {
+      throw new Error(`Session run membership references missing run ${membership.runId}`);
+    }
+    const key = `${membership.runId}:${membership.lapEventId}`;
+    if (membershipKeys.has(key)) {
+      throw new Error(`Replacement session run membership ${key} is duplicated`);
+    }
+    membershipKeys.add(key);
+    for (const eventId of [
+      membership.lapEventId,
+      membership.entryEventId,
+      membership.exitEventId,
+    ]) {
+      if (eventId && !resultingEventIds.has(eventId)) {
+        throw new Error(`Session run membership references missing event ${eventId}`);
+      }
+    }
+  }
+  const evidenceKeys = new Set<string>();
+  for (const item of evidence) {
+    if (!runById.has(item.runId)) {
+      throw new Error(`Session run evidence references missing run ${item.runId}`);
+    }
+    if (!resultingEventIds.has(item.eventId)) {
+      throw new Error(`Session run evidence references missing event ${item.eventId}`);
+    }
+    const key = `${item.runId}:${item.eventId}:${item.role}`;
+    if (evidenceKeys.has(key)) {
+      throw new Error(`Replacement session run evidence ${key} is duplicated`);
+    }
+    evidenceKeys.add(key);
+  }
+  return { runs, memberships, evidence };
+}
+
+
+async function replaceReplayableSessionArtifactsInTransaction(
   tx: DbTransaction,
-  input: ReplaceReplayableRaceEventsInput,
+  input: ReplaceReplayableSessionArtifactsInput,
   events: readonly RaceEvent[],
-): Promise<ReplaceReplayableRaceEventsResult> {
+): Promise<ReplaceReplayableSessionArtifactsResult> {
   const session = await tx.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, input.sessionId)).get();
   if (!session) throw new Error(`Session ${input.sessionId} does not exist`);
 
@@ -531,7 +622,30 @@ async function replaceReplayableRaceEventsInTransaction(
     ...events.map((event) => event.eventId),
   ]);
   assertProjectedResult(input.result, resultingEventIds);
+  const runArtifacts = validateReplacementRunArtifacts(input, resultingEventIds);
+  const existingRunRows = await tx
+    .select({
+      runId: sessionRuns.runId,
+      algorithmVersion: sessionRuns.algorithmVersion,
+      contentHash: sessionRuns.contentHash,
+    })
+    .from(sessionRuns)
+    .where(eq(sessionRuns.sessionId, input.sessionId))
+    .all();
+  const existingRunById = new Map(
+    existingRunRows.map((row) => [row.runId, row] as const),
+  );
+  for (const run of runArtifacts.runs) {
+    const previous = existingRunById.get(run.runId);
+    if (!previous || previous.contentHash === run.contentHash) continue;
+    if (previous.algorithmVersion === run.algorithmVersion) {
+      throw new SessionRunConflictError(run.runId);
+    }
+    conflictCount += 1;
+  }
   const eventsToInsert = events.filter((event) => !retainedById.has(event.eventId));
+
+  await tx.delete(sessionRuns).where(eq(sessionRuns.sessionId, input.sessionId)).run();
 
   await tx
     .delete(raceEvents)
@@ -589,6 +703,39 @@ async function replaceReplayableRaceEventsInTransaction(
   if (remappedEvents.length > 0) await insertRaceEventRows(tx, remappedEvents);
   await applyPitPhaseProjection(tx, remappedEvents);
 
+
+  const remappedMemberships = runArtifacts.memberships.map((membership) => ({
+    ...membership,
+    lapId:
+      input.laps === undefined
+        ? membership.lapId
+        : (lapIdsByNumber.get(membership.lapNumber) ?? null),
+  }));
+  const lapIdByEventId = new Map(
+    remappedMemberships.map((membership) => [
+      membership.lapEventId,
+      membership.lapId,
+    ] as const),
+  );
+  const remappedRuns = runArtifacts.runs.map((run) => ({
+    ...run,
+    startLapId:
+      run.startLapEventId == null
+        ? null
+        : (lapIdByEventId.get(run.startLapEventId) ?? null),
+    endLapId:
+      run.endLapEventId == null
+        ? null
+        : (lapIdByEventId.get(run.endLapEventId) ?? null),
+  }));
+  const insertedRuns = await appendSessionRunArtifactsInTransaction(
+    tx,
+    {
+      runs: remappedRuns,
+      memberships: remappedMemberships,
+      evidence: runArtifacts.evidence,
+    },
+  );
   if (input.result) {
     const now = new Date().toISOString();
     const existingResult = await tx
@@ -619,6 +766,9 @@ async function replaceReplayableRaceEventsInTransaction(
         .all();
   return {
     events: persistedRows.map(parseRaceEventRow),
+    runs: insertedRuns,
+    memberships: remappedMemberships,
+    evidence: runArtifacts.evidence,
     lapIdsByNumber,
     conflictCount,
   };
@@ -629,16 +779,24 @@ async function replaceReplayableRaceEventsInTransaction(
  * and storage diagnostics survive replacement; every other timeline fact is
  * validated before destructive work starts and replaced in one transaction.
  */
-export function replaceReplayableRaceEvents(
-  input: ReplaceReplayableRaceEventsInput,
+export function replaceReplayableSessionArtifacts(
+  input: ReplaceReplayableSessionArtifactsInput,
   transaction?: DbTransaction,
-): Promise<ReplaceReplayableRaceEventsResult> {
+): Promise<ReplaceReplayableSessionArtifactsResult> {
   const validatedEvents = validateEvents(input.events);
   assertReplacementOrder(validatedEvents);
   const events = deduplicateEvents(validatedEvents);
   assertReplacementLaps(input.laps);
-  if (transaction) return replaceReplayableRaceEventsInTransaction(transaction, input, events);
-  return db.transaction((tx) => replaceReplayableRaceEventsInTransaction(tx, input, events));
+  if (transaction) {
+    return replaceReplayableSessionArtifactsInTransaction(
+      transaction,
+      input,
+      events,
+    );
+  }
+  return db.transaction((tx) =>
+    replaceReplayableSessionArtifactsInTransaction(tx, input, events),
+  );
 }
 
 async function finalizeRaceEventSourceGenerationInTransaction(

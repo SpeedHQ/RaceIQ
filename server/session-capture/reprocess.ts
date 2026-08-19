@@ -4,6 +4,7 @@ import type { GameId } from "../../shared/games/ids";
 import {
   RaceEventsReplacedMessageSchema,
 } from "../../shared/racing/events/contracts";
+import { SessionRunsReplacedMessageSchema } from "../../shared/racing/runs/contracts";
 import {
   LOCAL_PLAYER_EVIDENCE,
   type EvidenceSourceKind,
@@ -13,7 +14,7 @@ import { db } from "../db";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import {
-  replaceReplayableRaceEvents,
+  replaceReplayableSessionArtifacts,
   type RaceEventResultProjection,
   type ReplayableLapReplacement,
 } from "../db/race-event-queries";
@@ -238,7 +239,18 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   let qualityGeneration = mergedQuality.provenance.outputGeneration;
 
   await db.transaction(async (tx) => {
-    await replaceReplayableRaceEvents({ sessionId, events: rebuilt.events, laps, result }, tx);
+    await replaceReplayableSessionArtifacts(
+      {
+        sessionId,
+        events: rebuilt.events,
+        runs: rebuilt.runs,
+        memberships: rebuilt.memberships,
+        evidence: rebuilt.evidence,
+        laps,
+        result,
+      },
+      tx,
+    );
     await updateSessionRawFile(sessionId, session.rawFile!, rebuilt.detectorId, versionIdentity, tx);
     qualityGeneration = (await updateSessionQuality(sessionId, mergedQuality, tx)).provenance.outputGeneration;
     await linkSessionQualityEvents(sessionId, tx);
@@ -247,6 +259,12 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 
   wsManager.broadcastNotification(
     RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
+  );
+  wsManager.broadcastNotification(
+    SessionRunsReplacedMessageSchema.parse({
+      type: "session-runs-replaced",
+      sessionId,
+    }),
   );
   wsManager.broadcastNotification({
     type: "race-result-reconciled",
