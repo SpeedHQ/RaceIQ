@@ -19,6 +19,8 @@ export const LIVE_CORE_SEMANTIC_IDS = [
   "identity.track-ordinal",
   "inputs.throttle",
   "inputs.brake",
+  "inputs.clutch",
+  "inputs.handbrake",
   "inputs.gear",
   "inputs.steering",
   "motion.acceleration-x",

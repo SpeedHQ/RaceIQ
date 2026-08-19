@@ -85,15 +85,17 @@ function mockLiveDashboardFetch(
 }
 
 function MockLiveDashboardApi({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     const previousFetch = window.fetch;
     window.fetch = (input, init) =>
       mockLiveDashboardFetch(input, init, previousFetch);
+    setReady(true);
     return () => {
       window.fetch = previousFetch;
     };
   }, []);
-  return children;
+  return ready ? children : null;
 }
 export function LiveDashboardStoryFrame({ queryClient, story: Story }: LiveDashboardStoryFrameProps) {
   const [router] = useState(() => {

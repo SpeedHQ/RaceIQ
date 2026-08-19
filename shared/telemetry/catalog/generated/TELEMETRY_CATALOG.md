@@ -7,9 +7,9 @@
 - Catalog version: `0.13.0`
 - Schema version: `v6`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator commit: `45ecb996c6ec196b5157433772b02ee96e117142aca67c41cf52f583907146d3`
+- Generator commit: `d0d1989dfb2414f6194fdf64b299c6b13db0a661c9121c820690948140a5d1f6`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `fcb64cf91e0fce2032f9dfd39d30f09543d1dad43258f9d834ded784ec75c0cd`
+- Content SHA-256: `f2fc149f915625b989440c561bd4f715b20dc8407efdfbd8431b3fd2de7178e3`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 959 | 710 | 119 | 21 | 324 | 495 | 0 |
+| iracing | 959 | 718 | 119 | 21 | 324 | 495 | 0 |
 
 ## Semantic variables
 

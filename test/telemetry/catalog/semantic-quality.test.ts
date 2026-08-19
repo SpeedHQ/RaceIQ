@@ -66,6 +66,15 @@ describe("catalog semantic quality", () => {
     ).toThrow(
       `Duplicate telemetry concept ${legacyFuelVolume} and fuel.remaining-volume`,
     );
+
+    expect(() =>
+      assertQuality([
+        variable("tire.temperature.average", "°C"),
+        variable("tire.temperature.current-average", "°C"),
+      ]),
+    ).toThrow(
+      "Duplicate telemetry concept tire.temperature.average and tire.temperature.current-average",
+    );
   });
 
   test("rejects source-representation suffixes", () => {
@@ -192,7 +201,7 @@ describe("catalog semantic quality", () => {
         variable("timing.track-length", "m"),
         variable("timing.official-track-length", "m"),
         variable("tire.temperature.average", "°C"),
-        variable("tire.temperature.current-average", "°C"),
+        variable("tire.temperature.surface.average", "°C"),
         variable("fuel.remaining-volume", "L"),
         variable("fuel.remaining-fraction", "fraction"),
         variable("fuel.remaining-percent", "%"),

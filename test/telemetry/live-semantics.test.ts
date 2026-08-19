@@ -39,6 +39,8 @@ describe("live telemetry semantics", () => {
       "identity.track-ordinal",
       "inputs.throttle",
       "inputs.brake",
+      "inputs.clutch",
+      "inputs.handbrake",
       "inputs.gear",
       "inputs.steering",
       "motion.acceleration-x",

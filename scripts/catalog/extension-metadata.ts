@@ -313,15 +313,11 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   },
   "f1.grid[].pitStatus": {
     unit: "enum",
-    description: "Normalized F1 pit state for each competitor.",
-    kind: "normalized",
-    normalization: "map F1 pit-status code 0/1/2 to none/pitting/in-pit-area",
+    description: "Canonical F1 pit state for each competitor.",
   },
   "f1.grid[].onPitRoad": {
     unit: "boolean",
     description: "Whether each F1 competitor is pitting or inside the pit area.",
-    kind: "normalized",
-    normalization: "pitStatus !== none",
   },
   "f1.grid[].tyreCompound": {
     unit: "text",

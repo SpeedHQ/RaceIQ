@@ -57,7 +57,7 @@ describe("F1 telemetry contract", () => {
       shape: "structured",
       games: {
         "f1-2025": {
-          kind: "normalized",
+          kind: "direct",
           nativeUnit: "enum",
           sources: ["f1.grid[].pitStatus"],
         },
@@ -70,7 +70,7 @@ describe("F1 telemetry contract", () => {
       shape: "structured",
       games: {
         "f1-2025": {
-          kind: "normalized",
+          kind: "direct",
           nativeUnit: "boolean",
           sources: ["f1.grid[].onPitRoad"],
         },

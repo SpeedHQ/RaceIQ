@@ -26,17 +26,37 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const analysis = resolveAnalysisTelemetry(adapter);
   const wears = view?.tires.wear ? [view.tires.wear.fl, view.tires.wear.fr, view.tires.wear.rl, view.tires.wear.rr] : [packet?.TireWearFL ?? 0, packet?.TireWearFR ?? 0, packet?.TireWearRL ?? 0, packet?.TireWearRR ?? 0];
   const healthAvailable = view ? hasTireHealthDataSemantic(wears, analysis.tireHealth) : hasTireHealthData(packet!, analysis.tireHealth);
+  const hasSemanticFuel =
+    view !== undefined &&
+    (Number.isFinite(view.fuel.remainingVolumeL) ||
+      Number.isFinite(view.fuel.remainingFraction));
   const fuel = view
-    ? getFuelDisplaySemantic({
-        remainingVolumeL: view.fuel.remainingVolumeL,
-        remainingFraction: view.fuel.remainingFraction,
-        capacityL: view.fuel.capacityL,
-      })
-    : getFuelDisplay(packet!, telemetryModel.fuel);
-  const fuelPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
-  const isFuelCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
-  const isFuelWarning = !isFuelCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
-  const fuelColor = severityColor(isFuelCritical ? 3 : isFuelWarning ? 1 : 0);
+    ? hasSemanticFuel
+      ? getFuelDisplaySemantic({
+          remainingVolumeL: view.fuel.remainingVolumeL,
+          remainingFraction: view.fuel.remainingFraction,
+          capacityL: view.fuel.capacityL,
+        })
+      : undefined
+    : packet
+      ? getFuelDisplay(packet, telemetryModel.fuel)
+      : undefined;
+  const fuelPct =
+    fuel?.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
+  const isFuelCritical =
+    fuel === undefined
+      ? false
+      : fuel.fillRatio === undefined
+        ? fuel.amount < 5
+        : fuel.fillRatio < 0.2;
+  const isFuelWarning =
+    fuel !== undefined &&
+    !isFuelCritical &&
+    (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
+  const fuelColor =
+    fuel === undefined
+      ? "var(--status-unavailable)"
+      : severityColor(isFuelCritical ? 3 : isFuelWarning ? 1 : 0);
 
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
@@ -84,15 +104,21 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
           </div>
           <div className="flex items-center gap-3">
             {fuelPct === undefined ? (
-              <div className="flex-1 h-3 rounded-full border border-dashed border-app-border" title="Fuel capacity unavailable" />
+              <div className="flex-1 h-3 rounded-full border border-dashed border-app-border" title={fuel ? "Fuel capacity unavailable" : "Fuel unavailable"} />
             ) : (
               <div className="flex-1 h-3 rounded-full overflow-hidden">
                 <div className="h-full rounded-full" style={{ backgroundColor: fuelColor, width: `${fuelPct}%` }} />
               </div>
             )}
-            <div className={`text-2xl font-mono font-black tabular-nums leading-none ${fuel.unit === "L" ? "w-20" : "w-14"} text-right`} style={{ color: fuelColor }}>
-              {fuel.amount.toFixed(fuel.unit === "L" ? 1 : 0)}
-              {fuel.unit}
+            <div className={`text-2xl font-mono font-black tabular-nums leading-none ${fuel?.unit === "L" ? "w-20" : "w-14"} text-right`} style={{ color: fuelColor }}>
+              {fuel ? (
+                <>
+                  {fuel.amount.toFixed(fuel.unit === "L" ? 1 : 0)}
+                  {fuel.unit}
+                </>
+              ) : (
+                "—"
+              )}
             </div>
           </div>
         </div>

@@ -327,15 +327,12 @@ function addCrossSourceProjections(
       sources: Object.fromEntries(
         ["FL", "FR", "RL", "RR"].map((wheel, index) => [
           wheel,
-          [
-            `TelemetryPacket.${forzaSlipFields[index]}`,
-            `ForzaDataOut.${forzaSlipFields[index]}`,
-          ],
+          [`TelemetryPacket.${forzaSlipFields[index]}`],
         ]),
       ),
       freshness: "continuous",
       description:
-        "Forza provides source-normalized per-wheel lateral slip rather than a physical angle.",
+        "Uses TelemetryPacket per-wheel normalized lateral slip; parser provenance: ForzaDataOut.TireSlipAngleFL/FR/RL/RR.",
     };
   }
 
@@ -409,6 +406,27 @@ function addCrossSourceProjections(
       description: "iRacing common compound is projected from detailed source code.",
     };
   }
+  const fuelCapacity = variables.get("fuel.capacity");
+  const iracingCapacity = fuelCapacity?.games.iracing;
+  if (fuelCapacity && iracingCapacity && iracingCapacity.kind !== "unavailable") {
+    const sessionSources = Array.isArray(iracingCapacity.sources)
+      ? iracingCapacity.sources
+      : Object.values(iracingCapacity.sources).flat();
+    fuelCapacity.games.iracing = {
+      kind: "direct",
+      nativeUnit: "L",
+      sources: [
+        "TelemetryPacket.FuelCapacity",
+        ...sessionSources.filter(
+          (source) => source !== "TelemetryPacket.FuelCapacity",
+        ),
+      ],
+      freshness: "session-update",
+      description:
+        "Uses normalized packet fuel capacity first and SessionInfo capacity when packet value is absent.",
+    };
+  }
+
 
   addDefinedVariable(
     variables,

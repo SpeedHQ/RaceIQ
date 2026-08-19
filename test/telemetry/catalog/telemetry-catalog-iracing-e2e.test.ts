@@ -56,7 +56,7 @@ describe("iRacing telemetry catalog coverage", () => {
         expectations: [
           {
             semanticId: "motion.speed",
-            mappingStatus: "normalized",
+            mappingStatus: "direct",
             unit: "m/s",
             accepts: (value) => isFiniteNumber(value) && value > 1,
             minimumRange: 1,
@@ -70,7 +70,7 @@ describe("iRacing telemetry catalog coverage", () => {
           },
           {
             semanticId: "timing.current-lap",
-            mappingStatus: "derived",
+            mappingStatus: "direct",
             unit: "s",
             accepts: (value) => isFiniteNumber(value) && value > 0,
             minimumRange: 1,

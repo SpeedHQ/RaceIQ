@@ -34,7 +34,7 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
-  test("uses normalized packet values without running a derivation DAG", () => {
+  test("uses canonical packet values without running a derivation DAG", () => {
     let evaluations = 0;
     const derivation = {
       id: "test.override-normalized-speed",
@@ -64,10 +64,10 @@ describe("compiled telemetry resolver", () => {
 
     expect(resolved).toMatchObject({
       value: 42,
-      mappingStatus: "normalized",
-      confidence: 0.99,
+      mappingStatus: "direct",
+      confidence: 1,
       confidenceComponents: {
-        semanticFidelity: 0.99,
+        semanticFidelity: 1,
         freshness: 1,
         inputCompleteness: 1,
       },
@@ -243,6 +243,38 @@ describe("compiled telemetry resolver", () => {
     ).toBe(1.234);
   });
 
+  test("resolves parser-normalized F1 competitor pit arrays directly", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: [
+        { semanticId: "race.competitor.pit-status" },
+        { semanticId: "race.competitor.on-pit-road" },
+      ],
+    });
+    const frame = resolver.createFrameView(
+      packet("f1-2025", {
+        f1: {
+          grid: [
+            { pitStatus: "none", onPitRoad: false },
+            { pitStatus: "pitting", onPitRoad: true },
+            { pitStatus: "in-pit-area", onPitRoad: true },
+          ],
+        } as TelemetryPacket["f1"],
+      }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+    );
+    expect(
+      frame.readValue<readonly string[]>(
+        resolver.slot("race.competitor.pit-status"),
+      ),
+    ).toEqual(["none", "pitting", "in-pit-area"]);
+    expect(
+      frame.readValue<readonly boolean[]>(
+        resolver.slot("race.competitor.on-pit-road"),
+      ),
+    ).toEqual([false, true, true]);
+  });
+
   test("partitions the overloaded packet fuel field by canonical representation", () => {
     const cases = [
       ["fm-2023", "fuel.remaining-fraction", 0.375],
@@ -266,6 +298,22 @@ describe("compiled telemetry resolver", () => {
         state: "ok",
       });
     }
+  });
+
+  test("uses iRacing packet fuel capacity before SessionInfo fallback", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "fuel.capacity" }],
+    });
+    const frame = resolver.createFrameView(
+      packet("iracing", { FuelCapacity: 100 }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+    );
+    expect(frame.resolveNumber(resolver.slot("fuel.capacity"))).toMatchObject({
+      value: 100,
+      mappingStatus: "direct",
+      state: "ok",
+    });
   });
 
   test("derives canonical fuel percentages from fractions", () => {

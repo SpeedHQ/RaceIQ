@@ -17,6 +17,7 @@ import {
   IRACING_SESSION_INFO_CATALOG_FIELDS,
 } from "../../shared/games/iracing/session-info/catalog";
 import { getSchemaForGame } from "../../shared/racing/setups/schema";
+import { IRACING_TELEMETRY_VARIABLES } from "../../server/games/iracing/sdk-reader";
 import {
   assertIRacingSessionInfoCaptureCoverage,
   readIRacingSessionInfoCaptures,
@@ -41,6 +42,8 @@ import {
   attachChild,
   ensureCategoryGroups,
   nativeFuelUnit,
+  packetNativeMetadata,
+  packetProvenanceSources,
   packetGameLink,
 } from "./packet-mapping";
 import {
@@ -102,6 +105,7 @@ const CATALOG_GENERATOR_SOURCE_FILES = [
   "scripts/catalog/semantic-definitions.ts",
   "scripts/catalog/semantic-metadata.ts",
   "scripts/catalog/setup-link-mapping.ts",
+  "server/games/iracing/sdk-reader.ts",
 ] as const;
 
 export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
@@ -157,6 +161,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     "ac-evo": [],
     iracing: [],
   };
+  const iracingPacketProvenance = new Map<string, string>();
   for (const set of packetSets) {
     const fieldInfo = packetFields.find((field) => field.name === set.fields[0]);
     if (set.key === "Fuel") {
@@ -233,6 +238,18 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
           retention: "exact",
         });
       }
+      for (const source of packetProvenanceSources(
+        "iracing",
+        set,
+        parserOutputs.iracing,
+      )) {
+        if (source.startsWith("iRacing.")) {
+          iracingPacketProvenance.set(
+            source.slice("iRacing.".length),
+            "fuel.remaining-volume",
+          );
+        }
+      }
       continue;
     }
 
@@ -276,6 +293,20 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     ];
     variables.set(variable.id, variable);
     attachChild(groups, variable.parentId, variable.id);
+    if (variable.games.iracing.kind !== "unavailable") {
+      for (const source of packetProvenanceSources(
+        "iracing",
+        set,
+        parserOutputs.iracing,
+      )) {
+        if (source.startsWith("iRacing.")) {
+          iracingPacketProvenance.set(
+            source.slice("iRacing.".length),
+            variable.id,
+          );
+        }
+      }
+    }
 
     for (const gameId of GAME_IDS) {
       for (const field of set.fields) {
@@ -283,10 +314,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
         addSource(inventories, gameId, {
           path: `TelemetryPacket.${field}`,
           label: humanize(field),
-          unit:
-            gameId === "fm-2023" && set.key.startsWith("TireTemp")
-              ? "°F"
-              : unit,
+          unit: packetNativeMetadata(gameId, set.key, unit).nativeUnit,
           dataType: fieldInfo?.type ?? "unknown",
           count: 1,
           description:
@@ -381,9 +409,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
   const selected = new Set([
     ...(diagnostic.raceIQSelected?.present ?? []),
-    "FuelLevelPct",
+    ...IRACING_TELEMETRY_VARIABLES,
   ]);
-  const existingIRacingSources = new Map<string, string>();
+  const existingIRacingSources = new Map(iracingPacketProvenance);
   for (const variable of variables.values()) {
     const link = variable.games.iracing;
     if (link.kind === "unavailable") continue;

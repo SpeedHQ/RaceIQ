@@ -85,7 +85,7 @@ test(
       expectations: [
         {
           semanticId: "motion.speed",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "m/s",
           accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 1 && value < 150,
           minimumRange: 1,

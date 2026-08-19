@@ -177,17 +177,9 @@ function conceptKey(id: string): string {
 
 function intentionalDuplicate(left: string, right: string): boolean {
   const pair = [left, right].sort().join("|");
-  if (
+  return (
     pair === "engine.current-engine-rpm|engine.engine0-rpm" ||
     pair === "timing.official-track-length|timing.track-length"
-  ) {
-    return true;
-  }
-  return (
-    /^(?:tire\.temperature|tires\.)/.test(left) &&
-    /temp|temperature/.test(left) &&
-    /^(?:tire\.temperature|tires\.)/.test(right) &&
-    /temp|temperature/.test(right)
   );
 }
 

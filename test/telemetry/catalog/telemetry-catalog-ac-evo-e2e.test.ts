@@ -84,7 +84,7 @@ test(
       expectations: [
         {
           semanticId: "motion.speed",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "m/s",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 1 && value < 150,
           minimumRange: 1,
@@ -104,20 +104,20 @@ test(
         },
         {
           semanticId: "timing.current-lap",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "s",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 0 && value < 60 * 60 * 10,
           minimumRange: 1,
         },
         {
           semanticId: "timing.lap-number",
-          mappingStatus: "derived",
+          mappingStatus: "direct",
           unit: "count",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && Number.isInteger(value) && value >= 1 && value <= 200,
         },
         {
           semanticId: "timing.distance-traveled",
-          mappingStatus: "derived",
+          mappingStatus: "direct",
           unit: "m",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 0 && value < 100_000,
           minimumRange: 10,

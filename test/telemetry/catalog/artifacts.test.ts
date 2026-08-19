@@ -6,6 +6,7 @@ import {
   getTelemetrySources,
   getTelemetryVariable,
   IRACING_SESSION_INFO_SOURCE_VARIABLES,
+  IRACING_TELEMETRY_SOURCE_VARIABLES,
   KNOWN_GAME_IDS,
   TELEMETRY_CATALOG,
   TELEMETRY_CATALOG_HASH,
@@ -136,7 +137,7 @@ describe("semantic telemetry catalog artifacts", () => {
         sdk: 324,
         yaml: 495,
         setup: 0,
-        recorded: 710,
+        recorded: 718,
       },
     });
 
@@ -220,20 +221,27 @@ describe("semantic telemetry catalog artifacts", () => {
     expect(getTelemetryVariable("race.is-race-on").games).toMatchObject({
       "f1-2025": { kind: "unavailable", reason: "parser-placeholder" },
       iracing: {
-        kind: "normalized",
+        kind: "direct",
         sources: ["TelemetryPacket.IsRaceOn", "iRacing.IsOnTrack"],
       },
     });
-    expect(getTelemetryVariable("tires.tire-pressure").games.iracing).toMatchObject({
-      kind: "normalized",
-      nativeUnit: "kPa",
+    const iracingPressure =
+      getTelemetryVariable("tires.tire-pressure").games.iracing;
+    expect(iracingPressure).toMatchObject({
+      kind: "direct",
+      nativeUnit: "psi",
       sources: {
-        FL: ["TelemetryPacket.TirePressureFrontLeft", "iRacing.LFcoldPressure"],
-        FR: ["TelemetryPacket.TirePressureFrontRight", "iRacing.RFcoldPressure"],
-        RL: ["TelemetryPacket.TirePressureRearLeft", "iRacing.LRcoldPressure"],
-        RR: ["TelemetryPacket.TirePressureRearRight", "iRacing.RRcoldPressure"],
+        FL: ["TelemetryPacket.TirePressureFrontLeft"],
+        FR: ["TelemetryPacket.TirePressureFrontRight"],
+        RL: ["TelemetryPacket.TirePressureRearLeft"],
+        RR: ["TelemetryPacket.TirePressureRearRight"],
       },
     });
+    expect(
+      iracingPressure.kind === "unavailable"
+        ? ""
+        : iracingPressure.description,
+    ).toContain("iRacing.LFcoldPressure");
 
     expect(getTelemetryVariable("session.session-type").games.iracing.kind).toBe(
       "normalized",
@@ -246,6 +254,35 @@ describe("semantic telemetry catalog artifacts", () => {
         (source) => source.path === "TelemetryPacket.TireTempFL",
       ),
     ).toMatchObject({ unit: "°F" });
+    for (const gameId of KNOWN_GAME_IDS) {
+      const sources = getTelemetrySources(gameId);
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.Accel"),
+      ).toMatchObject({ unit: "0–255" });
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.Steer"),
+      ).toMatchObject({ unit: "-128–127" });
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.TimestampMS"),
+      ).toMatchObject({ unit: "ms" });
+    }
+    for (const path of [
+      "BrakeABSactive",
+      "CarIdxOnPitRoad",
+      "FuelLevelPct",
+      "PlayerCarSLFirstRPM",
+      "PlayerCarSLShiftRPM",
+      "PlayerCarSLLastRPM",
+      "PlayerCarSLBlinkRPM",
+      "SessionTimeOfDay",
+      "SessionTimeRemain",
+    ]) {
+      expect(
+        IRACING_TELEMETRY_SOURCE_VARIABLES.find(
+          (source) => source.path === path,
+        ),
+      ).toMatchObject({ recordedByRaceIQ: true, retention: "exact" });
+    }
     expect(
       IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
         (source) => source.path === "SessionInfo.WeekendInfo.TrackDirection",

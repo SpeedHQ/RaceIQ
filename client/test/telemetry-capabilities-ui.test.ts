@@ -309,6 +309,33 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("39%");
     expect(markup).not.toContain("4250%");
   });
+  test("renders unavailable semantic fuel without NaN", () => {
+    const view: LiveTelemetryView = {
+      simulator: "acc",
+      streamId: "test",
+      sessionId: 1,
+      sequence: 1,
+      observedAtMs: 1,
+      identity: {},
+      motion: {},
+      inputs: {},
+      engine: {},
+      fuel: {},
+      timing: {},
+      tires: {},
+      weather: {},
+      aero: {},
+      ers: {},
+      damage: {},
+      competitors: [],
+      stateBySemanticId: {},
+    };
+    const markup = renderToStaticMarkup(
+      createElement(PitEstimate, { view, pit: null }),
+    );
+    expect(markup).toContain("Fuel unavailable");
+    expect(markup).not.toContain("NaN");
+  });
   test("omits ACC weather and renders explicit surface availability", () => {
     const value = packet("acc", {
       WeatherType: 0,

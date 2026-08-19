@@ -74,7 +74,7 @@ test(
       expectations: [
         {
           semanticId: "motion.speed",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "m/s",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;
@@ -96,7 +96,7 @@ test(
         },
         {
           semanticId: "timing.current-lap",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "s",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;
@@ -107,7 +107,7 @@ test(
         },
         {
           semanticId: "timing.lap-number",
-          mappingStatus: "derived",
+          mappingStatus: "direct",
           unit: "count",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;
