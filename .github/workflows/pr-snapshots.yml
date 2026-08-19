@@ -36,7 +36,10 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on:
+      - whitesmith-windows-x64
+      - 4VCPU
+      - 15G
     container:
       image: mcr.microsoft.com/playwright:v1.62.0-jammy
     env:

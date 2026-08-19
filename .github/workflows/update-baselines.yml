@@ -27,7 +27,10 @@ concurrency:
 
 jobs:
   update:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on:
+      - whitesmith-windows-x64
+      - 4VCPU
+      - 15G
     # Same pinned image as the PR render job, so the baselines committed here
     # match exactly what PRs (and local `bun run snapshot:docker`) produce.
     container:
