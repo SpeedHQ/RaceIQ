@@ -3,8 +3,8 @@ const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof 
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLapSemanticTelemetry, useLaps } from "@/hooks/laps";
-import { useTrackImagery, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
+import { useLaps } from "@/hooks/laps";
+import { useTrackImagery, useTrackImageryReference, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
 import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "@/lib/comparison-layout";
@@ -71,7 +71,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     return s?.segments ?? null;
   }, [sectorsData]);
   const { data: trackImagery = null } = useTrackImagery(selectedTrack ?? undefined);
-  const { data: lapAReplay = null } = useLapSemanticTelemetry(lapAId);
+  const { data: trackImageryReference = null } = useTrackImageryReference(selectedTrack ?? undefined, undefined, trackImagery !== null);
   const prevTrackRef = useRef<number | null | undefined>(undefined);
   const prevCarARef = useRef<number | null | undefined>(undefined);
   const prevCarBRef = useRef<number | null | undefined>(undefined);
@@ -387,6 +387,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               outline={trackOutline ?? syntheticOutline}
               telemetryA={comparison.telemetryA}
               telemetryB={comparison.telemetryB}
+              distanceGrid={comparison.traces.distance}
+              sourceIndicesA={comparison.traces.sourceIndicesA}
+              sourceIndicesB={comparison.traces.sourceIndicesB}
               labelA={`${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}`}
               labelB={`${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber}`}
               lapTimeA={formatLapTime(comparison.lapA.lapTime)}
@@ -397,7 +400,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               trackOrdinal={selectedTrack}
               gameId={gameId}
               imagery={trackImagery}
-              geographicPositions={lapAReplay?.geographicPositions ?? null}
+              geographicPositions={trackImageryReference?.geographicPositions ?? null}
             />
           </div>
 

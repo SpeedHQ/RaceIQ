@@ -128,6 +128,7 @@ export interface TrackMapProps {
   pitLines?: PitLine[] | null;
   imagery?: TrackImagery | null;
   geographicPositions?: readonly (TrackImageryGeographicPoint | null)[];
+  imageryLocalPositions?: readonly Point[];
   boundaries: TrackMapBoundaries | null;
   sectors?: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;

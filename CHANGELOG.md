@@ -81,7 +81,8 @@
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
 - Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
-- Render Compare overview and zoom maps through the shared imagery-capable track canvas while preserving dual racing lines, markers, follow mode, inputs, and segment highlighting
+- Render Compare overview and zoom maps through the shared imagery-capable track canvas while preserving dual racing lines, source-aligned markers, follow mode, inputs, and segment highlighting
+- Keep Compare telemetry traces aligned by track position and show elapsed-time delta instead of the lap counter difference
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
 - Use semantic tabs for Analyse visualization modes and Data/Insights navigation
 - Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border

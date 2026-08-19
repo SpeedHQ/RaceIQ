@@ -7,7 +7,7 @@ export interface TrackMapRenderData {
   visibleBoundaries: TrackMapBoundaries | null;
   resolvedPositions: Point[];
   resolvedDirections: ([number, number] | null)[];
-  imageryLocalPositions: Point[];
+  imageryLocalPositions: readonly Point[];
   imageryMatrix: TrackImageryMatrix | null;
   directVectorRender: boolean;
   showImagery: boolean;
@@ -25,7 +25,7 @@ export interface TrackMapRenderData {
 }
 
 export function useTrackMapRenderData(props: TrackMapProps): TrackMapRenderData {
-  const { gameId, telemetry, outline, boundaries, layers, zoom = 1, imagery, geographicPositions, viewport, coordinatesPrepared } = props;
+  const { gameId, telemetry, outline, boundaries, layers, zoom = 1, imagery, geographicPositions, imageryLocalPositions: providedImageryLocalPositions, viewport, coordinatesPrepared } = props;
 
   const {
     imagery: showImagery,
@@ -58,7 +58,10 @@ export function useTrackMapRenderData(props: TrackMapProps): TrackMapRenderData 
   );
 
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, coordinatesPrepared ? undefined : gameId), [telemetry, outline, coordinatesPrepared, gameId]);
-  const imageryLocalPositions = useMemo(() => (resolvedPositions.length > 0 ? resolvedPositions : outline ?? []), [resolvedPositions, outline]);
+  const imageryLocalPositions = useMemo(
+    () => providedImageryLocalPositions ?? (resolvedPositions.length > 0 ? resolvedPositions : outline ?? []),
+    [providedImageryLocalPositions, resolvedPositions, outline],
+  );
   const imageryMatrix = useMemo(
     () =>
       showImagery && imagery && geographicPositions && imageryLocalPositions.length > 1

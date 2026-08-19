@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TrackMapCanvas } from "@/components/track-map/TrackMapCanvas";
 import type { SemanticAnalysisFrame, TrackMapLayerState, TrackMapOverlayRenderer, TrackMapViewportCamera } from "@/components/track-map/types";
-import { type BoundaryData, computeZoom, drawComparisonWorldOverlay, drawInputsHUD, findTelemetryAtDistance, type Point } from "@/lib/comparison-utils";
+import { type BoundaryData, computeZoom, drawComparisonWorldOverlay, drawInputsHUD, resolveAlignedCursor, type Point } from "@/lib/comparison-utils";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { CompareSegmentTable } from "./CompareSegmentTable";
@@ -28,6 +28,9 @@ interface CompareTrackMapProps {
   outline: Point[];
   telemetryA: SemanticTelemetrySample[];
   telemetryB: SemanticTelemetrySample[];
+  distanceGrid: number[];
+  sourceIndicesA: number[];
+  sourceIndicesB: number[];
   labelA: string;
   labelB: string;
   lapTimeA: string;
@@ -62,7 +65,7 @@ const COMPARE_ZOOM_LAYERS: TrackMapLayerState = {
 };
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId, imagery, geographicPositions }: CompareTrackMapProps) {
+export function CompareTrackMap({ outline, telemetryA, telemetryB, distanceGrid, sourceIndicesA, sourceIndicesB, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId, imagery, geographicPositions }: CompareTrackMapProps) {
   const segmentTableRef = useRef<HTMLTableSectionElement>(null);
   const prevActiveSegRef = useRef<number>(-1);
   const redrawFrameRef = useRef<number | null>(null);
@@ -288,7 +291,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     () =>
       telemetryA.map((sample) => {
         const x = numberValue(sample, "motion.position-x");
-        return x == null ? sample : { ...sample, values: { ...sample.values, "motion.position-x": telXFn(x) } };
+        if (x == null) return sample;
+        const displayX = telXFn(x);
+        return displayX === x ? sample : { ...sample, values: { ...sample.values, "motion.position-x": displayX } };
       }),
     [telemetryA, telXFn],
   );
@@ -296,7 +301,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     () =>
       telemetryB.map((sample) => {
         const x = numberValue(sample, "motion.position-x");
-        return x == null ? sample : { ...sample, values: { ...sample.values, "motion.position-x": telXFn(x) } };
+        if (x == null) return sample;
+        const displayX = telXFn(x);
+        return displayX === x ? sample : { ...sample, values: { ...sample.values, "motion.position-x": displayX } };
       }),
     [telemetryB, telXFn],
   );
@@ -304,8 +311,12 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     () => displayTelemetryA.map((sample) => ({ values: sample.values as SemanticAnalysisFrame["values"], states: {}, freshness: {} })),
     [displayTelemetryA],
   );
+  const mapGeographicPositions = geographicPositions ?? undefined;
   const hoveredDistance = hoveredDistanceRef.current;
-  const cursorIdx = hoveredDistance == null || displayTelemetryA.length < 2 ? 0 : findTelemetryAtDistance(displayTelemetryA, hoveredDistance);
+  const alignedCursor = resolveAlignedCursor(displayTelemetryA, displayTelemetryB, distanceGrid, sourceIndicesA, sourceIndicesB, hoveredDistance);
+  const cursorIndexA = alignedCursor ? sourceIndicesA[alignedCursor.gridIndex] : undefined;
+  const cursorIndexB = alignedCursor ? sourceIndicesB[alignedCursor.gridIndex] : undefined;
+  const cursorIdx = 0;
   const segmentPoints = useMemo(
     () =>
       segments.length > 0 && displayTelemetryA.length >= 2
@@ -327,9 +338,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
   const zoomView =
     hoveredDistance == null
       ? null
-      : computeZoom(displayTelemetryA, displayTelemetryB, hoveredDistance, trackRange, (x) => x, alignedOutline);
+      : computeZoom(displayTelemetryA, displayTelemetryB, hoveredDistance, trackRange, (x) => x, alignedOutline, cursorIndexA, cursorIndexB);
   const zoom = zoomView ? Math.min(64, Math.max(1, trackRange / zoomView.range)) : 1;
-  const focusSample = hoveredDistance == null || displayTelemetryA.length < 2 ? null : displayTelemetryA[findTelemetryAtDistance(displayTelemetryA, hoveredDistance)];
+  const focusSample = alignedCursor?.packetA ?? null;
   const focusYaw = focusSample ? numberValue(focusSample, "motion.yaw") : undefined;
   const zoomViewport: TrackMapViewportCamera | null = zoomView
     ? {
@@ -351,9 +362,11 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
         hoveredDistance,
         zoomed: false,
         segmentPoints,
+        cursorIndexA,
+        cursorIndexB,
       });
     },
-    [alignedOutline, displayTelemetryA, displayTelemetryB, hoveredDistance, segmentPoints],
+    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance, segmentPoints],
   );
   const renderZoomOverlay = useCallback<TrackMapOverlayRenderer>(
     ({ context, toCanvas, width, height }) => {
@@ -367,18 +380,18 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
         telemetryB: displayTelemetryB,
         hoveredDistance,
         zoomed: true,
+        cursorIndexA,
+        cursorIndexB,
       });
     },
-    [alignedOutline, displayTelemetryA, displayTelemetryB, hoveredDistance],
+    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance],
   );
   const renderZoomHud = useCallback<TrackMapOverlayRenderer>(
     ({ context, width, height }) => {
-      if (hoveredDistance == null) return;
-      const sampleA = displayTelemetryA.length >= 2 ? displayTelemetryA[findTelemetryAtDistance(displayTelemetryA, hoveredDistance)] : null;
-      const sampleB = displayTelemetryB.length >= 2 ? displayTelemetryB[findTelemetryAtDistance(displayTelemetryB, hoveredDistance)] : null;
-      drawInputsHUD(context, width, height, sampleA, sampleB);
+      if (!alignedCursor) return;
+      drawInputsHUD(context, width, height, alignedCursor.packetA, alignedCursor.packetB);
     },
-    [displayTelemetryA, displayTelemetryB, hoveredDistance],
+    [alignedCursor],
   );
 
   useEffect(() => {
@@ -433,7 +446,8 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             cursorIdx={cursorIdx}
             outline={alignedOutline}
             imagery={imagery}
-            geographicPositions={geographicPositions ?? undefined}
+            geographicPositions={mapGeographicPositions}
+            imageryLocalPositions={alignedOutline}
             boundaries={alignedBoundaries}
             segments={null}
             layers={COMPARE_OVERVIEW_LAYERS}
@@ -459,7 +473,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             cursorIdx={cursorIdx}
             outline={alignedOutline}
             imagery={imagery}
-            geographicPositions={geographicPositions ?? undefined}
+            geographicPositions={mapGeographicPositions}
             boundaries={alignedBoundaries}
             segments={null}
             layers={COMPARE_ZOOM_LAYERS}
@@ -470,6 +484,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             renderScreenOverlay={renderZoomHud}
             testId="compare-zoom-track-map"
             coordinatesPrepared
+            imageryLocalPositions={alignedOutline}
           />
         )}
       </div>

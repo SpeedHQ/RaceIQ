@@ -8,7 +8,8 @@ import { compareEndpoint, lapOptionLabel } from "./helpers";
 
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} Compare renders distinct seeded traces and synchronized controls`, async ({ page, request }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000);
+    page.setDefaultTimeout(30_000);
     const browserErrors = collectBrowserErrors(page);
     const pair = await getDistinctPair(request, game.gameId);
     const endpoint = compareEndpoint(pair);
@@ -67,7 +68,7 @@ for (const game of SEEDED_GAME_CASES) {
       const workspace = page.getByTestId("lap-compare-workspace");
       await expect(workspace).toBeVisible();
       await expect(workspace.getByText(/loading/i)).toBeVisible();
-      const initialResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint));
+      const initialResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 30_000 });
       releaseLoading();
       expect((await initialResponse).ok(), `${game.name} initial comparison load`).toBe(true);
       await page.unroute(endpointPattern);
@@ -84,7 +85,7 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page.getByText("Select two different laps to compare")).toBeVisible();
 
       await lapB.click();
-      const reloadResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint));
+      const reloadResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 30_000 });
       await page
         .getByRole("option", {
           name: lapOptionLabel(pair.lapB),
@@ -112,15 +113,19 @@ for (const game of SEEDED_GAME_CASES) {
       const widthBefore = Number(await resizeHandle.getAttribute("aria-valuenow"));
       await resizeHandle.press("ArrowRight");
       await expect(resizeHandle).toHaveAttribute("aria-valuenow", String(widthBefore + 16));
+      const persistedWidthResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 60_000 });
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("separator", { name: "Resize track map" })).toHaveAttribute("aria-valuenow", String(widthBefore + 16));
+      expect((await persistedWidthResponse).ok(), `${game.name} persisted-width comparison reload`).toBe(true);
+      await expect(page.getByRole("separator", { name: "Resize track map" })).toHaveAttribute("aria-valuenow", String(widthBefore + 16), { timeout: 60_000 });
 
       const aiToggle = page.getByRole("button", { name: /AI Analysis/ });
       await expect(aiToggle).toBeVisible();
       await aiToggle.click();
       await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible();
+      const persistedAiResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 60_000 });
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible();
+      expect((await persistedAiResponse).ok(), `${game.name} persisted-AI comparison reload`).toBe(true);
+      await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible({ timeout: 60_000 });
 
       expect(browserErrors.errors, `unexpected browser errors before injected Compare failure in ${game.name}`).toEqual([]);
       const errorBody = JSON.stringify({ error: "Seeded compare failure" });

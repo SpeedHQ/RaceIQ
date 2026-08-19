@@ -33,10 +33,43 @@ export function findTelemetryAtDistance(telemetry: SemanticTelemetrySample[], di
   return closest;
 }
 
-function findMapPosition(telemetry: SemanticTelemetrySample[], distance: number, outline: Point[], telX: (x: number) => number): { x: number; z: number; packet: SemanticTelemetrySample } | null {
+export function resolveAlignedCursor<TA, TB>(
+  telemetryA: readonly TA[],
+  telemetryB: readonly TB[],
+  distances: readonly number[],
+  sourceIndicesA: readonly number[],
+  sourceIndicesB: readonly number[],
+  distance: number | null,
+): { gridIndex: number; packetA: TA | null; packetB: TB | null } | null {
+  if (distance == null || distances.length === 0) return null;
+  let low = 0;
+  let high = distances.length - 1;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (distances[middle] < distance) low = middle + 1;
+    else high = middle;
+  }
+  const previous = Math.max(0, low - 1);
+  const gridIndex = Math.abs(distances[previous] - distance) <= Math.abs(distances[low] - distance) ? previous : low;
+  const indexA = sourceIndicesA[gridIndex];
+  const indexB = sourceIndicesB[gridIndex];
+  return {
+    gridIndex,
+    packetA: Number.isInteger(indexA) && indexA >= 0 && indexA < telemetryA.length ? telemetryA[indexA] : null,
+    packetB: Number.isInteger(indexB) && indexB >= 0 && indexB < telemetryB.length ? telemetryB[indexB] : null,
+  };
+}
+
+function findMapPosition(
+  telemetry: SemanticTelemetrySample[],
+  distance: number,
+  outline: Point[],
+  telX: (x: number) => number,
+  sourceIndex?: number,
+): { x: number; z: number; packet: SemanticTelemetrySample } | null {
   if (telemetry.length < 2) return null;
 
-  const packet = telemetry[findTelemetryAtDistance(telemetry, distance)];
+  const packet = sourceIndex == null ? telemetry[findTelemetryAtDistance(telemetry, distance)] : telemetry[sourceIndex];
   if (!packet) return null;
   if ((num(packet, "motion.position-x") ?? 0) !== 0 || (num(packet, "motion.position-z") ?? 0) !== 0) {
     return { x: telX((num(packet, "motion.position-x") ?? 0)), z: (num(packet, "motion.position-z") ?? 0), packet };
@@ -62,6 +95,8 @@ export interface ComparisonWorldOverlayOptions {
   hoveredDistance: number | null;
   zoomed: boolean;
   segmentPoints?: Array<{ x: number; z: number; type: "corner" | "straight"; label: string }>;
+  cursorIndexA?: number;
+  cursorIndexB?: number;
 }
 
 /** Draw comparison-only racing lines, cursor markers, and segment anchors over TrackMapCanvas. */
@@ -74,11 +109,11 @@ export function drawComparisonWorldOverlay({
   hoveredDistance,
   zoomed,
   segmentPoints,
+  cursorIndexA,
+  cursorIndexB,
 }: ComparisonWorldOverlayOptions): void {
   const drawRacingLine = (telemetry: SemanticTelemetrySample[], color: string) => {
     if (telemetry.length < 2) return;
-    const hasPosition = telemetry.some((sample) => (num(sample, "motion.position-x") ?? 0) !== 0 || (num(sample, "motion.position-z") ?? 0) !== 0);
-    if (!hasPosition) return;
     context.lineWidth = zoomed ? 3 : 2;
     context.lineCap = "round";
     context.lineJoin = "round";
@@ -98,7 +133,7 @@ export function drawComparisonWorldOverlay({
         context.lineTo(canvasX, canvasY);
       }
     }
-    context.stroke();
+    if (moved) context.stroke();
     context.globalAlpha = 1;
   };
 
@@ -108,8 +143,8 @@ export function drawComparisonWorldOverlay({
   if (hoveredDistance != null) {
     const dotSize = zoomed ? 7 : 5;
     const glowSize = zoomed ? 14 : 10;
-    const positionA = findMapPosition(telemetryA, hoveredDistance, outline, (x) => x);
-    const positionB = findMapPosition(telemetryB, hoveredDistance, outline, (x) => x);
+    const positionA = findMapPosition(telemetryA, hoveredDistance, outline, (x) => x, cursorIndexA);
+    const positionB = findMapPosition(telemetryB, hoveredDistance, outline, (x) => x, cursorIndexB);
     const canvasA = positionA ? toCanvas(positionA.x, positionA.z) : null;
     const canvasB = positionB ? toCanvas(positionB.x, positionB.z) : null;
     const overlaps = canvasA !== null && canvasB !== null && Math.hypot(canvasA[0] - canvasB[0], canvasA[1] - canvasB[1]) < dotSize * 2;
@@ -292,9 +327,11 @@ export function computeZoom(
   trackRange: number,
   telX: (x: number) => number = (x) => x,
   outline: Point[] = [],
+  sourceIndexA?: number,
+  sourceIndexB?: number,
 ): { centerX: number; centerZ: number; range: number } | null {
-  const posA = findMapPosition(telemetryA, hoveredDistance, outline, telX);
-  const posB = findMapPosition(telemetryB, hoveredDistance, outline, telX);
+  const posA = findMapPosition(telemetryA, hoveredDistance, outline, telX, sourceIndexA);
+  const posB = findMapPosition(telemetryB, hoveredDistance, outline, telX, sourceIndexB);
 
   if (!posA && !posB) return null;
 

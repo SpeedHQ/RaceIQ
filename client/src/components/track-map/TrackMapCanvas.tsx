@@ -50,6 +50,7 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
   } = useTrackMapRenderData(props);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const customOverlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
   const carPosRef = useRef<CarOverlayPosition | null>(null);
@@ -120,8 +121,6 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
               ...(cameraCenter ? { center: cameraCenter, rotation: cameraRotation, drawFollowCar: !viewport && rotateWithCar && showCar } : {}),
             }
           : undefined,
-        drawWorldOverlay: renderWorldOverlay ? (overlay) => renderWorldOverlay({ ...overlay, cursorIdx: idx }) : undefined,
-        drawScreenOverlay: renderScreenOverlay ? (overlay) => renderScreenOverlay({ ...overlay, cursorIdx: idx }) : undefined,
       });
       transformRef.current = result.transform;
       if (!directVectorRender) bufferCanvasRef.current = result.bufferCanvas;
@@ -168,10 +167,33 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
       directVectorRender,
       panRef,
       viewport,
-      renderWorldOverlay,
       coordinatesPrepared,
-      renderScreenOverlay,
     ],
+  );
+
+  const drawCustomOverlays = useCallback(
+    (idx = cursorRef.current) => {
+      const canvas = customOverlayCanvasRef.current;
+      const transform = transformRef.current;
+      if (!canvas || !transform) return;
+      const { w, h, offsetX, offsetZ, maxX, minZ, scale } = transform;
+      syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
+      const context = getSemanticCanvasContext(canvas);
+      if (!context) return;
+      context.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
+      context.clearRect(0, 0, w, h);
+      const toCanvas = (x: number, z: number): [number, number] => [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
+      if (viewport) {
+        context.save();
+        context.translate(w / 2 + panRef.current.x, h / 2 + panRef.current.y);
+        context.rotate(viewport.rotation ?? 0);
+        context.translate(-w / 2, -h / 2);
+      }
+      renderWorldOverlay?.({ context, toCanvas, width: w, height: h, transform, cursorIdx: idx });
+      if (viewport) context.restore();
+      renderScreenOverlay?.({ context, toCanvas, width: w, height: h, transform, cursorIdx: idx });
+    },
+    [panRef, renderScreenOverlay, renderWorldOverlay, viewport],
   );
 
   const renderOverlayOptions = useCallback(
@@ -230,12 +252,14 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
     if (directVectorRender) {
       drawStatic(cursorRef.current);
       if (!rotateWithCar) drawCar(cursorRef.current);
+      drawCustomOverlays(cursorRef.current);
       return;
     }
     if (transformRef.current) requestVisibleTiles(transformRef.current);
     if (rotateWithCar) composite(cursorRef.current);
     else drawFixed(cursorRef.current);
-  }, [composite, directVectorRender, drawCar, drawFixed, drawStatic, requestVisibleTiles, rotateWithCar]);
+    drawCustomOverlays(cursorRef.current);
+  }, [composite, directVectorRender, drawCar, drawCustomOverlays, drawFixed, drawStatic, requestVisibleTiles, rotateWithCar]);
 
   useLayoutEffect(() => {
     redrawAfterPanRef.current = redrawAfterPan;
@@ -246,8 +270,9 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
       if (directVectorRender && rotateWithCar) drawStatic(idx);
       else if (rotateWithCar) composite(idx);
       else drawCar(idx);
+      drawCustomOverlays(idx);
     },
-    [directVectorRender, rotateWithCar, drawStatic, composite, drawCar],
+    [directVectorRender, rotateWithCar, drawStatic, composite, drawCar, drawCustomOverlays],
   );
   useImperativeHandle(ref, () => ({ updateCursor }), [updateCursor]);
 
@@ -258,6 +283,7 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
     } else if (rotateWithCar) composite(cursorIdx);
     else drawFixed(cursorIdx);
   }, [drawStatic, composite, drawFixed, drawCar, directVectorRender, rotateWithCar]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => drawCustomOverlays(cursorIdx), [cursorIdx, drawCustomOverlays]);
 
   useEffect(() => {
     cursorRef.current = cursorIdx;
@@ -280,10 +306,11 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
         if (!rotateWithCar) drawCar(cursorRef.current);
       } else if (rotateWithCar) composite(cursorRef.current);
       else drawFixed(cursorRef.current);
+      drawCustomOverlays(cursorRef.current);
     });
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [drawStatic, composite, drawFixed, drawCar, directVectorRender, rotateWithCar]);
+  }, [drawStatic, composite, drawFixed, drawCar, drawCustomOverlays, directVectorRender, rotateWithCar]);
 
   useLayoutEffect(() => {
     if (!rotateWithCar) drawCar(cursorIdx);
@@ -327,6 +354,7 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
       onPointerCancel={pointerHandlers.onPointerCancel}
     >
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+      <canvas ref={customOverlayCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       <canvas ref={carCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       <canvas ref={pulseRef} className="absolute inset-0 w-full h-full pointer-events-none" />
     </div>
