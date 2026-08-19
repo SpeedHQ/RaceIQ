@@ -1,5 +1,5 @@
 import { getGame } from "@shared/games/registry";
-import { getFuelDisplay } from "@shared/games/telemetry";
+import { getFuelDisplay, getFuelDisplaySemantic } from "@shared/games/telemetry";
 import { hasTireHealthData, hasTireHealthDataSemantic, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { severityColor } from "@/lib/colors";
 import { tireHealthPctColor } from "@/lib/vehicle-dynamics";
@@ -26,7 +26,13 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
   const analysis = resolveAnalysisTelemetry(adapter);
   const wears = view?.tires.wear ? [view.tires.wear.fl, view.tires.wear.fr, view.tires.wear.rl, view.tires.wear.rr] : [packet?.TireWearFL ?? 0, packet?.TireWearFR ?? 0, packet?.TireWearRL ?? 0, packet?.TireWearRR ?? 0];
   const healthAvailable = view ? hasTireHealthDataSemantic(wears, analysis.tireHealth) : hasTireHealthData(packet!, analysis.tireHealth);
-  const fuel = view ? getFuelDisplay({ Fuel: view.fuel.amount ?? 0, FuelCapacity: view.fuel.capacity }, telemetryModel.fuel) : getFuelDisplay(packet!, telemetryModel.fuel);
+  const fuel = view
+    ? getFuelDisplaySemantic({
+        remainingVolumeL: view.fuel.remainingVolumeL,
+        remainingFraction: view.fuel.remainingFraction,
+        capacityL: view.fuel.capacityL,
+      })
+    : getFuelDisplay(packet!, telemetryModel.fuel);
   const fuelPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
   const isFuelCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
   const isFuelWarning = !isFuelCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);

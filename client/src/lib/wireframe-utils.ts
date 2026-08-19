@@ -53,9 +53,9 @@ export function makeSuspensionSpringGeometry(bodyPos: [number, number, number], 
   };
 }
 
-/** Convert signed int8 steering input to a bounded front-wheel angle. */
-export function steeringAngleRadians(steerInput: number): number {
-  return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
+/** Convert normalized steering input to a bounded front-wheel angle. */
+export function steeringAngleRadians(steeringRatio: number): number {
+  return steeringRatio === 0 ? 0 : -steeringRatio * 0.35;
 }
 
 /** Use measured wheel speed when supported; otherwise derive visual rolling from v = ωr. */
@@ -82,9 +82,9 @@ export function setVehicleAttitudeRotations(
   chassisRotation.set(rawRoll == null ? suspensionRoll : 0, 0, rawPitch == null ? suspensionPitch : 0, "YXZ");
 }
 
-/** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
-export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
-  return inactive.clone().lerp(active, rawInput / 255);
+/** Interpolate a normalized pedal ratio into its rendered 3D line color. */
+export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, inputRatio: number): THREE.Color {
+  return inactive.clone().lerp(active, Math.min(1, Math.max(0, inputRatio)));
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────

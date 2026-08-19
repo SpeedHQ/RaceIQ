@@ -435,7 +435,10 @@ function LapAnalyseInner() {
             sidebarTab,
             onSidebarTabChange: setSidebarTab,
             currentFrame,
-            startFuel: semanticNumber(telemetry[0], "fuel.fuel") ?? undefined,
+            startFuel: telemetry[0] ? {
+              remainingVolumeL: semanticNumber(telemetry[0], "fuel.remaining-volume") ?? undefined,
+              remainingFraction: semanticNumber(telemetry[0], "fuel.remaining-fraction") ?? undefined,
+            } : undefined,
             gameId,
             units,
             wearRate,

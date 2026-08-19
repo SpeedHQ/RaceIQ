@@ -84,15 +84,15 @@ test(
           minimumRange: 1,
         },
         {
-          semanticId: "inputs.accel",
+          semanticId: "inputs.throttle",
           mappingStatus: "normalized",
-          unit: "0–255",
+          unit: "ratio",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;
             if (!Number.isFinite(value)) return false;
-            return value > 0 && value <= 255;
+            return value > 0 && value <= 1;
           },
-          minimumRange: 1,
+          minimumRange: 1 / 255,
         },
         {
           semanticId: "timing.current-lap",

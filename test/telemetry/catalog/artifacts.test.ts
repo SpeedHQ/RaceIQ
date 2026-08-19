@@ -91,7 +91,7 @@ describe("semantic telemetry catalog artifacts", () => {
   });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(735);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(723);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -103,13 +103,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 95,
       },
       "f1-2025": {
-        total: 288,
+        total: 289,
         packet: 119,
-        extension: 169,
+        extension: 170,
         sdk: 0,
         yaml: 0,
         setup: 0,
-        recorded: 288,
+        recorded: 289,
       },
       acc: {
         total: 200,
@@ -130,13 +130,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 219,
       },
       iracing: {
-        total: 955,
+        total: 959,
         packet: 119,
-        extension: 17,
+        extension: 21,
         sdk: 324,
         yaml: 495,
         setup: 0,
-        recorded: 705,
+        recorded: 710,
       },
     });
 
@@ -175,7 +175,7 @@ describe("semantic telemetry catalog artifacts", () => {
       iracing: { kind: "direct", nativeUnit: "L" },
     });
     expect(
-      Object.values(getTelemetryVariable("fuel.fuel-percent").games).every(
+      Object.values(getTelemetryVariable("fuel.remaining-percent").games).every(
         (mapping) => mapping.kind !== "unavailable",
       ),
     ).toBe(true);
@@ -221,17 +221,17 @@ describe("semantic telemetry catalog artifacts", () => {
       "f1-2025": { kind: "unavailable", reason: "parser-placeholder" },
       iracing: {
         kind: "normalized",
-        sources: ["iRacing.IsOnTrack"],
+        sources: ["TelemetryPacket.IsRaceOn", "iRacing.IsOnTrack"],
       },
     });
     expect(getTelemetryVariable("tires.tire-pressure").games.iracing).toMatchObject({
       kind: "normalized",
       nativeUnit: "kPa",
       sources: {
-        FL: ["iRacing.LFcoldPressure"],
-        FR: ["iRacing.RFcoldPressure"],
-        RL: ["iRacing.LRcoldPressure"],
-        RR: ["iRacing.RRcoldPressure"],
+        FL: ["TelemetryPacket.TirePressureFrontLeft", "iRacing.LFcoldPressure"],
+        FR: ["TelemetryPacket.TirePressureFrontRight", "iRacing.RFcoldPressure"],
+        RL: ["TelemetryPacket.TirePressureRearLeft", "iRacing.LRcoldPressure"],
+        RR: ["TelemetryPacket.TirePressureRearRight", "iRacing.RRcoldPressure"],
       },
     });
 

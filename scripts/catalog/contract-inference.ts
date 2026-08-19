@@ -35,7 +35,9 @@ export function telemetryCatalogSourceHash(source: string): string {
 }
 
 export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
+  "engine.fuel-mixture": ["lean", "standard", "rich", "max"],
   "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
+  "race.competitor.pit-status": ["none", "pitting", "in-pit-area"],
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
   "setup.tires.compound": ["0", "1"],
   "tires.tire-compound": [
@@ -94,6 +96,7 @@ export function dimensionForUnit(unit: string): readonly string[] {
       "0-100",
       "0-255",
       "-128-127",
+      "s/s",
       "game-native",
       "value-with-unit",
       "unknown",
@@ -104,6 +107,8 @@ export function dimensionForUnit(unit: string): readonly string[] {
   if (/^(s|ms|min|h)$/.test(normalized)) return ["time"];
   if (/^(m|mm|cm|km|ft|in)$/.test(normalized)) return ["length"];
   if (/^(m\/s|km\/h|mph)$/.test(normalized)) return ["length", "time^-1"];
+  if (/^(km\/l)$/.test(normalized)) return ["length^-2"];
+  if (/^(l\/km)$/.test(normalized)) return ["length^2"];
   if (/^(m\/s(?:\^?2|²)|g)$/.test(normalized)) {
     return ["length", "time^-2"];
   }
@@ -117,12 +122,15 @@ export function dimensionForUnit(unit: string): readonly string[] {
   }
   if (/^(l|ml|gal)$/.test(normalized)) return ["length^3"];
   if (/^(kg|g)$/.test(normalized)) return ["mass"];
+  if (/^(kg\/h)$/.test(normalized)) return ["mass", "time^-1"];
   if (/^(n)$/.test(normalized)) return ["mass", "length", "time^-2"];
-  if (/^(nm)$/.test(normalized)) return ["mass", "length^2", "time^-2"];
+  if (/^(nm|n·m|n\*m)$/.test(normalized)) {
+    return ["mass", "length^2", "time^-2"];
+  }
   if (/^(j|kj|mj)$/.test(normalized)) {
     return ["mass", "length^2", "time^-2"];
   }
-  if (/^(w|kw|hp)$/.test(normalized)) {
+  if (/^(w|kw|hp|bhp)$/.test(normalized)) {
     return ["mass", "length^2", "time^-3"];
   }
   if (/^(a)$/.test(normalized)) return ["electric-current"];

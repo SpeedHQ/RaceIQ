@@ -2,6 +2,7 @@ import type { ComparisonData, SemanticTelemetrySample } from "@shared/racing/com
 import { TelemetryChart } from "@/components/TelemetryChart";
 import { TimeDelta } from "@/components/TimeDelta";
 import { COLOR_A, COLOR_B } from "@/lib/comparison-utils";
+import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
 
 const numericSeries = (samples: SemanticTelemetrySample[], id: keyof SemanticTelemetrySample["values"]) => samples.map((sample) => (typeof sample.values[id] === "number" ? sample.values[id] as number : Number.NaN))
@@ -33,10 +34,10 @@ export function ComparisonCharts({
   const distance = numericSeries(comparison.telemetryA, "timing.distance-traveled").filter(Number.isFinite);
   const speedA = interpolateSeries(comparison.telemetryA, "motion.speed", distance);
   const speedB = interpolateSeries(comparison.telemetryB, "motion.speed", distance);
-  const throttleA = interpolateSeries(comparison.telemetryA, "inputs.accel", distance);
-  const throttleB = interpolateSeries(comparison.telemetryB, "inputs.accel", distance);
-  const brakeA = interpolateSeries(comparison.telemetryA, "inputs.brake", distance);
-  const brakeB = interpolateSeries(comparison.telemetryB, "inputs.brake", distance);
+  const throttleA = interpolateSeries(comparison.telemetryA, "inputs.throttle", distance).map((ratio) => controlInputPercent(ratio));
+  const throttleB = interpolateSeries(comparison.telemetryB, "inputs.throttle", distance).map((ratio) => controlInputPercent(ratio));
+  const brakeA = interpolateSeries(comparison.telemetryA, "inputs.brake", distance).map((ratio) => controlInputPercent(ratio));
+  const brakeB = interpolateSeries(comparison.telemetryB, "inputs.brake", distance).map((ratio) => controlInputPercent(ratio));
   const rpmA = interpolateSeries(comparison.telemetryA, "engine.current-engine-rpm", distance);
   const rpmB = interpolateSeries(comparison.telemetryB, "engine.current-engine-rpm", distance);
   const tireWearA = interpolateSeries(comparison.telemetryA, "tires.tire-wear", distance);

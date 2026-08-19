@@ -11,7 +11,7 @@ describe("analysis metric value resolvers", () => {
     const metric = { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["motion.speed", "tires.wheel-rotation-speed", "tires.tire-slip-angle"] } } as const;
     const grip = resolveGripDemand(frame({
       "motion.speed": 30,
-      "inputs.steer": -32,
+      "inputs.steering": -0.25,
       "tires.wheel-rotation-speed": [100, 101, 102, 103],
       "tires.tire-slip-angle": [0.01, 0.02, 0.03, 0.04],
     }), metric);
@@ -26,10 +26,10 @@ describe("analysis metric value resolvers", () => {
     expect(resolveWheelMetric(frame({ "tires.normalized-tire-slip-angle": [0.1, 0.2, 0.3, 0.4] }), { kind: "value", semanticId: "tires.normalized-tire-slip-angle" })).toEqual([0.1, 0.2, 0.3, 0.4]);
   });
   test("derives traction and SAE slip ratios from wheel rotation", () => {
-    const metric = { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] } } as const;
+    const metric = { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steering", "tires.wheel-rotation-speed"] } } as const;
     const states = resolveWheelStates(frame({
       "motion.speed": 30,
-      "inputs.steer": -32,
+      "inputs.steering": -0.25,
       "tires.wheel-rotation-speed": [100, 101, 102, 103],
     }), metric);
     expect(states.map((state) => state?.state)).toEqual(["grip", "grip", "grip", "grip"]);

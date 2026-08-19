@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { buildTelemetryCatalog } from "../../../scripts/catalog/builder";
 import { F1StateAccumulator } from "../../../server/games/f1-2025/f1-state";
 import {
   F1_HEADER_SIZE,
@@ -27,6 +28,107 @@ function frame(data: Buffer): Buffer {
 }
 
 describe("F1 telemetry contract", () => {
+  test("maps blistering and competitor pit extensions to canonical semantics", async () => {
+    const catalog = await buildTelemetryCatalog();
+    const blistering = catalog.variables.find((variable) => variable.id === "tires.blistering");
+
+    expect(blistering).toMatchObject({
+      canonicalUnit: "%",
+      shape: "per-wheel",
+      cardinality: { kind: "fixed", count: 4 },
+      ordering: ["FL", "FR", "RL", "RR"],
+      games: {
+        "f1-2025": {
+          kind: "direct",
+          nativeUnit: "%",
+          sources: {
+            FL: ["f1.tyreBlistersFL"],
+            FR: ["f1.tyreBlistersFR"],
+            RL: ["f1.tyreBlistersRL"],
+            RR: ["f1.tyreBlistersRR"],
+          },
+        },
+      },
+    });
+    expect(
+      catalog.variables.find((variable) => variable.id === "race.competitor.pit-status"),
+    ).toMatchObject({
+      canonicalUnit: "enum",
+      shape: "structured",
+      games: {
+        "f1-2025": {
+          kind: "normalized",
+          nativeUnit: "enum",
+          sources: ["f1.grid[].pitStatus"],
+        },
+      },
+    });
+    expect(
+      catalog.variables.find((variable) => variable.id === "race.competitor.on-pit-road"),
+    ).toMatchObject({
+      canonicalUnit: "boolean",
+      shape: "structured",
+      games: {
+        "f1-2025": {
+          kind: "normalized",
+          nativeUnit: "boolean",
+          sources: ["f1.grid[].onPitRoad"],
+        },
+      },
+    });
+  });
+
+  test("preserves blister wheel order and normalizes competitor pit state", () => {
+    const accumulator = new F1StateAccumulator();
+    const participants = Buffer.alloc(1 + 3 * 57);
+    const lapData = Buffer.alloc(3 * 57);
+
+    participants.writeUInt8(3, 0);
+    ["Leader", "Pitting", "Pit Area"].forEach((name, index) => {
+      const offset = 1 + index * 57;
+      participants.writeUInt8(index + 1, offset + 1);
+      participants.writeUInt8(index + 2, offset + 3);
+      participants.write(name, offset + 7, "utf8");
+    });
+    [0, 1, 2].forEach((pitStatus, index) => {
+      const offset = index * 57;
+      lapData.writeUInt8(index + 1, offset + 32);
+      lapData.writeUInt8(pitStatus, offset + 34);
+      lapData.writeFloatLE(3_000 - index * 100, offset + 24);
+    });
+
+    accumulator.feed(header(0), frame(Buffer.alloc(60)));
+    accumulator.feed(header(1), frame(Buffer.alloc(9)));
+    accumulator.feed(header(4), frame(participants));
+    accumulator.feed(header(6), frame(Buffer.alloc(60)));
+    accumulator.feed(header(2), frame(lapData));
+
+    const carDamage = Buffer.alloc(46);
+    carDamage.writeUInt8(33, 24);
+    carDamage.writeUInt8(44, 25);
+    carDamage.writeUInt8(11, 26);
+    carDamage.writeUInt8(22, 27);
+    const packet = accumulator.feed(header(10), frame(carDamage));
+
+    expect(packet).not.toBeNull();
+    expect([
+      packet!.f1?.tyreBlistersFL,
+      packet!.f1?.tyreBlistersFR,
+      packet!.f1?.tyreBlistersRL,
+      packet!.f1?.tyreBlistersRR,
+    ]).toEqual([11, 22, 33, 44]);
+    expect(packet!.f1?.grid.map((entry) => entry.pitStatus)).toEqual([
+      "none",
+      "pitting",
+      "in-pit-area",
+    ]);
+    expect(packet!.f1?.grid.map((entry) => entry.onPitRoad)).toEqual([
+      false,
+      true,
+      true,
+    ]);
+  });
+
   test("normalizes fuel to a fraction and preserves power in watts", () => {
     const accumulator = new F1StateAccumulator();
 

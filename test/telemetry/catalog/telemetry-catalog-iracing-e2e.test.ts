@@ -64,9 +64,9 @@ describe("iRacing telemetry catalog coverage", () => {
           {
             semanticId: "inputs.brake",
             mappingStatus: "normalized",
-            unit: "0–255",
-            accepts: (value) => isFiniteNumber(value) && value > 0 && value <= 255,
-            minimumRange: 1,
+            unit: "ratio",
+            accepts: (value) => isFiniteNumber(value) && value > 0 && value <= 1,
+            minimumRange: 1 / 255,
           },
           {
             semanticId: "timing.current-lap",

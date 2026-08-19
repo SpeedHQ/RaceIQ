@@ -9,7 +9,8 @@ export interface F1GridEntry {
   bestLapTime: number;
   gapToLeader: number;
   gapToCarAhead: number;
-  pitStatus: number;
+  pitStatus: "none" | "pitting" | "in-pit-area";
+  onPitRoad: boolean;
   numPitStops: number;
   tyreCompound: string;
   tyreAge: number;
@@ -94,7 +95,7 @@ export interface F1ExtendedData {
   brakesDamageRL?: number;
   brakesDamageRR?: number;
   tyreBlistersFL?: number;
-  tyreBlistsFR?: number;
+  tyreBlistersFR?: number;
   tyreBlistersRL?: number;
   tyreBlistersRR?: number;
   drsFault?: number;

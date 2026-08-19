@@ -180,6 +180,21 @@ function expandedExpressionText(output: ParserOutput, node: AstNode, seen = new 
 }
 
 function packetNativeMetadata(gameId: GameId, key: string, canonicalUnit: string): { nativeUnit: string; normalization?: string } {
+  if (key === "TimestampMS") {
+    return { nativeUnit: "ms", normalization: "milliseconds / 1000" };
+  }
+  if (["Accel", "Brake", "Clutch", "HandBrake"].includes(key)) {
+    return {
+      nativeUnit: "0–255",
+      normalization: "clamp(value/255,0,1)",
+    };
+  }
+  if (key === "Steer") {
+    return {
+      nativeUnit: "-128–127",
+      normalization: "clamp(value>=0?value/127:value/128,-1,1)",
+    };
+  }
   if (gameId === "fm-2023" && key.startsWith("TireTemp")) {
     return {
       nativeUnit: "°F",
@@ -195,34 +210,10 @@ function packetNativeMetadata(gameId: GameId, key: string, canonicalUnit: string
   if ((gameId === "acc" || gameId === "ac-evo") && ["BestLap", "LastLap", "CurrentLap"].includes(key)) {
     return { nativeUnit: "ms", normalization: "milliseconds / 1000" };
   }
-  if ((gameId === "acc" || gameId === "ac-evo") && ["Accel", "Brake", "Steer"].includes(key)) {
-    return {
-      nativeUnit: "ratio",
-      normalization: key === "Steer" ? "ratio * 127 and round" : "ratio * 255 and round",
-    };
-  }
-  if (gameId === "f1-2025" && ["Accel", "Brake", "Steer"].includes(key)) {
-    return {
-      nativeUnit: "ratio",
-      normalization: key === "Steer" ? "ratio * 127 and round" : "ratio * 255 and round",
-    };
-  }
-  if (gameId === "f1-2025" && key === "Clutch") {
-    return { nativeUnit: "%", normalization: "percentage * 2.55 and round" };
-  }
-  if (gameId === "iracing" && ["Accel", "Brake", "Clutch"].includes(key)) {
-    return { nativeUnit: "%", normalization: "0-1 SDK value * 255 and round" };
-  }
   if (gameId === "iracing" && key === "Speed") {
     return {
       nativeUnit: "m/s",
       normalization: "clamp native m/s speed to non-negative canonical m/s",
-    };
-  }
-  if (gameId === "iracing" && key === "Steer") {
-    return {
-      nativeUnit: "rad",
-      normalization: "steering angle / steering maximum, clamp to -1..1, then * 127",
     };
   }
   if (gameId === "iracing" && key === "TireWear") {
@@ -287,13 +278,26 @@ function packetGameLink(gameId: GameId, set: FieldSet, output: ParserOutput, uni
 
   const sourceOverride = PACKET_SOURCE_OVERRIDES[gameId]?.[set.key];
   const sourcesByField = fields.map((field) => {
-    if (sourceOverride) return sourceOverride;
-    if (gameId === "fm-2023") return [`ForzaDataOut.${field}`];
-    if (gameId === "iracing") {
-      const special = specialIRacingSources(field);
-      if (special) return special;
+    let provenance: string[];
+    if (sourceOverride) {
+      provenance = sourceOverride;
+    } else if (gameId === "fm-2023") {
+      provenance = [`ForzaDataOut.${field}`];
+    } else if (gameId === "iracing") {
+      provenance =
+        specialIRacingSources(field) ??
+        nativeSources(gameId, output.properties.get(field), output.variables);
+    } else {
+      provenance = nativeSources(
+        gameId,
+        output.properties.get(field),
+        output.variables,
+      );
     }
-    return nativeSources(gameId, output.properties.get(field), output.variables);
+    return [
+      `TelemetryPacket.${field}`,
+      ...provenance.filter((source) => source !== `TelemetryPacket.${field}`),
+    ];
   });
   let allSources = [...new Set(sourcesByField.flat())];
   if (allSources.length === 0) {
