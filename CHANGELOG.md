@@ -7,6 +7,7 @@
 ### Features
 
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
+- Compare multiple selected laps at once across maps, telemetry charts, segment deltas, and AI analysis for every reference pair
 - Drag and deeply zoom crisp Fixed and Follow Analyse track maps without scrolling the page to inspect any point independently of car position
 - Configure Compare overview and zoomed maps independently with layer, aerial-background, pan, and zoom controls
 - Find, rank, preview, and install legally reusable, location-matched aerial imagery from authoritative regional sources or OpenAerialMap, with Sentinel-2 context fallback, then inspect venue-shared imagery through seamless viewport-loaded tiles and reusable overlays

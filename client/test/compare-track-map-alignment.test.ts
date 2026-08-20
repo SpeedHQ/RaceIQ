@@ -56,15 +56,11 @@ describe("CompareTrackMap alignment", () => {
     const markup = renderToStaticMarkup(
       createElement(CompareTrackMap, {
         outline,
-        telemetryA: telemetry,
-        telemetryB: telemetry,
-        distanceGrid: [],
-        sourceIndicesA: [],
-        sourceIndicesB: [],
-        labelA: "A",
-        labelB: "B",
-        lapTimeA: "1:00.000",
-        lapTimeB: "1:00.000",
+        series: [
+          { telemetry, distanceGrid: [], sourceIndices: [], color: "orange", label: "A" },
+          { telemetry, distanceGrid: [], sourceIndices: [], color: "blue", label: "B" },
+          { telemetry, distanceGrid: [], sourceIndices: [], color: "green", label: "C" },
+        ],
         segments: [],
         hoveredDistanceRef: { current: null },
         redrawRef: { current: null },

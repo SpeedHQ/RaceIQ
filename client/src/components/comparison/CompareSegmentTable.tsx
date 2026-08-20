@@ -1,47 +1,65 @@
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { deltaColor } from "@/lib/colors";
-import { COLOR_A, COLOR_B, formatSectionTime } from "@/lib/comparison-utils";
+import { formatSectionTime } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
-import type { SegmentTiming } from "./CompareTrackMap";
+
+export interface SegmentTiming {
+  name: string;
+  type: "corner" | "straight";
+  times: number[];
+  startFrac: number;
+  endFrac: number;
+}
+
+export interface SegmentLap {
+  label: string;
+  color: string;
+}
+
 export function compareSegmentKey(name: string, startFrac: number, endFrac: number): string {
   return `${name}:${startFrac}:${endFrac}`;
 }
 
-export function CompareSegmentTable({ segments, tableRef }: { segments: SegmentTiming[]; tableRef: React.RefObject<HTMLTableSectionElement | null> }) {
-  if (segments.length === 0) return null;
+export function CompareSegmentTable({ segments, laps, tableRef }: { segments: SegmentTiming[]; laps: SegmentLap[]; tableRef: React.RefObject<HTMLTableSectionElement | null> }) {
+  if (segments.length === 0 || laps.length === 0) return null;
   return (
     <div className="min-h-24 flex-1 overflow-auto">
       <Table density="compact" fit variant="embedded">
         <THead>
           <TH>{m.compare_segment()}</TH>
-          <TH align="end">
-            <span style={{ color: COLOR_A }}>A</span>
-          </TH>
-          <TH align="end">
-            <span style={{ color: COLOR_B }}>B</span>
-          </TH>
-          <TH align="end">+/-</TH>
+          {laps.map((lap, index) => (
+            <TH key={`${lap.label}:${index}`} align="end">
+              <span title={lap.label} style={{ color: lap.color }}>
+                {String.fromCharCode(65 + index)}
+                {index > 0 && " Δ"}
+              </span>
+            </TH>
+          ))}
         </THead>
         <TBody ref={tableRef}>
-          {segments.map((s) => {
-            const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
-            const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
-            const delta = s.timeA - s.timeB;
-            const segmentDeltaColor = Math.abs(delta) < 0.005 ? "var(--app-text-secondary)" : deltaColor(delta);
+          {segments.map((segment) => {
+            const validTimes = segment.times.filter((time) => time > 0);
+            const fastest = validTimes.length > 0 ? Math.min(...validTimes) : null;
+            const referenceTime = segment.times[0] ?? 0;
             return (
-              <TRow key={compareSegmentKey(s.name, s.startFrac, s.endFrac)}>
+              <TRow key={compareSegmentKey(segment.name, segment.startFrac, segment.endFrac)}>
                 <TD nowrap numeric tone="primary">
-                  {s.name}
+                  {segment.name}
                 </TD>
-                <TD align="end" numeric tone={fasterA ? "success" : "default"}>
-                  {formatSectionTime(s.timeA)}
-                </TD>
-                <TD align="end" numeric tone={fasterB ? "success" : "default"}>
-                  {formatSectionTime(s.timeB)}
-                </TD>
-                <TD align="end" numeric>
-                  <span style={{ color: segmentDeltaColor }}>{s.timeA > 0 && s.timeB > 0 ? `${delta > 0 ? "+" : ""}${delta.toFixed(3)}` : "-"}</span>
-                </TD>
+                {segment.times.map((time, index) => {
+                  const delta = time > 0 && referenceTime > 0 ? time - referenceTime : null;
+                  const color = delta == null || Math.abs(delta) < 0.005 ? "var(--app-text-secondary)" : deltaColor(delta);
+                  return (
+                    <TD key={`${segment.name}:${index}`} align="end" numeric tone={fastest != null && time === fastest ? "success" : "default"}>
+                      <span>{formatSectionTime(time)}</span>
+                      {index > 0 && (
+                        <span className="ml-1 text-app-caption" style={{ color }}>
+                          {delta == null ? "-" : `${delta > 0 ? "+" : ""}${delta.toFixed(3)}`}
+                        </span>
+                      )}
+                    </TD>
+                  );
+                })}
               </TRow>
             );
           })}

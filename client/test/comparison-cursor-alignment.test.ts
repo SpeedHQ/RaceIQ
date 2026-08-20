@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ComparisonData, SemanticTelemetrySample } from "../../shared/racing/comparison/types";
 import { buildComparisonChartData } from "../src/components/comparison/ComparisonCharts";
-import { drawComparisonWorldOverlay, resolveAlignedCursor } from "../src/lib/comparison-utils";
+import { drawComparisonWorldOverlay, drawMultiComparisonWorldOverlay, resolveAlignedCursor } from "../src/lib/comparison-utils";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 const packet = (position: number): TelemetryPacket => ({ PositionX: position, PositionZ: 0 }) as TelemetryPacket;
@@ -56,9 +56,19 @@ test("comparison line layer can be hidden independently", () => {
   expect(strokes).toBe(0);
   drawComparisonWorldOverlay({ ...options, showRacingLines: true });
   expect(strokes).toBe(2);
+  drawMultiComparisonWorldOverlay({
+    ...options,
+    series: [
+      { telemetry, color: "orange" },
+      { telemetry, color: "blue" },
+      { telemetry, color: "green" },
+    ],
+    showRacingLines: true,
+  });
+  expect(strokes).toBe(5);
 });
 
-test("comparison charts use server-aligned traces and elapsed time delta", () => {
+test("comparison charts render reference plus every selected lap on one distance grid", () => {
   const comparison = {
     traces: {
       distance: [0, 100],
@@ -77,10 +87,31 @@ test("comparison charts use server-aligned traces and elapsed time delta", () =>
     telemetryA: [{ values: { "timing.current-lap": 7 } }, { values: { "timing.current-lap": 7 } }],
     telemetryB: [{ values: { "timing.current-lap": 7 } }, { values: { "timing.current-lap": 7 } }],
   } as unknown as ComparisonData;
+  const shorterGridComparison = {
+    ...comparison,
+    traces: {
+      ...comparison.traces,
+      distance: [0, 50, 100],
+      speedB: [80, 90, 100],
+      throttleB: [0.2, 0.4, 0.6],
+      brakeB: [0.3, 0.2, 0.1],
+      rpmB: [4_000, 4_500, 5_000],
+    },
+    timeDelta: [0, 0.5, 1],
+  } as ComparisonData;
 
-  const data = buildComparisonChartData(comparison, { fromMph: (value) => value * 2, speedLabel: "test" });
+  const data = buildComparisonChartData(
+    { label: "A", color: "orange" },
+    [
+      { comparison, label: "B", color: "blue" },
+      { comparison: shorterGridComparison, label: "C", color: "green" },
+    ],
+    { fromMph: (value) => value * 2, speedLabel: "test" },
+  );
 
   expect(data.distance).toEqual([0, 100]);
-  expect(data.speedA).toEqual([200, 240]);
-  expect(data.timeDelta).toEqual([0, 1.25]);
+  expect(data.series.map((series) => series.label)).toEqual(["A", "B", "C"]);
+  expect(data.series[0]?.speed).toEqual([200, 240]);
+  expect(data.series[2]?.speed).toEqual([160, 200]);
+  expect(data.series[2]?.timeDelta).toEqual([0, 1]);
 });

@@ -16,35 +16,34 @@ import {
   type TrackMapOverlayRenderer,
   type TrackMapViewportCamera,
 } from "@/components/track-map/types";
-import { type BoundaryData, computeZoom, drawComparisonWorldOverlay, drawInputsHUD, resolveAlignedCursor, resolveComparisonImageryLocalPositions, type Point } from "@/lib/comparison-utils";
+import {
+  type BoundaryData,
+  computeMultiComparisonZoom,
+  drawInputsHUD,
+  drawMultiComparisonWorldOverlay,
+  resolveAlignedCursor,
+  resolveComparisonImageryLocalPositions,
+  type Point,
+} from "@/lib/comparison-utils";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { CompareSegmentTable } from "./CompareSegmentTable";
+import { CompareSegmentTable, type SegmentTiming } from "./CompareSegmentTable";
 
 const numberValue = (sample: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => {
   const value = sample.values[id];
   return typeof value === "number" ? value : undefined;
 };
-export interface SegmentTiming {
-  name: string;
-  type: "corner" | "straight";
-  timeA: number;
-  timeB: number;
-  startFrac: number;
-  endFrac: number;
+export interface CompareMapSeries {
+  telemetry: SemanticTelemetrySample[];
+  distanceGrid: number[];
+  sourceIndices: number[];
+  color: string;
+  label: string;
 }
 
 interface CompareTrackMapProps {
   outline: Point[];
-  telemetryA: SemanticTelemetrySample[];
-  telemetryB: SemanticTelemetrySample[];
-  distanceGrid: number[];
-  sourceIndicesA: number[];
-  sourceIndicesB: number[];
-  labelA: string;
-  labelB: string;
-  lapTimeA: string;
-  lapTimeB: string;
+  series: CompareMapSeries[];
   segments: SegmentTiming[];
   hoveredDistanceRef: React.RefObject<number | null>;
   redrawRef: React.MutableRefObject<(() => void) | null>;
@@ -100,21 +99,7 @@ function CompareMapZoomControls({ label, zoom, onZoomChange, onReset }: CompareM
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({
-  outline,
-  telemetryA,
-  telemetryB,
-  distanceGrid,
-  sourceIndicesA,
-  sourceIndicesB,
-  segments,
-  hoveredDistanceRef,
-  redrawRef,
-  trackOrdinal,
-  gameId,
-  imagery,
-  geographicPositions,
-}: CompareTrackMapProps) {
+export function CompareTrackMap({ outline, series, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId, imagery, geographicPositions }: CompareTrackMapProps) {
   const segmentTableRef = useRef<HTMLTableSectionElement>(null);
   const prevActiveSegRef = useRef<number>(-1);
   const redrawFrameRef = useRef<number | null>(null);
@@ -158,15 +143,16 @@ export function CompareTrackMap({
     if (!flip || !boundaries) return boundaries;
     return flipBoundaries(boundaries);
   }, [boundaries, flip]);
+  const referenceTelemetry = series[0]?.telemetry ?? [];
   const { alignedOutline, alignedBoundaries, trackRange } = useMemo(() => {
     const telemetryPoints: Point[] = [];
-    for (const sample of telemetryA) {
+    for (const sample of referenceTelemetry) {
       const x = numberValue(sample, "motion.position-x");
       const z = numberValue(sample, "motion.position-z");
       if (x != null && z != null && (x !== 0 || z !== 0)) telemetryPoints.push({ x, z });
     }
 
-    const useTelemetryGeometry = telemetryPoints.length >= 20 && telemetryPoints.length / Math.max(1, telemetryA.length) >= 0.8;
+    const useTelemetryGeometry = telemetryPoints.length >= 20 && telemetryPoints.length / Math.max(1, referenceTelemetry.length) >= 0.8;
     let mapOutline = fallbackOutline;
     if (useTelemetryGeometry) {
       const stride = Math.max(1, Math.ceil(telemetryPoints.length / 400));
@@ -191,14 +177,14 @@ export function CompareTrackMap({
       alignedBoundaries: useTelemetryGeometry ? null : displayBoundaries,
       trackRange: Math.max(maxX - minX || 1, maxZ - minZ || 1),
     };
-  }, [displayBoundaries, fallbackOutline, telemetryA]);
+  }, [displayBoundaries, fallbackOutline, referenceTelemetry]);
   const layerItems = useMemo<TrackMapLayerMenuItem[]>(
     () => [
       { key: "imagery", label: "Aerial background", available: imagery != null, unavailableReason: "Unavailable" },
       { key: "outline", label: "Track outline", available: alignedOutline.length > 1 },
       { key: "trace", label: "Comparison lines", available: true },
       { key: "segments", label: "Segment markers", available: segments.length > 0, unavailableReason: "Unavailable" },
-      { key: "inputs", label: "Input overlay", available: true },
+      { key: "inputs", label: "Input overlay", available: series.length === 2, unavailableReason: m.compare_inputs_two_laps_only() },
       {
         key: "boundaries",
         label: "Boundaries",
@@ -207,29 +193,30 @@ export function CompareTrackMap({
       },
       { key: "pitLane", label: "Pit lane", available: (alignedBoundaries?.pitLane?.length ?? 0) > 1, unavailableReason: "Unavailable" },
     ],
-    [alignedBoundaries, alignedOutline.length, imagery, segments.length],
+    [alignedBoundaries, alignedOutline.length, imagery, segments.length, series.length],
   );
 
-  const displayTelemetryA = telemetryA;
-  const displayTelemetryB = telemetryB;
-  const mapTelemetryA = useMemo<SemanticAnalysisFrame[]>(
-    () => displayTelemetryA.map((sample) => ({ values: sample.values as SemanticAnalysisFrame["values"], states: {}, freshness: {} })),
-    [displayTelemetryA],
+  const mapTelemetry = useMemo<SemanticAnalysisFrame[]>(
+    () => referenceTelemetry.map((sample) => ({ values: sample.values as SemanticAnalysisFrame["values"], states: {}, freshness: {} })),
+    [referenceTelemetry],
   );
   const mapGeographicPositions = geographicPositions ?? undefined;
-  const imageryLocalPositions = resolveComparisonImageryLocalPositions(displayTelemetryA, alignedOutline);
+  const imageryLocalPositions = resolveComparisonImageryLocalPositions(referenceTelemetry, alignedOutline);
   const hoveredDistance = hoveredDistanceRef.current;
-  const alignedCursor = resolveAlignedCursor(displayTelemetryA, displayTelemetryB, distanceGrid, sourceIndicesA, sourceIndicesB, hoveredDistance);
-  const cursorIndexA = alignedCursor ? sourceIndicesA[alignedCursor.gridIndex] : undefined;
-  const cursorIndexB = alignedCursor ? sourceIndicesB[alignedCursor.gridIndex] : undefined;
+  const seriesCursors = series.map((entry) => resolveAlignedCursor(entry.telemetry, [], entry.distanceGrid, entry.sourceIndices, [], hoveredDistance));
+  const overlaySeries = series.map((entry, index) => ({
+    telemetry: entry.telemetry,
+    color: entry.color,
+    cursorIndex: seriesCursors[index]?.gridIndex == null ? undefined : entry.sourceIndices[seriesCursors[index]!.gridIndex],
+  }));
   const cursorIdx = 0;
   const segmentPoints = useMemo(
     () =>
-      segments.length > 0 && displayTelemetryA.length >= 2
+      segments.length > 0 && referenceTelemetry.length >= 2
         ? segments
             .map((segment) => {
-              const index = Math.round(segment.startFrac * (displayTelemetryA.length - 1));
-              const sample = displayTelemetryA[index];
+              const index = Math.round(segment.startFrac * (referenceTelemetry.length - 1));
+              const sample = referenceTelemetry[index];
               return {
                 x: numberValue(sample, "motion.position-x") ?? 0,
                 z: numberValue(sample, "motion.position-z") ?? 0,
@@ -239,9 +226,18 @@ export function CompareTrackMap({
             })
             .filter((point) => point.x !== 0 || point.z !== 0)
         : undefined,
-    [displayTelemetryA, segments],
+    [referenceTelemetry, segments],
   );
-  const zoomView = hoveredDistance == null ? null : computeZoom(displayTelemetryA, displayTelemetryB, hoveredDistance, trackRange, (x) => x, alignedOutline, cursorIndexA, cursorIndexB);
+  const zoomView =
+    hoveredDistance == null
+      ? null
+      : computeMultiComparisonZoom(
+          overlaySeries.map((entry) => ({ telemetry: entry.telemetry, sourceIndex: entry.cursorIndex })),
+          hoveredDistance,
+          trackRange,
+          (x) => x,
+          alignedOutline,
+        );
   const automaticZoom = zoomView ? Math.min(TRACK_MAP_MAX_ZOOM, Math.max(1, trackRange / zoomView.range)) : 1;
   const zoom = Math.min(TRACK_MAP_MAX_ZOOM, Math.max(TRACK_MAP_MIN_ZOOM, automaticZoom * zoomMultiplier));
   const setZoomedZoom = useCallback(
@@ -254,7 +250,7 @@ export function CompareTrackMap({
     },
     [automaticZoom],
   );
-  const focusSample = alignedCursor?.packetA ?? null;
+  const focusSample = seriesCursors[0]?.packetA ?? null;
   const focusYaw = focusSample ? numberValue(focusSample, "motion.yaw") : undefined;
   const zoomViewport: TrackMapViewportCamera | null = zoomView
     ? {
@@ -265,50 +261,46 @@ export function CompareTrackMap({
 
   const renderOverviewOverlay = useCallback<TrackMapOverlayRenderer>(
     ({ context, toCanvas, width, height }) => {
-      drawComparisonWorldOverlay({
+      drawMultiComparisonWorldOverlay({
         context,
         toCanvas,
         width,
         height,
         outline: alignedOutline,
-        telemetryA: displayTelemetryA,
-        telemetryB: displayTelemetryB,
+        series: overlaySeries,
         hoveredDistance,
         zoomed: false,
         showRacingLines: overviewLayers.trace,
         segmentPoints: overviewLayers.segments ? segmentPoints : undefined,
-        cursorIndexA,
-        cursorIndexB,
       });
     },
-    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance, overviewLayers.segments, overviewLayers.trace, segmentPoints],
+    [alignedOutline, hoveredDistance, overlaySeries, overviewLayers.segments, overviewLayers.trace, segmentPoints],
   );
   const renderZoomOverlay = useCallback<TrackMapOverlayRenderer>(
     ({ context, toCanvas, width, height }) => {
-      drawComparisonWorldOverlay({
+      drawMultiComparisonWorldOverlay({
         context,
         toCanvas,
         width,
         height,
         outline: alignedOutline,
-        telemetryA: displayTelemetryA,
-        telemetryB: displayTelemetryB,
+        series: overlaySeries,
         hoveredDistance,
         zoomed: true,
         showRacingLines: zoomLayers.trace,
         segmentPoints: zoomLayers.segments ? segmentPoints : undefined,
-        cursorIndexA,
-        cursorIndexB,
       });
     },
-    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance, segmentPoints, zoomLayers.segments, zoomLayers.trace],
+    [alignedOutline, hoveredDistance, overlaySeries, segmentPoints, zoomLayers.segments, zoomLayers.trace],
   );
+  const referenceCursor = seriesCursors[0]?.packetA ?? null;
+  const comparedCursor = seriesCursors[1]?.packetA ?? null;
   const renderZoomHud = useCallback<TrackMapOverlayRenderer>(
     ({ context, width, height }) => {
-      if (!alignedCursor || !zoomLayers.inputs) return;
-      drawInputsHUD(context, width, height, alignedCursor.packetA, alignedCursor.packetB);
+      if (series.length !== 2 || !referenceCursor || !comparedCursor || !zoomLayers.inputs) return;
+      drawInputsHUD(context, width, height, referenceCursor, comparedCursor);
     },
-    [alignedCursor, zoomLayers.inputs],
+    [comparedCursor, referenceCursor, series.length, zoomLayers.inputs],
   );
 
   useEffect(() => {
@@ -329,9 +321,9 @@ export function CompareTrackMap({
   useEffect(() => {
     if (!segmentTableRef.current || segments.length === 0) return;
     let activeIndex = -1;
-    if (hoveredDistance != null && displayTelemetryA.length >= 2) {
-      const firstDistance = numberValue(displayTelemetryA[0], "timing.distance-traveled") ?? 0;
-      const lastDistance = numberValue(displayTelemetryA.at(-1)!, "timing.distance-traveled") ?? firstDistance;
+    if (hoveredDistance != null && referenceTelemetry.length >= 2) {
+      const firstDistance = numberValue(referenceTelemetry[0], "timing.distance-traveled") ?? 0;
+      const lastDistance = numberValue(referenceTelemetry.at(-1)!, "timing.distance-traveled") ?? firstDistance;
       const totalDistance = lastDistance - firstDistance;
       if (totalDistance > 0) {
         const fraction = hoveredDistance / totalDistance;
@@ -348,7 +340,7 @@ export function CompareTrackMap({
       (rows[activeIndex] as HTMLElement).scrollIntoView({ block: "nearest" });
     }
     prevActiveSegRef.current = activeIndex;
-  }, [displayTelemetryA, drawRevision, hoveredDistance, segments]);
+  }, [referenceTelemetry, drawRevision, hoveredDistance, segments]);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto border border-app-border text-app-body text-app-text">
@@ -363,7 +355,7 @@ export function CompareTrackMap({
         ) : (
           <TrackMapCanvas
             gameId={gameId ?? undefined}
-            telemetry={mapTelemetryA}
+            telemetry={mapTelemetry}
             cursorIdx={cursorIdx}
             outline={alignedOutline}
             imagery={imagery}
@@ -398,7 +390,7 @@ export function CompareTrackMap({
         ) : (
           <TrackMapCanvas
             gameId={gameId ?? undefined}
-            telemetry={mapTelemetryA}
+            telemetry={mapTelemetry}
             cursorIdx={cursorIdx}
             outline={alignedOutline}
             imagery={imagery}
@@ -418,7 +410,7 @@ export function CompareTrackMap({
           />
         )}
       </div>
-      <CompareSegmentTable segments={segments} tableRef={segmentTableRef} />
+      <CompareSegmentTable segments={segments} laps={series} tableRef={segmentTableRef} />
     </div>
   );
 }

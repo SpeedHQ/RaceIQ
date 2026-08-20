@@ -6,7 +6,6 @@ import { m } from "@/paraglide/messages";
 import { useGameRoute } from "@/stores/game";
 import type { SessionsTab } from "./types";
 
-
 export type SessionToolbarProps = {
   sessions: SessionMeta[];
   allLaps: LapMeta[];
@@ -55,12 +54,23 @@ export function SessionToolbar({
     <div className="flex items-center flex-wrap gap-3">
       <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
         {(["mine", "others"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
-          <Button key={nextTab} variant="app-ghost" size="app-md" onClick={() => { setTab(nextTab); setPage(0); }} className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}>
+          <Button
+            key={nextTab}
+            variant="app-ghost"
+            size="app-md"
+            onClick={() => {
+              setTab(nextTab);
+              setPage(0);
+            }}
+            className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
+          >
             {nextTab === "mine" ? m.sessions_tab_mine() : m.sessions_tab_others()}
           </Button>
         ))}
       </div>
-      <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
+      <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>
+        {m.sessions_import()}
+      </Button>
       <AppInput
         type="search"
         value={search}
@@ -77,15 +87,15 @@ export function SessionToolbar({
         )}
       </h1>
       <div className="flex items-center flex-wrap gap-2">
-        {selectedLaps.size === 2 &&
+        {selectedLaps.size >= 2 &&
           (() => {
-            const ids = [...selectedLaps];
-            const lapA = allLaps.find((lap) => lap.id === ids[0]);
-            const lapB = allLaps.find((lap) => lap.id === ids[1]);
-            if (!lapA || !lapB) return null;
-            const sessionA = sessions.find((session) => session.id === lapA.sessionId);
-            const sessionB = sessions.find((session) => session.id === lapB.sessionId);
-            if (!sessionA || !sessionB || sessionA.trackOrdinal !== sessionB.trackOrdinal) return null;
+            const selected = [...selectedLaps].map((id) => allLaps.find((lap) => lap.id === id)).filter((lap): lap is LapMeta => lap != null);
+            if (selected.length !== selectedLaps.size) return null;
+            const sessionById = new Map(sessions.map((session) => [session.id, session]));
+            const selectedSessions = selected.map((lap) => sessionById.get(lap.sessionId));
+            const trackOrdinal = selectedSessions[0]?.trackOrdinal;
+            if (trackOrdinal == null || selectedSessions.some((session) => session?.trackOrdinal !== trackOrdinal)) return null;
+            const [reference, ...compared] = selected;
             return (
               <Button
                 variant="app-primary"
@@ -93,11 +103,11 @@ export function SessionToolbar({
                 onClick={() =>
                   navigate({
                     to: `${gameRoute}/compare` as never,
-                    search: { track: sessionA.trackOrdinal, carA: sessionA.carOrdinal, carB: sessionB.carOrdinal, lapA: lapA.id, lapB: lapB.id } as never,
+                    search: { track: trackOrdinal, carA: reference.carOrdinal, lapA: reference.id, laps: compared.map((lap) => lap.id).join(",") } as never,
                   })
                 }
               >
-                {m.sessions_compare_two()}
+                {m.compare_selected_laps({ count: selected.length })}
               </Button>
             );
           })()}

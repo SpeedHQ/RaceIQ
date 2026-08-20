@@ -109,6 +109,25 @@ function findMapPosition(
   return point ? { x: point.x, z: point.z, packet } : null;
 }
 
+export interface ComparisonOverlaySeries {
+  telemetry: SemanticTelemetrySample[];
+  color: string;
+  cursorIndex?: number;
+}
+
+export interface MultiComparisonWorldOverlayOptions {
+  context: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  toCanvas: (x: number, z: number) => [number, number];
+  outline: Point[];
+  series: ComparisonOverlaySeries[];
+  hoveredDistance: number | null;
+  zoomed: boolean;
+  showRacingLines?: boolean;
+  segmentPoints?: Array<{ x: number; z: number; type: "corner" | "straight"; label: string }>;
+}
+
 export interface ComparisonWorldOverlayOptions {
   context: CanvasRenderingContext2D;
   width: number;
@@ -125,20 +144,8 @@ export interface ComparisonWorldOverlayOptions {
   cursorIndexB?: number;
 }
 
-/** Draw comparison-only racing lines, cursor markers, and segment anchors over TrackMapCanvas. */
-export function drawComparisonWorldOverlay({
-  context,
-  toCanvas,
-  outline,
-  telemetryA,
-  telemetryB,
-  hoveredDistance,
-  zoomed,
-  showRacingLines = true,
-  segmentPoints,
-  cursorIndexA,
-  cursorIndexB,
-}: ComparisonWorldOverlayOptions): void {
+/** Draw any number of racing lines and aligned cursor markers over TrackMapCanvas. */
+export function drawMultiComparisonWorldOverlay({ context, toCanvas, outline, series, hoveredDistance, zoomed, showRacingLines = true, segmentPoints }: MultiComparisonWorldOverlayOptions): void {
   const drawRacingLine = (telemetry: SemanticTelemetrySample[], color: string) => {
     if (telemetry.length < 2) return;
     context.lineWidth = zoomed ? 3 : 2;
@@ -165,24 +172,24 @@ export function drawComparisonWorldOverlay({
   };
 
   if (showRacingLines) {
-    drawRacingLine(telemetryA, COLOR_A);
-    drawRacingLine(telemetryB, COLOR_B);
+    for (const entry of series) drawRacingLine(entry.telemetry, entry.color);
   }
 
   if (hoveredDistance != null) {
     const dotSize = zoomed ? 7 : 5;
     const glowSize = zoomed ? 14 : 10;
-    const positionA = findMapPosition(telemetryA, hoveredDistance, outline, (x) => x, cursorIndexA);
-    const positionB = findMapPosition(telemetryB, hoveredDistance, outline, (x) => x, cursorIndexB);
-    const canvasA = positionA ? toCanvas(positionA.x, positionA.z) : null;
-    const canvasB = positionB ? toCanvas(positionB.x, positionB.z) : null;
-    const overlaps = canvasA !== null && canvasB !== null && Math.hypot(canvasA[0] - canvasB[0], canvasA[1] - canvasB[1]) < dotSize * 2;
-    const overlapOffset = overlaps ? dotSize : 0;
+    const positions = series.map((entry) => findMapPosition(entry.telemetry, hoveredDistance, outline, (x) => x, entry.cursorIndex));
+    const canvasPositions = positions.map((position) => (position ? toCanvas(position.x, position.z) : null));
+    const clustered = canvasPositions.some(
+      (position, index) =>
+        position != null && canvasPositions.some((other, otherIndex) => otherIndex > index && other != null && Math.hypot(position[0] - other[0], position[1] - other[1]) < dotSize * 2),
+    );
 
-    const drawDot = (position: { x: number; z: number; packet: SemanticTelemetrySample } | null, color: string, offsetX: number) => {
+    const drawDot = (position: { x: number; z: number; packet: SemanticTelemetrySample } | null, color: string, offsetX: number, offsetY: number) => {
       if (!position) return;
-      const [baseX, centerY] = toCanvas(position.x, position.z);
+      const [baseX, baseY] = toCanvas(position.x, position.z);
       const centerX = baseX + offsetX;
+      const centerY = baseY + offsetY;
       context.beginPath();
       context.arc(centerX, centerY, glowSize, 0, Math.PI * 2);
       context.save();
@@ -210,8 +217,11 @@ export function drawComparisonWorldOverlay({
       }
     };
 
-    drawDot(positionA, COLOR_A, -overlapOffset);
-    drawDot(positionB, COLOR_B, overlapOffset);
+    positions.forEach((position, index) => {
+      const angle = (index / Math.max(1, positions.length)) * Math.PI * 2;
+      const offset = clustered ? dotSize : 0;
+      drawDot(position, series[index]!.color, Math.cos(angle) * offset, Math.sin(angle) * offset);
+    });
   }
 
   if (segmentPoints && !zoomed) {
@@ -226,6 +236,17 @@ export function drawComparisonWorldOverlay({
       context.stroke();
     }
   }
+}
+
+/** Pair-compatible wrapper retained for pair-level comparison utilities and tests. */
+export function drawComparisonWorldOverlay(options: ComparisonWorldOverlayOptions): void {
+  drawMultiComparisonWorldOverlay({
+    ...options,
+    series: [
+      { telemetry: options.telemetryA, color: COLOR_A, cursorIndex: options.cursorIndexA },
+      { telemetry: options.telemetryB, color: COLOR_B, cursorIndex: options.cursorIndexB },
+    ],
+  });
 }
 
 /**
@@ -347,7 +368,37 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   ctx.fillText("Throttle", cx - barGap / 2, y0 + barH + 14);
 }
 
-/** Compute zoom view centered on both car positions */
+/** Compute zoom view containing every compared car position. */
+export function computeMultiComparisonZoom(
+  series: Array<{ telemetry: SemanticTelemetrySample[]; sourceIndex?: number }>,
+  hoveredDistance: number,
+  trackRange: number,
+  telX: (x: number) => number = (x) => x,
+  outline: Point[] = [],
+): { centerX: number; centerZ: number; range: number } | null {
+  const positions = series
+    .map((entry) => findMapPosition(entry.telemetry, hoveredDistance, outline, telX, entry.sourceIndex))
+    .filter((position): position is NonNullable<typeof position> => position != null);
+  if (positions.length === 0) return null;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const position of positions) {
+    minX = Math.min(minX, position.x);
+    maxX = Math.max(maxX, position.x);
+    minZ = Math.min(minZ, position.z);
+    maxZ = Math.max(maxZ, position.z);
+  }
+  return {
+    centerX: (minX + maxX) / 2,
+    centerZ: (minZ + maxZ) / 2,
+    range: Math.max(trackRange * 0.02, (maxX - minX) * 2.5, (maxZ - minZ) * 2.5),
+  };
+}
+
+/** Pair-compatible zoom helper. */
 export function computeZoom(
   telemetryA: SemanticTelemetrySample[],
   telemetryB: SemanticTelemetrySample[],
@@ -358,32 +409,16 @@ export function computeZoom(
   sourceIndexA?: number,
   sourceIndexB?: number,
 ): { centerX: number; centerZ: number; range: number } | null {
-  const posA = findMapPosition(telemetryA, hoveredDistance, outline, telX, sourceIndexA);
-  const posB = findMapPosition(telemetryB, hoveredDistance, outline, telX, sourceIndexB);
-
-  if (!posA && !posB) return null;
-
-  let cx: number, cz: number;
-  if (posA && posB) {
-    cx = (posA.x + posB.x) / 2;
-    cz = (posA.z + posB.z) / 2;
-  } else if (posA) {
-    cx = posA.x;
-    cz = posA.z;
-  } else {
-    cx = posB!.x;
-    cz = posB!.z;
-  }
-
-  const zoomRange = trackRange * 0.02;
-  let needed = zoomRange;
-  if (posA && posB) {
-    const spanX = Math.abs(posA.x - posB.x);
-    const spanZ = Math.abs(posA.z - posB.z);
-    needed = Math.max(zoomRange, spanX * 2.5, spanZ * 2.5);
-  }
-
-  return { centerX: cx, centerZ: cz, range: needed };
+  return computeMultiComparisonZoom(
+    [
+      { telemetry: telemetryA, sourceIndex: sourceIndexA },
+      { telemetry: telemetryB, sourceIndex: sourceIndexB },
+    ],
+    hoveredDistance,
+    trackRange,
+    telX,
+    outline,
+  );
 }
 
 export function formatSectionTime(seconds: number): string {

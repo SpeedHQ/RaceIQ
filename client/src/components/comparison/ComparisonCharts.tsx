@@ -1,58 +1,113 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
 import { TelemetryChart } from "@/components/TelemetryChart";
-import { TimeDelta } from "@/components/TimeDelta";
-import { COLOR_A, COLOR_B } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
+
+export interface ComparisonChartPair {
+  comparison: ComparisonData;
+  label: string;
+  color: string;
+}
+
+interface ChartSeries {
+  label: string;
+  color: string;
+  speed: number[];
+  throttle: number[];
+  brake: number[];
+  rpm: number[];
+  tireWear: number[];
+  timeDelta?: number[];
+}
 
 const hasValues = (series: number[]) => series.some(Number.isFinite);
 
+export function resampleComparisonValues(sourceDistances: number[], values: number[], targetDistances: number[]): number[] {
+  if (sourceDistances.length === 0 || values.length === 0) return targetDistances.map(() => Number.NaN);
+  if (sourceDistances.length === targetDistances.length && sourceDistances.every((distance, index) => distance === targetDistances[index])) return values.slice();
+
+  const lastSourceIndex = Math.min(sourceDistances.length, values.length) - 1;
+  let upper = 0;
+  return targetDistances.map((target) => {
+    while (upper < lastSourceIndex && sourceDistances[upper] < target) upper++;
+    if (upper === 0) return values[0];
+    if (upper >= lastSourceIndex && target >= sourceDistances[lastSourceIndex]) return values[lastSourceIndex];
+    const lower = upper - 1;
+    const startDistance = sourceDistances[lower];
+    const endDistance = sourceDistances[upper];
+    const startValue = values[lower];
+    const endValue = values[upper];
+    if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return Number.isFinite(startValue) ? startValue : endValue;
+    const fraction = endDistance === startDistance ? 0 : (target - startDistance) / (endDistance - startDistance);
+    return startValue + (endValue - startValue) * fraction;
+  });
+}
+
 export function buildComparisonChartData(
-  comparison: ComparisonData,
+  reference: { label: string; color: string },
+  comparisons: ComparisonChartPair[],
   units: { fromMph: (value: number) => number; speedLabel: string },
-) {
-  return {
-    distance: comparison.traces.distance,
-    speedA: comparison.traces.speedA.map(units.fromMph),
-    speedB: comparison.traces.speedB.map(units.fromMph),
-    throttleA: comparison.traces.throttleA,
-    throttleB: comparison.traces.throttleB,
-    brakeA: comparison.traces.brakeA,
-    brakeB: comparison.traces.brakeB,
-    rpmA: comparison.traces.rpmA,
-    rpmB: comparison.traces.rpmB,
-    tireWearA: comparison.traces.tireWearA ?? [],
-    tireWearB: comparison.traces.tireWearB ?? [],
-    timeDelta: comparison.timeDelta,
+): { distance: number[]; series: ChartSeries[] } {
+  const primary = comparisons[0]?.comparison;
+  if (!primary) return { distance: [], series: [] };
+  const distance = primary.traces.distance;
+  const referenceSeries: ChartSeries = {
+    label: reference.label,
+    color: reference.color,
+    speed: primary.traces.speedA.map(units.fromMph),
+    throttle: primary.traces.throttleA,
+    brake: primary.traces.brakeA,
+    rpm: primary.traces.rpmA,
+    tireWear: primary.traces.tireWearA ?? [],
   };
+  const comparedSeries = comparisons.map(({ comparison, label, color }): ChartSeries => {
+    const sourceDistance = comparison.traces.distance;
+    return {
+      label,
+      color,
+      speed: resampleComparisonValues(sourceDistance, comparison.traces.speedB, distance).map(units.fromMph),
+      throttle: resampleComparisonValues(sourceDistance, comparison.traces.throttleB, distance),
+      brake: resampleComparisonValues(sourceDistance, comparison.traces.brakeB, distance),
+      rpm: resampleComparisonValues(sourceDistance, comparison.traces.rpmB, distance),
+      tireWear: resampleComparisonValues(sourceDistance, comparison.traces.tireWearB ?? [], distance),
+      timeDelta: resampleComparisonValues(sourceDistance, comparison.timeDelta, distance),
+    };
+  });
+  return { distance, series: [referenceSeries, ...comparedSeries] };
 }
 
 export function ComparisonCharts({
-  comparison,
+  reference,
+  comparisons,
   units,
   onCursorMove,
 }: {
-  comparison: ComparisonData;
+  reference: { label: string; color: string };
+  comparisons: ComparisonChartPair[];
   units: { fromMph: (value: number) => number; speedLabel: string };
   onCursorMove: (distance: number | null) => void;
 }) {
-  const {
-    distance,
-    speedA,
-    speedB,
-    throttleA,
-    throttleB,
-    brakeA,
-    brakeB,
-    rpmA,
-    rpmB,
-    tireWearA,
-    tireWearB,
-    timeDelta,
-  } = buildComparisonChartData(comparison, units);
+  const { distance, series } = buildComparisonChartData(reference, comparisons, units);
+  const comparisonSeries = series.slice(1);
+  const inputSeries = series.flatMap((entry) => [entry.throttle, entry.brake]);
+  const inputLabels = series.flatMap((entry) => [`${entry.label} — ${m.compare_chart_throttle()}`, `${entry.label} — ${m.compare_chart_brake()}`]);
+  const inputColors = series.flatMap((entry) => [entry.color, `color-mix(in srgb, ${entry.color} 55%, transparent)`]);
+  const tireSeries = series.filter((entry) => hasValues(entry.tireWear));
+
   return (
     <div className="flex min-w-0 flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
       <div className="rounded-lg border border-app-border p-1 shrink-0">
-        <TimeDelta distances={distance} timeDelta={timeDelta} syncKey="lap-compare" height={140} onCursorMove={onCursorMove} />
+        <TelemetryChart
+          data={{
+            distance,
+            values: comparisonSeries.map((entry) => entry.timeDelta ?? []),
+            labels: comparisonSeries.map((entry) => `${entry.label} Δ`),
+            colors: comparisonSeries.map((entry) => entry.color),
+          }}
+          syncKey="lap-compare"
+          height={140}
+          title={m.compare_time_delta()}
+          onCursorMove={onCursorMove}
+        />
       </div>
       <div className="overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto">
         <div className="flex flex-col gap-4">
@@ -60,9 +115,9 @@ export function ComparisonCharts({
             <TelemetryChart
               data={{
                 distance,
-                values: [speedA, speedB],
-                labels: [`${m.compare_speed_a()} (${units.speedLabel})`, `${m.compare_speed_b()} (${units.speedLabel})`],
-                colors: [COLOR_A, COLOR_B],
+                values: series.map((entry) => entry.speed),
+                labels: series.map((entry) => `${entry.label} (${units.speedLabel})`),
+                colors: series.map((entry) => entry.color),
               }}
               syncKey="lap-compare"
               height={200}
@@ -72,12 +127,7 @@ export function ComparisonCharts({
           </div>
           <div className="rounded-lg border border-app-border p-1">
             <TelemetryChart
-              data={{
-                distance,
-                values: [throttleA, throttleB, brakeA, brakeB],
-                labels: [m.compare_chart_throttle_a(), m.compare_chart_throttle_b(), m.compare_chart_brake_a(), m.compare_chart_brake_b()],
-                colors: [COLOR_A, COLOR_B, "color-mix(in srgb, var(--comparison-lap-a) 67%, transparent)", "color-mix(in srgb, var(--comparison-lap-b) 67%, transparent)"],
-              }}
+              data={{ distance, values: inputSeries, labels: inputLabels, colors: inputColors }}
               syncKey="lap-compare"
               height={180}
               title={m.compare_throttle_brake()}
@@ -88,9 +138,9 @@ export function ComparisonCharts({
             <TelemetryChart
               data={{
                 distance,
-                values: [rpmA, rpmB],
-                labels: [m.compare_chart_rpm_a(), m.compare_chart_rpm_b()],
-                colors: [COLOR_A, COLOR_B],
+                values: series.map((entry) => entry.rpm),
+                labels: series.map((entry) => `${entry.label} — ${m.compare_rpm()}`),
+                colors: series.map((entry) => entry.color),
               }}
               syncKey="lap-compare"
               height={180}
@@ -98,14 +148,14 @@ export function ComparisonCharts({
               onCursorMove={onCursorMove}
             />
           </div>
-          {hasValues(tireWearA) && hasValues(tireWearB) && (
+          {tireSeries.length > 0 && (
             <div className="rounded-lg border border-app-border p-1">
               <TelemetryChart
                 data={{
                   distance,
-                  values: [tireWearA, tireWearB],
-                  labels: [`${m.compare_chart_tire_wear_a()} (%)`, `${m.compare_chart_tire_wear_b()} (%)`],
-                  colors: [COLOR_A, COLOR_B],
+                  values: tireSeries.map((entry) => entry.tireWear),
+                  labels: tireSeries.map((entry) => `${entry.label} (%)`),
+                  colors: tireSeries.map((entry) => entry.color),
                 }}
                 syncKey="lap-compare"
                 height={160}
