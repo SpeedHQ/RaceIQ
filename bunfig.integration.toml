@@ -1,0 +1,5 @@
+[test]
+root = "./test"
+preload = ["./test/support/setup-data-dir.ts"]
+timeout = 30000
+maxConcurrency = 2
