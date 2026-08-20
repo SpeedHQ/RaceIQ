@@ -21,10 +21,12 @@ bun run bench
 
 `bun run test:unit` runs only `scripts/test/unit-files.txt`. It is DB-free:
 there is no DB preload, and Bun may run workers in parallel. `bun run
-test:integration` runs only `scripts/test/integration-files.txt`; it initializes
-shared state in isolated `.data-test`, uses the DB preload, and limits Bun
-worker concurrency to 2. `bun run test` runs unit first, then initializes the
-shared integration database; the combined command stops on its first failure.
+test:integration` runs only `scripts/test/integration-files.txt`; by default it
+initializes shared state in isolated `.data-test` (when `DATA_DIR` is unset),
+uses the DB preload, and limits Bun worker concurrency to 2. Callers and CI may
+provide their own isolated `DATA_DIR` override. `bun run test` runs unit first,
+then initializes the shared integration database; the combined command stops on
+its first failure.
 
 Focused command runs one final-path file. `bun run test:ai` runs
 `test/ai/evals/ai-quality.ai-eval.ts` with its longer timeout. `bun run bench`
