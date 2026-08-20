@@ -38,19 +38,19 @@ if (suite === "unit" && !/^\d+$/.test(workers) || suite === "unit" && Number(wor
   throw new Error("BUN_TEST_WORKERS must be a positive integer");
 }
 const suiteRoot = mkdtempSync(resolve(tmpdir(), `raceiq-bun-${suite}-`));
-const configPath = resolve(suiteRoot, "bunfig.toml");
-const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
-writeFileSync(configPath, suite === "unit"
-  ? "[test]\nroot = \".\"\ntimeout = 30000\n"
-  : `[test]\nroot = "."\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 2\n`);
-const manifestFiles = files.map((file) => resolve(root, file));
-const args = suite === "unit"
-  ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles]
-  : ["test", "--config", configPath, "--max-concurrency=2", ...manifestFiles];
-const env = { ...process.env };
-if (suite === "integration" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
 let status = 1;
 try {
+  const configPath = resolve(suiteRoot, "bunfig.toml");
+  const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
+  writeFileSync(configPath, suite === "unit"
+    ? "[test]\nroot = \".\"\ntimeout = 30000\n"
+    : `[test]\nroot = "."\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 2\n`);
+  const manifestFiles = files.map((file) => resolve(root, file));
+  const args = suite === "unit"
+    ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles]
+    : ["test", "--config", configPath, "--max-concurrency=2", ...manifestFiles];
+  const env = { ...process.env };
+  if (suite === "integration" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
   const proc = Bun.spawn([process.execPath, ...args], { cwd: suiteRoot, env, stdout: "inherit", stderr: "inherit" });
   status = await proc.exited;
 } finally {
