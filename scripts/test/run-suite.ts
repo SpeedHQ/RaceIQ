@@ -51,6 +51,7 @@ try {
     ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles]
     : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
   const env = { ...process.env };
+  if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
   if (suite === "integration" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
   const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
   status = await proc.exited;

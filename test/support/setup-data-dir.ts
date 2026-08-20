@@ -13,7 +13,8 @@ import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { USER_DATA_DIR } from "../../server/runtime/config/paths";
 
-const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
+async function setupDataDir() {
+  const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
 for (const line of releaseEnvironment.split(/\r?\n/)) {
   const separator = line.indexOf("=");
   if (separator < 1) continue;
@@ -85,3 +86,6 @@ afterAll(async () => {
     // db never loaded — nothing to close
   }
 });
+}
+
+if (process.env.RACEIQ_UNIT_TESTS !== "1") await setupDataDir();
