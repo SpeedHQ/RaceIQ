@@ -29,7 +29,7 @@ export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props
   const pressure = binding(analysis.tirePressure) ? resolveWheelMetric(frame, binding(analysis.tirePressure)!) : [null, null, null, null];
   const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
   const hThresholds = adapter.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
-  const tempCell = (value: number | null) => value == null ? unavailable : <span style={{ color: tireTempColor(units.toTempC(value), units.thresholds) }}>{`${units.temp(value).toFixed(0)}${units.tempLabel}`}</span>;
+  const tempCell = (value: number | null) => value == null ? unavailable : <span style={{ color: tireTempColor(value, units.thresholds) }}>{`${units.tempFromC(value).toFixed(0)}${units.tempLabel}`}</span>;
   const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
   const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
   const coldPressure = analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure";

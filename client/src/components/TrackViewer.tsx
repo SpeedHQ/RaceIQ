@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 import { countryName } from "@/lib/country-names";
+import { groupBaseTracks } from "@/lib/track-groups";
 import { client } from "@/lib/rpc";
 import { trackRoutePath } from "@/lib/track-routes";
 import { m } from "@/paraglide/messages";
@@ -12,6 +13,7 @@ import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import type { TrackInfo } from "./track/types";
 import { AppInput } from "./ui/AppInput";
+import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 type SortKey = "name" | "laps";
@@ -82,24 +84,28 @@ export function TrackViewer() {
   }
 
   const query = search.toLowerCase().trim();
+  const baseTracks = groupBaseTracks(tracks);
   const filtered = query
-    ? tracks.filter(
-        (t) =>
-          t.name.toLowerCase().includes(query) ||
-          t.variant.toLowerCase().includes(query) ||
-          t.location.toLowerCase().includes(query) ||
-          t.country.toLowerCase().includes(query) ||
-          countryName(t.country).toLowerCase().includes(query),
+    ? baseTracks.filter(
+        (baseTrack) =>
+          baseTrack.name.toLowerCase().includes(query) ||
+          baseTrack.layouts.some(
+            (layout) =>
+              layout.variant.toLowerCase().includes(query) ||
+              layout.location.toLowerCase().includes(query) ||
+              layout.country.toLowerCase().includes(query) ||
+              countryName(layout.country).toLowerCase().includes(query),
+          ),
       )
-    : tracks;
+    : baseTracks;
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sortKey === "laps") return (b.lapCount ?? 0) - (a.lapCount ?? 0);
+    if (sortKey === "laps") return b.lapCount - a.lapCount;
     return a.name.localeCompare(b.name);
   });
 
-  const withOutline = sorted.filter((t) => t.hasOutline || t.hasMap);
-  const withoutOutline = sorted.filter((t) => !t.hasOutline && !t.hasMap);
+  const withImagery = sorted.filter((baseTrack) => baseTrack.hasMap);
+  const withoutImagery = sorted.filter((baseTrack) => !baseTrack.hasMap);
 
   return (
     <div className="p-4 overflow-auto h-full">
@@ -123,7 +129,7 @@ export function TrackViewer() {
           </Tabs>
         </div>
         <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
-          {withOutline.length} {m.trackviewer_with_outlines()}, {withoutOutline.length} {m.trackviewer_without_outlines_suffix()}
+          {m.trackviewer_base_tracks({ count: String(sorted.length) })} · {withImagery.length} {m.trackviewer_with_imagery()}, {withoutImagery.length} {m.trackviewer_without_imagery()}
         </div>
       </div>
 
@@ -133,35 +139,46 @@ export function TrackViewer() {
         </div>
       )}
 
-      {withOutline.length > 0 && (
+      {withImagery.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
-          {withOutline.map((t) => (
-            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId} setupCount={setupCountFor(t.ordinal)} guideCount={guideCountFor(t.ordinal)} />
-          ))}
+          {withImagery.map((baseTrack) => {
+            const setupCounts = baseTrack.layouts.map((layout) => setupCountFor(layout.ordinal));
+            const guideCounts = baseTrack.layouts.map((layout) => guideCountFor(layout.ordinal));
+            const setupCount = setupCounts.some((count) => count !== undefined) ? setupCounts.reduce<number>((total, count) => total + (count ?? 0), 0) : undefined;
+            const guideCount = guideCounts.some((count) => count !== undefined) ? guideCounts.reduce<number>((total, count) => total + (count ?? 0), 0) : undefined;
+            return (
+              <TrackCard
+                key={baseTrack.key}
+                track={baseTrack.primaryLayout}
+                onSelect={handleSelectTrack}
+                gameId={gameId}
+                layoutCount={baseTrack.layouts.length}
+                lapCount={baseTrack.lapCount}
+                baseImageUrl={baseTrack.baseImageUrl}
+                setupCount={setupCount}
+                guideCount={guideCount}
+              />
+            );
+          })}
         </div>
       )}
 
-      {withoutOutline.length > 0 && (
+      {withoutImagery.length > 0 && (
         <>
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-3 mt-4">{m.trackviewer_without_outlines_title()}</div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-3 mt-4">{m.trackviewer_without_imagery()}</div>
           <div className="grid grid-cols-1 gap-2 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
-            {withoutOutline.map((t) => (
-              <button
-                type="button"
-                key={t.ordinal}
-                className="w-full border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-hover text-left"
-                onClick={() => handleSelectTrack(t)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-app-body text-app-text-secondary">{t.name}</div>
-                  <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">
-                    {t.lapCount ?? 0} {(t.lapCount ?? 0) === 1 ? m.trackcard_lap_singular() : m.pitwindow_laps()}
+            {withoutImagery.map((baseTrack) => (
+              <Button key={baseTrack.key} variant="focus-option" size="content" className="p-3" onClick={() => handleSelectTrack(baseTrack.primaryLayout)}>
+                <span className="flex w-full items-center justify-between gap-2">
+                  <span className="text-app-body text-app-text-secondary">{baseTrack.name}</span>
+                  <span className="shrink-0 text-app-label text-app-text-muted">
+                    {baseTrack.lapCount} {baseTrack.lapCount === 1 ? m.trackcard_lap_singular() : m.pitwindow_laps()}
                   </span>
-                </div>
-                <div className="text-app-label text-app-text-dim">
-                  {t.variant} · {t.location}
-                </div>
-              </button>
+                </span>
+                <span className="text-app-label text-app-text-dim">
+                  {baseTrack.layouts.length} {baseTrack.layouts.length === 1 ? m.trackcard_layout() : m.trackcard_layouts()} · {baseTrack.primaryLayout.location}
+                </span>
+              </Button>
             ))}
           </div>
         </>

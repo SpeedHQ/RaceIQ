@@ -135,7 +135,7 @@ export interface GameAdapter {
    */
   followViewRotation(yaw: number): number;
 
-  /** Steering center value in the raw Steer field (Forza=127, F1/ACC=0) */
+  /** Steering center value in the raw Steer field (all current adapters use signed zero-center values) */
   steeringCenter: number;
 
   /** Steering range: abs(max deviation from center) */

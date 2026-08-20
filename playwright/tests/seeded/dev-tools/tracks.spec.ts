@@ -90,6 +90,37 @@ test("developer overview renders available cards without waiting for every statu
   }
 });
 
+test("developer Geometry generates missing segments only on request", async ({ page }) => {
+  await page.route("**/api/track-sectors/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ segments: [] }),
+    }),
+  );
+  await page.route("**/api/tracks/*/segments/generate?*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        source: "auto",
+        totalDist: 1000,
+        segments: [
+          { type: "straight", name: "", startFrac: 0, endFrac: 0.5 },
+          { type: "corner", name: "T1", number: 1, startFrac: 0.5, endFrac: 1 },
+        ],
+      }),
+    }),
+  );
+
+  await page.goto(`${selectedTrackPath(IRACING_TRACK, "geometry")}?mode=turns`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("Missing segment data. Generate a preview, then save it to the track registry.")).toBeVisible();
+  await page.getByRole("button", { name: "Generate" }).click();
+  await expect(page.getByRole("button", { name: "Save" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: "Generate" })).toBeVisible();
+});
+
 test("developer Geometry keeps mode URL and layer state independent through history", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await selectTrack(page, FM_TRACK);

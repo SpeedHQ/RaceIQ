@@ -134,6 +134,28 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
       return undefined;
     };
   }
+  if (variable.id === "tire.temperature.average" && nativeUnit === "°f") {
+    const fields = variable.packetFields?.filter((field) =>
+      declaresPacketSource(sourcePaths, String(field))
+    );
+    if (!fields || fields.length !== 4) return undefined;
+    const sourceChannels = fields.map((field) => `TelemetryPacket.${String(field)}`);
+    const observationKey = sourceChannels.join("|");
+    const rawValues = new Array<number>(fields.length);
+    const values = new Array<number>(fields.length);
+    return (frame, context) => {
+      for (let index = 0; index < fields.length; index += 1) {
+        const value = packetField(frame, fields[index]);
+        if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+        rawValues[index] = value;
+        values[index] = (value - 32) * 5 / 9;
+      }
+      reading.value = values;
+      reading.observation = context.observe(observationKey, rawValues, mapping.freshness);
+      reading.sourceChannel = sourceChannels[0];
+      return reading;
+    };
+  }
   if (variable.id === "timing.lap-fraction" && nativeUnit === "fraction") {
     return (frame, context) => {
       for (const source of sourcePaths) {

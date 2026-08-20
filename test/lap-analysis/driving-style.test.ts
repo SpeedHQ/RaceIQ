@@ -8,6 +8,7 @@ import {
   summariseLapStyle,
   type LapStyleSummary,
 } from "@shared/racing/analysis/laps/driving-style";
+import { computeStatsRange, steerScaleFor } from "../../server/lap-analysis/metrics";
 import { initGameAdapters } from "@shared/games/init";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
@@ -21,8 +22,8 @@ const G = 9.81;
 const RADIUS = 0.33;
 const STEP_MS = 16;
 const FM: GameId = "fm-2023";
-/** fm-2023 centres steering at 127 over a range of 127 (see shared/games/fm-2023). */
-const FM_CENTRE = 127;
+/** fm-2023 stores steering as a signed int8 centred at 0. */
+const FM_CENTRE = 0;
 
 interface Frame {
   /** km/h */
@@ -89,6 +90,24 @@ describe("gating", () => {
     expect(isCornering(pkt({ ...STEADY, latG: 0.3 }, 0))).toBe(true);
     // Below SPEED_FLOOR (5 m/s = 18 km/h) nothing is cornering, however bent.
     expect(isCornering(pkt({ ...STEADY, speedKph: 10, latG: 1.5 }, 0))).toBe(false);
+  });
+
+  test("Forza signed steering scale treats zero as straight ahead", () => {
+    const scale = steerScaleFor(FM);
+    expect(scale).toEqual({ center: 0, range: 127 });
+
+    const stats = computeStatsRange(
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 127, -127],
+      [60, 60, 60],
+      [0, 1, 2],
+      0,
+      3,
+      scale,
+    );
+    expect(stats.steerAbsAvg).toBeCloseTo(2 / 3);
+    expect(stats.steerAbsMax).toBe(1);
   });
 
   test("a lap with too few cornering frames reports itself unusable, not neutral", () => {

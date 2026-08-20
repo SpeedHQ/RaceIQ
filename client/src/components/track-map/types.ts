@@ -103,6 +103,22 @@ export interface TrackMapLayerState {
 
 export type TrackMapLayerKey = keyof TrackMapLayerState;
 
+export interface TrackMapViewportCamera {
+  center: Point;
+  rotation?: number;
+}
+
+export interface TrackMapOverlayContext {
+  context: CanvasRenderingContext2D;
+  toCanvas: (x: number, z: number) => [number, number];
+  width: number;
+  height: number;
+  transform: TrackTransform;
+  cursorIdx: number;
+}
+
+export type TrackMapOverlayRenderer = (overlay: TrackMapOverlayContext) => void;
+
 export interface TrackMapProps {
   gameId?: GameId;
   telemetry: SemanticAnalysisFrame[];
@@ -112,6 +128,7 @@ export interface TrackMapProps {
   pitLines?: PitLine[] | null;
   imagery?: TrackImagery | null;
   geographicPositions?: readonly (TrackImageryGeographicPoint | null)[];
+  imageryLocalPositions?: readonly Point[];
   boundaries: TrackMapBoundaries | null;
   sectors?: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
@@ -121,6 +138,11 @@ export interface TrackMapProps {
   rotateWithCar: boolean;
   zoom?: number;
   onZoomChange?: (updater: (zoom: number) => number) => void;
+  viewport?: TrackMapViewportCamera | null;
+  renderWorldOverlay?: TrackMapOverlayRenderer;
+  renderScreenOverlay?: TrackMapOverlayRenderer;
+  coordinatesPrepared?: boolean;
+  testId?: string;
 }
 
 export interface TrackTransform {

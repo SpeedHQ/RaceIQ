@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { TrackImageryCandidate, TrackImageryOutputBudget, TrackImagerySourceSearchGroup } from "../../shared/racing/tracks/imagery";
-import { TrackImagerySourceList } from "../src/components/dev/OpenTrackImageryPicker";
-import { TrackImageryOutputBudgetSummary } from "../src/components/dev/TrackImageryCalibrationPanel";
+import { ImageryCandidateList } from "../src/components/dev/imagery/ImageryCandidatePanel";
+import { ImageryImportEstimate } from "../src/components/dev/imagery/ImageryImportEstimate";
+import { ImageryCalibrationEditor } from "../src/components/dev/imagery/ImageryEditors";
+import { ImageryPreview } from "../src/components/dev/imagery/ImageryPreview";
 
 function candidate(id: string, provider: string, title: string, capturedAt: string, quality: TrackImageryCandidate["quality"]): TrackImageryCandidate {
   return {
@@ -40,7 +42,7 @@ test("imagery picker groups dated options by source and exposes selected option"
     },
   ];
 
-  const markup = renderToStaticMarkup(<TrackImagerySourceList sources={sources} selectedCandidateId="sentinel-2-l2a:new" onSelect={() => undefined} />);
+  const markup = renderToStaticMarkup(<ImageryCandidateList sources={sources} selectedCandidateId="sentinel-2-l2a:new" onSelect={() => undefined} />);
 
   expect(markup).toContain("Sentinel-2 L2A true color");
   expect(markup).toContain("2 images");
@@ -49,6 +51,49 @@ test("imagery picker groups dated options by source and exposes selected option"
   expect(markup).toContain("Latest Sentinel image");
   expect(markup).toContain("Earlier Sentinel image");
   expect(markup).toMatch(/aria-pressed="true"[^>]*>.*Selected/s);
+});
+
+test("imagery calibration lists recorded lap times in seconds", () => {
+  const markup = renderToStaticMarkup(
+    <ImageryCalibrationEditor
+      model={{
+        lapId: null,
+        setLapId: () => undefined,
+        referenceLoading: false,
+        catalogReference: null,
+        selectableLaps: [{ id: 7, lapNumber: 3, lapTime: 110.536 }],
+      } as never}
+    />,
+  );
+
+  expect(markup).toContain("Recorded lap 3 · 1:50.536");
+  expect(markup).not.toContain("0.111s");
+});
+
+test("imagery preview keeps track outline stroke constant across large venues", () => {
+  const markup = renderToStaticMarkup(
+    <ImageryPreview
+      calibration={{
+        referenceLoading: false,
+        viewBounds: { minX: 0, minZ: 0, width: 5_350, height: 4_600 },
+        calibration: {},
+        imageCorners: [],
+        handles: null,
+        gpsPolyline: "0,0 2000,1400",
+        handlePointerMove: () => undefined,
+        handlePointerEnd: () => undefined,
+      } as never}
+      baseUrl={null}
+      displayedLayers={[]}
+      layerPreviewUrl={null}
+      layerOpacity={1}
+      venueId="spa"
+      assetVersion={1}
+    />,
+  );
+
+  expect(markup).toMatch(/stroke="var\(--track-outline-strong\)" stroke-width="2"/);
+  expect(markup).toContain('vector-effect="non-scaling-stroke"');
 });
 
 test("calibration output budget shows complete pack size and processing limits", () => {
@@ -74,7 +119,7 @@ test("calibration output budget shows complete pack size and processing limits",
     problems: ["Output has 2,209,884,160 pixels; maximum is 500,000,000"],
   };
 
-  const markup = renderToStaticMarkup(<TrackImageryOutputBudgetSummary budget={budget} />);
+  const markup = renderToStaticMarkup(<ImageryImportEstimate budget={budget} />);
   expect(markup).toContain("Estimated output: 8,464 tiles, approximately 1.40 GB–3.80 GB");
   expect(markup).toContain("47,104 × 46,915 px");
   expect(markup).toContain("Uncompressed work 8.84 GB");

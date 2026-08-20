@@ -41,11 +41,13 @@ export interface StaticTrackImagery {
   textures: readonly { image: CanvasImageSource; opacity: number }[];
   requestVisibleTiles?: (transform: TrackTransform, viewportCamera?: ViewportTrackCamera) => void;
 }
+
 export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
   bufferCanvas: HTMLCanvasElement | null;
   telemetry: SemanticAnalysisFrame[];
   gameId?: GameId;
+  coordinatesPrepared?: boolean;
   resolvedPositions: Point[];
   outline: Point[] | null;
   showOutline?: boolean;
@@ -93,13 +95,16 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const h = rect.height;
   syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
 
-  const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
+  const needsTelemetryPoints = showTrace || showInputs || !outline;
+  const telemetryPointsWithIdx = needsTelemetryPoints
+    ? resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0)
+    : [];
   const telemetryPoints: Point[] = telemetryPointsWithIdx.map(({ x, z }) => ({ x, z }));
   const hasTelemetryTrace = telemetryPoints.length > 2;
   const displayOutline: Point[] = showTrace && hasTelemetryTrace ? telemetryPoints : (outline ?? (hasTelemetryTrace ? telemetryPoints : []));
   const visualOutline: Point[] = showOutline ? (outline ?? (hasTelemetryTrace ? telemetryPoints : [])) : showTrace && !hasTelemetryTrace ? (outline ?? []) : [];
   if (displayOutline.length < 2) return { bufferCanvas: null, transform: null };
-  const flip = needsTrackFlip(gameId);
+  const flip = !options.coordinatesPrepared && needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const flippedPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;

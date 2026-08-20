@@ -31,6 +31,40 @@ async function mockStaleSessionNotification(page: Page) {
   };
 }
 
+test("mobile navigation stays above the stale-session action", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await mockStaleSessionNotification(page);
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await socket.ready;
+  socket.send();
+  await expect(page.getByRole("button", { name: "Reparse 1 session" })).toBeVisible();
+
+  await page.getByLabel("Open navigation").click();
+  const navigation = page.getByRole("navigation").last();
+  await navigation.getByRole("button", { name: /^Settings/ }).click();
+
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+});
+
+test("stale-session action can be dismissed", async ({ page }) => {
+  const socket = await mockStaleSessionNotification(page);
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await socket.ready;
+  socket.send();
+
+  const reparseAction = page.getByRole("button", { name: "Reparse 1 session" });
+  const notification = page.getByRole("status").filter({ has: reparseAction });
+  await notification.getByRole("button", { name: "Close" }).click();
+
+  await expect(reparseAction).toHaveCount(0);
+
+  await page.getByRole("button", { name: /^Settings/ }).first().click();
+  await page.getByRole("button", { name: "Updates" }).click();
+  await expect(page.getByRole("button", { name: "Reparse sessions" })).toBeVisible();
+});
+
 test("failed reprocessing exposes Retry and supports keyboard dismissal", async ({ page }) => {
   const socket = await mockStaleSessionNotification(page);
   await page.route("**/api/sessions/reprocess-stale", (route) =>

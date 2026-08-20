@@ -346,6 +346,45 @@ function addCrossSourceProjections(
     );
   }
 
+  const recordedPositionLimitation =
+    "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates.";
+  const positionX = variables.get("motion.position-x");
+  if (positionX) {
+    positionX.games.iracing = {
+      ...normalizedLink(
+        "m",
+        ["iracing.latitudeDeg", "iracing.longitudeDeg"],
+        "project WGS84 longitude delta onto local east axis",
+        "Projects disk-only iRacing IBT geographic coordinates into a local metric X position.",
+      ),
+      limitations: [recordedPositionLimitation],
+    };
+  }
+  const positionY = variables.get("motion.position-y");
+  if (positionY) {
+    positionY.games.iracing = {
+      ...normalizedLink(
+        "m",
+        ["iracing.latitudeDeg", "iracing.longitudeDeg", "iracing.altitudeM"],
+        "subtract first valid altitude from current recorded altitude",
+        "Projects disk-only iRacing IBT altitude into a local metric Y position.",
+      ),
+      limitations: [recordedPositionLimitation],
+    };
+  }
+  const positionZ = variables.get("motion.position-z");
+  if (positionZ) {
+    positionZ.games.iracing = {
+      ...normalizedLink(
+        "m",
+        ["iracing.latitudeDeg", "iracing.longitudeDeg"],
+        "project WGS84 latitude delta onto local north axis",
+        "Projects disk-only iRacing IBT geographic coordinates into a local metric Z position.",
+      ),
+      limitations: [recordedPositionLimitation],
+    };
+  }
+
   const pitServicePressure = variables.get("race.pit-service.tire-pressure");
   if (pitServicePressure) {
     pitServicePressure.games.iracing = {
@@ -421,10 +460,16 @@ function addCrossSourceProjections(
           (source) => source !== "TelemetryPacket.FuelCapacity",
         ),
       ],
-      freshness: "session-update",
+      freshness: "static",
       description:
         "Uses normalized packet fuel capacity first and SessionInfo capacity when packet value is absent.",
     };
+  }
+  if (fuelCapacity) {
+    fuelCapacity.games["f1-2025"] = unavailable(
+      "source-not-provided",
+      "F1 exposes fuel mass in kilograms, not tank volume in litres.",
+    );
   }
 
 
@@ -441,14 +486,10 @@ function addCrossSourceProjections(
       "Forza packet provides fuel fraction but no tank capacity, so litres cannot be derived safely.",
     );
   }
-  if (remainingVolume.games["f1-2025"].kind === "unavailable") {
-    remainingVolume.games["f1-2025"] = derivedLink(
-      "fraction and L",
-      ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],
-      "fuel remaining fraction * fuel capacity",
-      "RaceIQ derives F1 fuel volume from native fraction and capacity.",
-    );
-  }
+  remainingVolume.games["f1-2025"] = unavailable(
+    "source-not-provided",
+    "F1 exposes a fuel fraction and kilogram mass values, so litres cannot be derived safely.",
+  );
 
   addDefinedVariable(
     variables,

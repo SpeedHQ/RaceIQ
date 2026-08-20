@@ -15,13 +15,11 @@ function mkPackets(opts: {
   fuelPerLap?: number;
   tyreWear?: number[];
   fuel?: [number, number];
-  fuelCapacity?: number;
 }): TelemetryPacket[] {
   const base = (i: number) => ({ gameId: opts.gameId, DistanceTraveled: i * 5, Speed: 50 } as unknown as TelemetryPacket);
   const a = base(0);
   const b = base(1);
   if (opts.fuel) { (a as any).Fuel = opts.fuel[0]; (b as any).Fuel = opts.fuel[1]; }
-  if (opts.fuelCapacity != null) { (a as any).FuelCapacity = opts.fuelCapacity; (b as any).FuelCapacity = opts.fuelCapacity; }
   if (opts.fuelPerLap != null) (b as any).acc = { fuelPerLap: opts.fuelPerLap };
   if (opts.tyreWear) {
     const [fl, fr, rl, rr] = opts.tyreWear;
@@ -44,10 +42,10 @@ describe("persistLapMetrics", () => {
     expect(db.lapMetrics[0]).toEqual({ lapId: 7, fuelPerLap: 2.5, tyreWear: null });
   });
 
-  test("converts F1 fuel fraction delta to litres using tank capacity", async () => {
+  test("omits F1 fuel fraction because kilogram capacity is not litre volume", async () => {
     const db = new CapturingDbAdapter();
-    await persistLapMetrics(db, 8, mkPackets({ gameId: "f1-2025", fuel: [0.7, 0.65], fuelCapacity: 110 }));
-    expect(db.lapMetrics[0]).toEqual({ lapId: 8, fuelPerLap: 5.5, tyreWear: null });
+    await persistLapMetrics(db, 8, mkPackets({ gameId: "f1-2025", fuel: [0.7, 0.65] }));
+    expect(db.lapMetrics).toHaveLength(0);
   });
 
   test("omits Forza fuel fraction when no litre capacity contract exists", async () => {

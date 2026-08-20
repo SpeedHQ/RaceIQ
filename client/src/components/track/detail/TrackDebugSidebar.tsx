@@ -16,6 +16,8 @@ interface TrackDebugSidebarProps {
   editSegments: TrackSegment[];
   saving: boolean;
   saveError?: string | null;
+  generatingSegments: boolean;
+  generateSegmentsError?: string | null;
   sectorBounds: { s1End: number; s2End: number } | null;
   timingSectors?: TrackTimingSectorLayout;
   timingSectorsLoading?: boolean;
@@ -28,11 +30,12 @@ interface TrackDebugSidebarProps {
   segDisplayNames: string[];
   startEditing: () => void;
   saveSegments: () => void;
+  generateSegments: () => void;
   toggleSegType: (index: number) => void;
   addSegment: (index: number) => void;
   removeSegment: (index: number) => void;
   updateSegFrac: (index: number, field: "startFrac" | "endFrac", value: number) => void;
-  setEditing: (editing: boolean) => void;
+  cancelEditing: () => void;
   startEditingSectors: () => void;
   saveSectorBounds: () => void;
   setEditingSectors: (editing: boolean) => void;
@@ -51,6 +54,8 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
     editSegments,
     saving,
     saveError,
+    generatingSegments,
+    generateSegmentsError,
     sectorBounds,
     timingSectors,
     timingSectorsLoading,
@@ -63,11 +68,12 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
     segDisplayNames,
     startEditing,
     saveSegments,
+    generateSegments,
     toggleSegType,
     addSegment,
     removeSegment,
     updateSegFrac,
-    setEditing,
+    cancelEditing,
     startEditingSectors,
     saveSectorBounds,
     setEditingSectors,
@@ -77,6 +83,20 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
   return (
     <div className="flex w-full min-w-0 shrink-0 flex-col gap-3 overflow-auto @7xl/workspace:w-80">
       {/* Segment list / editor */}
+      {showSegments && (!displaySectors || displaySectors.segments.length === 0) && (
+        <Card>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_segments()}</span>
+            {isDevelopment && (
+              <Button type="button" onClick={generateSegments} disabled={generatingSegments} className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50">
+                {generatingSegments ? "Generating..." : "Generate"}
+              </Button>
+            )}
+          </div>
+          <p className="text-app-label text-app-text-dim">Missing segment data. Generate a preview, then save it to the track registry.</p>
+          {generateSegmentsError && <p className="mt-2 text-app-label text-status-danger">{generateSegmentsError}</p>}
+        </Card>
+      )}
       {showSegments && displaySectors && displaySectors.segments.length > 0 && (
         <Card>
           <div className="flex items-center justify-between mb-2">
@@ -101,7 +121,7 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
                   </Button>
                   <Button
                     type="button"
-                    onClick={() => setEditing(false)}
+                    onClick={cancelEditing}
                     className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                   >
                     {m.common_cancel()}

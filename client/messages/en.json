@@ -1503,5 +1503,21 @@
   "trackinfo_pit_stalls": "{n} pit stalls",
   "trackinfo_guide": "Expert guide",
   "trackinfo_priority": "priority",
-  "trackinfo_trap": "Trap:"
+  "trackinfo_trap": "Trap:",
+  "trackviewer_base_tracks": "{count} base tracks",
+  "trackcard_layout": "layout",
+  "trackcard_layouts": "layouts",
+  "track_detail_imagery_tab": "Imagery",
+  "track_layouts_heading": "Subtracks",
+  "track_layout_selected": "Selected",
+  "track_imagery_title": "Base satellite image",
+  "track_imagery_description": "Used for this base track across every subtrack.",
+  "track_imagery_empty": "No satellite image set.",
+  "track_imagery_upload": "Upload image",
+  "track_imagery_replace": "Replace image",
+  "track_imagery_uploading": "Uploading...",
+  "track_imagery_invalid_file": "Choose a JPEG, PNG, WebP, or AVIF image.",
+  "track_imagery_too_large": "Image must be 20 MB or smaller.",
+  "trackviewer_with_imagery": "with imagery",
+  "trackviewer_without_imagery": "without imagery"
 }

@@ -82,6 +82,37 @@ describe("semantic telemetry catalog", () => {
     });
   });
 
+  test("keeps iRacing fuel capacity static across long sessions", () => {
+    expect(getTelemetryVariable("fuel.capacity").games.iracing).toMatchObject({
+      kind: "direct",
+      nativeUnit: "L",
+      freshness: "static",
+      sources: expect.arrayContaining([
+        "TelemetryPacket.FuelCapacity",
+        "iRacing.SessionInfo.DriverInfo.DriverCarFuelMaxLtr",
+      ]),
+    });
+  });
+
+  test("does not label F1 fuel mass as litre capacity or volume", () => {
+    expect(getTelemetryVariable("fuel.capacity").games["f1-2025"]).toMatchObject({
+      kind: "unavailable",
+      reason: "source-not-provided",
+    });
+    expect(getTelemetryVariable("fuel.remaining-volume").games["f1-2025"]).toMatchObject({
+      kind: "unavailable",
+      reason: "source-not-provided",
+    });
+    expect(getTelemetryVariable("fuel.remaining-fraction").games["f1-2025"]).toMatchObject({
+      kind: "direct",
+      nativeUnit: "fraction",
+    });
+    expect(getTelemetryVariable("fuel.remaining-percent").games["f1-2025"]).toMatchObject({
+      kind: "derived",
+      nativeUnit: "fraction",
+    });
+  });
+
   test("keeps detailed iRacing carcass bands as direct variables", () => {
     for (const band of ["left", "middle", "right"] as const) {
       const variable = getTelemetryVariable(

@@ -4,6 +4,7 @@ import { AnalyseDataPanel } from "../components/analyse/AnalyseDataPanel";
 import type { SemanticAnalysisFrame } from "../components/track-map/types";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+const identityTemperature = (value: number) => value;
 const frame: SemanticAnalysisFrame = {
   values: {
     "motion.speed": 30,
@@ -61,8 +62,9 @@ export const LoadedMainParity: Story = {
       tempLabel: "°C",
       temperatureUnit: "C",
       thresholds: { cold: 75, warm: 115, hot: 150 },
-      temp: (value: number) => value,
-      toTempC: (value: number) => value,
+      temp: identityTemperature,
+      toTempC: identityTemperature,
+      tempFromC: identityTemperature,
     } as never,
     wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
     lapInsights: [],

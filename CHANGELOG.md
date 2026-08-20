@@ -19,18 +19,22 @@
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 - Render per-car tire dimensions and independent front/rear spring geometry from each 3D model definition
 - Share GPS locations, imagery calibration outlines, sectors, guides, and corner names across games assigned to the same exact catalog layout, so calibration no longer requires a recorded lap
+- Browse tracks by venue, switch among subtracks from base-track details, and upload a shared satellite image under Imagery
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
 ### Fixes
 
-- Keep fuel amounts, controls, engine output, timing, shift lights, tire blistering, and competitor pit states consistent across supported simulators
+- Keep fuel amounts and capacity, controls, engine output, timing, shift lights, tire temperatures and blistering, and competitor pit states consistent across supported simulators
 
 - Estimate complete aerial-imagery output, work, disk, duration, and concurrency before import, then reject unsafe jobs before downloading source pixels
 - Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list
+- Show recorded GPS calibration laps with their correct lap times in track imagery tools
+- Keep track outlines consistently thin across small and large imagery calibration previews
 - Keep track geometry tools usable when optional curb data has not been recorded
 - Keep satellite imagery track maps responsive during Analyse playback instead of rebuilding the static raster for every telemetry frame
 - Show track workbench status cards immediately and resolve native sector layouts without a per-lap request waterfall
+- Load saved track segments from generated SQLite immediately, label missing geometry without background detection, and generate editable previews only when requested
 - Complete large venue imagery imports reliably by batching source downloads and retrying transient provider failures
 - Complete large manually uploaded venue imagery imports without stalling the development server under multi-tile workloads
 - Keep viewport-loaded aerial imagery seamless and stable while progressively sharpening it during Analyse map zoom
@@ -44,6 +48,7 @@
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
 - Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
+- Keep mobile navigation visible and clickable when stale-session reprocessing is available, and allow its notification to be dismissed
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
@@ -78,6 +83,8 @@
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
 - Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
+- Render Compare overview and zoom maps through the shared imagery-capable track canvas while preserving dual racing lines, source-aligned markers, follow mode, inputs, and segment highlighting
+- Keep Compare telemetry traces aligned by track position and show elapsed-time delta instead of the lap counter difference
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
 - Use semantic tabs for Analyse visualization modes and Data/Insights navigation
 - Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border
@@ -107,6 +114,7 @@
 
 ### Internal
 
+- Generate bundled track registry from deterministic, reviewable JSON sources and reject stale projections in CI
 - Replace Biome with Oxc for repository linting and formatting
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
@@ -114,6 +122,7 @@
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog
+- Deduplicate telemetry catalog provenance hashes so generated review diffs stay focused on meaningful mapping changes
 - Organized automated tests by domain, split oversized suites, and centralized shared test support
 - Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics

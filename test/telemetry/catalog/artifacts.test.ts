@@ -1,6 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import {
-  buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   getSourcesWithoutSemanticDefinition,
   getTelemetrySources,
@@ -15,13 +15,25 @@ import {
   telemetryCatalogSourceHash,
   assertTelemetryCatalogComplete,
 } from "../../support/telemetry/catalog";
+import {
+  ast,
+  interfaceFields,
+  interfaceLeafFields,
+} from "../../../scripts/catalog/ast-discovery";
 
 describe("semantic telemetry catalog artifacts", () => {
   test("generated artifact is current and structurally complete", async () => {
-    expect(JSON.stringify(await buildTelemetryCatalog())).toBe(
-      JSON.stringify(TELEMETRY_CATALOG),
+    const jsonArtifact = [...(await buildTelemetryCatalogArtifacts())].find(
+      ([path]) => path.endsWith("telemetry-catalog.generated.json"),
     );
-    expect(() => assertTelemetryCatalogComplete()).not.toThrow();
+    if (!jsonArtifact) {
+      throw new Error("Generated telemetry catalog JSON is missing");
+    }
+    const actualJson = readFileSync(jsonArtifact[0], "utf8");
+    expect(actualJson).toBe(jsonArtifact[1]);
+    expect(() =>
+      assertTelemetryCatalogComplete(JSON.parse(actualJson)),
+    ).not.toThrow();
   });
   test("rejects unconstrained structured and enum value contracts", () => {
     const structured = getTelemetryVariable("race.competitor.position");
@@ -87,6 +99,21 @@ describe("semantic telemetry catalog artifacts", () => {
       telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")),
     );
   });
+  test("normalizes line endings in discovered source types", () => {
+    const lf = `interface Sample {
+  value: [
+    [number, number, number],
+    [number, number, number],
+  ];
+}`;
+    const crlf = lf.replaceAll("\n", "\r\n");
+    expect(interfaceFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceFields(lf, ast(lf), "Sample"),
+    );
+    expect(interfaceLeafFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceLeafFields(lf, ast(lf), "Sample"),
+    );
+  });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
     expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(723);
@@ -101,13 +128,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 95,
       },
       "f1-2025": {
-        total: 289,
-        packet: 119,
+        total: 288,
+        packet: 118,
         extension: 170,
         sdk: 0,
         yaml: 0,
         setup: 0,
-        recorded: 289,
+        recorded: 288,
       },
       acc: {
         total: 200,
@@ -167,7 +194,7 @@ describe("semantic telemetry catalog artifacts", () => {
     );
     expect(getTelemetryVariable("fuel.remaining-volume").games).toMatchObject({
       "fm-2023": { kind: "unavailable" },
-      "f1-2025": { kind: "derived" },
+      "f1-2025": { kind: "unavailable" },
       acc: { kind: "direct", nativeUnit: "L" },
       "ac-evo": { kind: "direct", nativeUnit: "L" },
       iracing: { kind: "direct", nativeUnit: "L" },

@@ -40,11 +40,13 @@ export const comparisonRoutes = new Hono()
 
     const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
+    const gameId = lapA.gameId;
+    if (!gameId || gameId !== lapB.gameId) return c.json({ error: "Laps must use the same supported game" }, 400);
 
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
+    const corners = await resolveLapCorners(trackOrdinal, gameId, lapA.telemetry, {
       saveDetected: true,
     });
     const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
@@ -91,6 +93,8 @@ export const comparisonRoutes = new Hono()
       },
       traces: {
         distance: result.distances,
+        sourceIndicesA: result.lapA.sourceIndices,
+        sourceIndicesB: result.lapB.sourceIndices,
         speedA: result.lapA.speed,
         speedB: result.lapB.speed,
         throttleA: result.lapA.throttle,
@@ -106,7 +110,7 @@ export const comparisonRoutes = new Hono()
       corners: result.cornerDeltas,
       telemetryA: toSamples(replayA),
       telemetryB: toSamples(replayB),
-      gameId: lapA.gameId,
+      gameId,
     });
   })
 

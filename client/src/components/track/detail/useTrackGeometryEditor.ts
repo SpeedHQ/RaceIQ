@@ -4,7 +4,7 @@ import { getGame } from "@shared/games/registry";
 import type { GameId } from "@shared/games/ids";
 import type { TrackImagery, TrackImageryGeographicPoint } from "@shared/racing/tracks/imagery";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { errorFromResponse } from "@/lib/rpc-error";
 import { client } from "@/lib/rpc";
 import { queryKeys } from "@/hooks/query-keys";
@@ -48,6 +48,8 @@ export interface TrackGeometryEditorModel {
   editSegments: TrackSegment[];
   saving: boolean;
   saveError: string | null;
+  generatingSegments: boolean;
+  generateSegmentsError: string | null;
   editingSectors: boolean;
   editS1: number;
   editS2: number;
@@ -60,6 +62,7 @@ export interface TrackGeometryEditorModel {
   addSegment: (afterIndex: number) => void;
   removeSegment: (index: number) => void;
   saveSegments: () => Promise<void>;
+  generateSegments: () => Promise<void>;
   startEditingSectors: () => void;
   cancelEditingSectors: () => void;
   setEditS1: (value: number) => void;
@@ -110,13 +113,17 @@ export function useTrackGeometryEditor({ gameId, track }: { gameId: GameId | nul
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [generatedSectors, setGeneratedSectors] = useState<(TrackSectors & { source?: string }) | null>(null);
+  const [generatingSegments, setGeneratingSegments] = useState(false);
+  const [generateSegmentsError, setGenerateSegmentsError] = useState<string | null>(null);
   const [editingSectors, setEditingSectors] = useState(false);
   const [editS1, setEditS1] = useState(33.3);
   const [editS2, setEditS2] = useState(66.6);
   const [savingSectors, setSavingSectors] = useState(false);
   const [sectorSaveError, setSectorSaveError] = useState<string | null>(null);
   const parts = useMemo(() => outlineParts(outlineQuery.data), [outlineQuery.data]);
-  const sectors = (sectorsQuery.data as (TrackSectors & { source?: string }) | null | undefined) ?? null;
+  const queriedSectors = (sectorsQuery.data as (TrackSectors & { source?: string }) | null | undefined) ?? null;
+  const sectors = generatedSectors ?? queriedSectors;
   const sectorBounds = (boundaryQuery.data as { s1End: number; s2End: number } | null | undefined) ?? null;
   const counts = logicalSegmentCounts(sectors?.segments ?? []);
   const dataErrors = [
@@ -129,6 +136,34 @@ export function useTrackGeometryEditor({ gameId, track }: { gameId: GameId | nul
     ["Imagery reference", imageryReferenceQuery.error],
   ].flatMap(([label, error]) => (error ? [`${label}: ${error instanceof Error ? error.message : String(error)}`] : []));
 
+  useEffect(() => {
+    setGeneratedSectors(null);
+    setGenerateSegmentsError(null);
+    setEditing(false);
+  }, [gameId, track.ordinal]);
+
+  const generateSegments = useCallback(async () => {
+    if (!gameId) return;
+    setGeneratingSegments(true);
+    setGenerateSegmentsError(null);
+    try {
+      const response = await client.api.tracks[":trackOrdinal"].segments.generate.$post({
+        param: { trackOrdinal: String(track.ordinal) },
+        query: { gameId },
+      } as never);
+      if (!response.ok) throw await errorFromResponse(response);
+      const generated = await response.json() as TrackSectors & { source?: string };
+      if (generated.segments.length === 0) throw new Error("No segments could be generated from this track outline");
+      setGeneratedSectors(generated);
+      setEditSegments(segmentCopy(generated));
+      setEditing(true);
+    } catch (error) {
+      setGenerateSegmentsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setGeneratingSegments(false);
+    }
+  }, [gameId, track.ordinal]);
+
   const startEditing = useCallback(() => {
     setEditSegments(segmentCopy(sectors));
     setSaveError(null);
@@ -136,6 +171,7 @@ export function useTrackGeometryEditor({ gameId, track }: { gameId: GameId | nul
   }, [sectors]);
   const cancelEditing = useCallback(() => {
     setEditing(false);
+    setGeneratedSectors(null);
     setSaveError(null);
   }, []);
   const updateSegFrac = useCallback((index: number, field: "startFrac" | "endFrac", value: number) => {
@@ -192,6 +228,7 @@ export function useTrackGeometryEditor({ gameId, track }: { gameId: GameId | nul
       } as never);
       if (!response.ok) throw await errorFromResponse(response);
       await queryClient.invalidateQueries({ queryKey: queryKeys.trackSectors(track.ordinal) });
+      setGeneratedSectors(null);
       setEditing(false);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
@@ -245,7 +282,7 @@ export function useTrackGeometryEditor({ gameId, track }: { gameId: GameId | nul
     pitLines: parts.pitLines,
     flipX: parts.flipX,
     sectors,
-    segmentSource: (sectorsQuery.data as { source?: string } | null)?.source ?? "",
+    segmentSource: generatedSectors?.source ?? queriedSectors?.source ?? "",
     boundaries: (boundariesQuery.data as TrackBoundaries | null | undefined) ?? null,
     curbs: (curbsQuery.data as TrackCurb[] | null | undefined) ?? null,
     imagery: imageryQuery.data ?? null,
@@ -262,6 +299,8 @@ export function useTrackGeometryEditor({ gameId, track }: { gameId: GameId | nul
     editSegments,
     saving,
     saveError,
+    generatingSegments,
+    generateSegmentsError,
     editingSectors,
     editS1,
     editS2,
@@ -274,6 +313,7 @@ export function useTrackGeometryEditor({ gameId, track }: { gameId: GameId | nul
     addSegment,
     removeSegment,
     saveSegments,
+    generateSegments,
     startEditingSectors,
     cancelEditingSectors,
     setEditS1,

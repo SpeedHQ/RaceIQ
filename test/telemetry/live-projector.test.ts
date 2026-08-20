@@ -32,6 +32,28 @@ describe("LiveTelemetryProjector", () => {
     expect(result.frame?.values.every((value) => value === null || typeof value !== "bigint")).toBe(true);
   });
 
+  test("publishes Forza tire temperatures in canonical Celsius", () => {
+    const projector = new LiveTelemetryProjector();
+    const result = projector.project({
+      packet: {
+        ...packet("fm-2023"),
+        TireTempFL: 212,
+        TireTempFR: 194,
+        TireTempRL: 176,
+        TireTempRR: 158,
+      },
+      sessionId: 1,
+      receivedAtMs: 1_000,
+    });
+    if (!result.schema || !result.frame) throw new Error("first projection must include schema and frame");
+    const index = result.schema.definitions.findIndex(
+      (definition) => definition.semanticId === "tire.temperature.average",
+    );
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(result.schema.definitions[index].unit).toBe("°C");
+    expect(result.frame.values[index]).toEqual([100, 90, 80, 70]);
+  });
+
   test("steady frame payload stays compact", () => {
     const projector = new LiveTelemetryProjector();
     const result = projector.project({ packet: packet("acc"), sessionId: 1, receivedAtMs: 1000 });

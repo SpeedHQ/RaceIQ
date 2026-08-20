@@ -52,7 +52,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
         wheelState={state}
         steerAngle={index < 2 ? steerAngle : 0}
         thresholds={units.thresholds}
-        tempFn={(value) => convertTemp(value, "C", units.tempUnit)}
+        tempFn={units.tempFromC}
         tempUnit={units.tempUnit}
         onRumble={false}
         puddleDepth={0}

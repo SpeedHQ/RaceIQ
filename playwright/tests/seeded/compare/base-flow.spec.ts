@@ -43,6 +43,8 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
 
   await expect(workspace.getByText("Time Delta")).toBeVisible();
   expect(await workspace.locator("canvas").count(), "trace and delta canvases").toBeGreaterThanOrEqual(4);
+  await expect(workspace.getByTestId("compare-overview-track-map")).toBeVisible();
+  await expect(workspace.getByTestId("compare-zoom-track-map")).toBeVisible();
 
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);

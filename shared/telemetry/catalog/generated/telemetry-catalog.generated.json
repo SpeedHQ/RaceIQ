@@ -6,19 +6,19 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "ab33f6f29c6dc4254cce125dfd26e1bb0e122bcb1e680fb94b248eef922e503e"
+      "sourceHash": "16651866de926d49ab113790fb9ec1d8432760af173cd400a359bce12ee45a61"
     },
     "sourceHashes": {
-      "scripts/catalog/derived-projections.ts": "a7009306bdfe3d7106541c899a277d0a30469143111cff8d62af6031e1108443",
+      "scripts/catalog/derived-projections.ts": "c35bc70b7f565b89c6122db9a41041c7202b4196b38449010d87f8b43da4a84d",
       "server/games/ac-evo/parser.ts": "f7a301ded1157140cdf546adf82ab91819e2b4fe0839e8b89a3fc5c555fbc4b7",
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
-      "server/games/f1-2025/f1-state.ts": "68a478884cc4befb7a11e96ce489b1a2e4df0cf20694ba03d5e57c389a50161e",
+      "server/games/f1-2025/f1-state.ts": "8586f5400ce4df7e53e81894c234abb5a4d7972c82f1f1dd649b9388f16aa5d4",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "b90dc3bfe4f028cd1d698ce4b297bca119b23554141600858904f4e04b29882a",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "8613e9484fbb232a1e59f1eba36db459fc4ed2595ad0e3f22957873321694667"
+    "contentHash": "ec44625b68405102b23c5a95929be2b077e5a0fe3a7f4f27b59b549ab992ceaf"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -10688,18 +10688,9 @@
           "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
         },
         "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "L",
-          "sources": [
-            "TelemetryPacket.FuelCapacity"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 reads 1 stored packet channel. Parser provenance: F1.CarStatus.fuelCapacity.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "F1 exposes fuel mass in kilograms, not tank volume in litres."
         },
         "acc": {
           "kind": "direct",
@@ -10736,7 +10727,7 @@
             "TelemetryPacket.FuelCapacity",
             "iRacing.SessionInfo.DriverInfo.DriverCarFuelMaxLtr"
           ],
-          "freshness": "session-update",
+          "freshness": "static",
           "description": "Uses normalized packet fuel capacity first and SessionInfo capacity when packet value is absent.",
           "provenance": {
             "origin": "yaml",
@@ -11951,32 +11942,9 @@
           "description": "Forza packet provides fuel fraction but no tank capacity, so litres cannot be derived safely."
         },
         "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "fraction and L",
-          "sources": [
-            "TelemetryPacket.Fuel",
-            "TelemetryPacket.FuelCapacity"
-          ],
-          "freshness": "continuous",
-          "normalization": "fuel remaining fraction * fuel capacity",
-          "description": "RaceIQ derives F1 fuel volume from native fraction and capacity.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:fuel.remaining-volume:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.Fuel",
-              "TelemetryPacket.FuelCapacity"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "028221a15c262fefebce0ca22dc9e6388ee239ee7738ebec32b5e84f0f6d05d1"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "F1 exposes a fuel fraction and kilogram mass values, so litres cannot be derived safely."
         },
         "acc": {
           "kind": "direct",
@@ -17740,19 +17708,33 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "m",
           "sources": [
-            "TelemetryPacket.PositionX"
+            "iracing.latitudeDeg",
+            "iracing.longitudeDeg"
           ],
           "freshness": "continuous",
-          "description": "Uses packet-provided local position projected from disk-only iRacing IBT geographic coordinates. Parser provenance: RaceIQ.ParserState.PositionX.",
+          "normalization": "project WGS84 longitude delta onto local east axis",
+          "description": "Projects disk-only iRacing IBT geographic coordinates into a local metric X position.",
           "limitations": [
             "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates."
           ],
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:motion.position-x:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.latitudeDeg",
+              "iracing.longitudeDeg"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "01cace28eedc735ef066d642279d707a35a9fd057b81c6d3d49f06b8db75dfac"
           }
         }
       },
@@ -17833,19 +17815,35 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "m",
           "sources": [
-            "TelemetryPacket.PositionY"
+            "iracing.latitudeDeg",
+            "iracing.longitudeDeg",
+            "iracing.altitudeM"
           ],
           "freshness": "continuous",
-          "description": "Uses packet-provided local position projected from disk-only iRacing IBT geographic coordinates. Parser provenance: RaceIQ.ParserState.PositionY.",
+          "normalization": "subtract first valid altitude from current recorded altitude",
+          "description": "Projects disk-only iRacing IBT altitude into a local metric Y position.",
           "limitations": [
             "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates."
           ],
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:motion.position-y:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.latitudeDeg",
+              "iracing.longitudeDeg",
+              "iracing.altitudeM"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "66b6713e4c9e06a0c5f7f992d8bcb001514f770f994a330700c41bcb714ec96a"
           }
         }
       },
@@ -17926,19 +17924,33 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "m",
           "sources": [
-            "TelemetryPacket.PositionZ"
+            "iracing.latitudeDeg",
+            "iracing.longitudeDeg"
           ],
           "freshness": "continuous",
-          "description": "Uses packet-provided local position projected from disk-only iRacing IBT geographic coordinates. Parser provenance: RaceIQ.ParserState.PositionZ.",
+          "normalization": "project WGS84 latitude delta onto local north axis",
+          "description": "Projects disk-only iRacing IBT geographic coordinates into a local metric Z position.",
           "limitations": [
             "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates."
           ],
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:motion.position-z:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.latitudeDeg",
+              "iracing.longitudeDeg"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "efdae50aee0800d919ab1a34e00425d8ec09e0420cfd9e570e4459a3fdd4ab35"
           }
         }
       },
@@ -55420,18 +55432,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.FuelCapacity",
-        "label": "Fuel Capacity",
-        "unit": "L",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source-provided fuel tank capacity.",
-        "semanticId": "fuel.capacity",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.Gear",
         "label": "Gear",
         "unit": "index",
@@ -57261,7 +57261,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n  ]",
+        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",
@@ -59891,7 +59891,7 @@
         "path": "acc.tireContactHeading",
         "label": "Tire Contact Heading",
         "unit": "rad",
-        "dataType": "[\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n    [number, number, number],\r\n  ]",
+        "dataType": "[\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n    [number, number, number],\n  ]",
         "count": 1,
         "description": "Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])",
         "semanticId": "tires.tire-contact-heading",
@@ -73344,13 +73344,13 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 289,
-        "packet": 119,
+        "total": 288,
+        "packet": 118,
         "extension": 170,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 289
+        "recorded": 288
       },
       "acc": {
         "total": 200,
