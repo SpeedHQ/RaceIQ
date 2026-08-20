@@ -47,7 +47,7 @@ function mappingArtifact(
   ) {
     return {
       origin: "derivation",
-      artifact: "scripts/catalog/generate-telemetry-catalog.ts",
+      artifact: "scripts/catalog/derived-projections.ts",
     };
   }
   return { origin: "parser", artifact: PARSER_FILES[gameId] };
@@ -56,7 +56,6 @@ function mappingArtifact(
 export function enrichCatalogContracts(
   variables: Map<string, CatalogVariable>,
   inventories: Record<GameId, SourceVariable[]>,
-  provenanceCommits: Readonly<Record<string, string>>,
 ): void {
   const allSources = GAME_IDS.flatMap((gameId) => inventories[gameId]);
   for (const variable of variables.values()) {
@@ -100,18 +99,10 @@ export function enrichCatalogContracts(
           `Normalized telemetry mapping ${gameId}:${variable.id} requires normalization metadata`,
         );
       }
-      const artifact =
-        mapping.kind === "simplified"
-          ? {
-              origin: "projection" as const,
-              artifact: "scripts/catalog/generate-telemetry-catalog.ts",
-            }
-          : mappingArtifact(gameId, sources);
+      const artifact = mappingArtifact(gameId, sources);
       mapping.provenance ??= {
-        ...artifact,
-        commit:
-          provenanceCommits[artifact.artifact] ??
-          provenanceCommits["scripts/catalog/generate-telemetry-catalog.ts"]!,
+        origin: mapping.kind === "simplified" ? "projection" : artifact.origin,
+        artifact: artifact.artifact,
       };
       mapping.limitations ??=
         mapping.kind === "simplified"

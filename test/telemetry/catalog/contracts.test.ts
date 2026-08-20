@@ -59,7 +59,13 @@ describe("semantic telemetry catalog contracts", () => {
       for (const mapping of Object.values(variable.games)) {
         if (mapping.kind === "unavailable") continue;
         expect(mapping.provenance.artifact.length).toBeGreaterThan(0);
-        expect(mapping.provenance.commit).toMatch(/^[a-f0-9]{64}$/);
+        expect(Object.keys(mapping.provenance).sort()).toEqual([
+          "artifact",
+          "origin",
+        ]);
+        expect(
+          TELEMETRY_CATALOG.metadata.sourceHashes[mapping.provenance.artifact],
+        ).toMatch(/^[a-f0-9]{64}$/);
         expect(Array.isArray(mapping.limitations)).toBe(true);
         if (mapping.kind === "direct") {
           expect(mapping.nativeUnit).toBe(variable.canonicalUnit);
@@ -86,6 +92,35 @@ describe("semantic telemetry catalog contracts", () => {
       }
     }
   });
+  test("deduplicates source hashes and attributes projections to their artifacts", () => {
+    const mappingArtifacts = TELEMETRY_CATALOG.variables.flatMap((variable) =>
+      Object.values(variable.games).flatMap((mapping) =>
+        mapping.kind === "unavailable" ? [] : [mapping.provenance.artifact],
+      ),
+    );
+    expect(Object.keys(TELEMETRY_CATALOG.metadata.sourceHashes).sort()).toEqual(
+      [...new Set(mappingArtifacts)].sort(),
+    );
+    const setupProjection =
+      getTelemetryVariable("setup.aero.rear-wing.setting").games.acc;
+    if (setupProjection.kind === "unavailable") {
+      throw new Error("Expected ACC rear-wing setup projection");
+    }
+    expect(setupProjection.provenance).toEqual({
+      origin: "projection",
+      artifact: "shared/racing/setups/schema.ts",
+    });
+    const sectorDerivation =
+      getTelemetryVariable("timing.sector.current-index").games["fm-2023"];
+    if (sectorDerivation.kind === "unavailable") {
+      throw new Error("Expected Forza current-sector derivation");
+    }
+    expect(sectorDerivation.provenance).toEqual({
+      origin: "derivation",
+      artifact: "scripts/catalog/derived-projections.ts",
+    });
+  });
+
   test("requires review only when a mapping loses direct fidelity", () => {
     const catalog = (kind: "direct" | "simplified", review?: unknown) => ({
       variables: [

@@ -645,18 +645,22 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       },
     ]),
   ) as BuiltTelemetryCatalog["coverage"]["sourceCounts"];
-  const provenanceArtifacts = [
-    ...new Set([
-      ...CATALOG_GENERATOR_SOURCE_FILES,
-      ...IRACING_SESSION_INFO_SOURCE_FILES,
-      ...TELEMETRY_TYPE_SOURCE_FILES,
-      "shared/racing/setups/schema.ts",
-      ...Object.values(PARSER_FILES),
-    ]),
-  ];
-  const provenanceCommits = Object.fromEntries(
+  enrichCatalogContracts(variables, inventories);
+  assertCatalogSemanticQuality(variables);
+
+  const provenanceArtifacts = new Set<string>();
+  for (const variable of variables.values()) {
+    for (const mapping of Object.values(variable.games)) {
+      if (mapping.kind === "unavailable") continue;
+      if (!mapping.provenance) {
+        throw new Error(`Missing telemetry catalog provenance for ${variable.id}`);
+      }
+      provenanceArtifacts.add(mapping.provenance.artifact);
+    }
+  }
+  const sourceHashes = Object.fromEntries(
     await Promise.all(
-      provenanceArtifacts.map(async (artifact) => [
+      [...provenanceArtifacts].sort().map(async (artifact) => [
         artifact,
         telemetryCatalogSourceHash(
           await readFile(resolve(ROOT, artifact), "utf8"),
@@ -664,7 +668,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       ]),
     ),
   );
-  const generatorCommit = telemetryCatalogSourceHash(
+  const generatorSourceHash = telemetryCatalogSourceHash(
     (
       await Promise.all(
         CATALOG_GENERATOR_SOURCE_FILES.map((artifact) =>
@@ -673,13 +677,6 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       )
     ).join("\n"),
   );
-  provenanceCommits["scripts/catalog/generate-telemetry-catalog.ts"] =
-    generatorCommit;
-  if (!generatorCommit) {
-    throw new Error("Missing telemetry catalog generator provenance");
-  }
-  enrichCatalogContracts(variables, inventories, provenanceCommits);
-  assertCatalogSemanticQuality(variables);
 
   const metadataWithoutHash: Omit<CatalogMetadata, "contentHash"> = {
     catalogVersion: PACKAGE_VERSION,
@@ -687,10 +684,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     generator: {
       name: GENERATOR_NAME,
       version: PACKAGE_VERSION,
-      commit: generatorCommit,
+      sourceHash: generatorSourceHash,
     },
-    // Reproducible-build timestamp: intentionally independent of wall clock.
-    generatedAt: "1970-01-01T00:00:00.000Z",
+    sourceHashes,
   };
   const catalogWithoutHash: Omit<BuiltTelemetryCatalog, "metadata"> & {
     metadata: Omit<CatalogMetadata, "contentHash">;
