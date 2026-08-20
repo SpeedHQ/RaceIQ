@@ -35,10 +35,11 @@ const workers = process.env.BUN_TEST_WORKERS ?? "4";
 if (suite === "unit" && !/^\d+$/.test(workers) || suite === "unit" && Number(workers) < 1) {
   throw new Error("BUN_TEST_WORKERS must be a positive integer");
 }
+const suiteRoot = resolve(root, suite === "unit" ? "test-unit-root" : "test-integration-root");
 const args = suite === "unit"
-  ? ["test", "--config", config, "--parallel", workers, ...files]
-  : ["test", "--config", config, "--max-concurrency=2", ...files];
+  ? ["test", "--config", resolve(root, config), "--parallel", workers, ...files.map((file) => `../${file}`)]
+  : ["test", "--config", resolve(root, config), "--max-concurrency=2", ...files.map((file) => `../${file}`)];
 const env = { ...process.env };
 if (suite === "integration" && !env.DATA_DIR) env.DATA_DIR = resolve(root, ".data-test");
-const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
+const proc = Bun.spawn([process.execPath, ...args], { cwd: suiteRoot, env, stdout: "inherit", stderr: "inherit" });
 process.exit(await proc.exited);
