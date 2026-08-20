@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { TrackConfiguration } from "../../../../../shared/racing/tracks/configuration";
-import type { TrackImageryCandidate, TrackImagerySource, TrackImageryVenueManifest } from "../../../../../shared/racing/tracks/imagery";
+import type { TrackImageryCandidate, TrackImageryGeographicReference, TrackImagerySource, TrackImageryVenueManifest } from "../../../../../shared/racing/tracks/imagery";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../../ui/button";
 import { Checkbox } from "../../ui/checkbox";
@@ -16,6 +16,19 @@ type SourceTextField = "name" | "url" | "capturedAt" | "license" | "attribution"
 
 function sourceField(source: TrackImagerySource, key: SourceTextField): string {
   return source[key] ?? "";
+}
+
+function catalogReferenceMatchLabel(match: TrackImageryGeographicReference["match"]): string {
+  switch (match) {
+    case "game-id":
+      return "direct iRacing catalog";
+    case "assigned-identity":
+      return "exact-layout iRacing catalog";
+    case "venue-identity":
+      return "same-venue iRacing catalog";
+    case "shared-name":
+      return "shared-name iRacing catalog";
+  }
 }
 
 function SourceEditor({ title, source, onChange, readOnly = false }: { title: string; source: TrackImagerySource; onChange: (source: TrackImagerySource) => void; readOnly?: boolean }) {
@@ -230,9 +243,9 @@ export function ImageryPackStatus({ configuration, venueId, calibration, status,
           GPS: recorded lap, {calibration.replay.georeference.kind}, RMSE {calibration.replay.georeference.quality.rmseM.toFixed(2)} m
         </p>
       ) : calibration.lapId === null && calibration.catalogReference ? (
-        <p className="text-xs text-app-text-muted">GPS: exact-layout iRacing catalog match · {calibration.catalogReference.outlineSource} outline</p>
+        <p className="text-xs text-app-text-muted">GPS: {catalogReferenceMatchLabel(calibration.catalogReference.match)} match · {calibration.catalogReference.outlineSource} outline</p>
       ) : (
-        <p className="text-xs text-severity-caution">Assign an exact-layout iRacing peer or choose a recorded GPS lap.</p>
+        <p className="text-xs text-severity-caution">Assign track to a venue with an iRacing reference or choose a recorded GPS lap.</p>
       )}
       {status && <p className="mt-2 text-xs text-severity-nominal">{status}</p>}
       {error && <p className="mt-2 text-xs text-severity-critical">{error}</p>}

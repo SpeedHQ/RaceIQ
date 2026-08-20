@@ -19,7 +19,7 @@
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 - Render per-car tire dimensions and independent front/rear spring geometry from each 3D model definition
 - Share GPS locations, imagery calibration outlines, sectors, guides, and corner names across games assigned to the same exact catalog layout, so calibration no longer requires a recorded lap
-- Automatically align exact cross-game track layouts to the same satellite map frame using rotation, reflection, translation, and uniform scale while rejecting poor fits
+- Automatically align exact, sibling, and historical track-layout outlines to one overall iRacing satellite map frame per venue family using rotation, reflection, translation, and uniform scale while rejecting poor fits
 - Browse tracks by venue, switch among subtracks from base-track details, and upload a shared satellite image under Imagery
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives

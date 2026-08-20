@@ -2,10 +2,10 @@ import type { GameId } from "../../shared/games/ids";
 import { applyAlignment, computeAlignment, trackAlignmentRmse } from "../../shared/racing/tracks/geometry/points";
 import { getAllIRacingTracks, getIRacingTrack, type IRacingCatalogTrack } from "../../shared/racing/tracks/catalogs/iracing";
 import { geographicTrackImageryPointFromEnu, type TrackImageryGeographicPoint, type TrackImageryPoint } from "../../shared/racing/tracks/imagery";
-import { loadCanonicalTrackPeer } from "./configuration";
+import { listTrackVenueFamilyConfigurations, loadCanonicalTrackPeer } from "./configuration";
 import { resolveTrackSharedName } from "./identity";
 
-export type TrackGeographicReferenceMatch = "game-id" | "assigned-identity" | "shared-name";
+export type TrackGeographicReferenceMatch = "game-id" | "assigned-identity" | "venue-identity" | "shared-name";
 
 export interface ResolvedTrackGeographicCatalogSource {
   track: IRacingCatalogTrack;
@@ -27,18 +27,28 @@ function hasGeographicLocation(track: IRacingCatalogTrack | undefined): track is
   );
 }
 
-/** Resolve authoritative venue coordinates from iRacing directly or through one exact canonical-layout assignment. */
+/** Resolve authoritative venue coordinates from one deterministic iRacing anchor per configured venue path. */
 export function resolveTrackGeographicCatalogSource(gameId: GameId, trackOrdinal: number): ResolvedTrackGeographicCatalogSource | null {
-  if (gameId === "iracing") {
-    const direct = getIRacingTrack(trackOrdinal);
-    if (hasGeographicLocation(direct)) return { track: direct, match: "game-id" };
+  const direct = gameId === "iracing" ? getIRacingTrack(trackOrdinal) : undefined;
+  const assignedPeer = loadCanonicalTrackPeer(gameId, trackOrdinal, "iracing");
+  const assigned = assignedPeer ? getIRacingTrack(assignedPeer.trackOrdinal) : undefined;
+
+  let venueReference: IRacingCatalogTrack | undefined;
+  for (const configuration of listTrackVenueFamilyConfigurations(gameId, trackOrdinal, "iracing")) {
+    const candidate = getIRacingTrack(configuration.trackOrdinal);
+    if (hasGeographicLocation(candidate)) {
+      venueReference = candidate;
+      break;
+    }
   }
 
-  const assignedPeer = loadCanonicalTrackPeer(gameId, trackOrdinal, "iracing");
-  if (assignedPeer) {
-    const assigned = getIRacingTrack(assignedPeer.trackOrdinal);
-    if (hasGeographicLocation(assigned)) return { track: assigned, match: "assigned-identity" };
+  const exact = hasGeographicLocation(direct) ? direct : hasGeographicLocation(assigned) ? assigned : undefined;
+  if (venueReference && venueReference.ordinal !== exact?.ordinal) {
+    return { track: venueReference, match: "venue-identity" };
   }
+  if (hasGeographicLocation(direct)) return { track: direct, match: "game-id" };
+  if (hasGeographicLocation(assigned)) return { track: assigned, match: "assigned-identity" };
+  if (venueReference) return { track: venueReference, match: "venue-identity" };
 
   const sharedName = resolveTrackSharedName(trackOrdinal, gameId)?.trim().toLowerCase();
   if (!sharedName) return null;

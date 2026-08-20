@@ -307,7 +307,7 @@ export const trackImageryDevRoutes = new Hono()
       let outline = await resolveTrackOutline(trackOrdinal, gameId);
       let alignmentRmseM: number | null = null;
       const differsFromSource = gameId !== "iracing" || trackOrdinal !== source.track.ordinal;
-      if (outline && source.match === "assigned-identity" && differsFromSource) {
+      if (outline && (source.match === "assigned-identity" || source.match === "venue-identity") && differsFromSource) {
         const referenceOutline = await resolveTrackOutline(source.track.ordinal, "iracing");
         const aligned = referenceOutline ? alignTrackOutlineToReference(outline.points, referenceOutline.points) : null;
         if (aligned) {

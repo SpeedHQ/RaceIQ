@@ -134,6 +134,23 @@ export function deleteTrackConfiguration(gameId: GameId, trackOrdinal: number): 
   return deleted;
 }
 
+/** List tracks from one game in the same root venue family, preferring overall venue layouts before historical descendants. */
+export function listTrackVenueFamilyConfigurations(gameId: GameId, trackOrdinal: number, venueGameId: GameId): TrackConfiguration[] {
+  const source = loadTrackConfiguration(gameId, trackOrdinal);
+  if (!source) return [];
+  const venueRoot = source.venue.id;
+  const rows = getTrackRegistry().query(`
+    ${CONFIGURATION_SELECT}
+     WHERE gt.game_id = ?
+       AND (l.venue_path = ? OR l.venue_path LIKE ?)
+     ORDER BY CASE WHEN l.venue_path = ? THEN 0 ELSE 1 END,
+              l.venue_path,
+              gt.track_ordinal
+  `).all(venueGameId, venueRoot, `${venueRoot}/%`, venueRoot) as ConfigurationRow[];
+  const venues = venueNodesByPath();
+  return rows.map((row) => configurationFromRow(row, venues));
+}
+
 /** List tracks assigned to the same exact canonical layout, excluding source track. */
 export function listCanonicalTrackPeers(gameId: GameId, trackOrdinal: number): TrackConfiguration[] {
   const rows = getTrackRegistry().query(`
