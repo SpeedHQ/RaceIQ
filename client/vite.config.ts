@@ -37,51 +37,55 @@ logger.warn = (msg, options) => {
   origWarn(msg, options);
 };
 
-export default defineConfig({
-  envDir: path.resolve(import.meta.dirname, ".."),
-  envPrefix: ["VITE_", "RACEIQ_"],
-  plugins: [
-    react(),
-    tailwindcss(),
-    TanStackRouterVite(),
-    paraglideVitePlugin({
-      project: "./project.inlang",
-      outdir: "./src/paraglide",
-      emitTsDeclarations: true,
-      outputStructure: "message-modules",
-      // Locale is driven by the server-persisted `language` setting; the client
-      // bootstraps it via setLocale() on load (see __root.tsx). localStorage is
-      // the runtime cache; baseLocale ("en") is the fallback.
-      strategy: ["localStorage", "baseLocale"],
-    }),
-  ],
-  customLogger: logger,
-  define: {
-    __RACEIQ_DEV_WS_TARGET__: JSON.stringify(devWebSocketTarget),
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "src"),
-      "@shared": path.resolve(import.meta.dirname, "../shared"),
+export default defineConfig(({ command }) => {
+  const isBuild = command === "build";
+
+  return {
+    envDir: path.resolve(import.meta.dirname, ".."),
+    envPrefix: ["VITE_", "RACEIQ_"],
+    plugins: [
+      react(),
+      tailwindcss(),
+      TanStackRouterVite(),
+      paraglideVitePlugin({
+        project: "./project.inlang",
+        outdir: "./src/paraglide",
+        emitTsDeclarations: isBuild,
+        outputStructure: isBuild ? "message-modules" : "locale-modules",
+        // Locale is driven by the server-persisted `language` setting; the client
+        // bootstraps it via setLocale() on load (see __root.tsx). localStorage is
+        // the runtime cache; baseLocale ("en") is the fallback.
+        strategy: ["localStorage", "baseLocale"],
+      }),
+    ],
+    customLogger: logger,
+    define: {
+      __RACEIQ_DEV_WS_TARGET__: JSON.stringify(devWebSocketTarget),
     },
-  },
-  build: {
-    chunkSizeWarningLimit: 2000,
-  },
-  server: {
-    port: parseInt(process.env.PORT || "5173", 10),
-    host: true,
-    proxy: {
-      "/api": {
-        target: serverTarget,
-        changeOrigin: true,
-      },
-      // Dev-only Mastra Studio API (server/runtime/dev-studio.ts) — Studio reads it
-      // through the portless hostname, so Vite must forward it to the server.
-      "/studio-api": {
-        target: serverTarget,
-        changeOrigin: true,
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "src"),
+        "@shared": path.resolve(import.meta.dirname, "../shared"),
       },
     },
-  },
+    build: {
+      chunkSizeWarningLimit: 2000,
+    },
+    server: {
+      port: parseInt(process.env.PORT || "5173", 10),
+      host: true,
+      proxy: {
+        "/api": {
+          target: serverTarget,
+          changeOrigin: true,
+        },
+        // Dev-only Mastra Studio API (server/runtime/dev-studio.ts) — Studio reads it
+        // through the portless hostname, so Vite must forward it to the server.
+        "/studio-api": {
+          target: serverTarget,
+          changeOrigin: true,
+        },
+      },
+    },
+  };
 });
