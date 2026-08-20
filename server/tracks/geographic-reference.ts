@@ -1,4 +1,5 @@
 import type { GameId } from "../../shared/games/ids";
+import { applyAlignment, computeAlignment, trackAlignmentRmse } from "../../shared/racing/tracks/geometry/points";
 import { getAllIRacingTracks, getIRacingTrack, type IRacingCatalogTrack } from "../../shared/racing/tracks/catalogs/iracing";
 import { geographicTrackImageryPointFromEnu, type TrackImageryGeographicPoint, type TrackImageryPoint } from "../../shared/racing/tracks/imagery";
 import { loadCanonicalTrackPeer } from "./configuration";
@@ -10,6 +11,10 @@ export interface ResolvedTrackGeographicCatalogSource {
   track: IRacingCatalogTrack;
   match: TrackGeographicReferenceMatch;
 }
+
+const MIN_ALIGNMENT_SCALE = 0.2;
+const MAX_ALIGNMENT_SCALE = 5;
+const MAX_ALIGNMENT_RMSE_M = 25;
 
 function hasGeographicLocation(track: IRacingCatalogTrack | undefined): track is IRacingCatalogTrack {
   return (
@@ -42,6 +47,24 @@ export function resolveTrackGeographicCatalogSource(gameId: GameId, trackOrdinal
     .sort((a, b) => a.ordinal - b.ordinal)
     .find(hasGeographicLocation);
   return shared ? { track: shared, match: "shared-name" } : null;
+}
+
+export function alignTrackOutlineToReference(
+  target: readonly TrackImageryPoint[],
+  reference: readonly TrackImageryPoint[],
+): { points: TrackImageryPoint[]; rmseM: number } | null {
+  const targetPoints = target.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  const referencePoints = reference.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  if (targetPoints.length < 5 || referencePoints.length < 5) return null;
+
+  const alignment = computeAlignment(targetPoints, referencePoints);
+  if (!alignment || !Number.isFinite(alignment.scale) || alignment.scale < MIN_ALIGNMENT_SCALE || alignment.scale > MAX_ALIGNMENT_SCALE) return null;
+  const rmseM = trackAlignmentRmse(targetPoints, referencePoints, alignment);
+  if (!Number.isFinite(rmseM) || rmseM > MAX_ALIGNMENT_RMSE_M) return null;
+  return {
+    points: targetPoints.map((point) => applyAlignment(point, alignment)),
+    rmseM,
+  };
 }
 
 function closedOutlineLength(points: readonly TrackImageryPoint[]): number {

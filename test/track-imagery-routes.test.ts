@@ -336,6 +336,7 @@ test("resolves lap-free imagery calibration through an exact iRacing layout peer
   expect(response.status).toBe(200);
   const reference = (await response.json()) as {
     sourceTrackOrdinal: number;
+    alignmentRmseM: number | null;
     match: string;
     outlineSource: string;
     center: { latitudeDeg: number; longitudeDeg: number };
@@ -346,9 +347,17 @@ test("resolves lap-free imagery calibration through an exact iRacing layout peer
     match: "assigned-identity",
     center: { latitudeDeg: 50.4369118, longitudeDeg: 5.969856 },
   });
+  expect(reference.alignmentRmseM).not.toBeNull();
+  expect(reference.alignmentRmseM!).toBeGreaterThan(0);
+  expect(reference.alignmentRmseM!).toBeLessThanOrEqual(25);
   expect(reference.outlineSource).not.toBe("estimated");
   expect(reference.geographicPositions.length).toBeGreaterThan(100);
   expect(reference.geographicPositions.every((point) => Number.isFinite(point.latitudeDeg) && Number.isFinite(point.longitudeDeg))).toBe(true);
+
+  const directResponse = await app.request("/api/dev/track-imagery/reference/523?gameId=iracing");
+  expect(directResponse.status).toBe(200);
+  const directReference = (await directResponse.json()) as { alignmentRmseM: number | null };
+  expect(directReference.alignmentRmseM).toBeNull();
 });
 
 test("imagery source search requires server track identity", async () => {

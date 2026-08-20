@@ -58,7 +58,7 @@ export function ImageryCalibrationEditor({ model }: { model: ImageryCalibrationM
           {model.referenceLoading && model.lapId === null
             ? "Loading catalog GPS…"
             : model.catalogReference
-              ? `Catalog · ${model.catalogReference.sourceName} (#${model.catalogReference.sourceTrackOrdinal})`
+              ? `Catalog · ${model.catalogReference.sourceName} (#${model.catalogReference.sourceTrackOrdinal})${model.catalogReference.alignmentRmseM !== null ? ` · auto-aligned, RMSE ${model.catalogReference.alignmentRmseM.toFixed(2)} m` : ""}`
               : "Catalog GPS unavailable"}
         </option>
         {model.selectableLaps.length === 0 && <option disabled>No recorded laps for selected track</option>}
