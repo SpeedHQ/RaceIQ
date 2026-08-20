@@ -6,16 +6,18 @@ import { stopSessionCompressor } from "../session-capture/compressor";
 import { udpListener } from "./udp-listener";
 import type { NativeSourceSupervisor } from "./native-sources";
 
+export const GRACEFUL_SHUTDOWN_IPC_MESSAGE = "raceiq:graceful-shutdown";
+
 export interface ShutdownOptions {
   recordingGameId: string | null;
   getNativeSources(): NativeSourceSupervisor | null;
 }
 
-export function installShutdown({
-  recordingGameId,
-  getNativeSources,
-}: ShutdownOptions): void {
+export function installShutdown({ recordingGameId, getNativeSources }: ShutdownOptions): void {
+  let shuttingDown = false;
   const gracefulShutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
     stopSessionCompressor();
     try {
@@ -23,11 +25,7 @@ export function installShutdown({
       const nativeSources = getNativeSources();
       if (nativeSources) sourceStops.push(nativeSources.stop());
       if (recordingGameId) {
-        sourceStops.push(
-          accRecorder.stop(),
-          acEvoRecorder.stop(),
-          iracingRecorder.stop(),
-        );
+        sourceStops.push(accRecorder.stop(), acEvoRecorder.stop(), iracingRecorder.stop());
       }
       await Promise.allSettled(sourceStops);
       await flushSessionRecorder();
@@ -38,4 +36,9 @@ export function installShutdown({
 
   process.on("SIGINT", () => void gracefulShutdown("SIGINT"));
   process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
+  process.on("message", (message) => {
+    if (message === GRACEFUL_SHUTDOWN_IPC_MESSAGE) {
+      void gracefulShutdown("SIGINT");
+    }
+  });
 }

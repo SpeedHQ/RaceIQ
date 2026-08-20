@@ -1,4 +1,3 @@
-
 import { SETUP_CONCEPT_DEFINITIONS } from "../../shared/racing/setups/catalog/concepts";
 import type { SemanticDefinition } from "./model";
 
@@ -156,8 +155,7 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
   },
   "suspension.ride-height": {
     label: "Live ride height",
-    description:
-      "Measured front/rear or per-corner ride height while vehicle is running.",
+    description: "Measured front/rear or per-corner ride height while vehicle is running.",
     parentId: "suspension",
     canonicalUnit: "m",
     shape: "array",
@@ -381,8 +379,7 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
   },
   "timing.sector.layout.start-fractions": {
     label: "Sector start fractions",
-    description:
-      "Ordered lap fractions where sectors start. Count can vary by simulator and track.",
+    description: "Ordered lap fractions where sectors start. Count can vary by simulator and track.",
     parentId: "timing.sector.layout",
     canonicalUnit: "fraction",
     shape: "array",
@@ -410,8 +407,7 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
   },
   "timing.sector.current-lap.times": {
     label: "Current lap sector times",
-    description:
-      "Ordered completed/running sector-time array assembled by RaceIQ for current lap.",
+    description: "Ordered completed/running sector-time array assembled by RaceIQ for current lap.",
     parentId: "timing.sector.current-lap",
     canonicalUnit: "s",
     shape: "array",
@@ -439,16 +435,14 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
   },
   "timing.sector.last-lap.times": {
     label: "Last lap sector times",
-    description:
-      "Ordered sector times for most recently completed lap; supports variable sector counts.",
+    description: "Ordered sector times for most recently completed lap; supports variable sector counts.",
     parentId: "timing.sector.last-lap",
     canonicalUnit: "s",
     shape: "array",
   },
   "timing.sector.best-times": {
     label: "Best sector times",
-    description:
-      "Fastest observed time for each sector, possibly drawn from different laps.",
+    description: "Fastest observed time for each sector, possibly drawn from different laps.",
     parentId: "timing.sector",
     canonicalUnit: "s",
     shape: "array",
@@ -522,6 +516,13 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
     parentId: "timing.sector.competitor-last",
     canonicalUnit: "s",
     shape: "structured",
+  },
+  "race.player-pit-code": {
+    label: "Player pit code",
+    description: "Native simulator pit-state code for the local player.",
+    parentId: "race",
+    canonicalUnit: "count",
+    shape: "scalar",
   },
   "race.competitor.position": {
     label: "Competitor position",

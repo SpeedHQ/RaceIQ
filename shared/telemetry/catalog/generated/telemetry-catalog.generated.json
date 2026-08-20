@@ -6,10 +6,10 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+      "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
     },
     "generatedAt": "1970-01-01T00:00:00.000Z",
-    "contentHash": "bfcaae1441aaaaecec206c3739fcede0b25f968e4f4d16e439bfee64f48eed40"
+    "contentHash": "39dc035971825c95cf6fae51dfe6275d5df0a33e5cc1dc46110d9dc5f5e6f2f0"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -477,6 +477,8 @@
         "race.driver-marker",
         "race.driver-status",
         "race.flag-status",
+        "race.grid-car-index",
+        "race.grid-is-player",
         "race.incident-flags",
         "race.is-online",
         "race.is-race-on",
@@ -495,6 +497,7 @@
         "race.player-car-weight-penalty",
         "race.player-class-position",
         "race.player-incident-count",
+        "race.player-pit-code",
         "race.player.push-to-pass-active",
         "race.player.push-to-pass-count",
         "race.race-laps",
@@ -1276,7 +1279,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -1352,7 +1355,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -1405,7 +1408,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -1458,7 +1461,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -1511,7 +1514,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -1617,7 +1620,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -1784,7 +1787,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2080,7 +2083,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2479,7 +2482,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2536,7 +2539,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2589,7 +2592,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2646,7 +2649,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2703,7 +2706,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2760,7 +2763,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2817,7 +2820,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2874,7 +2877,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2931,7 +2934,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -2988,7 +2991,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -3041,7 +3044,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -3098,7 +3101,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -3155,7 +3158,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -3212,7 +3215,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -3269,7 +3272,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -3337,7 +3340,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -4328,7 +4331,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -4919,7 +4922,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -7310,7 +7313,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -7363,7 +7366,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -7702,7 +7705,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -7882,7 +7885,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -7909,7 +7912,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -8158,7 +8161,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -8264,7 +8267,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -8486,7 +8489,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -8713,7 +8716,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -8955,7 +8958,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -9292,7 +9295,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -9442,7 +9445,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": []
         },
@@ -9533,7 +9536,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -9712,7 +9715,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -9809,7 +9812,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -9864,7 +9867,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -9919,7 +9922,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -10846,7 +10849,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -11743,7 +11746,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -11820,7 +11823,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -11892,7 +11895,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -11964,7 +11967,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -12058,7 +12061,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -12193,7 +12196,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -12417,7 +12420,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -12557,7 +12560,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -12856,7 +12859,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -12990,7 +12993,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -13435,7 +13438,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -13879,9 +13882,31 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.playerCarIndex"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "normalization": "convert count to index",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts",
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "f1-2025:identity.player-car-index:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "f1.playerCarIndex"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "a483c46634550f3578d7bef67c20679b77ee88bf5ff9e1f1a50f1f26eb23a328"
+          }
         },
         "acc": {
           "kind": "unavailable",
@@ -14359,7 +14384,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -15049,7 +15074,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -15193,7 +15218,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -15394,7 +15419,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -15754,7 +15779,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -15821,7 +15846,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -15951,7 +15976,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -16579,7 +16604,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -17480,7 +17505,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -17604,7 +17629,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -17736,7 +17761,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -17857,7 +17882,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -17979,7 +18004,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -18088,7 +18113,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -18209,7 +18234,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -18463,7 +18488,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -18724,7 +18749,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -18879,7 +18904,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -19000,7 +19025,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -19110,7 +19135,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -19207,7 +19232,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -19327,7 +19352,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -19482,7 +19507,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -19627,7 +19652,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -19805,7 +19830,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -19972,7 +19997,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -20211,7 +20236,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -22443,7 +22468,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -22693,7 +22718,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -24156,7 +24181,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -24237,7 +24262,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -24350,7 +24375,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -24430,7 +24455,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -25254,7 +25279,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -25854,7 +25879,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -25943,6 +25968,162 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-car-index",
+      "label": "Grid car Index",
+      "description": "Stable session-scoped native vehicle index.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].carIndex"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts",
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-is-player",
+      "label": "Grid is Player",
+      "description": "Grid is Player source value reported by f1-2025 in boolean.",
+      "parentId": "race",
+      "canonicalUnit": "boolean",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.grid[].isPlayer"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts",
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "boolean",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -26412,7 +26593,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -26465,7 +26646,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -26945,7 +27126,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -27436,6 +27617,59 @@
       "limitations": []
     },
     {
+      "id": "race.player-pit-code",
+      "label": "Player pit code",
+      "description": "Native simulator pit-state code for the local player.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.pitStatus"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts",
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.player.push-to-pass-active",
       "label": "Player push-to-pass active",
       "description": "Whether push-to-pass is active on player car.",
@@ -27632,7 +27866,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -27738,7 +27972,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -27791,7 +28025,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -30192,7 +30426,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -30245,7 +30479,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -31706,7 +31940,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -31794,7 +32028,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -32256,7 +32490,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -32444,7 +32678,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32473,7 +32707,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32502,7 +32736,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32649,7 +32883,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32679,7 +32913,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32708,7 +32942,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32814,7 +33048,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32845,7 +33079,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32951,7 +33185,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32980,7 +33214,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33053,7 +33287,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33083,7 +33317,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33112,7 +33346,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33221,7 +33455,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -33237,7 +33471,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33266,7 +33500,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33526,7 +33760,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -33733,7 +33967,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33762,7 +33996,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33848,7 +34082,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33877,7 +34111,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34038,7 +34272,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34067,7 +34301,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34153,7 +34387,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34182,7 +34416,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34456,7 +34690,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34487,7 +34721,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34572,7 +34806,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -34756,7 +34990,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -34813,7 +35047,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -35963,7 +36197,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -36109,7 +36343,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36138,7 +36372,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36207,7 +36441,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36236,7 +36470,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36708,7 +36942,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36737,7 +36971,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36766,7 +37000,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36904,7 +37138,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37316,7 +37550,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37345,7 +37579,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37374,7 +37608,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37443,7 +37677,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37473,7 +37707,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37502,7 +37736,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37775,7 +38009,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37805,7 +38039,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37834,7 +38068,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -38345,7 +38579,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -38858,7 +39092,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -39403,7 +39637,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -39619,7 +39853,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -39990,7 +40224,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -40243,7 +40477,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -40403,7 +40637,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -40483,7 +40717,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -40669,7 +40903,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -40853,7 +41087,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -40975,7 +41209,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -41073,7 +41307,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -41479,7 +41713,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -41596,7 +41830,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -41755,7 +41989,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -42511,7 +42745,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -42641,7 +42875,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -42828,7 +43062,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -43224,7 +43458,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -43277,7 +43511,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -43330,7 +43564,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -43560,7 +43794,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -43587,7 +43821,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -43614,7 +43848,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -43641,7 +43875,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -43668,7 +43902,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -43721,7 +43955,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -43799,7 +44033,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -43877,7 +44111,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -43955,7 +44189,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -44033,7 +44267,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -44111,7 +44345,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -44186,7 +44420,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44213,7 +44447,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -44245,7 +44479,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44320,7 +44554,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44346,7 +44580,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -44362,7 +44596,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44389,7 +44623,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44416,7 +44650,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44461,7 +44695,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44487,7 +44721,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -44503,7 +44737,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44530,7 +44764,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44557,7 +44791,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44602,7 +44836,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44629,7 +44863,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44656,7 +44890,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44683,7 +44917,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44710,7 +44944,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44757,7 +44991,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44788,7 +45022,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -44850,7 +45084,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44933,7 +45167,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -44964,7 +45198,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -45025,7 +45259,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45107,7 +45341,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -45185,7 +45419,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -45263,7 +45497,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -45341,7 +45575,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -45415,7 +45649,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45445,7 +45679,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -45502,7 +45736,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45529,7 +45763,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45574,7 +45808,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45600,7 +45834,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -45616,7 +45850,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45643,7 +45877,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45670,7 +45904,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45715,7 +45949,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45741,7 +45975,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -45757,7 +45991,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45784,7 +46018,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45811,7 +46045,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45856,7 +46090,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45882,7 +46116,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -45898,7 +46132,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45925,7 +46159,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45952,7 +46186,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -45998,7 +46232,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46028,7 +46262,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -46089,7 +46323,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46172,7 +46406,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46199,7 +46433,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46226,7 +46460,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46253,7 +46487,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46317,7 +46551,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46344,7 +46578,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46371,7 +46605,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -46398,7 +46632,7 @@
           "provenance": {
             "origin": "derivation",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [],
           "execution": {
@@ -47072,7 +47306,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -47338,7 +47572,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -47425,7 +47659,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -47577,7 +47811,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -47667,7 +47901,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "execution": {
             "kind": "simplification",
@@ -47750,7 +47984,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -47840,7 +48074,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "execution": {
             "kind": "simplification",
@@ -48368,7 +48602,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -48421,7 +48655,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -48501,7 +48735,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -50192,7 +50426,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -50320,7 +50554,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -50347,7 +50581,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50376,7 +50610,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50405,7 +50639,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50465,7 +50699,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -50529,7 +50763,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -50852,7 +51086,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -51282,7 +51516,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -51437,7 +51671,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -51611,7 +51845,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -51783,7 +52017,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -51836,7 +52070,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -51889,7 +52123,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -51942,7 +52176,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -51995,7 +52229,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -52059,7 +52293,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -52132,7 +52366,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -52205,7 +52439,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": []
         },
@@ -52471,7 +52705,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "execution": {
             "kind": "simplification",
@@ -52719,7 +52953,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -53495,7 +53729,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -53968,7 +54202,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -54256,7 +54490,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts",
-            "commit": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741"
+            "commit": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1"
           },
           "limitations": [],
           "execution": {
@@ -54287,7 +54521,7 @@
           "provenance": {
             "origin": "projection",
             "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
-            "commit": "ba4aa75c51a5a8028e4c07095007c7f20d8140d960648fe22de5543873012b59"
+            "commit": "e6e6fe50fd1ad029794cd8fbca89aef5c9be7f02cabeeb555d819312fa7cc478"
           },
           "execution": {
             "kind": "simplification",
@@ -56333,6 +56567,18 @@
         "retention": "exact"
       },
       {
+        "path": "f1.grid[].carIndex",
+        "label": "Car Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Stable session-scoped native vehicle index.",
+        "semanticId": "race.grid-car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.grid[].currentLapTime",
         "label": "Current Lap Time",
         "unit": "s",
@@ -56376,6 +56622,18 @@
         "count": 1,
         "description": "Grid gap To Leader source value reported by f1-2025 in s.",
         "semanticId": "timing.competitor.gap-to-leader",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].isPlayer",
+        "label": "Is Player",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Grid is Player source value reported by f1-2025 in boolean.",
+        "semanticId": "race.grid-is-player",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56993,6 +57251,18 @@
         "retention": "exact"
       },
       {
+        "path": "f1.pitStatus",
+        "label": "Pit Status",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native player pit code: 0=none, 1=pitting, 2=pit area.",
+        "semanticId": "race.player-pit-code",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.pitStopWindowIdealLap",
         "label": "Pit Stop Window Ideal Lap",
         "unit": "count",
@@ -57012,6 +57282,18 @@
         "count": 1,
         "description": "Pit Stop Window Latest Lap source value reported by f1-2025 in count.",
         "semanticId": "timing.pit-stop-window-latest-lap",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.playerCarIndex",
+        "label": "Player Car Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Player vehicle index from the native packet header.",
+        "semanticId": "identity.player-car-index",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -76105,7 +76387,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 737,
+    "semanticVariables": 740,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -76117,13 +76399,13 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 290,
+        "total": 294,
         "packet": 119,
-        "extension": 171,
+        "extension": 175,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 290
+        "recorded": 294
       },
       "acc": {
         "total": 202,

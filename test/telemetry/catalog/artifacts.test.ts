@@ -17,9 +17,7 @@ import {
 
 describe("semantic telemetry catalog artifacts", () => {
   test("generated artifact is current and structurally complete", async () => {
-    expect(JSON.stringify(await buildTelemetryCatalog())).toBe(
-      JSON.stringify(TELEMETRY_CATALOG),
-    );
+    expect(JSON.stringify(await buildTelemetryCatalog())).toBe(JSON.stringify(TELEMETRY_CATALOG));
     expect(() => assertTelemetryCatalogComplete()).not.toThrow();
   });
   test("rejects unconstrained structured and enum value contracts", () => {
@@ -27,9 +25,7 @@ describe("semantic telemetry catalog artifacts", () => {
     const structuredSchema = structured.structuredSchema;
     structured.structuredSchema = undefined;
     try {
-      expect(() => assertTelemetryCatalogComplete()).toThrow(
-        "race.competitor.position has incompatible cardinality or ordering",
-      );
+      expect(() => assertTelemetryCatalogComplete()).toThrow("race.competitor.position has incompatible cardinality or ordering");
     } finally {
       structured.structuredSchema = structuredSchema;
     }
@@ -38,9 +34,7 @@ describe("semantic telemetry catalog artifacts", () => {
     const enumDomain = enumVariable.enumDomain;
     enumVariable.enumDomain = [];
     try {
-      expect(() => assertTelemetryCatalogComplete()).toThrow(
-        "fuel.ers-deploy-mode has invalid enum domain",
-      );
+      expect(() => assertTelemetryCatalogComplete()).toThrow("fuel.ers-deploy-mode has invalid enum domain");
     } finally {
       enumVariable.enumDomain = enumDomain;
     }
@@ -55,43 +49,29 @@ describe("semantic telemetry catalog artifacts", () => {
         version: TELEMETRY_CATALOG_VERSION,
       },
     });
-    expect(TELEMETRY_CATALOG.metadata.generator.commit).toMatch(
-      /^[a-f0-9]{64}$/,
-    );
+    expect(TELEMETRY_CATALOG.metadata.generator.commit).toMatch(/^[a-f0-9]{64}$/);
     expect(TELEMETRY_CATALOG.metadata.contentHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(TELEMETRY_CATALOG.metadata.generatedAt).toBe(
-      "1970-01-01T00:00:00.000Z",
-    );
+    expect(TELEMETRY_CATALOG.metadata.generatedAt).toBe("1970-01-01T00:00:00.000Z");
 
     const first = await buildTelemetryCatalogArtifacts();
     const second = await buildTelemetryCatalogArtifacts();
     expect([...second]).toEqual([...first]);
-    expect(
-      [...first.keys()].map((path) =>
-        path.replaceAll("\\", "/").split("/shared/").at(-1),
-      ),
-    ).toEqual([
+    expect([...first.keys()].map((path) => path.replaceAll("\\", "/").split("/shared/").at(-1))).toEqual([
       "telemetry/catalog/generated/telemetry-catalog.generated.json",
       "telemetry/catalog/generated/telemetry-catalog.generated.ts",
       "telemetry/catalog/generated/telemetry-catalog.types.ts",
       "telemetry/catalog/generated/TELEMETRY_CATALOG.md",
       "telemetry/catalog/generated/telemetry-catalog-matrix.md",
     ]);
-    expect(
-      [...first].find(([path]) =>
-        path.endsWith("telemetry-catalog-matrix.md"),
-      )?.[1],
-    ).toContain("| Semantic ID | Type | Dimensions | Unit | Cardinality |");
+    expect([...first].find(([path]) => path.endsWith("telemetry-catalog-matrix.md"))?.[1]).toContain("| Semantic ID | Type | Dimensions | Unit | Cardinality |");
   });
   test("normalizes source line endings before provenance hashing", () => {
     const lf = "alpha\nbeta\n";
-    expect(telemetryCatalogSourceHash(lf)).toBe(
-      telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")),
-    );
+    expect(telemetryCatalogSourceHash(lf)).toBe(telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")));
   });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(737);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(740);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -103,13 +83,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 95,
       },
       "f1-2025": {
-        total: 290,
+        total: 294,
         packet: 119,
-        extension: 171,
+        extension: 175,
         sdk: 0,
         yaml: 0,
         setup: 0,
-        recorded: 290,
+        recorded: 294,
       },
       acc: {
         total: 202,
@@ -151,22 +131,14 @@ describe("semantic telemetry catalog artifacts", () => {
     }
   });
   test("records unit conversions, derived selection, and parser placeholders", () => {
-    expect(getTelemetryVariable("motion.velocity-x").canonicalUnit).toBe(
-      "m/s",
-    );
-    expect(
-      getTelemetryVariable("tires.wheel-rotation-speed").canonicalUnit,
-    ).toBe("rad/s");
-    expect(
-      getTelemetryVariable("tires.wheel-force.longitudinal").canonicalUnit,
-    ).toBe("N");
+    expect(getTelemetryVariable("motion.velocity-x").canonicalUnit).toBe("m/s");
+    expect(getTelemetryVariable("tires.wheel-rotation-speed").canonicalUnit).toBe("rad/s");
+    expect(getTelemetryVariable("tires.wheel-force.longitudinal").canonicalUnit).toBe("N");
     expect(getTelemetryVariable("weather.wind-direction")).toMatchObject({
       canonicalUnit: "deg",
       games: { acc: { kind: "direct", nativeUnit: "deg" } },
     });
-    expect(getTelemetryVariable("fuel.laps-remaining").canonicalUnit).toBe(
-      "count",
-    );
+    expect(getTelemetryVariable("fuel.laps-remaining").canonicalUnit).toBe("count");
     expect(getTelemetryVariable("fuel.remaining-volume").games).toMatchObject({
       "fm-2023": { kind: "unavailable" },
       "f1-2025": { kind: "derived" },
@@ -174,11 +146,7 @@ describe("semantic telemetry catalog artifacts", () => {
       "ac-evo": { kind: "direct", nativeUnit: "L" },
       iracing: { kind: "direct", nativeUnit: "L" },
     });
-    expect(
-      Object.values(getTelemetryVariable("fuel.fuel-percent").games).every(
-        (mapping) => mapping.kind !== "unavailable",
-      ),
-    ).toBe(true);
+    expect(Object.values(getTelemetryVariable("fuel.fuel-percent").games).every((mapping) => mapping.kind !== "unavailable")).toBe(true);
 
     const currentRaceTime = getTelemetryVariable("timing.current-race-time");
     expect(currentRaceTime.games.acc).toMatchObject({
@@ -193,25 +161,17 @@ describe("semantic telemetry catalog artifacts", () => {
       kind: "unavailable",
       reason: "parser-placeholder",
     });
-    expect(
-      getTelemetryVariable("weather.wind-speed").games["ac-evo"],
-    ).toMatchObject({
+    expect(getTelemetryVariable("weather.wind-speed").games["ac-evo"]).toMatchObject({
       kind: "unavailable",
       reason: "parser-placeholder",
     });
     for (const band of ["inner", "middle", "outer"]) {
-      expect(
-        getTelemetryVariable(`tire.temperature.surface.${band}`).games[
-          "ac-evo"
-        ],
-      ).toMatchObject({
+      expect(getTelemetryVariable(`tire.temperature.surface.${band}`).games["ac-evo"]).toMatchObject({
         kind: "unavailable",
         reason: "source-not-populated",
       });
     }
-    expect(
-      getTelemetryVariable("identity.drivetrain-type").games,
-    ).toMatchObject({
+    expect(getTelemetryVariable("identity.drivetrain-type").games).toMatchObject({
       "f1-2025": { kind: "unavailable", reason: "parser-placeholder" },
       acc: { kind: "unavailable", reason: "parser-placeholder" },
       "ac-evo": { kind: "unavailable", reason: "parser-placeholder" },
@@ -235,22 +195,10 @@ describe("semantic telemetry catalog artifacts", () => {
       },
     });
 
-    expect(getTelemetryVariable("session.session-type").games.iracing.kind).toBe(
-      "normalized",
-    );
-    expect(getTelemetryVariable("timing.total-laps").games.iracing.kind).toBe(
-      "normalized",
-    );
-    expect(
-      getTelemetrySources("fm-2023").find(
-        (source) => source.path === "TelemetryPacket.TireTempFL",
-      ),
-    ).toMatchObject({ unit: "°F" });
-    expect(
-      IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
-        (source) => source.path === "SessionInfo.WeekendInfo.TrackDirection",
-      ),
-    ).toMatchObject({
+    expect(getTelemetryVariable("session.session-type").games.iracing.kind).toBe("normalized");
+    expect(getTelemetryVariable("timing.total-laps").games.iracing.kind).toBe("normalized");
+    expect(getTelemetrySources("fm-2023").find((source) => source.path === "TelemetryPacket.TireTempFL")).toMatchObject({ unit: "°F" });
+    expect(IRACING_SESSION_INFO_SOURCE_VARIABLES.find((source) => source.path === "SessionInfo.WeekendInfo.TrackDirection")).toMatchObject({
       unit: "text",
       semanticId: "identity.track.direction",
     });
@@ -259,9 +207,7 @@ describe("semantic telemetry catalog artifacts", () => {
     for (const variable of TELEMETRY_CATALOG.variables) {
       expect(variable.canonicalUnit.length).toBeGreaterThan(0);
       expect(variable.description.length).toBeGreaterThan(0);
-      expect(Object.keys(variable.games).sort()).toEqual(
-        [...KNOWN_GAME_IDS].sort(),
-      );
+      expect(Object.keys(variable.games).sort()).toEqual([...KNOWN_GAME_IDS].sort());
     }
   });
 });

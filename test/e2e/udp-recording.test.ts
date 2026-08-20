@@ -1,4 +1,5 @@
 import { describe, test, expect, afterEach } from "bun:test";
+import { GRACEFUL_SHUTDOWN_IPC_MESSAGE } from "../../server/runtime/shutdown";
 import { spawn, type ChildProcess } from "node:child_process";
 import dgram from "node:dgram";
 import { mkdtempSync, rmSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
@@ -8,19 +9,27 @@ import { readUdpDump } from "../support/recordings/udp";
 
 const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 
+// Cross-process UDP delivery uses the real Windows socket and cannot use fake timers.
 async function waitFor(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(resolve, ms);
+  return promise;
 }
 
 async function killAndWait(proc: ChildProcess, signal: NodeJS.Signals, timeoutMs = 10_000) {
-  return new Promise<void>((resolvePromise, reject) => {
-    const timer = setTimeout(() => reject(new Error(`process did not exit within ${timeoutMs}ms`)), timeoutMs);
-    proc.on("exit", () => {
-      clearTimeout(timer);
-      resolvePromise();
-    });
-    proc.kill(signal);
+  // Deadline guards a missing child-process exit; success awaits the exit event.
+  const { promise, reject, resolve } = Promise.withResolvers<void>();
+  const timer = setTimeout(() => reject(new Error(`process did not exit within ${timeoutMs}ms`)), timeoutMs);
+  proc.on("exit", () => {
+    clearTimeout(timer);
+    resolve();
   });
+  if (process.platform === "win32" && proc.connected) {
+    proc.send(GRACEFUL_SHUTDOWN_IPC_MESSAGE);
+  } else {
+    proc.kill(signal);
+  }
+  return promise;
 }
 
 describe("UDP recording integration", () => {
@@ -29,7 +38,9 @@ describe("UDP recording integration", () => {
 
   afterEach(async () => {
     if (createdBin) {
-      try { unlinkSync(createdBin); } catch {}
+      try {
+        unlinkSync(createdBin);
+      } catch {}
       createdBin = null;
     }
     if (dataDir) {
@@ -56,24 +67,18 @@ describe("UDP recording integration", () => {
     // UDP_PORT env var, so pre-seed settings.json with our test port.
     writeFileSync(join(dataDir, "settings.json"), JSON.stringify({ udpPort: Number(UDP_PORT) }));
 
-    const existingBefore = new Set(
-      readdirSync(RECORDINGS_DIR).filter((f) => f.startsWith("fm-2023-") && f.endsWith(".bin"))
-    );
+    const existingBefore = new Set(readdirSync(RECORDINGS_DIR).filter((f) => f.startsWith("fm-2023-") && f.endsWith(".bin")));
 
-    const server = spawn(
-      "bun",
-      ["run", "server/index.ts", "--record=fm-2023"],
-      {
-        env: {
-          ...process.env,
-          DATA_DIR: dataDir,
-          SERVER_PORT,
-          UDP_PORT,
-          NODE_ENV: "development",
-        },
-        stdio: ["ignore", "pipe", "pipe"],
+    const server = spawn("bun", ["run", "server/index.ts", "--record=fm-2023"], {
+      env: {
+        ...process.env,
+        DATA_DIR: dataDir,
+        SERVER_PORT,
+        UDP_PORT,
+        NODE_ENV: "development",
       },
-    );
+      stdio: ["ignore", "pipe", "pipe", "ipc"],
+    });
 
     // Wait for the UDP listener to be ready
     await new Promise<void>((resolvePromise, reject) => {
@@ -100,9 +105,7 @@ describe("UDP recording integration", () => {
     fake.writeUInt32LE(1, 0);
     const PACKET_COUNT = 50;
     for (let i = 0; i < PACKET_COUNT; i++) {
-      await new Promise<void>((res, rej) =>
-        client.send(fake, Number(UDP_PORT), "127.0.0.1", (err) => (err ? rej(err) : res())),
-      );
+      await new Promise<void>((res, rej) => client.send(fake, Number(UDP_PORT), "127.0.0.1", (err) => (err ? rej(err) : res())));
     }
     await waitFor(300);
     client.close();
