@@ -13,6 +13,9 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+    // Dev Paraglide emits JS without declarations; preserve its JSDoc types.
+    "allowJs": true,
+    "checkJs": false,
     "noEmit": true,
     "jsx": "react-jsx",
 
