@@ -9,7 +9,7 @@ import {
   type SessionRunLapMembership,
 } from "../../shared/racing/runs/contracts";
 import type { RaceEventId } from "../../shared/racing/events/contracts";
-import { canonicalJson } from "../race-events/identity";
+import { canonicalJson } from "../../shared/core/canonical-json";
 
 function digest(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");

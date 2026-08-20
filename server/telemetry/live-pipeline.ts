@@ -44,6 +44,7 @@ import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { activatePersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { RaceEventCoordinator } from "../race-events/coordinator";
@@ -145,6 +146,7 @@ export class LiveTelemetryPipeline {
   private _recordingSession: RecordingSessionState | null = null;
   private _recordingQuality: RecordingQualityAccumulator | null = null;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+  private _onSessionAnalysisFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
@@ -222,6 +224,7 @@ export class LiveTelemetryPipeline {
       skipDevState?: boolean;
       recorder?: SessionRecorderAdapter;
       onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+      onSessionAnalysisFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
       sourceKind?: EvidenceSourceKind;
       participant?: ParticipantEvidence;
       sourceArchiveVerification?: ArchiveVerification;
@@ -241,8 +244,9 @@ export class LiveTelemetryPipeline {
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
-    this._onSessionFinalized = options?.onSessionFinalized;
     this._sourceKind = options?.sourceKind ?? "native-live";
+    this._onSessionFinalized = options?.onSessionFinalized;
+    this._onSessionAnalysisFinalized = options?.onSessionAnalysisFinalized;
     this._participant = options?.participant ?? LOCAL_PLAYER_EVIDENCE;
     this._versionIdentity = options?.versionIdentity;
     this._sourceChannelProfile = options?.sourceChannelProfile;
@@ -512,6 +516,9 @@ export class LiveTelemetryPipeline {
       if (this._onSessionFinalized) {
         await this._onSessionFinalized(session.sessionId, session.gameId);
         this._publishRaceResultInvalidation(session.sessionId);
+      }
+      if (this._onSessionAnalysisFinalized) {
+        await this._onSessionAnalysisFinalized(session.sessionId, session.gameId);
       }
       this._finalizedResultSessions.add(session.sessionId);
     })();
@@ -1198,6 +1205,13 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
       await reconcileSessionResult(sessionId, gameId);
     } catch (error) {
       console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
+    }
+  },
+  onSessionAnalysisFinalized: async (sessionId, gameId) => {
+    try {
+      await activatePersistedSessionAnalysisReceipt(sessionId, gameId);
+    } catch (error) {
+      console.error(`[Live Telemetry] Failed to activate analysis receipt for session ${sessionId}:`, error);
     }
   },
 });

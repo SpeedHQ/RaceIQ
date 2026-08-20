@@ -15,8 +15,9 @@ import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } fro
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 import { reprocessSession } from "../session-capture/reprocess";
+import { RACE_RESULT_PROCESSOR_ID } from "./constants";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v4";
+export { RACE_RESULT_PROCESSOR_ID } from "./constants";
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
   if (packets.length === 0) return null;

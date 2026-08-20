@@ -65,5 +65,6 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 - [Lap telemetry cache](lap-cache.md)
 - [Race results](race-results.md)
 - [Race event timeline](race-event-timeline.md)
+- [Analysis provenance](analysis-provenance.md)
 - [Setup Engineer](setup-engineer.md)
 - [Telemetry recording](telemetry-recording.md)

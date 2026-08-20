@@ -28,6 +28,12 @@ import type {
 	SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
+import type {
+	AnalysisArtifactSetType,
+	AnalysisProvenanceReceipt,
+	AnalysisReceiptFailure,
+	AnalysisReceiptLifecycle,
+} from "../../shared/racing/provenance/contracts";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -131,6 +137,7 @@ export const sessions = sqliteTable("sessions", {
 	qualityPolicyVersion: text("quality_policy_version"),
 	qualityConfigVersion: text("quality_config_version"),
 	qualityGeneration: text("quality_generation"),
+	analysisGenerationId: text("analysis_generation_id"),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 export const sessionResults = sqliteTable(
@@ -155,6 +162,7 @@ export const sessionResults = sqliteTable(
 		reasons: text("reasons", { mode: "json" }).$type<string[]>(),
 		evidence: text("evidence", { mode: "json" }).$type<RaceResultEvidence>(),
 		eventIds: text("event_ids", { mode: "json" }).$type<RaceEventId[]>().notNull().default(sql`'[]'`),
+		analysisGenerationId: text("analysis_generation_id"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
@@ -202,6 +210,7 @@ export const laps = sqliteTable(
 		qualityPolicyVersion: text("quality_policy_version"),
 		qualityConfigVersion: text("quality_config_version"),
 		qualityGeneration: text("quality_generation"),
+		analysisGenerationId: text("analysis_generation_id"),
 		// Explicit experiment link (migration v25). Stamped at insert from the
 		// in-memory active tuning session (server/experiments/active.ts) so a tuning
 		// session can span many race sessions. The `.references()` here is
@@ -233,6 +242,48 @@ export const laps = sqliteTable(
 		sessionIdx: index("idx_laps_session").on(table.sessionId),
 		experimentIdx: index("idx_laps_experiment").on(table.experimentId),
 	}),
+);
+
+export const analysisReceipts = sqliteTable(
+	"analysis_receipts",
+	{
+		generationId: text("generation_id").primaryKey(),
+		artifactSetId: text("artifact_set_id").notNull(),
+		sessionId: integer("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		participantId: text("participant_id"),
+		artifactSetType: text("artifact_set_type").$type<AnalysisArtifactSetType>().notNull(),
+		generation: integer("generation").notNull(),
+		receiptSchemaVersion: text("receipt_schema_version").notNull(),
+		lifecycle: text("lifecycle").$type<AnalysisReceiptLifecycle>().notNull(),
+		sourceContentHash: text("source_content_hash"),
+		contractHash: text("contract_hash").notNull(),
+		configurationHash: text("configuration_hash").notNull(),
+		receipt: text("receipt", { mode: "json" }).$type<AnalysisProvenanceReceipt>(),
+		failure: text("failure", { mode: "json" }).$type<AnalysisReceiptFailure>(),
+		startedAt: text("started_at").notNull(),
+		completedAt: text("completed_at"),
+		activatedAt: text("activated_at"),
+	},
+	(table) => [
+		uniqueIndex("uq_analysis_receipts_artifact_generation").on(table.artifactSetId, table.generation),
+		uniqueIndex("uq_analysis_receipts_active")
+			.on(table.artifactSetId)
+			.where(sql`${table.lifecycle} = 'active'`),
+		uniqueIndex("uq_analysis_receipts_in_progress")
+			.on(table.artifactSetId)
+			.where(sql`${table.lifecycle} = 'rebuild_in_progress'`),
+		index("idx_analysis_receipts_session_type_lifecycle").on(
+			table.sessionId,
+			table.artifactSetType,
+			table.lifecycle,
+		),
+		index("idx_analysis_receipts_artifact_generation_desc").on(
+			table.artifactSetId,
+			table.generation,
+		),
+	],
 );
 
 export const tuneAssignments = sqliteTable(

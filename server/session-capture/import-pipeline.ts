@@ -22,6 +22,7 @@ import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { activatePersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { DatabaseRaceEventStore } from "../race-events/store";
 export class TelemetryImportError extends Error {
@@ -324,6 +325,7 @@ export async function importSessionFrames(
   try {
     for (const sessionId of db.sessionIds) {
       await reconcileSessionResult(sessionId, gameId);
+      await activatePersistedSessionAnalysisReceipt(sessionId, gameId);
     }
   } catch (error) {
     return rollbackImport(db, error);

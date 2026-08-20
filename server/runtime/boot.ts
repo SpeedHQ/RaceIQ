@@ -6,6 +6,7 @@ import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "../db/index";
+import { failInterruptedAnalysisGenerations } from "../db/analysis-receipt-queries";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "../db/discovered-cars";
 import { backfillAllRaceResults } from "../race-results/reconcile";
 import { listDiscoveredTracks } from "../db/discovered-tracks";
@@ -68,6 +69,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
+  await failInterruptedAnalysisGenerations();
   await reconcileDiscoveredCars();
   injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
 

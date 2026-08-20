@@ -583,4 +583,77 @@ describe("migration regressions", () => {
     client.close();
   });
 
+  test("v65 preserves legacy rows and enforces one active and in-progress generation", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 64);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await client.execute("INSERT INTO laps (id, session_id, lap_number, lap_time) VALUES (11, 1, 1, 90)");
+    await client.execute("INSERT INTO session_results (id, session_id) VALUES (21, 1)");
+    await runMigrations(client);
+
+    const legacy = await client.execute(
+      `SELECT
+         sessions.analysis_generation_id AS session_generation,
+         laps.analysis_generation_id AS lap_generation,
+         session_results.analysis_generation_id AS result_generation
+       FROM sessions
+       JOIN laps ON laps.session_id = sessions.id
+       JOIN session_results ON session_results.session_id = sessions.id
+       WHERE sessions.id = 1`,
+    );
+    expect(legacy.rows[0]).toMatchObject({
+      session_generation: null,
+      lap_generation: null,
+      result_generation: null,
+    });
+
+    const inProgress = {
+      generation_id: "generation-in-progress",
+      artifact_set_id: "artifact-set-1",
+      session_id: 1,
+      artifact_set_type: "session_analysis",
+      generation: 1,
+      receipt_schema_version: "analysis-receipt-v1",
+      lifecycle: "rebuild_in_progress",
+      contract_hash: "sha256:" + "a".repeat(64),
+      configuration_hash: "sha256:" + "b".repeat(64),
+      started_at: "2026-08-20T00:00:00.000Z",
+    };
+    await client.execute({
+      sql: `INSERT INTO analysis_receipts (
+        generation_id, artifact_set_id, session_id, artifact_set_type, generation,
+        receipt_schema_version, lifecycle, contract_hash, configuration_hash, started_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: Object.values(inProgress),
+    });
+    await expect(client.execute({
+      sql: `INSERT INTO analysis_receipts (
+        generation_id, artifact_set_id, session_id, artifact_set_type, generation,
+        receipt_schema_version, lifecycle, contract_hash, configuration_hash, started_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["generation-in-progress-2", "artifact-set-1", 1, "session_analysis", 2, "analysis-receipt-v1", "rebuild_in_progress", inProgress.contract_hash, inProgress.configuration_hash, inProgress.started_at],
+    })).rejects.toThrow();
+    await client.execute({
+      sql: `INSERT INTO analysis_receipts (
+        generation_id, artifact_set_id, session_id, artifact_set_type, generation,
+        receipt_schema_version, lifecycle, contract_hash, configuration_hash,
+        receipt, started_at, completed_at, activated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["generation-active", "artifact-set-1", 1, "session_analysis", 2, "analysis-receipt-v1", "active", inProgress.contract_hash, inProgress.configuration_hash, "{}", inProgress.started_at, "2026-08-20T00:00:01.000Z", "2026-08-20T00:00:01.000Z"],
+    });
+    await expect(client.execute({
+      sql: `INSERT INTO analysis_receipts (
+        generation_id, artifact_set_id, session_id, artifact_set_type, generation,
+        receipt_schema_version, lifecycle, contract_hash, configuration_hash,
+        receipt, started_at, completed_at, activated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["generation-active-2", "artifact-set-1", 1, "session_analysis", 3, "analysis-receipt-v1", "active", inProgress.contract_hash, inProgress.configuration_hash, "{}", inProgress.started_at, "2026-08-20T00:00:02.000Z", "2026-08-20T00:00:02.000Z"],
+    })).rejects.toThrow();
+    await client.execute("DELETE FROM sessions WHERE id = 1");
+    expect((await client.execute("SELECT COUNT(*) AS count FROM analysis_receipts")).rows[0]?.count).toBe(0);
+    client.close();
+  });
 });

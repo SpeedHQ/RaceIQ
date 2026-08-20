@@ -10,8 +10,14 @@ import {
   type EvidenceSourceKind,
   type SourceLifecycleEvidence,
 } from "../../shared/racing/quality/contracts";
+import {
+  activateAnalysisGeneration,
+  beginAnalysisGeneration,
+  failAnalysisGeneration,
+  type AnalysisReceiptRow,
+} from "../db/analysis-receipt-queries";
 import { db } from "../db";
-import { getLapsForSession } from "../db/lap-reprocessing-queries";
+import { getLapsForSession, type ReprocessingLapRow } from "../db/lap-reprocessing-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import {
   replaceReplayableSessionArtifacts,
@@ -25,6 +31,7 @@ import {
   updateSessionQuality,
   updateSessionRawFile,
 } from "../db/session-queries";
+import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
 import { extractRaceSource } from "../race-results/source";
 import { deriveRaceResult, normalizeSessionType } from "../race-results/derive";
 import { rebuildRaceEventTimeline } from "../race-events/rebuild";
@@ -35,10 +42,14 @@ import {
   readFrameStreamStart,
 } from "./framing";
 import {
+  loadRawCaptureIdentity,
   rawCaptureObjectId,
   sha256ContentHash,
 } from "./identity";
 import { mergeReprocessedRecordingQuality } from "./reprocess-quality";
+import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { currentAnalysisContract } from "../analysis-provenance/current-contract";
+import { createPersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
 import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 
 interface ReprocessResult {
@@ -87,9 +98,10 @@ function retainedLifecycleEvidence(
 
 function replacementLaps(
   detected: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>["laps"],
-  existing: Awaited<ReturnType<typeof getLapsForSession>>,
+  existing: ReprocessingLapRow[],
+  analysisGenerationId: string,
 ): ReplayableLapReplacement[] {
-  const candidates = new Map<number, typeof existing>();
+  const candidates = new Map<number, ReprocessingLapRow[]>();
   for (const lap of existing) {
     const values = candidates.get(lap.lapNumber);
     if (values) values.push(lap);
@@ -113,6 +125,7 @@ function replacementLaps(
       sectorTimes: lap.sectors,
       rawByteOffset: lap.rawByteOffset,
       rawFrameCount: lap.rawFrameCount,
+      analysisGenerationId,
       ...(lap.versionIdentity ?? {}),
       quality: lap.quality,
       eligibility: lap.eligibility,
@@ -130,6 +143,7 @@ function resultProjection(
   sessionType: string | null,
   rebuilt: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>,
   rawContentHash: string,
+  analysisGenerationId: string,
 ): RaceEventResultProjection {
   const source = extractRaceSource(gameId, rebuilt.packets);
   if (sessionType) {
@@ -154,7 +168,8 @@ function resultProjection(
     },
   };
   return {
-    processorVersion: "race-result-v4",
+    processorVersion: RACE_RESULT_PROCESSOR_ID,
+    analysisGenerationId,
     sessionType: derived.sessionType,
     classification: derived.classification,
     outcomeStatus: derived.outcomeStatus,
@@ -172,116 +187,159 @@ function resultProjection(
   };
 }
 
-export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
-  const session = await db
-    .select({
-      rawFile: sessions.rawFile,
-      gameId: sessions.gameId,
-      sessionType: sessions.sessionType,
-      source: sessions.source,
-      recordingQuality: sessions.recordingQuality,
-      sourceChannelProfile: sessions.sourceChannelProfile,
-    })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .get();
-  if (!session) throw new SessionNotFoundError(sessionId);
-  if (!session.rawFile) throw new SessionRawFileMissingError(sessionId);
+export async function reprocessSession(sessionId: number): Promise<ReprocessResult & { analysisGenerationId: string }> {
+  let attempt: AnalysisReceiptRow | null = null;
+  let result: RaceEventResultProjection | null = null;
+  let existingLaps: ReprocessingLapRow[] = [];
+  let rebuiltLaps = 0;
+  let strategy: ReprocessResult["strategy"] = "replace";
+  let qualityGeneration = "";
+  try {
+    const outcome = await withSessionCaptureMaintenanceLock(async () => {
+      const session = await db
+        .select({
+          rawFile: sessions.rawFile,
+          gameId: sessions.gameId,
+          sessionType: sessions.sessionType,
+          source: sessions.source,
+          recordingQuality: sessions.recordingQuality,
+          sourceChannelProfile: sessions.sourceChannelProfile,
+        })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .get();
+      if (!session) throw new SessionNotFoundError(sessionId);
+      if (!session.rawFile) throw new SessionRawFileMissingError(sessionId);
 
-  const file = Bun.file(session.rawFile);
-  if (!(await file.exists())) throw new SessionRawFileMissingError(sessionId, session.rawFile);
-  const stored = Buffer.from(await file.arrayBuffer());
-  const bytes = session.rawFile.endsWith(".gz") ? await gunzipBuffer(stored) : stored;
-  const frameStreamStart = readFrameStreamStart(bytes);
-  const gameId = session.gameId as GameId;
-  const sourceKind = (session.source as EvidenceSourceKind | null) ?? "unknown";
-  const versionIdentity = currentTelemetryVersionIdentity(gameId);
-  const rawContentHash = sha256ContentHash(bytes);
-  const sourceVerification = session.recordingQuality?.archiveVerification ?? {
-    state: "unknown" as const,
-    sourceGeneration: "legacy",
-    details: "Original source verification is unavailable",
-  };
-  const frames = (function* () {
-    for (const { offset, frame } of iterateSessionFrameRecords(bytes, frameStreamStart, {
-      skipMetaFrames: true,
-      allowEmptyFrames: false,
-      strict: true,
-      validateDeclaredFrameCount: true,
-    })) {
-      yield { frame, rawByteOffset: offset };
-    }
-  })();
-  const rebuilt = await rebuildRaceEventTimeline({
-    sessionId,
-    gameId,
-    frames,
-    sourceKind,
-    participant: session.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE,
-    versionIdentity,
-    ...(session.sourceChannelProfile
-      ? { sourceChannelProfile: session.sourceChannelProfile }
-      : {}),
-    sourceVerification,
-    ...(session.recordingQuality?.transportVerification
-      ? { transportVerification: session.recordingQuality.transportVerification }
-      : {}),
-    canonicalVerification: { state: "verified", sourceGeneration: rawContentHash },
-    sourceLifecycle: retainedLifecycleEvidence(session.recordingQuality),
-  });
-  const existingLaps = await getLapsForSession(sessionId);
-  const laps = replacementLaps(rebuilt.laps, existingLaps);
-  const strategy = rebuilt.laps.length === existingLaps.length ? "in-place" as const : "replace" as const;
-  const mergedQuality = mergeReprocessedRecordingQuality(
-    session.recordingQuality,
-    rebuilt.recordingQuality,
-  );
-  const result = resultProjection(sessionId, gameId, session.sessionType, rebuilt, rawContentHash);
-  let qualityGeneration = mergedQuality.provenance.outputGeneration;
-
-  await db.transaction(async (tx) => {
-    await replaceReplayableSessionArtifacts(
-      {
+      const file = Bun.file(session.rawFile);
+      if (!(await file.exists())) throw new SessionRawFileMissingError(sessionId, session.rawFile);
+      const stored = Buffer.from(await file.arrayBuffer());
+      const bytes = session.rawFile.endsWith(".gz") ? await gunzipBuffer(stored) : stored;
+      const frameStreamStart = readFrameStreamStart(bytes);
+      const gameId = session.gameId as GameId;
+      const sourceKind = (session.source as EvidenceSourceKind | null) ?? "unknown";
+      const versionIdentity = currentTelemetryVersionIdentity(gameId);
+      const rawContentHash = sha256ContentHash(bytes);
+      const contract = currentAnalysisContract(gameId, session.sourceChannelProfile ?? null);
+      attempt = await beginAnalysisGeneration({
         sessionId,
-        events: rebuilt.events,
-        runs: rebuilt.runs,
-        memberships: rebuilt.memberships,
-        evidence: rebuilt.evidence,
-        laps,
-        result,
-      },
-      tx,
-    );
-    await updateSessionRawFile(sessionId, session.rawFile!, rebuilt.detectorId, versionIdentity, tx);
-    qualityGeneration = (await updateSessionQuality(sessionId, mergedQuality, tx)).provenance.outputGeneration;
-    await linkSessionQualityEvents(sessionId, tx);
-    await rebuildPersistedSessionRuns(sessionId, tx);
-  });
-  for (const lap of existingLaps) cacheDelete(lap.id);
+        artifactSetType: "session_analysis",
+        sourceContentHash: rawContentHash,
+        contractHash: contract.contractHash,
+        configurationHash: contract.configurationHash,
+      });
+      const sourceVerification = session.recordingQuality?.archiveVerification ?? {
+        state: "unknown" as const,
+        sourceGeneration: "legacy",
+        details: "Original source verification is unavailable",
+      };
+      const frames = (function* () {
+        for (const { offset, frame } of iterateSessionFrameRecords(bytes, frameStreamStart, {
+          skipMetaFrames: true,
+          allowEmptyFrames: false,
+          strict: true,
+          validateDeclaredFrameCount: true,
+        })) {
+          yield { frame, rawByteOffset: offset };
+        }
+      })();
+      const rebuilt = await rebuildRaceEventTimeline({
+        sessionId,
+        analysisGenerationId: attempt.generationId,
+        gameId,
+        frames,
+        sourceKind,
+        participant: session.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE,
+        versionIdentity,
+        ...(session.sourceChannelProfile ? { sourceChannelProfile: session.sourceChannelProfile } : {}),
+        sourceVerification,
+        ...(session.recordingQuality?.transportVerification
+          ? { transportVerification: session.recordingQuality.transportVerification }
+          : {}),
+        canonicalVerification: { state: "verified", sourceGeneration: rawContentHash },
+        sourceLifecycle: retainedLifecycleEvidence(session.recordingQuality),
+      });
+      existingLaps = await getLapsForSession(sessionId);
+      const laps = replacementLaps(rebuilt.laps, existingLaps, attempt.generationId);
+      strategy = rebuilt.laps.length === existingLaps.length ? "in-place" : "replace";
+      const mergedQuality = mergeReprocessedRecordingQuality(session.recordingQuality, rebuilt.recordingQuality);
+      result = resultProjection(sessionId, gameId, session.sessionType, rebuilt, rawContentHash, attempt.generationId);
+      rebuiltLaps = rebuilt.laps.length;
 
-  wsManager.broadcastNotification(
-    RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
-  );
-  wsManager.broadcastNotification(
-    SessionRunsReplacedMessageSchema.parse({
-      type: "session-runs-replaced",
+      await db.transaction(async (tx) => {
+        await replaceReplayableSessionArtifacts(
+          {
+            sessionId,
+            events: rebuilt.events,
+            runs: rebuilt.runs,
+            memberships: rebuilt.memberships,
+            evidence: rebuilt.evidence,
+            laps,
+            result: result!,
+          },
+          tx,
+        );
+        await updateSessionRawFile(sessionId, session.rawFile!, rebuilt.detectorId, versionIdentity, tx);
+        qualityGeneration = (await updateSessionQuality(sessionId, mergedQuality, tx)).provenance.outputGeneration;
+        await linkSessionQualityEvents(sessionId, tx);
+        await rebuildPersistedSessionRuns(sessionId, tx);
+        const latest = await loadRawCaptureIdentity(session.rawFile!);
+        if (!latest || latest.contentHash !== rawContentHash) {
+          throw new Error("Raw source changed during analysis rebuild");
+        }
+        const receipt = await createPersistedSessionAnalysisReceipt(attempt!, gameId, tx);
+        await activateAnalysisGeneration({ generationId: attempt!.generationId, receipt }, tx);
+      });
+      return attempt!;
+    });
+    for (const lap of existingLaps) cacheDelete(lap.id);
+    wsManager.broadcastNotification(
+      RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
+    );
+    wsManager.broadcastNotification(
+      SessionRunsReplacedMessageSchema.parse({ type: "session-runs-replaced", sessionId }),
+    );
+    wsManager.broadcastNotification({
+      type: "race-result-reconciled",
       sessionId,
-    }),
-  );
-  wsManager.broadcastNotification({
-    type: "race-result-reconciled",
-    sessionId,
-    status: result.outcomeStatus === "confirmed" ? "enriched" : "ambiguous",
-  });
-  wsManager.broadcastNotification({
-    type: "quality-updated",
-    sessionId,
-    qualityGeneration,
-  });
-  return {
-    sessionId,
-    lapsDetected: rebuilt.laps.length,
-    lapsUpdated: rebuilt.laps.length,
-    strategy,
-  };
+      status: result!.outcomeStatus === "confirmed" ? "enriched" : "ambiguous",
+    });
+    wsManager.broadcastNotification({ type: "quality-updated", sessionId, qualityGeneration });
+    return {
+      sessionId,
+      lapsDetected: rebuiltLaps,
+      lapsUpdated: rebuiltLaps,
+      strategy,
+      analysisGenerationId: outcome.generationId,
+    };
+  } catch (error) {
+    const failedGenerationId = (attempt as AnalysisReceiptRow | null)?.generationId;
+    if (failedGenerationId) {
+      try {
+        await failAnalysisGeneration(failedGenerationId, {
+          code: error instanceof SessionRawFileMissingError
+            ? "source_unavailable"
+            : error instanceof Error && error.message.includes("Raw source changed")
+              ? "source_hash_changed"
+              : error instanceof Error && error.message.includes("verification")
+                ? "output_verification_failed"
+                : error instanceof Error && (error.message.includes("activation") || error.message.includes("receipt"))
+                  ? "activation_failed"
+                  : "build_failed",
+          message: error instanceof Error && error.message.includes("Raw source changed")
+            ? "Raw source changed during analysis rebuild"
+            : "Analysis rebuild failed before activation",
+          failedAt: new Date().toISOString(),
+          checks: [{
+            id: "source_hash",
+            status: error instanceof Error && error.message.includes("Raw source changed") ? "failed" : "not_applicable",
+            details: "Analysis rebuild did not activate a verified receipt",
+          }],
+        });
+      } catch {
+        // Preserve original rebuild error; failure recording is best effort.
+      }
+    }
+    throw error;
+  }
 }

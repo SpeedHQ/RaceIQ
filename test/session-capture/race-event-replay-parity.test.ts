@@ -23,6 +23,7 @@ describe("raw race-event replay parity", () => {
     }));
     const input: RebuildRaceEventTimelineInput = {
       sessionId: 7_001,
+      analysisGenerationId: "analysis-generation:test-replay-parity",
       gameId: "iracing",
       frames,
       sourceKind: "raceiq-raw",
@@ -48,10 +49,13 @@ describe("raw race-event replay parity", () => {
     expect(second.events.map(({ contentHash }) => contentHash)).toEqual(
       first.events.map(({ contentHash }) => contentHash),
     );
+    expect(first.events.every(({ analysisGenerationId }) => analysisGenerationId === input.analysisGenerationId)).toBe(true);
     expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(
       first.laps.map(({ lapNumber }) => lapNumber),
     );
     expect(first.runs.length).toBeGreaterThan(0);
+    expect(first.runs.every(({ analysisGenerationId }) => analysisGenerationId === input.analysisGenerationId)).toBe(true);
+    expect(first.memberships.every(({ runId }) => first.runs.some((run) => run.runId === runId))).toBe(true);
     expect(second.runs).toEqual(first.runs);
     expect(second.memberships).toEqual(first.memberships);
     expect(second.evidence).toEqual(first.evidence);

@@ -10,6 +10,7 @@ import type {
 } from "../../shared/racing/results/types";
 import { resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { db } from "./index";
+import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
 import { laps, sessionResults, sessions } from "./schema";
 
 const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
@@ -105,7 +106,7 @@ export async function upsertSessionResult(
       .get();
     const values = {
       sessionId: input.sessionId,
-      processorVersion: input.processorVersion ?? "race-result-v4",
+      processorVersion: input.processorVersion ?? RACE_RESULT_PROCESSOR_ID,
       sessionType: input.sessionType,
       classification: input.classification,
       outcomeStatus: input.outcomeStatus ?? "unavailable",

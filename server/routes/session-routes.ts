@@ -8,6 +8,7 @@ import { getSessions, deleteSession, updateSession, countStaleSessions, getStale
 import { db } from "../db";
 import { sessions } from "../db/schema";
 import { getSessionResult, getStaleRaceResultSessionIds } from "../db/session-result-queries";
+import { AnalysisGenerationConflictError } from "../db/analysis-receipt-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "../session-capture/reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
@@ -20,7 +21,7 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { backfillRaceResults, reconcileStaleSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
-import { getQualityRebuildStatus, rebuildSessionEligibility } from "../lap-analysis/quality-rebuild";
+import { getAnalysisRebuildPreview, getQualityRebuildStatus, rebuildSessionEligibility } from "../lap-analysis/quality-rebuild";
 import { assessEvidenceRetention } from "../lap-analysis/evidence-retention";
 import { getSessionCanonicalAvailability } from "../lap-analysis/canonical-archive-availability";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
@@ -66,6 +67,7 @@ export interface SessionRouteDependencies {
   listSessionRunEvidence: typeof listSessionRunEvidence;
   listComparableSessionRuns: typeof listComparableSessionRuns;
   getQualityRebuildStatus: typeof getQualityRebuildStatus;
+  getAnalysisRebuildPreview: typeof getAnalysisRebuildPreview;
   getLapsForSession: typeof getLapsForSession;
   reprocessSession: typeof reprocessSession;
   rebuildSessionEligibility: typeof rebuildSessionEligibility;
@@ -87,6 +89,7 @@ const DEFAULT_SESSION_ROUTE_DEPENDENCIES: SessionRouteDependencies = {
   listSessionRunEvidence,
   listComparableSessionRuns,
   getQualityRebuildStatus,
+  getAnalysisRebuildPreview,
   getLapsForSession,
   reprocessSession,
   rebuildSessionEligibility,
@@ -327,11 +330,18 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
   .get("/api/sessions/:id/quality", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
     if (!(await dependencies.sessionExists(id))) return c.json({ error: "Session not found" }, 404);
-
     const status = await dependencies.getQualityRebuildStatus(id);
     const laps = await dependencies.getLapsForSession(id);
+    const canonicalArchive = await getSessionCanonicalAvailability(id);
+    const retention = canonicalArchive
+      ? await assessEvidenceRetention(id, {
+          rawCapture: status.rawAvailable,
+          canonicalArchive,
+        })
+      : null;
     return c.json({
       ...status,
+      canonicalCleanupEligible: retention?.canDeleteRaw ?? false,
       laps: laps.map((lap) => ({
         id: lap.id,
         lapNumber: lap.lapNumber,
@@ -340,6 +350,11 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
         qualityGeneration: lap.qualityGeneration,
       })),
     });
+  })
+  .get("/api/sessions/:id/quality/rebuild-preview", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    if (!(await dependencies.sessionExists(id))) return c.json({ error: "Session not found" }, 404);
+    return c.json(await dependencies.getAnalysisRebuildPreview(id));
   })
   .post("/api/sessions/:id/quality/rebuild", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -350,9 +365,16 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       return c.json({ error: "Source recording unavailable", status }, 409);
     }
     if (status.action === "reprocess") {
-      const result = await dependencies.reprocessSession(id);
-      dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
-      return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
+      try {
+        const result = await dependencies.reprocessSession(id);
+        dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
+        return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
+      } catch (error) {
+        if (error instanceof AnalysisGenerationConflictError) {
+          return c.json({ error: "Analysis rebuild already in progress", status }, 409);
+        }
+        throw error;
+      }
     }
     const rebuilt = await dependencies.rebuildSessionEligibility(id);
     dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
@@ -372,6 +394,9 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       if (remaining === 0) wsManager.setStaleSessionsNotification(null);
       return c.json(result);
     } catch (error) {
+      if (error instanceof AnalysisGenerationConflictError) {
+        return c.json({ error: "Analysis rebuild already in progress" }, 409);
+      }
       if (error instanceof SessionRawFileMissingError) {
         return c.json({ error: error.message }, 410);
       }

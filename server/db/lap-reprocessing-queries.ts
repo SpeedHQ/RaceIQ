@@ -6,25 +6,25 @@ import type { LapClassification } from "../../shared/racing/laps/classification"
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 
-export async function getLapsForSession(sessionId: number): Promise<
-  Array<{
-    id: number;
-    lapNumber: number;
-    lapTime: number;
-    isValid: boolean;
-    phase: LapClassification["phase"];
-    conditions: LapClassification["conditions"];
-    paceEligibility: LapClassification["paceEligibility"];
-    notes: string | null;
-    tuneId: number | null;
-    rawByteOffset: number | null;
-    rawFrameCount: number | null;
-    sectorTimes: number[] | null;
-    quality: LapQualitySummary | null;
-    eligibility: EligibilityDecisionSet | null;
-    qualityGeneration: string | null;
-  }>
-> {
+export interface ReprocessingLapRow {
+  id: number;
+  lapNumber: number;
+  lapTime: number;
+  isValid: boolean;
+  phase: LapClassification["phase"];
+  conditions: LapClassification["conditions"];
+  paceEligibility: LapClassification["paceEligibility"];
+  notes: string | null;
+  tuneId: number | null;
+  rawByteOffset: number | null;
+  rawFrameCount: number | null;
+  sectorTimes: number[] | null;
+  quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
+  qualityGeneration: string | null;
+}
+
+export async function getLapsForSession(sessionId: number): Promise<ReprocessingLapRow[]> {
   const rows = await db
     .select({
       id: laps.id,
