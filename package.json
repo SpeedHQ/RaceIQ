@@ -24,6 +24,7 @@
     "test:unit": "bun scripts/test/run-suite.ts unit",
     "test:integration": "bun scripts/test/run-suite.ts integration",
     "test": "bun run test:unit && bun run test:integration",
+    "typecheck": "bun run --cwd client i18n:compile && bunx tsc --build client/tsconfig.json --pretty false && bunx tsc --project tsconfig.json --noEmit",
     "typecheck:scripts": "bunx tsc --project scripts/tsconfig.json",
     "lint": "bun run --cwd client lint:root",
     "format": "cd client && bun run format",
