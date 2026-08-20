@@ -23,7 +23,7 @@ jobs:
     # Always retain compiled dist for downstream E2E diagnostics and reruns.
     # Upload step uses always() so failures before or during tests do not skip it.
     # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
-    runs-on: 
+    runs-on:
       - whitesmith-windows-x64
       - 10VCPU
       - 15G

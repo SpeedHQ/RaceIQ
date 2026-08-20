@@ -16,13 +16,11 @@
  *   `Promise.all`) precisely to keep that bound: overlapping them would double it.
  */
 
-import type { GameId } from "../../../shared/games/ids";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
-import { detectCorners } from "../../lap-analysis/corners";
 import type { Corner } from "../../lap-analysis/corners";
-import { getCorners } from "../../db/track-queries";
+import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { getLapById } from "../../db/lap-read-queries";
 import { getLapMetaForExperimentVersion } from "../../db/experiment-lap-queries";
 import { getExperiment } from "../../db/experiment-queries";
@@ -75,8 +73,8 @@ async function armLabel(versionId: number): Promise<string> {
 }
 
 /**
- * Corners for the fold. Curated track geometry wins; `detectCorners` on the
- * arm's reference lap is the fallback, and matters because
+ * Corners for the fold. Official track segments win, followed by stored
+ * corners and telemetry detection. Corners matter because
  * `computeLapConsistencyDelta` returns an all-zero delta when there are no
  * corners — no corners means no samples, not a "perfect" arm.
  */
@@ -87,12 +85,8 @@ async function resolveCornersFor(
 ): Promise<Corner[]> {
   const session = await getExperiment(sessionId);
   const trackOrdinal = session?.trackOrdinal ?? metas.find((m) => m.trackOrdinal != null)?.trackOrdinal ?? null;
-  const gameId = (session?.gameId ?? metas.find((m) => m.gameId != null)?.gameId ?? null) as GameId | null;
-  if (trackOrdinal != null && gameId) {
-    const curated = await getCorners(trackOrdinal, gameId);
-    if (curated.length > 0) return curated;
-  }
-  return detectCorners(referenceTelemetry);
+  const gameId = session?.gameId ?? metas.find((m) => m.gameId != null)?.gameId ?? null;
+  return resolveLapCorners(trackOrdinal, gameId, referenceTelemetry);
 }
 
 /**
