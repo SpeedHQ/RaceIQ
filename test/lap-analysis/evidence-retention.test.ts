@@ -72,6 +72,8 @@ function currentRow(id: number = 1, decisions: EligibilityDecisionSet | null = e
 function archive(overrides: Partial<CanonicalArchiveAvailability> = {}): CanonicalArchiveAvailability {
   return {
     state: "available",
+    status: "verified",
+    completeness: "complete",
     semanticIds: FULL_CANONICAL_SEMANTIC_IDS,
     eventIds: ["canonical:event:1"],
     provenance: {

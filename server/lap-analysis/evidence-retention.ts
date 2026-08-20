@@ -71,7 +71,8 @@ export function evaluateEvidenceRetention(sessionId: number, availability: Evide
       postRawRemoval: current === row.eligibility ? postRemovalDecisions(current, canonicalIds) : current,
     };
   });
-  const canDeleteRaw = rows.length > 0 && !hasUnavailableEligibility && availability.rawCapture && availability.canonicalArchive.state === "available" && blockedBy.length === 0;
+  const archiveComplete = availability.canonicalArchive.completeness === "complete" && availability.canonicalArchive.status === "verified";
+  const canDeleteRaw = rows.length > 0 && !hasUnavailableEligibility && availability.rawCapture && availability.canonicalArchive.state === "available" && archiveComplete && blockedBy.length === 0;
   return {
     sessionId,
     policyVersion: EVIDENCE_RETENTION_POLICY_VERSION,

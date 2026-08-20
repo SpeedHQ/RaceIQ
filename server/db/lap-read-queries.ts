@@ -1,4 +1,4 @@
-import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
+import { cacheGet, cacheSet, LapParseError, loadLapTelemetryFromArchive, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
 import { lapMetaProjection, toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
@@ -284,18 +284,22 @@ export async function getLapById(id: number): Promise<(LapMeta & { telemetry: Te
     .where(eq(laps.id, id))
     .get();
 
-  if (!row) return null;
   const cached = cacheGet(id);
-
+  if (!row) return null;
   if (cached) {
     return buildLapResult(row, cached);
   }
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;
+  try {
+    telemetry = await loadLapTelemetryFromArchive(id, row.sessionId) ?? [];
+  } catch (err) {
+    console.error(`[DB] Failed to read canonical archive for lap ${id}:`, err);
+  }
   const rawFile = row.rawFile;
   const rawByteOffset = row.rawByteOffset;
   const rawFrameCount = row.rawFrameCount;
-  const shouldParseRaw = rawFile != null && rawByteOffset != null && rawFrameCount != null;
+  const shouldParseRaw = telemetry.length === 0 && rawFile != null && rawByteOffset != null && rawFrameCount != null;
   if (shouldParseRaw) {
     try {
       telemetry = await parseRawLapFrames(rawFile, rawByteOffset, rawFrameCount, row.gameId as GameId);
@@ -464,6 +468,16 @@ export async function getLapsByIds(ids: number[]): Promise<(LapMeta & { telemetr
     if (cached) {
       decoded.set(row.id, cached);
       continue;
+    }
+    try {
+      const archived = await loadLapTelemetryFromArchive(row.id, row.sessionId);
+      if (archived) {
+        cacheSet(row.id, archived);
+        decoded.set(row.id, archived);
+        continue;
+      }
+    } catch (err) {
+      console.error(`[DB] Failed to read canonical archive for lap ${row.id}:`, err);
     }
     if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
       let group = bySession.get(row.rawFile);

@@ -19,6 +19,10 @@ export interface CanonicalArchiveAvailability {
   eventIds: readonly string[];
   provenance: CanonicalArchiveProvenance | null;
   details: string | null;
+  status?: "pending" | "building" | "verified" | "partial" | "failed" | "superseded" | null;
+  completeness?: "complete" | "partial" | "empty" | "unavailable" | null;
+  archiveId?: string | null;
+  generationId?: string | null;
 }
 
 export interface EvidenceAvailability {

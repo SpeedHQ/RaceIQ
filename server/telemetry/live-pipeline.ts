@@ -46,6 +46,7 @@ import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { activatePersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
 import { wsManager } from "../runtime/websocket-manager";
+import { enqueueCanonicalArchiveForSession } from "../session-capture/canonical-archive";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { RaceEventCoordinator } from "../race-events/coordinator";
 import type { RaceEventPreflightResult } from "../race-events/types";
@@ -147,6 +148,7 @@ export class LiveTelemetryPipeline {
   private _recordingQuality: RecordingQualityAccumulator | null = null;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _onSessionAnalysisFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+  private _onCanonicalArchiveEnqueued?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
@@ -225,6 +227,7 @@ export class LiveTelemetryPipeline {
       recorder?: SessionRecorderAdapter;
       onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
       onSessionAnalysisFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+      onCanonicalArchiveEnqueued?: (sessionId: number, gameId: GameId) => Promise<void>;
       sourceKind?: EvidenceSourceKind;
       participant?: ParticipantEvidence;
       sourceArchiveVerification?: ArchiveVerification;
@@ -247,6 +250,7 @@ export class LiveTelemetryPipeline {
     this._sourceKind = options?.sourceKind ?? "native-live";
     this._onSessionFinalized = options?.onSessionFinalized;
     this._onSessionAnalysisFinalized = options?.onSessionAnalysisFinalized;
+    this._onCanonicalArchiveEnqueued = options?.onCanonicalArchiveEnqueued;
     this._participant = options?.participant ?? LOCAL_PLAYER_EVIDENCE;
     this._versionIdentity = options?.versionIdentity;
     this._sourceChannelProfile = options?.sourceChannelProfile;
@@ -661,6 +665,9 @@ export class LiveTelemetryPipeline {
     });
     await this._finalizeSessionRuns(sessionId);
     await this._trackSessionFinalization(closed, endReason);
+    if (this._onCanonicalArchiveEnqueued) {
+      await this._onCanonicalArchiveEnqueued(sessionId, closed.session.gameId);
+    }
     for (
       let index = this._sessionFinalizationFailures.length - 1;
       index >= 0;
@@ -1212,6 +1219,13 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
       await activatePersistedSessionAnalysisReceipt(sessionId, gameId);
     } catch (error) {
       console.error(`[Live Telemetry] Failed to activate analysis receipt for session ${sessionId}:`, error);
+    }
+  },
+  onCanonicalArchiveEnqueued: async (sessionId, gameId) => {
+    try {
+      await enqueueCanonicalArchiveForSession(sessionId, gameId);
+    } catch (error) {
+      console.error(`[Live Telemetry] Failed to enqueue canonical archive for session ${sessionId}:`, error);
     }
   },
 });
