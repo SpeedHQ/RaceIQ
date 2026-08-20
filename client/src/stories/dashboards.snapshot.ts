@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { DASHBOARD_SNAPSHOT_CASES } from "./snapshot-cases";
-import { openStoryForSnapshot, warmStorybook } from "./storybook-ready";
+import { openStoryForSnapshot } from "./storybook-ready";
 
 // Story IDs come from Storybook title + export name.
 // Inventory lives in snapshot-cases.ts so CI and local comparison cannot drift.
@@ -8,10 +8,6 @@ const LIVE_DASHBOARD_NAMES = new Set(["F1LiveDashboard", "ForzaLiveDashboard", "
 const comparisonCaptureOnly = process.env.RACEIQ_UI_DIFF_CAPTURE === "1";
 
 test.setTimeout(300_000);
-test.beforeAll(async ({ browser }) => {
-  test.setTimeout(300_000);
-  await warmStorybook(browser, `/iframe.html?id=${DASHBOARD_SNAPSHOT_CASES[0].id}&viewMode=story`, { attempts: 12, attemptTimeoutMs: 15_000 });
-});
 
 for (const story of DASHBOARD_SNAPSHOT_CASES) {
   test(`snapshot: ${story.name}`, async ({ page }) => {
