@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
+import { copyFileSync, mkdtempSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, relative, sep } from "node:path";
 
@@ -45,7 +45,8 @@ symlinkSync(resolve(root, "test", "support"), resolve(suiteRoot, "test", "suppor
 for (const file of files) {
   const staged = resolve(suiteRoot, file);
   mkdirSync(resolve(staged, ".."), { recursive: true });
-  symlinkSync(resolve(root, file), staged, "file");
+  if (process.platform === "win32") copyFileSync(resolve(root, file), staged);
+  else symlinkSync(resolve(root, file), staged, "file");
 }
 const manifestFiles = files.map((file) => `./${file}`);
 const args = suite === "unit"
