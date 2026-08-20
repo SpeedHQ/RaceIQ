@@ -73,6 +73,7 @@
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
+- Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
 - Consolidate game raw telemetry routes behind one dynamic route and default seeded E2E runs to two workers
