@@ -347,7 +347,7 @@ When creating or updating a pull request:
 
 Classify each change before editing `CHANGELOG.md`:
 - **Customer-facing behavior** — add concise user-facing bullet under `## Unreleased` in `### Breaking`, `### Features`, or `### Fixes`.
-- **Internal-only CI, tooling, maintenance, tests, or developer workflow** — do not add a customer-facing changelog entry; describe it in the PR instead.
+- **Internal-only CI, tooling, maintenance, tests, or developer workflow** — add concise note under `## Unreleased` → `### Internal`, not under customer-facing sections.
 
 Never put internal mechanics in customer-facing release notes. Run `bun test test/changelog.test.ts --timeout 60000` only when changing `CHANGELOG.md`.
 
