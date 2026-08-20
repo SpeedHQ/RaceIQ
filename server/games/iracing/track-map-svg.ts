@@ -95,6 +95,7 @@ export function alignIRacingAutoSegmentsToTurnLabels(segments: NamedSegment[], p
   return aligned;
 }
 
+
 interface SvgPoint {
   x: number;
   y: number;

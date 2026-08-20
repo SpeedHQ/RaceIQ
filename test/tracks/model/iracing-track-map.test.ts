@@ -184,7 +184,6 @@ describe("iRacing official SVG track maps", () => {
       { text: "2", x: -347.25, z: 956.07 },
     ]);
   });
-
   test("splits one detected corner at official turn labels", () => {
     const points = Array.from({ length: 101 }, (_, index) => ({ x: index, z: 0 }));
     const segments: NamedSegment[] = [

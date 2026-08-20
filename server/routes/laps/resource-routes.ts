@@ -22,6 +22,7 @@ import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { resolveLapGeoreference } from "../../tracks/georeference";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 export function semanticReplayIds(): readonly string[] {
@@ -78,6 +79,17 @@ export const resourceRoutes = new Hono()
     try {
       const lap = await getLapById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
+      if (lap.parseError) {
+        return c.json({
+          lapId: id,
+          requestedSemanticIds: [],
+          sectorTimes: lap.sectorTimes ?? null,
+          sectorStarts: null,
+          insights: [],
+          parseError: lap.parseError,
+          envelopes: [],
+        });
+      }
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const game = getGame(lap.gameId);
@@ -107,6 +119,7 @@ export const resourceRoutes = new Hono()
               georeference: georeference.metadata,
             }
           : {}),
+        parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
@@ -141,6 +154,13 @@ export const resourceRoutes = new Hono()
       if (trace) traces.push(encodeLapTrace(trace));
     }
     return c.json({ traces });
+  })
+  .get("/api/laps/:id/setup", zValidator("param", IdParamSchema), async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    const lap = await getLapById(Number(c.req.valid("param").id));
+    if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
+    return c.json({ setup: gameIdResult.data === "f1-2025" ? resolveLapF1Setup({ carSetup: lap.carSetup, telemetry: lap.telemetry }) : null });
   })
 
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {

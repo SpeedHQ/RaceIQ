@@ -51,7 +51,12 @@ export interface SemanticLapTelemetry {
   insights?: unknown[];
   geographicPositions?: Array<GeographicPosition | null>;
   georeference?: LapGeoreferenceMetadata;
+  parseError?: string | null;
   envelopes: SemanticReplayFrame[];
+}
+
+interface SemanticTelemetryError extends Error {
+  parseError?: string;
 }
 
 /** Canonical semantic replay; unlike useLapTelemetry this never exposes native packets. */
@@ -62,8 +67,14 @@ export function useLapSemanticTelemetry(lapId: number | null) {
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
       const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
-      if (!res.ok) throw new Error(res.statusText);
-      return (await res.json()) as SemanticLapTelemetry;
+      const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
+      if (!res.ok || body?.parseError) {
+        const error = new Error(body?.parseError ?? body?.error ?? res.statusText) as SemanticTelemetryError;
+        error.parseError = body?.parseError;
+        throw error;
+      }
+      if (!body) throw new Error("Unable to replay telemetry");
+      return body;
     },
     enabled: lapId != null && gameId != null,
     gcTime: 0,

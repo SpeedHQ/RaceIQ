@@ -116,6 +116,7 @@ for (const game of SEEDED_GAME_CASES) {
       const persistedWidthResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 60_000 });
       await page.reload({ waitUntil: "domcontentloaded" });
       expect((await persistedWidthResponse).ok(), `${game.name} persisted-width comparison reload`).toBe(true);
+      await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
       await expect(page.getByRole("separator", { name: "Resize track map" })).toHaveAttribute("aria-valuenow", String(widthBefore + 16), { timeout: 60_000 });
 
       const aiToggle = page.getByRole("button", { name: /AI Analysis/ });
@@ -125,6 +126,7 @@ for (const game of SEEDED_GAME_CASES) {
       const persistedAiResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 60_000 });
       await page.reload({ waitUntil: "domcontentloaded" });
       expect((await persistedAiResponse).ok(), `${game.name} persisted-AI comparison reload`).toBe(true);
+      await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
       await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible({ timeout: 60_000 });
 
       expect(browserErrors.errors, `unexpected browser errors before injected Compare failure in ${game.name}`).toEqual([]);

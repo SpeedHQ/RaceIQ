@@ -214,6 +214,7 @@ export const replayRoutes = new Hono()
     pitTracker.reset();
     pitTracker.setTireThresholds(getServerGame(gameId).tireHealthThresholds.yellow);
     for (const packet of packets) {
+      wsManager.stageDevTelemetry(structuredClone(packet));
       normalizeTelemetryPacket(
         packet,
         getServerGame(gameId).coordSystem === "standard-xyz",

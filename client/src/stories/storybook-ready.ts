@@ -1,4 +1,4 @@
-import type { Browser, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 const STORY_ROOT_CHILD = "#storybook-root > *";
 const REQUIRED_THEME_TOKENS = ["--app-bg", "--app-text", "--app-accent", "--font-sans", "--font-mono"];
@@ -15,11 +15,6 @@ const SNAPSHOT_STYLE = `
   }
 `;
 
-interface WarmStorybookOptions {
-  attempts?: number;
-  attemptTimeoutMs?: number;
-}
-
 /**
  * Open one Storybook story and wait for actual story content.
  *
@@ -28,8 +23,17 @@ interface WarmStorybookOptions {
  * chrome or a coincidental component class as story readiness.
  */
 export async function openStory(page: Page, storyUrl: string, timeoutMs = 60_000): Promise<void> {
-  await page.goto(storyUrl, { waitUntil: "commit", timeout: timeoutMs });
-  await page.locator(STORY_ROOT_CHILD).first().waitFor({ state: "visible", timeout: timeoutMs });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(storyUrl, { waitUntil: "commit", timeout: timeoutMs });
+      await page.locator(STORY_ROOT_CHILD).first().waitFor({ state: "visible", timeout: timeoutMs });
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 async function installSnapshotMode(page: Page): Promise<void> {
@@ -47,65 +51,30 @@ async function installSnapshotMode(page: Page): Promise<void> {
     else document.addEventListener("DOMContentLoaded", install, { once: true });
   }, SNAPSHOT_STYLE);
 }
-
-async function visualStateSignature(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const root = document.querySelector("#storybook-root");
-    if (!root) return "missing-root";
-
-    let hash = 2166136261;
-    const add = (value: string | number) => {
-      const text = String(value);
-      for (let index = 0; index < text.length; index++) {
-        hash ^= text.charCodeAt(index);
-        hash = Math.imul(hash, 16777619);
-      }
-    };
-
-    for (const element of [root, ...root.querySelectorAll("*")]) {
-      const rect = element.getBoundingClientRect();
-      const style = getComputedStyle(element);
-      add(element.tagName);
-      add(Math.round(rect.x * 100));
-      add(Math.round(rect.y * 100));
-      add(Math.round(rect.width * 100));
-      add(Math.round(rect.height * 100));
-      add(style.backgroundColor);
-      add(style.color);
-      add(style.fill);
-      add(style.opacity);
-      add(style.stroke);
-      add(style.transform);
-    }
-
-    for (const canvas of root.querySelectorAll("canvas")) {
-      add(canvas.width);
-      add(canvas.height);
-      try {
-        add(canvas.toDataURL("image/png"));
-      } catch {
-        add("unreadable-canvas");
-      }
-    }
-
-    return (hash >>> 0).toString(16);
-  });
-}
-
-async function waitForStableVisualState(page: Page, timeoutMs: number): Promise<void> {
+async function waitForStableCanvases(page: Page, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let previous = "";
   let stableSamples = 0;
 
   while (Date.now() < deadline) {
-    await page.waitForTimeout(100);
-    const current = await visualStateSignature(page);
+    await page.waitForTimeout(50);
+    const current = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("canvas"))
+        .map((canvas) => {
+          try {
+            return `${canvas.width}x${canvas.height}:${canvas.toDataURL("image/png")}`;
+          } catch {
+            return `${canvas.width}x${canvas.height}:unreadable`;
+          }
+        })
+        .join("|"),
+    );
     stableSamples = current === previous ? stableSamples + 1 : 0;
     if (stableSamples >= 2) return;
     previous = current;
   }
 
-  throw new Error(`Storybook visual state did not settle within ${timeoutMs}ms`);
+  throw new Error(`Storybook canvas state did not settle within ${timeoutMs}ms`);
 }
 
 /**
@@ -114,9 +83,7 @@ async function waitForStableVisualState(page: Page, timeoutMs: number): Promise<
  * Snapshot mode is installed before navigation, so CSS transitions and
  * JavaScript reduced-motion branches never begin in a random phase. After
  * fonts and theme variables resolve, a one-pixel viewport pulse forces
- * ResizeObserver-backed charts and fit-to-viewport layouts to redraw. The
- * final stability loop includes DOM geometry, computed paint styles, and 2D
- * canvas pixels.
+ * ResizeObserver-backed charts and fit-to-viewport layouts to redraw.
  */
 export async function openStoryForSnapshot(page: Page, storyUrl: string, timeoutMs = 60_000): Promise<void> {
   await installSnapshotMode(page);
@@ -142,30 +109,5 @@ export async function openStoryForSnapshot(page: Page, storyUrl: string, timeout
   await page.waitForFunction(() => Array.from(document.querySelectorAll("[data-visual-ready]")).every((element) => element.getAttribute("data-visual-ready") === "ready"), undefined, {
     timeout: timeoutMs,
   });
-  await waitForStableVisualState(page, timeoutMs);
-}
-
-/**
- * Pay Storybook's cold preview compilation once before snapshot tests.
- *
- * Storybook 10 can leave its first preview navigation in
- * `sb-preparing-story` after the dev server index becomes available. Reloading
- * the iframe retries story preparation against the now-built preview graph.
- */
-export async function warmStorybook(browser: Browser, storyUrl: string, { attempts = 12, attemptTimeoutMs = 10_000 }: WarmStorybookOptions = {}): Promise<void> {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    const page = await browser.newPage();
-    try {
-      await openStory(page, storyUrl, attemptTimeoutMs);
-      return;
-    } catch (error) {
-      lastError = error;
-    } finally {
-      await page.close().catch(() => undefined);
-    }
-  }
-
-  throw new Error(`Storybook never rendered ${storyUrl} after ${attempts} attempts`, { cause: lastError });
+  await waitForStableCanvases(page, timeoutMs);
 }

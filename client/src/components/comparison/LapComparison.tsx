@@ -371,9 +371,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       ) : lapAId === lapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.telemetryA?.some((sample) => Number.isFinite(semanticNumber(sample, "timing.distance-traveled"))) &&
-        comparison.telemetryB?.some((sample) => Number.isFinite(semanticNumber(sample, "timing.distance-traveled"))) &&
-        comparison.telemetryA.some((sample) => Number.isFinite(semanticNumber(sample, "motion.position-x")) && Number.isFinite(semanticNumber(sample, "motion.position-z"))) &&
-        comparison.telemetryB.some((sample) => Number.isFinite(semanticNumber(sample, "motion.position-x")) && Number.isFinite(semanticNumber(sample, "motion.position-z"))) ? (
+        comparison.telemetryB?.some((sample) => Number.isFinite(semanticNumber(sample, "timing.distance-traveled"))) ? (
         <div
           ref={comparisonLayoutRef}
           className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden"

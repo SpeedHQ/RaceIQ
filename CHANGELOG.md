@@ -115,7 +115,9 @@
 ### Internal
 
 - Generate bundled track registry from deterministic, reviewable JSON sources and reject stale projections in CI
+- Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
+- Consolidate game raw telemetry routes behind one dynamic route and default seeded E2E runs to two workers
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
