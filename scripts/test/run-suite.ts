@@ -43,15 +43,15 @@ try {
   const configPath = resolve(suiteRoot, "bunfig.toml");
   const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
   writeFileSync(configPath, suite === "unit"
-    ? "[test]\nroot = \".\"\ntimeout = 30000\n"
-    : `[test]\nroot = "."\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 2\n`);
+    ? `[test]\nroot = "${suiteRoot}"\ntimeout = 30000\n`
+    : `[test]\nroot = "${suiteRoot}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 2\n`);
   const manifestFiles = files.map((file) => resolve(root, file));
   const args = suite === "unit"
     ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles]
     : ["test", "--config", configPath, "--max-concurrency=2", ...manifestFiles];
   const env = { ...process.env };
   if (suite === "integration" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
-  const proc = Bun.spawn([process.execPath, ...args], { cwd: suiteRoot, env, stdout: "inherit", stderr: "inherit" });
+  const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
   status = await proc.exited;
 } finally {
   rmSync(suiteRoot, { recursive: true, force: true });
