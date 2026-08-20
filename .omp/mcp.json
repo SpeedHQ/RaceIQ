@@ -4,6 +4,15 @@
     "deepwiki": {
       "type": "http",
       "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "graphify": {
+      "type": "stdio",
+      "command": "C:\\Users\\bjwoo\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "args": [
+        "-m",
+        "graphify.serve",
+        "graphify-out/graph.json"
+      ]
     }
   }
 }

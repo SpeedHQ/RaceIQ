@@ -1,0 +1,13 @@
+modelRoles:
+  raceiq_fast: openai-codex/gpt-5.6-luna:medium
+  raceiq_worker: openai-codex/gpt-5.6-terra:high
+  raceiq_deep: openai-codex/gpt-5.6-sol:high
+task:
+  agentModelOverrides:
+    scout: "@raceiq_fast"
+    librarian: "@raceiq_fast"
+    sonic: "@raceiq_fast"
+    task: "@raceiq_worker"
+    designer: "@raceiq_worker"
+    reviewer: "@raceiq_deep"
+    security-reviewer: "@raceiq_deep"
