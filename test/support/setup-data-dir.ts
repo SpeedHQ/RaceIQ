@@ -35,7 +35,15 @@ if (resolve(process.env.DATA_DIR) === resolve(USER_DATA_DIR)) {
 
 mkdirSync(process.env.DATA_DIR, { recursive: true });
 for (const suffix of ["", "-wal", "-shm"]) {
-  rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), { force: true });
+  try {
+    rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), {
+      force: true,
+      maxRetries: 20,
+      retryDelay: 100,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
+  }
 }
 
 /**
