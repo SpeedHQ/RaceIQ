@@ -113,12 +113,46 @@ export function createImageryTileManager({ base, gameId, getViewportRect, onTile
   let inFlight = 0;
   let cacheLimit = IMAGERY_TILE_CACHE_FLOOR;
   const cache = new Map<string, LoadedImageryTile>();
+  const staged = new Map<string, LoadedImageryTile>();
+  const failed = new Map<string, RequestedImageryTile>();
   const queued = new Set<string>();
   const queue: RequestedImageryTile[] = [];
   let wanted = new Map<string, RequestedImageryTile>();
 
+  const satisfies = (tile: Pick<LoadedImageryTile, "decodeWidth" | "decodeHeight"> | undefined, desired: RequestedImageryTile) =>
+    !!tile && tile.decodeWidth >= desired.decodeWidth && tile.decodeHeight >= desired.decodeHeight;
+
   const publish = () => {
     if (!closed) onTilesChanged([...cache.values()]);
+  };
+
+  const commitReadyTiles = () => {
+    if (closed || wanted.size === 0) return;
+    const ready = [...wanted].every(([tileKey, desired]) => satisfies(cache.get(tileKey), desired) || satisfies(staged.get(tileKey), desired) || satisfies(failed.get(tileKey), desired));
+    if (!ready) return;
+
+    let changed = false;
+    for (const tileKey of wanted.keys()) {
+      const replacement = staged.get(tileKey);
+      if (!replacement) continue;
+      staged.delete(tileKey);
+      const previous = cache.get(tileKey);
+      cache.delete(tileKey);
+      cache.set(tileKey, replacement);
+      if (previous) releaseImageryTile(previous);
+      changed = true;
+    }
+
+    let evicted = false;
+    while (cache.size > cacheLimit) {
+      const oldestKey = cache.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      const oldest = cache.get(oldestKey);
+      cache.delete(oldestKey);
+      if (oldest) releaseImageryTile(oldest);
+      evicted = true;
+    }
+    if (changed || evicted) publish();
   };
 
   const close = () => {
@@ -128,7 +162,10 @@ export function createImageryTileManager({ base, gameId, getViewportRect, onTile
     queue.length = 0;
     queued.clear();
     for (const tile of cache.values()) releaseImageryTile(tile);
+    for (const tile of staged.values()) releaseImageryTile(tile);
     cache.clear();
+    staged.clear();
+    failed.clear();
   };
 
   const load = async (x: number, y: number, decodeWidth: number, decodeHeight: number) => {
@@ -149,40 +186,45 @@ export function createImageryTileManager({ base, gameId, getViewportRect, onTile
         releaseImagerySource(image);
         return;
       }
-      const previous = cache.get(tileKey);
+      const previousStaged = staged.get(tileKey);
+      const previousCached = cache.get(tileKey);
       const tile: LoadedImageryTile = { x, y, width: tileWidth, height: tileHeight, decodeWidth, decodeHeight, image, released: false };
-      if (previous && previous.decodeWidth >= tile.decodeWidth && previous.decodeHeight >= tile.decodeHeight) {
+      if (satisfies(previousStaged, tile) || satisfies(previousCached, tile)) {
         releaseImageryTile(tile);
-        cache.delete(tileKey);
-        cache.set(tileKey, previous);
+        if (previousCached && !previousStaged) {
+          cache.delete(tileKey);
+          cache.set(tileKey, previousCached);
+        }
         return;
       }
-      cache.delete(tileKey);
-      cache.set(tileKey, tile);
-      if (previous) releaseImageryTile(previous);
-      while (cache.size > cacheLimit) {
-        const oldestKey = cache.keys().next().value as string | undefined;
-        if (!oldestKey) break;
-        const oldest = cache.get(oldestKey);
-        cache.delete(oldestKey);
-        if (oldest) releaseImageryTile(oldest);
-      }
-      publish();
+      staged.set(tileKey, tile);
+      if (previousStaged) releaseImageryTile(previousStaged);
+      const previousFailure = failed.get(tileKey);
+      if (previousFailure && decodeWidth >= previousFailure.decodeWidth && decodeHeight >= previousFailure.decodeHeight) failed.delete(tileKey);
     } catch {
-      // Abort and unavailable tiles leave neighboring tiles visible.
+      const desired = wanted.get(tileKey);
+      if (!closed && desired) {
+        const previousFailure = failed.get(tileKey);
+        if (!previousFailure || decodeWidth > previousFailure.decodeWidth || decodeHeight > previousFailure.decodeHeight) {
+          failed.set(tileKey, { x, y, decodeWidth, decodeHeight });
+        }
+      }
     } finally {
       inFlight--;
       queued.delete(tileKey);
       const desired = wanted.get(tileKey);
-      const cached = cache.get(tileKey);
       if (
+        !closed &&
         desired &&
         (desired.decodeWidth > decodeWidth || desired.decodeHeight > decodeHeight) &&
-        (!cached || cached.decodeWidth < desired.decodeWidth || cached.decodeHeight < desired.decodeHeight)
+        !satisfies(cache.get(tileKey), desired) &&
+        !satisfies(staged.get(tileKey), desired) &&
+        !satisfies(failed.get(tileKey), desired)
       ) {
         queued.add(tileKey);
         queue.unshift(desired);
       }
+      commitReadyTiles();
       pump();
     }
   };
@@ -191,8 +233,7 @@ export function createImageryTileManager({ base, gameId, getViewportRect, onTile
     while (!closed && inFlight < IMAGERY_TILE_CONCURRENCY && queue.length > 0) {
       const tile = queue.shift()!;
       const tileKey = `${tile.x}:${tile.y}`;
-      const cached = cache.get(tileKey);
-      if (cached && cached.decodeWidth >= tile.decodeWidth && cached.decodeHeight >= tile.decodeHeight) {
+      if (satisfies(cache.get(tileKey), tile) || satisfies(staged.get(tileKey), tile) || satisfies(failed.get(tileKey), tile)) {
         queued.delete(tileKey);
         continue;
       }
@@ -260,8 +301,20 @@ export function createImageryTileManager({ base, gameId, getViewportRect, onTile
         });
       }
     }
+    const requestChanged =
+      wanted.size !== nextWanted.size ||
+      [...nextWanted].some(([tileKey, desired]) => {
+        const previous = wanted.get(tileKey);
+        return !previous || previous.decodeWidth !== desired.decodeWidth || previous.decodeHeight !== desired.decodeHeight;
+      });
+    if (requestChanged) failed.clear();
     wanted = nextWanted;
     cacheLimit = Math.max(IMAGERY_TILE_CACHE_FLOOR, wanted.size);
+    for (const [tileKey, tile] of staged) {
+      if (wanted.has(tileKey)) continue;
+      staged.delete(tileKey);
+      releaseImageryTile(tile);
+    }
     for (let index = queue.length - 1; index >= 0; index--) {
       const queuedTile = queue[index];
       const queuedKey = `${queuedTile.x}:${queuedTile.y}`;
@@ -275,8 +328,8 @@ export function createImageryTileManager({ base, gameId, getViewportRect, onTile
       if (cached) {
         cache.delete(tileKey);
         cache.set(tileKey, cached);
-        if (cached.decodeWidth >= desired.decodeWidth && cached.decodeHeight >= desired.decodeHeight) continue;
       }
+      if (satisfies(cached, desired) || satisfies(staged.get(tileKey), desired) || satisfies(failed.get(tileKey), desired)) continue;
       const pending = queue.find((tile) => tile.x === desired.x && tile.y === desired.y);
       if (pending) {
         pending.decodeWidth = Math.max(pending.decodeWidth, desired.decodeWidth);
@@ -289,17 +342,7 @@ export function createImageryTileManager({ base, gameId, getViewportRect, onTile
     const centerTileX = (((Math.max(0, uMin) + Math.min(1, uMax)) / 2) * width) / tileSize;
     const centerTileY = (((Math.max(0, vMin) + Math.min(1, vMax)) / 2) * height) / tileSize;
     queue.sort((left, right) => (left.x - centerTileX) ** 2 + (left.y - centerTileY) ** 2 - ((right.x - centerTileX) ** 2 + (right.y - centerTileY) ** 2));
-    const hasAllWanted = [...wanted.keys()].every((tileKey) => cache.has(tileKey));
-    let evicted = false;
-    while (hasAllWanted && cache.size > cacheLimit) {
-      const oldestKey = cache.keys().next().value as string | undefined;
-      if (!oldestKey) break;
-      const oldest = cache.get(oldestKey);
-      cache.delete(oldestKey);
-      if (oldest) releaseImageryTile(oldest);
-      evicted = true;
-    }
-    if (evicted) publish();
+    commitReadyTiles();
     pump();
   };
 

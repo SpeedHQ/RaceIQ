@@ -32,6 +32,8 @@
 - Restore satellite imagery on Compare maps when laps lack usable world-position telemetry
 - Use local iRacing positions for Compare imagery instead of raw GPS latitude and longitude values
 - Keep Compare overview outlines, racing lines, segment markers, and aerial imagery aligned while moving or zooming either map
+- Resize Compare track maps with visible drag handles in both side-by-side and stacked layouts
+- Separate Compare overview and zoomed maps with a visible horizontal divider
 
 - Estimate complete aerial-imagery output, work, disk, duration, and concurrency before import, then reject unsafe jobs before downloading source pixels
 - Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list
@@ -43,7 +45,7 @@
 - Load saved track segments from generated SQLite immediately, label missing geometry without background detection, and generate editable previews only when requested
 - Complete large venue imagery imports reliably by batching source downloads and retrying transient provider failures
 - Complete large manually uploaded venue imagery imports without stalling the development server under multi-tile workloads
-- Keep viewport-loaded aerial imagery seamless and stable while progressively sharpening it during Analyse map zoom
+- Keep viewport-loaded aerial imagery seamless and replace visible tile sets as complete frames during initial load and zoom in Analyse and Compare
 - Show connected iRacing pit roads and exits as separate smooth red and blue lines matching track-map weight, keep source SVGs hidden while generated thumbnails load, and exclude pit artwork from lap-distance calculations
 - Draw imported iRacing IBT driving paths on Analyse maps from recorded GPS coordinates
 - Orient imported iRacing cars from recorded north-referenced heading, pitch, and roll on Analyse views

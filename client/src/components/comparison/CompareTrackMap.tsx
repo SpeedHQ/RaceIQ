@@ -352,7 +352,7 @@ export function CompareTrackMap({
 
   return (
     <div className="flex h-full flex-col overflow-y-auto border border-app-border text-app-body text-app-text">
-      <div className="relative min-h-32 basis-56 shrink border-b border-app-border">
+      <div className="relative min-h-32 basis-56 shrink">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
         <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
           <TrackMapLayerMenu layers={overviewLayers} items={layerItems} onLayerChange={updateOverviewLayer} align="right" ariaLabel="Overview map layers" />
@@ -380,6 +380,9 @@ export function CompareTrackMap({
             coordinatesPrepared
           />
         )}
+      </div>
+      <div data-testid="compare-map-divider" aria-hidden="true" className="flex h-2 w-full shrink-0 items-center justify-center border-y border-app-border bg-app-border-input/70">
+        <span className="h-1 w-12 rounded-full bg-app-border-hover" />
       </div>
       <div className="relative min-h-40 basis-80 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>

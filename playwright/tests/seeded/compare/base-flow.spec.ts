@@ -45,6 +45,10 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   expect(await workspace.locator("canvas").count(), "trace and delta canvases").toBeGreaterThanOrEqual(4);
   await expect(workspace.getByTestId("compare-overview-track-map")).toBeVisible();
   await expect(workspace.getByTestId("compare-zoom-track-map")).toBeVisible();
+  const mapDivider = workspace.getByTestId("compare-map-divider");
+  await expect(mapDivider).toBeVisible();
+  expect(await mapDivider.evaluate((element) => element.getBoundingClientRect().height), "map divider height").toBeGreaterThanOrEqual(8);
+  expect(await mapDivider.evaluate((element) => getComputedStyle(element).backgroundColor), "map divider has visible fill").not.toBe("rgba(0, 0, 0, 0)");
 
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);
@@ -79,6 +83,9 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
 
   const resizeHandle = page.getByRole("separator", { name: "Resize track map" });
   await expect(resizeHandle).toBeVisible();
+  const resizeGrip = resizeHandle.locator("[aria-hidden='true']");
+  await expect(resizeGrip).toBeVisible();
+  expect(await resizeGrip.evaluate((element) => getComputedStyle(element).backgroundColor), "resize grip has visible fill").not.toBe("rgba(0, 0, 0, 0)");
   const savedWidth = Number(await resizeHandle.getAttribute("aria-valuenow"));
   await resizeHandle.press("ArrowRight");
   const adjustedWidth = Number(await resizeHandle.getAttribute("aria-valuenow"));

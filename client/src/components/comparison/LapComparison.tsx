@@ -10,7 +10,15 @@ import { useLaps } from "@/hooks/laps";
 import { useTrackImagery, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
-import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "@/lib/comparison-layout";
+import {
+  COMPARE_MAP_DEFAULT_HEIGHT,
+  COMPARE_MAP_DEFAULT_WIDTH,
+  COMPARE_MAP_MAX_HEIGHT,
+  COMPARE_MAP_MIN_HEIGHT,
+  COMPARE_MAP_MIN_WIDTH,
+  clampCompareMapHeight,
+  clampCompareMapWidth,
+} from "@/lib/comparison-layout";
 import type { Point } from "@/lib/comparison-utils";
 import { formatLapTime } from "@/lib/format";
 import type { CompareSearch } from "@/lib/game-routes";
@@ -84,6 +92,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const mapResizeCleanupRef = useRef<(() => void) | null>(null);
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
+  const [savedMapHeight, setSavedMapHeight] = useLocalStorage("compare-stacked-map-height", COMPARE_MAP_DEFAULT_HEIGHT);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
     if (search.ai === 1) return true;
     try {
@@ -120,6 +129,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     [],
   );
   const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
+  const mapHeight = clampCompareMapHeight(savedMapHeight);
   const handleCursorMove = useCallback((d: number | null) => {
     hoveredDistanceRef.current = d;
     // Directly redraw the map canvas without React re-render
@@ -380,8 +390,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         >
           {/* Left: track map */}
           <div
-            className="h-[42rem] w-full shrink-0 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:w-(--compare-map-width)"
-            style={{ "--compare-map-width": `${mapWidth}px` } as CSSProperties}
+            className="h-(--compare-map-height) w-full shrink-0 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:w-(--compare-map-width)"
+            style={{ "--compare-map-height": `${mapHeight}px`, "--compare-map-width": `${mapWidth}px` } as CSSProperties}
           >
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
@@ -404,14 +414,55 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             />
           </div>
 
-          <hr
+          <div
+            role="separator"
+            aria-label="Resize track map"
+            aria-orientation="horizontal"
+            aria-valuemin={COMPARE_MAP_MIN_HEIGHT}
+            aria-valuemax={COMPARE_MAP_MAX_HEIGHT}
+            aria-valuenow={Math.round(mapHeight)}
+            tabIndex={0}
+            className="group -my-2 flex h-2 w-full shrink-0 cursor-row-resize items-center justify-center border-y border-app-border bg-app-border-input/70 transition-colors hover:border-app-accent/60 focus-visible:border-app-accent focus-visible:outline-none @5xl/workspace:hidden"
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+              event.preventDefault();
+              const delta = event.key === "ArrowUp" ? -16 : 16;
+              setSavedMapHeight(clampCompareMapHeight(mapHeight + delta));
+            }}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              mapResizeCleanupRef.current?.();
+              const startY = event.clientY;
+              const startHeight = mapHeight;
+              const onMove = (moveEvent: MouseEvent) => {
+                setSavedMapHeight(clampCompareMapHeight(startHeight + moveEvent.clientY - startY));
+              };
+              const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+                mapResizeCleanupRef.current = null;
+              };
+              const cleanup = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+              mapResizeCleanupRef.current = cleanup;
+              window.addEventListener("mousemove", onMove);
+              window.addEventListener("mouseup", onUp);
+            }}
+          >
+            <span aria-hidden="true" className="h-1 w-12 rounded-full bg-app-border-hover transition-colors group-hover:bg-app-accent group-focus-visible:bg-app-accent" />
+          </div>
+
+          <div
+            role="separator"
             aria-label="Resize track map"
             aria-orientation="vertical"
             aria-valuemin={COMPARE_MAP_MIN_WIDTH}
             aria-valuemax={comparisonLayoutWidth > 0 ? clampCompareMapWidth(Number.MAX_SAFE_INTEGER, comparisonLayoutWidth, aiPanelOpen) : COMPARE_MAP_DEFAULT_WIDTH}
             aria-valuenow={Math.round(mapWidth)}
             tabIndex={0}
-            className="-mx-2 hidden h-full w-2 shrink-0 cursor-col-resize border-x border-app-border bg-app-surface-alt/80 transition-colors hover:bg-app-accent/30 focus-visible:bg-app-accent/30 @5xl/workspace:block"
+            className="group -mx-2 hidden h-full w-2 shrink-0 cursor-col-resize items-center justify-center border-x border-app-border bg-app-border-input/70 transition-colors hover:border-app-accent/60 focus-visible:border-app-accent focus-visible:outline-none @5xl/workspace:flex"
             onKeyDown={(event) => {
               if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
               event.preventDefault();
@@ -439,7 +490,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               window.addEventListener("mousemove", onMove);
               window.addEventListener("mouseup", onUp);
             }}
-          />
+          >
+            <span aria-hidden="true" className="h-12 w-1 rounded-full bg-app-border-hover transition-colors group-hover:bg-app-accent group-focus-visible:bg-app-accent" />
+          </div>
 
           <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} />
 
