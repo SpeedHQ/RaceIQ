@@ -49,10 +49,11 @@ const args = suite === "unit"
   : ["test", "--config", configPath, "--max-concurrency=2", ...manifestFiles];
 const env = { ...process.env };
 if (suite === "integration" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
+let status = 1;
 try {
   const proc = Bun.spawn([process.execPath, ...args], { cwd: suiteRoot, env, stdout: "inherit", stderr: "inherit" });
-  const status = await proc.exited;
-  process.exit(status);
+  status = await proc.exited;
 } finally {
   rmSync(suiteRoot, { recursive: true, force: true });
 }
+process.exit(status);
