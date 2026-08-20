@@ -45,11 +45,11 @@ try {
   const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
   writeFileSync(configPath, suite === "unit"
     ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 30000\n`
-    : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 2\n`);
+    : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 1\n`);
   const manifestFiles = files.map((file) => resolve(root, file));
   const args = suite === "unit"
     ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles]
-    : ["test", "--config", configPath, "--max-concurrency=2", ...manifestFiles];
+    : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
   const env = { ...process.env };
   if (suite === "integration" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
   const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
