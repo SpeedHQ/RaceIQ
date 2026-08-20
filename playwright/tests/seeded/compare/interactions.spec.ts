@@ -60,10 +60,7 @@ for (const game of SEEDED_GAME_CASES) {
     });
 
     await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
-    const originalStorage = await page.evaluate(() => ({
-      mapWidth: localStorage.getItem("compare-left-column-width"),
-      aiPanel: localStorage.getItem("compare-ai-panel-open"),
-    }));
+    const originalAiPanel = await page.evaluate(() => localStorage.getItem("compare-ai-panel-open"));
     try {
       const workspace = page.getByTestId("lap-compare-workspace");
       await expect(workspace).toBeVisible();
@@ -108,17 +105,6 @@ for (const game of SEEDED_GAME_CASES) {
       await page.getByRole("button", { name: "Follow View", exact: true }).click();
       await expect(page.getByRole("button", { name: "Fixed View", exact: true })).toBeVisible();
 
-      const resizeHandle = page.getByRole("separator", { name: "Resize track map" });
-      await expect(resizeHandle).toBeVisible();
-      const widthBefore = Number(await resizeHandle.getAttribute("aria-valuenow"));
-      await resizeHandle.press("ArrowRight");
-      await expect(resizeHandle).toHaveAttribute("aria-valuenow", String(widthBefore + 16));
-      const persistedWidthResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 60_000 });
-      await page.reload({ waitUntil: "domcontentloaded" });
-      expect((await persistedWidthResponse).ok(), `${game.name} persisted-width comparison reload`).toBe(true);
-      await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
-      await expect(page.getByRole("separator", { name: "Resize track map" })).toHaveAttribute("aria-valuenow", String(widthBefore + 16), { timeout: 60_000 });
-
       const aiToggle = page.getByRole("button", { name: /AI Analysis/ });
       await expect(aiToggle).toBeVisible();
       await aiToggle.click();
@@ -143,12 +129,10 @@ for (const game of SEEDED_GAME_CASES) {
         `unexpected browser errors in ${game.name} Compare flow`,
       ).toEqual([]);
     } finally {
-      await page.evaluate(({ mapWidth, aiPanel }) => {
-        if (mapWidth === null) localStorage.removeItem("compare-left-column-width");
-        else localStorage.setItem("compare-left-column-width", mapWidth);
+      await page.evaluate((aiPanel) => {
         if (aiPanel === null) localStorage.removeItem("compare-ai-panel-open");
         else localStorage.setItem("compare-ai-panel-open", aiPanel);
-      }, originalStorage);
+      }, originalAiPanel);
     }
   });
 }

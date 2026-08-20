@@ -381,7 +381,7 @@ export function CompareTrackMap({
           />
         )}
       </div>
-      <div data-testid="compare-map-divider" aria-hidden="true" className="flex h-2 w-full shrink-0 items-center justify-center border-y border-app-border bg-app-border-input/70">
+      <div data-testid="compare-map-divider" aria-hidden="true" className="flex h-1.5 w-full shrink-0 items-center justify-center border-y border-app-border bg-app-border-input/70 @3xl/workspace:h-2">
         <span className="h-1 w-12 rounded-full bg-app-border-hover" />
       </div>
       <div className="relative min-h-40 basis-80 shrink border-b border-app-border">

@@ -10,15 +10,6 @@ import { useLaps } from "@/hooks/laps";
 import { useTrackImagery, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
-import {
-  COMPARE_MAP_DEFAULT_HEIGHT,
-  COMPARE_MAP_DEFAULT_WIDTH,
-  COMPARE_MAP_MAX_HEIGHT,
-  COMPARE_MAP_MIN_HEIGHT,
-  COMPARE_MAP_MIN_WIDTH,
-  clampCompareMapHeight,
-  clampCompareMapWidth,
-} from "@/lib/comparison-layout";
 import type { Point } from "@/lib/comparison-utils";
 import { formatLapTime } from "@/lib/format";
 import type { CompareSearch } from "@/lib/game-routes";
@@ -35,6 +26,18 @@ interface TrackGroup {
   trackOrdinal: number;
   trackName: string;
   laps: LapMeta[];
+}
+const DEFAULT_MAP_WIDTH_SHARE = 0.36;
+const MIN_MAP_WIDTH_SHARE = 0.25;
+const MAX_MAP_WIDTH_SHARE = 0.5;
+const DEFAULT_STACKED_MAP_HEIGHT_SHARE = 0.7;
+const MIN_STACKED_MAP_HEIGHT_SHARE = 0.5;
+const MAX_STACKED_MAP_HEIGHT_SHARE = 0.9;
+const MAP_RESIZE_KEYBOARD_STEP = 0.02;
+
+function clampShare(value: number, minimum: number, maximum: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(minimum, Math.min(maximum, value));
 }
 
 export function ComparisonLoadStatus({ loading, error, hasComparison }: { loading: boolean; error: string | null; hasComparison: boolean }) {
@@ -89,10 +92,20 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
-  const mapResizeCleanupRef = useRef<(() => void) | null>(null);
-  const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
-  const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
-  const [savedMapHeight, setSavedMapHeight] = useLocalStorage("compare-stacked-map-height", COMPARE_MAP_DEFAULT_HEIGHT);
+  const stackedResizeDragRef = useRef<{ pointerStart: number; shareStart: number; extent: number } | null>(null);
+  const sideResizeDragRef = useRef<{ pointerStart: number; shareStart: number; extent: number } | null>(null);
+  const [savedMapWidthShare, setSavedMapWidthShare] = useLocalStorage("compare-map-width-share", DEFAULT_MAP_WIDTH_SHARE);
+  const [savedStackedMapHeightShare, setSavedStackedMapHeightShare] = useLocalStorage("compare-stacked-map-height-share", DEFAULT_STACKED_MAP_HEIGHT_SHARE);
+  const mapWidthShare = clampShare(savedMapWidthShare, MIN_MAP_WIDTH_SHARE, MAX_MAP_WIDTH_SHARE, DEFAULT_MAP_WIDTH_SHARE);
+  const stackedMapHeightShare = clampShare(savedStackedMapHeightShare, MIN_STACKED_MAP_HEIGHT_SHARE, MAX_STACKED_MAP_HEIGHT_SHARE, DEFAULT_STACKED_MAP_HEIGHT_SHARE);
+  const mapSizeStyle = useMemo(
+    () =>
+      ({
+        "--compare-map-height": `${stackedMapHeightShare * 100}svh`,
+        "--compare-map-width": `${mapWidthShare * 100}%`,
+      }) as CSSProperties,
+    [mapWidthShare, stackedMapHeightShare],
+  );
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
     if (search.ai === 1) return true;
     try {
@@ -112,24 +125,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       return next;
     });
   }, []);
-  useEffect(() => {
-    const layout = comparisonLayoutRef.current;
-    if (!layout) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setComparisonLayoutWidth(entry.contentRect.width);
-    });
-    observer.observe(layout);
-    return () => observer.disconnect();
-  }, [comparison]);
-  useEffect(
-    () => () => {
-      mapResizeCleanupRef.current?.();
-      mapResizeCleanupRef.current = null;
-    },
-    [],
-  );
-  const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
-  const mapHeight = clampCompareMapHeight(savedMapHeight);
   const handleCursorMove = useCallback((d: number | null) => {
     hoveredDistanceRef.current = d;
     // Directly redraw the map canvas without React re-render
@@ -390,8 +385,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         >
           {/* Left: track map */}
           <div
-            className="h-(--compare-map-height) w-full shrink-0 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:w-(--compare-map-width)"
-            style={{ "--compare-map-height": `${mapHeight}px`, "--compare-map-width": `${mapWidth}px` } as CSSProperties}
+            className="h-(--compare-map-height) min-h-[50svh] max-h-[90svh] w-full shrink-0 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:max-h-none @5xl/workspace:w-(--compare-map-width)"
+            style={mapSizeStyle}
           >
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
@@ -413,42 +408,43 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               geographicPositions={comparison.geographicPositions}
             />
           </div>
-
           <div
             role="separator"
             aria-label="Resize track map"
             aria-orientation="horizontal"
-            aria-valuemin={COMPARE_MAP_MIN_HEIGHT}
-            aria-valuemax={COMPARE_MAP_MAX_HEIGHT}
-            aria-valuenow={Math.round(mapHeight)}
+            aria-valuemin={MIN_STACKED_MAP_HEIGHT_SHARE * 100}
+            aria-valuemax={MAX_STACKED_MAP_HEIGHT_SHARE * 100}
+            aria-valuenow={Math.round(stackedMapHeightShare * 100)}
+            aria-valuetext={`${Math.round(stackedMapHeightShare * 100)}% of viewport height`}
             tabIndex={0}
-            className="group -my-2 flex h-2 w-full shrink-0 cursor-row-resize items-center justify-center border-y border-app-border bg-app-border-input/70 transition-colors hover:border-app-accent/60 focus-visible:border-app-accent focus-visible:outline-none @5xl/workspace:hidden"
+            className="group -my-2 flex h-2 w-full shrink-0 touch-none cursor-row-resize items-center justify-center border-y border-app-border bg-app-border-input/70 transition-colors hover:border-app-accent/60 focus-visible:border-app-accent focus-visible:outline-none @5xl/workspace:hidden"
             onKeyDown={(event) => {
               if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
               event.preventDefault();
-              const delta = event.key === "ArrowUp" ? -16 : 16;
-              setSavedMapHeight(clampCompareMapHeight(mapHeight + delta));
+              const delta = event.key === "ArrowUp" ? -MAP_RESIZE_KEYBOARD_STEP : MAP_RESIZE_KEYBOARD_STEP;
+              setSavedStackedMapHeightShare(clampShare(stackedMapHeightShare + delta, MIN_STACKED_MAP_HEIGHT_SHARE, MAX_STACKED_MAP_HEIGHT_SHARE, DEFAULT_STACKED_MAP_HEIGHT_SHARE));
             }}
-            onMouseDown={(event) => {
+            onPointerDown={(event) => {
+              const workspace = comparisonLayoutRef.current?.closest<HTMLElement>("[data-responsive-workspace]");
+              const extent = workspace?.getBoundingClientRect().height ?? 0;
+              if (extent <= 0) return;
               event.preventDefault();
-              mapResizeCleanupRef.current?.();
-              const startY = event.clientY;
-              const startHeight = mapHeight;
-              const onMove = (moveEvent: MouseEvent) => {
-                setSavedMapHeight(clampCompareMapHeight(startHeight + moveEvent.clientY - startY));
-              };
-              const onUp = () => {
-                window.removeEventListener("mousemove", onMove);
-                window.removeEventListener("mouseup", onUp);
-                mapResizeCleanupRef.current = null;
-              };
-              const cleanup = () => {
-                window.removeEventListener("mousemove", onMove);
-                window.removeEventListener("mouseup", onUp);
-              };
-              mapResizeCleanupRef.current = cleanup;
-              window.addEventListener("mousemove", onMove);
-              window.addEventListener("mouseup", onUp);
+              event.currentTarget.setPointerCapture(event.pointerId);
+              stackedResizeDragRef.current = { pointerStart: event.clientY, shareStart: stackedMapHeightShare, extent };
+            }}
+            onPointerMove={(event) => {
+              const drag = stackedResizeDragRef.current;
+              if (!drag || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+              setSavedStackedMapHeightShare(
+                clampShare(drag.shareStart + (event.clientY - drag.pointerStart) / drag.extent, MIN_STACKED_MAP_HEIGHT_SHARE, MAX_STACKED_MAP_HEIGHT_SHARE, DEFAULT_STACKED_MAP_HEIGHT_SHARE),
+              );
+            }}
+            onPointerUp={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+              stackedResizeDragRef.current = null;
+            }}
+            onPointerCancel={() => {
+              stackedResizeDragRef.current = null;
             }}
           >
             <span aria-hidden="true" className="h-1 w-12 rounded-full bg-app-border-hover transition-colors group-hover:bg-app-accent group-focus-visible:bg-app-accent" />
@@ -458,37 +454,36 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             role="separator"
             aria-label="Resize track map"
             aria-orientation="vertical"
-            aria-valuemin={COMPARE_MAP_MIN_WIDTH}
-            aria-valuemax={comparisonLayoutWidth > 0 ? clampCompareMapWidth(Number.MAX_SAFE_INTEGER, comparisonLayoutWidth, aiPanelOpen) : COMPARE_MAP_DEFAULT_WIDTH}
-            aria-valuenow={Math.round(mapWidth)}
+            aria-valuemin={MIN_MAP_WIDTH_SHARE * 100}
+            aria-valuemax={MAX_MAP_WIDTH_SHARE * 100}
+            aria-valuenow={Math.round(mapWidthShare * 100)}
+            aria-valuetext={`${Math.round(mapWidthShare * 100)}% of comparison width`}
             tabIndex={0}
-            className="group -mx-2 hidden h-full w-2 shrink-0 cursor-col-resize items-center justify-center border-x border-app-border bg-app-border-input/70 transition-colors hover:border-app-accent/60 focus-visible:border-app-accent focus-visible:outline-none @5xl/workspace:flex"
+            className="group -mx-2 hidden h-full w-2 shrink-0 touch-none cursor-col-resize items-center justify-center border-x border-app-border bg-app-border-input/70 transition-colors hover:border-app-accent/60 focus-visible:border-app-accent focus-visible:outline-none @5xl/workspace:flex"
             onKeyDown={(event) => {
               if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
               event.preventDefault();
-              const delta = event.key === "ArrowLeft" ? -16 : 16;
-              setSavedMapWidth(clampCompareMapWidth(mapWidth + delta, comparisonLayoutWidth, aiPanelOpen));
+              const delta = event.key === "ArrowLeft" ? -MAP_RESIZE_KEYBOARD_STEP : MAP_RESIZE_KEYBOARD_STEP;
+              setSavedMapWidthShare(clampShare(mapWidthShare + delta, MIN_MAP_WIDTH_SHARE, MAX_MAP_WIDTH_SHARE, DEFAULT_MAP_WIDTH_SHARE));
             }}
-            onMouseDown={(event) => {
+            onPointerDown={(event) => {
+              const extent = comparisonLayoutRef.current?.getBoundingClientRect().width ?? 0;
+              if (extent <= 0) return;
               event.preventDefault();
-              mapResizeCleanupRef.current?.();
-              const startX = event.clientX;
-              const startWidth = mapWidth;
-              const onMove = (moveEvent: MouseEvent) => {
-                setSavedMapWidth(clampCompareMapWidth(startWidth + moveEvent.clientX - startX, comparisonLayoutWidth, aiPanelOpen));
-              };
-              const onUp = () => {
-                window.removeEventListener("mousemove", onMove);
-                window.removeEventListener("mouseup", onUp);
-                mapResizeCleanupRef.current = null;
-              };
-              const cleanup = () => {
-                window.removeEventListener("mousemove", onMove);
-                window.removeEventListener("mouseup", onUp);
-              };
-              mapResizeCleanupRef.current = cleanup;
-              window.addEventListener("mousemove", onMove);
-              window.addEventListener("mouseup", onUp);
+              event.currentTarget.setPointerCapture(event.pointerId);
+              sideResizeDragRef.current = { pointerStart: event.clientX, shareStart: mapWidthShare, extent };
+            }}
+            onPointerMove={(event) => {
+              const drag = sideResizeDragRef.current;
+              if (!drag || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+              setSavedMapWidthShare(clampShare(drag.shareStart + (event.clientX - drag.pointerStart) / drag.extent, MIN_MAP_WIDTH_SHARE, MAX_MAP_WIDTH_SHARE, DEFAULT_MAP_WIDTH_SHARE));
+            }}
+            onPointerUp={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+              sideResizeDragRef.current = null;
+            }}
+            onPointerCancel={() => {
+              sideResizeDragRef.current = null;
             }}
           >
             <span aria-hidden="true" className="h-12 w-1 rounded-full bg-app-border-hover transition-colors group-hover:bg-app-accent group-focus-visible:bg-app-accent" />

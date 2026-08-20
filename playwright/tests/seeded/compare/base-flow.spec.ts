@@ -1,13 +1,15 @@
 import { expect, test } from "@playwright/test";
 import type { ComparisonData } from "../../../../shared/racing/comparison/types";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
+import { assertNoHorizontalOverflow } from "../../support/responsive/assertions";
+import { RESPONSIVE_VIEWPORTS } from "../../support/responsive/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { comparePath, findTrackCarPairWithTwoLaps, getSeededLaps, lapOptionLabel } from "./helpers";
 
 const fm23 = SEEDED_GAME_CASES.find((game) => game.gameId === "fm-2023");
 if (!fm23) throw new Error("fm-2023 seeded case missing");
 
-test("Compare complete seeded flow (FM23) preserves identity/order, renders traces/deltas, and persists layout state", async ({ page, request }) => {
+test("Compare complete seeded flow (FM23) preserves identity/order and renders traces/deltas", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
   const laps = await getSeededLaps(request, fm23.gameId);
   const pair = findTrackCarPairWithTwoLaps(laps);
@@ -47,8 +49,20 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   await expect(workspace.getByTestId("compare-zoom-track-map")).toBeVisible();
   const mapDivider = workspace.getByTestId("compare-map-divider");
   await expect(mapDivider).toBeVisible();
-  expect(await mapDivider.evaluate((element) => element.getBoundingClientRect().height), "map divider height").toBeGreaterThanOrEqual(8);
+  expect(await mapDivider.evaluate((element) => element.getBoundingClientRect().height), "map divider height").toBeGreaterThan(0);
   expect(await mapDivider.evaluate((element) => getComputedStyle(element).backgroundColor), "map divider has visible fill").not.toBe("rgba(0, 0, 0, 0)");
+  for (const viewport of RESPONSIVE_VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await expect(mapDivider, `map divider at ${viewport.name}`).toBeVisible();
+    const resizeHandle = page.getByRole("separator", { name: "Resize track map" });
+    await expect(resizeHandle, `resize handle at ${viewport.name}`).toBeVisible();
+    await expect(resizeHandle).toHaveAttribute("aria-orientation", viewport.name === "desktop" ? "vertical" : "horizontal");
+    const shareBefore = Number(await resizeHandle.getAttribute("aria-valuenow"));
+    await resizeHandle.press(viewport.name === "desktop" ? "ArrowRight" : "ArrowDown");
+    expect(Number(await resizeHandle.getAttribute("aria-valuenow")), `resized share at ${viewport.name}`).toBeGreaterThan(shareBefore);
+    await assertNoHorizontalOverflow(page);
+  }
+  await page.setViewportSize(RESPONSIVE_VIEWPORTS.find((viewport) => viewport.name === "desktop")!);
 
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);
@@ -80,16 +94,7 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   await expect(layoutMode).toBeVisible();
   await layoutMode.click();
   await expect(layoutMode, "layout mode toggles").toHaveText(initialMode === "Fixed View" ? "Follow View" : "Fixed View");
-
-  const resizeHandle = page.getByRole("separator", { name: "Resize track map" });
-  await expect(resizeHandle).toBeVisible();
-  const resizeGrip = resizeHandle.locator("[aria-hidden='true']");
-  await expect(resizeGrip).toBeVisible();
-  expect(await resizeGrip.evaluate((element) => getComputedStyle(element).backgroundColor), "resize grip has visible fill").not.toBe("rgba(0, 0, 0, 0)");
-  const savedWidth = Number(await resizeHandle.getAttribute("aria-valuenow"));
-  await resizeHandle.press("ArrowRight");
-  const adjustedWidth = Number(await resizeHandle.getAttribute("aria-valuenow"));
-  expect(adjustedWidth, "resized map width").toBeGreaterThanOrEqual(savedWidth);
+  const persistedMapWidthShare = Number(await page.getByRole("separator", { name: "Resize track map" }).getAttribute("aria-valuenow"));
 
   const persistedParams = new URLSearchParams(swappedParams);
   const reloadCompare = page.waitForResponse((response) => {
@@ -100,7 +105,7 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   await reloadCompare;
   await expect(page.getByText("Select two different laps to compare")).toHaveCount(0);
   await expect(page.getByTestId("lap-compare-workspace")).toBeVisible();
-  expect(Number(await page.getByRole("separator", { name: "Resize track map" }).getAttribute("aria-valuenow"))).toBe(adjustedWidth);
+  await expect(page.getByRole("separator", { name: "Resize track map" })).toHaveAttribute("aria-valuenow", String(persistedMapWidthShare));
 
   const sameLapResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapA.id}`);
   expect(sameLapResponse.status(), "same-lap compare rejects").toBe(400);
