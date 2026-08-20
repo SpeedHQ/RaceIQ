@@ -9,7 +9,7 @@ test("session lap context action rechecks disposable imported lap", async ({ pag
   let disposable: DisposableImport | undefined;
   try {
     disposable = await importDisposableLap(request, "fm-2023", "sessions-context");
-    await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
+    await page.goto("/fm23/sessions?tab=mine", { waitUntil: "domcontentloaded" });
     const search = page.getByPlaceholder("Search track, car, notes…");
     await search.fill(disposable.note);
     const row = (await sessionRows(page)).first();

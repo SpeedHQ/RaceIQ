@@ -89,7 +89,6 @@ interface MappingProvenance {
     | "yaml"
     | "derivation";
   artifact: string;
-  commit: string;
 }
 
 interface CompatibilityReview {
@@ -159,14 +158,14 @@ interface CatalogMetadata {
   generator: {
     name: string;
     version: string;
-    commit: string;
+    sourceHash: string;
   };
-  generatedAt: string;
+  sourceHashes: Record<string, string>;
   contentHash: string;
 }
 
 export interface BuiltTelemetryCatalog {
-  format: "raceiq-semantic-telemetry-catalog-v6";
+  format: "raceiq-semantic-telemetry-catalog-v7";
   metadata: CatalogMetadata;
   generatedFrom: readonly string[];
   groups: readonly CatalogGroup[];
@@ -292,8 +291,8 @@ const PACKAGE_VERSION = JSON.parse(
   await Bun.file(PACKAGE_JSON_PATH).text(),
 ).version as string;
 const GENERATOR_NAME = "RaceIQ telemetry-catalog generator";
-const CATALOG_FORMAT = "raceiq-semantic-telemetry-catalog-v6";
-const CATALOG_SCHEMA_VERSION = "v6";
+const CATALOG_FORMAT = "raceiq-semantic-telemetry-catalog-v7";
+const CATALOG_SCHEMA_VERSION = "v7";
 const DERIVATION_VERSION = `${PACKAGE_VERSION}`;
 
 const PARSER_FILES: Record<GameId, string> = {

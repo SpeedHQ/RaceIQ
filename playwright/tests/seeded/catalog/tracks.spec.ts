@@ -126,6 +126,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
         mimeType: "application/octet-stream",
         buffer: await exportResponse.body(),
       },
+      ownership: "mine",
     },
   });
   expect(importResponse.ok()).toBe(true);

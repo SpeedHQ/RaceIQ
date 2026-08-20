@@ -15,6 +15,7 @@ test("developer AC Evo raw inspector decodes replay telemetry values", async ({ 
   const decodedSpeedValues = new Set(metadata.packets.map((packet) => packet.speed.toFixed(3)));
 
   await page.goto("/ac-evo/raw", { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("dev-telemetry-page")).toHaveAttribute("data-subscribed", "true", { timeout: 30_000 });
   const replayResponsePromise = request.post(`/api/dev/replay/${recordingName}?packets=120&intervalMs=0`);
   await expect(page.getByText(/All Telemetry Values \(\d+ fields\)/)).toBeVisible({
     timeout: 30_000,

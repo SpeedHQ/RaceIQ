@@ -13,7 +13,7 @@ Owns telemetry catalog generation and iRacing SessionInfo capture coverage.
 
 Generator entrypoint is `scripts/catalog/generate-telemetry-catalog.ts`; it exports catalog builder, artifact builder, source hashing, and compatibility review APIs. Generated artifacts remain checked in under `shared/telemetry/catalog/generated/`; this domain does not regenerate them during refactors.
 
-`builder.ts` hashes deterministic, lexicographically listed `scripts/catalog/*.ts` modules as aggregate generator provenance. Individual module hashes remain available for mapping provenance; generated artifact path remains `scripts/catalog/generate-telemetry-catalog.ts`.
+`builder.ts` stores aggregate generator provenance once as `metadata.generator.sourceHash`. `metadata.sourceHashes` stores one hash per referenced mapping artifact; mappings carry only origin and artifact path, avoiding repeated hash churn in generated diffs.
 
 ## Dependency boundaries
 

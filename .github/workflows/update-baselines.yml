@@ -35,7 +35,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref }}
           persist-credentials: true
@@ -65,7 +65,7 @@ jobs:
         run: bun run snapshot
 
       - name: Upload generated baselines
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: canonical-storybook-baselines-${{ github.run_id }}
           path: |

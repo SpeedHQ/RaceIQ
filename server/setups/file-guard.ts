@@ -48,7 +48,7 @@ export async function getSetupsBaseDir(
   gameId: AccGameId,
   opts: { create?: boolean } = {},
 ): Promise<string | null> {
-  const home = homedir();
+  const home = process.env.RACEIQ_SETUP_HOME ?? homedir();
   const candidates = tryGetServerGame(gameId)?.getSetupsDirCandidates?.(home) ?? [];
   if (candidates.length === 0) return null;
 
