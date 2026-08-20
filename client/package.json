@@ -24,7 +24,7 @@
     "@assistant-ui/react-markdown": "0.14.6",
     "@base-ui/react": "^1.6.0",
     "@fontsource-variable/geist": "^5.3.0",
-    "@inlang/paraglide-js": "^2.23.1",
+    "@inlang/paraglide-js": "^2.24.1",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.7.0",
     "@tailwindcss/typography": "^0.5.20",
