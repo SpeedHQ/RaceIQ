@@ -13,25 +13,51 @@ import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
 
 function packetToSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
-  return { values: {
-    "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
-    "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
-    "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.steer": packet.Steer, "inputs.gear": packet.Gear,
-    "timing.distance-traveled": packet.DistanceTraveled, "timing.current-lap": packet.CurrentLap,
-    "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
-  }, states: {}, freshness: {} };
+  return {
+    values: {
+      "identity.track-ordinal": packet.TrackOrdinal,
+      "identity.car-ordinal": packet.CarOrdinal,
+      "motion.position-x": packet.PositionX,
+      "motion.position-z": packet.PositionZ,
+      "motion.speed": packet.Speed,
+      "motion.yaw": packet.Yaw,
+      "motion.pitch": packet.Pitch,
+      "motion.roll": packet.Roll,
+      "inputs.accel": packet.Accel,
+      "inputs.brake": packet.Brake,
+      "inputs.steer": packet.Steer,
+      "inputs.gear": packet.Gear,
+      "timing.distance-traveled": packet.DistanceTraveled,
+      "timing.current-lap": packet.CurrentLap,
+      "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
+    },
+    states: {},
+    freshness: {},
+  };
 }
 
 function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
-  return { values: {
-    "identity.track-ordinal": view.identity.trackOrdinal, "identity.car-ordinal": view.identity.carOrdinal,
-    "motion.position-x": view.motion.position?.x, "motion.position-z": view.motion.position?.z, "motion.speed": view.motion.speedMps,
-    "motion.yaw": view.motion.attitude?.yaw, "motion.pitch": view.motion.attitude?.pitch, "motion.roll": view.motion.attitude?.roll,
-    "inputs.accel": view.inputs.throttle, "inputs.brake": view.inputs.brake, "inputs.steer": view.inputs.steer, "inputs.gear": view.inputs.gear,
-    "timing.distance-traveled": view.motion.distanceM, "timing.current-lap": view.timing.currentLapS,
-    "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
-  }, states: {}, freshness: {} };
+  return {
+    values: {
+      "identity.track-ordinal": view.identity.trackOrdinal,
+      "identity.car-ordinal": view.identity.carOrdinal,
+      "motion.position-x": view.motion.position?.x,
+      "motion.position-z": view.motion.position?.z,
+      "motion.speed": view.motion.speedMps,
+      "motion.yaw": view.motion.attitude?.yaw,
+      "motion.pitch": view.motion.attitude?.pitch,
+      "motion.roll": view.motion.attitude?.roll,
+      "inputs.accel": view.inputs.throttle,
+      "inputs.brake": view.inputs.brake,
+      "inputs.steer": view.inputs.steer,
+      "inputs.gear": view.inputs.gear,
+      "timing.distance-traveled": view.motion.distanceM,
+      "timing.current-lap": view.timing.currentLapS,
+      "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
+    },
+    states: {},
+    freshness: {},
+  };
 }
 
 const MAX_LIVE_TRACE = 5000;
@@ -126,6 +152,10 @@ export function LiveTestDashboard({
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
+  const pitLines = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw)) return null;
+    return Array.isArray(outlineRaw.pitLines) ? outlineRaw.pitLines : null;
+  }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
   const boundaries = (boundariesRaw as any) ?? null;
 
@@ -141,6 +171,7 @@ export function LiveTestDashboard({
               telemetry={semanticTrace}
               cursorIdx={semanticTrace.length - 1}
               outline={outline}
+              pitLines={pitLines}
               boundaries={boundaries}
               sectors={null}
               segments={null}

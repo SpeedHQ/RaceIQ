@@ -80,4 +80,47 @@ describe("iRacing analysis segment timing", () => {
     expect(result?.staticSegments.map((segment) => segment.time)).toEqual([12.5, 12.5, 12.5, 12.5]);
     expect(result?.staticSegments.map((segment) => segment.name)).toEqual(["S1", "T1", "S2", "T2"]);
   });
+
+  test("combines start/finish ranges split by the lap boundary", () => {
+    const telemetry = Array.from({ length: 101 }, (_, index) => ({
+      DistanceTraveled: 7000 + index * 20,
+      CurrentLap: index * 0.5,
+      PositionX: 0,
+      PositionZ: 0,
+    })) as TelemetryPacket[];
+    const segments = [
+      {
+        type: "straight",
+        name: "Frontstretch",
+        group: "Frontstretch",
+        startFrac: 0,
+        endFrac: 0.1,
+      },
+      {
+        type: "corner",
+        name: "T1-4",
+        startFrac: 0.1,
+        endFrac: 0.9,
+      },
+      {
+        type: "straight",
+        name: "Frontstretch",
+        group: "Frontstretch",
+        startFrac: 0.9,
+        endFrac: 1,
+      },
+    ];
+
+    const result = buildSegmentData(telemetry, segments);
+
+    expect(result?.staticSegments).toHaveLength(2);
+    expect(result?.staticSegments[0]).toMatchObject({
+      name: "Frontstretch",
+      time: 10,
+      ranges: [
+        { startFrac: 0.9, endFrac: 1 },
+        { startFrac: 0, endFrac: 0.1 },
+      ],
+    });
+  });
 });

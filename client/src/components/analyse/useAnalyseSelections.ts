@@ -72,6 +72,10 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     const labels = (outlineRaw as { labels?: unknown }).labels;
     return Array.isArray(labels) ? (labels as TrackMapLabel[]) : null;
   }, [outlineRaw]);
+  const pitLines = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw)) return null;
+    return Array.isArray(outlineRaw.pitLines) ? outlineRaw.pitLines : null;
+  }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
   const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
@@ -203,6 +207,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedLapId,
     outline,
     mapLabels,
+    pitLines,
     boundaries,
     sectorData,
     sectors,
