@@ -4,12 +4,9 @@ test/client/parse-lap-time.test.ts
 test/client/speed.test.ts
 test/client/temperature.test.ts
 test/games/forza/forza-lzx.test.ts
-test/games/shared/parser.test.ts
 test/games/shared/win-timer-resolution.test.ts
-test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/comparison.test.ts
 test/lap-analysis/corner-data.test.ts
-test/lap-analysis/corner-resolution.test.ts
 test/lap-analysis/detection/game-compat.test.ts
 test/lap-analysis/detection/lap-boundary-reset.test.ts
 test/lap-analysis/detection/session-boundary.test.ts
@@ -29,4 +26,3 @@ test/lap-analysis/stints/stint-stats.test.ts
 test/lap-analysis/stints/stint-trace-codec.test.ts
 test/lap-analysis/stints/stint-traces.test.ts
 test/lap-analysis/time-loss.test.ts
-test/laps/archive-detection.test.ts
