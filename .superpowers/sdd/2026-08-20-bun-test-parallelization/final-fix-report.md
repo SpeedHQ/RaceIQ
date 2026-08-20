@@ -2,7 +2,7 @@
 
 ## Status
 
-Complete. Restored existing `typecheck` script, preserved test scripts, made suite-root cleanup exception-safe, changed integration `DATA_DIR` defaulting to distinguish undefined from explicitly supplied values, and preserved repository cwd for integration subprocesses.
+Implementation fixes complete; verification partial/blocked by existing environment fixtures. Restored existing `typecheck` script, preserved test scripts, made suite-root cleanup exception-safe, changed integration `DATA_DIR` defaulting to distinguish undefined from explicitly supplied values, and preserved repository cwd for integration subprocesses. Merge verification remains blocked pending fixture/environment resolution.
 
 ## Focused checks
 
