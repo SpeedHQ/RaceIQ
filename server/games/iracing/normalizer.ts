@@ -12,12 +12,26 @@ import {
 } from "./sector-layout";
 
 const KPA_TO_PSI = 0.1450377377;
+const WGS84_EQUATORIAL_RADIUS_M = 6_378_137;
+
+interface IRacingGpsProjectionState {
+  originLatitudeRad: number | null;
+  originLongitudeRad: number;
+  originAltitudeM: number | null;
+  lastX: number;
+  lastY: number;
+  lastZ: number;
+  lastAltitudeM: number | null;
+  lastHeadingNorthRad: number | null;
+  hasLast: boolean;
+}
 
 export interface IRacingParserState {
   source: IRacingSourceDecoderState;
   sessionKey: string | null;
   rawLap: number | null;
   lapStartSessionTime: number;
+  gps: IRacingGpsProjectionState;
   fuelCapacitySessionInfo: string | null;
   fuelCapacityL: number | undefined;
 }
@@ -28,6 +42,17 @@ export function createIRacingParserState(): IRacingParserState {
     sessionKey: null,
     rawLap: null,
     lapStartSessionTime: 0,
+    gps: {
+      originLatitudeRad: null,
+      originLongitudeRad: 0,
+      originAltitudeM: null,
+      lastX: 0,
+      lastY: 0,
+      lastZ: 0,
+      lastAltitudeM: null,
+      lastHeadingNorthRad: null,
+      hasLast: false,
+    },
     fuelCapacitySessionInfo: null,
     fuelCapacityL: undefined,
   };
@@ -51,6 +76,90 @@ function bool(values: Record<string, IRacingValue>, name: string): boolean {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function resetGpsProjection(state: IRacingGpsProjectionState): void {
+  state.originLatitudeRad = null;
+  state.originLongitudeRad = 0;
+  state.originAltitudeM = null;
+  state.lastX = 0;
+  state.lastY = 0;
+  state.lastZ = 0;
+  state.lastAltitudeM = null;
+  state.lastHeadingNorthRad = null;
+  state.hasLast = false;
+}
+
+function validLatitudeLongitude(
+  latitude: number,
+  longitude: number,
+): boolean {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    !(latitude === 0 && longitude === 0)
+  );
+}
+
+/**
+ * iRacing records WGS84 Lat/Lon/Alt/YawNorth channels only in IBT rows.
+ * Convert them to a local east/north metric plane so stored laps use RaceIQ's
+ * normal X/Z path. Invalid transient rows retain the last valid sample.
+ */
+function projectRecordedGps(
+  values: Record<string, IRacingValue>,
+  state: IRacingGpsProjectionState,
+): boolean {
+  const latitudeDegrees = scalar(values, "Lat", Number.NaN);
+  const longitudeDegrees = scalar(values, "Lon", Number.NaN);
+  if (!validLatitudeLongitude(latitudeDegrees, longitudeDegrees)) {
+    return state.hasLast;
+  }
+
+  const latitudeRad = (latitudeDegrees * Math.PI) / 180;
+  const longitudeRad = (longitudeDegrees * Math.PI) / 180;
+  const altitudeM = scalar(values, "Alt", Number.NaN);
+  const headingNorthRad = scalar(values, "YawNorth", Number.NaN);
+  const retainedAltitudeM = Number.isFinite(altitudeM)
+    ? altitudeM
+    : state.lastAltitudeM;
+  const retainedHeadingNorthRad = Number.isFinite(headingNorthRad)
+    ? Math.atan2(Math.sin(headingNorthRad), Math.cos(headingNorthRad))
+    : state.lastHeadingNorthRad;
+  if (state.originLatitudeRad === null) {
+    state.originLatitudeRad = latitudeRad;
+    state.originLongitudeRad = longitudeRad;
+  }
+  if (
+    state.originAltitudeM === null &&
+    retainedAltitudeM !== null
+  ) {
+    state.originAltitudeM = retainedAltitudeM;
+  }
+
+  let longitudeDelta = longitudeRad - state.originLongitudeRad;
+  if (longitudeDelta > Math.PI) longitudeDelta -= Math.PI * 2;
+  else if (longitudeDelta < -Math.PI) longitudeDelta += Math.PI * 2;
+
+  state.lastX =
+    WGS84_EQUATORIAL_RADIUS_M *
+    longitudeDelta *
+    Math.cos((latitudeRad + state.originLatitudeRad) / 2);
+  state.lastY =
+    retainedAltitudeM === null || state.originAltitudeM === null
+      ? state.lastY
+      : retainedAltitudeM - state.originAltitudeM;
+  state.lastZ =
+    WGS84_EQUATORIAL_RADIUS_M *
+    (latitudeRad - state.originLatitudeRad);
+  state.lastAltitudeM = retainedAltitudeM;
+  state.lastHeadingNorthRad = retainedHeadingNorthRad;
+  state.hasLast = true;
+  return true;
 }
 
 function input255(value: number): number {
@@ -179,6 +288,7 @@ export function normalizeIRacingFrame(
       state.sessionKey = sessionKey;
       state.rawLap = rawLap;
       state.lapStartSessionTime = sessionTime - sdkCurrentLapTime;
+      resetGpsProjection(state.gps);
     } else if (state.rawLap !== rawLap) {
       // iRacing's Lap changes at the physical start/finish line, while
       // LapCurrentLapTime rolls over roughly two seconds later. SessionTime is
@@ -188,6 +298,25 @@ export function normalizeIRacingFrame(
     }
     currentLapTime = Math.max(0, sessionTime - state.lapStartSessionTime);
   }
+  const gpsState = state?.gps ?? {
+    originLatitudeRad: null,
+    originLongitudeRad: 0,
+    originAltitudeM: null,
+    lastX: 0,
+    lastY: 0,
+    lastZ: 0,
+    lastAltitudeM: null,
+    lastHeadingNorthRad: null,
+    hasLast: false,
+  };
+  const hasRecordedGps = projectRecordedGps(values, gpsState);
+  const positionX = hasRecordedGps ? gpsState.lastX : 0;
+  const positionY = hasRecordedGps ? gpsState.lastY : 0;
+  const positionZ = hasRecordedGps ? gpsState.lastZ : 0;
+  const canonicalYaw =
+    hasRecordedGps && gpsState.lastHeadingNorthRad !== null
+      ? gpsState.lastHeadingNorthRad
+      : -scalar(values, "Yaw", 0);
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
@@ -247,9 +376,9 @@ export function normalizeIRacingFrame(
     EngineIdleRpm: session.engineIdleRpm,
     CurrentEngineRpm: scalar(values, "RPM", 0),
 
-    // The iRacing SDK publishes these accelerations in m/s², matching the
-    // canonical values consumed by RaceIQ's G-force views.
-    AccelerationX: scalar(values, "LatAccel", 0),
+    // iRacing LatAccel is left-positive; RaceIQ's canonical lateral axis is
+    // right-positive so felt G renders opposite the direction of the turn.
+    AccelerationX: -scalar(values, "LatAccel", 0),
     AccelerationY: scalar(values, "VertAccel", 0),
     AccelerationZ: scalar(values, "LongAccel", 0),
 
@@ -262,7 +391,7 @@ export function normalizeIRacingFrame(
     AngularVelocityY: -scalar(values, "YawRate", 0),
     AngularVelocityZ: scalar(values, "RollRate", 0),
 
-    Yaw: -scalar(values, "Yaw", 0),
+    Yaw: canonicalYaw,
     Pitch: scalar(values, "Pitch", 0),
     Roll: scalar(values, "Roll", 0),
 
@@ -366,11 +495,11 @@ export function normalizeIRacingFrame(
     DrivetrainType: 1,
     NumCylinders: Math.max(0, Math.trunc(session.engineCylinderCount)),
 
-    // The public SDK row does not provide stable world coordinates. LapDist
-    // and LapDistPct above are the authoritative track-position signals.
-    PositionX: 0,
-    PositionY: 0,
-    PositionZ: 0,
+    // Lat/Lon/Alt are disk-only IBT channels. Live SDK frames intentionally
+    // remain at zero; imported recordings receive local metric coordinates.
+    PositionX: positionX,
+    PositionY: positionY,
+    PositionZ: positionZ,
     Speed: Math.max(0, scalar(values, "Speed", 0)),
     Power: 0,
     Torque: 0,

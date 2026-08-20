@@ -161,6 +161,157 @@ DriverInfo:
     });
   });
 
+  test("captures SDK ticks while downstream processing is busy", async () => {
+    const values = sampleFrame().values;
+    const sessionInfo = `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: Road America
+  SessionID: 123
+  SubSessionID: 456
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+`;
+    const snapshots = [7530, 7531, 7532].map((tick) => ({
+      tick,
+      sessionInfoUpdate: 1,
+      sessionInfo,
+      values: {
+        ...values,
+        SessionTick: tick,
+        SessionTime: tick / 60,
+      },
+    }));
+    let reads = 0;
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest() {
+        reads++;
+        return snapshots.shift() ?? null;
+      },
+    };
+    let releaseDispatch!: () => void;
+    const dispatchGate = new Promise<void>((resolve) => {
+      releaseDispatch = resolve;
+    });
+    let signalDispatchStarted!: () => void;
+    const dispatchStarted = new Promise<void>((resolve) => {
+      signalDispatchStarted = resolve;
+    });
+    const delivered: Buffer[] = [];
+    const source = new IRacingTelemetrySource({
+      reader,
+      dispatchRawFrame: async (raw) => {
+        if (delivered.length === 0) {
+          signalDispatchStarted();
+          await dispatchGate;
+        }
+        delivered.push(raw);
+      },
+    });
+
+    const first = source.pollOnce();
+    await dispatchStarted;
+    const second = source.pollOnce();
+    const third = source.pollOnce();
+
+    expect(reads).toBe(3);
+    expect(delivered).toHaveLength(0);
+    releaseDispatch();
+    expect(await Promise.all([first, second, third])).toEqual([
+      true,
+      true,
+      true,
+    ]);
+
+    const decoder = createIRacingSourceDecoderState();
+    expect(
+      delivered.map(
+        (raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick,
+      ),
+    ).toEqual([7530, 7531, 7532]);
+  });
+
+  test("drains captured ticks when reader shutdown fails", async () => {
+    const values = sampleFrame().values;
+    const sessionInfo = `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: Road America
+  SessionID: 123
+  SubSessionID: 456
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+`;
+    const snapshots = [7530, 7531].map((tick) => ({
+      tick,
+      sessionInfoUpdate: 1,
+      sessionInfo,
+      values: {
+        ...values,
+        SessionTick: tick,
+        SessionTime: tick / 60,
+      },
+    }));
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {
+        throw new Error("reader stop failed");
+      },
+      readLatest() {
+        return snapshots.shift() ?? null;
+      },
+    };
+    let releaseDispatch!: () => void;
+    const dispatchGate = new Promise<void>((resolve) => {
+      releaseDispatch = resolve;
+    });
+    let signalDispatchStarted!: () => void;
+    const dispatchStarted = new Promise<void>((resolve) => {
+      signalDispatchStarted = resolve;
+    });
+    const delivered: Buffer[] = [];
+    const source = new IRacingTelemetrySource({
+      reader,
+      dispatchRawFrame: async (raw) => {
+        if (delivered.length === 0) {
+          signalDispatchStarted();
+          await dispatchGate;
+        }
+        delivered.push(raw);
+      },
+    });
+
+    const first = source.pollOnce();
+    await dispatchStarted;
+    const second = source.pollOnce();
+    const stopping = source.stop().catch((error: unknown) => error);
+
+    releaseDispatch();
+    expect(await Promise.all([first, second])).toEqual([true, true]);
+    const stopError = await stopping;
+    expect(stopError).toBeInstanceOf(Error);
+    expect((stopError as Error).message).toBe("reader stop failed");
+
+    const decoder = createIRacingSourceDecoderState();
+    expect(
+      delivered.map(
+        (raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick,
+      ),
+    ).toEqual([7530, 7531]);
+  });
+
   test("reparses session YAML when raw content or revision changes", async () => {
     const frame = sampleFrame();
     const sessionInfo = (trackName: string) => `
@@ -241,4 +392,3 @@ DriverInfo:
     ]);
   });
 });
-

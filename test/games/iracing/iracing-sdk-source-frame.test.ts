@@ -10,6 +10,7 @@ import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { registerLiveIRacingIdentity } from "../../../server/games/iracing/identity";
 import {
+  createIRacingParserState,
   normalizeIRacingFrame,
 } from "../../../server/games/iracing/normalizer";
 import {
@@ -313,7 +314,7 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet.iracing).not.toHaveProperty("sessionInfoUpdate");
   });
 
-  test("maps lateral, vertical, and braking acceleration onto canonical axes", () => {
+  test("normalizes iRacing left-positive lateral acceleration onto the canonical axis", () => {
     const frame = sampleFrame();
     frame.values = {
       ...frame.values,
@@ -324,9 +325,38 @@ describe("iRacing raw source frame parser integration", () => {
 
     const packet = normalizeIRacingFrame(frame);
 
-    expect(packet.AccelerationX).toBeCloseTo(4.2);
+    expect(packet.AccelerationX).toBeCloseTo(-4.2);
     expect(packet.AccelerationY).toBeCloseTo(9.8);
     expect(packet.AccelerationZ).toBeCloseTo(-3.5);
+  });
+
+  test("anchors imported elevation at the first finite altitude sample", () => {
+    const state = createIRacingParserState();
+    const first = sampleFrame();
+    first.values = {
+      ...first.values,
+      Lat: 43,
+      Lon: -88,
+      Alt: Number.NaN,
+    };
+    const second = sampleFrame();
+    second.values = {
+      ...second.values,
+      Lat: 43.0001,
+      Lon: -87.9999,
+      Alt: 200,
+    };
+    const third = sampleFrame();
+    third.values = {
+      ...third.values,
+      Lat: 43.0002,
+      Lon: -87.9998,
+      Alt: 201.5,
+    };
+
+    expect(normalizeIRacingFrame(first, state).PositionY).toBe(0);
+    expect(normalizeIRacingFrame(second, state).PositionY).toBe(0);
+    expect(normalizeIRacingFrame(third, state).PositionY).toBeCloseTo(1.5);
   });
 
   test("packs normal ticks as value-only deltas", () => {

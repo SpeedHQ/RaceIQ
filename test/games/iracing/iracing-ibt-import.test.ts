@@ -13,7 +13,10 @@ import { getDiscoveredCarName } from "../../../server/db/discovered-cars";
 import { getDiscoveredTrackName } from "../../../server/db/discovered-tracks";
 import { db } from "../../../server/db/index";
 import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
-import { getLapsRaw } from "../../../server/db/lap-read-queries";
+import {
+  getLapById,
+  getLapsRaw,
+} from "../../../server/db/lap-read-queries";
 import { deleteSession } from "../../../server/db/session-queries";
 import {
   commitStagedIbt,
@@ -112,6 +115,12 @@ describe("IRacingIbt import workflow", () => {
         rawFile = stored?.rawFile ?? null;
         expect(rawFile).toEndWith(".bin");
         expect(rawFile ? existsSync(rawFile) : false).toBe(true);
+        const savedLap = await getLapById(imported.laps[0].lapId);
+        expect(
+          savedLap?.telemetry.some(
+            (packet) => packet.PositionX !== 0 || packet.PositionZ !== 0,
+          ),
+        ).toBe(true);
       } finally {
         if (sessionId !== null) await deleteSession(sessionId);
         if (rawFile) rmSync(rawFile, { force: true });
