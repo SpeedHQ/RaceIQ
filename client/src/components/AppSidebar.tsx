@@ -6,6 +6,7 @@ import {
   Car,
   ChartNoAxesCombined,
   Check,
+  CloudUpload,
   Code2,
   FlaskConical,
   Gamepad2,
@@ -123,6 +124,7 @@ const FEATURE_LINKS: ReadonlyArray<{
   { segment: "tracks", label: m.label_tracks, icon: MapIcon },
   { segment: "cars", label: m.label_cars, icon: Car },
   { segment: "setups", label: m.tab_setups, icon: SlidersHorizontal, feature: "setups" },
+  { segment: "setup-manager", label: m.nav_setup_manager, icon: CloudUpload, feature: "setupManager" },
   { segment: "raw", label: m.tab_raw, icon: Binary, feature: "raw" },
 ];
 

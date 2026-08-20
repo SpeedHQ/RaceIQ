@@ -104,6 +104,8 @@ async function main() {
     `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
     "--define",
     `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
+    "--define",
+    `process.env.RACEIQ_GOOGLE_DRIVE_CLIENT_ID=${JSON.stringify(process.env.RACEIQ_GOOGLE_DRIVE_CLIENT_ID ?? "")}`,
   );
 
   if (process.platform === "win32") {

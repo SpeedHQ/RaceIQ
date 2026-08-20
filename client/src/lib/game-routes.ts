@@ -40,7 +40,7 @@ export type TuneReviewSearch = {
   versionId?: number;
 };
 
-export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
+export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups" | "setupManager";
 
 export type LiveDashboard = "forza" | "f1" | "acc";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
@@ -48,6 +48,7 @@ const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   experiments: ["f125", "acc", "ac-evo"],
   raw: ["fm23", "f125", "acc", "ac-evo", "iracing"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
+  setupManager: ["acc", "ac-evo"],
 };
 
 export function gameIdForRoutePrefix(prefix: string): GameId | undefined {
@@ -135,4 +136,8 @@ export function supportsGameFeature(prefix: string, feature: GameRouteFeature, f
 export function setupEngineerGameIdForRoutePrefix(prefix: string, flags: ReleaseFeatureFlags = clientReleaseFeatures): "acc" | "ac-evo" | "f1-2025" | undefined {
   if (!supportsGameFeature(prefix, "experiments", flags)) return undefined;
   return gameIdForRoutePrefix(prefix) as "acc" | "ac-evo" | "f1-2025";
+}
+export function setupManagerGameIdForRoutePrefix(prefix: string): "acc" | "ac-evo" | undefined {
+  if (!supportsGameFeature(prefix, "setupManager")) return undefined;
+  return gameIdForRoutePrefix(prefix) as "acc" | "ac-evo";
 }

@@ -8,8 +8,8 @@ import { resolve, sep } from "node:path";
 import { tryGetServerGame } from "../games/registry";
 import { carSetupToKnobValues } from "../games/ac-evo/carsetup";
 import { parseCarSetup } from "../games/ac-evo/carsetup-wire";
+import type { SetupGameId } from "../../shared/racing/setups/file-formats";
 
-export type AccGameId = "acc" | "ac-evo";
 
 /** Whether a resolved path is inside a resolved setup root. */
 export function isPathWithinSetupsFolder(
@@ -45,7 +45,7 @@ function errorDetails(error: unknown): { code?: string; message?: string } {
  * only write paths (which need somewhere to put the file) pass `create: true`.
  */
 export async function getSetupsBaseDir(
-  gameId: AccGameId,
+  gameId: SetupGameId,
   opts: { create?: boolean } = {},
 ): Promise<string | null> {
   const home = process.env.RACEIQ_SETUP_HOME ?? homedir();
@@ -74,6 +74,7 @@ export type GuardedSetup =
       baseDir: string;
       realPath: string;
       setup: any;
+      bytes: Buffer;
       /** True when source is binary `.carsetup`; `setup` contains decoded knob values. */
       readOnly?: true;
     }
@@ -84,7 +85,7 @@ export type GuardedSetup =
  * read and parse it. Same realpath/symlink guard the /api/tunes/auto route
  * uses.
  */
-export async function resolveGuardedSetupFile(gameId: AccGameId, filePath: string): Promise<GuardedSetup> {
+export async function resolveGuardedSetupFile(gameId: SetupGameId, filePath: string): Promise<GuardedSetup> {
   const baseDir = await getSetupsBaseDir(gameId);
   if (!baseDir) return { ok: false, status: 404, error: "Setups folder not found" };
 
@@ -152,7 +153,7 @@ export async function resolveGuardedSetupFile(gameId: AccGameId, filePath: strin
     } catch {
       // Decode failure must not break session load — fall back to setup: null.
     }
-    return { ok: true, baseDir, realPath, setup, readOnly: true };
+    return { ok: true, baseDir, realPath, setup, bytes: raw, readOnly: true };
   }
 
   let setup: any;
@@ -162,6 +163,6 @@ export async function resolveGuardedSetupFile(gameId: AccGameId, filePath: strin
     return { ok: false, status: 400, error: `Invalid setup JSON: ${errorDetails(err).message}` };
   }
 
-  return { ok: true, baseDir, realPath, setup };
+  return { ok: true, baseDir, realPath, setup, bytes: raw };
 }
 
