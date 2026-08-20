@@ -5,12 +5,14 @@ import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TrackMapCanvas } from "@/components/track-map/TrackMapCanvas";
+import { TrackMapLayerMenu, type TrackMapLayerMenuItem } from "@/components/track-map/TrackMapLayerMenu";
 import {
   TRACK_MAP_MAX_ZOOM,
   TRACK_MAP_MIN_ZOOM,
   TRACK_MAP_ZOOM_BUTTON_FACTOR,
   type SemanticAnalysisFrame,
   type TrackMapLayerState,
+  type TrackMapLayerKey,
   type TrackMapOverlayRenderer,
   type TrackMapViewportCamera,
 } from "@/components/track-map/types";
@@ -58,10 +60,10 @@ const COMPARE_OVERVIEW_LAYERS: TrackMapLayerState = {
   pitLane: true,
   outline: true,
   racingLine: false,
-  segments: false,
+  segments: true,
   sectors: false,
   curbs: false,
-  trace: false,
+  trace: true,
   inputs: false,
   highlights: false,
   car: false,
@@ -70,6 +72,8 @@ const COMPARE_OVERVIEW_LAYERS: TrackMapLayerState = {
 const COMPARE_ZOOM_LAYERS: TrackMapLayerState = {
   ...COMPARE_OVERVIEW_LAYERS,
   outline: false,
+  segments: false,
+  inputs: true,
 };
 
 interface CompareMapZoomControlsProps {
@@ -120,6 +124,16 @@ export function CompareTrackMap({
   const [followCar, setFollowCar] = useState(false);
   const [overviewZoom, setOverviewZoom] = useState(1);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
+  const [overviewLayers, setOverviewLayers] = useState<TrackMapLayerState>(() => ({ ...COMPARE_OVERVIEW_LAYERS }));
+  const [zoomLayers, setZoomLayers] = useState<TrackMapLayerState>(() => ({ ...COMPARE_ZOOM_LAYERS }));
+  const updateOverviewLayer = useCallback((key: TrackMapLayerKey, checked: boolean) => {
+    setOverviewLayers((current) => ({ ...current, [key]: checked }));
+  }, []);
+  const updateZoomLayer = useCallback((key: TrackMapLayerKey, checked: boolean) => {
+    setZoomLayers((current) => ({ ...current, [key]: checked }));
+  }, []);
+  const overviewCanvasLayers = useMemo(() => ({ ...overviewLayers, trace: false, segments: false, inputs: false }), [overviewLayers]);
+  const zoomCanvasLayers = useMemo(() => ({ ...zoomLayers, trace: false, segments: false, inputs: false }), [zoomLayers]);
 
   // Fetch track boundaries
   useEffect(() => {
@@ -178,6 +192,23 @@ export function CompareTrackMap({
       trackRange: Math.max(maxX - minX || 1, maxZ - minZ || 1),
     };
   }, [displayBoundaries, fallbackOutline, telemetryA]);
+  const layerItems = useMemo<TrackMapLayerMenuItem[]>(
+    () => [
+      { key: "imagery", label: "Aerial background", available: imagery != null, unavailableReason: "Unavailable" },
+      { key: "outline", label: "Track outline", available: alignedOutline.length > 1 },
+      { key: "trace", label: "Comparison lines", available: true },
+      { key: "segments", label: "Segment markers", available: segments.length > 0, unavailableReason: "Unavailable" },
+      { key: "inputs", label: "Input overlay", available: true },
+      {
+        key: "boundaries",
+        label: "Boundaries",
+        available: (alignedBoundaries?.leftEdge.length ?? 0) > 1 && (alignedBoundaries?.rightEdge.length ?? 0) > 1,
+        unavailableReason: "Unavailable",
+      },
+      { key: "pitLane", label: "Pit lane", available: (alignedBoundaries?.pitLane?.length ?? 0) > 1, unavailableReason: "Unavailable" },
+    ],
+    [alignedBoundaries, alignedOutline.length, imagery, segments.length],
+  );
 
   const displayTelemetryA = telemetryA;
   const displayTelemetryB = telemetryB;
@@ -244,12 +275,13 @@ export function CompareTrackMap({
         telemetryB: displayTelemetryB,
         hoveredDistance,
         zoomed: false,
-        segmentPoints,
+        showRacingLines: overviewLayers.trace,
+        segmentPoints: overviewLayers.segments ? segmentPoints : undefined,
         cursorIndexA,
         cursorIndexB,
       });
     },
-    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance, segmentPoints],
+    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance, overviewLayers.segments, overviewLayers.trace, segmentPoints],
   );
   const renderZoomOverlay = useCallback<TrackMapOverlayRenderer>(
     ({ context, toCanvas, width, height }) => {
@@ -263,18 +295,20 @@ export function CompareTrackMap({
         telemetryB: displayTelemetryB,
         hoveredDistance,
         zoomed: true,
+        showRacingLines: zoomLayers.trace,
+        segmentPoints: zoomLayers.segments ? segmentPoints : undefined,
         cursorIndexA,
         cursorIndexB,
       });
     },
-    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance],
+    [alignedOutline, cursorIndexA, cursorIndexB, displayTelemetryA, displayTelemetryB, hoveredDistance, segmentPoints, zoomLayers.segments, zoomLayers.trace],
   );
   const renderZoomHud = useCallback<TrackMapOverlayRenderer>(
     ({ context, width, height }) => {
-      if (!alignedCursor) return;
+      if (!alignedCursor || !zoomLayers.inputs) return;
       drawInputsHUD(context, width, height, alignedCursor.packetA, alignedCursor.packetB);
     },
-    [alignedCursor],
+    [alignedCursor, zoomLayers.inputs],
   );
 
   useEffect(() => {
@@ -320,7 +354,8 @@ export function CompareTrackMap({
     <div className="flex h-full flex-col overflow-y-auto border border-app-border text-app-body text-app-text">
       <div className="relative min-h-32 basis-56 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+          <TrackMapLayerMenu layers={overviewLayers} items={layerItems} onLayerChange={updateOverviewLayer} align="right" ariaLabel="Overview map layers" />
           <CompareMapZoomControls label="overview map" zoom={overviewZoom} onZoomChange={setOverviewZoom} onReset={() => setOverviewZoom(1)} />
         </div>
         {alignedOutline.length < 2 ? (
@@ -336,7 +371,7 @@ export function CompareTrackMap({
             imageryLocalPositions={imageryLocalPositions}
             boundaries={alignedBoundaries}
             segments={null}
-            layers={COMPARE_OVERVIEW_LAYERS}
+            layers={overviewCanvasLayers}
             rotateWithCar={false}
             zoom={overviewZoom}
             onZoomChange={setOverviewZoom}
@@ -352,6 +387,7 @@ export function CompareTrackMap({
           <Button onClick={() => setFollowCar((current) => !current)} variant={followCar ? "selected-toggle" : "app-outline"} size="app-sm">
             {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
           </Button>
+          <TrackMapLayerMenu layers={zoomLayers} items={layerItems} onLayerChange={updateZoomLayer} align="right" ariaLabel="Zoomed map layers" />
           <CompareMapZoomControls label="zoomed map" zoom={zoom} onZoomChange={setZoomedZoom} onReset={() => setZoomMultiplier(1)} />
         </div>
         {alignedOutline.length < 2 ? (
@@ -367,7 +403,7 @@ export function CompareTrackMap({
             imageryLocalPositions={imageryLocalPositions}
             boundaries={alignedBoundaries}
             segments={null}
-            layers={COMPARE_ZOOM_LAYERS}
+            layers={zoomCanvasLayers}
             rotateWithCar={false}
             zoom={zoom}
             onZoomChange={setZoomedZoom}

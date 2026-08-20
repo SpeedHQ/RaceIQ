@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { ComparisonData } from "../../shared/racing/comparison/types";
+import type { ComparisonData, SemanticTelemetrySample } from "../../shared/racing/comparison/types";
 import { buildComparisonChartData } from "../src/components/comparison/ComparisonCharts";
-import { resolveAlignedCursor } from "../src/lib/comparison-utils";
+import { drawComparisonWorldOverlay, resolveAlignedCursor } from "../src/lib/comparison-utils";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
-const packet = (position: number): TelemetryPacket => ({ PositionX: position, PositionZ: 0 } as TelemetryPacket);
+const packet = (position: number): TelemetryPacket => ({ PositionX: position, PositionZ: 0 }) as TelemetryPacket;
 
 describe("comparison aligned cursor", () => {
   test("resolves each lap through its aligned source index", () => {
@@ -20,6 +20,42 @@ describe("comparison aligned cursor", () => {
     expect(cursor?.packetA).toBeNull();
     expect(cursor?.packetB).not.toBeNull();
   });
+});
+test("comparison line layer can be hidden independently", () => {
+  let strokes = 0;
+  const context = {
+    lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    globalAlpha: 1,
+    strokeStyle: "",
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    stroke() {
+      strokes++;
+    },
+  } as unknown as CanvasRenderingContext2D;
+  const telemetry = [
+    { values: { "motion.position-x": 1, "motion.position-z": 1 }, sequence: "1", observedAtMs: 1 },
+    { values: { "motion.position-x": 2, "motion.position-z": 2 }, sequence: "2", observedAtMs: 2 },
+  ] satisfies SemanticTelemetrySample[];
+  const options = {
+    context,
+    width: 100,
+    height: 100,
+    toCanvas: (x: number, z: number): [number, number] => [x, z],
+    outline: [],
+    telemetryA: telemetry,
+    telemetryB: telemetry,
+    hoveredDistance: null,
+    zoomed: false,
+  };
+
+  drawComparisonWorldOverlay({ ...options, showRacingLines: false });
+  expect(strokes).toBe(0);
+  drawComparisonWorldOverlay({ ...options, showRacingLines: true });
+  expect(strokes).toBe(2);
 });
 
 test("comparison charts use server-aligned traces and elapsed time delta", () => {

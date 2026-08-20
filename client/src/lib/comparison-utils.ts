@@ -1,6 +1,9 @@
 import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
-const v = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
-const num = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=v(p,id); return typeof x === "number" ? x : undefined; }
+const v = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id];
+const num = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => {
+  const x = v(p, id);
+  return typeof x === "number" ? x : undefined;
+};
 
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";
@@ -10,10 +13,7 @@ export interface Point {
   z: number;
 }
 /** Use telemetry-indexed track geometry when Compare lacks a dense world-position trace. */
-export function resolveComparisonImageryLocalPositions(
-  telemetry: readonly SemanticTelemetrySample[],
-  outline: readonly Point[],
-): readonly Point[] | undefined {
+export function resolveComparisonImageryLocalPositions(telemetry: readonly SemanticTelemetrySample[], outline: readonly Point[]): readonly Point[] | undefined {
   let usable = 0;
   for (const sample of telemetry) {
     const x = num(sample, "motion.position-x") ?? 0;
@@ -34,7 +34,6 @@ export function resolveComparisonImageryLocalPositions(
     };
   });
 }
-
 
 export interface BoundaryData {
   leftEdge: Point[];
@@ -98,7 +97,7 @@ function findMapPosition(
   const packet = sourceIndex == null ? telemetry[findTelemetryAtDistance(telemetry, distance)] : telemetry[sourceIndex];
   if (!packet) return null;
   if ((num(packet, "motion.position-x") ?? 0) !== 0 || (num(packet, "motion.position-z") ?? 0) !== 0) {
-    return { x: telX((num(packet, "motion.position-x") ?? 0)), z: (num(packet, "motion.position-z") ?? 0), packet };
+    return { x: telX(num(packet, "motion.position-x") ?? 0), z: num(packet, "motion.position-z") ?? 0, packet };
   }
 
   if (outline.length < 2) return null;
@@ -120,6 +119,7 @@ export interface ComparisonWorldOverlayOptions {
   telemetryB: SemanticTelemetrySample[];
   hoveredDistance: number | null;
   zoomed: boolean;
+  showRacingLines?: boolean;
   segmentPoints?: Array<{ x: number; z: number; type: "corner" | "straight"; label: string }>;
   cursorIndexA?: number;
   cursorIndexB?: number;
@@ -134,6 +134,7 @@ export function drawComparisonWorldOverlay({
   telemetryB,
   hoveredDistance,
   zoomed,
+  showRacingLines = true,
   segmentPoints,
   cursorIndexA,
   cursorIndexB,
@@ -163,8 +164,10 @@ export function drawComparisonWorldOverlay({
     context.globalAlpha = 1;
   };
 
-  drawRacingLine(telemetryA, COLOR_A);
-  drawRacingLine(telemetryB, COLOR_B);
+  if (showRacingLines) {
+    drawRacingLine(telemetryA, COLOR_A);
+    drawRacingLine(telemetryB, COLOR_B);
+  }
 
   if (hoveredDistance != null) {
     const dotSize = zoomed ? 7 : 5;
@@ -224,7 +227,6 @@ export function drawComparisonWorldOverlay({
     }
   }
 }
-
 
 /**
  * Draw combined input HUD for both laps:
