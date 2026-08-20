@@ -6,6 +6,7 @@ const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof 
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { setTelemetryChartCursor } from "@/components/TelemetryChart";
 import { useLaps } from "@/hooks/laps";
 import { useTrackImagery, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -177,6 +178,13 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     // Directly redraw the map canvas without React re-render
     mapRedrawRef.current?.();
   }, []);
+  const handleMapCursorMove = useCallback(
+    (distance: number | null) => {
+      handleCursorMove(distance);
+      setTelemetryChartCursor("lap-compare", distance);
+    },
+    [handleCursorMove],
+  );
   const handleJumpToFrac = useCallback(
     (frac: number) => {
       const distances = comparison?.telemetryA.map((sample) => semanticNumber(sample, "timing.distance-traveled")).filter((value): value is number => value != null);
@@ -514,6 +522,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               segments={segmentTimings}
               hoveredDistanceRef={hoveredDistanceRef}
               redrawRef={mapRedrawRef}
+              onCursorMove={handleMapCursorMove}
               trackOrdinal={selectedTrack}
               gameId={gameId}
               imagery={trackImagery}

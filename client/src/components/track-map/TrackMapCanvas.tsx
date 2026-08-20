@@ -1,12 +1,40 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { applyTrackMapOverlayCamera, compositeFixedTrack, compositeTrack, drawCarOverlay, drawCarPulse, type CarOverlayPosition } from "./overlay-drawing";
 import { drawStaticTrack } from "./static-drawing";
-import { semanticNumber, type TrackMapHandle, type TrackMapProps, type TrackTransform } from "./types";
+import { semanticNumber, type Point, type TrackMapHandle, type TrackMapProps, type TrackMapViewportCamera, type TrackTransform } from "./types";
 import { useTrackMapImagery } from "./useTrackMapImagery";
 import { useTrackMapRenderData } from "./useTrackMapRenderData";
 import { useTrackMapViewport } from "./useTrackMapViewport";
+
+function trackPointAtScreenPosition(
+  screenX: number,
+  screenY: number,
+  transform: TrackTransform,
+  pan: Readonly<{ x: number; y: number }>,
+  viewport: TrackMapViewportCamera | null | undefined,
+  directVectorRender: boolean,
+): Point {
+  let canvasX: number;
+  let canvasY: number;
+  if (viewport) {
+    const rotation = viewport.rotation ?? 0;
+    const dx = screenX - (transform.w / 2 + pan.x);
+    const dy = screenY - (transform.h / 2 + pan.y);
+    const cosine = Math.cos(rotation);
+    const sine = Math.sin(rotation);
+    canvasX = transform.w / 2 + cosine * dx + sine * dy;
+    canvasY = transform.h / 2 - sine * dx + cosine * dy;
+  } else {
+    canvasX = screenX - pan.x - (directVectorRender ? 0 : (transform.w - transform.offW) / 2);
+    canvasY = screenY - pan.y - (directVectorRender ? 0 : (transform.h - transform.offH) / 2);
+  }
+  return {
+    x: transform.maxX - (canvasX - transform.offsetX) / transform.scale,
+    z: transform.minZ + (canvasY - transform.offsetZ) / transform.scale,
+  };
+}
 
 export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function TrackMapCanvas(props, ref) {
   const {
@@ -27,6 +55,7 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
     viewport,
     renderWorldOverlay,
     renderScreenOverlay,
+    onTrackHover,
     coordinatesPrepared,
     testId = "analyse-track-map-viewport",
   } = props;
@@ -338,6 +367,22 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
     return () => cancelAnimationFrame(animationId);
   }, [showCar]);
 
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      pointerHandlers.onPointerMove(event);
+      if (!onTrackHover) return;
+      const transform = transformRef.current;
+      if (!transform) {
+        onTrackHover(null);
+        return;
+      }
+      const rect = event.currentTarget.getBoundingClientRect();
+      onTrackHover(trackPointAtScreenPosition(event.clientX - rect.left, event.clientY - rect.top, transform, panRef.current, viewport, directVectorRender));
+    },
+    [directVectorRender, onTrackHover, panRef, pointerHandlers, viewport],
+  );
+  const handlePointerLeave = useCallback(() => onTrackHover?.(null), [onTrackHover]);
+
   return (
     <div
       ref={viewportRef}
@@ -345,9 +390,10 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
       className="relative w-full h-full cursor-grab touch-none overscroll-contain active:cursor-grabbing"
       style={{ minHeight: 220 }}
       onPointerDown={pointerHandlers.onPointerDown}
-      onPointerMove={pointerHandlers.onPointerMove}
+      onPointerMove={handlePointerMove}
       onPointerUp={pointerHandlers.onPointerUp}
       onPointerCancel={pointerHandlers.onPointerCancel}
+      onPointerLeave={handlePointerLeave}
     >
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       <canvas ref={customOverlayCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />

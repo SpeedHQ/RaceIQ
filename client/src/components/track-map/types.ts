@@ -4,7 +4,6 @@ import type { GameId } from "../../../../shared/games/ids";
 import type { PitLine } from "@/lib/canvas/draw-track";
 import type { TrackImagery, TrackImageryGeographicPoint } from "../../../../shared/racing/tracks/imagery";
 
-
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
   states: Readonly<Record<string, string | undefined>>;
@@ -141,6 +140,7 @@ export interface TrackMapProps {
   viewport?: TrackMapViewportCamera | null;
   renderWorldOverlay?: TrackMapOverlayRenderer;
   renderScreenOverlay?: TrackMapOverlayRenderer;
+  onTrackHover?: (point: Point | null) => void;
   coordinatesPrepared?: boolean;
   testId?: string;
 }

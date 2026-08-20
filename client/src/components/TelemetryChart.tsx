@@ -33,6 +33,20 @@ function getSync(key: string): uPlot.SyncPubSub {
   return SYNC_INSTANCES.get(key)!;
 }
 
+export function setTelemetryChartCursor(syncKey: string, distance: number | null): void {
+  const sync = SYNC_INSTANCES.get(syncKey);
+  if (!sync) return;
+  for (const plot of sync.plots) {
+    plot.setCursor(
+      {
+        left: distance == null ? -10 : plot.valToPos(distance, "x"),
+        top: plot.cursor.top ?? 0,
+      },
+      false,
+    );
+  }
+}
+
 export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
-import { assertSynchronizedCursors } from "./charts";
+import { assertMapSynchronizedCursors, assertSynchronizedCursors } from "./charts";
 import { compareQuery, getDistinctPair, type ComparisonPayload } from "./interaction-helpers";
 import { compareEndpoint, lapOptionLabel } from "./helpers";
 
@@ -145,6 +145,7 @@ test("iRacing Compare uses shared overview and zoom track canvases", async ({ pa
   const workspace = page.getByTestId("lap-compare-workspace");
   await expect(workspace.getByTestId("compare-overview-track-map")).toBeVisible({ timeout: 30_000 });
   await expect(workspace.getByTestId("compare-zoom-track-map")).toBeVisible();
+  await assertMapSynchronizedCursors(page);
   await assertSynchronizedCursors(page);
 
   const fixedMode = page.getByRole("button", { name: "Fixed View", exact: true });

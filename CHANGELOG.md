@@ -36,6 +36,7 @@
 - Keep Compare overview outlines, racing lines, segment markers, and aerial imagery aligned while moving or zooming either map
 - Separate Compare overview and zoomed maps with a visible horizontal divider
 - Resize Compare track maps proportionally in both stacked and side-by-side layouts
+- Synchronize every Compare telemetry chart when hovering either track map
 
 - Estimate complete aerial-imagery output, work, disk, duration, and concurrency before import, then reject unsafe jobs before downloading source pixels
 - Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list

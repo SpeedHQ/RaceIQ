@@ -47,6 +47,7 @@ interface CompareTrackMapProps {
   segments: SegmentTiming[];
   hoveredDistanceRef: React.RefObject<number | null>;
   redrawRef: React.MutableRefObject<(() => void) | null>;
+  onCursorMove: (distance: number | null) => void;
   trackOrdinal?: number | null;
   gameId?: GameId | null;
   imagery?: TrackImagery | null;
@@ -99,7 +100,7 @@ function CompareMapZoomControls({ label, zoom, onZoomChange, onReset }: CompareM
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({ outline, series, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId, imagery, geographicPositions }: CompareTrackMapProps) {
+export function CompareTrackMap({ outline, series, segments, hoveredDistanceRef, redrawRef, onCursorMove, trackOrdinal, gameId, imagery, geographicPositions }: CompareTrackMapProps) {
   const segmentTableRef = useRef<HTMLTableSectionElement>(null);
   const prevActiveSegRef = useRef<number>(-1);
   const redrawFrameRef = useRef<number | null>(null);
@@ -178,6 +179,46 @@ export function CompareTrackMap({ outline, series, segments, hoveredDistanceRef,
       trackRange: Math.max(maxX - minX || 1, maxZ - minZ || 1),
     };
   }, [displayBoundaries, fallbackOutline, referenceTelemetry]);
+  const referenceHoverPoints = useMemo(() => {
+    const reference = series[0];
+    if (!reference || reference.telemetry.length < 2) return [];
+    const firstDistance = numberValue(reference.telemetry[0]!, "timing.distance-traveled") ?? 0;
+    const lastDistance = numberValue(reference.telemetry.at(-1)!, "timing.distance-traveled") ?? firstDistance;
+    const lapDistance = lastDistance - firstDistance;
+    return reference.distanceGrid.flatMap((distance, gridIndex) => {
+      const sourceIndex = reference.sourceIndices[gridIndex];
+      if (!Number.isInteger(sourceIndex) || sourceIndex == null || sourceIndex < 0 || sourceIndex >= reference.telemetry.length || !Number.isFinite(distance)) return [];
+      const sample = reference.telemetry[sourceIndex]!;
+      const x = numberValue(sample, "motion.position-x");
+      const z = numberValue(sample, "motion.position-z");
+      if (x != null && z != null && (x !== 0 || z !== 0)) return [{ x, z, distance }];
+      if (!(lapDistance > 0) || alignedOutline.length < 2) return [];
+      const fraction = Math.max(0, Math.min(distance / lapDistance, 1));
+      const point = alignedOutline[Math.round(fraction * (alignedOutline.length - 1))];
+      return point ? [{ ...point, distance }] : [];
+    });
+  }, [alignedOutline, series]);
+  const handleTrackHover = useCallback(
+    (point: Point | null) => {
+      if (!point) {
+        onCursorMove(null);
+        return;
+      }
+      let nearestDistance: number | null = null;
+      let nearestSquaredDistance = Number.POSITIVE_INFINITY;
+      for (const candidate of referenceHoverPoints) {
+        const dx = candidate.x - point.x;
+        const dz = candidate.z - point.z;
+        const squaredDistance = dx * dx + dz * dz;
+        if (squaredDistance < nearestSquaredDistance) {
+          nearestSquaredDistance = squaredDistance;
+          nearestDistance = candidate.distance;
+        }
+      }
+      onCursorMove(nearestDistance);
+    },
+    [onCursorMove, referenceHoverPoints],
+  );
   const layerItems = useMemo<TrackMapLayerMenuItem[]>(
     () => [
       { key: "imagery", label: "Aerial background", available: imagery != null, unavailableReason: "Unavailable" },
@@ -368,6 +409,7 @@ export function CompareTrackMap({ outline, series, segments, hoveredDistanceRef,
             zoom={overviewZoom}
             onZoomChange={setOverviewZoom}
             renderWorldOverlay={renderOverviewOverlay}
+            onTrackHover={handleTrackHover}
             testId="compare-overview-track-map"
             coordinatesPrepared
           />
@@ -405,6 +447,7 @@ export function CompareTrackMap({ outline, series, segments, hoveredDistanceRef,
             viewport={zoomViewport}
             renderWorldOverlay={renderZoomOverlay}
             renderScreenOverlay={renderZoomHud}
+            onTrackHover={handleTrackHover}
             testId="compare-zoom-track-map"
             coordinatesPrepared
           />

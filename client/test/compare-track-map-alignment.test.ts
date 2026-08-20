@@ -52,18 +52,20 @@ describe("CompareTrackMap alignment", () => {
       return { x: Math.cos(angle) * 20, z: Math.sin(angle) * 10 };
     });
     const telemetry = outline.map((point, index) => sample(point.x + 500, point.z + 300, index));
+    const cursorDistances: Array<number | null> = [];
 
     const markup = renderToStaticMarkup(
       createElement(CompareTrackMap, {
         outline,
         series: [
-          { telemetry, distanceGrid: [], sourceIndices: [], color: "orange", label: "A" },
+          { telemetry, distanceGrid: [100, 200], sourceIndices: [1, 2], color: "orange", label: "A" },
           { telemetry, distanceGrid: [], sourceIndices: [], color: "blue", label: "B" },
           { telemetry, distanceGrid: [], sourceIndices: [], color: "green", label: "C" },
         ],
         segments: [],
         hoveredDistanceRef: { current: null },
         redrawRef: { current: null },
+        onCursorMove: (distance: number | null) => cursorDistances.push(distance),
       }),
     );
 
@@ -87,6 +89,10 @@ describe("CompareTrackMap alignment", () => {
       expect(map.outline).toEqual(renderedMaps[0]!.outline);
       expect(map.onZoomChange).toBeFunction();
     }
+    expect(renderedMaps[0]!.onTrackHover).toBeFunction();
+    renderedMaps[0]!.onTrackHover?.({ x: telemetry[2]!.values["motion.position-x"] as number, z: telemetry[2]!.values["motion.position-z"] as number });
+    renderedMaps[0]!.onTrackHover?.(null);
+    expect(cursorDistances).toEqual([200, null]);
     const alignedOutline = renderedMaps[0]!.outline!;
     expect(alignedOutline.length).toBeLessThanOrEqual(401);
     const center = alignedOutline.reduce((sum, point) => ({ x: sum.x + point.x, z: sum.z + point.z }), { x: 0, z: 0 });
