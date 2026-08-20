@@ -40,11 +40,12 @@ if (suite === "unit" && !/^\d+$/.test(workers) || suite === "unit" && Number(wor
 const suiteRoot = mkdtempSync(resolve(tmpdir(), `raceiq-bun-${suite}-`));
 let status = 1;
 try {
+  const suiteRootToml = suiteRoot.replaceAll("\\", "/");
   const configPath = resolve(suiteRoot, "bunfig.toml");
   const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
   writeFileSync(configPath, suite === "unit"
-    ? `[test]\nroot = "${suiteRoot}"\ntimeout = 30000\n`
-    : `[test]\nroot = "${suiteRoot}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 2\n`);
+    ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 30000\n`
+    : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 2\n`);
   const manifestFiles = files.map((file) => resolve(root, file));
   const args = suite === "unit"
     ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles]
