@@ -332,6 +332,7 @@ Installed via `postinstall` script. Runs repository-wide checks before every com
 - **lint** — `bun run lint`
 - **typecheck** — `bun run typecheck`
 
+Do not manually run the full `bun test` suite before pushing when these hooks pass; full tests run in CI. Run focused tests when validating changed behavior.
 
 ### Pull Request Creation
 
