@@ -14,7 +14,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const carPosRef = useRef<{ x: number; y: number; w: number; h: number; angle?: number } | null>(null);
   const transformRef = useRef<TrackTransform | null>(null);
   const bufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline), [telemetry, outline]);
+  const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, gameId), [telemetry, outline, gameId]);
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
 
   const drawStatic = useCallback(() => {

@@ -351,7 +351,6 @@ export async function stageIbtUpload(
     uploadFailure = error;
   } finally {
     await file.close();
-    reader.releaseLock();
   }
   if (uploadFailure) {
     removeIfPresent(paths.ibt);

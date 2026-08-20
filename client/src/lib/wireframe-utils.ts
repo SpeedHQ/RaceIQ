@@ -23,6 +23,28 @@ export function steeringAngleRadians(steerInput: number): number {
   return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
 }
 
+/**
+ * Split semantic attitude between complete vehicle and suspension-articulated chassis.
+ * Raw channels include road banking/gradient, so they rotate running gear too.
+ * Suspension estimates only move chassis when corresponding raw channel is absent.
+ */
+export function setVehicleAttitudeRotations(
+  vehicleRotation: THREE.Euler,
+  chassisRotation: THREE.Euler,
+  rawRoll: number | null,
+  rawPitch: number | null,
+  suspensionRoll: number,
+  suspensionPitch: number,
+): void {
+  vehicleRotation.set(rawRoll ?? 0, 0, rawPitch ?? 0, "YXZ");
+  chassisRotation.set(
+    rawRoll === null ? suspensionRoll : 0,
+    0,
+    rawPitch === null ? suspensionPitch : 0,
+    "YXZ",
+  );
+}
+
 /** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
 export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
   return inactive.clone().lerp(active, rawInput / 255);
@@ -291,16 +313,7 @@ export function buildTrackIndex(pts: ReadonlyArray<{ x: number; z: number }>, ch
  * (invariant of yaw, since chunks are fixed), then falls through to the
  * exact rotated-window check per point.
  */
-export function filterByDistanceIndexed(
-  index: TrackIndex,
-  cx: number,
-  cz: number,
-  yaw: number,
-  y: number,
-  ahead = DIST_AHEAD,
-  behind = DIST_BEHIND,
-  lateral = DIST_LATERAL,
-): FilteredTrackSegment[] {
+export function filterByDistanceIndexed(index: TrackIndex, cx: number, cz: number, yaw: number, y: number, ahead = DIST_AHEAD, behind = DIST_BEHIND, lateral = DIST_LATERAL): FilteredTrackSegment[] {
   const pts = index.pts;
   if (!Array.isArray(pts) || pts.length === 0) return [];
 

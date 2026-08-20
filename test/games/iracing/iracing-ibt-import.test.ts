@@ -13,7 +13,7 @@ import { getDiscoveredCarName } from "../../../server/db/discovered-cars";
 import { getDiscoveredTrackName } from "../../../server/db/discovered-tracks";
 import { db } from "../../../server/db/index";
 import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
-import { getLapsRaw } from "../../../server/db/lap-read-queries";
+import { getLapById, getLapsRaw } from "../../../server/db/lap-read-queries";
 import { deleteSession } from "../../../server/db/session-queries";
 import {
   commitStagedIbt,
@@ -21,6 +21,7 @@ import {
   stageIbtUpload,
 } from "../../../server/games/iracing/import-ibt";
 import { initServerGameAdapters } from "../../../server/games/init";
+import { queryLapTelemetryBySemanticId } from "../../../server/telemetry/replay";
 import { iracingAdapter } from "../../../shared/games/iracing";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
@@ -68,12 +69,17 @@ describe("IRacingIbt import workflow", () => {
     try {
       const path = recording.path;
       const bytes = readFileSync(path);
-      const body = new ReadableStream<Uint8Array>({
+      const sourceBody = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(bytes);
           controller.close();
         },
       });
+      // Bun request-body readers can omit a usable releaseLock().
+      const sourceReader = sourceBody.getReader();
+      const body = {
+        getReader: () => ({ read: () => sourceReader.read() }),
+      } as unknown as ReadableStream<Uint8Array>;
 
       let sessionId: number | null = null;
       let rawFile: string | null = null;
@@ -112,6 +118,38 @@ describe("IRacingIbt import workflow", () => {
         rawFile = stored?.rawFile ?? null;
         expect(rawFile).toEndWith(".bin");
         expect(rawFile ? existsSync(rawFile) : false).toBe(true);
+        const savedLap = await getLapById(imported.laps[0].lapId);
+        expect(
+          savedLap?.telemetry.some(
+            (packet) => packet.PositionX !== 0 || packet.PositionZ !== 0,
+          ),
+        ).toBe(true);
+        const semanticReplay = await queryLapTelemetryBySemanticId(
+          imported.laps[0].lapId,
+          [
+            "motion.position-x",
+            "motion.position-z",
+            "motion.yaw",
+            "motion.pitch",
+            "motion.roll",
+          ],
+        );
+        expect(
+          semanticReplay?.envelopes.some((envelope) => {
+            const values = Object.fromEntries(
+              envelope.values.map((value) => [value.semanticId, value]),
+            );
+            return (
+              values["motion.position-x"]?.state === "ok" &&
+              values["motion.position-z"]?.state === "ok" &&
+              values["motion.yaw"]?.state === "ok" &&
+              values["motion.pitch"]?.state === "ok" &&
+              values["motion.roll"]?.state === "ok" &&
+              (values["motion.position-x"].value !== 0 ||
+                values["motion.position-z"].value !== 0)
+            );
+          }),
+        ).toBe(true);
       } finally {
         if (sessionId !== null) await deleteSession(sessionId);
         if (rawFile) rmSync(rawFile, { force: true });

@@ -66,6 +66,11 @@ const PACKET_SOURCE_OVERRIDES: Partial<
       "AC-Evo.Static.track_configuration",
     ],
   },
+  iracing: {
+    PositionX: ["iRacing.Lat", "iRacing.Lon"],
+    PositionY: ["iRacing.Lat", "iRacing.Lon", "iRacing.Alt"],
+    PositionZ: ["iRacing.Lat", "iRacing.Lon"],
+  },
 };
 
 const UNAVAILABLE_PACKET_FIELDS: Partial<
@@ -498,6 +503,20 @@ function packetGameLink(
     limitations = [
       "Averaging removes across-tread temperature-gradient detail.",
     ];
+  } else if (
+    gameId === "iracing" &&
+    (set.key === "PositionX" ||
+      set.key === "PositionY" ||
+      set.key === "PositionZ")
+  ) {
+    description =
+      "Projects disk-only iRacing IBT geographic coordinates into a local metric position.";
+    limitations = [
+      "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates.",
+    ];
+  } else if (gameId === "iracing" && set.key === "Yaw") {
+    description =
+      "Uses north-referenced heading from imported IBT rows and simulator-relative yaw otherwise.";
   } else if (gameId === "acc" && set.key === "WeatherType") {
     description =
       "Infers wet weather from rain-tyre selection rather than observing weather directly.";

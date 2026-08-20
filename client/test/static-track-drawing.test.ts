@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { drawStaticTrack } from "../src/components/analyse/track-map/static-drawing";
+import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
 
 test("returns no transform when replay has no drawable track points", () => {
   const previousWindow = globalThis.window;
@@ -83,5 +84,40 @@ test("draws throttle input traces in the throttle channel color", () => {
     ]);
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("aligns imported iRacing GPS paths to analyse-map outlines", () => {
+  const gpsPath = [
+    { x: 0, z: 0 },
+    { x: 90, z: -10 },
+    { x: 145, z: 35 },
+    { x: 120, z: 105 },
+    { x: 55, z: 140 },
+    { x: -25, z: 85 },
+    { x: -40, z: 25 },
+    { x: 0, z: 0 },
+  ];
+  const angle = 0.37;
+  const scale = 1.8;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const outline = gpsPath.map((point) => ({
+    x: scale * (cos * point.x - sin * point.z) + 350,
+    z: scale * (sin * point.x + cos * point.z) - 120,
+  }));
+  const telemetry = gpsPath.map((point) => ({
+    values: {
+      "motion.position-x": point.x,
+      "motion.position-z": point.z,
+    },
+    states: {},
+    freshness: {},
+  }));
+
+  const aligned = resolveTrackPositions(telemetry, outline, "iracing");
+  for (let index = 0; index < outline.length; index++) {
+    expect(aligned[index].x).toBeCloseTo(outline[index].x, 3);
+    expect(aligned[index].z).toBeCloseTo(outline[index].z, 3);
   }
 });

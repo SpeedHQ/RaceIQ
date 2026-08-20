@@ -19,6 +19,8 @@ test("semantic replay requests every Analyse Data panel dependency", () => {
     "fuel.fuel-capacity",
     "identity.car-ordinal",
     "identity.player-track-surface",
+    "motion.pitch",
+    "motion.roll",
     "tires.wheel-in-puddle-depth",
     "suspension.norm-suspension-travel",
     "tires.normalized-tire-slip-angle",

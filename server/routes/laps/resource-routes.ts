@@ -38,6 +38,8 @@ export function semanticReplayIds(): readonly string[] {
     "motion.position-x",
     "motion.position-z",
     "motion.yaw",
+    "motion.pitch",
+    "motion.roll",
     "timing.current-lap",
     "timing.current-race-time",
     "timing.distance-traveled",
