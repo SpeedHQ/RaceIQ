@@ -38,34 +38,30 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 
 ## Features
 
-- **Live telemetry** — real-time dashboard with speed, inputs, tires, suspension, G-forces, and 3D car visualization
-- **Track mapping** — includes track outlines with live car position and automatic track mapping for tracks that havent been included in the software
-- **Lap analysis** — automatic lap and corner detection, side-by-side comparison with time deltas
-- **AI coaching** — send any lap for AI-powered technique, setup, and tire feedback
-- **Vehicle setup** — tune catalog, car browser with performance data
-- **Tune analysis** — compare the fastest tunes/setups and see popular setting ranges across the community
+- **Live telemetry dashboards** — real-time speed, inputs, tires, suspension, G-forces, fuel, ERS/DRS, and 3D car visualization
+- **Session recording and history** — automatically save laps and sessions locally, filter your laps, review recaps, sector times, and pace statistics
+- **Lap analysis and replay** — spot where time is gained or lost with corner detection, track playback, telemetry traces, insights, and sector maps
+- **Compare laps** — see two laps side by side with time differences, fastest sectors, aligned track positions, and optional AI analysis
+- **AI coaching and chats** — get feedback on driving technique, setups, tires, and long-term improvement, with saved conversations and optional local AI
+- **Driver profile and trends** — track driving style, consistency, time loss, and improvement across recent laps
+- **Tuning experiments** — test setup changes, coaching drills, and driving improvements, then review the results
+- **Vehicle and setup catalogue** — browse cars, tracks, performance data, tunes, setup details, and community setting ranges
+- **Tune analysis** — compare fast tunes and find popular setup ranges across the community
+- **Track mapping and guides** — see your live position, map new tracks automatically, and use turn numbers, sectors, and track guides
+- **Race results** — review qualifying, podiums, fastest laps, pit stops, strategies, and position timelines
+- **Data portability** — import MoTeC logs and saved session captures; export individual laps or complete sessions
+- **Multi-game support** — use RaceIQ with Forza Motorsport 2023, F1 2025, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing
 
 ## Supported Games
 
-| Game | Status | Public Tunes | Public Guides | Tune Creator |
-|------|--------|--------------|---------------|--------------|
-| Assetto Corsa Evo | Supported | No | No | No |
-| F1 2025 | Supported | Yes | Yes | No |
-| Assetto Corsa Competizione | Supported | Yes | Yes | No |
-| Forza Motorsport 2023 | Supported | No | No | Yes |
-| iRacing | Supported (Windows native SDK) | No | No | No |
-| Le Mans Ultimate | Blocked — awaiting game key / sponsorship | — | — | — |
-
-### Development priority
-
-Supported games are listed in priority order. Priority is based on ongoing game support and freshness — how actively each title is still being updated by its developer:
-
-1. **Assetto Corsa Evo** — actively developed, frequent content updates.
-2. **iRacing** — actively developed and read directly through its Windows shared-memory SDK.
-3. **F1 2025** — current-season title, actively maintained telemetry spec.
-4. **Assetto Corsa Competizione** — stable and widely raced, but feature-complete upstream.
-5. **Forza Motorsport 2023** — lowest priority; no longer meaningfully updated and its telemetry format is frozen.
-
+| Game | Priority | Public Tunes | Public Guides | Tune Creator |
+|------|----------|--------------|---------------|--------------|
+| Assetto Corsa Evo | High | No | No | No |
+| iRacing | High | No | No | No |
+| F1 2025 | Medium | Yes | Yes | No |
+| Assetto Corsa Competizione | Medium | Yes | Yes | No |
+| Forza Motorsport 2023 | Low | No | No | Yes |
+| Le Mans Ultimate | Planned | — | — | — |
 Lower priority means slower turnaround on new features for that title — it does not mean deprecated. All supported games keep working.
 
 ## Getting Started
@@ -109,7 +105,7 @@ The database is created automatically on first run. No cloud account or external
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
 
-Want to run AI entirely on your own PC? See the [Local AI](guides/local-ai.md) guide.
+Want to run AI entirely on your own PC? See the [Local AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/local-ai.md).
 
 ## Sponsorship
 
