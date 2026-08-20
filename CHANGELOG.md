@@ -76,6 +76,7 @@
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps
 - Restore the moving car pointer on iRacing Analyse track maps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
+- Keep multi-lap comparisons responsive and correctly identified as selections change or laps fail, preserve shared AI panel state, and prevent duplicate series colors
 - Restore experiment version loading, editing, deletion, and recovery after the version API rename
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
 - Do not report wheel lockups or brake traction loss for iRacing laps when source telemetry cannot identify them

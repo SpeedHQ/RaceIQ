@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { COMPARISON_COLOR_VARS } from "@/lib/colors";
+import { comparisonLapIdentity } from "@/lib/comparison-utils";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 
@@ -127,11 +128,11 @@ export function ComparisonSelectors({
           className="w-full"
           menuWidthClass="w-[min(28rem,var(--available-width))]"
           renderItem={(option, selected) => {
-            const selectedIndex = comparisonLapIds.indexOf(option.key);
-            const colorIndex = selectedIndex >= 0 ? selectedIndex + 1 : comparisonLapIds.length + 1;
+            const identity = comparisonLapIdentity(comparisonLapIds, option.key);
+            const color = identity?.color ?? COMPARISON_COLOR_VARS[Math.min(comparisonLapIds.length + 1, COMPARISON_COLOR_VARS.length - 1)];
             return (
               <>
-                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: COMPARISON_COLOR_VARS[colorIndex % COMPARISON_COLOR_VARS.length] }} />
+                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
                 <span className="truncate">{option.label}</span>
                 {selected && <span className="sr-only">{m.trackdetail_selected()}</span>}
               </>

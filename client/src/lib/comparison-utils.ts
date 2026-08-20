@@ -1,4 +1,5 @@
 import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
+import { COMPARISON_COLOR_VARS } from "@/lib/colors";
 const v = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id];
 const num = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => {
   const x = v(p, id);
@@ -7,6 +8,56 @@ const num = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["valu
 
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";
+
+export const MAX_COMPARISON_LAPS = COMPARISON_COLOR_VARS.length - 1;
+
+export interface ComparisonLapIdentity {
+  label: string;
+  color: string;
+}
+
+export function comparisonLapIdentity(selectedLapIds: readonly number[], lapId: number): ComparisonLapIdentity | null {
+  const selectionIndex = selectedLapIds.indexOf(lapId);
+  if (selectionIndex < 0 || selectionIndex >= MAX_COMPARISON_LAPS) return null;
+  return {
+    label: String.fromCharCode(66 + selectionIndex),
+    color: COMPARISON_COLOR_VARS[selectionIndex + 1],
+  };
+}
+
+export function normalizeComparisonLapIds(lapIds: readonly number[], referenceLapId: number | null = null): number[] {
+  const uniqueLapIds: number[] = [];
+  for (const lapId of lapIds) {
+    if (lapId === referenceLapId || uniqueLapIds.includes(lapId)) continue;
+    uniqueLapIds.push(lapId);
+    if (uniqueLapIds.length === MAX_COMPARISON_LAPS) break;
+  }
+  return uniqueLapIds;
+}
+
+export function toggleComparisonLapSelection(selectedLapIds: readonly number[], lapId: number): number[] {
+  if (selectedLapIds.includes(lapId)) return selectedLapIds.filter((selectedLapId) => selectedLapId !== lapId);
+  if (selectedLapIds.length >= MAX_COMPARISON_LAPS) return [...selectedLapIds];
+  return [...selectedLapIds, lapId];
+}
+
+export interface ComparisonRequestPlan {
+  requestLapIds: number[];
+  abortLapIds: number[];
+}
+
+export function planComparisonRequests(
+  selectedLapIds: readonly number[],
+  loadedLapIds: ReadonlySet<number>,
+  failedLapIds: ReadonlySet<number>,
+  inFlightLapIds: ReadonlySet<number>,
+): ComparisonRequestPlan {
+  const selectedLapIdSet = new Set(selectedLapIds);
+  return {
+    requestLapIds: selectedLapIds.filter((lapId) => !loadedLapIds.has(lapId) && !failedLapIds.has(lapId) && !inFlightLapIds.has(lapId)),
+    abortLapIds: [...inFlightLapIds].filter((lapId) => !selectedLapIdSet.has(lapId)),
+  };
+}
 
 export interface Point {
   x: number;
