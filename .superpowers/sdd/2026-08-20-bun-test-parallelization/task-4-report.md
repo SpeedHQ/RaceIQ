@@ -26,7 +26,7 @@ Commands run from repository root; timings are `/usr/bin/time -p` wall-clock `re
 3. `BUN_TEST_WORKERS=1 bun run test:unit`
    - `real 0.69s`.
    - `282 pass, 2 skip, 0 fail`; 284 tests / 27 files; 54,650 expect calls.
-   - Runner output still identifies Bun as `10x PARALLEL`; command-level worker comparison is nevertheless recorded as requested. Parallel-vs-sequential wall-time delta: 0.13s (sequential slower in this small suite).
+   - Runner output still identifies Bun as `10x PARALLEL`. The requested-setting invocations differ by 0.13s (0.56s vs 0.69s), but effective worker serialization is unverified; this is not a proven parallel-vs-sequential comparison.
 
 4. `bun run test:integration`
    - Timeout allowance: 1,800s; completed in `real 31.16s`.
@@ -60,4 +60,4 @@ Reason: each imports/initializes the server DB path indirectly and requires inte
 
 ## Recommendation
 
-Keep four files in integration. Fix temporary-cwd subprocess path resolution and restore required generated/fixture artifacts in a separate task before using integration or combined-suite timings as a performance baseline. Do not claim a speedup from this run; only unit parallel-vs-single-worker timings are clean, and the observed 0.56s vs 0.69s difference is a small-suite measurement rather than a broad benchmark.
+Keep four files in integration. Fix temporary-cwd subprocess path resolution and restore required generated/fixture artifacts in a separate task before using integration or combined-suite timings as a performance baseline. Do not claim a speedup from this run; unit invocations with requested worker settings measured 0.56s vs 0.69s, but Bun's `10x PARALLEL` output means true worker-effectiveness and parallel-vs-sequential behavior remain unverified.
