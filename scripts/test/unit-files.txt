@@ -14,8 +14,6 @@ test/lap-analysis/detection/game-compat.test.ts
 test/lap-analysis/detection/lap-boundary-reset.test.ts
 test/lap-analysis/detection/session-boundary.test.ts
 test/lap-analysis/driving-style.test.ts
-test/lap-analysis/lap-detector-ac.test.ts
-test/lap-analysis/lap-export-zip.test.ts
 test/lap-analysis/lap-insight-time-loss.test.ts
 test/lap-analysis/lap-path.test.ts
 test/lap-analysis/lap-quality.test.ts

@@ -217,3 +217,5 @@ test/tracks/visualization/iracing-track-segment-viz.test.ts
 test/tracks/visualization/track-focus-zoom.test.ts
 test/tracks/visualization/track-segment-viz.test.ts
 test/visualization/suspension.test.ts
+test/lap-analysis/lap-detector-ac.test.ts
+test/lap-analysis/lap-export-zip.test.ts

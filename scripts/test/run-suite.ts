@@ -1,3 +1,5 @@
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve, relative, sep } from "node:path";
 
 const suite = process.argv[2];
@@ -35,11 +37,23 @@ const workers = process.env.BUN_TEST_WORKERS ?? "4";
 if (suite === "unit" && !/^\d+$/.test(workers) || suite === "unit" && Number(workers) < 1) {
   throw new Error("BUN_TEST_WORKERS must be a positive integer");
 }
-const suiteRoot = resolve(root, suite === "unit" ? "test-unit-root" : "test-integration-root");
+const suiteRoot = mkdtempSync(resolve(tmpdir(), `raceiq-bun-${suite}-`));
+const linkType = process.platform === "win32" ? "junction" : "dir";
+mkdirSync(resolve(suiteRoot, "test"), { recursive: true });
+symlinkSync(resolve(root, "server"), resolve(suiteRoot, "server"), linkType);
+symlinkSync(resolve(root, "test", "support"), resolve(suiteRoot, "test", "support"), linkType);
+for (const file of files) {
+  const staged = resolve(suiteRoot, file);
+  mkdirSync(resolve(staged, ".."), { recursive: true });
+  symlinkSync(resolve(root, file), staged, "file");
+}
+const manifestFiles = files.map((file) => `./${file}`);
 const args = suite === "unit"
-  ? ["test", "--config", resolve(root, config), "--parallel", workers, ...files.map((file) => `../${file}`)]
-  : ["test", "--config", resolve(root, config), "--max-concurrency=2", ...files.map((file) => `../${file}`)];
+  ? ["test", "--config", resolve(root, config), "--parallel", workers, ...manifestFiles]
+  : ["test", "--config", resolve(root, config), "--max-concurrency=2", ...manifestFiles];
 const env = { ...process.env };
 if (suite === "integration" && !env.DATA_DIR) env.DATA_DIR = resolve(root, ".data-test");
 const proc = Bun.spawn([process.execPath, ...args], { cwd: suiteRoot, env, stdout: "inherit", stderr: "inherit" });
-process.exit(await proc.exited);
+const status = await proc.exited;
+rmSync(suiteRoot, { recursive: true, force: true });
+process.exit(status);
