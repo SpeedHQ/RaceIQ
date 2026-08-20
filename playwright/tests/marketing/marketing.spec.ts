@@ -16,17 +16,20 @@ const PAGES = [
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
   { name: "experiments-review-overview", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=overview" },
   { name: "experiments-review-track", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track" },
+  { name: "experiments-review-track-tires", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=tires" },
+  { name: "experiments-review-track-balance", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=balance" },
+  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=suspension" },
   { name: "experiments-review-sector-1", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=s1" },
 ];
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
     if (page.name === "lap-analytics") test.setTimeout(60_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
-    if (page.name === "experiments-review-overview") {
+    if (page.name.startsWith("experiments-review-")) {
       const response = await p.request.post("/api/experiments/1/import-laps", {
         data: { lapIds: [4, 5, 6, 7, 8], experimentVersionId: 2 },
       });
-      if (!response.ok()) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
+      if (![201, 409].includes(response.status())) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
     }
     await p.goto(page.path, { waitUntil: "networkidle" });
     await p.waitForTimeout(1500);
