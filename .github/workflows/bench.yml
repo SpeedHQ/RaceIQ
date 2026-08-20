@@ -19,6 +19,9 @@ jobs:
       - whitesmith-windows-x64
       - 4VCPU
       - 15G
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout PR
         uses: actions/checkout@v7
