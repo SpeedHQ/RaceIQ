@@ -114,10 +114,10 @@ export function CompareTrackMap({
     return flipBoundaries(boundaries);
   }, [boundaries, flip]);
 
-  const { alignedOutline, alignedBoundaries, telXFn, trackRange } = useMemo(() => {
+  const { alignedOutline, alignedBoundaries, transformPoint, trackRange } = useMemo(() => {
     const outline = displayOutline;
     const boundaries = displayBoundaries;
-    const identity = (x: number) => x;
+    const identity = (point: Point): Point => point;
 
     const computeRange = (pts: Point[]) => {
       let minX = Infinity,
@@ -140,7 +140,7 @@ export function CompareTrackMap({
         telPts.push({ x: numberValue(p, "motion.position-x") ?? 0, z: numberValue(p, "motion.position-z") ?? 0 });
     }
     if (telPts.length < 20 || outline.length < 10) {
-      return { alignedOutline: outline, alignedBoundaries: boundaries, telXFn: identity, trackRange: computeRange(outline) };
+      return { alignedOutline: outline, alignedBoundaries: boundaries, transformPoint: identity, trackRange: computeRange(outline) };
     }
 
     // Check bounding box overlap between outline and telemetry
@@ -181,11 +181,11 @@ export function CompareTrackMap({
 
     // Also check if just X-flip fixes it (old F1 laps)
     if (overlaps) {
-      // Check X sign flip
       if (oCx !== 0 && Math.sign(tCx) !== Math.sign(oCx) && Math.abs(tCx) > 50) {
-        return { alignedOutline: outline, alignedBoundaries: boundaries, telXFn: (x: number) => -x, trackRange: computeRange(outline) };
+        const flipX = (point: Point): Point => ({ x: -point.x, z: point.z });
+        return { alignedOutline: outline, alignedBoundaries: boundaries, transformPoint: flipX, trackRange: computeRange(outline) };
       }
-      return { alignedOutline: outline, alignedBoundaries: boundaries, telXFn: identity, trackRange: computeRange(outline) };
+      return { alignedOutline: outline, alignedBoundaries: boundaries, transformPoint: identity, trackRange: computeRange(outline) };
     }
 
     // No overlap — need full Procrustes alignment.
@@ -277,7 +277,7 @@ export function CompareTrackMap({
       if (dScale < 0.0001 && dRot < 0.0001) break;
     }
 
-    // Apply final transform to full outline
+    // Apply final transform to full outline and all telemetry coordinates.
     const cosA = Math.cos(rotation),
       sinA = Math.sin(rotation);
     const applyTransform = (p: Point): Point => ({
@@ -299,29 +299,22 @@ export function CompareTrackMap({
       };
     }
 
-    return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, telXFn: identity, trackRange: computeRange(newOutline) };
+    return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, transformPoint: applyTransform, trackRange: computeRange(newOutline) };
   }, [displayOutline, telemetryA, displayBoundaries]);
 
-  const displayTelemetryA = useMemo(
-    () =>
-      telemetryA.map((sample) => {
-        const x = numberValue(sample, "motion.position-x");
-        if (x == null) return sample;
-        const displayX = telXFn(x);
-        return displayX === x ? sample : { ...sample, values: { ...sample.values, "motion.position-x": displayX } };
-      }),
-    [telemetryA, telXFn],
+  const transformTelemetry = useCallback(
+    (sample: SemanticTelemetrySample) => {
+      const x = numberValue(sample, "motion.position-x");
+      const z = numberValue(sample, "motion.position-z");
+      if (x == null || z == null || (x === 0 && z === 0)) return sample;
+      const point = transformPoint({ x, z });
+      return point.x === x && point.z === z ? sample : { ...sample, values: { ...sample.values, "motion.position-x": point.x, "motion.position-z": point.z } };
+    },
+    [transformPoint],
   );
-  const displayTelemetryB = useMemo(
-    () =>
-      telemetryB.map((sample) => {
-        const x = numberValue(sample, "motion.position-x");
-        if (x == null) return sample;
-        const displayX = telXFn(x);
-        return displayX === x ? sample : { ...sample, values: { ...sample.values, "motion.position-x": displayX } };
-      }),
-    [telemetryB, telXFn],
-  );
+
+  const displayTelemetryA = useMemo(() => telemetryA.map(transformTelemetry), [telemetryA, transformTelemetry]);
+  const displayTelemetryB = useMemo(() => telemetryB.map(transformTelemetry), [telemetryB, transformTelemetry]);
   const mapTelemetryA = useMemo<SemanticAnalysisFrame[]>(
     () => displayTelemetryA.map((sample) => ({ values: sample.values as SemanticAnalysisFrame["values"], states: {}, freshness: {} })),
     [displayTelemetryA],

@@ -44,6 +44,8 @@ playwright/test-data-seeded/
 *.db-shm
 /.data-recording-support/
 /.data-telemetry-audit/
+# Local map verification data
+/.data-map-verify-all/
 
 # Demo render output
 playwright/assets/
