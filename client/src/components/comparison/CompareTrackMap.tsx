@@ -5,7 +5,15 @@ import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TrackMapCanvas } from "@/components/track-map/TrackMapCanvas";
-import type { SemanticAnalysisFrame, TrackMapLayerState, TrackMapOverlayRenderer, TrackMapViewportCamera } from "@/components/track-map/types";
+import {
+  TRACK_MAP_MAX_ZOOM,
+  TRACK_MAP_MIN_ZOOM,
+  TRACK_MAP_ZOOM_BUTTON_FACTOR,
+  type SemanticAnalysisFrame,
+  type TrackMapLayerState,
+  type TrackMapOverlayRenderer,
+  type TrackMapViewportCamera,
+} from "@/components/track-map/types";
 import { type BoundaryData, computeZoom, drawComparisonWorldOverlay, drawInputsHUD, resolveAlignedCursor, resolveComparisonImageryLocalPositions, type Point } from "@/lib/comparison-utils";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -64,6 +72,29 @@ const COMPARE_ZOOM_LAYERS: TrackMapLayerState = {
   outline: false,
 };
 
+interface CompareMapZoomControlsProps {
+  label: string;
+  zoom: number;
+  onZoomChange: (updater: (zoom: number) => number) => void;
+  onReset: () => void;
+}
+
+function CompareMapZoomControls({ label, zoom, onZoomChange, onReset }: CompareMapZoomControlsProps) {
+  return (
+    <div className="flex items-center gap-1">
+      <Button variant="app-outline" size="icon-xs" aria-label={`Zoom out ${label}`} onClick={() => onZoomChange((current) => Math.max(TRACK_MAP_MIN_ZOOM, current / TRACK_MAP_ZOOM_BUTTON_FACTOR))}>
+        −
+      </Button>
+      <Button variant="app-outline" size="xs" aria-label={`Reset ${label} zoom`} onClick={onReset}>
+        {zoom.toFixed(1)}×
+      </Button>
+      <Button variant="app-outline" size="icon-xs" aria-label={`Zoom in ${label}`} onClick={() => onZoomChange((current) => Math.min(TRACK_MAP_MAX_ZOOM, current * TRACK_MAP_ZOOM_BUTTON_FACTOR))}>
+        +
+      </Button>
+    </div>
+  );
+}
+
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
 export function CompareTrackMap({
   outline,
@@ -87,6 +118,8 @@ export function CompareTrackMap({
 
   const [boundaries, setBoundaries] = useState<BoundaryData | null>(null);
   const [followCar, setFollowCar] = useState(false);
+  const [overviewZoom, setOverviewZoom] = useState(1);
+  const [zoomMultiplier, setZoomMultiplier] = useState(1);
 
   // Fetch track boundaries
   useEffect(() => {
@@ -178,7 +211,18 @@ export function CompareTrackMap({
     [displayTelemetryA, segments],
   );
   const zoomView = hoveredDistance == null ? null : computeZoom(displayTelemetryA, displayTelemetryB, hoveredDistance, trackRange, (x) => x, alignedOutline, cursorIndexA, cursorIndexB);
-  const zoom = zoomView ? Math.min(64, Math.max(1, trackRange / zoomView.range)) : 1;
+  const automaticZoom = zoomView ? Math.min(TRACK_MAP_MAX_ZOOM, Math.max(1, trackRange / zoomView.range)) : 1;
+  const zoom = Math.min(TRACK_MAP_MAX_ZOOM, Math.max(TRACK_MAP_MIN_ZOOM, automaticZoom * zoomMultiplier));
+  const setZoomedZoom = useCallback(
+    (updater: (zoom: number) => number) => {
+      setZoomMultiplier((current) => {
+        const currentZoom = Math.min(TRACK_MAP_MAX_ZOOM, Math.max(TRACK_MAP_MIN_ZOOM, automaticZoom * current));
+        const nextZoom = Math.min(TRACK_MAP_MAX_ZOOM, Math.max(TRACK_MAP_MIN_ZOOM, updater(currentZoom)));
+        return nextZoom / automaticZoom;
+      });
+    },
+    [automaticZoom],
+  );
   const focusSample = alignedCursor?.packetA ?? null;
   const focusYaw = focusSample ? numberValue(focusSample, "motion.yaw") : undefined;
   const zoomViewport: TrackMapViewportCamera | null = zoomView
@@ -276,6 +320,9 @@ export function CompareTrackMap({
     <div className="flex h-full flex-col overflow-y-auto border border-app-border text-app-body text-app-text">
       <div className="relative min-h-32 basis-56 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
+        <div className="absolute top-2 right-2 z-10">
+          <CompareMapZoomControls label="overview map" zoom={overviewZoom} onZoomChange={setOverviewZoom} onReset={() => setOverviewZoom(1)} />
+        </div>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
@@ -291,7 +338,8 @@ export function CompareTrackMap({
             segments={null}
             layers={COMPARE_OVERVIEW_LAYERS}
             rotateWithCar={false}
-            zoom={1}
+            zoom={overviewZoom}
+            onZoomChange={setOverviewZoom}
             renderWorldOverlay={renderOverviewOverlay}
             testId="compare-overview-track-map"
             coordinatesPrepared
@@ -300,9 +348,12 @@ export function CompareTrackMap({
       </div>
       <div className="relative min-h-40 basis-80 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
-        <Button onClick={() => setFollowCar((current) => !current)} variant={followCar ? "selected-toggle" : "app-outline"} size="app-sm" className="absolute top-2 right-2 z-10">
-          {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
-        </Button>
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+          <Button onClick={() => setFollowCar((current) => !current)} variant={followCar ? "selected-toggle" : "app-outline"} size="app-sm">
+            {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
+          </Button>
+          <CompareMapZoomControls label="zoomed map" zoom={zoom} onZoomChange={setZoomedZoom} onReset={() => setZoomMultiplier(1)} />
+        </div>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
@@ -319,6 +370,7 @@ export function CompareTrackMap({
             layers={COMPARE_ZOOM_LAYERS}
             rotateWithCar={false}
             zoom={zoom}
+            onZoomChange={setZoomedZoom}
             viewport={zoomViewport}
             renderWorldOverlay={renderZoomOverlay}
             renderScreenOverlay={renderZoomHud}

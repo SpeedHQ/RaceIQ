@@ -1,29 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { compositeFixedTrack, compositeTrack, drawCarOverlay, drawCarPulse, type CarOverlayPosition } from "./overlay-drawing";
+import { applyTrackMapOverlayCamera, compositeFixedTrack, compositeTrack, drawCarOverlay, drawCarPulse, type CarOverlayPosition } from "./overlay-drawing";
 import { drawStaticTrack } from "./static-drawing";
-import { semanticNumber, type TrackMapHandle, type TrackMapProps, type TrackMapViewportCamera, type TrackTransform } from "./types";
+import { semanticNumber, type TrackMapHandle, type TrackMapProps, type TrackTransform } from "./types";
 import { useTrackMapImagery } from "./useTrackMapImagery";
 import { useTrackMapRenderData } from "./useTrackMapRenderData";
 import { useTrackMapViewport } from "./useTrackMapViewport";
-export function applyTrackMapOverlayCamera(
-  context: CanvasRenderingContext2D,
-  transform: TrackTransform,
-  pan: Readonly<{ x: number; y: number }>,
-  viewport: TrackMapViewportCamera | null | undefined,
-  directVectorRender: boolean,
-): void {
-  if (viewport) {
-    context.translate(transform.w / 2 + pan.x, transform.h / 2 + pan.y);
-    context.rotate(viewport.rotation ?? 0);
-    context.translate(-transform.w / 2, -transform.h / 2);
-  } else if (directVectorRender) {
-    context.translate(pan.x, pan.y);
-  } else {
-    context.translate((transform.w - transform.offW) / 2 + pan.x, (transform.h - transform.offH) / 2 + pan.y);
-  }
-}
 
 export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function TrackMapCanvas(props, ref) {
   const {

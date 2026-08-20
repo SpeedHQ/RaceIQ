@@ -36,7 +36,7 @@ describe("CompareTrackMap alignment", () => {
     });
     const telemetry = outline.map((point, index) => sample(point.x + 500, point.z + 300, index));
 
-    renderToStaticMarkup(
+    const markup = renderToStaticMarkup(
       createElement(CompareTrackMap, {
         outline,
         telemetryA: telemetry,
@@ -55,11 +55,14 @@ describe("CompareTrackMap alignment", () => {
     );
 
     expect(renderedMaps).toHaveLength(2);
+    expect(markup).toContain('aria-label="Zoom out overview map"');
+    expect(markup).toContain('aria-label="Zoom in zoomed map"');
     for (const map of renderedMaps) {
       const mapTelemetry = map.telemetry as SemanticAnalysisFrame[];
       expect(mapTelemetry[0]!.values["motion.position-x"]).toBe(telemetry[0]!.values["motion.position-x"]);
       expect(mapTelemetry[0]!.values["motion.position-z"]).toBe(telemetry[0]!.values["motion.position-z"]);
       expect(map.outline).toEqual(renderedMaps[0]!.outline);
+      expect(map.onZoomChange).toBeFunction();
     }
     const alignedOutline = renderedMaps[0]!.outline!;
     expect(alignedOutline.length).toBeLessThanOrEqual(401);

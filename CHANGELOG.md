@@ -30,7 +30,7 @@
 - Keep Compare imagery available when lap-specific calibration is unavailable and omit elevation data from map responses
 - Restore satellite imagery on Compare maps when laps lack usable world-position telemetry
 - Use local iRacing positions for Compare imagery instead of raw GPS latitude and longitude values
-- Keep Compare overview outlines, racing lines, segment markers, and aerial imagery aligned while moving the map
+- Keep Compare overview outlines, racing lines, segment markers, and aerial imagery aligned while moving or zooming either map
 
 - Estimate complete aerial-imagery output, work, disk, duration, and concurrency before import, then reject unsafe jobs before downloading source pixels
 - Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list

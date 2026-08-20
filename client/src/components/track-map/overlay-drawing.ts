@@ -1,6 +1,6 @@
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { semanticNumber, type Point, type SemanticAnalysisFrame, type TrackTransform } from "./types";
+import { semanticNumber, type Point, type SemanticAnalysisFrame, type TrackMapViewportCamera, type TrackTransform } from "./types";
 
 export interface OverlayOptions {
   canvas: HTMLCanvasElement;
@@ -21,6 +21,23 @@ export interface CarOverlayPosition {
   w: number;
   h: number;
   angle?: number;
+}
+export function applyTrackMapOverlayCamera(
+  context: CanvasRenderingContext2D,
+  transform: TrackTransform,
+  pan: Readonly<{ x: number; y: number }>,
+  viewport: TrackMapViewportCamera | null | undefined,
+  directVectorRender: boolean,
+): void {
+  if (viewport) {
+    context.translate(transform.w / 2 + pan.x, transform.h / 2 + pan.y);
+    context.rotate(viewport.rotation ?? 0);
+    context.translate(-transform.w / 2, -transform.h / 2);
+  } else if (directVectorRender) {
+    context.translate(pan.x, pan.y);
+  } else {
+    context.translate((transform.w - transform.offW) / 2 + pan.x, (transform.h - transform.offH) / 2 + pan.y);
+  }
 }
 
 export function drawCarPulse(context: CanvasRenderingContext2D, position: CarOverlayPosition, nowMs: number): void {

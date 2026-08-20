@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { drawStaticTrack } from "../src/components/track-map/static-drawing";
-import { applyTrackMapOverlayCamera } from "../src/components/track-map/TrackMapCanvas";
+import { applyTrackMapOverlayCamera } from "../src/components/track-map/overlay-drawing";
 import { initGameAdapters } from "../../shared/games/init";
 import { needsTrackFlip } from "../../shared/racing/tracks/coords";
 import { resolveTrackPositions } from "../src/components/track-map/path";
