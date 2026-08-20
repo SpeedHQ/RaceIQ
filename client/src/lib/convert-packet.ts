@@ -12,6 +12,10 @@ export interface DisplayPacket extends TelemetryPacket {
   DisplayTireTempFR: number;
   DisplayTireTempRL: number;
   DisplayTireTempRR: number;
+  /** Power in HP (game-normalized). 0 if game does not provide power telemetry. */
+  DisplayPower: number;
+  /** Torque in Nm. 0 if game does not provide torque telemetry. */
+  DisplayTorque: number;
 }
 
 /**
@@ -30,6 +34,10 @@ export function convertPacket(raw: TelemetryPacket, speedUnit: "mph" | "kmh", te
     DisplayTireTempFR: convertTemp(raw.TireTempFR, tempUnit, srcTemp),
     DisplayTireTempRL: convertTemp(raw.TireTempRL, tempUnit, srcTemp),
     DisplayTireTempRR: convertTemp(raw.TireTempRR, tempUnit, srcTemp),
+    DisplayPower: raw.gameId === "fm-2023" ? raw.Power / 745.7
+                : raw.gameId === "f1-2025" ? raw.Power
+                : 0,
+    DisplayTorque: raw.gameId === "fm-2023" ? raw.Torque : 0,
   };
 }
 

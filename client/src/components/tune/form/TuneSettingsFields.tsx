@@ -3,7 +3,7 @@ import { GearRatioChart } from "@/components/tune/GearRatioChart";
 import type { TuneSettings } from "@/data/tune-catalog";
 import { m } from "@/paraglide/messages";
 import { NumberField } from "./NumberField";
-import { unitLabel } from "./units";
+import { fromDisplay, unitLabel } from "./units";
 import type { TuneFormCar } from "./useAllCars";
 
 type UpdateSettings = <K extends keyof TuneSettings>(group: K, field: string, value: number) => void;
@@ -25,6 +25,7 @@ export function TuneSettingsFields({
   updateSettings: UpdateSettings;
   setSettings: Dispatch<SetStateAction<TuneSettings>>;
 }) {
+  const effectiveTopSpeedKph = settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934);
   return (
     <div className="grid grid-cols-1 gap-4 @3xl/workspace:grid-cols-2">
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
@@ -50,15 +51,15 @@ export function TuneSettingsFields({
         <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
         <NumberField
           label={m.label_top_speed()}
-          value={settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934)}
+          value={isMetric ? effectiveTopSpeedKph : Math.round(effectiveTopSpeedKph / 1.60934)}
           onChange={(v) =>
             setSettings((s) => ({
               ...s,
-              gearing: { ...s.gearing, topSpeedKph: v },
+              gearing: { ...s.gearing, topSpeedKph: fromDisplay(v, "speed", isMetric) },
             }))
           }
           step={1}
-          unit="km/h"
+          unit={unitLabel("speed", isMetric)}
         />
         <div className="space-y-1 pt-1">
           <div className="flex items-center justify-between">
@@ -84,15 +85,17 @@ export function TuneSettingsFields({
             </select>
           </div>
           {(settings.gearing.ratios ?? []).map((ratio, i) => {
-            const topSpeedKph = settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934);
             const topGearRatio = (settings.gearing.ratios ?? [])[(settings.gearing.ratios ?? []).length - 1];
-            const CIRC = topSpeedKph && topGearRatio ? (topSpeedKph * topGearRatio * settings.gearing.finalDrive) / (8000 / 60) / 3.6 : 2.0;
+            const CIRC = effectiveTopSpeedKph && topGearRatio ? (effectiveTopSpeedKph * topGearRatio * settings.gearing.finalDrive) / (8000 / 60) / 3.6 : 2.0;
             const gearTopKph = (8000 / 60 / (ratio * settings.gearing.finalDrive)) * CIRC * 3.6;
+            const gear = i + 1;
             return (
-              <label key={ratio} className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-app-text-muted whitespace-nowrap">Gear {i + 1}</span>
+              <label key={gear} className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-app-text-muted whitespace-nowrap">Gear {gear}</span>
                 <div className="flex items-center gap-1">
-                  <span className="text-app-caption text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>
+                  <span className="text-app-caption text-app-text-muted font-mono tabular-nums w-14 text-right">
+                    {Math.round(isMetric ? gearTopKph : gearTopKph / 1.60934)} {unitLabel("speed", isMetric)}
+                  </span>
                   <input
                     type="number"
                     value={ratio}
@@ -112,11 +115,7 @@ export function TuneSettingsFields({
               </label>
             );
           })}
-          <GearRatioChart
-            ratios={settings.gearing.ratios ?? []}
-            finalDrive={settings.gearing.finalDrive}
-            topSpeedMph={(settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934)) / 1.60934}
-          />
+          <GearRatioChart ratios={settings.gearing.ratios ?? []} finalDrive={settings.gearing.finalDrive} topSpeedMph={effectiveTopSpeedKph / 1.60934} speedUnit={isMetric ? "km/h" : "mph"} />
         </div>
       </div>
 

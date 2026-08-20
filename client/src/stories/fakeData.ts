@@ -537,6 +537,8 @@ function makeDisplayPacket(raw: TelemetryPacket): DisplayPacket {
     DisplayTireTempFR: isForza ? fahrenheitToC(raw.TireTempFR) : raw.TireTempFR,
     DisplayTireTempRL: isForza ? fahrenheitToC(raw.TireTempRL) : raw.TireTempRL,
     DisplayTireTempRR: isForza ? fahrenheitToC(raw.TireTempRR) : raw.TireTempRR,
+    DisplayPower: isForza ? raw.Power / 745.7 : raw.gameId === "f1-2025" ? raw.Power : 0,
+    DisplayTorque: isForza ? raw.Torque : 0,
   };
 }
 

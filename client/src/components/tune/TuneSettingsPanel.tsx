@@ -1,10 +1,7 @@
 import { m } from "@/paraglide/messages";
 import type { TuneSettings } from "../../data/tune-catalog";
+import { type ConvCategory, fromDisplay, toDisplay } from "./form/units";
 import { GearRatioChart } from "./GearRatioChart";
-
-function storedHeightUnit(settings: TuneSettings): "cm" | "in" {
-  return settings.springs?.unit === "lb/in" ? "in" : "cm";
-}
 
 type Row = [string, string];
 
@@ -17,11 +14,22 @@ function rows(...items: (Row | null)[]): Row[] {
   return items.filter((r): r is Row => r != null);
 }
 
-export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
+export function TuneSettingsPanel({ settings, unit = "metric", storedUnit }: { settings: TuneSettings; unit?: "metric" | "imperial"; storedUnit?: "metric" | "imperial" }) {
   const ratios = settings.gearing?.ratios ?? [];
-  const heightUnit = storedHeightUnit(settings);
-  const springUnit = settings.springs?.unit ?? "kgf/mm";
-  const aeroUnit = settings.aero?.unit ?? "kgf";
+  const userImperial = unit === "imperial";
+  const storedOverride = storedUnit === "imperial" || storedUnit === "metric" ? storedUnit === "imperial" : null;
+  const springStoredImperial = storedOverride ?? settings.springs?.unit === "lb/in";
+  const aeroStoredImperial = storedOverride ?? settings.aero?.unit === "lb";
+  // Tires have no stored unit; use the tune's unit system (stored override or springs/aero signal).
+  const tireStoredImperial = storedOverride ?? (springStoredImperial || aeroStoredImperial);
+  const display = (value: number, cat: ConvCategory, storedImperial: boolean): number => {
+    if (storedImperial === userImperial) return value;
+    return storedImperial ? fromDisplay(value, cat, false) : toDisplay(value, cat, false);
+  };
+  const tireUnit = userImperial ? "psi" : "bar";
+  const springUnit = userImperial ? "lb/in" : "kgf/mm";
+  const heightUnit = userImperial ? "in" : "cm";
+  const aeroUnit = userImperial ? "lb" : "kgf";
 
   const sectionTitles: Record<string, string> = {
     tires: m.tune_section_tires(),
@@ -40,8 +48,8 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       key: "tires",
       title: sectionTitles.tires,
       rows: rows(
-        row("Front Pressure", settings.tires?.frontPressure, (v) => `${v.toFixed(2)} bar`),
-        row("Rear Pressure", settings.tires?.rearPressure, (v) => `${v.toFixed(2)} bar`),
+        row("Front Pressure", settings.tires?.frontPressure, (v) => `${display(v, "tires", tireStoredImperial).toFixed(2)} ${tireUnit}`),
+        row("Rear Pressure", settings.tires?.rearPressure, (v) => `${display(v, "tires", tireStoredImperial).toFixed(2)} ${tireUnit}`),
       ),
     },
     {
@@ -76,10 +84,10 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       key: "springs",
       title: sectionTitles.springs,
       rows: rows(
-        row("Front Rate", settings.springs?.frontRate, (v) => `${v.toFixed(1)} ${springUnit}`),
-        row("Rear Rate", settings.springs?.rearRate, (v) => `${v.toFixed(1)} ${springUnit}`),
-        row("Front Height", settings.springs?.frontHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
-        row("Rear Height", settings.springs?.rearHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
+        row("Front Rate", settings.springs?.frontRate, (v) => `${display(v, "springs", springStoredImperial).toFixed(1)} ${springUnit}`),
+        row("Rear Rate", settings.springs?.rearRate, (v) => `${display(v, "springs", springStoredImperial).toFixed(1)} ${springUnit}`),
+        row("Front Height", settings.springs?.frontHeight, (v) => `${display(v, "height", springStoredImperial).toFixed(1)} ${heightUnit}`),
+        row("Rear Height", settings.springs?.rearHeight, (v) => `${display(v, "height", springStoredImperial).toFixed(1)} ${heightUnit}`),
       ),
     },
     {
@@ -96,8 +104,8 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       key: "aero",
       title: sectionTitles.aero,
       rows: rows(
-        row("Front Downforce", settings.aero?.frontDownforce, (v) => `${v} ${aeroUnit}`),
-        row("Rear Downforce", settings.aero?.rearDownforce, (v) => `${v} ${aeroUnit}`),
+        row("Front Downforce", settings.aero?.frontDownforce, (v) => `${display(v, "aero", aeroStoredImperial)} ${aeroUnit}`),
+        row("Rear Downforce", settings.aero?.rearDownforce, (v) => `${display(v, "aero", aeroStoredImperial)} ${aeroUnit}`),
       ),
     },
     {
@@ -140,7 +148,7 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
             </div>
             {section.key === "gearing" && ratios.length > 0 && settings.gearing?.finalDrive != null && (
               <div className="mt-2 pt-2 border-t border-app-border/60">
-                <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedKph={settings.gearing?.topSpeedKph} />
+                <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedKph={settings.gearing?.topSpeedKph} speedUnit={userImperial ? "mph" : "km/h"} />
               </div>
             )}
           </div>

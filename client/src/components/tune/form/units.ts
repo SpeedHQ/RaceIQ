@@ -5,6 +5,7 @@ const IMPERIAL = {
   springs: { factor: 56.0, metric: "kgf/mm", imperial: "lb/in" },
   height: { factor: 0.393701, metric: "cm", imperial: "in" },
   aero: { factor: 2.20462, metric: "kgf", imperial: "lb" },
+  speed: { factor: 0.621371, metric: "km/h", imperial: "mph" },
 } as const;
 
 export type ConvCategory = keyof typeof IMPERIAL;

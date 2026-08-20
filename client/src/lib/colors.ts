@@ -1,12 +1,8 @@
+/** Shared gear palette: gear-ratio sawtooth chart and track-speed trace use the same colors. */
+export const GEAR_COLORS = ["#22d3ee", "#a855f7", "#fbbf24", "#34d399", "#f472b6", "#60a5fa", "#fb923c", "#a3a3a3"] as const;
+
 /** Stable identities shared by sector visualizations. */
-export const SECTOR_COLOR_VARS = [
-  "var(--sector-1)",
-  "var(--sector-2)",
-  "var(--sector-3)",
-  "var(--sector-4)",
-  "var(--sector-5)",
-  "var(--sector-6)",
-] as const;
+export const SECTOR_COLOR_VARS = ["var(--sector-1)", "var(--sector-2)", "var(--sector-3)", "var(--sector-4)", "var(--sector-5)", "var(--sector-6)"] as const;
 
 /** Stable FL, FR, RL, RR identities shared by wheel visualizations. */
 export const WHEEL_COLOR_VARS = ["var(--wheel-fl)", "var(--wheel-fr)", "var(--wheel-rl)", "var(--wheel-rr)"] as const;
@@ -27,33 +23,13 @@ export const DELTA_COLOR_VARS = ["var(--delta-gain)", "var(--delta-loss)"] as co
 
 export const TRACK_SPEED_COLOR_VARS = ["var(--track-speed-low)", "var(--track-speed-mid)", "var(--track-speed-high)"] as const;
 
-export const TRACK_CORNER_COLOR_VARS = [
-  "var(--track-corner-series-1)",
-  "var(--track-corner-series-2)",
-  "var(--track-corner-series-3)",
-  "var(--track-corner-series-4)",
-] as const;
+export const TRACK_CORNER_COLOR_VARS = ["var(--track-corner-series-1)", "var(--track-corner-series-2)", "var(--track-corner-series-3)", "var(--track-corner-series-4)"] as const;
 
-export const TRACK_STRAIGHT_COLOR_VARS = [
-  "var(--track-straight-series-1)",
-  "var(--track-straight-series-2)",
-  "var(--track-straight-series-3)",
-  "var(--track-straight-series-4)",
-] as const;
+export const TRACK_STRAIGHT_COLOR_VARS = ["var(--track-straight-series-1)", "var(--track-straight-series-2)", "var(--track-straight-series-3)", "var(--track-straight-series-4)"] as const;
 
-const SEVERITY_COLOR_VARS = [
-  "var(--severity-nominal)",
-  "var(--severity-caution)",
-  "var(--severity-warning)",
-  "var(--severity-critical)",
-] as const;
+const SEVERITY_COLOR_VARS = ["var(--severity-nominal)", "var(--severity-caution)", "var(--severity-warning)", "var(--severity-critical)"] as const;
 
-const OPERATING_RANGE_COLOR_VARS = [
-  "var(--operating-cold)",
-  "var(--severity-nominal)",
-  "var(--severity-caution)",
-  "var(--severity-critical)",
-] as const;
+const OPERATING_RANGE_COLOR_VARS = ["var(--operating-cold)", "var(--severity-nominal)", "var(--severity-caution)", "var(--severity-critical)"] as const;
 
 /** Return a theme-owned severity level without exposing palette names. */
 export function severityColor(level: 0 | 1 | 2 | 3): string {

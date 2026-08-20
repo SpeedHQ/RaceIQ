@@ -178,7 +178,7 @@ export const tuneResourceRoutes = new Hono()
       bestTracks: JSON.stringify(catalogTune.bestTracks ?? []),
       strategies: JSON.stringify(catalogTune.strategies ?? []),
       settings: JSON.stringify(catalogTune.settings),
-      unitSystem: "metric",
+      unitSystem: "imperial",
       source: "catalog-clone",
       catalogId: catalogTune.id,
     });

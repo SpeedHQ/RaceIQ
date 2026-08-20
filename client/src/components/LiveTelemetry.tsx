@@ -1,15 +1,20 @@
 import { getGame, tryGetGame } from "@shared/games/registry";
 import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
+import { useGearingIngest } from "../hooks/useGearingIngest";
 import { useUnits } from "../hooks/useUnits";
+import { getGearingTelemetryState, type GearingSample } from "../lib/gearing-telemetry";
+import { viewToGearingSample } from "../hooks/useGearingIngest";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { client } from "../lib/rpc";
 import { controlInputPercent } from "../lib/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
+import { GearingDashboard } from "./telemetry/GearingDashboard";
 import { GForceCircle } from "./telemetry/GForceCircle";
 import { GripHistory } from "./telemetry/GripHistory";
 import { PitEstimate } from "./telemetry/PitEstimate";
@@ -21,7 +26,7 @@ import { TireGrid } from "./telemetry/TireGrid";
 // Re-export for backward compatibility
 export { formatLapTime } from "../lib/format";
 
-export type DashboardMode = "driver" | "pitcrew";
+export type DashboardMode = "driver" | "pitcrew" | "gearing";
 
 interface Props {
   view: LiveTelemetryView | null;
@@ -46,9 +51,37 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   }, [carOrdinal, gameId]);
 
   const units = useUnits();
+
+  // Car spec top speed (fm-2023 only) — ends the dyno pull near top speed so
+  // rev-limiter/drag-limited samples never pollute the curve, and bounds the
+  // gear-ratio charts. Fetched here (not in GearingDashboard) because the
+  // ingestion host owns the auto-stop.
+  const { data: carTopSpeedMph } = useQuery<number | null>({
+    queryKey: ["gearing-car-top-speed", view?.simulator, view?.identity.carOrdinal],
+    queryFn: async () => {
+      if (!view || view.identity.carOrdinal == null) return null;
+      const res = await client.api.cars[":ordinal"].$get({ param: { ordinal: String(view.identity.carOrdinal) } }, { headers: { "X-Game-Id": view.simulator } });
+      if (!res.ok) return null;
+      const car = (await res.json()) as { specs?: { topSpeedMph?: number } };
+      return car?.specs?.topSpeedMph ?? null;
+    },
+    enabled: view?.simulator === "fm-2023" && (view?.identity.carOrdinal ?? -1) > 0,
+  });
+  const topSpeedRef = useRef(0);
+  topSpeedRef.current = carTopSpeedMph != null && carTopSpeedMph > 0 ? units.fromMph(carTopSpeedMph) : 0;
+
+  // Feed the gearing accumulators on every dashboard mode so laps driven on
+  // Driver/Pit tabs still record dyno data and calibrate the gear charts.
+  useGearingIngest(view, { autoStopTopSpeed: () => topSpeedRef.current });
   if (!view) {
     return <div className="flex items-center justify-center h-full text-app-text-dim">{m.live_waiting_data()}</div>;
   }
+
+  // Session max speed accumulated by the gearing recorder (user unit).
+  const gearingMaxSpeed = mode === "gearing" ? getGearingTelemetryState().maxSpeed : 0;
+  // GearingSample adapted from the view — passed to GearingDashboard whose
+  // children (PowerBandChart/GearRatioCharts) read the live RPM/power/torque.
+  const packet: GearingSample = viewToGearingSample(view, units.speed);
 
   const speed = units.speed(view.motion.speedMps ?? 0);
   const throttlePct = controlInputPercent(view.inputs.throttle);
@@ -76,7 +109,6 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const hp = (view.engine.powerW ?? 0) / WATTS_PER_HORSEPOWER;
   const boostVal = view.engine.boost ?? 0;
 
-
   // ── Shared hero: Speed + Gear + RPM ──────────────────────────
   const heroSection = (
     <div className="p-3 pb-2">
@@ -102,13 +134,21 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
           </span>
         </div>
       </div>
-      <div className="flex gap-[2px] mb-1">
-        {Array.from({ length: 30 }, (_, i) => {
-          const segPct = ((i + 1) / 30) * 100;
-          const lit = rpmPct >= segPct;
-          const color = segPct <= 60 ? "var(--rev-normal)" : segPct <= 80 ? "var(--rev-high)" : "var(--rev-limit)";
-          return <div key={segPct} className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`} style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }} />;
-        })}
+      <div className="flex items-center gap-2 mb-1">
+        <div className="flex-1 flex gap-[2px]">
+          {Array.from({ length: 30 }, (_, i) => {
+            const segPct = ((i + 1) / 30) * 100;
+            const lit = rpmPct >= segPct;
+            const color = segPct <= 60 ? "var(--rev-normal)" : segPct <= 80 ? "var(--rev-high)" : "var(--rev-limit)";
+            return <div key={segPct} className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`} style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }} />;
+          })}
+        </div>
+        {mode === "gearing" && gearingMaxSpeed > 0 && (
+          <div className="flex items-baseline gap-1.5 shrink-0">
+            <span className="text-app-caption text-app-text-dim font-mono">{m.powerband_max_speed()}</span>
+            <span className="text-5xl font-mono font-black text-app-text-dim tabular-nums leading-none tracking-tighter">{gearingMaxSpeed.toFixed(0)}</span>
+          </div>
+        )}
       </div>
       <div className="flex justify-between text-app-micro text-app-text-dim font-mono tabular-nums">
         <span>{idleRpm.toFixed(0)}</span>
@@ -117,6 +157,16 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       </div>
     </div>
   );
+
+  // ── GEARING MODE ─────────────────────────────────────────────
+  if (mode === "gearing") {
+    return (
+      <div className="grid gap-0 p-0">
+        {heroSection}
+        <GearingDashboard packet={packet} targetMaxSpeed={topSpeedRef.current} />
+      </div>
+    );
+  }
 
   // ── DRIVER MODE ──────────────────────────────────────────────
   if (mode === "driver") {
