@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openStory, warmStorybook } from "./storybook-ready";
+import { openStory } from "./storybook-ready";
 
 /**
  * Render smoke-test for the experiment flow stories (list → workspace →
@@ -80,21 +80,6 @@ const stories: StoryCase[] = [
     forbidText: ["Experiment not found"],
   },
 ];
-
-/**
- * Pay Storybook's cold Vite compile ONCE, here, instead of charging it to
- * whichever test happens to run first.
- *
- * Without this the first story in the file has to both compile the module graph
- * and render inside its own wait, so a heavier import graph pushes that one test
- * past its timeout while every later story passes — a failure that follows load
- * order rather than the story, and looks exactly like a regression in whatever
- * story sorted first.
- */
-test.beforeAll(async ({ browser }) => {
-  test.setTimeout(360_000);
-  await warmStorybook(browser, `/iframe.html?id=${stories[0].id}&viewMode=story`, { attempts: 18, attemptTimeoutMs: 15_000 });
-});
 
 for (const story of stories) {
   test(`renders: ${story.name}`, async ({ page }) => {

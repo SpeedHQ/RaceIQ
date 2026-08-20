@@ -40,9 +40,8 @@ export const trackCornerRoutes = new Hono()
   //      fractions using the same outline-length calc as
   //      GET /api/track-sector-boundaries/:ordinal.
   //   c. Empty array — the client falls back to telemetry-based detection.
-  // No telemetry auto-detection or saveCorners happens here anymore; that
-  // remains the responsibility of the PUT handler and AI/comparison code
-  // paths that read getCorners()/saveCorners() directly in meters.
+  // Telemetry detection does not happen here; stored-lap analysis resolves its
+  // own metre-based corners, while the PUT handler owns manual edits.
   .get("/api/tracks/:trackOrdinal/corners",
     zValidator("param", TrackOrdinalParamSchema),
     async (c) => {

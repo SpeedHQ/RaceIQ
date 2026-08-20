@@ -12,13 +12,10 @@
  * Analyst's own `aiProvider`/`aiModel`, which are distinct from the chat
  * provider the engineer runs on).
  */
-import type { GameId } from "../../shared/games/ids";
-import { getCorners } from "../db/track-queries";
-import { detectCorners } from "../lap-analysis/corners"
+import { resolveLapCorners, resolveLapSegments } from "../tracks/corner-resolution";
 import { getSecret } from "../runtime/platform/keystore";
 import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt } from "./analyst-prompt";
-import { resolveTrack } from "../tracks/info";
 // Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
 // cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
 // has no such back-edge. We lose the dev-only observability wrapper here, which
@@ -36,11 +33,10 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
   if (!lap) return { available: false, summary: "No analysable lap yet for this session." };
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
-  let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId as GameId) : [];
-  if (corners.length === 0) corners = detectCorners(lap.telemetry);
+  const segments = await resolveLapSegments(trackOrdinal, lap.gameId);
+  const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry, { segments });
 
   const settings = loadSettings();
-  const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
   const prompt = buildAnalystPrompt(
     lap,
     lap.telemetry,
