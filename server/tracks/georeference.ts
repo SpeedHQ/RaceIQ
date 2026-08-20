@@ -5,6 +5,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import {
   applyAlignment,
   computeAlignment,
+  trackAlignmentRmse,
   type TrackAlignment,
 } from "../../shared/racing/tracks/geometry/points";
 import type { Point } from "../../shared/racing/tracks/geometry/types";
@@ -241,29 +242,6 @@ function hasMinimumSpan(points: readonly Point[]): boolean {
   return maxX - minX >= MIN_SPAN_M || maxZ - minZ >= MIN_SPAN_M;
 }
 
-function alignmentRmse(
-  source: readonly Point[],
-  target: readonly Point[],
-  alignment: TrackAlignment,
-): number {
-  const mapped = source.map((point) => applyAlignment(point, alignment));
-  const nearestSquared = (
-    point: Point,
-    candidates: readonly Point[],
-  ): number => {
-    let best = Infinity;
-    for (const candidate of candidates) {
-      const dx = candidate.x - point.x;
-      const dz = candidate.z - point.z;
-      best = Math.min(best, dx * dx + dz * dz);
-    }
-    return best;
-  };
-  let squared = 0;
-  for (const point of mapped) squared += nearestSquared(point, target);
-  for (const point of target) squared += nearestSquared(point, mapped);
-  return Math.sqrt(squared / (mapped.length + target.length));
-}
 
 function quality(rmseM: number): number {
   return Math.max(0, Math.min(1, 1 - rmseM / MAX_RMSE_M));
@@ -441,7 +419,7 @@ export async function assignLapGeoreference(input: {
   });
   if (!fitted || fitted.scale < MIN_SCALE || fitted.scale > MAX_SCALE)
     return null;
-  const rmseM = alignmentRmse(sourceSamples, targetSamples, fitted);
+  const rmseM = trackAlignmentRmse(sourceSamples, targetSamples, fitted);
   if (!Number.isFinite(rmseM) || rmseM > MAX_RMSE_M) return null;
   const score = quality(rmseM);
   if (score < 0.5) return null;

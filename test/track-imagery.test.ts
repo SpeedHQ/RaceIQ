@@ -14,6 +14,7 @@ import {
   type TrackImageryGeographicPoint,
   type TrackImageryMatrix,
 } from "../shared/racing/tracks/imagery";
+import { alignTrackOutlineToReference } from "../server/tracks/geographic-reference";
 
 const EARTH_RADIUS_M = 6_378_137;
 
@@ -154,4 +155,35 @@ test("keeps package base opaque while layers retain independent alpha", () => {
   expect("opacity" in manifest.base).toBe(false);
   expect("image" in manifest.base).toBe(false);
   expect(manifest.layers[0]?.opacity).toBe(0.65);
+});
+
+test("aligns exact-layout outlines into reference map frame within quality gates", () => {
+  const reference = [
+    { x: 0, z: 0 },
+    { x: 40, z: -5 },
+    { x: 65, z: 20 },
+    { x: 50, z: 55 },
+    { x: 15, z: 75 },
+    { x: -15, z: 45 },
+    { x: -25, z: 10 },
+  ];
+  const angle = Math.PI / 3;
+  const scale = 2.5;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const target = reference.map((point) => ({
+    x: scale * (cos * point.x - sin * point.z) + 1_200,
+    z: scale * (sin * point.x + cos * point.z) - 400,
+  }));
+
+  const fitted = alignTrackOutlineToReference(target, reference);
+  expect(fitted).not.toBeNull();
+  expect(fitted!.rmseM).toBeLessThan(1e-6);
+  for (const point of fitted!.points) {
+    const nearestDistance = Math.min(...reference.map((candidate) => Math.hypot(candidate.x - point.x, candidate.z - point.z)));
+    expect(nearestDistance).toBeLessThan(1e-6);
+  }
+
+  const undersized = reference.map((point) => ({ x: point.x / 6, z: point.z / 6 }));
+  expect(alignTrackOutlineToReference(undersized, reference)).toBeNull();
 });

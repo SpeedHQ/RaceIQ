@@ -32,7 +32,7 @@ import {
   searchOpenTrackImagery,
   TRACK_IMAGERY_IMPORT_LIMITS,
 } from "../../tracks/imagery-sources";
-import { resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
+import { alignTrackOutlineToReference, resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
 import { listTrackImageryConfigurations, loadTrackImageryLayout, loadTrackImageryVenue, trackImageryContentType, trackImageryLayoutPath, trackImageryVenueDirectory } from "../../tracks/imagery";
 import { resolveTrackOutline } from "../tracks/support";
 import { writeAtomicJson } from "../../../shared/platform/runtime/atomic-json";
@@ -305,7 +305,17 @@ export const trackImageryDevRoutes = new Hono()
       const source = resolveTrackGeographicCatalogSource(gameId, trackOrdinal);
       if (!source) return c.json(null);
       let outline = await resolveTrackOutline(trackOrdinal, gameId);
-      if (!outline && (gameId !== "iracing" || trackOrdinal !== source.track.ordinal)) {
+      let alignmentRmseM: number | null = null;
+      const differsFromSource = gameId !== "iracing" || trackOrdinal !== source.track.ordinal;
+      if (outline && (source.match === "assigned-identity" || source.match === "venue-identity") && differsFromSource) {
+        const referenceOutline = await resolveTrackOutline(source.track.ordinal, "iracing");
+        const aligned = referenceOutline ? alignTrackOutlineToReference(outline.points, referenceOutline.points) : null;
+        if (aligned) {
+          outline = { ...outline, points: aligned.points };
+          alignmentRmseM = aligned.rmseM;
+        }
+      }
+      if (!outline && differsFromSource) {
         outline = await resolveTrackOutline(source.track.ordinal, "iracing");
       }
       const center = { latitudeDeg: source.track.latitude, longitudeDeg: source.track.longitude };
@@ -316,6 +326,7 @@ export const trackImageryDevRoutes = new Hono()
           sourceName: source.track.variant ? `${source.track.name} — ${source.track.variant}` : source.track.name,
           match: source.match,
           outlineSource: outline?.source ?? "estimated",
+          alignmentRmseM,
           center,
           geographicPositions: trackGeographicReferencePositions(outline?.points ?? null, center, source.track.lengthKm),
         }),

@@ -53,18 +53,18 @@ export interface ComputeAlignmentOptions {
 
 /** Compute Procrustes transform (scale + rotation + translation) from src to tgt.
  *  Tries both normal and Z-flipped source, picks whichever has lower error. */
-export function computeAlignment(src: Point[], tgt: Point[], options: ComputeAlignmentOptions = {}): TrackAlignment | null {
+export function computeAlignment(src: readonly Point[], tgt: readonly Point[], options: ComputeAlignmentOptions = {}): TrackAlignment | null {
   if (src.length < 5 || tgt.length < 5) return null;
   const n = Math.min(options.sampleCount ?? 100, Math.min(src.length, tgt.length));
 
   // Sample target at equal fractional distances
-  function cumDist(pts: Point[]): number[] {
+  function cumDist(pts: readonly Point[]): number[] {
     const d = [0];
     for (let i = 1; i < pts.length; i++)
       d.push(d[i - 1] + Math.sqrt((pts[i].x - pts[i - 1].x) ** 2 + (pts[i].z - pts[i - 1].z) ** 2));
     return d;
   }
-  function sampleAtFracs(pts: Point[], fracs: number[]): Point[] {
+  function sampleAtFracs(pts: readonly Point[], fracs: readonly number[]): Point[] {
     const cd = cumDist(pts);
     const total = cd[cd.length - 1];
     return fracs.map(f => {
@@ -80,12 +80,12 @@ export function computeAlignment(src: Point[], tgt: Point[], options: ComputeAli
 
   const fracs = Array.from({ length: n }, (_, i) => i / n);
   const tSampled = options.inputsAreArcSamples ? tgt.slice(0, n) : sampleAtFracs(tgt, fracs);
-  const sampleSourceAtOffset = (points: Point[], offset: number): Point[] =>
+  const sampleSourceAtOffset = (points: readonly Point[], offset: number): Point[] =>
     options.inputsAreArcSamples
       ? Array.from({ length: n }, (_, index) => points[(index + offset) % n])
       : sampleAtFracs(points, fracs.map(fraction => (fraction + offset / n) % 1));
 
-  function procrustes(s: Point[], t2: Point[]) {
+  function procrustes(s: readonly Point[], t2: readonly Point[]) {
     const cs = { x: s.reduce((a, p) => a + p.x, 0) / n, z: s.reduce((a, p) => a + p.z, 0) / n };
     const ct = { x: t2.reduce((a, p) => a + p.x, 0) / n, z: t2.reduce((a, p) => a + p.z, 0) / n };
     let num = 0, den = 0, sn2 = 0, tn2 = 0;
@@ -142,4 +142,21 @@ export function applyAlignment(p: Point, a: TrackAlignment): Point {
   const px = a.flipX ? -p.x : p.x;
   const pz = a.flipZ ? -p.z : p.z;
   return { x: a.scale * (a.cos * px - a.sin * pz) + a.tx, z: a.scale * (a.sin * px + a.cos * pz) + a.tz };
+}
+
+export function trackAlignmentRmse(source: readonly Point[], target: readonly Point[], alignment: TrackAlignment): number {
+  const mapped = source.map((point) => applyAlignment(point, alignment));
+  const nearestSquared = (point: Point, candidates: readonly Point[]): number => {
+    let best = Infinity;
+    for (const candidate of candidates) {
+      const dx = candidate.x - point.x;
+      const dz = candidate.z - point.z;
+      best = Math.min(best, dx * dx + dz * dz);
+    }
+    return best;
+  };
+  let squared = 0;
+  for (const point of mapped) squared += nearestSquared(point, target);
+  for (const point of target) squared += nearestSquared(point, mapped);
+  return Math.sqrt(squared / (mapped.length + target.length));
 }

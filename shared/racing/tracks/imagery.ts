@@ -105,8 +105,9 @@ export const TrackImageryGeographicReferenceSchema = z.object({
   sourceGameId: z.literal("iracing"),
   sourceTrackOrdinal: z.number().int().nonnegative(),
   sourceName: z.string().trim().min(1),
-  match: z.enum(["game-id", "assigned-identity", "shared-name"]),
+  match: z.enum(["game-id", "assigned-identity", "venue-identity", "shared-name"]),
   outlineSource: z.enum(["shared", "official-svg", "generated", "bundled", "recorded", "estimated"]),
+  alignmentRmseM: finiteNumber.nonnegative().nullable(),
   center: TrackImageryGeographicPointSchema,
   geographicPositions: z.array(TrackImageryGeographicPointSchema).min(4),
 });

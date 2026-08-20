@@ -1,15 +1,20 @@
 import type { GameId } from "../../shared/games/ids";
+import { applyAlignment, computeAlignment, trackAlignmentRmse } from "../../shared/racing/tracks/geometry/points";
 import { getAllIRacingTracks, getIRacingTrack, type IRacingCatalogTrack } from "../../shared/racing/tracks/catalogs/iracing";
 import { geographicTrackImageryPointFromEnu, type TrackImageryGeographicPoint, type TrackImageryPoint } from "../../shared/racing/tracks/imagery";
-import { loadCanonicalTrackPeer } from "./configuration";
+import { listTrackVenueFamilyConfigurations, loadCanonicalTrackPeer } from "./configuration";
 import { resolveTrackSharedName } from "./identity";
 
-export type TrackGeographicReferenceMatch = "game-id" | "assigned-identity" | "shared-name";
+export type TrackGeographicReferenceMatch = "game-id" | "assigned-identity" | "venue-identity" | "shared-name";
 
 export interface ResolvedTrackGeographicCatalogSource {
   track: IRacingCatalogTrack;
   match: TrackGeographicReferenceMatch;
 }
+
+const MIN_ALIGNMENT_SCALE = 0.2;
+const MAX_ALIGNMENT_SCALE = 5;
+const MAX_ALIGNMENT_RMSE_M = 25;
 
 function hasGeographicLocation(track: IRacingCatalogTrack | undefined): track is IRacingCatalogTrack {
   return (
@@ -22,18 +27,28 @@ function hasGeographicLocation(track: IRacingCatalogTrack | undefined): track is
   );
 }
 
-/** Resolve authoritative venue coordinates from iRacing directly or through one exact canonical-layout assignment. */
+/** Resolve authoritative venue coordinates from one deterministic iRacing anchor per configured venue path. */
 export function resolveTrackGeographicCatalogSource(gameId: GameId, trackOrdinal: number): ResolvedTrackGeographicCatalogSource | null {
-  if (gameId === "iracing") {
-    const direct = getIRacingTrack(trackOrdinal);
-    if (hasGeographicLocation(direct)) return { track: direct, match: "game-id" };
+  const direct = gameId === "iracing" ? getIRacingTrack(trackOrdinal) : undefined;
+  const assignedPeer = loadCanonicalTrackPeer(gameId, trackOrdinal, "iracing");
+  const assigned = assignedPeer ? getIRacingTrack(assignedPeer.trackOrdinal) : undefined;
+
+  let venueReference: IRacingCatalogTrack | undefined;
+  for (const configuration of listTrackVenueFamilyConfigurations(gameId, trackOrdinal, "iracing")) {
+    const candidate = getIRacingTrack(configuration.trackOrdinal);
+    if (hasGeographicLocation(candidate)) {
+      venueReference = candidate;
+      break;
+    }
   }
 
-  const assignedPeer = loadCanonicalTrackPeer(gameId, trackOrdinal, "iracing");
-  if (assignedPeer) {
-    const assigned = getIRacingTrack(assignedPeer.trackOrdinal);
-    if (hasGeographicLocation(assigned)) return { track: assigned, match: "assigned-identity" };
+  const exact = hasGeographicLocation(direct) ? direct : hasGeographicLocation(assigned) ? assigned : undefined;
+  if (venueReference && venueReference.ordinal !== exact?.ordinal) {
+    return { track: venueReference, match: "venue-identity" };
   }
+  if (hasGeographicLocation(direct)) return { track: direct, match: "game-id" };
+  if (hasGeographicLocation(assigned)) return { track: assigned, match: "assigned-identity" };
+  if (venueReference) return { track: venueReference, match: "venue-identity" };
 
   const sharedName = resolveTrackSharedName(trackOrdinal, gameId)?.trim().toLowerCase();
   if (!sharedName) return null;
@@ -42,6 +57,24 @@ export function resolveTrackGeographicCatalogSource(gameId: GameId, trackOrdinal
     .sort((a, b) => a.ordinal - b.ordinal)
     .find(hasGeographicLocation);
   return shared ? { track: shared, match: "shared-name" } : null;
+}
+
+export function alignTrackOutlineToReference(
+  target: readonly TrackImageryPoint[],
+  reference: readonly TrackImageryPoint[],
+): { points: TrackImageryPoint[]; rmseM: number } | null {
+  const targetPoints = target.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  const referencePoints = reference.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  if (targetPoints.length < 5 || referencePoints.length < 5) return null;
+
+  const alignment = computeAlignment(targetPoints, referencePoints);
+  if (!alignment || !Number.isFinite(alignment.scale) || alignment.scale < MIN_ALIGNMENT_SCALE || alignment.scale > MAX_ALIGNMENT_SCALE) return null;
+  const rmseM = trackAlignmentRmse(targetPoints, referencePoints, alignment);
+  if (!Number.isFinite(rmseM) || rmseM > MAX_ALIGNMENT_RMSE_M) return null;
+  return {
+    points: targetPoints.map((point) => applyAlignment(point, alignment)),
+    rmseM,
+  };
 }
 
 function closedOutlineLength(points: readonly TrackImageryPoint[]): number {
