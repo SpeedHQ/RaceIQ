@@ -14,6 +14,7 @@ const PAGES = [
   { name: "setups", path: "/f125/tracks/19/setups" },
   { name: "setups-ranges", path: "/f125/tracks/19/setups?subtab=ranges" },
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
+  { name: "experiments-review-track", path: "/f125/experiments/1/review?laps=4,5&view=track" },
 ];
 
 for (const page of PAGES) {
