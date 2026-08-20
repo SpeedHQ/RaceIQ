@@ -17,6 +17,7 @@ import {
   IRACING_SESSION_INFO_CATALOG_FIELDS,
 } from "../../shared/games/iracing/session-info/catalog";
 import { getSchemaForGame } from "../../shared/racing/setups/schema";
+import { IRACING_TELEMETRY_VARIABLES } from "../../server/games/iracing/sdk-reader";
 import {
   assertIRacingSessionInfoCaptureCoverage,
   readIRacingSessionInfoCaptures,
@@ -41,6 +42,8 @@ import {
   attachChild,
   ensureCategoryGroups,
   nativeFuelUnit,
+  packetNativeMetadata,
+  packetProvenanceSources,
   packetGameLink,
 } from "./packet-mapping";
 import {
@@ -62,6 +65,7 @@ import {
 import {
   addCrossSourceProjections,
   addSectorDerivedVariables,
+  assertCatalogSemanticQuality,
   contentHash,
   enrichCatalogContracts,
   telemetryCatalogSourceHash,
@@ -101,6 +105,7 @@ const CATALOG_GENERATOR_SOURCE_FILES = [
   "scripts/catalog/semantic-definitions.ts",
   "scripts/catalog/semantic-metadata.ts",
   "scripts/catalog/setup-link-mapping.ts",
+  "server/games/iracing/sdk-reader.ts",
 ] as const;
 
 export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
@@ -156,29 +161,115 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     "ac-evo": [],
     iracing: [],
   };
+  const iracingPacketProvenance = new Map<string, string>();
   for (const set of packetSets) {
+    const fieldInfo = packetFields.find((field) => field.name === set.fields[0]);
+    if (set.key === "Fuel") {
+      const fuelSemantics = [
+        {
+          id: "fuel.remaining-fraction",
+          games: new Set<GameId>(["fm-2023", "f1-2025"]),
+        },
+        {
+          id: "fuel.remaining-volume",
+          games: new Set<GameId>(["acc", "ac-evo", "iracing"]),
+        },
+      ] as const;
+      const unavailableFuelGames = unavailableGames(
+        "This simulator uses the other canonical fuel representation for TelemetryPacket.Fuel.",
+      );
+
+      for (const fuelSemantic of fuelSemantics) {
+        const definition = SEMANTIC_DEFINITIONS[fuelSemantic.id];
+        if (!definition) {
+          throw new Error(`Missing semantic definition ${fuelSemantic.id}`);
+        }
+        const games = Object.fromEntries(
+          GAME_IDS.map((gameId) => {
+            if (!fuelSemantic.games.has(gameId)) {
+              return [gameId, unavailableFuelGames[gameId]];
+            }
+            const discovered = packetGameLink(
+              gameId,
+              set,
+              parserOutputs[gameId],
+              nativeFuelUnit(gameId),
+            );
+            return [
+              gameId,
+              discovered.kind === "unavailable"
+                ? discovered
+                : {
+                    kind: "direct",
+                    nativeUnit: definition.canonicalUnit,
+                    sources: ["TelemetryPacket.Fuel"],
+                    freshness: discovered.freshness,
+                    description: `${gameId} exposes TelemetryPacket.Fuel directly in the canonical ${definition.canonicalUnit} representation.`,
+                  },
+            ];
+          }),
+        ) as Record<GameId, GameLink>;
+        variables.set(fuelSemantic.id, {
+          id: fuelSemantic.id,
+          ...definition,
+          packetFields: set.fields,
+          games,
+        });
+        attachChild(groups, definition.parentId, fuelSemantic.id);
+      }
+
+      for (const gameId of GAME_IDS) {
+        if (!parserOutputs[gameId].properties.has("Fuel")) continue;
+        addSource(inventories, gameId, {
+          path: "TelemetryPacket.Fuel",
+          label: "Fuel",
+          unit: nativeFuelUnit(gameId),
+          dataType: fieldInfo?.type ?? "unknown",
+          count: 1,
+          description:
+            fieldInfo?.description ??
+            `Fuel emitted by ${gameId} parser.`,
+          semanticId:
+            gameId === "fm-2023" || gameId === "f1-2025"
+              ? "fuel.remaining-fraction"
+              : "fuel.remaining-volume",
+          sourceKind: "packet",
+          recordedByRaceIQ: true,
+          retention: "exact",
+        });
+      }
+      for (const source of packetProvenanceSources(
+        "iracing",
+        set,
+        parserOutputs.iracing,
+      )) {
+        if (source.startsWith("iRacing.")) {
+          iracingPacketProvenance.set(
+            source.slice("iRacing.".length),
+            "fuel.remaining-volume",
+          );
+        }
+      }
+      continue;
+    }
+
     const semantic = normalizedSemantic(set);
     const semanticDefinition = SEMANTIC_DEFINITIONS[semantic.id];
-    const fieldInfo = packetFields.find((field) => field.name === set.fields[0]);
-    const inferredUnit =
-      set.key === "Fuel"
-        ? "game-native"
-        : unitFor(set.key, fieldInfo?.type);
+    const inferredUnit = unitFor(set.key, fieldInfo?.type);
     const unit = semanticDefinition?.canonicalUnit ?? inferredUnit;
     const description =
-      semanticDefinition?.description ??
-      (TIRE_IDS[set.key]?.[0] === "tire.temperature.average"
+      TIRE_IDS[set.key]?.[0] === "tire.temperature.average"
         ? "Common one-value-per-tire temperature. Mapping may be native or a documented average of detailed channels."
         : DESCRIPTION_OVERRIDES[set.key] ??
           fieldInfo?.description ??
-          `${humanize(set.key)} reported by normalized RaceIQ telemetry.`);
+          `${humanize(set.key)} reported by normalized RaceIQ telemetry.`;
     const gameLinks = Object.fromEntries(
       GAME_IDS.map((gameId) => {
         const link = packetGameLink(
           gameId,
           set,
           parserOutputs[gameId],
-          set.key === "Fuel" ? nativeFuelUnit(gameId) : unit,
+          unit,
         );
         return [gameId, link];
       }),
@@ -186,11 +277,13 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
 
     const variable: CatalogVariable = {
       id: semantic.id,
-      label: semantic.label,
-      description,
-      parentId: semanticDefinition?.parentId ?? semantic.parentId,
-      canonicalUnit: unit,
-      shape: semanticDefinition?.shape ?? set.shape,
+      ...(semanticDefinition ?? {
+        label: semantic.label,
+        description,
+        parentId: semantic.parentId,
+        canonicalUnit: unit,
+        shape: set.shape,
+      }),
       packetFields: set.fields,
       games: gameLinks,
     };
@@ -200,6 +293,20 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     ];
     variables.set(variable.id, variable);
     attachChild(groups, variable.parentId, variable.id);
+    if (variable.games.iracing.kind !== "unavailable") {
+      for (const source of packetProvenanceSources(
+        "iracing",
+        set,
+        parserOutputs.iracing,
+      )) {
+        if (source.startsWith("iRacing.")) {
+          iracingPacketProvenance.set(
+            source.slice("iRacing.".length),
+            variable.id,
+          );
+        }
+      }
+    }
 
     for (const gameId of GAME_IDS) {
       for (const field of set.fields) {
@@ -207,10 +314,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
         addSource(inventories, gameId, {
           path: `TelemetryPacket.${field}`,
           label: humanize(field),
-          unit:
-            gameId === "fm-2023" && set.key.startsWith("TireTemp")
-              ? "°F"
-              : unit,
+          unit: packetNativeMetadata(gameId, set.key, unit).nativeUnit,
           dataType: fieldInfo?.type ?? "unknown",
           count: 1,
           description:
@@ -303,8 +407,11 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   if (diagnostic.format !== "raceiq-iracing-all-vars-v1") {
     throw new Error(`Unexpected iRacing diagnostic format ${diagnostic.format}`);
   }
-  const selected = new Set(diagnostic.raceIQSelected?.present ?? []);
-  const existingIRacingSources = new Map<string, string>();
+  const selected = new Set([
+    ...(diagnostic.raceIQSelected?.present ?? []),
+    ...IRACING_TELEMETRY_VARIABLES,
+  ]);
+  const existingIRacingSources = new Map(iracingPacketProvenance);
   for (const variable of variables.values()) {
     const link = variable.games.iracing;
     if (link.kind === "unavailable") continue;
@@ -349,15 +456,19 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       const semantic = variables.get(existingSemantic)!;
       const link = semantic.games.iracing;
       const sdkSource = `iRacing.${raw.name}`;
-      const fuelPercentFraction = raw.name === "FuelLevelPct";
+      const fuelLevelFraction = raw.name === "FuelLevelPct";
       const lapFraction = raw.name === "LapDistPct";
-      const pitRoadBoolean = raw.name === "CarIdxOnPitRoad";
+      const shiftLightRpm = /^PlayerCarSL(?:First|Shift|Last|Blink)RPM$/.test(
+        raw.name,
+      );
       if (link.kind === "unavailable") {
-        const nativeUnit = inferredIRacingUnit(raw, semantic);
+        const nativeUnit = fuelLevelFraction
+          ? "fraction"
+          : shiftLightRpm
+            ? "rpm"
+            : inferredIRacingUnit(raw, semantic);
         const needsUnitNormalization =
-          fuelPercentFraction ||
           lapFraction ||
-          pitRoadBoolean ||
           canonicalIRacingUnit(nativeUnit) !== semantic.canonicalUnit;
         semantic.games.iracing = {
           kind: needsUnitNormalization ? "normalized" : "direct",
@@ -366,13 +477,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
           freshness: iRacingFreshness(raw.name),
           ...(needsUnitNormalization
             ? {
-                normalization: fuelPercentFraction
-                  ? "fraction * 100"
-                  : lapFraction
-                    ? "retain SDK 0-1 value as lap fraction"
-                    : pitRoadBoolean
-                      ? "true = on pit road; false = not on pit road"
-                      : `convert ${nativeUnit} to ${semantic.canonicalUnit}`,
+                normalization: lapFraction
+                  ? "retain SDK 0-1 value as lap fraction"
+                  : `convert ${nativeUnit} to ${semantic.canonicalUnit}`,
               }
             : {}),
           description: "Native iRacing SDK variable linked to shared semantic value.",
@@ -389,7 +496,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       addSource(inventories, "iracing", {
         path: raw.name,
         label: humanize(raw.name),
-        unit: inferredIRacingUnit(raw, semantic),
+        unit: fuelLevelFraction
+          ? "fraction"
+          : inferredIRacingUnit(raw, semantic),
         dataType: raw.type,
         count: raw.count,
         description: raw.description,
@@ -434,11 +543,13 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     if (!variable) {
       variable = {
         id,
-        label: definition?.label ?? humanize(semanticName),
-        description: definition?.description ?? description,
-        parentId: definition?.parentId ?? category,
-        canonicalUnit: definition?.canonicalUnit ?? canonicalUnit,
-        shape: definition?.shape ?? shape,
+        ...(definition ?? {
+          label: humanize(semanticName),
+          description,
+          parentId: category,
+          canonicalUnit,
+          shape,
+        }),
         games: unavailableGames(
           "No equivalent source variable is currently identified for this parser.",
         ),
@@ -535,6 +646,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     ]),
   ) as BuiltTelemetryCatalog["coverage"]["sourceCounts"];
   enrichCatalogContracts(variables, inventories);
+  assertCatalogSemanticQuality(variables);
 
   const provenanceArtifacts = new Set<string>();
   for (const variable of variables.values()) {
@@ -565,6 +677,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       )
     ).join("\n"),
   );
+
 
   const metadataWithoutHash: Omit<CatalogMetadata, "contentHash"> = {
     catalogVersion: PACKAGE_VERSION,

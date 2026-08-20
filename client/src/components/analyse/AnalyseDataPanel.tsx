@@ -4,6 +4,7 @@ import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { Check, Copy } from "lucide-react";
 import { getSteeringLock } from "@/lib/settings-storage";
+import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import type { SemanticAnalysisFrame } from "../track-map/types";
@@ -13,7 +14,7 @@ import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { AnalyseDynamicsPanel } from "./AnalyseDynamicsPanel";
 import { AnalyseF1ErsPanel } from "./AnalyseF1ErsPanel";
-import { MetricsPanel } from "./AnalyseMetricsPanel";
+import { MetricsPanel, type SemanticFuelValues } from "./AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "./AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "./AnalyseTireWheelsPanel";
 
@@ -22,7 +23,7 @@ interface Props {
   sidebarTab: "live" | "insights";
   onSidebarTabChange: (tab: "live" | "insights") => void;
   currentFrame: SemanticAnalysisFrame | null;
-  startFuel: number | undefined;
+  startFuel: SemanticFuelValues | undefined;
   gameId: GameId;
   units: ReturnType<typeof useUnits>;
   wearRate: WearRate | null;
@@ -42,12 +43,15 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   const game = getGame(gameId);
   const display = (value: number | null, digits = 0) => value == null ? "Unavailable" : value.toFixed(digits);
   const value = (id: string) => number(frame, id);
-  const fuel = value("fuel.fuel");
-  const capacity = value("fuel.fuel-capacity") ?? undefined;
-  const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, game.telemetry.fuel);
-  const accel = value("inputs.accel");
+  const remainingVolumeL = value("fuel.remaining-volume") ?? undefined;
+  const remainingFraction = value("fuel.remaining-fraction") ?? undefined;
+  const capacityL = value("fuel.capacity") ?? undefined;
+  const fuelDisplay = remainingVolumeL === undefined && remainingFraction === undefined
+    ? null
+    : getFuelDisplaySemantic({ remainingVolumeL, remainingFraction, capacityL });
+  const throttle = value("inputs.throttle");
   const brake = value("inputs.brake");
-  const steer = value("inputs.steer");
+  const steering = value("inputs.steering");
   const lock = getSteeringLock();
   const temp = wheels(frame, "tire.temperature.average");
   const wear = wheels(frame, "tires.tire-wear");
@@ -58,9 +62,9 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
     `Speed: ${value("motion.speed") == null ? "Unavailable" : `${units.speed(value("motion.speed")!).toFixed(0)} ${units.speedLabel}`}`,
     `RPM: ${display(value("engine.current-engine-rpm"))}`,
     `Gear: ${display(value("inputs.gear"))}`,
-    `Throttle: ${accel == null ? "Unavailable" : `${((accel / 255) * 100).toFixed(0)}%`}`,
-    `Brake: ${brake == null ? "Unavailable" : `${((brake / 255) * 100).toFixed(0)}%`}`,
-    `Steer: ${steer == null ? "Unavailable" : `${steer > 0 ? "+" : ""}${((steer / 127) * (lock / 2)).toFixed(0)}°`}`,
+    `Throttle: ${throttle == null ? "Unavailable" : `${controlInputPercent(throttle).toFixed(0)}%`}`,
+    `Brake: ${brake == null ? "Unavailable" : `${controlInputPercent(brake).toFixed(0)}%`}`,
+    `Steer: ${steering == null ? "Unavailable" : `${steering > 0 ? "+" : ""}${(steering * (lock / 2)).toFixed(0)}°`}`,
   ];
   if (game.telemetry.boost) lines.push(`Boost: ${display(value("engine.boost"), 1)} psi`);
   if (game.telemetry.power) lines.push(`Power: ${value("engine.power") == null ? "Unavailable" : `${(value("engine.power")! / WATTS_PER_HORSEPOWER).toFixed(0)} hp`}`);

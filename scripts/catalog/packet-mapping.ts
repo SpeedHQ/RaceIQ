@@ -180,93 +180,75 @@ function expandedExpressionText(output: ParserOutput, node: AstNode, seen = new 
 }
 
 function packetNativeMetadata(gameId: GameId, key: string, canonicalUnit: string): { nativeUnit: string; normalization?: string } {
+  if (key === "TimestampMS") {
+    return { nativeUnit: "ms", normalization: "milliseconds / 1000" };
+  }
+  if (["Accel", "Brake", "Clutch", "HandBrake"].includes(key)) {
+    return {
+      nativeUnit: "0–255",
+      normalization: "clamp(value/255,0,1)",
+    };
+  }
+  if (key === "Steer") {
+    return {
+      nativeUnit: "-128–127",
+      normalization: "clamp(value>=0?value/127:value/128,-1,1)",
+    };
+  }
   if (gameId === "fm-2023" && key.startsWith("TireTemp")) {
     return {
       nativeUnit: "°F",
       normalization: "(fahrenheit - 32) * 5 / 9",
     };
   }
-  if (gameId === "f1-2025" && key === "Speed") {
-    return { nativeUnit: "km/h", normalization: "kilometres per hour / 3.6" };
-  }
-  if ((gameId === "acc" || gameId === "ac-evo") && key === "Speed") {
-    return { nativeUnit: "km/h", normalization: "kilometres per hour / 3.6" };
-  }
-  if ((gameId === "acc" || gameId === "ac-evo") && ["BestLap", "LastLap", "CurrentLap"].includes(key)) {
-    return { nativeUnit: "ms", normalization: "milliseconds / 1000" };
-  }
-  if ((gameId === "acc" || gameId === "ac-evo") && ["Accel", "Brake", "Steer"].includes(key)) {
-    return {
-      nativeUnit: "ratio",
-      normalization: key === "Steer" ? "ratio * 127 and round" : "ratio * 255 and round",
-    };
-  }
-  if (gameId === "f1-2025" && ["Accel", "Brake", "Steer"].includes(key)) {
-    return {
-      nativeUnit: "ratio",
-      normalization: key === "Steer" ? "ratio * 127 and round" : "ratio * 255 and round",
-    };
-  }
-  if (gameId === "f1-2025" && key === "Clutch") {
-    return { nativeUnit: "%", normalization: "percentage * 2.55 and round" };
-  }
-  if (gameId === "iracing" && ["Accel", "Brake", "Clutch"].includes(key)) {
-    return { nativeUnit: "%", normalization: "0-1 SDK value * 255 and round" };
-  }
-  if (gameId === "iracing" && key === "Speed") {
-    return {
-      nativeUnit: "m/s",
-      normalization: "clamp native m/s speed to non-negative canonical m/s",
-    };
-  }
-  if (gameId === "iracing" && key === "Steer") {
-    return {
-      nativeUnit: "rad",
-      normalization: "steering angle / steering maximum, clamp to -1..1, then * 127",
-    };
-  }
-  if (gameId === "iracing" && key === "TireWear") {
-    return {
-      nativeUnit: "% tread remaining",
-      normalization: "1 - minimum(left, middle, right tread remaining)",
-    };
-  }
-  if (gameId === "iracing" && key === "TirePressure") {
-    return { nativeUnit: "kPa", normalization: "kilopascals * 0.1450377377" };
-  }
   return { nativeUnit: canonicalUnit };
 }
 
-function isPacketSemanticDerivation(gameId: GameId, key: string, expressions: readonly string[]): boolean {
-  if (gameId === "iracing" && (key === "CurrentLap" || key === "DistanceTraveled" || key === "TireWear")) {
-    return true;
-  }
-  if (gameId === "f1-2025" && (key === "Power" || key === "TireCombinedSlip")) {
-    return true;
-  }
-  return expressions.some((expression) => /integrateDistance|tireWear|sector boundary|lap start/i.test(expression));
-}
-
-function isPacketRepresentationNormalization(gameId: GameId, key: string, native: { normalization?: string }, expressions: readonly string[]): boolean {
-  if (native.normalization) return true;
-  if ((gameId === "acc" || gameId === "ac-evo") && (key === "CarOrdinal" || key === "TrackOrdinal")) {
-    return true;
-  }
-  return expressions.some((expression) => /input255|canonicalGear|clamp|Math\.(?:round|trunc)|Boolean\(|===|!==|\?/.test(expression));
-}
-
-function classifyPacketMapping(gameId: GameId, key: string, native: { normalization?: string }, expressions: readonly string[]): AvailableLink["kind"] {
-  if ((gameId === "iracing" && (key === "TireTemp" || key === "TireCarcassTemp")) || (gameId === "acc" && key === "WeatherType") || (gameId === "f1-2025" && key === "WheelRotationSpeed")) {
+function classifyPacketMapping(
+  gameId: GameId,
+  key: string,
+  native: { normalization?: string },
+): AvailableLink["kind"] {
+  if (
+    (gameId === "iracing" &&
+      (key === "TireTemp" || key === "TireCarcassTemp")) ||
+    (gameId === "acc" && key === "WeatherType") ||
+    (gameId === "f1-2025" && key === "WheelRotationSpeed")
+  ) {
     return "simplified";
   }
-  if (isPacketSemanticDerivation(gameId, key, expressions)) return "derived";
-  if (isPacketRepresentationNormalization(gameId, key, native, expressions)) {
-    return "normalized";
-  }
-  if (expressions.some((expression) => /[+\-*/?:]|Math\./.test(expression))) {
-    return "derived";
-  }
-  return "direct";
+  return native.normalization ? "normalized" : "direct";
+}
+
+function packetProvenanceByField(
+  gameId: GameId,
+  set: FieldSet,
+  output: ParserOutput,
+): string[][] {
+  const sourceOverride = PACKET_SOURCE_OVERRIDES[gameId]?.[set.key];
+  return set.fields.map((field) => {
+    if (sourceOverride) return sourceOverride;
+    if (gameId === "fm-2023") return [`ForzaDataOut.${field}`];
+    if (gameId === "iracing") {
+      return (
+        specialIRacingSources(field) ??
+        nativeSources(gameId, output.properties.get(field), output.variables)
+      );
+    }
+    return nativeSources(
+      gameId,
+      output.properties.get(field),
+      output.variables,
+    );
+  });
+}
+
+function packetProvenanceSources(
+  gameId: GameId,
+  set: FieldSet,
+  output: ParserOutput,
+): string[] {
+  return [...new Set(packetProvenanceByField(gameId, set, output).flat())];
 }
 
 function packetGameLink(gameId: GameId, set: FieldSet, output: ParserOutput, unit: string): GameLink {
@@ -285,49 +267,57 @@ function packetGameLink(gameId: GameId, set: FieldSet, output: ParserOutput, uni
     return unavailable("parser-placeholder", `${gameId} parser fills this value with a placeholder because source does not provide it.`);
   }
 
-  const sourceOverride = PACKET_SOURCE_OVERRIDES[gameId]?.[set.key];
-  const sourcesByField = fields.map((field) => {
-    if (sourceOverride) return sourceOverride;
-    if (gameId === "fm-2023") return [`ForzaDataOut.${field}`];
-    if (gameId === "iracing") {
-      const special = specialIRacingSources(field);
-      if (special) return special;
-    }
-    return nativeSources(gameId, output.properties.get(field), output.variables);
-  });
-  let allSources = [...new Set(sourcesByField.flat())];
-  if (allSources.length === 0) {
-    allSources = fields.map((field) => (field === "TimestampMS" ? "RaceIQ.SystemClock" : `RaceIQ.ParserState.${field}`));
-    for (const [index, sources] of sourcesByField.entries()) {
-      if (sources.length === 0) sources.push(allSources[index]);
-    }
+  const provenanceByField = packetProvenanceByField(gameId, set, output);
+  const sourcesByField = fields.map((field) => [
+    `TelemetryPacket.${field}`,
+  ]);
+  const allSources = [...new Set(sourcesByField.flat())];
+  const provenanceSources = [...new Set(provenanceByField.flat())];
+  if (provenanceSources.length === 0) {
+    provenanceSources.push(
+      ...fields.map((field) =>
+        field === "TimestampMS"
+          ? "RaceIQ.SystemClock"
+          : `RaceIQ.ParserState.${field}`,
+      ),
+    );
   }
-  const expressions = fields.map((field) => {
-    const value = output.properties.get(field);
-    return value ? expandedExpressionText(output, value) : "";
-  });
   const native = packetNativeMetadata(gameId, set.key, unit);
-  const directIRacingCarcassBand = gameId === "iracing" && /^TireCarcassTemp(Left|Middle|Right)$/.test(set.key);
-  const mappingKind = directIRacingCarcassBand ? "direct" : classifyPacketMapping(gameId, set.key, native, expressions);
-  const sourceShape = set.shape === "per-wheel" ? Object.fromEntries(["FL", "FR", "RL", "RR"].map((wheel, index) => [wheel, sourcesByField[index]])) : allSources;
-  const tireAverageSimplification = mappingKind === "simplified" && gameId === "iracing" && (set.key === "TireTemp" || set.key === "TireCarcassTemp");
-  const normalization = tireAverageSimplification ? "average available left, middle, and right carcass temperatures per tire" : (native.normalization ?? [...new Set(expressions)].join(" | "));
-  let description =
-    allSources.length > 0
-      ? `${gameId} maps ${allSources.length} native source channel${allSources.length === 1 ? "" : "s"} into this value.`
-      : `${gameId} provides this value from parser/session state.`;
+  const mappingKind = classifyPacketMapping(gameId, set.key, native);
+  const sourceShape =
+    set.shape === "per-wheel"
+      ? Object.fromEntries(
+          ["FL", "FR", "RL", "RR"].map((wheel, index) => [
+            wheel,
+            sourcesByField[index],
+          ]),
+        )
+      : allSources;
+  const tireAverageSimplification =
+    mappingKind === "simplified" &&
+    gameId === "iracing" &&
+    (set.key === "TireTemp" || set.key === "TireCarcassTemp");
+  const normalization = tireAverageSimplification
+    ? "use packet-provided representative carcass temperature per tire"
+    : gameId === "acc" && set.key === "WeatherType"
+      ? "use packet-provided rain-tire weather proxy"
+      : gameId === "f1-2025" && set.key === "WheelRotationSpeed"
+        ? "use packet-provided estimated wheel rotation"
+        : native.normalization;
+  const provenanceNote = ` Parser provenance: ${provenanceSources.join(", ")}.`;
+  let description = `${gameId} reads ${allSources.length} stored packet channel${allSources.length === 1 ? "" : "s"}.${provenanceNote}`;
   let limitations: readonly string[] | undefined;
   if (tireAverageSimplification) {
-    description = "Averages available iRacing left, middle, and right carcass-temperature bands per tire.";
+    description = `Uses packet-provided representative iRacing carcass temperature per tire.${provenanceNote}`;
     limitations = ["Averaging removes across-tread temperature-gradient detail."];
   } else if (gameId === "iracing" && (set.key === "PositionX" || set.key === "PositionY" || set.key === "PositionZ")) {
-    description = "Projects disk-only iRacing IBT geographic coordinates into a local metric position.";
+    description = `Uses packet-provided local position projected from disk-only iRacing IBT geographic coordinates.${provenanceNote}`;
     limitations = ["Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates."];
   } else if (gameId === "acc" && set.key === "WeatherType") {
-    description = "Infers wet weather from rain-tyre selection rather than observing weather directly.";
+    description = `Uses packet-provided wet-weather proxy inferred from rain-tire selection.${provenanceNote}`;
     limitations = ["Rain-tyre selection is a lossy weather proxy and cannot distinguish dry conditions or weather intensity."];
   } else if (gameId === "f1-2025" && set.key === "WheelRotationSpeed") {
-    description = "Estimates wheel angular speed using an assumed 0.36 m radius and falls back to vehicle speed when per-wheel motion is unavailable.";
+    description = `Uses packet-provided estimated wheel angular speed.${provenanceNote}`;
     limitations = ["Assumed wheel radius and vehicle-speed fallback cannot preserve actual per-wheel rotation."];
   }
 
@@ -539,9 +529,8 @@ export {
   expressionText,
   expandedExpressionText,
   packetNativeMetadata,
-  isPacketSemanticDerivation,
-  isPacketRepresentationNormalization,
   classifyPacketMapping,
+  packetProvenanceSources,
   packetGameLink,
   nativeFuelUnit,
   ensureCategoryGroups,

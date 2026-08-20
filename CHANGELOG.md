@@ -25,6 +25,8 @@
 
 ### Fixes
 
+- Keep fuel amounts, controls, engine output, timing, shift lights, tire blistering, and competitor pit states consistent across supported simulators
+
 - Estimate complete aerial-imagery output, work, disk, duration, and concurrency before import, then reject unsafe jobs before downloading source pixels
 - Browse track imagery by source, then choose dated images from compact source groups instead of one long mixed list
 - Show recorded GPS calibration laps with their correct lap times in track imagery tools

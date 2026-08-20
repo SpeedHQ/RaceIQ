@@ -101,4 +101,57 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     expect(packet!.Fuel).toBeCloseTo(42);
     expect(packet!.FuelCapacity).toBeCloseTo(100);
   });
+
+  test("preserves signed race gaps reported in seconds", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    graphics.writeFloatLE(1.75, GRAPHICS_EVO.gap_ahead.offset);
+    graphics.writeFloatLE(-2.25, GRAPHICS_EVO.gap_behind.offset);
+
+    const packet = parseAcEvoBuffers(
+      physics,
+      graphics,
+      staticData,
+      createAcEvoParserCache(),
+    );
+
+    expect(packet).not.toBeNull();
+    expect(packet!.acc?.acEvo?.gapAheadSeconds).toBe(1.75);
+    expect(packet!.acc?.acEvo?.gapBehindSeconds).toBe(-2.25);
+  });
+
+  test("maps source engine power and torque into packet SI units", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    graphics.writeInt32LE(500, GRAPHICS_EVO.current_bhp.offset);
+    graphics.writeFloatLE(640, GRAPHICS_EVO.current_torque.offset);
+
+    const packet = parseAcEvoBuffers(
+      physics,
+      graphics,
+      staticData,
+      createAcEvoParserCache(),
+    );
+
+    expect(packet).not.toBeNull();
+    expect(packet!.Power).toBe(372850);
+    expect(packet!.Torque).toBeCloseTo(640);
+    expect(packet!.acc?.acEvo?.currentBhp).toBe(500);
+    expect(packet!.acc?.acEvo?.currentTorque).toBeCloseTo(640);
+  });
+
+  test("encodes clutch and handbrake ratios on the packet control scale", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    graphics.writeFloatLE(0.4, GRAPHICS_EVO.clutch_percent.offset);
+    graphics.writeFloatLE(0.4, GRAPHICS_EVO.handbrake_percent.offset);
+
+    const packet = parseAcEvoBuffers(
+      physics,
+      graphics,
+      staticData,
+      createAcEvoParserCache(),
+    );
+
+    expect(packet).not.toBeNull();
+    expect(packet!.Clutch).toBe(102);
+    expect(packet!.HandBrake).toBe(102);
+  });
 });

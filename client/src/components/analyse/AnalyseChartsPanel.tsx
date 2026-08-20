@@ -2,6 +2,7 @@ import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } f
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
@@ -67,10 +68,12 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
   const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
   for (const frame of displayTelemetry) {
     speed.push(numeric(frame, "motion.speed") ?? NaN);
-    throttle.push(numeric(frame, "inputs.accel") ?? NaN);
-    brake.push(numeric(frame, "inputs.brake") ?? NaN);
+    const throttleRatio = numeric(frame, "inputs.throttle");
+    const brakeRatio = numeric(frame, "inputs.brake");
+    throttle.push(throttleRatio == null ? NaN : controlInputPercent(throttleRatio));
+    brake.push(brakeRatio == null ? NaN : controlInputPercent(brakeRatio));
     rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
-    steering.push(numeric(frame, "inputs.steer") ?? NaN);
+    steering.push(numeric(frame, "inputs.steering") ?? NaN);
     tireTempFL.push(wheel(frame, "tire.temperature.average", 0) ?? NaN);
     tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
     tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);

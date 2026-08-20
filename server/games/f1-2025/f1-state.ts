@@ -184,6 +184,12 @@ export class F1StateAccumulator {
         const car = ld.allCars[i];
         const participant = this.participants[i];
         const csEntry = cs?.allCars[i];
+        const pitStatus: F1GridEntry["pitStatus"] =
+          car.pitStatus === 1
+            ? "pitting"
+            : car.pitStatus === 2
+              ? "in-pit-area"
+              : "none";
 
         const history = this.driverHistory.get(i);
         grid.push({
@@ -196,7 +202,8 @@ export class F1StateAccumulator {
           bestLapTime: history?.bestLapTime ?? car.bestLapTime,
           gapToLeader: car.position === 1 ? 0 : (leaderBestDist - car.totalDistance) / Math.max(1, ct.speed / 3.6),
           gapToCarAhead: 0, // computed after sort
-          pitStatus: car.pitStatus,
+          pitStatus,
+          onPitRoad: pitStatus !== "none",
           numPitStops: car.numPitStops,
           tyreCompound: csEntry ? getF1CompoundName(csEntry.tyreVisualCompound) : "unknown",
           tyreAge: csEntry?.tyreAge ?? 0,
@@ -280,7 +287,7 @@ export class F1StateAccumulator {
       brakesDamageRL: cd?.brakesDamageRL,
       brakesDamageRR: cd?.brakesDamageRR,
       tyreBlistersFL: cd?.tyreBlistersFL,
-      tyreBlistsFR: cd?.tyreBlistsFR,
+      tyreBlistersFR: cd?.tyreBlistersFR,
       tyreBlistersRL: cd?.tyreBlistersRL,
       tyreBlistersRR: cd?.tyreBlistersRR,
       drsFault: cd?.drsFault,

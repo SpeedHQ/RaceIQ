@@ -65,13 +65,13 @@ describe("semantic telemetry catalog", () => {
     const iracing = average.games.iracing;
     if (iracing.kind === "unavailable") throw new Error("mapping missing");
     expect(iracing.sources).toEqual({
-      FL: ["iRacing.LFtempCL", "iRacing.LFtempCM", "iRacing.LFtempCR"],
-      FR: ["iRacing.RFtempCL", "iRacing.RFtempCM", "iRacing.RFtempCR"],
-      RL: ["iRacing.LRtempCL", "iRacing.LRtempCM", "iRacing.LRtempCR"],
-      RR: ["iRacing.RRtempCL", "iRacing.RRtempCM", "iRacing.RRtempCR"],
+      FL: ["TelemetryPacket.TireTempFL"],
+      FR: ["TelemetryPacket.TireTempFR"],
+      RL: ["TelemetryPacket.TireTempRL"],
+      RR: ["TelemetryPacket.TireTempRR"],
     });
     expect(iracing.normalization).toBe(
-      "average available left, middle, and right carcass temperatures per tire",
+      "use packet-provided representative carcass temperature per tire",
     );
 
     expect(
@@ -212,7 +212,7 @@ describe("semantic telemetry catalog", () => {
         ),
       ),
     ).toMatchObject({
-      "f1-2025": "normalized",
+      "f1-2025": "direct",
       acc: "unavailable",
       "ac-evo": "direct",
     });

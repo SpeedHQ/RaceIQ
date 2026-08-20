@@ -280,7 +280,7 @@ export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerB
 
 export interface SemanticWheelDynamicsFrame {
   speedMps: number;
-  steer: number;
+  steeringRatio: number;
   wheelRotationRadS: { fl: number; fr: number; rl: number; rr: number };
   wheelRadiusM: number;
 }
@@ -346,7 +346,7 @@ export function wheelState(
   wheelRotSpeed: number,
   groundSpeed: number,
   wheelRadius: number,
-  steerAngle: number, // 0 for rear wheels
+  steeringRatio: number, // 0 for rear wheels
   isInnerWheel: boolean,
 ): WheelState {
   if (groundSpeed < 1.5) return { state: "idle", slipRatio: 0 };
@@ -360,7 +360,7 @@ export function wheelState(
   }
 
   // In turns, inner wheels naturally rotate slower — widen the threshold
-  const steerFactor = Math.abs(steerAngle) / 127; // 0-1
+  const steerFactor = Math.min(1, Math.abs(steeringRatio));
   const spinThreshold = 0.1 + (isInnerWheel ? 0 : steerFactor * 0.05);
 
   if (sr > spinThreshold) return { state: "spin", slipRatio: sr };
@@ -369,7 +369,7 @@ export function wheelState(
 
 export interface WheelDynamicsFrame {
   speedMps: number;
-  steer: number;
+  steeringRatio: number;
   wheelRotationRadS: { fl: number; fr: number; rl: number; rr: number };
   wheelRadiusM: number;
 }
@@ -381,12 +381,13 @@ export function wheelDynamicsFrame(frame: WheelDynamicsFrame): {
   rl: WheelState;
   rr: WheelState;
 } {
-  const { speedMps: gs, steer } = frame;
-  const turningRight = steer > 5;
-  const turningLeft = steer < -5;
+  const { speedMps: gs, steeringRatio } = frame;
+  const turnThreshold = 5 / 127;
+  const turningRight = steeringRatio > turnThreshold;
+  const turningLeft = steeringRatio < -turnThreshold;
   return {
-    fl: wheelState(frame.wheelRotationRadS.fl, gs, frame.wheelRadiusM, steer, turningRight),
-    fr: wheelState(frame.wheelRotationRadS.fr, gs, frame.wheelRadiusM, steer, turningLeft),
+    fl: wheelState(frame.wheelRotationRadS.fl, gs, frame.wheelRadiusM, steeringRatio, turningRight),
+    fr: wheelState(frame.wheelRotationRadS.fr, gs, frame.wheelRadiusM, steeringRatio, turningLeft),
     rl: wheelState(frame.wheelRotationRadS.rl, gs, frame.wheelRadiusM, 0, turningRight),
     rr: wheelState(frame.wheelRotationRadS.rr, gs, frame.wheelRadiusM, 0, turningLeft),
   };
@@ -400,9 +401,10 @@ export function allWheelStates(pkt: TelemetryPacket): {
   rr: WheelState;
 } {
   const r = effectiveWheelRadius(pkt);
+  const steeringRatio = Math.max(-1, Math.min(1, pkt.Steer >= 0 ? pkt.Steer / 127 : pkt.Steer / 128));
   return wheelDynamicsFrame({
     speedMps: pkt.Speed,
-    steer: pkt.Steer,
+    steeringRatio,
     wheelRotationRadS: {
       fl: pkt.WheelRotationSpeedFL,
       fr: pkt.WheelRotationSpeedFR,

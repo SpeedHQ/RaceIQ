@@ -51,6 +51,7 @@ function inferredIRacingUnit(
 }
 
 const IRACING_SDK_ALIASES: Record<string, string> = {
+  BrakeABSactive: "brakes.abs-active",
   CamCameraNumber: "diagnostics.camera.active-camera-number",
   CamCameraState: "diagnostics.camera.state-flags",
   CamCarIdx: "identity.camera-focus-car-index",
@@ -67,7 +68,7 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   CarIdxLapCompleted: "race.competitor.laps-complete",
   CarIdxLapDistPct: "timing.competitor.lap-fraction",
   CarIdxLastLapTime: "timing.competitor.last-lap-time",
-  CarIdxOnPitRoad: "race.competitor.pit-status",
+  CarIdxOnPitRoad: "race.competitor.on-pit-road",
   CarIdxP2P_Count: "race.competitor.push-to-pass-count",
   CarIdxP2P_Status: "race.competitor.push-to-pass-active",
   CarIdxPaceFlags: "race.competitor.pace-flags",
@@ -114,13 +115,20 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   PlayerCarIdx: "identity.player-car-index",
   PlayerCarClass: "identity.player-car-class-id",
   PlayerCarClassPosition: "race.player-class-position",
+  PlayerCarSLFirstRPM: "engine.shift-light.first-rpm",
+  PlayerCarSLShiftRPM: "engine.shift-light.shift-rpm",
+  PlayerCarSLLastRPM: "engine.shift-light.last-rpm",
+  PlayerCarSLBlinkRPM: "engine.shift-light.blink-rpm",
   SessionUniqueID: "session.session-id",
+  SessionTimeOfDay: "timing.time-of-day",
+  SessionTimeRemain: "timing.session-time-remaining",
   PlayerIncidents: "race.incident-flags",
   PlayerCarDriverIncidentCount: "race.driver-incident-count",
   PlayerCarMyIncidentCount: "race.player-incident-count",
   PlayerCarTeamIncidentCount: "race.team-incident-count",
   PlayerTireCompound: "tires.tire-compound-code",
-  FuelLevelPct: "fuel.fuel-percent",
+  FuelLevel: "fuel.remaining-volume",
+  FuelLevelPct: "fuel.remaining-fraction",
   WaterTemp: "engine.coolant-temperature",
   OilTemp: "engine.oil-temperature",
   OilPress: "engine.oil-pressure",
@@ -329,7 +337,7 @@ const IRACING_YAML_ALIASES: Record<string, string> = {
     "timing.competitor.best-lap-time",
   "DriverInfo.DriverCarIdleRPM": "engine.engine-idle-rpm",
   "DriverInfo.DriverCarRedLine": "engine.engine-max-rpm",
-  "DriverInfo.DriverCarFuelMaxLtr": "fuel.fuel-capacity",
+  "DriverInfo.DriverCarFuelMaxLtr": "fuel.capacity",
   "DriverInfo.DriverCarGearNeutral":
     "inputs.gearbox.neutral-position-count",
   "DriverInfo.DriverCarGearNumForward": "inputs.gearbox.forward-gear-count",
@@ -475,16 +483,16 @@ function addIRacingYamlField(
   if (!variable) {
     variable = {
       id: semanticId,
-      label: definition?.label ?? field.label,
-      description: definition?.description ?? field.description,
-      parentId:
-        definition?.parentId ?? (groups.has(semanticRoot) ? semanticRoot : category),
-      canonicalUnit: definition?.canonicalUnit ?? field.unit,
-      shape:
-        definition?.shape ??
-        (field.path.includes("[]") || field.path.endsWith(".**")
-          ? "structured"
-          : "scalar"),
+      ...(definition ?? {
+        label: field.label,
+        description: field.description,
+        parentId: groups.has(semanticRoot) ? semanticRoot : category,
+        canonicalUnit: field.unit,
+        shape:
+          field.path.includes("[]") || field.path.endsWith(".**")
+            ? "structured"
+            : "scalar",
+      }),
       games: unavailableGames(
         "No equivalent source value is currently identified for this parser.",
       ),

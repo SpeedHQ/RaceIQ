@@ -1,47 +1,106 @@
 import type { TelemetryDerivation } from "./contracts";
 
-const FUEL_PERCENT_DERIVATION_ID = "raceiq.fuel.percent";
-const DERIVATION_VERSION = "1.0.0";
+const DERIVATION_VERSION = "2.0.0";
 
-const FUEL_PERCENT_DERIVATION: TelemetryDerivation = {
-  id: FUEL_PERCENT_DERIVATION_ID,
+const FUEL_REMAINING_VOLUME_DERIVATION: TelemetryDerivation = {
+  id: "raceiq.fuel.remaining-volume",
   version: DERIVATION_VERSION,
   output: {
-    semanticId: "fuel.fuel-percent",
-    unit: "%",
+    semanticId: "fuel.remaining-volume",
+    unit: "L",
     valueType: "number",
   },
   inputs: [
     {
-      semanticId: "fuel.fuel",
+      semanticId: "fuel.remaining-fraction",
       acceptedMappings: ["direct", "normalized", "derived"],
       required: true,
     },
     {
-      semanticId: "fuel.fuel-capacity",
+      semanticId: "fuel.capacity",
       acceptedMappings: ["direct", "normalized", "derived"],
-      required: false,
+      required: true,
     },
   ],
   missingDataPolicy: "unavailable",
   deterministic: true,
   codeHash:
-    "sha256:60836f23f692ccfb12d9a337b7ca132364a5db7c902f5f56addf1af81c9c120e",
+    "sha256:9b8ec62e44b29d76b9833c6c364e91d26c01185d9d7bdb90df99d2a8c5fe50ac",
   evaluate(context) {
-    const fuel = context.number("fuel.fuel");
-    if (fuel === undefined || !Number.isFinite(fuel)) {
-      return context.unavailable("fuel.fuel unavailable");
+    const fraction = context.number("fuel.remaining-fraction");
+    const capacity = context.number("fuel.capacity");
+    if (fraction === undefined || !Number.isFinite(fraction)) {
+      return context.unavailable("fuel.remaining-fraction unavailable");
     }
+    if (capacity === undefined || !Number.isFinite(capacity) || capacity <= 0) {
+      return context.unavailable("fuel.capacity unavailable");
+    }
+    return context.value(fraction * capacity);
+  },
+};
 
-    const capacity = context.number("fuel.fuel-capacity");
-    if (capacity === undefined && fuel >= 0 && fuel <= 1) {
-      return context.value(fuel * 100);
+const FUEL_REMAINING_FRACTION_DERIVATION: TelemetryDerivation = {
+  id: "raceiq.fuel.remaining-fraction",
+  version: DERIVATION_VERSION,
+  output: {
+    semanticId: "fuel.remaining-fraction",
+    unit: "fraction",
+    valueType: "number",
+  },
+  inputs: [
+    {
+      semanticId: "fuel.remaining-volume",
+      acceptedMappings: ["direct", "normalized", "derived"],
+      required: true,
+    },
+    {
+      semanticId: "fuel.capacity",
+      acceptedMappings: ["direct", "normalized", "derived"],
+      required: true,
+    },
+  ],
+  missingDataPolicy: "unavailable",
+  deterministic: true,
+  codeHash:
+    "sha256:cde2e7633c376175900d34843c9f262365c295bef46b910a508a91a019e15b43",
+  evaluate(context) {
+    const volume = context.number("fuel.remaining-volume");
+    const capacity = context.number("fuel.capacity");
+    if (volume === undefined || !Number.isFinite(volume)) {
+      return context.unavailable("fuel.remaining-volume unavailable");
     }
-    if (capacity === undefined || !Number.isFinite(capacity) || capacity === 0) {
-      return context.unavailable("fuel.fuel-capacity unavailable");
+    if (capacity === undefined || !Number.isFinite(capacity) || capacity <= 0) {
+      return context.unavailable("fuel.capacity unavailable");
     }
+    return context.value(volume / capacity);
+  },
+};
 
-    return context.value((fuel / capacity) * 100);
+const FUEL_REMAINING_PERCENT_DERIVATION: TelemetryDerivation = {
+  id: "raceiq.fuel.remaining-percent",
+  version: DERIVATION_VERSION,
+  output: {
+    semanticId: "fuel.remaining-percent",
+    unit: "%",
+    valueType: "number",
+  },
+  inputs: [
+    {
+      semanticId: "fuel.remaining-fraction",
+      acceptedMappings: ["direct", "normalized", "derived"],
+      required: true,
+    },
+  ],
+  missingDataPolicy: "unavailable",
+  deterministic: true,
+  codeHash:
+    "sha256:31a55251437dedc88c7e37f5624c312af58f914a16824c792ad32acf44f416cc",
+  evaluate(context) {
+    const fraction = context.number("fuel.remaining-fraction");
+    if (fraction === undefined || !Number.isFinite(fraction)) {
+      return context.unavailable("fuel.remaining-fraction unavailable");
+    }
+    return context.value(fraction * 100);
   },
 };
 
@@ -88,14 +147,16 @@ const LAP_FRACTION_DERIVATION: TelemetryDerivation = {
 
 export const TELEMETRY_DERIVATION_VERSION = DERIVATION_VERSION;
 
-
 export function getBuiltinTelemetryDerivation(
   semanticId: string,
 ): TelemetryDerivation | undefined {
-  if (semanticId === FUEL_PERCENT_DERIVATION.output.semanticId) {
-    return FUEL_PERCENT_DERIVATION;
+  for (const derivation of [
+    FUEL_REMAINING_VOLUME_DERIVATION,
+    FUEL_REMAINING_FRACTION_DERIVATION,
+    FUEL_REMAINING_PERCENT_DERIVATION,
+    LAP_FRACTION_DERIVATION,
+  ]) {
+    if (semanticId === derivation.output.semanticId) return derivation;
   }
-  return semanticId === LAP_FRACTION_DERIVATION.output.semanticId
-    ? LAP_FRACTION_DERIVATION
-    : undefined;
+  return undefined;
 }

@@ -15,7 +15,7 @@ import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
  * TelemetryCharts — Aggregates all rolling 60s time-series data into chart components.
  * Downsamples from 60Hz to ~10Hz (every 6th frame) to keep buffers at 600 samples.
  * Seeds from server on mount so charts populate immediately after page refresh.
- * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
+ * Converts telemetry units for display, including canonical control ratios and legacy raw packet inputs.
  */
 export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view?: LiveTelemetryView }) {
   const gameId = view?.simulator ?? packet?.gameId;
@@ -136,8 +136,12 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
     push4(h.slipAngle, angle.fl * (180 / Math.PI), angle.fr * (180 / Math.PI), angle.rl * (180 / Math.PI), angle.rr * (180 / Math.PI));
     push4(h.slipRatio, Math.abs(ratio.fl), Math.abs(ratio.fr), Math.abs(ratio.rl), Math.abs(ratio.rr));
     push4(h.suspension, suspension.fl, suspension.fr, suspension.rl, suspension.rr);
-    h.throttle.push(controlInputPercent(view?.inputs.throttle ?? packet?.Accel));
-    h.brake.push(controlInputPercent(view?.inputs.brake ?? packet?.Brake));
+    h.throttle.push(view?.inputs.throttle === undefined
+      ? Math.min(100, Math.max(0, ((packet?.Accel ?? 0) / 255) * 100))
+      : controlInputPercent(view.inputs.throttle));
+    h.brake.push(view?.inputs.brake === undefined
+      ? Math.min(100, Math.max(0, ((packet?.Brake ?? 0) / 255) * 100))
+      : controlInputPercent(view.inputs.brake));
     h.speed.push(view?.motion.speedMps ?? packet?.DisplaySpeed ?? 0);
     if (h.throttle.length > GRIP_MAX_SAMPLES) {
       h.throttle.shift();

@@ -40,7 +40,7 @@ export const iracingAdapter: GameAdapter = {
   shortName: "iRacing",
   routePrefix: "iracing",
   telemetry: {
-    fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.fuel" } },
+    fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.remaining-volume" } },
     tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.average" } },
     tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
     clutch: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "inputs.clutch" } },
