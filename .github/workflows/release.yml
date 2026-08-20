@@ -91,6 +91,8 @@ jobs:
 
       - name: Compile server binary
         shell: bash
+        env:
+          RACEIQ_GOOGLE_DRIVE_CLIENT_ID: ${{ vars.RACEIQ_GOOGLE_DRIVE_CLIENT_ID }}
         run: |
           VERSION=${{ needs.compute-version.outputs.version }}
           NODE_ENV=production bun build --compile --target=bun-windows-x64 \
@@ -102,6 +104,7 @@ jobs:
             --define 'process.env.NODE_ENV="production"' \
             --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' \
             --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' \
+            --define "process.env.RACEIQ_GOOGLE_DRIVE_CLIENT_ID=\"${RACEIQ_GOOGLE_DRIVE_CLIENT_ID:-}\"" \
             server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Patch PE version info (ProductName)

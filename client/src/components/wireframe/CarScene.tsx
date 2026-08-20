@@ -31,11 +31,11 @@ const wheel = (f: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values
 };
 
 function normalizedSuspension(frame: SemanticAnalysisFrame, range?: { min: number; max: number }): [number, number, number, number] {
-  const normalized = frame.values["suspension.norm-suspension-travel"];
+  const normalized = frame.values?.["suspension.norm-suspension-travel"];
   if (Array.isArray(normalized) && normalized.length >= 4 && normalized.slice(0, 4).every((value) => typeof value === "number" && Number.isFinite(value))) {
     return normalized.slice(0, 4) as [number, number, number, number];
   }
-  return normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"] as unknown[], range);
+  return normalizeSuspensionTravel(frame.values?.["suspension.suspension-travel-m"] as unknown[], range);
 }
 
 function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft: number, rt: number): { x: number; z: number } | null {

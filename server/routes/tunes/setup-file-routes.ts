@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { Hono } from "hono";
 import { resolve, sep } from "node:path";
 import { z } from "zod";
@@ -14,30 +14,8 @@ import { carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetu
 import { parseCarSetup } from "../../games/ac-evo/carsetup-wire";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../../setups/file-guard";
 import { getAcEvoCarRanges } from "../../setups/rules/catalog";
-import { parseTuneRow, sanitisePathSegment } from "../tune-shared";
-
-interface SetupFileListing { carModel: string; trackName: string; fileName: string; absolutePath: string; }
-
-function listSetupFiles(baseDir: string): SetupFileListing[] {
-  const out: SetupFileListing[] = [];
-  let carDirs: string[];
-  try { carDirs = readdirSync(baseDir).filter((d) => statSync(resolve(baseDir, d)).isDirectory()); }
-  catch { return out; }
-  for (const carModel of carDirs) {
-    const carPath = resolve(baseDir, carModel);
-    let trackDirs: string[];
-    try { trackDirs = readdirSync(carPath).filter((d) => statSync(resolve(carPath, d)).isDirectory()); }
-    catch { continue; }
-    for (const trackName of trackDirs) {
-      const trackPath = resolve(carPath, trackName);
-      let files: string[];
-      try { files = readdirSync(trackPath).filter((f) => /\.(json|carsetup)$/i.test(f)); }
-      catch { continue; }
-      for (const fileName of files) out.push({ carModel, trackName, fileName, absolutePath: resolve(trackPath, fileName) });
-    }
-  }
-  return out;
-}
+import { listSetupFiles, sanitisePathSegment } from "../../setups/local-files";
+import { parseTuneRow } from "../tune-shared";
 
 const ImportFileSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]), filePath: z.string().min(1), name: z.string().optional(),

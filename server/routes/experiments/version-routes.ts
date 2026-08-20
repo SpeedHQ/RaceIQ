@@ -17,7 +17,8 @@ import {
 } from "../../db/experiment-version-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { tuneSessionThreadId, saveChatMessages } from "../../ai/chat-agent";
-import { resolveGuardedSetupFile, type AccGameId } from "../../setups/file-guard";
+import { resolveGuardedSetupFile } from "../../setups/file-guard";
+import type { SetupGameId } from "../../../shared/racing/setups/file-formats";
 import { captureF1SetupFromLaps } from "../../experiments/setup-lineage";
 import { nextFreeLabel } from "../../ai/version-label";
 
@@ -251,10 +252,10 @@ export const experimentVersionRoutes = new Hono()
     async (c) => {
       const { id } = c.req.valid("param");
       const session = await getExperiment(id);
+      const body = c.req.valid("json");
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
 
-      const body = c.req.valid("json");
-      const guarded = await resolveGuardedSetupFile(session.gameId as AccGameId, body.setupPath);
+      const guarded = await resolveGuardedSetupFile(session.gameId as SetupGameId, body.setupPath);
       if (!guarded.ok) return c.json({ error: guarded.error }, guarded.status);
 
       const tests = await listExperimentVersions(id);
