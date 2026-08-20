@@ -122,18 +122,24 @@ describe("Mitata benchmark comparison", () => {
     expect(result.output).not.toContain("legacy/pipeline");
   });
 
-  test("renders report-only microbenchmarks without deltas or judgments", async () => {
+  test("renders report-only microbenchmarks with colored deltas", async () => {
     const result = await runComparator(makeReport(), makeReport({ legacyMedian: 200 }), false, undefined, undefined, ["--exclude=replay/", "--informational"]);
 
     expect(result.code, result.output).toBe(0);
     expect(result.output).toContain("## Informational microbenchmarks");
     expect(result.output).toContain("Report-only. Small timings can vary between runs.");
     expect(result.output).toContain("legacy/pipeline");
-    expect(result.output).toContain("Baseline alloc / current alloc");
+    expect(result.output).toContain("Δ median | Δ p99 | Δ alloc");
+    expect(result.output).toContain("🔴 +100.0%");
     expect(result.output).not.toContain("replay/resolve");
-    expect(result.output).not.toContain("Δ median");
-    expect(result.output).not.toContain("%");
     expect(result.output).not.toContain("Regressions");
+  });
+
+  test("renders green improvement deltas without enforcement", async () => {
+    const result = await runComparator(makeReport(), makeReport({ legacyMedian: 50 }), false, undefined, undefined, ["--exclude=replay/", "--informational"]);
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("🟢 -50.0%");
   });
 
   test("keeps all three deltas in titled replay guardrails", async () => {

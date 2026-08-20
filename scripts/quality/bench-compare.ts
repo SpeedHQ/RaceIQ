@@ -76,13 +76,17 @@ function sign(p: number): string {
   if (Math.abs(p) < 0.5) return "≈";
   return p > 0 ? "🔴" : "🟢";
 }
+function fmtDelta(current: number, baseline: number): string {
+  const change = pct(current, baseline);
+  return `${sign(change)} ${change > 0 ? "+" : ""}${change.toFixed(1)}%`;
+}
 
 const rows: string[] = [];
 const regressions: string[] = [];
 let baselinePending = false;
 if (informational) {
-  rows.push(`| Bench | Baseline median / p99 | Current median / p99 | Baseline alloc / current alloc |`);
-  rows.push(`|---|---:|---:|---:|`);
+  rows.push(`| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Δ alloc |`);
+  rows.push(`|---|---:|---:|---:|---:|---:|`);
 } else {
   rows.push(`| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Δ alloc |`);
   rows.push(`|---|---:|---:|---:|---:|---:|`);
@@ -91,8 +95,14 @@ for (const key of keys) {
   const b = base.get(key);
   const c = cur.get(key);
   if (informational) {
+    if (!b || !c) {
+      rows.push(
+        `| ${key} | ${b ? `${fmtTime(b.median)} / ${fmtTime(b.p99)}` : "—"} | ${c ? `${fmtTime(c.median)} / ${fmtTime(c.p99)}` : "—"} | Baseline pending | — | — |`,
+      );
+      continue;
+    }
     rows.push(
-      `| ${key} | ${b ? `${fmtTime(b.median)} / ${fmtTime(b.p99)}` : "—"} | ${c ? `${fmtTime(c.median)} / ${fmtTime(c.p99)}` : "—"} | ${b ? fmtBytes(b.heap) : "—"} / ${c ? fmtBytes(c.heap) : "—"} |`,
+      `| ${key} | ${fmtTime(b.median)} / ${fmtTime(b.p99)} | ${fmtTime(c.median)} / ${fmtTime(c.p99)} | ${fmtDelta(c.median, b.median)} | ${fmtDelta(c.p99, b.p99)} | ${fmtDelta(c.heap, b.heap)} |`,
     );
     continue;
   }

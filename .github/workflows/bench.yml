@@ -15,7 +15,10 @@ concurrency:
 
 jobs:
   bench:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on:
+      - whitesmith-windows-x64
+      - 4VCPU
+      - 15G
     steps:
       - name: Checkout PR
         uses: actions/checkout@v7
