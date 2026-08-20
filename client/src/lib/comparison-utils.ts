@@ -59,6 +59,14 @@ export function planComparisonRequests(
   };
 }
 
+export function selectComparisonEntries<T extends { lapId: number }>(entries: readonly T[], selectedLapIds: readonly number[]): T[] {
+  const entryByLapId = new Map(entries.map((entry) => [entry.lapId, entry]));
+  return selectedLapIds.flatMap((lapId) => {
+    const entry = entryByLapId.get(lapId);
+    return entry ? [entry] : [];
+  });
+}
+
 export interface Point {
   x: number;
   z: number;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { comparisonSearchPatch } from "../src/components/comparison/LapComparison";
 import { COMPARISON_COLOR_VARS } from "../src/lib/colors";
-import { comparisonLapIdentity, MAX_COMPARISON_LAPS, normalizeComparisonLapIds, planComparisonRequests, toggleComparisonLapSelection } from "../src/lib/comparison-utils";
+import { comparisonLapIdentity, MAX_COMPARISON_LAPS, normalizeComparisonLapIds, planComparisonRequests, selectComparisonEntries, toggleComparisonLapSelection } from "../src/lib/comparison-utils";
 
 describe("multi-lap comparison selection", () => {
   test("caps comparison laps to colors not used by reference lap", () => {
@@ -33,6 +33,19 @@ describe("multi-lap comparison selection", () => {
       requestLapIds: [],
       abortLapIds: [],
     });
+  });
+
+  test("removes stale loaded entries before rendering a changed selection", () => {
+    const loaded = [
+      { lapId: 20, label: "B" },
+      { lapId: 30, label: "C" },
+    ];
+
+    expect(selectComparisonEntries(loaded, [20])).toEqual([{ lapId: 20, label: "B" }]);
+    expect(selectComparisonEntries(loaded, [30, 20])).toEqual([
+      { lapId: 30, label: "C" },
+      { lapId: 20, label: "B" },
+    ]);
   });
 
   test("normalizes shared URLs to unique non-reference laps within the palette", () => {

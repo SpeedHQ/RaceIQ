@@ -10,7 +10,7 @@ import { useLaps } from "@/hooks/laps";
 import { useTrackImagery, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
-import { comparisonLapIdentity, normalizeComparisonLapIds, planComparisonRequests, type Point, toggleComparisonLapSelection } from "@/lib/comparison-utils";
+import { comparisonLapIdentity, normalizeComparisonLapIds, planComparisonRequests, selectComparisonEntries, type Point, toggleComparisonLapSelection } from "@/lib/comparison-utils";
 import { COMPARISON_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 import type { CompareSearch } from "@/lib/game-routes";
@@ -103,7 +103,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const [lapAId, setLapAId] = useState<number | null>(search.lapA ?? null);
   const [comparisonLapIds, setComparisonLapIds] = useState<number[]>(() => normalizeComparisonLapIds(search.laps ?? [], search.lapA ?? null));
   const [comparisons, setComparisons] = useState<LoadedComparison[]>([]);
-  const comparison = comparisons[0]?.data ?? null;
+  const displayedComparisons = useMemo(() => selectComparisonEntries(comparisons, comparisonLapIds), [comparisons, comparisonLapIds]);
+  const comparison = displayedComparisons[0]?.data ?? null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
@@ -415,7 +416,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   // Compute per-segment times for every selected lap.
   const segmentTimings = useMemo((): SegmentTiming[] => {
     if (!trackSegments || trackSegments.length === 0 || !comparison) return [];
-    const telemetrySeries = [comparison.telemetryA, ...comparisons.map((entry) => entry.data.telemetryB)];
+    const telemetrySeries = [comparison.telemetryA, ...displayedComparisons.map((entry) => entry.data.telemetryB)];
     if (telemetrySeries.some((telemetry) => telemetry.length < 10)) return [];
 
     let straightNumber = 1;
@@ -441,10 +442,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         endFrac: segment.endFrac,
       };
     });
-  }, [trackSegments, comparison, comparisons]);
+  }, [trackSegments, comparison, displayedComparisons]);
 
   const referenceLabel = comparison ? `A — ${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}` : "";
-  const chartComparisons: ComparisonChartPair[] = comparisons.map((entry) => {
+  const chartComparisons: ComparisonChartPair[] = displayedComparisons.map((entry) => {
     const identity = comparisonLapIdentity(comparisonLapIds, entry.lapId)!;
     return {
       comparison: entry.data,
@@ -461,7 +462,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           color: COMPARISON_COLOR_VARS[0],
           label: referenceLabel,
         },
-        ...comparisons.map((entry, index) => ({
+        ...displayedComparisons.map((entry, index) => ({
           telemetry: entry.data.telemetryB,
           distanceGrid: entry.data.traces.distance,
           sourceIndices: entry.data.traces.sourceIndicesB,
@@ -488,12 +489,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         carNames={carNames}
         referenceLaps={referenceLaps}
         comparisonLaps={comparisonLaps}
-        comparisonReady={comparisons.length > 0}
+        comparisonReady={displayedComparisons.length > 0}
         aiPanelOpen={aiPanelOpen}
         toggleAiPanel={toggleAiPanel}
       />
 
-      <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparisons.length > 0} />
+      <ComparisonLoadStatus loading={loading} error={error} hasComparison={displayedComparisons.length > 0} />
 
       {!lapAId || comparisonLapIds.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_reference_and_laps()}</div>
@@ -603,7 +604,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           <ComparisonCharts reference={{ label: referenceLabel, color: COMPARISON_COLOR_VARS[0] }} comparisons={chartComparisons} units={units} onCursorMove={handleCursorMove} />
 
           {/* AI compare sidebar */}
-          {aiPanelOpen && comparisons.length > 0 && (
+          {aiPanelOpen && displayedComparisons.length > 0 && (
             <CompareAiSidebar
               laps={[
                 {
@@ -611,7 +612,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
                   label: `${referenceLabel} (${formatLapTime(comparison.lapA.lapTime)})`,
                   lapTime: comparison.lapA.lapTime,
                 },
-                ...comparisons.map((entry, index) => ({
+                ...displayedComparisons.map((entry, index) => ({
                   id: entry.lapId,
                   label: `${chartComparisons[index]!.label} (${formatLapTime(entry.data.lapB.lapTime)})`,
                   lapTime: entry.data.lapB.lapTime,
