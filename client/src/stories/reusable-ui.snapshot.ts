@@ -1,14 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { REUSABLE_UI_SNAPSHOT_CASES } from "./snapshot-cases";
-import { openStoryForSnapshot, warmStorybook } from "./storybook-ready";
+import { openStoryForSnapshot } from "./storybook-ready";
 
 test.setTimeout(120_000);
 const comparisonCaptureOnly = process.env.RACEIQ_UI_DIFF_CAPTURE === "1";
-
-test.beforeAll(async ({ browser }) => {
-  test.setTimeout(180_000);
-  await warmStorybook(browser, `/iframe.html?id=${REUSABLE_UI_SNAPSHOT_CASES[0].id}&viewMode=story`, { attempts: 18, attemptTimeoutMs: 15_000 });
-});
 
 for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
   test(`snapshot: ${story.name}`, async ({ page }) => {
@@ -21,7 +16,10 @@ for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
     await openStoryForSnapshot(page, `/iframe.html?id=${story.id}&viewMode=story`);
 
     if (story.clickLabel) {
-      await page.getByRole(story.clickRole ?? "button", { name: story.clickLabel }).click();
+      const readyState = story.readyRole ? page.getByRole(story.readyRole, { name: story.readyName }) : undefined;
+      if (!readyState || !(await readyState.isVisible())) {
+        await page.getByRole(story.clickRole ?? "button", { name: story.clickLabel }).click();
+      }
     }
     if (story.readyRole) {
       await expect(
