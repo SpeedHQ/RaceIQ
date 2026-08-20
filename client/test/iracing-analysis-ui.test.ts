@@ -13,7 +13,14 @@ import type { useUnits } from "../src/hooks/useUnits";
 
 initGameAdapters({ iracingAdapter: true });
 
-const units = { temp: (value: number) => value, tempLabel: "°C", thresholds: { cold: 75, warm: 115, hot: 150 }, toTempC: (value: number) => value } as ReturnType<typeof useUnits>;
+const identityTemperature = (value: number) => value;
+const units = {
+  temp: identityTemperature,
+  tempFromC: identityTemperature,
+  tempLabel: "°C",
+  thresholds: { cold: 75, warm: 115, hot: 150 },
+  toTempC: identityTemperature,
+} as ReturnType<typeof useUnits>;
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 const iracingFrame = frame({
   "motion.speed": 30,

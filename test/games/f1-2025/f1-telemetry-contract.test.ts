@@ -129,7 +129,7 @@ describe("F1 telemetry contract", () => {
     ]);
   });
 
-  test("normalizes fuel to a fraction and preserves power in watts", () => {
+  test("normalizes kilogram fuel mass to a fraction without exposing litre capacity", () => {
     const accumulator = new F1StateAccumulator();
 
     accumulator.feed(header(0), frame(Buffer.alloc(60)));
@@ -150,7 +150,7 @@ describe("F1 telemetry contract", () => {
 
     expect(packet).not.toBeNull();
     expect(packet!.Fuel).toBeCloseTo(0.5);
-    expect(packet!.FuelCapacity).toBeCloseTo(110);
+    expect(packet!.FuelCapacity).toBeUndefined();
     expect(packet!.Power).toBeCloseTo(620_000);
     expect(packet!.TireTempFL).toBe(90);
     expect(packet!.TireCarcassTempFL).toBe(88);

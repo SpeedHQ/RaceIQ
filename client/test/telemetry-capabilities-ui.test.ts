@@ -31,11 +31,13 @@ if (typeof globalThis.localStorage === "undefined") {
     configurable: true,
   });
 }
+const identityTemperature = (value: number) => value;
 const units = {
   tempLabel: "°C",
   thresholds: { cold: 75, warm: 115, hot: 150 },
-  toTempC: (value: number) => value,
-  temp: (value: number) => value,
+  toTempC: identityTemperature,
+  temp: identityTemperature,
+  tempFromC: identityTemperature,
 } as never;
 const parityUnits = {
   ...units,
@@ -427,19 +429,20 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain(">—</span>");
   });
 
-  test("converts Forza tire values from their recorded Fahrenheit unit", () => {
+  test("uses canonical Celsius Forza tire values without packet-unit conversion", () => {
     const fahrenheitToCelsius = (value: number) => ((value - 32) * 5) / 9;
     const fmUnits = {
       ...parityUnits,
       temp: fahrenheitToCelsius,
       toTempC: fahrenheitToCelsius,
+      tempFromC: identityTemperature,
     };
     const frame = semanticFrame({
       "motion.speed": 30,
       "motion.acceleration-x": 0,
       "motion.acceleration-z": 0,
       "motion.angular-velocity-y": 0,
-      "tire.temperature.average": [212, 194, 176, 158],
+      "tire.temperature.average": [100, 90, 80, 70],
       "tires.wheel-rotation-speed": [1, 1, 1, 1],
       "tires.tire-wear": [0, 0, 0, 0],
       "tires.tire-combined-slip": [0, 0, 0, 0],

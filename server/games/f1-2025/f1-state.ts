@@ -469,11 +469,9 @@ export class F1StateAccumulator {
       Torque: 0,
 
       Boost: 0,
+      // F1 fuel remaining and capacity are kilograms. Preserve only their
+      // dimensionless ratio; TelemetryPacket.FuelCapacity is litres.
       Fuel: cs && cs.fuelCapacity > 0 ? cs.fuelRemaining / cs.fuelCapacity : 0,
-      FuelCapacity:
-        cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0
-          ? cs.fuelCapacity
-          : undefined,
 
       DistanceTraveled: ld.lapDistance,
       BestLap: this.finalClassification?.bestLapTime ?? ld.bestLapTime,

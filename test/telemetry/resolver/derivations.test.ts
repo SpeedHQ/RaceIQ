@@ -12,14 +12,14 @@ describe("compiled telemetry resolver derivations", () => {
       id: "test.double-speed",
       version: "1",
       output: {
-        semanticId: "timing.current-lap",
-        unit: "s",
+        semanticId: "fuel.remaining-percent",
+        unit: "%",
         valueType: "number" as const,
       },
       inputs: [
         {
           semanticId: "motion.speed",
-          acceptedMappings: ["normalized" as const],
+          acceptedMappings: ["direct" as const],
           required: true,
         },
       ],
@@ -34,10 +34,10 @@ describe("compiled telemetry resolver derivations", () => {
     };
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "timing.current-lap" }],
+      requested: [{ semanticId: "fuel.remaining-percent" }],
       derivations: [derivation],
     });
-    const slot = resolver.slot("timing.current-lap");
+    const slot = resolver.slot("fuel.remaining-percent");
     const frame = resolver.createFrameView(packet("iracing", { Speed: 30 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
 
     expect(frame.readNumber(slot)).toBe(60);
@@ -54,13 +54,13 @@ describe("compiled telemetry resolver derivations", () => {
       id: "cycle-a",
       version: "1",
       output: {
-        semanticId: "timing.current-lap",
+        semanticId: "timing.sector.current-lap.s1",
         unit: "s",
         valueType: "number" as const,
       },
       inputs: [
         {
-          semanticId: "timing.distance-traveled",
+          semanticId: "timing.sector.current-lap.s2",
           acceptedMappings: ["derived" as const],
           required: true,
         },
@@ -74,13 +74,13 @@ describe("compiled telemetry resolver derivations", () => {
       id: "cycle-b",
       version: "1",
       output: {
-        semanticId: "timing.distance-traveled",
-        unit: "m",
+        semanticId: "timing.sector.current-lap.s2",
+        unit: "s",
         valueType: "number" as const,
       },
       inputs: [
         {
-          semanticId: "timing.current-lap",
+          semanticId: "timing.sector.current-lap.s1",
           acceptedMappings: ["derived" as const],
           required: true,
         },
@@ -94,7 +94,7 @@ describe("compiled telemetry resolver derivations", () => {
     expect(() =>
       compileTelemetryResolver(TELEMETRY_CATALOG, {
         simulator: "iracing",
-        requested: [{ semanticId: "timing.current-lap" }],
+        requested: [{ semanticId: "timing.sector.current-lap.s1" }],
         derivations: [a, b],
       }),
     ).toThrow("Telemetry derivation cycle");

@@ -128,13 +128,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 95,
       },
       "f1-2025": {
-        total: 289,
-        packet: 119,
+        total: 288,
+        packet: 118,
         extension: 170,
         sdk: 0,
         yaml: 0,
         setup: 0,
-        recorded: 289,
+        recorded: 288,
       },
       acc: {
         total: 200,
@@ -194,7 +194,7 @@ describe("semantic telemetry catalog artifacts", () => {
     );
     expect(getTelemetryVariable("fuel.remaining-volume").games).toMatchObject({
       "fm-2023": { kind: "unavailable" },
-      "f1-2025": { kind: "derived" },
+      "f1-2025": { kind: "unavailable" },
       acc: { kind: "direct", nativeUnit: "L" },
       "ac-evo": { kind: "direct", nativeUnit: "L" },
       iracing: { kind: "direct", nativeUnit: "L" },

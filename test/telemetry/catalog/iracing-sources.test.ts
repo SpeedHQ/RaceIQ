@@ -15,7 +15,7 @@ describe("semantic telemetry catalog iRacing sources", () => {
       IRACING_TELEMETRY_SOURCE_VARIABLES.filter(
         (variable) => variable.recordedByRaceIQ,
       ),
-    ).toHaveLength(74);
+    ).toHaveLength(83);
 
     expect(
       IRACING_TELEMETRY_SOURCE_VARIABLES.find(

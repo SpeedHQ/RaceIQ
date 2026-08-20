@@ -1,5 +1,6 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
 import { TelemetryChart } from "@/components/TelemetryChart";
+
 import { m } from "@/paraglide/messages";
 
 export interface ComparisonChartPair {
@@ -92,7 +93,6 @@ export function ComparisonCharts({
   const inputLabels = series.flatMap((entry) => [`${entry.label} — ${m.compare_chart_throttle()}`, `${entry.label} — ${m.compare_chart_brake()}`]);
   const inputColors = series.flatMap((entry) => [entry.color, `color-mix(in srgb, ${entry.color} 55%, transparent)`]);
   const tireSeries = series.filter((entry) => hasValues(entry.tireWear));
-
   return (
     <div className="flex min-w-0 flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
       <div className="rounded-lg border border-app-border p-1 shrink-0">

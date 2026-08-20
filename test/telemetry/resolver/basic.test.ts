@@ -122,6 +122,43 @@ describe("compiled telemetry resolver", () => {
     expect(frame.readNumber(resolver.slot("inputs.steering"))).toBe(-0.5);
   });
 
+  test("converts Forza tire temperatures from Fahrenheit to Celsius", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "fm-2023",
+      requested: [{ semanticId: "tire.temperature.average" }],
+    });
+    const slot = resolver.slot("tire.temperature.average");
+    const frame = resolver.createFrameView(
+      packet("fm-2023", {
+        TireTempFL: 212,
+        TireTempFR: 212,
+        TireTempRL: 212,
+        TireTempRR: 212,
+      }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+    );
+
+    expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
+      value: [100, 100, 100, 100],
+      mappingStatus: "normalized",
+      state: "ok",
+    });
+
+    const missingWheel = resolver.createFrameView(
+      packet("fm-2023", {
+        TireTempFL: 212,
+        TireTempFR: 212,
+        TireTempRL: 212,
+      }),
+      { timestamp: { domain: "session", milliseconds: 2_000 }, updateSequence: 2n },
+    );
+    expect(missingWheel.resolveValue(slot)).toMatchObject({
+      value: null,
+      mappingStatus: "normalized",
+      state: "missing",
+    });
+  });
+
   test("prefers live shift-light RPM and falls back to SessionInfo", () => {
     const resolver = compileTelemetryResolver<{
       packet: TelemetryPacket;
@@ -318,18 +355,33 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
-  test("uses iRacing packet fuel capacity before SessionInfo fallback", () => {
+  test("keeps unchanged iRacing fuel capacity fresh for long sessions", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
       requested: [{ semanticId: "fuel.capacity" }],
     });
+    const slot = resolver.slot("fuel.capacity");
     const frame = resolver.createFrameView(
       packet("iracing", { FuelCapacity: 100 }),
       { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
     );
-    expect(frame.resolveNumber(resolver.slot("fuel.capacity"))).toMatchObject({
+    expect(frame.resolveNumber(slot)).toMatchObject({
       value: 100,
       mappingStatus: "direct",
+      freshness: "fresh",
+      state: "ok",
+    });
+
+    const reused = resolver.createFrameView(
+      packet("iracing", { FuelCapacity: 100 }),
+      { timestamp: { domain: "session", milliseconds: 301_001 }, updateSequence: 2n },
+      frame,
+    );
+    expect(reused).toBe(frame);
+    expect(reused.resolveNumber(slot)).toMatchObject({
+      value: 100,
+      mappingStatus: "direct",
+      freshness: "fresh",
       state: "ok",
     });
   });
@@ -352,21 +404,7 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
-  test("derives only missing fuel volume and fraction representations", () => {
-    const f1Resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
-      simulator: "f1-2025",
-      requested: [{ semanticId: "fuel.remaining-volume" }],
-    });
-    const f1Frame = f1Resolver.createFrameView(
-      packet("f1-2025", { Fuel: 0.375, FuelCapacity: 100 }),
-      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
-    );
-    expect(f1Frame.resolveNumber(f1Resolver.slot("fuel.remaining-volume"))).toMatchObject({
-      value: 37.5,
-      mappingStatus: "derived",
-      state: "ok",
-    });
-
+  test("derives only fuel representations with compatible units", () => {
     for (const simulator of ["acc", "ac-evo"] as const) {
       const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
         simulator,
@@ -383,19 +421,21 @@ describe("compiled telemetry resolver", () => {
       });
     }
 
-    const forzaResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
-      simulator: "fm-2023",
-      requested: [{ semanticId: "fuel.remaining-volume" }],
-    });
-    const forzaFrame = forzaResolver.createFrameView(
-      packet("fm-2023", { Fuel: 0.5 }),
-      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
-    );
-    expect(forzaFrame.resolveNumber(forzaResolver.slot("fuel.remaining-volume"))).toMatchObject({
-      value: null,
-      mappingStatus: "unavailable",
-      state: "missing",
-    });
+    for (const simulator of ["fm-2023", "f1-2025"] as const) {
+      const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+        simulator,
+        requested: [{ semanticId: "fuel.remaining-volume" }],
+      });
+      const frame = resolver.createFrameView(
+        packet(simulator, { Fuel: 0.5, FuelCapacity: 100 }),
+        { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+      );
+      expect(frame.resolveNumber(resolver.slot("fuel.remaining-volume"))).toMatchObject({
+        value: null,
+        mappingStatus: "unavailable",
+        state: "missing",
+      });
+    }
   });
 
   test("keeps direct AC Evo and iRacing fuel percentages authoritative", () => {

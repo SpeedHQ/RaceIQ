@@ -246,16 +246,14 @@ export function isCornering(pkt: TelemetryPacket): boolean {
 /**
  * Steering as a fraction of full lock, −1 (full left) … +1 (full right).
  *
- * Games do not agree on the raw encoding: Forza centres at 127, while F1 2025,
- * ACC and AC Evo centre at 0 (see each adapter under `shared/games/`). Both the
- * centre and the range come from each game's adapter, so this is the one genuinely
- * game-dependent quantity in the module — slip angles are radians everywhere
- * (documented in vehicle-physics.ts) and speed/acceleration are SI, so nothing
- * else needs per-game handling.
+ * Current adapters expose signed, zero-centred steering with per-game ranges.
+ * Both centre and range come from each game's adapter, so this is the one
+ * genuinely game-dependent quantity in the module — slip angles are radians
+ * everywhere (documented in vehicle-physics.ts) and speed/acceleration are SI,
+ * so nothing else needs per-game handling.
  *
- * Returns undefined when the adapter is not registered. Guessing a centre would
- * turn a full-lock corner into a straight or vice versa, and there is no safe
- * default: FM's 127 and everyone else's 0 are both wrong for the other.
+ * Returns undefined when the adapter is not registered. Guessing a centre or
+ * range can turn full lock into straight steering or vice versa.
  */
 function normalisedSteer(telemetry: TelemetryPacket[], gameId: GameId): number[] | undefined {
   const adapter = tryGetGame(gameId);

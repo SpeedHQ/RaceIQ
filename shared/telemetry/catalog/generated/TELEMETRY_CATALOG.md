@@ -7,15 +7,15 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `00c3df3d54dc12c0160fc427f8adaabf62be8cbb7369cded7959cad733cdfa7b`
-- Content SHA-256: `c3d949b809bced22ffed348f363da6da4b621d6bb3f118c062dc899ea03e5ad3`
+- Generator source SHA-256: `6feb6b8afbc7051b62ede51c02fa4b5e40b9712942996889fcecaae38599e7c5`
+- Content SHA-256: `44c0772c59e96cb8b529ced92b7d03ded8a86a17491901427b15d6683059cca5`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
+| f1-2025 | 288 | 288 | 118 | 170 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
 | iracing | 959 | 718 | 119 | 21 | 324 | 495 | 0 |

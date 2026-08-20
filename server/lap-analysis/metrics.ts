@@ -347,10 +347,9 @@ function round2(n: number): number {
  * Fuel used over a lap, in litres. Prefers the parser-provided per-lap fuel field
  * (ACC & AC-Evo both populate `acc.fuelPerLap`, litres) — the game's own rolling
  * estimate, read from the last frame that reports a positive value (most complete
- * at lap end). Otherwise derives litres from the game's `Fuel` representation:
- * ACC, AC Evo, and iRacing report litres directly, while F1 reports a fraction
- * that must be multiplied by the packet's litre capacity. Forza also reports a
- * fraction, but exposes no capacity contract, so it cannot produce this metric.
+ * at lap end). Otherwise derives litres only for games whose `Fuel` channel is
+ * volume: ACC, AC Evo, and iRacing. F1 and Forza expose fractions without a
+ * litre-capacity contract, so neither can produce this metric.
  *
  * Returns undefined when neither source is usable — including legacy laps with no
  * stored telemetry — so the caller omits the metric instead of reporting 0.
@@ -382,14 +381,7 @@ export function deriveFuelPerLap(packets: TelemetryPacket[]): number | undefined
     case "iracing":
       liters = delta;
       break;
-    case "f1-2025": {
-      const capacity = packets.find(
-        (packet) => Number.isFinite(packet.FuelCapacity) && (packet.FuelCapacity ?? 0) > 0,
-      )?.FuelCapacity;
-      if (typeof capacity !== "number") return undefined;
-      liters = delta * capacity;
-      break;
-    }
+    case "f1-2025":
     case "fm-2023":
       return undefined;
     default:

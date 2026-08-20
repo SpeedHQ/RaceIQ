@@ -87,7 +87,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   const { displaySettings } = useSettings();
   const suspThresholds = tryGetGame(gameId)?.suspensionThresholds.values ?? [25, 65, 85];
   const tLabel = tempLabelProp ?? units.tempLabel;
-  const fmtTemp = useCallback((v: number) => `${units.temp(v).toFixed(0)}${tLabel}`, [units, tLabel]);
+  const fmtTemp = useCallback((v: number) => `${units.tempFromC(v).toFixed(0)}${tLabel}`, [units, tLabel]);
   const [editMode, setEditMode] = useState(false);
   const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
@@ -246,10 +246,10 @@ export const CarWireframe = React.memo(function CarWireframe({
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[0] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[1] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[2] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[3] ?? 0), units.thresholds),
+            tireTempColor((frame.values["tire.temperature.average"] as number[] | undefined)?.[0] ?? 0, units.thresholds),
+            tireTempColor((frame.values["tire.temperature.average"] as number[] | undefined)?.[1] ?? 0, units.thresholds),
+            tireTempColor((frame.values["tire.temperature.average"] as number[] | undefined)?.[2] ?? 0, units.thresholds),
+            tireTempColor((frame.values["tire.temperature.average"] as number[] | undefined)?.[3] ?? 0, units.thresholds),
           ]}
         />
       </Canvas>

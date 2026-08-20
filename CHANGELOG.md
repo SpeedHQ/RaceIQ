@@ -28,7 +28,7 @@
 
 ### Fixes
 
-- Keep fuel amounts, controls, engine output, timing, shift lights, tire blistering, and competitor pit states consistent across supported simulators
+- Keep fuel amounts and capacity, controls, engine output, timing, shift lights, tire temperatures and blistering, and competitor pit states consistent across supported simulators
 - Show aerial imagery on Compare maps in production using selected lap calibration shared with Analyse
 - Keep Compare imagery available when lap-specific calibration is unavailable and omit elevation data from map responses
 - Restore satellite imagery on Compare maps when laps lack usable world-position telemetry
