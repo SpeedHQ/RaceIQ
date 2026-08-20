@@ -54,7 +54,7 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 | Assetto Corsa Competizione | Supported | Yes | Yes | No |
 | Forza Motorsport 2023 | Supported | No | No | Yes |
 | iRacing | Supported (Windows native SDK) | No | No | No |
-| Le Mans Ultimate | Blocked — awaiting game key / sponsorship | — | — | — |
+| Le Mans Ultimate | Planned | — | — | — |
 
 ### Development priority
 
