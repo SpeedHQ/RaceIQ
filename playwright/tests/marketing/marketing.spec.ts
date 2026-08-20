@@ -6,25 +6,26 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/analyse?track=32&car=41&lap=72&cursor=12000&viz=3d" },
-  { name: "compare", path: "/f125/compare?track=32&carA=41&lapA=72&carB=41&lapB=76", hover: ".u-over" },
+  { name: "lap-analytics", path: "/f125/analyse?track=19&car=41&lap=4&viz=3d" },
+  { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },
   { name: "car-catalogue-forza", path: "/fm23/cars" },
-  { name: "setups", path: "/f125/tracks/32/setups" },
-  { name: "setups-ranges", path: "/f125/tracks/32/setups?subtab=ranges" },
+  { name: "setups", path: "/f125/tracks/19/setups" },
+  { name: "setups-ranges", path: "/f125/tracks/19/setups?subtab=ranges" },
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
 ];
 
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
+    if (page.name === "lap-analytics") test.setTimeout(60_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
     await p.goto(page.path, { waitUntil: "networkidle" });
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {
       const el = p.locator(page.hover).first();
       await el.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
-      const box = await el.boundingBox();
+      const box = await el.boundingBox().catch(() => null);
       if (box) {
         await p.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5);
         await p.waitForTimeout(300);
@@ -33,6 +34,7 @@ for (const page of PAGES) {
     await p.screenshot({
       path: `${SCREENSHOT_DIR}/${page.name}.png`,
       fullPage: false,
+      timeout: page.name === "lap-analytics" ? 30_000 : undefined,
     });
   });
 }
