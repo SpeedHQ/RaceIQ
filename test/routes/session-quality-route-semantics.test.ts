@@ -1,7 +1,26 @@
 import { describe, expect, mock, test } from "bun:test";
+import { AnalysisGenerationConflictError } from "../../server/db/analysis-receipt-queries";
+import type { AnalysisRebuildPreview, AnalysisStatus } from "../../shared/racing/provenance/contracts";
 import type { QualityRebuildAction, QualityRebuildStatus } from "../../server/lap-analysis/quality-rebuild";
 import { createSessionRoutes, type SessionRouteDependencies } from "../../server/routes/session-routes";
 
+function analysisStatus(status: AnalysisStatus["status"] = "current"): AnalysisStatus {
+  return {
+    status,
+    staleReasons: [],
+    activeGeneration: null,
+    latestAttempt: null,
+    capability: {
+      mode: "unavailable",
+      sourceKind: "unknown",
+      rebuildableArtifacts: [],
+      unavailableArtifacts: ["laps", "race_events", "session_runs", "race_result", "quality"],
+      limitations: [],
+    },
+    receipt: null,
+    failure: null,
+  };
+}
 function status(sessionId: number, action: QualityRebuildAction): QualityRebuildStatus {
   return {
     sessionId,
@@ -18,6 +37,7 @@ function status(sessionId: number, action: QualityRebuildAction): QualityRebuild
       configuration: false,
       source: false,
     },
+    analysisStatus: analysisStatus(action === "unavailable" ? "stale_source_missing" : "current"),
   };
 }
 
@@ -25,12 +45,28 @@ function routes(overrides: Partial<SessionRouteDependencies> = {}) {
   return createSessionRoutes({
     sessionExistsForGame: async () => true,
     getQualityRebuildStatus: async (sessionId) => status(sessionId, "current"),
+    getAnalysisRebuildPreview: async (sessionId): Promise<AnalysisRebuildPreview> => ({
+      sessionId,
+      status: analysisStatus("stale_rebuild_available"),
+      selectedSource: "raceiq-raw",
+      outputsReplaced: ["laps", "race_events", "session_runs", "race_result", "quality"],
+      sourceAvailable: true,
+      capability: {
+        mode: "exact",
+        sourceKind: "raceiq-raw",
+        rebuildableArtifacts: ["laps", "race_events", "session_runs", "race_result", "quality"],
+        unavailableArtifacts: [],
+        limitations: [],
+      },
+      limitations: [],
+    }),
     getLapsForSession: async () => [],
     reprocessSession: async (sessionId) => ({
       sessionId,
       lapsDetected: 1,
       lapsUpdated: 1,
       strategy: "in-place",
+      analysisGenerationId: "analysis-generation:test",
     }),
     rebuildSessionEligibility: async (sessionId) => status(sessionId, "current"),
     getStaleSessions: async () => [],
@@ -42,6 +78,35 @@ function routes(overrides: Partial<SessionRouteDependencies> = {}) {
 }
 
 describe("session quality route semantics", () => {
+  test("returns receipt-driven rebuild preview without writes", async () => {
+    const response = await routes().request("/api/sessions/42/quality/rebuild-preview?gameId=iracing");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      sessionId: 42,
+      selectedSource: "raceiq-raw",
+      sourceAvailable: true,
+      outputsReplaced: ["laps", "race_events", "session_runs", "race_result", "quality"],
+    });
+  });
+  test("returns expanded analysis status and cleanup eligibility", async () => {
+    const response = await routes().request("/api/sessions/42/quality?gameId=iracing");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      sessionId: 42,
+      analysisStatus: { status: "current" },
+      canonicalCleanupEligible: false,
+    });
+  });
+  test("maps concurrent quality rebuild to 409", async () => {
+    const response = await routes({
+      getQualityRebuildStatus: async (sessionId) => status(sessionId, "reprocess"),
+      reprocessSession: async () => {
+        throw new AnalysisGenerationConflictError("analysis-set:test");
+      },
+    }).request("/api/sessions/42/quality/rebuild?gameId=iracing", { method: "POST" });
+    expect(response.status).toBe(409);
+  });
+
   test("returns 404 only when session existence check reports missing", async () => {
     const getQualityRebuildStatus = mock(async (sessionId: number) => status(sessionId, "current"));
     const response = await routes({
@@ -94,7 +159,7 @@ describe("session quality route semantics", () => {
       getQualityRebuildStatus: async (sessionId) => status(sessionId, "reprocess"),
       reprocessSession: async (sessionId) => {
         if (sessionId === 42) throw new Error("database unavailable");
-        return { sessionId, lapsDetected: 1, lapsUpdated: 1, strategy: "in-place" };
+        return { sessionId, lapsDetected: 1, lapsUpdated: 1, strategy: "in-place", analysisGenerationId: "analysis-generation:test" };
       },
       countStaleSessions: async () => 1,
       setStaleSessionsNotification,
@@ -116,7 +181,7 @@ describe("session quality route semantics", () => {
 
   test("routes a no-raw policy-only stale session through eligibility rebuild", async () => {
     const rebuildSessionEligibility = mock(async (sessionId: number) => status(sessionId, "current"));
-    const reprocessSession = mock(async (sessionId: number) => ({ sessionId, lapsDetected: 1, lapsUpdated: 1, strategy: "in-place" as const }));
+    const reprocessSession = mock(async (sessionId: number) => ({ sessionId, lapsDetected: 1, lapsUpdated: 1, strategy: "in-place" as const, analysisGenerationId: "analysis-generation:test" }));
     const response = await routes({
       getStaleSessions: async () => [42],
       getQualityRebuildStatus: async (sessionId) => status(sessionId, "rebuild_eligibility"),

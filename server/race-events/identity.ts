@@ -1,25 +1,9 @@
 import { createHash } from "node:crypto";
+import { canonicalJson } from "../../shared/core/canonical-json";
 
 import { RACE_EVENT_SCHEMA_VERSION, type RaceEvent, type RaceEventDraft, type RaceEventId, type RaceEventType } from "../../shared/racing/events/contracts";
 import type { RaceEventObservation } from "../games/types";
 
-function canonicalize(value: unknown): unknown {
-  if (value === null || typeof value !== "object") {
-    if (typeof value === "number" && Object.is(value, -0)) return 0;
-    return value;
-  }
-  if (Array.isArray(value)) return value.map(canonicalize);
-  const input = value as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.keys(input)
-      .sort()
-      .map((key) => [key, canonicalize(input[key])]),
-  );
-}
-
-export function canonicalJson(value: unknown): string {
-  return JSON.stringify(canonicalize(value));
-}
 
 function digest(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");

@@ -2106,5 +2106,54 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX idx_session_run_evidence_event
        ON session_run_evidence(event_id, run_id, role)`,
     ],
+  },
+  // v66: Persist immutable provenance receipts and one active generation per
+  // logical artifact set. Legacy artifacts remain intentionally unreceipted.
+  {
+    version: 66,
+    name: "add analysis provenance receipts",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN analysis_generation_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN analysis_generation_id TEXT`,
+      `ALTER TABLE session_results ADD COLUMN analysis_generation_id TEXT`,
+      `CREATE TABLE analysis_receipts (
+         generation_id          TEXT PRIMARY KEY,
+         artifact_set_id        TEXT NOT NULL,
+         session_id             INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         participant_id         TEXT,
+         artifact_set_type      TEXT NOT NULL CHECK (artifact_set_type IN (
+           'canonical_archive', 'session_analysis', 'lap_analysis',
+           'comparison_analysis', 'driver_profile', 'report'
+         )),
+         generation             INTEGER NOT NULL CHECK (generation > 0),
+         receipt_schema_version TEXT NOT NULL,
+         lifecycle              TEXT NOT NULL CHECK (lifecycle IN (
+           'rebuild_in_progress', 'active', 'superseded', 'verification_failed'
+         )),
+         source_content_hash    TEXT,
+         contract_hash          TEXT NOT NULL,
+         configuration_hash     TEXT NOT NULL,
+         receipt                TEXT,
+         failure                TEXT,
+         started_at             TEXT NOT NULL,
+         completed_at           TEXT,
+         activated_at           TEXT,
+         CHECK (
+           (lifecycle = 'rebuild_in_progress' AND receipt IS NULL AND failure IS NULL AND completed_at IS NULL)
+           OR (lifecycle IN ('active', 'superseded') AND receipt IS NOT NULL AND failure IS NULL AND completed_at IS NOT NULL)
+           OR (lifecycle = 'verification_failed' AND receipt IS NULL AND failure IS NOT NULL AND completed_at IS NOT NULL)
+         )
+       )`,
+      `CREATE UNIQUE INDEX uq_analysis_receipts_artifact_generation
+       ON analysis_receipts(artifact_set_id, generation)`,
+      `CREATE UNIQUE INDEX uq_analysis_receipts_active
+       ON analysis_receipts(artifact_set_id) WHERE lifecycle = 'active'`,
+      `CREATE UNIQUE INDEX uq_analysis_receipts_in_progress
+       ON analysis_receipts(artifact_set_id) WHERE lifecycle = 'rebuild_in_progress'`,
+      `CREATE INDEX idx_analysis_receipts_session_type_lifecycle
+       ON analysis_receipts(session_id, artifact_set_type, lifecycle)`,
+      `CREATE INDEX idx_analysis_receipts_artifact_generation_desc
+       ON analysis_receipts(artifact_set_id, generation DESC)`,
+    ],
   }
 ];

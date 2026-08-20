@@ -41,6 +41,7 @@ export interface RaceEventRebuildFrame {
 
 export interface RebuildRaceEventTimelineInput {
   sessionId: number;
+  analysisGenerationId: string;
   gameId: GameId;
   frames: Iterable<RaceEventRebuildFrame> | AsyncIterable<RaceEventRebuildFrame>;
   sourceKind: EvidenceSourceKind;
@@ -164,6 +165,7 @@ export async function rebuildRaceEventTimeline(
     sourceGeneration:
       input.canonicalVerification?.sourceGeneration ??
       input.sourceVerification.sourceGeneration,
+    analysisGenerationId: input.analysisGenerationId,
     validationMode: "rebuild",
   });
   const recordingQuality = new RecordingQualityAccumulator(

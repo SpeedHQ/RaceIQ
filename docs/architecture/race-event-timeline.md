@@ -102,7 +102,7 @@ Transport and storage diagnostics survive replayable timeline replacement. Their
 
 Issue #232 will add canonical Parquet archive reading. That reader must adapt archive envelopes into the existing `RaceEventObservation` and call the same rebuild entry point; it must not add archive-specific event types or detectors.
 
-Issue #233 will add shared analysis receipts and active artifact generations. Until then, rebuild activation relies on complete in-memory validation plus one-transaction replacement, `sourceGeneration` records verified source provenance when available, and `analysisGenerationId` remains null. Receipt activation can later wrap the existing replacement without changing event identity or payload contracts.
+Issue #233 now persists shared analysis receipts and active artifact generations. `session_analysis` receipt activation wraps existing whole-set replacement without changing event identity or payload contracts. Canonical archive availability trusts only a valid active receipt with complete verification checks and semantic inventory. See [Analysis provenance](analysis-provenance.md).
 
 ## Implementation map
 

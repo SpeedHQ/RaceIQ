@@ -226,6 +226,7 @@ describe("committed iRacing seed fixture", () => {
     }));
     const input = {
       sessionId: sessionIds[0]!,
+      analysisGenerationId: "analysis-generation:iracing-recording-fixture",
       gameId: "iracing" as const,
       frames,
       sourceKind: "raceiq-raw" as const,
