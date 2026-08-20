@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { drawStaticTrack } from "../src/components/track-map/static-drawing";
+import { applyTrackMapOverlayCamera } from "../src/components/track-map/TrackMapCanvas";
 import { initGameAdapters } from "../../shared/games/init";
 import { needsTrackFlip } from "../../shared/racing/tracks/coords";
 import { resolveTrackPositions } from "../src/components/track-map/path";
@@ -7,6 +8,36 @@ import type { Point, TrackMapBoundaries, TrackTransform } from "../src/component
 import { drawPitLines } from "../src/lib/canvas/draw-track";
 
 initGameAdapters();
+test("pans fixed world overlays with the composed map buffer", () => {
+  const translations: Array<[number, number]> = [];
+  const rotations: number[] = [];
+  const context = {
+    translate(x: number, y: number) {
+      translations.push([x, y]);
+    },
+    rotate(angle: number) {
+      rotations.push(angle);
+    },
+  } as unknown as CanvasRenderingContext2D;
+  const transform: TrackTransform = {
+    w: 400,
+    h: 200,
+    offW: 600,
+    offH: 300,
+    offsetX: 0,
+    offsetZ: 0,
+    scale: 1,
+    maxX: 0,
+    minZ: 0,
+    displayOutline: [],
+  };
+
+  applyTrackMapOverlayCamera(context, transform, { x: 25, y: -10 }, null, false);
+
+  expect(translations).toEqual([[-75, -60]]);
+  expect(rotations).toEqual([]);
+});
+
 test("returns no transform when replay has no drawable track points", () => {
   const previousWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
@@ -622,7 +653,15 @@ test("draws optional geometry layers in deterministic order with arbitrary nativ
       resolvedPositions: outline.map((point) => ({ ...point, z: point.z + 0.2 })),
       outline,
       boundaries,
-      pitLines: [{ kind: "merge-line", points: [{ x: 1, z: -1 }, { x: 4, z: -1 }] }],
+      pitLines: [
+        {
+          kind: "merge-line",
+          points: [
+            { x: 1, z: -1 },
+            { x: 4, z: -1 },
+          ],
+        },
+      ],
       imagery: {
         imageToTrack: [20, 0, 0, 5, 0, -2.5],
         base: { width: 100, height: 100, tileSize: 100, tiles: [] },

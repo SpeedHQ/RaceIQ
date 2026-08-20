@@ -3,10 +3,27 @@ import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { compositeFixedTrack, compositeTrack, drawCarOverlay, drawCarPulse, type CarOverlayPosition } from "./overlay-drawing";
 import { drawStaticTrack } from "./static-drawing";
-import { semanticNumber, type TrackMapHandle, type TrackMapProps, type TrackTransform } from "./types";
+import { semanticNumber, type TrackMapHandle, type TrackMapProps, type TrackMapViewportCamera, type TrackTransform } from "./types";
 import { useTrackMapImagery } from "./useTrackMapImagery";
 import { useTrackMapRenderData } from "./useTrackMapRenderData";
 import { useTrackMapViewport } from "./useTrackMapViewport";
+export function applyTrackMapOverlayCamera(
+  context: CanvasRenderingContext2D,
+  transform: TrackTransform,
+  pan: Readonly<{ x: number; y: number }>,
+  viewport: TrackMapViewportCamera | null | undefined,
+  directVectorRender: boolean,
+): void {
+  if (viewport) {
+    context.translate(transform.w / 2 + pan.x, transform.h / 2 + pan.y);
+    context.rotate(viewport.rotation ?? 0);
+    context.translate(-transform.w / 2, -transform.h / 2);
+  } else if (directVectorRender) {
+    context.translate(pan.x, pan.y);
+  } else {
+    context.translate((transform.w - transform.offW) / 2 + pan.x, (transform.h - transform.offH) / 2 + pan.y);
+  }
+}
 
 export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function TrackMapCanvas(props, ref) {
   const {
@@ -105,7 +122,7 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
         mapLabels: showSegments ? mapLabels : null,
         imagery: renderedImagery,
         boundaries: visibleBoundaries,
-        sectors: showSectors ? sectors ?? null : null,
+        sectors: showSectors ? (sectors ?? null) : null,
         segments: showSegments ? segments : null,
         curbs: showCurbs ? curbs : null,
         highlights: showHighlights ? highlights : null,
@@ -183,17 +200,13 @@ export const TrackMapCanvas = forwardRef<TrackMapHandle, TrackMapProps>(function
       context.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
       context.clearRect(0, 0, w, h);
       const toCanvas = (x: number, z: number): [number, number] => [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
-      if (viewport) {
-        context.save();
-        context.translate(w / 2 + panRef.current.x, h / 2 + panRef.current.y);
-        context.rotate(viewport.rotation ?? 0);
-        context.translate(-w / 2, -h / 2);
-      }
+      context.save();
+      applyTrackMapOverlayCamera(context, transform, panRef.current, viewport, directVectorRender);
       renderWorldOverlay?.({ context, toCanvas, width: w, height: h, transform, cursorIdx: idx });
-      if (viewport) context.restore();
+      context.restore();
       renderScreenOverlay?.({ context, toCanvas, width: w, height: h, transform, cursorIdx: idx });
     },
-    [panRef, renderScreenOverlay, renderWorldOverlay, viewport],
+    [directVectorRender, panRef, renderScreenOverlay, renderWorldOverlay, viewport],
   );
 
   const renderOverlayOptions = useCallback(

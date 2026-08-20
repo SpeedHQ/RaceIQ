@@ -102,219 +102,52 @@ export function CompareTrackMap({
       .catch(() => setBoundaries(null));
   }, [trackOrdinal, gameId]);
 
-  // Align outline to telemetry coordinate space.
-  // Extracted outlines (e.g. F1 2025 from AI spline data) may be in a different
-  // coordinate system than telemetry PositionX/Z. Detect misalignment by checking
-  // bounding box overlap, and if needed apply Procrustes (translate + rotate + scale).
-  // Pre-flip outline/boundary X so they render correctly against telemetry.
+  // Compare imagery, cursor positions, and both racing lines are indexed to lap
+  // telemetry. Use that same world space for overview bounds; registry geometry
+  // can use a different origin or layout and must not move the comparison data.
   const flip = needsTrackFlip(gameId);
-  const displayOutline = useMemo(() => (flip ? flipPoints(outline) : outline), [outline, flip]);
+  const fallbackOutline = useMemo(() => (flip ? flipPoints(outline) : outline), [outline, flip]);
   const displayBoundaries = useMemo(() => {
     if (!flip || !boundaries) return boundaries;
     return flipBoundaries(boundaries);
   }, [boundaries, flip]);
-
-  const { alignedOutline, alignedBoundaries, transformPoint, trackRange } = useMemo(() => {
-    const outline = displayOutline;
-    const boundaries = displayBoundaries;
-    const identity = (point: Point): Point => point;
-
-    const computeRange = (pts: Point[]) => {
-      let minX = Infinity,
-        maxX = -Infinity,
-        minZ = Infinity,
-        maxZ = -Infinity;
-      for (const p of pts) {
-        minX = Math.min(minX, p.x);
-        maxX = Math.max(maxX, p.x);
-        minZ = Math.min(minZ, p.z);
-        maxZ = Math.max(maxZ, p.z);
-      }
-      return Math.max(maxX - minX || 1, maxZ - minZ || 1);
-    };
-
-    // Extract telemetry positions from lap A
-    const telPts: Point[] = [];
-    for (const p of telemetryA) {
-      if ((numberValue(p, "motion.position-x") ?? 0) !== 0 || (numberValue(p, "motion.position-z") ?? 0) !== 0)
-        telPts.push({ x: numberValue(p, "motion.position-x") ?? 0, z: numberValue(p, "motion.position-z") ?? 0 });
-    }
-    if (telPts.length < 20 || outline.length < 10) {
-      return { alignedOutline: outline, alignedBoundaries: boundaries, transformPoint: identity, trackRange: computeRange(outline) };
-    }
-
-    // Check bounding box overlap between outline and telemetry
-    let oMinX = Infinity,
-      oMaxX = -Infinity,
-      oMinZ = Infinity,
-      oMaxZ = -Infinity;
-    for (const p of outline) {
-      oMinX = Math.min(oMinX, p.x);
-      oMaxX = Math.max(oMaxX, p.x);
-      oMinZ = Math.min(oMinZ, p.z);
-      oMaxZ = Math.max(oMaxZ, p.z);
-    }
-    let tMinX = Infinity,
-      tMaxX = -Infinity,
-      tMinZ = Infinity,
-      tMaxZ = -Infinity;
-    for (const p of telPts) {
-      tMinX = Math.min(tMinX, p.x);
-      tMaxX = Math.max(tMaxX, p.x);
-      tMinZ = Math.min(tMinZ, p.z);
-      tMaxZ = Math.max(tMaxZ, p.z);
-    }
-
-    const oRangeX = oMaxX - oMinX,
-      oRangeZ = oMaxZ - oMinZ;
-    const tRangeX = tMaxX - tMinX,
-      tRangeZ = tMaxZ - tMinZ;
-    const oCx = (oMinX + oMaxX) / 2;
-    const tCx = (tMinX + tMaxX) / 2;
-
-    // Check if bounding boxes overlap (with some tolerance)
-    const overlapX = Math.max(0, Math.min(oMaxX, tMaxX) - Math.max(oMinX, tMinX));
-    const overlapZ = Math.max(0, Math.min(oMaxZ, tMaxZ) - Math.max(oMinZ, tMinZ));
-    const overlapRatioX = overlapX / Math.max(oRangeX, tRangeX, 1);
-    const overlapRatioZ = overlapZ / Math.max(oRangeZ, tRangeZ, 1);
-    const overlaps = overlapRatioX > 0.3 && overlapRatioZ > 0.3;
-
-    // Also check if just X-flip fixes it (old F1 laps)
-    if (overlaps) {
-      if (oCx !== 0 && Math.sign(tCx) !== Math.sign(oCx) && Math.abs(tCx) > 50) {
-        const flipX = (point: Point): Point => ({ x: -point.x, z: point.z });
-        return { alignedOutline: outline, alignedBoundaries: boundaries, transformPoint: flipX, trackRange: computeRange(outline) };
-      }
-      return { alignedOutline: outline, alignedBoundaries: boundaries, transformPoint: identity, trackRange: computeRange(outline) };
-    }
-
-    // No overlap — need full Procrustes alignment.
-    // Downsample both to ~100 points for matching.
-    const ds = (pts: Point[], n: number): Point[] => {
-      if (pts.length <= n) return pts;
-      const step = pts.length / n;
-      const out: Point[] = [];
-      for (let i = 0; i < n; i++) out.push(pts[Math.floor(i * step)]);
-      return out;
-    };
-    const N = 100;
-    const src = ds(outline, N); // outline points (source)
-    const tgt = ds(telPts, N); // telemetry points (target)
-
-    const centroid = (pts: Point[]) => {
-      let sx = 0,
-        sz = 0;
-      for (const p of pts) {
-        sx += p.x;
-        sz += p.z;
-      }
-      return { x: sx / pts.length, z: sz / pts.length };
-    };
-
-    // ICP: iteratively find closest points and compute rigid+scale transform
-    let scale = 1,
-      rotation = 0,
-      tx = 0,
-      tz = 0;
-    let transformed = src.map((p) => ({ ...p }));
-
-    for (let iter = 0; iter < 30; iter++) {
-      // Find closest target point for each transformed source point
-      const pairs: { s: Point; t: Point }[] = [];
-      for (const sp of transformed) {
-        let bestD = Infinity,
-          bestT = tgt[0];
-        for (const tp of tgt) {
-          const d = (sp.x - tp.x) ** 2 + (sp.z - tp.z) ** 2;
-          if (d < bestD) {
-            bestD = d;
-            bestT = tp;
-          }
-        }
-        pairs.push({ s: sp, t: bestT });
-      }
-
-      // Procrustes on original source → paired targets
-      const srcPaired = pairs.map((_, i) => src[i]);
-      const tgtPaired = pairs.map((p) => p.t);
-      const cSrc = centroid(srcPaired);
-      const cTgt = centroid(tgtPaired);
-      const srcC = srcPaired.map((p) => ({ x: p.x - cSrc.x, z: p.z - cSrc.z }));
-      const tgtC = tgtPaired.map((p) => ({ x: p.x - cTgt.x, z: p.z - cTgt.z }));
-
-      let num = 0,
-        den = 0,
-        srcSq = 0;
-      for (let i = 0; i < srcC.length; i++) {
-        num += srcC[i].x * tgtC[i].z - srcC[i].z * tgtC[i].x;
-        den += srcC[i].x * tgtC[i].x + srcC[i].z * tgtC[i].z;
-        srcSq += srcC[i].x ** 2 + srcC[i].z ** 2;
-      }
-      const newRot = Math.atan2(num, den);
-      const cosR = Math.cos(newRot),
-        sinR = Math.sin(newRot);
-      let tgtSq = 0;
-      for (const p of tgtC) tgtSq += p.x ** 2 + p.z ** 2;
-      const newScale = srcSq > 0 ? Math.sqrt(tgtSq / srcSq) : 1;
-      const newTx = cTgt.x - newScale * (cosR * cSrc.x - sinR * cSrc.z);
-      const newTz = cTgt.z - newScale * (sinR * cSrc.x + cosR * cSrc.z);
-
-      const dScale = Math.abs(newScale - scale);
-      const dRot = Math.abs(newRot - rotation);
-      scale = newScale;
-      rotation = newRot;
-      tx = newTx;
-      tz = newTz;
-
-      // Apply transform
-      const cosA = Math.cos(rotation),
-        sinA = Math.sin(rotation);
-      transformed = src.map((p) => ({
-        x: scale * (cosA * p.x - sinA * p.z) + tx,
-        z: scale * (sinA * p.x + cosA * p.z) + tz,
-      }));
-
-      if (dScale < 0.0001 && dRot < 0.0001) break;
-    }
-
-    // Apply final transform to full outline and all telemetry coordinates.
-    const cosA = Math.cos(rotation),
-      sinA = Math.sin(rotation);
-    const applyTransform = (p: Point): Point => ({
-      x: scale * (cosA * p.x - sinA * p.z) + tx,
-      z: scale * (sinA * p.x + cosA * p.z) + tz,
-    });
-
-    const newOutline = outline.map(applyTransform);
-
-    // Also transform boundaries if available
-    let newBoundaries = boundaries;
-    if (boundaries?.leftEdge && boundaries?.rightEdge && boundaries?.centerLine) {
-      newBoundaries = {
-        ...boundaries,
-        leftEdge: boundaries.leftEdge.map(applyTransform),
-        rightEdge: boundaries.rightEdge.map(applyTransform),
-        centerLine: boundaries.centerLine.map(applyTransform),
-        pitLane: boundaries.pitLane?.map(applyTransform) ?? null,
-      };
-    }
-
-    return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, transformPoint: applyTransform, trackRange: computeRange(newOutline) };
-  }, [displayOutline, telemetryA, displayBoundaries]);
-
-  const transformTelemetry = useCallback(
-    (sample: SemanticTelemetrySample) => {
+  const { alignedOutline, alignedBoundaries, trackRange } = useMemo(() => {
+    const telemetryPoints: Point[] = [];
+    for (const sample of telemetryA) {
       const x = numberValue(sample, "motion.position-x");
       const z = numberValue(sample, "motion.position-z");
-      if (x == null || z == null || (x === 0 && z === 0)) return sample;
-      const point = transformPoint({ x, z });
-      return point.x === x && point.z === z ? sample : { ...sample, values: { ...sample.values, "motion.position-x": point.x, "motion.position-z": point.z } };
-    },
-    [transformPoint],
-  );
+      if (x != null && z != null && (x !== 0 || z !== 0)) telemetryPoints.push({ x, z });
+    }
 
-  const displayTelemetryA = useMemo(() => telemetryA.map(transformTelemetry), [telemetryA, transformTelemetry]);
-  const displayTelemetryB = useMemo(() => telemetryB.map(transformTelemetry), [telemetryB, transformTelemetry]);
+    const useTelemetryGeometry = telemetryPoints.length >= 20 && telemetryPoints.length / Math.max(1, telemetryA.length) >= 0.8;
+    let mapOutline = fallbackOutline;
+    if (useTelemetryGeometry) {
+      const stride = Math.max(1, Math.ceil(telemetryPoints.length / 400));
+      mapOutline = telemetryPoints.filter((_, index) => index % stride === 0);
+      const last = telemetryPoints.at(-1)!;
+      if (mapOutline.at(-1) !== last) mapOutline.push(last);
+    }
+
+    if (mapOutline.length < 2) return { alignedOutline: mapOutline, alignedBoundaries: null, trackRange: 1 };
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (const point of mapOutline) {
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+      minZ = Math.min(minZ, point.z);
+      maxZ = Math.max(maxZ, point.z);
+    }
+    return {
+      alignedOutline: mapOutline,
+      alignedBoundaries: useTelemetryGeometry ? null : displayBoundaries,
+      trackRange: Math.max(maxX - minX || 1, maxZ - minZ || 1),
+    };
+  }, [displayBoundaries, fallbackOutline, telemetryA]);
+
+  const displayTelemetryA = telemetryA;
+  const displayTelemetryB = telemetryB;
   const mapTelemetryA = useMemo<SemanticAnalysisFrame[]>(
     () => displayTelemetryA.map((sample) => ({ values: sample.values as SemanticAnalysisFrame["values"], states: {}, freshness: {} })),
     [displayTelemetryA],
