@@ -115,8 +115,19 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
   if (mapping.kind !== "normalized" || mapping.execution?.kind !== "conversion") return undefined;
 
   const sourcePaths = sources(mapping);
-  const nativeUnit = mapping.nativeUnit.trim().toLowerCase();
   const reading = {} as SourceReading;
+  if (variable.id === "motion.position-x" || variable.id === "motion.position-z") {
+    const packetFieldName = variable.id === "motion.position-x" ? "PositionX" : "PositionZ";
+    return (frame, context) => {
+      const packetValue = packetField(frame, packetFieldName);
+      if (typeof packetValue === "number" && Number.isFinite(packetValue)) {
+        return setReading(reading, context, mapping, `TelemetryPacket.${packetFieldName}`, packetValue);
+      }
+      return undefined;
+    };
+  }
+
+  const nativeUnit = mapping.nativeUnit.trim().toLowerCase();
   if (variable.id === "fuel.remaining-fraction" && sourcePaths.includes("iRacing.FuelLevelPct")) {
     return (frame, context) => {
       const directSource = "iRacing.FuelLevelPct";

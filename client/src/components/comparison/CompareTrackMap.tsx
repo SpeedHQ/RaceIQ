@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TrackMapCanvas } from "@/components/track-map/TrackMapCanvas";
 import type { SemanticAnalysisFrame, TrackMapLayerState, TrackMapOverlayRenderer, TrackMapViewportCamera } from "@/components/track-map/types";
-import { type BoundaryData, computeZoom, drawComparisonWorldOverlay, drawInputsHUD, resolveAlignedCursor, type Point } from "@/lib/comparison-utils";
+import { type BoundaryData, computeZoom, drawComparisonWorldOverlay, drawInputsHUD, resolveAlignedCursor, resolveComparisonImageryLocalPositions, type Point } from "@/lib/comparison-utils";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { CompareSegmentTable } from "./CompareSegmentTable";
@@ -320,6 +320,7 @@ export function CompareTrackMap({
     [displayTelemetryA],
   );
   const mapGeographicPositions = geographicPositions ?? undefined;
+  const imageryLocalPositions = resolveComparisonImageryLocalPositions(displayTelemetryA, alignedOutline);
   const hoveredDistance = hoveredDistanceRef.current;
   const alignedCursor = resolveAlignedCursor(displayTelemetryA, displayTelemetryB, distanceGrid, sourceIndicesA, sourceIndicesB, hoveredDistance);
   const cursorIndexA = alignedCursor ? sourceIndicesA[alignedCursor.gridIndex] : undefined;
@@ -452,6 +453,7 @@ export function CompareTrackMap({
             outline={alignedOutline}
             imagery={imagery}
             geographicPositions={mapGeographicPositions}
+            imageryLocalPositions={imageryLocalPositions}
             boundaries={alignedBoundaries}
             segments={null}
             layers={COMPARE_OVERVIEW_LAYERS}
@@ -478,6 +480,7 @@ export function CompareTrackMap({
             outline={alignedOutline}
             imagery={imagery}
             geographicPositions={mapGeographicPositions}
+            imageryLocalPositions={imageryLocalPositions}
             boundaries={alignedBoundaries}
             segments={null}
             layers={COMPARE_ZOOM_LAYERS}

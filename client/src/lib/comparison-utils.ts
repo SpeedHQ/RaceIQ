@@ -9,6 +9,32 @@ export interface Point {
   x: number;
   z: number;
 }
+/** Use telemetry-indexed track geometry when Compare lacks a dense world-position trace. */
+export function resolveComparisonImageryLocalPositions(
+  telemetry: readonly SemanticTelemetrySample[],
+  outline: readonly Point[],
+): readonly Point[] | undefined {
+  let usable = 0;
+  for (const sample of telemetry) {
+    const x = num(sample, "motion.position-x") ?? 0;
+    const z = num(sample, "motion.position-z") ?? 0;
+    if (x !== 0 || z !== 0) usable++;
+  }
+  if (usable >= 3 && usable / Math.max(1, telemetry.length) >= 0.8) return undefined;
+  if (telemetry.length <= 1 || outline.length <= 1) return outline;
+
+  return Array.from({ length: telemetry.length }, (_, index) => {
+    const position = (index * (outline.length - 1)) / (telemetry.length - 1);
+    const before = Math.floor(position);
+    const after = Math.min(outline.length - 1, before + 1);
+    const fraction = position - before;
+    return {
+      x: outline[before]!.x + (outline[after]!.x - outline[before]!.x) * fraction,
+      z: outline[before]!.z + (outline[after]!.z - outline[before]!.z) * fraction,
+    };
+  });
+}
+
 
 export interface BoundaryData {
   leftEdge: Point[];

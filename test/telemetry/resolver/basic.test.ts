@@ -34,6 +34,24 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
+  test("uses normalized iRacing packet positions instead of raw GPS latitude and longitude", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "motion.position-x" }, { semanticId: "motion.position-z" }],
+    });
+    const frame = resolver.createFrameView(
+      packet("iracing", {
+        PositionX: 123,
+        PositionZ: -456,
+        iracing: { latitudeDeg: 29.18, longitudeDeg: -81.07, altitudeM: 10 } as TelemetryPacket["iracing"],
+      }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+    );
+
+    expect(frame.readNumber(resolver.slot("motion.position-x"))).toBe(123);
+    expect(frame.readNumber(resolver.slot("motion.position-z"))).toBe(-456);
+  });
+
   test("uses canonical packet values without running a derivation DAG", () => {
     let evaluations = 0;
     const derivation = {
