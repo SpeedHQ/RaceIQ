@@ -3,12 +3,17 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "../../../shared/games/ids";
+import { tryGetGame } from "../../../shared/games/registry";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { getLapById } from "../../db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
 import { compareLaps } from "../../lap-analysis/comparison";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
+import { projectTrackImageryGeographicPositions, resolveLapGeoreference } from "../../tracks/georeference";
+import { resolveTrackGeographicCatalogSource, trackGeographicReferencePositions } from "../../tracks/geographic-reference";
+import { resolveTrackOutline } from "../tracks/support";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
 import { buildCompareChatSystemPrompt } from "../../ai/compare-chat-prompt";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../../ai/inputs-compare-prompt";
@@ -16,18 +21,36 @@ import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
 import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "../../ai/google-provider-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "../../ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
-import {
-  CHAT_RESOURCE_ID,
-  compareChatThreadId,
-  generationThreadId,
-  getChatMemory,
-  listThreadGenerations,
-  resolveActiveThread,
-} from "../../ai/chat-agent";
+import { CHAT_RESOURCE_ID, compareChatThreadId, generationThreadId, getChatMemory, listThreadGenerations, resolveActiveThread } from "../../ai/chat-agent";
 import { getSecret } from "../../runtime/platform/keystore";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
-const inputsAnalysisRunKey = (idA: number, idB: number) =>
-  `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
+const inputsAnalysisRunKey = (idA: number, idB: number) => `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
+async function resolveComparisonGeographicPositions(gameId: GameId, trackOrdinal: number, packets: readonly TelemetryPacket[]) {
+  const game = tryGetGame(gameId);
+  if (game) {
+    const georeference = await resolveLapGeoreference({
+      canonicalSlug: game.getSharedTrackName?.(trackOrdinal),
+      gameId,
+      trackOrdinal,
+      packets,
+    });
+    if (georeference) return projectTrackImageryGeographicPositions(georeference.positions);
+  }
+
+  const source = resolveTrackGeographicCatalogSource(gameId, trackOrdinal);
+  if (!source) return null;
+
+  let outline = await resolveTrackOutline(trackOrdinal, gameId);
+  if (!outline && (gameId !== "iracing" || trackOrdinal !== source.track.ordinal)) {
+    outline = await resolveTrackOutline(source.track.ordinal, "iracing");
+  }
+  const center = { latitudeDeg: source.track.latitude, longitudeDeg: source.track.longitude };
+  const reference = trackGeographicReferencePositions(outline?.points ?? null, center, source.track.lengthKm);
+  if (reference.length === 0) return null;
+
+  const lastPacketIndex = Math.max(packets.length - 1, 1);
+  return packets.map((_, index) => reference[Math.round((index * (reference.length - 1)) / lastPacketIndex)] ?? null);
+}
 
 
 export const comparisonRoutes = new Hono()
@@ -62,10 +85,11 @@ export const comparisonRoutes = new Hono()
       "timing.distance-traveled",
       "timing.current-lap",
     ] as const;
-    const [replayA, replayB] = await Promise.all([
-      queryLapTelemetryBySemanticId(id1, semanticIds),
-      queryLapTelemetryBySemanticId(id2, semanticIds),
-    ]);
+    const georeferencePromise =
+      lapA.trackOrdinal == null
+        ? Promise.resolve(null)
+        : resolveComparisonGeographicPositions(gameId, lapA.trackOrdinal, lapA.telemetry).catch(() => null);
+    const [replayA, replayB, georeference] = await Promise.all([queryLapTelemetryBySemanticId(id1, semanticIds), queryLapTelemetryBySemanticId(id2, semanticIds), georeferencePromise]);
     if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
       return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
     }
@@ -109,6 +133,7 @@ export const comparisonRoutes = new Hono()
       timeDelta: result.timeDelta,
       corners: result.cornerDeltas,
       telemetryA: toSamples(replayA),
+      geographicPositions: georeference ?? null,
       telemetryB: toSamples(replayB),
       gameId,
     });
@@ -193,8 +218,7 @@ export const comparisonRoutes = new Hono()
       comparison,
       segments,
       undefined,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) + buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
@@ -241,10 +265,7 @@ export const comparisonRoutes = new Hono()
         modelSettings: { maxOutputTokens: 8192, temperature: 0 },
         providerOptions: {
           openai: { reasoningEffort: "medium" },
-          google: buildGoogleThinkingProviderOptions(
-            settings.aiModel || "gemini-flash-latest",
-            settings.aiThinkingBudget,
-          ) as never,
+          google: buildGoogleThinkingProviderOptions(settings.aiModel || "gemini-flash-latest", settings.aiThinkingBudget) as never,
         },
       });
       const durationMs = Math.round(performance.now() - start);
@@ -303,9 +324,7 @@ export const comparisonRoutes = new Hono()
       const memory = getChatMemory();
       const base = compareChatThreadId(id1, id2);
       const genParam = Number(c.req.query("gen"));
-      const threadId = Number.isInteger(genParam) && genParam >= 1
-        ? generationThreadId(base, genParam)
-        : await resolveActiveThread(base);
+      const threadId = Number.isInteger(genParam) && genParam >= 1 ? generationThreadId(base, genParam) : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
@@ -313,9 +332,7 @@ export const comparisonRoutes = new Hono()
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
-      const uiMessages = list.get.all.aiV5
-        .ui()
-        .filter((m) => m.role === "user" || m.role === "assistant");
+      const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
     } catch (err: any) {
@@ -372,8 +389,7 @@ export const comparisonRoutes = new Hono()
       settings.unit,
       settings.temperatureUnit,
       settings.language,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) + buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
     const chatProvider = settings.chatProvider;
@@ -395,26 +411,18 @@ export const comparisonRoutes = new Hono()
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
     }
 
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
+    const chatModelLabel = settings.chatModel || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "local" ? "local-model" : "gemini-flash-latest");
 
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
     try {
-      const stream = await compareChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
-        {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
+      const stream = await compareChatAgent.stream([{ role: "system", content: systemPrompt }, ...messages], {
+        memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        providerOptions: {
+          openai: { reasoningEffort: "medium" },
+          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
-      );
+      });
 
       return streamAgentTurnResponse({
         agentStream: stream,

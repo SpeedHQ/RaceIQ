@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getGeoreferenceReference, getGeoreferenceTransform } from "../../server/db/georeference-queries";
-import { assignLapGeoreference, resolveLapGeoreference } from "../../server/tracks/georeference";
+import { assignLapGeoreference, projectTrackImageryGeographicPositions, resolveLapGeoreference } from "../../server/tracks/georeference";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 const EARTH_RADIUS_M = 6_378_137;
@@ -117,4 +117,16 @@ describe("georeference service", () => {
     });
     expect(poor).toBeNull();
   });
+  test("projects imagery positions without altitude", () => {
+    expect(
+      projectTrackImageryGeographicPositions([
+        { latitudeDeg: 35, longitudeDeg: -80, altitudeM: 120 },
+        null,
+      ]),
+    ).toEqual([
+      { latitudeDeg: 35, longitudeDeg: -80 },
+      null,
+    ]);
+  });
+
 });

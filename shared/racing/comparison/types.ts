@@ -1,4 +1,5 @@
 import type { TelemetryVariableId } from "../../telemetry/catalog/generated/telemetry-catalog.types";
+import type { TrackImageryGeographicPoint } from "../tracks/imagery";
 import type { LapMeta } from "../sessions/types";
 
 export interface AlignedTrace {
@@ -38,5 +39,6 @@ export interface ComparisonData {
   timeDelta: number[];
   corners: CornerDelta[];
   telemetryA: SemanticTelemetrySample[];
+  geographicPositions: readonly (TrackImageryGeographicPoint | null)[] | null;
   telemetryB: SemanticTelemetrySample[];
 }

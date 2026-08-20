@@ -1,10 +1,13 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
-const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => { const value = sample.values[id]; return typeof value === "number" ? value : undefined; }
+const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => {
+  const value = sample.values[id];
+  return typeof value === "number" ? value : undefined;
+};
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLaps } from "@/hooks/laps";
-import { useTrackImagery, useTrackImageryReference, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
+import { useTrackImagery, useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
 import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "@/lib/comparison-layout";
@@ -71,7 +74,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     return s?.segments ?? null;
   }, [sectorsData]);
   const { data: trackImagery = null } = useTrackImagery(selectedTrack ?? undefined);
-  const { data: trackImageryReference = null } = useTrackImageryReference(selectedTrack ?? undefined, undefined, trackImagery !== null);
   const prevTrackRef = useRef<number | null | undefined>(undefined);
   const prevCarARef = useRef<number | null | undefined>(undefined);
   const prevCarBRef = useRef<number | null | undefined>(undefined);
@@ -398,7 +400,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               trackOrdinal={selectedTrack}
               gameId={gameId}
               imagery={trackImagery}
-              geographicPositions={trackImageryReference?.geographicPositions ?? null}
+              geographicPositions={comparison.geographicPositions}
             />
           </div>
 
@@ -461,7 +463,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             />
           )}
         </div>
-      ) : comparison ? <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div> : null}
+      ) : comparison ? (
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div>
+      ) : null}
     </div>
   );
 }

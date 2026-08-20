@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
+import type { TrackImageryGeographicPoint } from "../../shared/racing/tracks/imagery";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import {
   applyAlignment,
@@ -34,6 +35,15 @@ export interface GeographicPosition {
   latitudeDeg: number;
   longitudeDeg: number;
   altitudeM: number;
+}
+
+/** Keep comparison responses limited to fields required by imagery calibration. */
+export function projectTrackImageryGeographicPositions(
+  positions: readonly (GeographicPosition | null)[],
+): (TrackImageryGeographicPoint | null)[] {
+  return positions.map((position) =>
+    position ? { latitudeDeg: position.latitudeDeg, longitudeDeg: position.longitudeDeg } : null,
+  );
 }
 
 export interface GeoreferenceMetadata {
