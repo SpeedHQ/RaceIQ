@@ -64,7 +64,6 @@ export function visualWheelRotationSpeed(measuredRadS: unknown, speedMps: number
   if (!Number.isFinite(speedMps) || !Number.isFinite(radiusM) || radiusM <= 0) return 0;
   return speedMps / radiusM;
 }
-
 /**
  * Split semantic attitude between complete vehicle and suspension-articulated chassis.
  * Raw channels include road banking/gradient, so they rotate running gear too.

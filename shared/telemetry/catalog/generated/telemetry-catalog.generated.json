@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "b632cf01ccd74b59b01956c88b90bca4efc465c884a06db78dccbd5c3f1781d0"
+      "sourceHash": "00c3df3d54dc12c0160fc427f8adaabf62be8cbb7369cded7959cad733cdfa7b"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "caf1b681f281be22873419782e33e2d55933600032abb9999ab0d6dcf195f269",
@@ -14,11 +14,11 @@
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
       "server/games/f1-2025/f1-state.ts": "68a478884cc4befb7a11e96ce489b1a2e4df0cf20694ba03d5e57c389a50161e",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "b90dc3bfe4f028cd1d698ce4b297bca119b23554141600858904f4e04b29882a",
+      "server/games/iracing/normalizer.ts": "c40e7f3d73a8fbb5a5ee2efff9f166e926b3ca841c2ea55e5c1eb3fca40072d1",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "37e6c8a056e173b396412e59490db11f98b697b05ce1990ef3e7a0f3ae3cf846"
+    "contentHash": "c3d949b809bced22ffed348f363da6da4b621d6bb3f118c062dc899ea03e5ad3"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",

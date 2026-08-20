@@ -50,12 +50,17 @@ describe("IRacingIbt import workflow", () => {
     try {
       const path = recording.path;
       const bytes = readFileSync(path);
-      const body = new ReadableStream<Uint8Array>({
+      const sourceBody = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(bytes);
           controller.close();
         },
       });
+      // Bun request-body readers can omit a usable releaseLock().
+      const sourceReader = sourceBody.getReader();
+      const body = {
+        getReader: () => ({ read: () => sourceReader.read() }),
+      } as unknown as ReadableStream<Uint8Array>;
 
       let sessionId: number | null = null;
       let rawFile: string | null = null;

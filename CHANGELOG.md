@@ -70,6 +70,7 @@
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
+- Draw imported iRacing IBT GPS paths and orient Analyse cars from recorded heading, pitch, and roll
 - Use official iRacing turn labels consistently across Analyse maps, segment lists, comparisons, chats, and tuning insights
 - Roll iRacing wireframe wheels in Analyse when per-wheel rotation telemetry is unavailable
 - Keep Analyse 3D suspension and drivetrain aligned with vehicle roll, pitch, and ride-height movement

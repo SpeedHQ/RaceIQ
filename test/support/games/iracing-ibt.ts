@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { IRSDK_VAR_HEADER_SIZE, IRSDKVariableType } from "../../../server/games/iracing/variable-table";
 
 export const DISK_HEADER_SIZE = 144;
-export const ROW_LENGTH = 60;
+export const ROW_LENGTH = 68;
 
 export interface SyntheticRow {
   sessionTime: number;
@@ -19,6 +19,9 @@ export interface SyntheticRow {
   longitude?: number;
   altitude?: number;
   yawNorth?: number;
+  pitch?: number;
+  roll?: number;
+
 }
 
 export interface SyntheticIdentity {
@@ -72,6 +75,9 @@ function telemetryRow(row: SyntheticRow): Buffer {
   buffer.writeFloatLE(row.longitude ?? 0, 48);
   buffer.writeFloatLE(row.altitude ?? 0, 52);
   buffer.writeFloatLE(row.yawNorth ?? 0, 56);
+  buffer.writeFloatLE(row.pitch ?? 0, 60);
+  buffer.writeFloatLE(row.roll ?? 0, 64);
+
   return buffer;
 }
 
@@ -122,6 +128,9 @@ export function writeSyntheticIbt(path: string, suppliedRows?: SyntheticRow[], i
     descriptor(IRSDKVariableType.Float, 48, "Lon"),
     descriptor(IRSDKVariableType.Float, 52, "Alt"),
     descriptor(IRSDKVariableType.Float, 56, "YawNorth"),
+    descriptor(IRSDKVariableType.Float, 60, "Pitch"),
+    descriptor(IRSDKVariableType.Float, 64, "Roll"),
+
   ]);
   const sessionInfo = Buffer.from(`${syntheticSessionInfo(identity)}\0`, "utf8");
   const sourceRows: SyntheticRow[] = suppliedRows ?? [
@@ -135,6 +144,9 @@ export function writeSyntheticIbt(path: string, suppliedRows?: SyntheticRow[], i
       longitude: -88,
       altitude: 200,
       yawNorth: Math.PI / 2,
+      pitch: 0.12,
+      roll: -0.08,
+
     },
     {
       sessionTime: 10 + 1 / 60,
@@ -146,6 +158,9 @@ export function writeSyntheticIbt(path: string, suppliedRows?: SyntheticRow[], i
       longitude: -87.9999,
       altitude: 201.5,
       yawNorth: Math.PI * 1.5,
+      pitch: 0.14,
+      roll: -0.06,
+
     },
   ];
   const rows = sourceRows.map(telemetryRow);
@@ -199,6 +214,10 @@ export function drivenRows(): SyntheticRow[] {
       latitude: 43,
       longitude: -88,
       altitude: 200,
+      yawNorth: 0,
+      pitch: 0.01,
+      roll: -0.01,
+
     },
     {
       sessionTime: 45,
@@ -210,6 +229,10 @@ export function drivenRows(): SyntheticRow[] {
       latitude: 43.0001,
       longitude: -88.0002,
       altitude: 201,
+      yawNorth: 0.2,
+      pitch: 0.02,
+      roll: -0.02,
+
     },
     {
       sessionTime: 50,
@@ -222,6 +245,10 @@ export function drivenRows(): SyntheticRow[] {
       latitude: 43.0002,
       longitude: -88,
       altitude: 202,
+      yawNorth: 0.4,
+      pitch: 0.03,
+      roll: -0.03,
+
     },
     {
       sessionTime: 105,
@@ -234,6 +261,10 @@ export function drivenRows(): SyntheticRow[] {
       latitude: 43.0003,
       longitude: -87.9998,
       altitude: 203,
+      yawNorth: 0.6,
+      pitch: 0.04,
+      roll: -0.04,
+
     },
     {
       sessionTime: 110,
@@ -246,6 +277,10 @@ export function drivenRows(): SyntheticRow[] {
       latitude: 43.0004,
       longitude: -88,
       altitude: 204,
+      yawNorth: 0.8,
+      pitch: 0.05,
+      roll: -0.05,
+
     },
     {
       sessionTime: 112,
@@ -254,10 +289,13 @@ export function drivenRows(): SyntheticRow[] {
       lap: 3,
       lapDistancePct: 0.14,
       lastLapTime: 61,
-      currentLapTime: 2,
       latitude: 43.00041,
       longitude: -88.00002,
       altitude: 204.5,
+      yawNorth: 1,
+      pitch: 0.06,
+      roll: -0.06,
+      currentLapTime: 2,
     },
   ];
 }

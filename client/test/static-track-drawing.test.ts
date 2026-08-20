@@ -237,7 +237,6 @@ test("draws separate solid pit-road and pit-exit lines", () => {
   expect(context.lineCap).toBe("round");
   expect(context.lineJoin).toBe("round");
 });
-
 test("aligns imported iRacing GPS paths to analyse-map outlines", () => {
   const gpsPath = [
     { x: 0, z: 0 },

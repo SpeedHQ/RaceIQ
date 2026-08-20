@@ -20,6 +20,7 @@ interface IRacingGpsProjectionState {
   hasLast: boolean;
 }
 
+
 export interface IRacingParserState {
   source: IRacingSourceDecoderState;
   sessionKey: string | null;
@@ -129,6 +130,7 @@ function projectRecordedGps(values: Record<string, IRacingValue>, state: IRacing
   state.hasLast = true;
   return true;
 }
+
 
 function input255(value: number): number {
   return Math.round(clamp(value, 0, 1) * 255);

@@ -46,6 +46,11 @@ const PACKET_SOURCE_OVERRIDES: Partial<Record<GameId, Record<string, string[]>>>
     CarOrdinal: ["AC-Evo.Graphics.car_model"],
     TrackOrdinal: ["AC-Evo.Static.track", "AC-Evo.Static.track_configuration"],
   },
+  iracing: {
+    PositionX: ["iRacing.Lat", "iRacing.Lon"],
+    PositionY: ["iRacing.Lat", "iRacing.Lon", "iRacing.Alt"],
+    PositionZ: ["iRacing.Lat", "iRacing.Lon"],
+  },
 };
 
 const UNAVAILABLE_PACKET_FIELDS: Partial<Record<GameId, Record<string, string>>> = {

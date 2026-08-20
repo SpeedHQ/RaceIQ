@@ -25,6 +25,8 @@ test("semantic replay requests every Analyse display dependency", () => {
     "motion.pitch",
     "motion.roll",
     "identity.player-track-surface",
+    "motion.pitch",
+    "motion.roll",
     "tires.wheel-in-puddle-depth",
     "suspension.norm-suspension-travel",
     "tires.normalized-tire-slip-angle",

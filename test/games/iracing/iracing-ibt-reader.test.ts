@@ -54,6 +54,7 @@ describe("IRacingIbtReader", () => {
       expect(first?.values.Lon).toBeCloseTo(-88);
       expect(first?.values.Alt).toBeCloseTo(200);
       expect(first?.values.YawNorth).toBeCloseTo(Math.PI / 2);
+
       expect(first?.sessionInfo).toBe(syntheticSessionInfo(DEFAULT_IDENTITY));
       expect(first?.sessionInfoUpdate).toBe(0);
       expect(reader.recordsRead).toBe(1);
@@ -91,7 +92,7 @@ describe("IRacingIbtReader", () => {
       expect(await source.pollOnce()).toBe(true);
       expect(await source.pollOnce()).toBe(false);
       expect(delivered).toHaveLength(2);
-      expect(delivered[1].length).toBeLessThan(delivered[0].length / 8);
+      expect(delivered[1].length).toBeLessThan(delivered[0].length / 7);
 
       const decoder = createIRacingSourceDecoderState();
       const frame = decodeIRacingSourceFrame(delivered[0], decoder);
@@ -126,6 +127,7 @@ describe("IRacingIbtReader", () => {
         PositionY: 0,
         PositionZ: 0,
       });
+
       expect(packet).not.toHaveProperty("sessionInfo");
       expect(packet).not.toHaveProperty("sessionInfoUpdate");
       expect(packet.iracing).not.toHaveProperty("sessionInfo");
