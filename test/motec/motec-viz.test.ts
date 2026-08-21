@@ -20,6 +20,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { initGameAdapters } from "../../shared/games/init";
+import { canonicalTrackAssetPathComponents } from "../../shared/racing/tracks/configuration";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getServerGame } from "../../server/games/registry";
 import { loadCenterline } from "../../shared/racing/tracks/curation/generate";
@@ -49,7 +50,24 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
  * distinctive asymmetric layout — enough that a systematic error in the
  * reconstruction has somewhere to show up, without making the suite slow.
  */
-const TRACKS = ["spa", "monza", "brands-hatch", "suzuka", "laguna-seca"];
+function acEvoCenterlinePath(venuePath: string, layoutSlug: string): string {
+  return resolve(
+    "shared/data/tracks",
+    ...canonicalTrackAssetPathComponents(venuePath, layoutSlug),
+    "geometry",
+    "ac-evo",
+    "centerline.csv",
+  );
+}
+
+const TRACK_CENTERLINE_PATHS = {
+  spa: acEvoCenterlinePath("circuit-de-spa-francorchamps", "grand-prix"),
+  monza: acEvoCenterlinePath("autodromo-nazionale-monza", "grand-prix"),
+  "brands-hatch": acEvoCenterlinePath("brands-hatch", "grand-prix"),
+  suzuka: acEvoCenterlinePath("suzuka-circuit", "full"),
+  "laguna-seca": acEvoCenterlinePath("weathertech-raceway-laguna-seca", "full"),
+} as const;
+const TRACKS = Object.keys(TRACK_CENTERLINE_PATHS) as Array<keyof typeof TRACK_CENTERLINE_PATHS>;
 
 /**
  * Absolute metres, not a fraction of lap length. A percentage threshold sounds
@@ -102,7 +120,7 @@ function deviations(reference: Point[], reconstructed: Point[]): number[] {
 
 describe("MoTeC reconstruction vs real centerlines", () => {
   for (const slug of TRACKS) {
-    const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", `${slug}-centerline.csv`));
+    const raw = loadCenterline(TRACK_CENTERLINE_PATHS[slug]);
 
     test(`${slug} reconstructs the centerline it was derived from`, () => {
       expect(raw).not.toBeNull();
@@ -162,7 +180,7 @@ describe("MoTeC reconstruction vs real centerlines", () => {
   test("a mirrored reconstruction is actually caught", () => {
     // Guards the guard: if signedArea stopped discriminating, every track above
     // would keep passing and the mirror check would be decoration.
-    const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", "spa-centerline.csv"));
+    const raw = loadCenterline(TRACK_CENTERLINE_PATHS.spa);
     const stint = centerlineToStint(raw!, { laps: 2, hz: SYNTH_HZ });
     const mirrored = stint.reference.map((p) => ({ x: -p.x, z: p.z }));
 

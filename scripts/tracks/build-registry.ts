@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import {
   buildTrackRegistryArtifacts,
   loadTrackRegistrySource,
@@ -11,12 +11,6 @@ import {
 } from "../../shared/racing/tracks/registry-source";
 
 const CHECK = process.argv.slice(2).includes("--check");
-const SOURCE_FILES = [
-  "configurations.json",
-  "facts.json",
-  "geometry.json",
-  "verification.json",
-] as const;
 
 function readText(path: string): string {
   return readFileSync(path, "utf8");
@@ -30,9 +24,10 @@ function checkRegistry(): void {
 
   const source = loadTrackRegistrySource(locations);
   const rendered = renderTrackRegistrySource(source);
-  for (const filename of SOURCE_FILES) {
-    const path = resolve(locations.sourceDirectory, filename);
-    if (readText(path) !== rendered.get(filename)) {
+  const root = dirname(locations.sourceDirectory);
+  for (const [relativePath, body] of rendered) {
+    const path = resolve(root, relativePath);
+    if (readText(path) !== body) {
       throw new Error(`Non-canonical track registry source ${path}; run bun run tracks:registry`);
     }
   }
@@ -101,10 +96,9 @@ function buildRegistry(): void {
   recoverTrackRegistrySourceUpdate(locations);
   const source = loadTrackRegistrySource(locations);
   const rendered = renderTrackRegistrySource(source);
-  for (const filename of SOURCE_FILES) {
-    const path = resolve(locations.sourceDirectory, filename);
-    const body = rendered.get(filename);
-    if (body === undefined) throw new Error(`Missing rendered source ${filename}`);
+  const root = dirname(locations.sourceDirectory);
+  for (const [relativePath, body] of rendered) {
+    const path = resolve(root, relativePath);
     if (!existsSync(path) || readText(path) !== body) writeFileSync(path, body, "utf8");
   }
   const { sourceHash, projection } = buildTrackRegistryArtifacts(source, locations);

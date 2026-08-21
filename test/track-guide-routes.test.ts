@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { initGameAdapters } from "../shared/games/init";
@@ -53,6 +53,22 @@ describe("isolated track guide stores", () => {
     expect(first.store.load("spa")?.id).toBe("spa");
     expect(second.store.load("spa")).toBeNull();
     expect(() => first.store.load("../spa")).toThrow(/Invalid track guide slug/);
+  });
+
+  test("loads and saves guide.json beside canonical track metadata", () => {
+    const directory = mkdtempSync(join(tmpdir(), "raceiq-track-guides-nested-"));
+    tempDirs.push(directory);
+    const trackDirectory = resolve(directory, "spa-francorchamps", "tracks", "grand-prix");
+    mkdirSync(trackDirectory, { recursive: true });
+    writeFileSync(resolve(trackDirectory, "metadata.json"), JSON.stringify({
+      facts: { slug: "spa" },
+    }));
+    const store = createTrackGuideStore({ guidesDir: directory, nested: true });
+
+    expect(store.list()).toEqual([]);
+    expect(store.save(sampleGuide("spa")).id).toBe("spa");
+    expect(store.load("spa")?.character).toBe("Technical guide");
+    expect(JSON.parse(readFileSync(resolve(trackDirectory, "guide.json"), "utf8")).id).toBe("spa");
   });
 
   test("atomic writes preserve target when serialization fails", () => {

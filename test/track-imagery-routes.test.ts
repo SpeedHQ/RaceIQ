@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Hono } from "hono";
 import sharp from "sharp";
@@ -17,18 +17,13 @@ const venueId = `${venueRootId}/historical/2011`;
 const gameId = "iracing" as const;
 const trackOrdinal = 900_000 + Math.floor(Math.random() * 90_000);
 const peerTrackOrdinal = trackOrdinal + 1;
-const venueRootDirectory = trackImageryVenueDirectory(venueRootId);
+const venueRootDirectory = resolve(trackImageryVenueDirectory(venueRootId), "..", "..", "..");
 const venueDirectory = trackImageryVenueDirectory(venueId);
-const layoutPath = trackImageryLayoutPath(gameId, trackOrdinal);
-const peerLayoutPath = trackImageryLayoutPath(gameId, peerTrackOrdinal);
 const app = new Hono().route("/", trackConfigurationDevRoutes).route("/", trackImageryDevRoutes).route("/", trackImageryRoutes);
 const source = { name: "Generated test texture", provider: "test-hq", license: "owned", attribution: "", sourceResolutionM: 0.25, storedResolutionM: 0.25 };
 
 afterAll(() => {
   rmSync(venueRootDirectory, { recursive: true, force: true });
-  for (const path of [layoutPath, peerLayoutPath]) {
-    if (existsSync(path)) unlinkSync(path);
-  }
 });
 
 test("serves one physical HQ venue package to two layouts with transparent overlays", async () => {
@@ -104,6 +99,12 @@ test("serves one physical HQ venue package to two layouts with transparent overl
   await saveConfiguration(peerTrackOrdinal);
   await saveLayout(trackOrdinal, ["road-course"]);
   await saveLayout(peerTrackOrdinal, []);
+  const layoutPath = trackImageryLayoutPath(gameId, trackOrdinal);
+  const peerLayoutPath = trackImageryLayoutPath(gameId, peerTrackOrdinal);
+  expect(layoutPath).toBe(resolve(venueDirectory, "..", "tracks", "road-course", "imagery", `${gameId}.json`));
+  expect(peerLayoutPath).toBe(resolve(venueDirectory, "..", "tracks", "alternate-course", "imagery", `${gameId}.json`));
+  expect(existsSync(layoutPath)).toBe(true);
+  expect(existsSync(peerLayoutPath)).toBe(true);
 
   const runtimeResponse = await app.request(`/api/track-imagery/${trackOrdinal}?gameId=${gameId}`);
   const peerRuntimeResponse = await app.request(`/api/track-imagery/${peerTrackOrdinal}?gameId=${gameId}`);

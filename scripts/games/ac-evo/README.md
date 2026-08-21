@@ -25,9 +25,11 @@ AC Evo content and recording extractors. Run from repo root or any working direc
 - `shared/games/ac-evo/cars.csv`: appended missing car catalog rows.
 - `shared/games/ac-evo/tracks.csv`: appended missing track rows.
 - `shared/games/ac-evo/setup-ranges.json`: extracted setup limits.
-- `shared/data/tracks/ac-evo/`: native `*-centerline.csv`, `*-raceline.csv`, and `*-boundaries.json`; missing track facts/segment geometry are seeded without clobbering existing curation.
+- `shared/data/tracks/venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/ac-evo/{centerline.csv,raceline.csv,boundaries.json}`: native geometry; current source uses revision path `current`. Missing facts/segments seed matching layout metadata without clobbering curation.
 
 `extractAcEvoTrackGeometry()` and `runSetupRangesExtraction()` remain importable APIs. Geometry stays in raw package coordinates; render-time track-frame handling remains downstream. Scripts do not migrate telemetry diagnostics or external callers.
+
+Canonical current layout ID remains `<root>/<layout>`; historical ID inserts revision before layout. Extractors resolve asset paths through shared helpers and require `gameId: "ac-evo"`.
 
 ## Focused verification
 

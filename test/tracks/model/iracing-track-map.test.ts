@@ -1,10 +1,13 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
 import { getIRacingSvgTrackMap, IRACING_MAP_CACHE_VERSION, orientIRacingOvalMap } from "../../../server/games/iracing/track-map";
 import { alignIRacingAutoSegmentsToTurnLabels, parseIRacingActiveSvg, parseIRacingPitRoadSvg, parseIRacingTurnLabels } from "../../../server/games/iracing/track-map-svg";
 import { GAMES_DIR } from "../../../shared/platform/runtime/data-paths";
-import { getAllIRacingTracks, getIRacingSharedTrackName, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
+import { canonicalTrackAssetPathComponents, trackConfigurationVenueId } from "../../../shared/racing/tracks/configuration";
+import { loadTrackConfiguration } from "../../../server/tracks/configuration";
+import { SHARED_DIR } from "../../../server/runtime/config/paths";
+import { getAllIRacingTracks, getIRacingOvalDirection, getIRacingSharedTrackName, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 
@@ -52,31 +55,53 @@ function nearestIndex(points: { x: number; z: number }[], target: { x: number; z
 }
 
 describe("iRacing official SVG track maps", () => {
-  test("bundles a complete validated map for every catalog layout", async () => {
-    const bundledMaps = new Map<number, {
-      mapUrl: string;
-      version: number;
-      points: { x: number; z: number }[];
-      labels: { text: string; x: number; z: number }[];
-      pitLines: { kind: "pit-road" | "merge-line"; points: { x: number; z: number }[] }[];
-    }>();
+  test("bundles every catalog map once as canonical official SVG layers", async () => {
+    const bundledPaths = new Set<string>();
+    const venuesDirectory = resolve(SHARED_DIR, "tracks", "venues");
+
     for (const track of getAllIRacingTracks()) {
-      const path = resolve(GAMES_DIR, "iracing", "track-maps", `${track.ordinal}.json`);
-      const cached = JSON.parse(readFileSync(path, "utf8"));
-      expect(cached.version).toBe(IRACING_MAP_CACHE_VERSION);
-      expect(cached.mapUrl).toBe(track.mapUrl);
-      expect(cached.points.length).toBeGreaterThanOrEqual(20);
-      expect(Array.isArray(cached.labels)).toBe(true);
-      expect(Array.isArray(cached.pitLines)).toBe(true);
-      bundledMaps.set(track.ordinal, cached);
+      const configuration = loadTrackConfiguration("iracing", track.ordinal);
+      expect(configuration).not.toBeNull();
+      const directory = resolve(
+        SHARED_DIR,
+        "tracks",
+        ...canonicalTrackAssetPathComponents(
+          trackConfigurationVenueId(configuration!),
+          configuration!.track.id,
+        ),
+        "geometry",
+        "iracing",
+        "official",
+      );
+      const activePath = resolve(directory, "active.svg");
+      expect(bundledPaths.has(activePath)).toBe(false);
+      bundledPaths.add(activePath);
+
+      const activeSvg = readFileSync(activePath, "utf8");
+      const startFinishSvg = readFileSync(resolve(directory, "start-finish.svg"), "utf8");
+      const turnsSvg = readFileSync(resolve(directory, "turns.svg"), "utf8");
+      const pitRoadSvg = readFileSync(resolve(directory, "pit-road.svg"), "utf8");
+      const parsed = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg, pitRoadSvg);
+      expect(parsed).not.toBeNull();
+      const ovalDirection = getIRacingOvalDirection(track.ordinal);
+      const expected = ovalDirection ? orientIRacingOvalMap(parsed!, ovalDirection) : parsed!;
+
+      expect(await getIRacingSvgTrackMap(track.ordinal)).toEqual(expected);
     }
 
-    const bundled = bundledMaps.get(238)!;
-    await expect(getIRacingSvgTrackMap(238)).resolves.toEqual({
-      points: bundled.points,
-      labels: bundled.labels,
-      pitLines: bundled.pitLines,
-    });
+    const bundledFiles = readdirSync(venuesDirectory, { recursive: true, encoding: "utf8" })
+      .map((path) => path.replaceAll("\\", "/"));
+    const bundledActivePaths = bundledFiles
+      .filter((path) => path.endsWith("/geometry/iracing/official/active.svg"))
+      .map((path) => resolve(venuesDirectory, path));
+    expect(new Set(bundledActivePaths)).toEqual(bundledPaths);
+    for (const layer of ["active.svg", "start-finish.svg", "turns.svg", "pit-road.svg"]) {
+      expect(bundledFiles.filter((path) => path.endsWith(`/geometry/iracing/official/${layer}`)))
+        .toHaveLength(getAllIRacingTracks().length);
+    }
+    expect(bundledFiles.some((path) => path.endsWith(["maps", "iracing.json"].join("/")))).toBe(false);
+    expect(bundledPaths.size).toBe(getAllIRacingTracks().length);
+    expect(existsSync(resolve(GAMES_DIR, "iracing", "track-maps"))).toBe(false);
   });
 
   test("turns active ribbon into start-aligned ordered centerline", () => {

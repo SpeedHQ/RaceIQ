@@ -4,26 +4,39 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
+  rmdirSync,
   unlinkSync,
   writeFileSync,
+  type Dirent,
 } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 
 import { z } from "zod";
 
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import { KNOWN_GAME_IDS, type GameId, GameIdSchema } from "../../games/ids";
 import {
+  canonicalTrackAssetPathComponents,
+  CURRENT_TRACK_REVISION,
+  parseCanonicalTrackId,
+  parseVenueRevisionPath,
+  revisionDirectoryPathComponents,
   type TrackConfigurationConfirmation,
   TrackConfigurationConfirmationSchema,
   TrackVenueIdSchema,
 } from "./configuration";
-import { TrackFactsSchema, type CornerFact, type StraightFact } from "./facts";
 import {
-  GeometrySegmentSchema,
+  TrackFactsSchema,
+  type CornerFact,
+  type StraightFact,
+  type TrackFacts,
+} from "./facts";
+import {
   TrackGeometrySchema,
+  type TrackGeometry,
 } from "./geometry";
 import { parseCornerKey, parseStraightKey } from "./keys";
 import { TRACK_REGISTRY_VERSION, writeGeneratedTrackRegistry } from "./registry";
@@ -72,23 +85,10 @@ const TrackConfigurationsSchema = z.object({
   assignments: z.array(TrackAssignmentSchema),
 }).strict();
 
-const TrackFactsFileSchema = z.object({
-  version: z.literal(TRACK_REGISTRY_SOURCE_VERSION),
-  facts: z.array(TrackFactsSchema.strict()),
-}).strict();
-
-const GeometrySectorsSchema = TrackGeometrySchema.shape.sectors;
-
-const TrackGeometryFileRowSchema = z.object({
-  factsSlug: TrackFactIdSchema,
+const TrackFileAssignmentSchema = z.object({
   gameId: GameIdSchema,
-  sectors: GeometrySectorsSchema,
-  segments: z.array(GeometrySegmentSchema.strict()),
-}).strict();
-
-const TrackGeometryFileSchema = z.object({
-  version: z.literal(TRACK_REGISTRY_SOURCE_VERSION),
-  geometry: z.array(TrackGeometryFileRowSchema),
+  trackOrdinal: z.number().int().nonnegative(),
+  confirmation: TrackConfigurationConfirmationSchema.strict().nullable(),
 }).strict();
 
 const VerifiedEntrySchema = z.object({
@@ -98,15 +98,44 @@ const VerifiedEntrySchema = z.object({
   note: z.string().trim().min(1).optional(),
 }).strict();
 
-const TrackVerificationFileSchema = z.object({
+const VenueMetadataFileSchema = z.object({
   version: z.literal(TRACK_REGISTRY_SOURCE_VERSION),
-  entries: z.record(z.string(), VerifiedEntrySchema),
+  id: TrackVenueIdSchema,
+  name: z.string().trim().min(1),
+}).strict();
+
+const TrackMetadataFileSchema = z.object({
+  version: z.literal(TRACK_REGISTRY_SOURCE_VERSION),
+  id: TrackVenueIdSchema,
+  name: z.string().trim().min(1),
+  assignments: z.array(TrackFileAssignmentSchema),
+  facts: TrackFactsSchema.strict().optional(),
+  geometryByGame: z.partialRecord(GameIdSchema, TrackGeometrySchema.strict()).optional(),
+  verification: z.object({
+    meta: VerifiedEntrySchema.optional(),
+    segments: z.partialRecord(GameIdSchema, VerifiedEntrySchema).optional(),
+  }).strict().optional(),
+}).strict();
+
+const RevisionMetadataFileSchema = z.object({
+  version: z.literal(TRACK_REGISTRY_SOURCE_VERSION),
+  id: TrackVenueIdSchema,
+  name: z.string().trim().min(1),
 }).strict();
 
 export type TrackConfigurationSource = z.infer<typeof TrackConfigurationsSchema>;
-export type TrackFactsSource = z.infer<typeof TrackFactsFileSchema>;
-export type TrackGeometrySource = z.infer<typeof TrackGeometryFileSchema>;
-export type TrackVerificationSource = z.infer<typeof TrackVerificationFileSchema>;
+export interface TrackFactsSource {
+  version: typeof TRACK_REGISTRY_SOURCE_VERSION;
+  facts: TrackFacts[];
+}
+export interface TrackGeometrySource {
+  version: typeof TRACK_REGISTRY_SOURCE_VERSION;
+  geometry: Array<{ factsSlug: string; gameId: GameId } & TrackGeometry>;
+}
+export interface TrackVerificationSource {
+  version: typeof TRACK_REGISTRY_SOURCE_VERSION;
+  entries: Record<string, VerifiedEntry>;
+}
 
 export interface VerifiedEntry {
   hash: string;
@@ -289,14 +318,17 @@ interface TrackRegistryUpdateJournal {
   reportStaged: string;
 }
 
-const TRACK_SOURCE_FILES = ["configurations.json", "facts.json", "geometry.json", "verification.json"] as const;
-const CONFIGURATIONS_FILE = TRACK_SOURCE_FILES[0];
-const FACTS_FILE = TRACK_SOURCE_FILES[1];
-const GEOMETRY_FILE = TRACK_SOURCE_FILES[2];
-const VERIFICATION_FILE = TRACK_SOURCE_FILES[3];
-
+const VENUES_DIRECTORY = "venues";
+const VENUE_FILE = "venue.json";
+const REVISIONS_DIRECTORY = "revisions";
+const REVISION_FILE = "revision.json";
+const TRACKS_DIRECTORY = "tracks";
+const TRACK_METADATA_FILE = "metadata.json";
+const SEGMENTS_SUFFIX = "-segments.json";
+const VENUE_METADATA_PATH = /^venues\/([a-z0-9][a-z0-9-]*)\/venue\.json$/;
+const REVISION_METADATA_PATH = /^venues\/([a-z0-9][a-z0-9-]*)\/revisions\/((?:[a-z0-9][a-z0-9-]*\/)*[a-z0-9][a-z0-9-]*)\/revision\.json$/;
+const TRACK_METADATA_PATH = /^venues\/([a-z0-9][a-z0-9-]*)\/revisions\/((?:[a-z0-9][a-z0-9-]*\/)*[a-z0-9][a-z0-9-]*)\/tracks\/([a-z0-9][a-z0-9-]*)\/metadata\.json$/;
 const GAME_ORDER = Object.fromEntries(KNOWN_GAME_IDS.map((gameId, index) => [gameId, index])) as Record<string, number>;
-
 
 function jsonBytes(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
@@ -311,11 +343,7 @@ function parseIsoDate(value: string, path: string): void {
 
 function sha256OverSourceFiles(files: ReadonlyMap<string, string>): string {
   const hash = createHash("sha256");
-  for (const filename of TRACK_SOURCE_FILES) {
-    const body = files.get(filename);
-    if (body === undefined) {
-      throw new Error(`Missing source file body for ${filename}`);
-    }
+  for (const [filename, body] of [...files.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     hash.update(filename).update("\0").update(body);
   }
   return hash.digest("hex");
@@ -323,22 +351,24 @@ function sha256OverSourceFiles(files: ReadonlyMap<string, string>): string {
 
 
 function deriveVenueParent(path: string): string | null {
-  const index = path.lastIndexOf("/");
-  return index <= 0 ? null : path.slice(0, index);
+  const { rootVenuePath, revisionPath } = parseVenueRevisionPath(path);
+  if (revisionPath === CURRENT_TRACK_REVISION) return null;
+  const components = revisionDirectoryPathComponents(path).slice(3, -1);
+  return components.length === 0 ? rootVenuePath : `${rootVenuePath}/${components.join("/")}`;
 }
 
 function deriveVenueSlug(path: string): string {
-  const index = path.lastIndexOf("/");
-  return path.slice(index + 1);
+  const { rootVenuePath, revisionPath } = parseVenueRevisionPath(path);
+  if (revisionPath === CURRENT_TRACK_REVISION) return rootVenuePath;
+  return revisionDirectoryPathComponents(path).at(-1)!;
 }
 
 function deriveLayoutVenuePath(id: string): string {
-  const index = id.lastIndexOf("/");
-  return index <= 0 ? id : id.slice(0, index);
+  return parseCanonicalTrackId(id).venuePath;
 }
 
 function deriveLayoutSlug(id: string): string {
-  return deriveVenueSlug(id);
+  return parseCanonicalTrackId(id).layoutSlug;
 }
 
 function readFile(path: string): string {
@@ -358,6 +388,134 @@ function removeIfExists(path: string): void {
   } catch {
     // best effort
   }
+}
+function pruneEmptySourceDirectories(path: string, root: string): void {
+  let directory = dirname(path);
+  while (directory !== root && !relative(root, directory).startsWith("..")) {
+    if (!existsSync(directory) || readdirSync(directory).length > 0) return;
+    rmdirSync(directory);
+    directory = dirname(directory);
+  }
+}
+
+
+function shardRoot(locations: TrackRegistryLocations): string {
+  return dirname(locations.sourceDirectory);
+}
+
+function sourceFilePath(locations: TrackRegistryLocations, filename: string): string {
+  const root = shardRoot(locations);
+  const path = resolve(root, filename);
+  if (relative(root, path).startsWith("..")) {
+    throw new Error(`Invalid track registry shard path ${filename}`);
+  }
+  return path;
+}
+
+function isUpdateSidecar(name: string): boolean {
+  return /\.(?:backup|stage)\.[a-z0-9]+$/i.test(name);
+}
+
+function readDirectory(path: string): Dirent[] {
+  if (!existsSync(path)) throw new Error(`Missing track registry directory ${path}`);
+  return readdirSync(path, { withFileTypes: true });
+}
+
+function sourcePaths(locations: TrackRegistryLocations): string[] {
+  const root = shardRoot(locations);
+  const venuesRoot = resolve(root, VENUES_DIRECTORY);
+  const paths: string[] = [];
+
+  function collectTrackPaths(directory: string, venuePath: string): void {
+    const tracksDirectory = resolve(directory, TRACKS_DIRECTORY);
+    if (!existsSync(tracksDirectory)) return;
+    for (const entry of readDirectory(tracksDirectory)) {
+      if (isUpdateSidecar(entry.name)) continue;
+      if (!entry.isDirectory()) {
+        throw new Error(`Unexpected track metadata shard ${resolve(tracksDirectory, entry.name)}`);
+      }
+      const metadataPath = resolve(tracksDirectory, entry.name, TRACK_METADATA_FILE);
+      if (!existsSync(metadataPath)) {
+        const remaining = readDirectory(resolve(tracksDirectory, entry.name)).filter((candidate) => !isUpdateSidecar(candidate.name));
+        if (remaining.length === 0) continue;
+        throw new Error(`Missing track metadata shard ${metadataPath}`);
+      }
+      paths.push(`${canonicalTrackAssetPathComponents(venuePath, entry.name).join("/")}/${TRACK_METADATA_FILE}`);
+    }
+  }
+
+  function collectRevisionPaths(directory: string, rootVenuePath: string, revisionPath: string): void {
+    const venuePath = `${rootVenuePath}/${revisionPath}`;
+    const revisionDocument = resolve(directory, REVISION_FILE);
+    if (existsSync(revisionDocument)) {
+      paths.push(`${revisionDirectoryPathComponents(venuePath).join("/")}/${REVISION_FILE}`);
+    } else if (existsSync(resolve(directory, TRACKS_DIRECTORY))) {
+      throw new Error(`Missing revision metadata shard ${revisionDocument}`);
+    }
+    collectTrackPaths(directory, venuePath);
+
+    for (const entry of readDirectory(directory)) {
+      if (!entry.isDirectory() || entry.name === TRACKS_DIRECTORY) continue;
+      const child = resolve(directory, entry.name);
+      if (existsSync(resolve(child, VENUE_FILE))) {
+        throw new Error(`Unexpected nested venue metadata shard ${resolve(child, VENUE_FILE)}`);
+      }
+      if (entry.name === "imagery") continue;
+      collectRevisionPaths(child, rootVenuePath, `${revisionPath}/${entry.name}`);
+    }
+  }
+
+  for (const entry of readDirectory(venuesRoot)) {
+    if (!entry.isDirectory()) continue;
+    const directory = resolve(venuesRoot, entry.name);
+    const venueDocument = resolve(directory, VENUE_FILE);
+    if (!existsSync(venueDocument)) {
+      throw new Error(`Missing venue metadata shard ${venueDocument}`);
+    }
+    paths.push(`${VENUES_DIRECTORY}/${entry.name}/${VENUE_FILE}`);
+    const directTracks = resolve(directory, TRACKS_DIRECTORY);
+    if (existsSync(directTracks)) {
+      throw new Error(`Unexpected direct track metadata directory ${directTracks}`);
+    }
+    for (const child of readDirectory(directory)) {
+      if (child.isDirectory() && child.name !== REVISIONS_DIRECTORY && existsSync(resolve(directory, child.name, VENUE_FILE))) {
+        throw new Error(`Unexpected nested venue metadata shard ${resolve(directory, child.name, VENUE_FILE)}`);
+      }
+    }
+    const revisionsDirectory = resolve(directory, REVISIONS_DIRECTORY);
+    if (!existsSync(revisionsDirectory)) continue;
+    for (const revision of readDirectory(revisionsDirectory)) {
+      if (revision.isDirectory()) collectRevisionPaths(resolve(revisionsDirectory, revision.name), entry.name, revision.name);
+    }
+  }
+  if (existsSync(resolve(root, "meta"))) {
+    throw new Error(`Unexpected legacy track metadata directory ${resolve(root, "meta")}`);
+  }
+  if (existsSync(locations.sourceDirectory)) {
+    for (const entry of readDirectory(locations.sourceDirectory)) {
+      if (isUpdateSidecar(entry.name)) continue;
+      if (entry.isFile() && entry.name.endsWith(".json")) {
+        throw new Error(`Unexpected aggregate track registry source ${resolve(locations.sourceDirectory, entry.name)}`);
+      }
+    }
+  }
+  for (const gameId of KNOWN_GAME_IDS) {
+    const gameDirectory = resolve(root, gameId);
+    if (!existsSync(gameDirectory)) continue;
+    for (const entry of readDirectory(gameDirectory)) {
+      if (entry.isFile() && entry.name.endsWith(SEGMENTS_SUFFIX)) {
+        throw new Error(`Unexpected legacy track segments shard ${resolve(gameDirectory, entry.name)}`);
+      }
+    }
+  }
+  return paths.sort((a, b) => a.localeCompare(b));
+}
+
+export function readTrackRegistrySourceFiles(
+  locations: TrackRegistryLocationsInput = {},
+): ReadonlyMap<string, string> {
+  const resolved = resolveTrackRegistryLocations(locations);
+  return new Map(sourcePaths(resolved).map((filename) => [filename, readFile(sourceFilePath(resolved, filename))]));
 }
 
 export function resolveTrackRegistryLocations(locations: TrackRegistryLocationsInput = {}): TrackRegistryLocations {
@@ -379,34 +537,160 @@ export function resolveTrackRegistryLocations(locations: TrackRegistryLocationsI
     ...locations,
   };
 }
+function findColocatedAsset(
+  directory: string,
+  root: string,
+  registryPaths: ReadonlySet<string>,
+): string | null {
+  if (!existsSync(directory)) return null;
+  for (const entry of readDirectory(directory)) {
+    if (isUpdateSidecar(entry.name)) continue;
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) {
+      const nested = findColocatedAsset(path, root, registryPaths);
+      if (nested) return nested;
+      continue;
+    }
+    const relativePath = relative(root, path).replaceAll("\\", "/");
+    if (!registryPaths.has(relativePath)) return path;
+  }
+  return null;
+}
+
+function assertRemovedMetadataHasNoAssets(
+  current: ReadonlyMap<string, string>,
+  next: ReadonlyMap<string, string>,
+  locations: TrackRegistryLocations,
+): void {
+  const root = shardRoot(locations);
+  const currentPaths = new Set(current.keys());
+  for (const filename of currentPaths) {
+    if (next.has(filename)) continue;
+    const asset = findColocatedAsset(dirname(sourceFilePath(locations, filename)), root, currentPaths);
+    if (asset) {
+      throw new Error(`Cannot remove track metadata ${filename} while colocated asset remains: ${asset}`);
+    }
+  }
+}
+
+
+function parseJsonDocument(contents: string, filename: string): unknown {
+  try {
+    return JSON.parse(contents);
+  } catch {
+    throw new Error(`Invalid JSON in ${filename}`);
+  }
+}
 
 function parseSourceDocuments(locations: TrackRegistryLocations): TrackRegistrySource {
-  const sourceDirectory = locations.sourceDirectory;
-  const [configurations, facts, geometry, verification] = [
-    readFile(resolve(sourceDirectory, CONFIGURATIONS_FILE)),
-    readFile(resolve(sourceDirectory, FACTS_FILE)),
-    readFile(resolve(sourceDirectory, GEOMETRY_FILE)),
-    readFile(resolve(sourceDirectory, VERIFICATION_FILE)),
-  ].map((contents, index) => {
-    const name = TRACK_SOURCE_FILES[index];
-    let raw: unknown;
-    try {
-      raw = JSON.parse(contents);
-    } catch (error) {
-      throw new Error(`Invalid JSON in ${name}`);
+  const files = readTrackRegistrySourceFiles(locations);
+  const venues: TrackConfigurationSource["venues"] = [];
+  const layouts: TrackConfigurationSource["layouts"] = [];
+  const assignments: TrackConfigurationSource["assignments"] = [];
+  const facts: TrackFacts[] = [];
+  const geometry: TrackGeometrySource["geometry"] = [];
+  const entries: VerifiedLedger = {};
+  const revisions = new Map<string, { rootVenuePath: string; revisionPath: string; name: string }>();
+
+  for (const [filename, contents] of files) {
+    const venueMatch = VENUE_METADATA_PATH.exec(filename);
+    if (venueMatch) {
+      const venue = VenueMetadataFileSchema.parse(parseJsonDocument(contents, filename));
+      if (venue.id !== venueMatch[1]) {
+        throw new Error(`Venue metadata shard ${filename} must match venue id ${venue.id}`);
+      }
+      venues.push({ id: venue.id, name: venue.name });
+      continue;
     }
-    if (name === CONFIGURATIONS_FILE) return TrackConfigurationsSchema.parse(raw);
-    if (name === FACTS_FILE) return TrackFactsFileSchema.parse(raw);
-    if (name === GEOMETRY_FILE) return TrackGeometryFileSchema.parse(raw);
-    return TrackVerificationFileSchema.parse(raw);
-  });
+
+    const revisionMatch = REVISION_METADATA_PATH.exec(filename);
+    if (revisionMatch) {
+      const revision = RevisionMetadataFileSchema.parse(parseJsonDocument(contents, filename));
+      const venuePath = `${revisionMatch[1]}/${revisionMatch[2]}`;
+      const { rootVenuePath, revisionPath } = parseVenueRevisionPath(venuePath);
+      if (revision.id !== revisionPath) {
+        throw new Error(`Revision metadata shard ${filename} must match revision id ${revision.id}`);
+      }
+      if (revisionPath !== CURRENT_TRACK_REVISION) {
+        revisions.set(venuePath, { rootVenuePath, revisionPath, name: revision.name });
+      }
+      continue;
+    }
+
+    const trackMatch = TRACK_METADATA_PATH.exec(filename);
+    if (!trackMatch) throw new Error(`Unexpected track metadata shard ${filename}`);
+    const venuePath = `${trackMatch[1]}/${trackMatch[2]}`;
+    const { rootVenuePath, revisionPath } = parseVenueRevisionPath(venuePath);
+    const layoutId = `${rootVenuePath}/${revisionPath === CURRENT_TRACK_REVISION ? "" : `${revisionPath}/`}${trackMatch[3]}`;
+    const track = TrackMetadataFileSchema.parse(parseJsonDocument(contents, filename));
+    if (track.id !== layoutId) {
+      throw new Error(`Track metadata shard ${filename} must match layout id ${track.id}`);
+    }
+    if ((track.geometryByGame || track.verification) && !track.facts) {
+      throw new Error(`Track metadata shard ${filename} needs facts for geometry or verification`);
+    }
+    layouts.push({
+      id: track.id,
+      name: track.name,
+      ...(track.facts ? { factsSlug: track.facts.slug } : {}),
+    });
+    for (const assignment of track.assignments) {
+      assignments.push({
+        ...assignment,
+        layoutId: track.id,
+      });
+    }
+    if (!track.facts) continue;
+
+    facts.push(track.facts);
+    for (const [gameId, value] of Object.entries(track.geometryByGame ?? {}) as Array<[GameId, TrackGeometry]>) {
+      geometry.push({
+        factsSlug: track.facts.slug,
+        gameId,
+        ...(value.sectors ? { sectors: value.sectors } : {}),
+        segments: value.segments,
+      });
+    }
+    if (track.verification?.meta) {
+      entries[`meta:${track.facts.slug}`] = track.verification.meta;
+    }
+    for (const [gameId, entry] of Object.entries(track.verification?.segments ?? {}) as Array<[GameId, VerifiedEntry]>) {
+      entries[`segments:${gameId}/${track.facts.slug}`] = entry;
+    }
+  }
+
+  for (const { rootVenuePath, revisionPath, name } of revisions.values()) {
+    const components = revisionDirectoryPathComponents(`${rootVenuePath}/${revisionPath}`).slice(3);
+    for (let index = 0; index < components.length; index += 1) {
+      const path = `${rootVenuePath}/${components.slice(0, index + 1).join("/")}`;
+      const explicitName = revisions.get(path)?.name;
+      if (!venues.some((venue) => venue.id === path)) {
+        venues.push({ id: path, name: explicitName ?? (index === components.length - 1 ? name : components[index]!) });
+      }
+    }
+  }
 
   return {
-    configurations,
-    facts,
-    geometry,
-    verification,
-  } as TrackRegistrySource;
+
+    configurations: {
+      version: TRACK_REGISTRY_SOURCE_VERSION,
+      venues,
+      layouts,
+      assignments,
+    },
+    facts: {
+      version: TRACK_REGISTRY_SOURCE_VERSION,
+      facts,
+    },
+    geometry: {
+      version: TRACK_REGISTRY_SOURCE_VERSION,
+      geometry,
+    },
+    verification: {
+      version: TRACK_REGISTRY_SOURCE_VERSION,
+      entries,
+    },
+  };
 }
 
 function canonicalizeCorner(corner: CornerFact): CornerFact {
@@ -548,6 +832,10 @@ function validateTrackConfigurationSource(source: TrackRegistrySource): TrackReg
   for (const venue of canonical.configurations.venues) {
     if (venueIds.has(venue.id)) errors.push(`Duplicate venue ${venue.id}`);
     venueIds.add(venue.id);
+    const { rootVenuePath, revisionPath } = parseVenueRevisionPath(venue.id);
+    if (revisionPath === CURRENT_TRACK_REVISION && venue.id !== rootVenuePath) {
+      errors.push(`Current revision must not add venue node ${venue.id}`);
+    }
     const parent = deriveVenueParent(venue.id);
     if (parent && !venueIds.has(parent) && !canonical.configurations.venues.some((candidate) => candidate.id === parent)) {
       errors.push(`Missing parent venue for ${venue.id}: ${parent}`);
@@ -558,6 +846,7 @@ function validateTrackConfigurationSource(source: TrackRegistrySource): TrackReg
   const assignmentKeys = new Set<string>();
   const layoutVenueMissing: string[] = [];
   const layoutRefsFacts = new Set<string>();
+  const factsLayoutIds = new Map<string, string>();
   for (const fact of canonical.facts.facts) {
     if (layoutRefsFacts.has(fact.slug)) errors.push(`Duplicate facts ${fact.slug}`);
     layoutRefsFacts.add(fact.slug);
@@ -567,16 +856,31 @@ function validateTrackConfigurationSource(source: TrackRegistrySource): TrackReg
     if (layoutIds.has(layout.id)) errors.push(`Duplicate layout ${layout.id}`);
     layoutIds.add(layout.id);
     const parent = deriveLayoutVenuePath(layout.id);
+    const { venuePath } = parseCanonicalTrackId(layout.id);
+    const { rootVenuePath, revisionPath } = parseVenueRevisionPath(venuePath);
+    if (revisionPath === CURRENT_TRACK_REVISION && venuePath !== rootVenuePath) {
+      errors.push(`Current revision must not appear in canonical layout id ${layout.id}`);
+    }
     if (!canonical.configurations.venues.some((venue) => venue.id === parent)) {
       layoutVenueMissing.push(layout.id);
     }
     if (layout.factsSlug && !layoutRefsFacts.has(layout.factsSlug)) {
       errors.push(`Layout ${layout.id} references unknown factsSlug ${layout.factsSlug}`);
     }
+    if (layout.factsSlug) {
+      const previousLayout = factsLayoutIds.get(layout.factsSlug);
+      if (previousLayout) {
+        errors.push(`Facts ${layout.factsSlug} belongs to multiple layouts: ${previousLayout}, ${layout.id}`);
+      }
+      factsLayoutIds.set(layout.factsSlug, layout.id);
+    }
   }
 
   if (layoutVenueMissing.length > 0) {
     errors.push(...layoutVenueMissing.map((layout) => `Missing layout venue for ${layout}`));
+  }
+  for (const fact of canonical.facts.facts) {
+    if (!factsLayoutIds.has(fact.slug)) errors.push(`Facts ${fact.slug} has no layout metadata shard`);
   }
 
   const layoutMap = new Set(canonical.configurations.layouts.map((layout) => layout.id));
@@ -704,10 +1008,67 @@ export function loadTrackRegistrySource(locations: TrackRegistryLocationsInput =
 export function renderTrackRegistrySource(source: TrackRegistrySource): ReadonlyMap<string, string> {
   const canonical = validateTrackConfigurationSource(source);
   const map = new Map<string, string>();
-  map.set(CONFIGURATIONS_FILE, jsonBytes(canonical.configurations));
-  map.set(FACTS_FILE, jsonBytes(canonical.facts));
-  map.set(GEOMETRY_FILE, jsonBytes(canonical.geometry));
-  map.set(VERIFICATION_FILE, jsonBytes(canonical.verification));
+  const factsBySlug = new Map(canonical.facts.facts.map((fact) => [fact.slug, fact]));
+  const geometryByFactsSlug = new Map<string, TrackGeometrySource["geometry"]>();
+  for (const geometry of canonical.geometry.geometry) {
+    const rows = geometryByFactsSlug.get(geometry.factsSlug) ?? [];
+    rows.push(geometry);
+    geometryByFactsSlug.set(geometry.factsSlug, rows);
+  }
+
+  for (const venue of canonical.configurations.venues) {
+    const { rootVenuePath, revisionPath } = parseVenueRevisionPath(venue.id);
+    if (revisionPath === CURRENT_TRACK_REVISION) {
+      map.set(`${VENUES_DIRECTORY}/${rootVenuePath}/${VENUE_FILE}`, jsonBytes({
+        version: TRACK_REGISTRY_SOURCE_VERSION,
+        id: venue.id,
+        name: venue.name,
+      }));
+      map.set(`${revisionDirectoryPathComponents(venue.id).join("/")}/${REVISION_FILE}`, jsonBytes({
+        version: TRACK_REGISTRY_SOURCE_VERSION,
+        id: CURRENT_TRACK_REVISION,
+        name: "Current",
+      }));
+      continue;
+    }
+    map.set(`${revisionDirectoryPathComponents(venue.id).join("/")}/${REVISION_FILE}`, jsonBytes({
+      version: TRACK_REGISTRY_SOURCE_VERSION,
+      id: revisionPath,
+      name: venue.name,
+    }));
+  }
+  for (const layout of canonical.configurations.layouts) {
+    const fact = layout.factsSlug ? factsBySlug.get(layout.factsSlug) : undefined;
+    if (layout.factsSlug && !fact) throw new Error(`Layout ${layout.id} references unknown factsSlug ${layout.factsSlug}`);
+    const geometryByGame: Partial<Record<GameId, TrackGeometry>> = {};
+    for (const geometry of fact ? geometryByFactsSlug.get(fact.slug) ?? [] : []) {
+      geometryByGame[geometry.gameId] = {
+        ...(geometry.sectors ? { sectors: geometry.sectors } : {}),
+        segments: geometry.segments,
+      };
+    }
+    const segmentVerification = fact ? Object.fromEntries(
+      Object.keys(geometryByGame)
+        .filter((gameId) => canonical.verification.entries[`segments:${gameId}/${fact.slug}`])
+        .map((gameId) => [gameId, canonical.verification.entries[`segments:${gameId}/${fact.slug}`]!]),
+    ) : {};
+    const verification = fact ? {
+      ...(canonical.verification.entries[`meta:${fact.slug}`] ? { meta: canonical.verification.entries[`meta:${fact.slug}`] } : {}),
+      ...(Object.keys(segmentVerification).length ? { segments: segmentVerification } : {}),
+    } : undefined;
+    const { venuePath, layoutSlug } = parseCanonicalTrackId(layout.id);
+    map.set(`${canonicalTrackAssetPathComponents(venuePath, layoutSlug).join("/")}/${TRACK_METADATA_FILE}`, jsonBytes({
+      version: TRACK_REGISTRY_SOURCE_VERSION,
+      id: layout.id,
+      name: layout.name,
+      assignments: canonical.configurations.assignments
+        .filter((assignment) => assignment.layoutId === layout.id)
+        .map(({ gameId, trackOrdinal, confirmation }) => ({ gameId, trackOrdinal, confirmation })),
+      ...(fact ? { facts: fact } : {}),
+      ...(Object.keys(geometryByGame).length ? { geometryByGame } : {}),
+      ...(verification && Object.keys(verification).length ? { verification } : {}),
+    }));
+  }
   return map;
 }
 
@@ -984,9 +1345,24 @@ export function buildTrackRegistryArtifacts(
     Bun.gc(true);
     const report = renderTrackRegistryReport(projection);
     writeFile(stagedReport, report);
+    if (resolve(resolved.databasePath) === resolve(resolveTrackRegistryLocations().databasePath)) {
+      writeGeneratedTrackRegistry((database) => {
+        clearTrackRegistryProjection(database);
+        insertTrackRegistryProjection(database, canonical, sourceHash);
+      });
+      const committedProjection = readTrackRegistryProjection(resolved.databasePath);
+      writeAtomicFile(resolved.reportPath, renderTrackRegistryReport(committedProjection));
+      return {
+        sourceHash,
+        projection: committedProjection,
+        report: renderTrackRegistryReport(committedProjection),
+      };
+    }
     if (existsSync(resolved.databasePath)) copyFileSync(resolved.databasePath, databaseBackup);
     if (existsSync(resolved.reportPath)) copyFileSync(resolved.reportPath, reportBackup);
     try {
+      removeIfExists(resolved.databasePath);
+      removeIfExists(resolved.reportPath);
       renameSync(stagedDatabase, resolved.databasePath);
       renameSync(stagedReport, resolved.reportPath);
     } catch (error) {
@@ -1374,14 +1750,19 @@ function stageTrackRegistrySourceUpdate(
   const reportStaged = `${resolved.reportPath}.stage.${sessionId}`;
 
   try {
-    for (const filename of TRACK_SOURCE_FILES) {
-      const sourcePath = resolve(resolved.sourceDirectory, filename);
-      const backupPath = `${sourcePath}.backup.${sessionId}`;
-      const stagedPath = `${sourcePath}.stage.${sessionId}`;
-      writeFile(backupPath, renderedCurrent.get(filename)!);
-      writeFile(stagedPath, renderedNext.get(filename)!);
-      sourceBackups[filename] = backupPath;
-      sourceStaged[filename] = stagedPath;
+    const filenames = new Set([...renderedCurrent.keys(), ...renderedNext.keys()]);
+    for (const filename of filenames) {
+      const sourcePath = sourceFilePath(resolved, filename);
+      if (renderedCurrent.has(filename)) {
+        const backupPath = `${sourcePath}.backup.${sessionId}`;
+        writeFile(backupPath, renderedCurrent.get(filename)!);
+        sourceBackups[filename] = backupPath;
+      }
+      if (renderedNext.has(filename)) {
+        const stagedPath = `${sourcePath}.stage.${sessionId}`;
+        writeFile(stagedPath, renderedNext.get(filename)!);
+        sourceStaged[filename] = stagedPath;
+      }
     }
     if (existsSync(resolved.databasePath)) copyFileSync(resolved.databasePath, databaseBackup);
     if (existsSync(resolved.reportPath)) copyFileSync(resolved.reportPath, reportBackup);
@@ -1410,10 +1791,24 @@ function stageTrackRegistrySourceUpdate(
 }
 
 function writeAtomicFile(path: string, content: string): void {
-  const temporary = `${path}.${randomBytes(8).toString("hex")}.tmp`;
+  const nonce = randomBytes(8).toString("hex");
+  const temporary = `${path}.${nonce}.tmp`;
+  const backup = `${path}.${nonce}.backup`;
+  let backedUp = false;
   writeFile(temporary, content);
   try {
+    if (existsSync(path)) {
+      renameSync(path, backup);
+      backedUp = true;
+    }
     renameSync(temporary, path);
+    removeIfExists(backup);
+  } catch (error) {
+    if (backedUp && existsSync(backup)) {
+      removeIfExists(path);
+      renameSync(backup, path);
+    }
+    throw error;
   } finally {
     removeIfExists(temporary);
   }
@@ -1421,27 +1816,31 @@ function writeAtomicFile(path: string, content: string): void {
 
 function cleanTrackRegistryUpdateFiles(
   journal: TrackRegistryUpdateJournal,
-  transactionPath: string,
+  resolved: TrackRegistryLocations,
 ): void {
-  for (const filename of TRACK_SOURCE_FILES) {
-    removeIfExists(journal.sourceStaged[filename]);
-    removeIfExists(journal.sourceBackups[filename]);
+  for (const path of [...Object.values(journal.sourceStaged), ...Object.values(journal.sourceBackups)]) {
+    removeIfExists(path);
   }
   removeIfExists(journal.databaseStaged);
   removeIfExists(journal.databaseBackup);
   removeIfExists(journal.reportStaged);
   removeIfExists(journal.reportBackup);
-  removeIfExists(transactionPath);
+  removeIfExists(resolved.transactionPath);
+  const root = shardRoot(resolved);
+  for (const filename of new Set([
+    ...Object.keys(journal.sourceStaged),
+    ...Object.keys(journal.sourceBackups),
+  ])) {
+    pruneEmptySourceDirectories(sourceFilePath(resolved, filename), root);
+  }
 }
 
-function actualSourceHash(sourceDirectory: string): string | null {
-  const files = new Map<string, string>();
-  for (const filename of TRACK_SOURCE_FILES) {
-    const path = resolve(sourceDirectory, filename);
-    if (!existsSync(path)) return null;
-    files.set(filename, readFile(path));
+function actualSourceHash(locations: TrackRegistryLocations): string | null {
+  try {
+    return sha256OverSourceFiles(readTrackRegistrySourceFiles(locations));
+  } catch {
+    return null;
   }
-  return sha256OverSourceFiles(files);
 }
 
 
@@ -1477,12 +1876,14 @@ function restoreOldRegistryUpdate(
   journal: TrackRegistryUpdateJournal,
   resolved: TrackRegistryLocations,
 ): void {
-  for (const filename of TRACK_SOURCE_FILES) {
-    const backup = journal.sourceBackups[filename];
-    if (!backup || !existsSync(backup)) {
-      throw new Error(`Missing track registry source backup ${backup ?? filename}`);
+  for (const filename of Object.keys(journal.sourceStaged)) {
+    if (!journal.sourceBackups[filename]) removeIfExists(sourceFilePath(resolved, filename));
+  }
+  for (const [filename, backup] of Object.entries(journal.sourceBackups)) {
+    if (!existsSync(backup)) {
+      throw new Error(`Missing track registry source backup ${backup}`);
     }
-    copyFileSync(backup, resolve(resolved.sourceDirectory, filename));
+    copyFileSync(backup, sourceFilePath(resolved, filename));
   }
   const restored = loadTrackRegistrySource(resolved);
   const restoredHash = sha256OverSourceFiles(renderTrackRegistrySource(restored));
@@ -1490,7 +1891,7 @@ function restoreOldRegistryUpdate(
     throw new Error("Track registry recovery old-source hash mismatch");
   }
   rebuildRegistryArtifacts(restored, resolved);
-  cleanTrackRegistryUpdateFiles(journal, resolved.transactionPath);
+  cleanTrackRegistryUpdateFiles(journal, resolved);
 }
 
 export function recoverTrackRegistrySourceUpdate(locations: TrackRegistryLocationsInput = {}): void {
@@ -1506,14 +1907,14 @@ export function recoverTrackRegistrySourceUpdate(locations: TrackRegistryLocatio
     throw new Error(`Unsupported track registry update transaction schema version ${journal.version}`);
   }
 
-  if (actualSourceHash(resolved.sourceDirectory) === journal.newSourceHash) {
+  if (actualSourceHash(resolved) === journal.newSourceHash) {
     const source = loadTrackRegistrySource(resolved);
     const canonicalHash = sha256OverSourceFiles(renderTrackRegistrySource(source));
     if (canonicalHash !== journal.newSourceHash) {
       throw new Error("Track registry recovery new-source hash mismatch");
     }
     rebuildRegistryArtifacts(source, resolved);
-    cleanTrackRegistryUpdateFiles(journal, resolved.transactionPath);
+    cleanTrackRegistryUpdateFiles(journal, resolved);
     return;
   }
   restoreOldRegistryUpdate(journal, resolved);
@@ -1533,16 +1934,20 @@ export function updateTrackRegistrySource(
   const next = validateTrackConfigurationSource(mutated);
   const nextRendered = renderTrackRegistrySource(next);
   const nextHash = sha256OverSourceFiles(nextRendered);
-  const needsCanonicalRewrite = TRACK_SOURCE_FILES.some((filename) =>
-    readFile(resolve(resolved.sourceDirectory, filename)) !== currentRendered.get(filename),
-  );
+  const currentFiles = readTrackRegistrySourceFiles(resolved);
+  const needsCanonicalRewrite = currentFiles.size !== currentRendered.size ||
+    [...currentRendered].some(([filename, contents]) => currentFiles.get(filename) !== contents);
   if (currentHash === nextHash && !needsCanonicalRewrite) return;
+  assertRemovedMetadataHasNoAssets(currentRendered, nextRendered, resolved);
 
   const journal = stageTrackRegistrySourceUpdate(current, next, resolved, currentHash, nextHash);
   writeAtomicFile(resolved.transactionPath, `${JSON.stringify(journal, null, 2)}\n`);
   try {
-    for (const filename of TRACK_SOURCE_FILES) {
-      renameSync(journal.sourceStaged[filename], resolve(resolved.sourceDirectory, filename));
+    for (const [filename, staged] of Object.entries(journal.sourceStaged)) {
+      renameSync(staged, sourceFilePath(resolved, filename));
+    }
+    for (const filename of Object.keys(journal.sourceBackups)) {
+      if (!journal.sourceStaged[filename]) removeIfExists(sourceFilePath(resolved, filename));
     }
     if (resolve(resolved.databasePath) === resolve(resolveTrackRegistryLocations().databasePath)) {
       writeGeneratedTrackRegistry((database) => {
@@ -1565,7 +1970,7 @@ export function updateTrackRegistrySource(
     restoreOldRegistryUpdate(journal, resolved);
     throw error;
   }
-  cleanTrackRegistryUpdateFiles(journal, resolved.transactionPath);
+  cleanTrackRegistryUpdateFiles(journal, resolved);
 }
 
 export function assertTrackRegistryArtifactsCurrent(locations: TrackRegistryLocationsInput = {}): void {
@@ -1575,10 +1980,13 @@ export function assertTrackRegistryArtifactsCurrent(locations: TrackRegistryLoca
   }
   const source = loadTrackRegistrySource(resolved);
   const rendered = renderTrackRegistrySource(source);
-  for (const filename of TRACK_SOURCE_FILES) {
-    const path = resolve(resolved.sourceDirectory, filename);
-    if (readFile(path) !== rendered.get(filename)) {
-      throw new Error(`Non-canonical track registry source ${path}; run bun run tracks:registry`);
+  const actual = readTrackRegistrySourceFiles(resolved);
+  if (actual.size !== rendered.size) {
+    throw new Error("Non-canonical track registry source file set; run bun run tracks:registry");
+  }
+  for (const [filename, contents] of rendered) {
+    if (actual.get(filename) !== contents) {
+      throw new Error(`Non-canonical track registry source ${sourceFilePath(resolved, filename)}; run bun run tracks:registry`);
     }
   }
 

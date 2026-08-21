@@ -10,34 +10,43 @@ Four layers, highest wins. Each one may be partial; lower layers fill the gaps.
 
 | Rank | Layer | Canonical source | Authored by |
 |------|-------|------------------|-------------|
-| 1 | **Curated geometry** | `registry-source/geometry.json` | human, per game |
-| 2 | **Curated roster** (names, numbers, direction, groups) | `registry-source/facts.json` | human, shared across games |
-| 3 | **Detect hints** (nudges for fallback detector) | `shared/data/tracks/detect-hints.json` | human |
+| 1 | **Curated geometry** | layout shard `geometryByGame` | human, per game |
+| 2 | **Curated roster** (names, numbers, direction, groups) | layout shard `facts` | human, shared across games |
+| 3 | **Detect hints** (nudges for fallback detector) | layout sibling `detect-hints.json` | human |
 | 4 | **Fallback detector** | `detectCornerRegions()` in `shared/racing/tracks/curation/segment-align-detect.ts` | code |
 
 ### Registry storage and authoring
 
-Four JSON files under `shared/data/tracks/registry-source/` are canonical:
-`configurations.json`, `facts.json`, `geometry.json`, and `verification.json`.
-Editors and curation commands update these source files first, then regenerate
-`registry.sqlite` and `registry-report.json`. Never edit generated SQLite rows or
-export SQLite back into source.
+Venue/revision/layout source beside assets under `shared/data/tracks/venues/` is canonical:
 
-Runtime builds ship and read `registry.sqlite` only. Source JSON and report remain
-development and review artifacts. Resolve binary or report merge conflicts by
-merging canonical JSON, then run:
-
-```bash
-bun run tracks:registry
-bun run tracks:registry:check
+```text
+venues/<root-venue>/venue.json
+venues/<root-venue>/revisions/<revision-path>/revision.json
+venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
 ```
+
+`current` is source-only default revision. Current canonical layout ID remains
+`<root-venue>/<layout>`. Historical IDs are
+`<root-venue>/<revision-path>/<layout>`; revision paths may be nested, such as
+`historical/2011`. Never put layout before revision or add `current` to ID.
+Historical revision documents recreate existing nested venue nodes; current does
+not project revision venue node.
+
+Editors and curation commands update source manifests first, then regenerate
+`registry.sqlite` and `registry-report.json`. Never edit generated SQLite rows or
+export SQLite into source. Runtime package includes revision imagery, layout
+geometry/guides, and root shared geometry. It excludes venue/revision/layout
+manifests and layout `detect-hints.json`.
+
+Resolve generated SQLite/report conflicts by merging source manifests, then
+regenerate registry.
 
 ### Why the roster is shared but geometry is not
 
 Circuit corner names and numbering are properties of circuit. Spa's Eau Rouge is
-Eau Rouge in every game, so roster exists once in `registry-source/facts.json`,
-keyed by facts slug. Corner location depends on game centerline, so geometry
-entries in `registry-source/geometry.json` use game ID plus slug.
+Eau Rouge in every game, so one layout shard stores roster once in `facts`.
+Corner location depends on game centerline, so same shard stores fractional
+geometry separately by game in `geometryByGame`.
 
 iRacing is separate: native `SplitTimeInfo.Sectors` is variable-length session
 metadata and flows through telemetry as an array. Registry's curated boundaries
@@ -72,16 +81,16 @@ Three claims, weakest to strongest. They are tracked separately because each say
 
 | Claim | Means | Proof |
 |-------|-------|-------|
-| **Curated roster** | someone hand-authored non-empty corner facts | canonical facts entries |
-| **Facts human-verified** | someone checked roster against real turn-by-turn guide | facts entry in canonical verification ledger |
-| **Geometry human-verified** | someone checked game's rendered geometry | geometry entry in canonical verification ledger |
+| **Curated roster** | someone hand-authored non-empty corner facts | layout `metadata.json` facts |
+| **Facts human-verified** | someone checked roster against real turn-by-turn guide | matching layout-metadata verification record |
+| **Geometry human-verified** | someone checked game's rendered geometry | matching layout-metadata verification record |
 
 ### Verification records
 
-Sign-offs live in `shared/data/tracks/registry-source/verification.json`.
-Each entry identifies kind, facts slug, and optional game ID, then stores content
-hash, date, reviewer, and note. Generated `curation_verification` SQLite rows
-mirror this ledger for runtime queries; they are not an authoring surface.
+Sign-offs live in each canonical layout `metadata.json` under `verification`.
+Each record identifies kind and optional game ID, then stores content hash, date,
+reviewer, and note. Generated `curation_verification` SQLite rows mirror those
+records for runtime queries; they are not an authoring surface.
 
 Facts verification hashes normalized roster source. Geometry verification hashes
 normalized per-game geometry source. Editing relevant source makes previous
@@ -120,8 +129,8 @@ Every cell is `n/total (pct%)`, optionally `+N stale`.
 |--------|--------|---------------|
 | **Tracks** | the denominator — distinct slugs this game ships a centerline for | `listAllCenterlines()` |
 | **Curated roster** | slugs with non-empty registry corner rows | `listCuratedSlugs()` |
-| **Facts human-verified** | roster rows signed off **and unchanged since** | ledger hash vs normalized facts |
-| **Geometry human-verified** | game's geometry rows signed off and unchanged since | ledger hash vs normalized geometry |
+| **Facts human-verified** | roster rows signed off **and unchanged since** | layout verification hash vs normalized facts |
+| **Geometry human-verified** | game's geometry rows signed off and unchanged since | layout verification hash vs normalized geometry |
 | **Not yet curated** | the exact uncurated slugs, so the remainder is actionable rather than a number | |
 | **`+N stale`** | signed off, then the file changed — signature void, needs a re-look | |
 
@@ -338,7 +347,7 @@ bun run tracks:coverage --write
 
 Rules:
 
-- **Only a human verifies.** Nothing in generation pipeline stamps ledger. Claude proposes; user confirms what they actually looked at.
+- **Only a human verifies.** Nothing in generation pipeline stamps verification records. Claude proposes; user confirms what they actually looked at.
 - **Signatures pin a content hash.** Edit signed source and its entry goes stale — it drops out of verified count and shows as `+N stale` until someone looks again.
 - **You cannot verify what was never curated.** Tests assert verified never exceeds curated.
 - **Low numbers are honest.** Not metric to farm.
@@ -353,10 +362,12 @@ If a track looks wrong in the app: fix that track's curated data.
 
 | Concern | Source |
 |---------|--------|
-| Venue/layout identity and game assignments | `shared/data/tracks/registry-source/configurations.json` |
-| Track facts and corner rosters | `shared/data/tracks/registry-source/facts.json` |
-| Per-game sectors and segment fractions | `shared/data/tracks/registry-source/geometry.json` |
-| Human verification ledger | `shared/data/tracks/registry-source/verification.json` |
+| Venue identity | `shared/data/tracks/venues/<root-venue>/venue.json` |
+| Revision identity | `shared/data/tracks/venues/<root-venue>/revisions/<revision-path>/revision.json` |
+| Layout identity, game assignments, facts, per-game geometry, and verification | `shared/data/tracks/venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json` |
+| Shippable revision imagery | sibling `imagery/` beneath revision directory |
+| Layout geometry, authored guide, and source-only detector hints | sibling `geometry/<gameId>/`, `guide.json`, and `detect-hints.json` beneath layout directory |
+| Shared ACC/TUMFTM geometry | `shared/data/tracks/venues/<root-venue>/geometry/` |
 | Generated runtime projection and audit | `shared/data/tracks/registry.sqlite`, `shared/data/tracks/registry-report.json` |
 | Runtime registry access | `shared/racing/tracks/registry.ts`, `shared/racing/tracks/storage/meta.ts` |
 | Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |

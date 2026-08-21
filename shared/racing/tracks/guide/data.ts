@@ -11,8 +11,8 @@ import type { TrackGuideCornerFile, TrackGuideFile } from "./types";
 export const TRACK_GUIDE_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LOCALE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** Base-locale guides. One file per layout slug, id === filename stem. */
-const GUIDES_DIR = resolve(SHARED_DIR, "tracks", "guides");
+/** Canonical venue tree; recursive metadata scan includes every source revision. */
+const VENUES_DIR = resolve(SHARED_DIR, "tracks", "venues");
 
 function assertSlug(slug: string): void {
   if (!TRACK_GUIDE_SLUG_RE.test(slug)) {
@@ -56,7 +56,7 @@ export function validateTrackGuide(raw: unknown, slug: string): TrackGuideFile {
   const g = raw as Record<string, unknown>;
 
   if (g.id !== slug) bad(`id ${JSON.stringify(g.id)} does not match filename`);
-  if (g.locale !== "en") bad(`locale must be "en" (got ${JSON.stringify(g.locale)}) — translations live in guides-<locale>/`);
+  if (g.locale !== "en") bad(`locale must be "en" (got ${JSON.stringify(g.locale)}) — translations live beside the base guide as guide.<locale>.json`);
   if (!str(g.character)) bad("character is empty");
   if (g.sources !== undefined && !str(g.sources)) bad("sources is present but empty");
   if (g.notes !== undefined && !str(g.notes)) bad("notes is present but empty");
@@ -128,23 +128,56 @@ export interface TrackGuideStore {
   invalidate(slug?: string, locale?: string): void;
 }
 
-export function createTrackGuideStore({ guidesDir }: { guidesDir: string }): TrackGuideStore {
+function collectFiles(directory: string, filename: string): string[] {
+  let entries;
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const files: string[] = [];
+  for (const entry of entries) {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) files.push(...collectFiles(path, filename));
+    else if (entry.name === filename) files.push(path);
+  }
+  return files;
+}
+
+function nestedGuideTarget(venuesDir: string, slug: string): string | null {
+  for (const metadataPath of collectFiles(venuesDir, "metadata.json")) {
+    const metadata = readJson(metadataPath) as { facts?: { slug?: unknown } } | null;
+    if (metadata?.facts?.slug === slug) return resolve(dirname(metadataPath), "guide.json");
+  }
+  return null;
+}
+
+export function createTrackGuideStore({
+  guidesDir,
+  nested = false,
+}: {
+  guidesDir: string;
+  nested?: boolean;
+}): TrackGuideStore {
   const guideCache = new Map<string, TrackGuideFile | null>();
+  const guidePaths = new Map<string, string>();
   let slugCache: string[] | null = null;
 
   const list = (): string[] => {
     if (slugCache) return slugCache;
-    let names: string[];
-    try {
-      names = readdirSync(guidesDir);
-    } catch {
-      names = [];
+    const paths = nested
+      ? collectFiles(guidesDir, "guide.json")
+      : readdirSync(guidesDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+        .map((entry) => resolve(guidesDir, entry.name));
+    guidePaths.clear();
+    for (const path of paths) {
+      const raw = readJson(path) as { id?: unknown } | null;
+      if (!raw || typeof raw.id !== "string" || !TRACK_GUIDE_SLUG_RE.test(raw.id)) continue;
+      if (guidePaths.has(raw.id)) throw new Error(`Duplicate track guide ${raw.id}`);
+      guidePaths.set(raw.id, path);
     }
-    slugCache = names
-      .filter((name) => name.endsWith(".json"))
-      .map((name) => name.slice(0, -".json".length))
-      .filter((slug) => TRACK_GUIDE_SLUG_RE.test(slug))
-      .sort();
+    slugCache = [...guidePaths.keys()].sort();
     return slugCache;
   };
 
@@ -153,10 +186,15 @@ export function createTrackGuideStore({ guidesDir }: { guidesDir: string }): Tra
     assertLocale(locale);
     const cacheKey = `${locale}:${slug}`;
     if (guideCache.has(cacheKey)) return guideCache.get(cacheKey) ?? null;
-    const raw = readJson(resolve(guidesDir, `${slug}.json`));
+    list();
+    const path = guidePaths.get(slug);
+    const raw = path ? readJson(path) : null;
     let guide = raw === null ? null : validateTrackGuide(raw, slug);
     if (guide && locale !== "en") {
-      guide = applyOverlay(guide, readJson(resolve(overlayDir(guidesDir, locale), `${slug}.json`)));
+      const overlayPath = nested
+        ? resolve(dirname(path!), `guide.${locale}.json`)
+        : resolve(overlayDir(guidesDir, locale), `${slug}.json`);
+      guide = applyOverlay(guide, readJson(overlayPath));
     }
     guideCache.set(cacheKey, guide);
     return guide;
@@ -174,12 +212,17 @@ export function createTrackGuideStore({ guidesDir }: { guidesDir: string }): Tra
     } else {
       guideCache.clear();
     }
+    guidePaths.clear();
     slugCache = null;
   };
 
   const save = (guide: TrackGuideFile): TrackGuideFile => {
     const validated = validateTrackGuide(guide, guide.id);
-    writeAtomicJson(resolve(guidesDir, `${validated.id}.json`), validated);
+    list();
+    const path = guidePaths.get(validated.id)
+      ?? (nested ? nestedGuideTarget(guidesDir, validated.id) : resolve(guidesDir, `${validated.id}.json`));
+    if (!path) throw new Error(`No canonical track layout found for guide ${validated.id}`);
+    writeAtomicJson(path, validated);
     invalidate(validated.id);
     return validated;
   };
@@ -187,4 +230,4 @@ export function createTrackGuideStore({ guidesDir }: { guidesDir: string }): Tra
   return { list, load, save, invalidate };
 }
 
-export const productionTrackGuideStore = createTrackGuideStore({ guidesDir: GUIDES_DIR });
+export const productionTrackGuideStore = createTrackGuideStore({ guidesDir: VENUES_DIR, nested: true });

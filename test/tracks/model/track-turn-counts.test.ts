@@ -7,8 +7,8 @@
  *
  * This is deliberately NOT a snapshot of what the detector currently finds — a
  * detector regression that drops Blanchimont must fail, not be re-baselined.
- * The only turns allowed to go unmatched are ones marked `optional` in
- * shared/data/tracks/detect-hints.json (shallow kinks some games' centerlines don't
+ * The only turns allowed to go unmatched are ones marked `optional` in a
+ * layout-local `detect-hints.json` (shallow kinks some games' centerlines don't
  * model at all) — a detector allowance, not a fact about the circuit.
  */
 import { describe, test, expect } from "bun:test";
@@ -138,7 +138,7 @@ describe("turn counts match real-world circuit data", () => {
           missing,
           `${a.gameId}/${slug} (${facts.name}): official turns ${missing.join(", ")} not detected — ` +
             `real turn count is ${turnCount} per ${facts.source}. Check the SVG in ` +
-            `test/e2e/output/track-segments; fix the detector or mark the turn optional in detect-hints.json if the game's centerline genuinely omits it.`,
+            `test/e2e/output/track-segments; fix the detector or mark the turn optional in layout-local detect-hints.json if the game's centerline genuinely omits it.`,
         ).toEqual([]);
         expect(extra, `${a.gameId}/${slug}: aligned turn numbers outside 1..${turnCount}`).toEqual([]);
       });

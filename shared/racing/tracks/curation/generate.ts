@@ -5,8 +5,8 @@
  * code producing committed registry data is exercised by test suite.
  */
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { resolve, basename } from "node:path";
+import { readFileSync, existsSync } from "node:fs";
+import { basename } from "node:path";
 import { detectCornerRegions, type CornerRegion } from "./segment-align-detect";
 import { alignSegments, type AlignedCorner } from "./segment-align-match";
 import { validateFacts } from "./segment-align-validate";
@@ -22,17 +22,14 @@ import { splitSegments } from "./join";
 import { cornerKey } from "../keys";
 import { loadDetectHints } from "../detect-hints";
 import type { NamedSegment } from "../named-segments";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import type { GameId } from "@shared/games/ids";
-
-const NO_CENTERLINE_DIR = null;
-const GAME_DIRS: Record<GameId, string | typeof NO_CENTERLINE_DIR> = {
-  "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
-  acc: resolve(SHARED_DIR, "tracks", "acc"),
-  "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
-  "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
-  iracing: NO_CENTERLINE_DIR,
-};
+import {
+  bundledGeometryPath,
+  bundledSharedGeometryPath,
+  findTrackAssetIdentities,
+  sharedAccGeometrySlug,
+  listTrackAssetIdentities,
+} from "../storage/assets";
 
 /** List every track-facts slug in bundled registry, curated or not. */
 export function listMetaSlugs(): string[] {
@@ -67,22 +64,19 @@ export function loadCenterline(filePath: string): { x: number; z: number }[] | n
   }
 }
 
-/** Find centerline files for a slug per game. FM files embed the ordinal. */
+/**
+ * Find native bundled centerlines for each game assigned to a facts slug.
+ * Runtime-only cross-game fallbacks have no independent geometry to persist.
+ */
 export function findCenterlines(slug: string, gameFilter?: string): { gameId: GameId; file: string }[] {
   const found: { gameId: GameId; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
-    if (gameFilter && gameId !== gameFilter) continue;
-    if (dir === NO_CENTERLINE_DIR) continue;
-    if (!existsSync(dir)) continue;
-    if (gameId === "fm-2023") {
-      const re = new RegExp(`^${slug}-\\d+-centerline\\.csv$`);
-      for (const f of readdirSync(dir)) {
-        if (re.test(f)) found.push({ gameId, file: resolve(dir, f) });
-      }
-    } else {
-      const f = resolve(dir, `${slug}-centerline.csv`);
-      if (existsSync(f)) found.push({ gameId, file: f });
+  for (const identity of findTrackAssetIdentities(slug, gameFilter)) {
+    let file = bundledGeometryPath(identity, "centerline");
+    const sharedSlug = sharedAccGeometrySlug(identity);
+    if (!existsSync(file) && sharedSlug) {
+      file = bundledSharedGeometryPath(identity, "acc", sharedSlug, "centerline") ?? file;
     }
+    if (existsSync(file)) found.push({ gameId: identity.gameId, file });
   }
   return found;
 }
@@ -549,13 +543,18 @@ function ovalEndBounds(
 /** Every centerline file per game (basename without -centerline.csv suffix). */
 export function listAllCenterlines(): { gameId: GameId; slug: string; file: string }[] {
   const found: { gameId: GameId; slug: string; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
-    if (dir === NO_CENTERLINE_DIR) continue;
-    if (!existsSync(dir)) continue;
-    for (const f of readdirSync(dir)) {
-      if (!f.endsWith("-centerline.csv")) continue;
-      found.push({ gameId, slug: f.replace(/-centerline\.csv$/, ""), file: resolve(dir, f) });
+  const seen = new Set<string>();
+  for (const identity of listTrackAssetIdentities()) {
+    const sharedSlug = sharedAccGeometrySlug(identity);
+    const slug = identity.factsSlug ?? sharedSlug ?? `${identity.gameId}-${identity.ordinal}`;
+    let file = bundledGeometryPath(identity, "centerline");
+    if (!existsSync(file) && sharedSlug) {
+      file = bundledSharedGeometryPath(identity, "acc", sharedSlug, "centerline") ?? file;
     }
+    const key = `${identity.gameId}:${file}`;
+    if (!existsSync(file) || seen.has(key)) continue;
+    seen.add(key);
+    found.push({ gameId: identity.gameId, slug, file });
   }
   return found;
 }

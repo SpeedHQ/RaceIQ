@@ -1,9 +1,9 @@
 {
   "sourceVersion": 1,
-  "sourceHash": "4d123c1a047714c0489f01d660054618b84871516647e63f03433bf6514d410a",
+  "sourceHash": "4e7a9fb5d75356584979b9e62facfed548bf4cf64c2cfa8db0e5e91ed21a29aa",
   "recordCounts": {
-    "venues": 230,
-    "layouts": 520,
+    "venues": 192,
+    "layouts": 495,
     "assignments": 592,
     "facts": 99,
     "corners": 1219,
@@ -564,7 +564,7 @@
       "gameId": "f1-2025",
       "trackOrdinal": 18,
       "layoutId": "sochi-autodrom/grand-prix",
-      "factsSlug": null
+      "factsSlug": "sochi"
     },
     {
       "gameId": "f1-2025",
@@ -14590,32 +14590,6 @@
       "rockingham-speedway/oval",
       "rockingham-speedway/road-course",
       "rockingham-speedway/short-road-course",
-      "route-test-1787076567995/historical/2011/alternate-course",
-      "route-test-1787076567995/historical/2011/road-course",
-      "route-test-1787076607736/historical/2011/alternate-course",
-      "route-test-1787076607736/historical/2011/road-course",
-      "route-test-1787076641023/historical/2011/alternate-course",
-      "route-test-1787076641023/historical/2011/road-course",
-      "route-test-1787077685629/historical/2011/alternate-course",
-      "route-test-1787077685629/historical/2011/road-course",
-      "route-test-1787079971966/historical/2011/alternate-course",
-      "route-test-1787079971966/historical/2011/road-course",
-      "route-test-1787081126088/historical/2011/alternate-course",
-      "route-test-1787081126088/historical/2011/road-course",
-      "route-test-1787096982620/historical/2011/alternate-course",
-      "route-test-1787096982620/historical/2011/road-course",
-      "route-test-1787096997992/historical/2011/alternate-course",
-      "route-test-1787096997992/historical/2011/road-course",
-      "route-test-1787097006339/historical/2011/alternate-course",
-      "route-test-1787097006339/historical/2011/road-course",
-      "route-test-1787097139054/historical/2011/alternate-course",
-      "route-test-1787097139054/historical/2011/road-course",
-      "route-test-1787098001221/historical/2011/alternate-course",
-      "route-test-1787098001221/historical/2011/road-course",
-      "route-test-1787098321104/historical/2011/alternate-course",
-      "route-test-1787098321104/historical/2011/road-course",
-      "route-test-1787098684595/historical/2011/alternate-course",
-      "route-test-1787098684595/historical/2011/road-course",
       "rudskogen-motorsenter/main",
       "sachsenring/main",
       "sandown-international-motor-raceway/main",
@@ -14639,7 +14613,6 @@
       "slinger-speedway/oval",
       "snetterton-circuit/100",
       "snetterton-circuit/200",
-      "sochi-autodrom/grand-prix",
       "sonoma-raceway/cup-long",
       "sonoma-raceway/cup-short",
       "sonoma-raceway/indycar-2005-2007",
@@ -14703,9 +14676,6 @@
       "world-wide-technology-raceway-gateway/oval",
       "world-wide-technology-raceway-gateway/road-course"
     ],
-    "factsWithoutLayouts": [
-      "sepang",
-      "sochi"
-    ]
+    "factsWithoutLayouts": []
   }
 }

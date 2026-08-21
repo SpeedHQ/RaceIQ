@@ -299,7 +299,7 @@ describe("validateFacts", () => {
 });
 
 describe("real geometry: Spa (ACC centerline)", () => {
-  const csv = readFileSync(resolve(import.meta.dir, "../../../shared/data/tracks/acc/spa-centerline.csv"), "utf-8");
+  const csv = readFileSync(resolve(import.meta.dir, "../../../shared/data/tracks/venues/circuit-de-spa-francorchamps/geometry/acc/spa-centerline.csv"), "utf-8");
   const pts = csv.split("\n").filter(Boolean).slice(1).map((l) => {
     const [x, z] = l.split(",").map(Number);
     return { x, z };

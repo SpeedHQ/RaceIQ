@@ -1,31 +1,21 @@
 import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
 import { IS_COMPILED } from "@shared/platform/runtime/data-paths";
-import { resolveTrackRegistryLocations } from "./registry-source";
+import { readTrackRegistrySourceFiles, resolveTrackRegistryLocations } from "./registry-source";
 
 export const TRACK_REGISTRY_VERSION = 2 as const;
 export const TRACK_REGISTRY_PATH = resolveTrackRegistryLocations().databasePath;
-
-const TRACK_REGISTRY_SOURCE_FILES = [
-  "configurations.json",
-  "facts.json",
-  "geometry.json",
-  "verification.json",
-] as const;
 
 let registry: Database | null = null;
 let registryRevision = 0;
 
 function actualSourceHash(sourceDirectory: string): string {
   const hash = createHash("sha256");
-  for (const filename of TRACK_REGISTRY_SOURCE_FILES) {
-    const path = resolve(sourceDirectory, filename);
-    if (!existsSync(path)) throw new Error(`Missing track registry source ${path}; run bun run tracks:registry`);
+  for (const [filename, body] of readTrackRegistrySourceFiles({ sourceDirectory })) {
     hash.update(filename);
     hash.update("\0");
-    hash.update(readFileSync(path));
+    hash.update(body);
   }
   return hash.digest("hex");
 }

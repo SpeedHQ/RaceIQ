@@ -17,17 +17,25 @@ const ROOT = path.resolve(import.meta.dir, "..", "..");
 const DIST = path.resolve(ROOT, "dist", "data");
 
 let count = 0;
-const DATA_EXTENSIONS: Record<string, true> = { ".csv": true, ".json": true, ".sqlite": true, ".rqi": true, ".png": true, ".jpg": true, ".jpeg": true, ".webp": true };
+const DATA_EXTENSIONS: Record<string, true> = { ".csv": true, ".json": true, ".sqlite": true, ".rqi": true, ".svg": true, ".png": true, ".jpg": true, ".jpeg": true, ".webp": true };
 const isDataFile = (name: string) => DATA_EXTENSIONS[path.extname(name).toLowerCase()] === true;
 
-const EXCLUDED_TRACK_REGISTRY_SOURCES: Record<string, true> = {
-  [path.resolve(ROOT, "shared", "data", "tracks", "registry-source")]: true,
-  [path.resolve(ROOT, "shared", "data", "tracks", "registry-report.json")]: true,
-};
-const EXCLUDED_TRACK_REGISTRY_DESTINATIONS = [
-  path.resolve(DIST, "tracks", "registry-source"),
-  path.resolve(DIST, "tracks", "registry-report.json"),
-];
+const TRACKS_SOURCE = path.resolve(ROOT, "shared", "data", "tracks");
+const TRACKS_DESTINATION = path.resolve(DIST, "tracks");
+
+function isTrackRegistryMetadata(candidate: string, tracksRoot: string): boolean {
+  const relative = path.relative(tracksRoot, path.resolve(candidate));
+  if (relative === "" || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return false;
+
+  const filename = path.basename(relative);
+  if (relative === "registry-report.json") return true;
+  if (relative === "registry-source" || relative.startsWith(`registry-source${path.sep}`)) return true;
+  if (!relative.startsWith(`venues${path.sep}`)) return false;
+  return filename === "venue.json"
+    || filename === "revision.json"
+    || filename === "metadata.json"
+    || filename === "detect-hints.json";
+}
 
 function copyFile(src: string, dest: string) {
   mkdirSync(path.dirname(dest), { recursive: true });
@@ -40,7 +48,7 @@ function copyDir(srcDir: string, destDir: string, filter?: (name: string) => boo
     const entries = readdirSync(srcDir, { withFileTypes: true });
     for (const entry of entries) {
       const srcPath = path.join(srcDir, entry.name);
-      if (EXCLUDED_TRACK_REGISTRY_SOURCES[path.resolve(srcPath)] === true) continue;
+      if (isTrackRegistryMetadata(srcPath, TRACKS_SOURCE)) continue;
 
       const destPath = path.join(destDir, entry.name);
       if (entry.isDirectory()) {
@@ -52,11 +60,54 @@ function copyDir(srcDir: string, destDir: string, filter?: (name: string) => boo
   } catch {}
 }
 
+function removeTrackRegistryMetadata(root: string): void {
+  try {
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      const candidate = path.join(root, entry.name);
+      if (isTrackRegistryMetadata(candidate, TRACKS_DESTINATION)) {
+        rmSync(candidate, { recursive: true, force: true });
+      } else if (entry.isDirectory()) {
+        removeTrackRegistryMetadata(candidate);
+      }
+    }
+  } catch {}
+}
+function removeRetiredMapDirectories(root: string): void {
+  try {
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const candidate = path.join(root, entry.name);
+      if (entry.name === "maps") rmSync(candidate, { recursive: true, force: true });
+      else removeRetiredMapDirectories(candidate);
+    }
+  } catch {}
+}
+
+function removeLegacyDirectTrackDirectories(root: string): void {
+  const venuesRoot = path.resolve(root, "venues");
+  function removeBeforeRevision(directory: string): void {
+    try {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        if (!entry.isDirectory() || entry.name === "revisions") continue;
+        const candidate = path.resolve(directory, entry.name);
+        if (entry.name === "tracks") rmSync(candidate, { recursive: true, force: true });
+        else removeBeforeRevision(candidate);
+      }
+    } catch {}
+  }
+  removeBeforeRevision(venuesRoot);
+}
+
+
 assertTrackRegistryArtifactsCurrent();
 
-// Remove stale excluded registry outputs before copying.
-for (const destination of EXCLUDED_TRACK_REGISTRY_DESTINATIONS) {
-  rmSync(destination, { recursive: true, force: true });
+// Remove stale canonical metadata and report files while preserving colocated assets.
+removeTrackRegistryMetadata(TRACKS_DESTINATION);
+removeRetiredMapDirectories(TRACKS_DESTINATION);
+removeLegacyDirectTrackDirectories(TRACKS_DESTINATION);
+rmSync(path.resolve(TRACKS_DESTINATION, "guides"), { recursive: true, force: true });
+for (const retiredDirectory of ["ac-evo", "acc", "f1-2025", "fm-2023", "tumftm"]) {
+  rmSync(path.resolve(TRACKS_DESTINATION, retiredDirectory), { recursive: true, force: true });
 }
 
 // Static data umbrella is the compiled data root; other shared umbrellas keep

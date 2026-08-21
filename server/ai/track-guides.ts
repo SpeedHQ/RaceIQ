@@ -5,10 +5,10 @@
  * derived from telemetry alone: corner characteristics, ideal techniques,
  * common traps, and priority corners for lap time.
  *
- * The guide content itself lives in `shared/data/tracks/guides/<slug>.json`, one
- * file per track, each carrying its own `sources` and `notes` (Driver61, Coach
- * Dave Academy, DIY Sim Studio, Track Titan, official F1 circuit guides,
- * Wikipedia for corner-name cross-reference). Where a corner's official/common
+ * Guide content lives in each canonical venue/layout folder as `guide.json`, each
+ * carrying its own `sources` and `notes` (Driver61, Coach Dave Academy, DIY Sim
+ * Studio, Track Titan, official F1 circuit guides, and Wikipedia for corner-name
+ * cross-reference). Where a corner's official/common
  * name could not be independently verified, entries use generic "Turn N"
  * labels rather than inventing a name; the per-file `notes` record tracks with
  * layout-verification caveats (e.g. Singapore, Las Vegas, Lusail).

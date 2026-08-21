@@ -18,8 +18,8 @@ Utilities for extracting track geometry and car dimensions from installed Forza 
 
 ## Outputs
 
-- `shared/data/tracks/fm-2023/<track>-centerline.csv`
-- `shared/data/tracks/fm-2023/<track>-boundaries.json` (when boundary fields exist)
+- `shared/data/tracks/venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/fm-2023/centerline.csv`
+- `shared/data/tracks/venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/fm-2023/boundaries.json` (when boundary fields exist; current source uses revision path `current`)
 - `shared/games/fm-2023/car-dimensions.csv`
 
 ## Boundaries

@@ -14,7 +14,47 @@ export const TrackIdentityNodeSchema = z.object({
   id: trackIdentityId,
   name: z.string().trim().min(1),
 });
+export const CURRENT_TRACK_REVISION = "current";
 
+export interface VenueRevisionPath {
+  rootVenuePath: string;
+  revisionPath: string;
+}
+
+/**
+ * Splits SQLite venue path into its stable root venue and source revision.
+ * A root-only path addresses current source revision.
+ */
+export function parseVenueRevisionPath(venuePath: string): VenueRevisionPath {
+  const segments = TrackVenueIdSchema.parse(venuePath).split("/");
+  const rootVenuePath = segments[0]!;
+  return {
+    rootVenuePath,
+    revisionPath: segments.slice(1).join("/") || CURRENT_TRACK_REVISION,
+  };
+}
+
+/** Browser-safe path components for one source revision directory. */
+export function revisionDirectoryPathComponents(venuePath: string): string[] {
+  const { rootVenuePath, revisionPath } = parseVenueRevisionPath(venuePath);
+  return ["venues", rootVenuePath, "revisions", ...revisionPath.split("/")];
+}
+
+/** Browser-safe path components for one canonical layout's source assets. */
+export function canonicalTrackAssetPathComponents(venuePath: string, layoutSlug: string): string[] {
+  return [...revisionDirectoryPathComponents(venuePath), "tracks", trackIdentityId.parse(layoutSlug)];
+}
+
+/** Splits one canonical layout ID into SQLite venue path and layout slug. */
+export function parseCanonicalTrackId(canonicalTrackId: string): { venuePath: string; layoutSlug: string } {
+  const segments = TrackVenueIdSchema.parse(canonicalTrackId).split("/");
+  if (segments.length < 2) throw new Error(`Invalid canonical track ID ${JSON.stringify(canonicalTrackId)}`);
+  const layoutSlug = trackIdentityId.parse(segments.pop()!);
+  return {
+    venuePath: TrackVenueIdSchema.parse(segments.join("/")),
+    layoutSlug,
+  };
+}
 
 export const TrackConfigurationConfirmationSchema = z.object({
   confirmedAt: z

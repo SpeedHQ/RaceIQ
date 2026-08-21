@@ -17,11 +17,7 @@ function prepareIsolatedTrackRegistryDir(testDataDir: string) {
   const tracksSource = resolve(import.meta.dir, "../..", "shared", "data", "tracks");
   const trackRegistryDir = resolve(testDataDir, "track-registry");
   rmSync(trackRegistryDir, { recursive: true, force: true });
-  const isolatedSourceDirectory = resolve(trackRegistryDir, "registry-source");
-  mkdirSync(isolatedSourceDirectory, { recursive: true });
-  for (const filename of ["configurations.json", "facts.json", "geometry.json", "verification.json"]) {
-    cpSync(resolve(tracksSource, "registry-source", filename), resolve(isolatedSourceDirectory, filename));
-  }
+  cpSync(resolve(tracksSource, "venues"), resolve(trackRegistryDir, "venues"), { recursive: true });
   cpSync(resolve(tracksSource, "registry.sqlite"), resolve(trackRegistryDir, "registry.sqlite"));
   cpSync(resolve(tracksSource, "registry-report.json"), resolve(trackRegistryDir, "registry-report.json"));
   process.env.RACEIQ_TRACK_REGISTRY_DIR = trackRegistryDir;
