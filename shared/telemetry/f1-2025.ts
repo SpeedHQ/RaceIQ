@@ -1,4 +1,7 @@
 export interface F1GridEntry {
+  /** Stable session-scoped native vehicle index. */
+  carIndex: number;
+  isPlayer: boolean;
   position: number;
   driverId: number;
   teamId: number;
@@ -27,6 +30,10 @@ export interface F1ExtendedData {
   overallFrameIdentifier?: number;
   /** Native F1 packet family identifier. */
   packetId?: number;
+  /** Player vehicle index from the native packet header. */
+  playerCarIndex: number;
+  /** Native player pit code: 0=none, 1=pitting, 2=pit area. */
+  pitStatus: number;
   drsAllowed: boolean;
   drsActivated: boolean;
   drsZoneApproaching: boolean;

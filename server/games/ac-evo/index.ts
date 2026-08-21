@@ -10,6 +10,13 @@ import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { buildKunosAiContext } from "../kunos/ai-context";
 import { resolveKunosReplayTimestamp } from "../kunos/replay-clock";
+import {
+  baseRaceEventObservation,
+  kunosDamagePercent,
+  localPlayerObservation,
+  normalizedFuelLitres,
+  normalizedTireWear,
+} from "../race-event-observation";
 
 const AC_EVO_SYSTEM_PROMPT = `You are an expert motorsport engineer and data analyst specializing in Assetto Corsa Evo.
 
@@ -95,6 +102,47 @@ export const acEvoServerAdapter: ServerGameAdapter = {
 
   createParserState(): AcEvoParserCache {
     return createAcEvoParserCache();
+  },
+
+  toRaceEventObservation(packet, context) {
+    const observation = baseRaceEventObservation(packet, context);
+    const flag = packet.acc?.flagStatus?.toLowerCase() ?? "unknown";
+    observation.nativeRaceControlCode = flag;
+    if (flag === "green") observation.sessionPhase = "green";
+    else if (flag === "yellow") {
+      observation.sessionPhase = "caution";
+      observation.cautionKind = "local-yellow";
+    } else if (flag === "red") observation.sessionPhase = "red";
+    else if (flag === "checkered") observation.sessionPhase = "checkered";
+
+    const nativePitCode = packet.acc?.pitStatus ?? null;
+    const pitState =
+      nativePitCode === "out"
+        ? "out"
+        : nativePitCode === "pit_lane"
+          ? "pit-lane"
+          : nativePitCode === "in_pit"
+            ? "pit-stall"
+            : "unknown";
+    observation.participants = [
+      localPlayerObservation(packet, {
+        pitState,
+        nativePitCode,
+        fuelLitres: normalizedFuelLitres(
+          packet,
+          acEvoAdapter.telemetry.fuel.packetUnit,
+        ),
+        tireCompound:
+          packet.acc?.tireCompound && packet.acc.tireCompound !== "unknown"
+            ? packet.acc.tireCompound
+            : null,
+        tireWear: normalizedTireWear(packet),
+        damage: kunosDamagePercent(packet),
+        penaltyValue: null,
+        incidentCount: null,
+      }),
+    ];
+    return observation;
   },
 
   lapDetectorId: LAP_DETECTOR_AC_EVO_ID,

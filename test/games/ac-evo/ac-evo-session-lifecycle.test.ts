@@ -18,6 +18,7 @@ import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
+import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../../server/lap-detection/types";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
@@ -102,7 +103,7 @@ describe("AC Evo lap detector — session lifecycle", () => {
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();
-    const detector = new LapDetectorAcEvo({ db });
+    const detector = new LapDetectorAcEvo({ db, lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT });
 
     await detector.feed(packet!);
     expect(detector.session).not.toBeNull();
@@ -208,7 +209,7 @@ describe("AC Evo menu-exit recording — e2e", () => {
     const parserState = serverGame.createParserState?.() ?? null;
 
     const db = new CapturingDbAdapter();
-    const detector = new LapDetectorAcEvo({ db });
+    const detector = new LapDetectorAcEvo({ db, lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT });
 
     let liveSeen = false;
     let firstSessionId: number | null = null;

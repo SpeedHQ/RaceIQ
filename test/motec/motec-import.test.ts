@@ -8,6 +8,7 @@ import { parseLdxBeacons } from "../../server/motec/ldx";
 import { deadReckonPath, lapWindows, resolveMotecCarTrack, synthesizeAcEvoCapture, SYNTH_HZ } from "../../server/games/ac-evo/motec";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
 import { db } from "../../server/db";
+import { listSessionRaceEvents } from "../../server/db/race-event-queries";
 import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo";
@@ -424,10 +425,7 @@ describe("importMotec end to end", () => {
   test("lands laps in the DB and marks the session as MoTeC-sourced", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
     const ldBytes = buildLd(spec);
-    const ldxBytes = Buffer.concat([
-      Buffer.from(buildLdx(beacons), "utf8"),
-      Buffer.from([0xff]),
-    ]);
+    const ldxBytes = Buffer.concat([Buffer.from(buildLdx(beacons), "utf8"), Buffer.from([0xff])]);
     const sourceGeneration = sha256SourceArtifacts([
       { name: "source.ld", bytes: ldBytes },
       { name: "source.ldx", bytes: ldxBytes },
@@ -470,6 +468,8 @@ describe("importMotec end to end", () => {
           "tires.tire-wear": { treatment: "absent", mappingStatus: "unavailable" },
         },
       });
+      const timeline = await listSessionRaceEvents(id, { limit: 1_000 });
+      expect(timeline.items.some(({ eventType }) => eventType === "timebase_reset" || eventType === "timeline_discontinuity")).toBe(false);
     }
     for (const lap of result.laps) {
       const [row] = await db.select().from(lapsTable).where(eq(lapsTable.id, lap.lapId));

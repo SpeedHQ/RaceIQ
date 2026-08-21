@@ -15,15 +15,17 @@ const packet = (overrides: Partial<TelemetryPacket> = {}): TelemetryPacket => ({
 } as TelemetryPacket);
 
 describe("race result source extraction", () => {
-  test("extracts ACC pit transitions and explicit strategy values", () => {
+  test("leaves pit and service strategy projection to the canonical timeline", () => {
     const result = extractRaceSource("acc", [
       packet({ acc: { pitStatus: "out", tireCompound: "dry", fuelPerLap: 2 } as never }),
       packet({ acc: { pitStatus: "pitlane", tireCompound: "dry", fuelPerLap: 2 } as never }),
       packet({ acc: { pitStatus: "out", tireCompound: "dry", fuelPerLap: 2 } as never }),
     ]);
-    expect(result.pitEvents).toHaveLength(1);
-    expect(result.pitEvents?.[0]?.service).toBe("unknown");
-    expect(result.tyreStrategy).toBe("dry");
+    expect(result.tyreStrategy).toBeNull();
+    expect(result.fuelStrategy).toBeNull();
+    expect(result.evidence.fieldStatus.pitTimeline).toBe("unavailable");
+    expect(result.evidence.fieldStatus.tyreStrategy).toBe("unavailable");
+    expect(result.evidence.fieldStatus.fuelStrategy).toBe("unavailable");
   });
   test("derives DNF and retired classifications from F1 result status", () => {
     const dnf = extractRaceSource("f1-2025", [
@@ -85,7 +87,7 @@ describe("race result source extraction", () => {
     expect(derived.evidence.decisions?.classification.alternatives.map((alternative) => alternative.value)).toEqual(["finished", "dnf"]);
   });
 
-  test("consolidates position changes at lap boundaries", () => {
+  test("leaves position changes to the canonical timeline", () => {
     const result = extractRaceSource("f1-2025", [
       packet({ gameId: "f1-2025", LapNumber: 1, RacePosition: 5 }),
       packet({ gameId: "f1-2025", LapNumber: 1, RacePosition: 4 }),
@@ -93,13 +95,10 @@ describe("race result source extraction", () => {
       packet({ gameId: "f1-2025", LapNumber: 2, RacePosition: 2 }),
       packet({ gameId: "f1-2025", LapNumber: 3, RacePosition: 3 }),
     ]);
-    expect(result.positionChanges).toMatchObject([
-      { lapNumber: 2, positionBefore: 4, positionAfter: 2 },
-      { lapNumber: 3, positionBefore: 2, positionAfter: 3 },
-    ]);
+    expect(Object.keys(result)).not.toContain("positionChanges");
   });
 
-  test("does not invent pit ledger for Forza", () => {
-    expect(extractRaceSource("fm-2023", [packet({ gameId: "fm-2023" })]).pitEvents).toBeUndefined();
+  test("does not invent a timeline for Forza", () => {
+    expect(extractRaceSource("fm-2023", [packet({ gameId: "fm-2023" })]).evidence.fieldStatus.pitTimeline).toBe("unavailable");
   });
 });

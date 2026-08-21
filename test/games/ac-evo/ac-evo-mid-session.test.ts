@@ -15,6 +15,7 @@ import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
+import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../../server/lap-detection/types";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { parseRawLapFramesForTest } from "../../../server/db/telemetry-replay-storage";
@@ -55,7 +56,7 @@ async function replaySessionBin(
   const parserState = serverGame.createParserState?.() ?? null;
 
   const db = new CapturingDbAdapter();
-  const detector = new LapDetectorAcEvo({ db });
+  const detector = new LapDetectorAcEvo({ db, lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT });
   const packets: TelemetryPacket[] = [];
 
   while (offset < buf.length) {

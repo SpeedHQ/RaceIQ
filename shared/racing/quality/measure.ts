@@ -4,6 +4,7 @@ import type { TelemetryGroupId, TelemetryVariableId } from "@shared/telemetry/ca
 import { compileTelemetryResolver } from "@shared/telemetry/resolver/compile";
 import type { CompiledTelemetryResolver, FreshnessState, ResolutionState, ResolvedValue, TelemetryFrameView } from "@shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "@shared/telemetry/types";
+import { SourceSequenceTracker } from "@shared/telemetry/source-sequence";
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 import {
   ELIGIBILITY_POLICY_VERSION,
@@ -29,6 +30,7 @@ import {
 } from "./contracts";
 import type { LapClassification } from "../laps/classification";
 import { QUALITY_REASON_META } from "./reasons";
+import { damageVectorTotal, telemetryDamageVector } from "./damage";
 
 export const QUALITY_THRESHOLDS_V1: QualityThresholdSnapshot = {
   minorGapMaxMs: 250,
@@ -124,28 +126,6 @@ function distanceFraction(packet: TelemetryPacket, minimumDistance: number, dist
   }
   if (!Number.isFinite(packet.DistanceTraveled) || distanceSpan <= 0) return null;
   return clamp01((packet.DistanceTraveled - minimumDistance) / distanceSpan);
-}
-
-interface SequenceObservation {
-  family: string;
-  sequence: number;
-}
-
-function packetSequences(packet: TelemetryPacket): SequenceObservation[] {
-  if (packet.iracing && Number.isFinite(packet.iracing.sessionTick)) {
-    return [{ family: "iracing-session-tick", sequence: packet.iracing.sessionTick }];
-  }
-  if (packet.gameId === "f1-2025") {
-    const overall = packet.f1?.overallFrameIdentifier;
-    const packetId = packet.f1?.packetId;
-    return typeof overall === "number" && typeof packetId === "number" ? [{ family: `f1-packet-${packetId}`, sequence: overall }] : [];
-  }
-  const physics = packet.acc?.physicsPacketId ?? packet.acc?.acEvo?.physicsPacketId;
-  if (typeof physics === "number" && Number.isFinite(physics)) {
-    return [{ family: "kunos-physics", sequence: physics }];
-  }
-  const graphics = packet.acc?.graphicsPacketId ?? packet.acc?.acEvo?.graphicsPacketId;
-  return typeof graphics === "number" && Number.isFinite(graphics) ? [{ family: "kunos-graphics", sequence: graphics }] : [];
 }
 
 const F1_PACKET_ID_BY_SOURCE_FAMILY: Readonly<Record<string, number>> = {
@@ -327,13 +307,10 @@ function measureTimeline(packets: readonly TelemetryPacket[]): TimelineMeasureme
   const minimumDistance = Math.min(...packets.map((packet) => packet.DistanceTraveled).filter(Number.isFinite));
   const maximumDistance = Math.max(...packets.map((packet) => packet.DistanceTraveled).filter(Number.isFinite));
   const distanceSpan = Math.max(0, maximumDistance - minimumDistance);
-  const positiveTimeDeltas: number[] = [];
-  let duplicateCount = 0;
-  for (let index = 1; index < packets.length; index += 1) {
-    const delta = packets[index]!.TimestampMS - packets[index - 1]!.TimestampMS;
-    if (delta > 0) positiveTimeDeltas.push(delta);
-  }
-  const inferredIntervalMs = median(positiveTimeDeltas);
+  const tracker = new SourceSequenceTracker();
+  for (const packet of packets) tracker.observe(packet);
+  const tracked = tracker.finalize();
+  const inferredIntervalMs = tracked.inferredIntervalMs;
   const discontinuities: TimelineRangeEvidence[] = [];
   if (inferredIntervalMs != null) {
     const discontinuityThresholdMs = Math.max(5_000, inferredIntervalMs * 100);
@@ -346,124 +323,31 @@ function measureTimeline(packets: readonly TelemetryPacket[]): TimelineMeasureme
     }
   }
 
-  const familyPackets = new Map<string, { sequence: number; packet: TelemetryPacket }[]>();
-  for (const packet of packets) {
-    for (const observation of packetSequences(packet)) {
-      const family = familyPackets.get(observation.family) ?? [];
-      family.push({ sequence: observation.sequence, packet });
-      familyPackets.set(observation.family, family);
-    }
-  }
-  const outOfOrder: TimelineRangeEvidence[] = [];
-  if (familyPackets.size === 0) {
-    for (let index = 1; index < packets.length; index += 1) {
-      const previous = packets[index - 1]!;
-      const current = packets[index]!;
-      const delta = current.TimestampMS - previous.TimestampMS;
-      if (delta === 0) duplicateCount += 1;
-      else if (delta < 0) outOfOrder.push(timelineRangeEvidence(previous, current, minimumDistance, distanceSpan));
-    }
-  }
-
-  const gaps: GapEvidence[] = [];
-  let expectedCount = 0;
-  let observedCount = 0;
-  let missingCount = 0;
-  if (familyPackets.size > 0) {
-    for (const [familyName, observations] of familyPackets) {
-      observedCount += observations.length;
-      const positiveSteps: number[] = [];
-      for (let index = 1; index < observations.length; index += 1) {
-        const previous = observations[index - 1]!;
-        const current = observations[index]!;
-        const step = current.sequence - previous.sequence;
-        if (step > 0) positiveSteps.push(step);
-        else if (step === 0) duplicateCount += 1;
-        else outOfOrder.push(timelineRangeEvidence(previous.packet, current.packet, minimumDistance, distanceSpan));
-      }
-      const expectedStep = median(positiveSteps) ?? 1;
-      let familyMissing = 0;
-      for (let index = 1; index < observations.length; index += 1) {
-        const previous = observations[index - 1]!;
-        const current = observations[index]!;
-        const sequenceDelta = current.sequence - previous.sequence;
-        if (sequenceDelta <= expectedStep) continue;
-        const inferredMissing = Math.max(0, Math.round(sequenceDelta / expectedStep) - 1);
-        if (inferredMissing === 0) continue;
-        familyMissing += inferredMissing;
-        gaps.push({
-          ...timelineRangeEvidence(previous.packet, current.packet, minimumDistance, distanceSpan),
-          durationMs: Math.max(0, current.packet.TimestampMS - previous.packet.TimestampMS),
-          missingCount: inferredMissing,
-          method: "native-sequence",
-          family: familyName,
-        });
-      }
-      missingCount += familyMissing;
-      expectedCount += observations.length + familyMissing;
-    }
-    return {
-      summary: {
-        expectedCount,
-        observedCount,
-        totalMissingCount: missingCount,
-        totalMissingFraction: expectedCount > 0 ? missingCount / expectedCount : 0,
-        largestContiguousGapMs: gaps.reduce((largest, gap) => Math.max(largest, gap.durationMs), 0),
-        countMethod: "native-sequence",
-      },
-      gaps,
-      duplicateCount,
-      outOfOrder,
-      discontinuities,
-      inferredIntervalMs,
-    };
-  }
-
-  if (inferredIntervalMs == null || packets.length < 2) {
-    return {
-      summary: {
-        expectedCount: packets.length,
-        observedCount: packets.length,
-        totalMissingCount: null,
-        totalMissingFraction: null,
-        largestContiguousGapMs: 0,
-        countMethod: "unavailable",
-      },
-      gaps,
-      duplicateCount,
-      outOfOrder,
-      discontinuities,
-      inferredIntervalMs,
-    };
-  }
-
-  for (let index = 1; index < packets.length; index += 1) {
-    const previous = packets[index - 1]!;
-    const current = packets[index]!;
-    const delta = current.TimestampMS - previous.TimestampMS;
-    const inferredMissing = Math.max(0, Math.round(delta / inferredIntervalMs) - 1);
-    if (inferredMissing === 0) continue;
-    gaps.push({
-      ...timelineRangeEvidence(previous, current, minimumDistance, distanceSpan),
-      durationMs: Math.max(0, delta),
-      missingCount: inferredMissing,
-      method: "timestamp-estimate",
-      family: "timestamp",
-    });
-  }
-  missingCount = gaps.reduce((sum, gap) => sum + gap.missingCount, 0);
-  expectedCount = packets.length + missingCount;
+  const gaps: GapEvidence[] = tracked.gaps.map((gap) => ({
+    ...timelineRangeEvidence(
+      packets[gap.previousObservationIndex]!,
+      packets[gap.currentObservationIndex]!,
+      minimumDistance,
+      distanceSpan,
+    ),
+    durationMs: gap.durationMs,
+    missingCount: gap.missingCount,
+    method: gap.countMethod,
+    family: gap.sourceSequenceFamily ?? "timestamp",
+  }));
+  const outOfOrder: TimelineRangeEvidence[] = tracked.outOfOrder.map(
+    (boundary) =>
+      timelineRangeEvidence(
+        packets[boundary.previousObservationIndex]!,
+        packets[boundary.currentObservationIndex]!,
+        minimumDistance,
+        distanceSpan,
+      ),
+  );
   return {
-    summary: {
-      expectedCount,
-      observedCount: packets.length,
-      totalMissingCount: missingCount,
-      totalMissingFraction: expectedCount > 0 ? missingCount / expectedCount : 0,
-      largestContiguousGapMs: gaps.reduce((largest, gap) => Math.max(largest, gap.durationMs), 0),
-      countMethod: "timestamp-estimate",
-    },
+    summary: tracked.summary,
     gaps,
-    duplicateCount,
+    duplicateCount: tracked.duplicates.length,
     outOfOrder,
     discontinuities,
     inferredIntervalMs,
@@ -829,21 +713,7 @@ function positionCoverage(packets: readonly TelemetryPacket[]): number | null {
 }
 
 function damageValue(packet: TelemetryPacket): number {
-  const f1 = packet.f1;
-  const kunos = packet.acc?.carDamage;
-  return (
-    (f1?.frontLeftWingDamage ?? 0) +
-    (f1?.frontRightWingDamage ?? 0) +
-    (f1?.rearWingDamage ?? 0) +
-    (f1?.floorDamage ?? 0) +
-    (f1?.diffuserDamage ?? 0) +
-    (f1?.sidepodDamage ?? 0) +
-    (kunos?.front ?? 0) +
-    (kunos?.rear ?? 0) +
-    (kunos?.left ?? 0) +
-    (kunos?.right ?? 0) +
-    (kunos?.centre ?? 0)
-  );
+  return damageVectorTotal(telemetryDamageVector(packet));
 }
 
 export function summarizeLapQuality(input: {
@@ -1010,37 +880,6 @@ export function summarizeLapQuality(input: {
   };
 }
 
-interface IncrementalSequenceState {
-  last: number;
-  lastTimestampMs: number;
-  positiveStepCounts: Map<number, number>;
-  positiveStepCount: number;
-  positiveStepMaximumDurationMs: Map<number, number>;
-  resetPending: boolean;
-}
-
-function weightedMedian(counts: ReadonlyMap<number, number>, count: number, fallback: number): number {
-  const lowerIndex = Math.floor((count - 1) / 2);
-  const upperIndex = Math.floor(count / 2);
-  let seen = 0;
-  let lower = fallback;
-  let upper = fallback;
-  for (const [value, occurrences] of [...counts].sort(([left], [right]) => left - right)) {
-    const end = seen + occurrences;
-    if (seen <= lowerIndex && lowerIndex < end) lower = value;
-    if (seen <= upperIndex && upperIndex < end) {
-      upper = value;
-      break;
-    }
-    seen = end;
-  }
-  return (lower + upper) / 2;
-}
-
-function incrementalSequenceMedian(state: IncrementalSequenceState): number {
-  return weightedMedian(state.positiveStepCounts, state.positiveStepCount, 1);
-}
-
 export class RecordingQualityAccumulator {
   private readonly sourceKind: EvidenceSourceKind;
   private readonly participant: ParticipantEvidence;
@@ -1048,11 +887,7 @@ export class RecordingQualityAccumulator {
   private readonly provenance: QualityProvenance;
   private readonly facts: QualityFact[] = [];
   private readonly pendingFacts: QualityFact[] = [];
-  private readonly sequence = new Map<string, IncrementalSequenceState>();
-  private readonly positiveTimestampDeltaCounts = new Map<number, number>();
-  private positiveTimestampDeltaCount = 0;
-  private packetCount = 0;
-  private duplicateCount = 0;
+  private readonly sourceSequence = new SourceSequenceTracker();
   private lastTimestampMs: number | null = null;
   private startTimestampMs: number | null = null;
   private endTimestampMs: number | null = null;
@@ -1080,60 +915,23 @@ export class RecordingQualityAccumulator {
       }
     }
     this.pendingFacts.length = 0;
-    this.packetCount += 1;
     this.startTimestampMs ??= packet.TimestampMS;
-    const observations = packetSequences(packet);
-    if (this.lastTimestampMs != null) {
-      const delta = packet.TimestampMS - this.lastTimestampMs;
-      if (delta > 0) {
-        this.positiveTimestampDeltaCounts.set(delta, (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1);
-        this.positiveTimestampDeltaCount += 1;
-      } else if (observations.length === 0) {
-        if (delta === 0) this.duplicateCount += 1;
-        else this.recordOutOfOrder(this.lastTimestampMs, packet.TimestampMS);
+    const observedSequence = this.sourceSequence.observe(packet);
+    for (const boundary of observedSequence.boundaries) {
+      if (boundary.kind === "out-of-order") {
+        this.recordOutOfOrder(
+          boundary.previousSourceTimeMs,
+          boundary.currentSourceTimeMs,
+        );
       }
     }
     this.lastTimestampMs = packet.TimestampMS;
     this.endTimestampMs = packet.TimestampMS;
-
-    for (const observation of observations) {
-      const previous = this.sequence.get(observation.family);
-      if (previous) {
-        if (previous.resetPending) {
-          previous.resetPending = false;
-          previous.last = observation.sequence;
-          previous.lastTimestampMs = packet.TimestampMS;
-          continue;
-        }
-        const delta = observation.sequence - previous.last;
-        if (delta === 0) this.duplicateCount += 1;
-        else if (delta < 0) this.recordOutOfOrder(previous.lastTimestampMs, packet.TimestampMS);
-        else {
-          previous.positiveStepCounts.set(delta, (previous.positiveStepCounts.get(delta) ?? 0) + 1);
-          previous.positiveStepCount += 1;
-          previous.positiveStepMaximumDurationMs.set(
-            delta,
-            Math.max(previous.positiveStepMaximumDurationMs.get(delta) ?? 0, Math.max(0, packet.TimestampMS - previous.lastTimestampMs)),
-          );
-          previous.last = observation.sequence;
-          previous.lastTimestampMs = packet.TimestampMS;
-        }
-      } else {
-        this.sequence.set(observation.family, {
-          last: observation.sequence,
-          lastTimestampMs: packet.TimestampMS,
-          positiveStepCounts: new Map(),
-          positiveStepCount: 0,
-          positiveStepMaximumDurationMs: new Map(),
-          resetPending: false,
-        });
-      }
-    }
   }
 
   noteSourceLifecycle(event: SourceLifecycleEvidence): void {
     if (event.kind === "reconnect") {
-      for (const state of this.sequence.values()) state.resetPending = true;
+      this.sourceSequence.markDiscontinuity();
     }
     if (event.kind !== "reconnect" && event.kind !== "timeout") return;
     const code: QualityReasonCode = event.kind === "reconnect" ? "source_reconnect" : "timeline_discontinuity";
@@ -1196,48 +994,15 @@ export class RecordingQualityAccumulator {
         }),
       );
     }
-    if (this.duplicateCount > 0) {
+    const sequenceMeasurement = this.sourceSequence.finalize();
+    if (sequenceMeasurement.duplicates.length > 0) {
       this.facts.push(
         fact(this.provenance, this.facts.length + 1, "duplicate_observations", {
-          details: { count: this.duplicateCount },
+          details: { count: sequenceMeasurement.duplicates.length },
         }),
       );
     }
-    let missingCount = 0;
-    let largestGapMs = 0;
-    let countMethod: GapSummary["countMethod"] = "unavailable";
-    if (this.sequence.size > 0) {
-      countMethod = "native-sequence";
-      for (const state of this.sequence.values()) {
-        if (state.positiveStepCount === 0) continue;
-        const expectedStep = incrementalSequenceMedian(state);
-        for (const [step, count] of state.positiveStepCounts) {
-          const inferredMissing = Math.max(0, Math.round(step / expectedStep) - 1);
-          missingCount += inferredMissing * count;
-          if (inferredMissing > 0) {
-            largestGapMs = Math.max(largestGapMs, state.positiveStepMaximumDurationMs.get(step) ?? 0);
-          }
-        }
-      }
-    } else if (this.positiveTimestampDeltaCount > 0) {
-      countMethod = "timestamp-estimate";
-      const expectedIntervalMs = weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1);
-      for (const [delta, count] of this.positiveTimestampDeltaCounts) {
-        const inferredMissing = Math.max(0, Math.round(delta / expectedIntervalMs) - 1);
-        missingCount += inferredMissing * count;
-        if (inferredMissing > 0) largestGapMs = Math.max(largestGapMs, delta);
-      }
-    }
-    const expectedCount = this.packetCount + missingCount;
-    const measuredCount = countMethod !== "unavailable";
-    const gapSummary: GapSummary = {
-      expectedCount,
-      observedCount: this.packetCount,
-      totalMissingCount: measuredCount ? missingCount : null,
-      totalMissingFraction: measuredCount && expectedCount > 0 ? missingCount / expectedCount : null,
-      largestContiguousGapMs: largestGapMs,
-      countMethod,
-    };
+    const gapSummary: GapSummary = sequenceMeasurement.summary;
     const verificationStates = verificationLayers.map(({ verification }) => verification.state);
     let lifecycleState: RecordingLifecycleState = "exact";
     if (verificationStates.includes("corrupt")) lifecycleState = "corrupt";

@@ -23,6 +23,7 @@ import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
+import { DatabaseRaceEventStore } from "../race-events/store";
 export class TelemetryImportError extends Error {
   readonly code: string;
   readonly lifecycleState: RecordingLifecycleState;
@@ -261,6 +262,7 @@ export async function importSessionFrames(
     ownership: options.ownership,
   });
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
+    raceEventStore: new DatabaseRaceEventStore(),
     bypassPacketRateFilter: true,
     sourceKind: options.sourceKind ?? "raceiq-raw",
     participant: options.participant ?? LOCAL_PLAYER_EVIDENCE,

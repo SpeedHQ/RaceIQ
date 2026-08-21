@@ -6,19 +6,19 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589"
+      "sourceHash": "a92bfd3414573aec80219d95588463fb0aab51e74dea45a7423c9f20aeb3dba8"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8d8fed19d02edaddd5bf0d9ba77aa7b2a82b3a8934b97ba3af87351f3d06930b",
       "server/games/acc/parser.ts": "bd288509bf6f4e02f0dfab01f56e47f117aec6c21ae90444d1c921dc9b008477",
-      "server/games/f1-2025/f1-state.ts": "1e992c4717086930d75dc6036b1b191acdaa2fd48ce5a4a9567ea6e459c11741",
+      "server/games/f1-2025/f1-state.ts": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "f3ec06893e301c12d607fea08902ef75f71c7f34e83775424fbfcde25a23faaf",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "1a30660dbd1d3d3e25dbf7aaa0d648ab5c8b8fe010bba398c7c4e760bbc1c434"
+    "contentHash": "5feefb3453038d5afff1091e3c9d9992d24df784feda7b4689bd2cf327cedc9a"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -486,6 +486,8 @@
         "race.driver-marker",
         "race.driver-status",
         "race.flag-status",
+        "race.grid-car-index",
+        "race.grid-is-player",
         "race.incident-flags",
         "race.is-online",
         "race.is-race-on",
@@ -504,6 +506,7 @@
         "race.player-car-weight-penalty",
         "race.player-class-position",
         "race.player-incident-count",
+        "race.player-pit-code",
         "race.player.push-to-pass-active",
         "race.player.push-to-pass-count",
         "race.race-laps",
@@ -13633,9 +13636,30 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.playerCarIndex"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "normalization": "convert count to index",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "f1-2025:identity.player-car-index:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "f1.playerCarIndex"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "a483c46634550f3578d7bef67c20679b77ee88bf5ff9e1f1a50f1f26eb23a328"
+          }
         },
         "acc": {
           "kind": "unavailable",
@@ -25455,6 +25479,160 @@
       "limitations": []
     },
     {
+      "id": "race.grid-car-index",
+      "label": "Grid car Index",
+      "description": "Stable session-scoped native vehicle index.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].carIndex"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-is-player",
+      "label": "Grid is Player",
+      "description": "Grid is Player source value reported by f1-2025 in boolean.",
+      "parentId": "race",
+      "canonicalUnit": "boolean",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.grid[].isPlayer"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "boolean",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
       "id": "race.incident-flags",
       "label": "Player incident flags",
       "description": "Native incident event bit flags reported for current player.",
@@ -26902,6 +27080,58 @@
             "artifact": "server/games/iracing/normalizer.ts"
           },
           "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.player-pit-code",
+      "label": "Player pit code",
+      "description": "Native simulator pit-state code for the local player.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.pitStatus"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -55238,6 +55468,18 @@
         "retention": "exact"
       },
       {
+        "path": "f1.grid[].carIndex",
+        "label": "Car Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Stable session-scoped native vehicle index.",
+        "semanticId": "race.grid-car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.grid[].currentLapTime",
         "label": "Current Lap Time",
         "unit": "s",
@@ -55281,6 +55523,18 @@
         "count": 1,
         "description": "Grid gap To Leader source value reported by f1-2025 in s.",
         "semanticId": "timing.competitor.gap-to-leader",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].isPlayer",
+        "label": "Is Player",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Grid is Player source value reported by f1-2025 in boolean.",
+        "semanticId": "race.grid-is-player",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -55898,6 +56152,18 @@
         "retention": "exact"
       },
       {
+        "path": "f1.pitStatus",
+        "label": "Pit Status",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native player pit code: 0=none, 1=pitting, 2=pit area.",
+        "semanticId": "race.player-pit-code",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.pitStopWindowIdealLap",
         "label": "Pit Stop Window Ideal Lap",
         "unit": "count",
@@ -55917,6 +56183,18 @@
         "count": 1,
         "description": "Pit Stop Window Latest Lap source value reported by f1-2025 in count.",
         "semanticId": "timing.pit-stop-window-latest-lap",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.playerCarIndex",
+        "label": "Player Car Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Player vehicle index from the native packet header.",
+        "semanticId": "identity.player-car-index",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -75010,7 +75288,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 737,
+    "semanticVariables": 740,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -75022,13 +75300,13 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 290,
+        "total": 294,
         "packet": 119,
-        "extension": 171,
+        "extension": 175,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 290
+        "recorded": 294
       },
       "acc": {
         "total": 202,

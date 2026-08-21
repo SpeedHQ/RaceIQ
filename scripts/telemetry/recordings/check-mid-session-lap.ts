@@ -12,6 +12,7 @@ import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline";
+import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../../server/lap-detection/types";
 
 initGameAdapters(developmentReleaseFeatures);
 initServerGameAdapters(developmentReleaseFeatures);
@@ -25,7 +26,7 @@ if (buf.readUInt32LE(0) === META_FRAME_MAGIC) {
 const serverGame = getServerGame("ac-evo");
 const parserState = serverGame.createParserState?.() ?? null;
 const db = new CapturingDbAdapter();
-const detector = new LapDetectorAcEvo({ db });
+const detector = new LapDetectorAcEvo({ db, lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT });
 
 let firstPacket: any = null;
 let maxLap = 0;

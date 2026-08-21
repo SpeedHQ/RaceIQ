@@ -1,12 +1,12 @@
 # Race Results
 
-RaceIQ normalizes race outcomes and pit activity into game-neutral records that can be rebuilt from stored telemetry and consumed consistently across product surfaces.
+RaceIQ normalizes race outcomes into game-neutral materialized projections that can be rebuilt from the authoritative [race-event timeline](race-event-timeline.md) and explicit classification evidence.
 
 ## Data contract
 
-`session_results` stores at most one normalized result per telemetry session. It records session type, classification, finishing and qualifying positions, podium and fastest-lap flags, pit count, strategy snapshots, derivation status, provenance, and unresolved reasons.
+`session_results` stores at most one normalized result per telemetry session. It records session type, classification, finishing and qualifying positions, podium and fastest-lap flags, pit count, strategy snapshots, derivation status, provenance, unresolved reasons, and the canonical event IDs that support event-derived fields.
 
-`pit_events` stores an ordered ledger for a result. Events may include lap, elapsed time, duration, service classification, tyre details, and fuel changes. Missing values remain nullable. A pit event does not imply tyres or fuel were changed unless source data supports that conclusion.
+Pit visits and service observations live in session-owned `race_events`, not under the result. Pit count is projected from unique canonical pit-entry lifecycles. Tire and fuel strategy is projected only from matching service events; entry into pit road alone never proves a service action.
 
 ## Derivation and provenance
 
@@ -22,7 +22,7 @@ Game adapters expose source data without changing the shared result contract.
 
 ## Reconciliation
 
-`server/race-results/reconcile.ts` provides the common path for live completion and historical enrichment. It processes sessions in bounded order, decodes available raw telemetry, derives a result, and upserts the result and pit ledger. Stable session and event identities make reconciliation safe to rerun without duplicate rows.
+Live completion projects a result after committed timeline and lap updates. `server/race-results/reconcile.ts` provides bounded historical enrichment: it reads a current canonical timeline or invokes the shared raw rebuild entry point when replayable events are missing or stale, then upserts the result projection. It does not redetect or persist a separate event ledger.
 
 Failures enrich reconciliation status instead of invalidating the underlying session. Results report processed, enriched, unchanged, skipped, ambiguous, and error outcomes with per-session reasons.
 
@@ -34,7 +34,8 @@ Typed routes expose individual results, bounded reconciliation, recent summaries
 
 - `server/race-results/derive.ts`: normalized derivation
 - `server/race-results/source.ts`: adapter source extraction
-- `server/race-results/reconcile.ts`: idempotent enrichment
+- `server/race-results/reconcile.ts`: idempotent result enrichment and rebuild coordination
 - `server/race-results/aggregates.ts`: game-scoped summaries
-- `server/db/schema.ts`: `session_results` and `pit_events`
+- `server/db/schema.ts`: `session_results` and session-owned `race_events`
+- `server/db/race-event-queries.ts`: canonical timeline reads used by projections
 - `server/db/session-result-queries.ts`: result persistence and reads

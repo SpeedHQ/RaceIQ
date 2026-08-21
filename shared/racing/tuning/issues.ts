@@ -1,3 +1,5 @@
+import type { RaceEventId } from "../events/contracts";
+
 export type TuneIssueKind =
   | "understeer"
   | "oversteer"
@@ -19,4 +21,6 @@ export interface TuneIssue {
   detail: string;
   /** Present on per-lap issues; absent on live transients. */
   lapNumber?: number;
+  /** Canonical timeline facts supporting this finding. Optional for legacy JSON. */
+  eventIds?: RaceEventId[];
 }

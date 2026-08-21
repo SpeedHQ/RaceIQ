@@ -12,6 +12,7 @@ import {
 import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "../../shared/racing/cars/ac-evo"
 import { LapDetectorAcEvo } from "../../server/games/ac-evo/lap-detector";
 import { CapturingDbAdapter } from "../../server/telemetry/pipeline-ports";
+import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../server/lap-detection/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 
@@ -185,7 +186,10 @@ describe("injectDiscoveredAcEvoCars / getAcEvoCarName", () => {
 describe("pipeline: unknown car resolves through LapDetectorAcEvo into discovered_cars", () => {
   test("a packet with CarOrdinal -1 + carModelName registers the car and the session gets the generated ordinal", async () => {
     const capturingDb = new CapturingDbAdapter();
-    const detector = new LapDetectorAcEvo({ db: capturingDb });
+    const detector = new LapDetectorAcEvo({
+      db: capturingDb,
+      lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
+    });
 
     const packet: Partial<TelemetryPacket> = {
       gameId: "ac-evo",

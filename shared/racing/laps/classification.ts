@@ -1,6 +1,3 @@
-import type { TelemetryPacket } from "../../telemetry/types";
-import { classifyPitCycle } from "./pit-cycle";
-
 export type LapPhase = "flying" | "out" | "in" | "pit" | "grid_start";
 export type LapCondition = "caution" | "slow_zone" | "formation";
 export type PaceEligibility = "eligible" | "excluded";
@@ -27,6 +24,17 @@ export interface LapClassification {
   paceEligibility: PaceEligibility;
 }
 
+/**
+ * Authoritative timeline facts used to classify a completed lap. Packet
+ * buffers are deliberately absent: pit and race-control semantics belong to
+ * the race-event coordinator, not to lap storage.
+ */
+export interface LapTimelineClassificationContext {
+  pitPhase: Extract<LapPhase, "out" | "in" | "pit"> | null;
+  conditions: LapCondition[];
+  gridStart: boolean;
+}
+
 export interface ClassifiedLap {
   phase?: LapPhase | null;
   conditions?: LapCondition[] | null;
@@ -46,55 +54,17 @@ export function isPaceEligible(lap: ClassifiedLap): boolean {
   return (lap.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility) === "eligible";
 }
 
-function isF1GridStart(packet: TelemetryPacket): boolean {
-  if (packet.gameId !== "f1-2025" || packet.LapNumber !== 1) return false;
-
-  const gridPosition = packet.f1?.gridPosition;
-  return (
-    gridPosition !== undefined &&
-    gridPosition > 0 &&
-    packet.RacePosition > 0 &&
-    packet.CurrentRaceTime >= 0 &&
-    packet.CurrentRaceTime <= 5 &&
-    Math.abs(packet.DistanceTraveled) >= 25
-  );
-}
-
-function classifyConditions(packets: readonly TelemetryPacket[]): LapCondition[] {
-  let caution = false;
-  let slowZone = false;
-  let formation = false;
-
-  for (const packet of packets) {
-    if (packet.gameId === "f1-2025") {
-      const safetyCarStatus = packet.f1?.safetyCarStatus;
-      caution ||= safetyCarStatus === 1 || packet.f1?.vehicleFIAFlags === 3;
-      slowZone ||= safetyCarStatus === 2;
-      formation ||= safetyCarStatus === 3;
-    } else if (packet.gameId === "acc" || packet.gameId === "ac-evo") {
-      caution ||= packet.acc?.flagStatus?.toLowerCase() === "yellow";
-    }
-  }
-
-  const conditions: LapCondition[] = [];
-  if (caution) conditions.push("caution");
-  if (slowZone) conditions.push("slow_zone");
-  if (formation) conditions.push("formation");
-  return conditions;
-}
-
 function phasePaceEligibility(phase: LapPhase, conditions: LapCondition[]): PaceEligibility {
   return phase === "flying" && conditions.length === 0 ? "eligible" : "excluded";
 }
 
 /**
- * Classify one completed lap from canonical packets emitted by game normalizers.
- * Validity stays independent: classification describes pace eligibility only.
+ * Classify one completed lap from coordinator-owned timeline facts. Validity
+ * stays independent: classification describes pace eligibility only.
  */
-export function classifyLap(packets: readonly TelemetryPacket[]): LapClassification {
-  const conditions = classifyConditions(packets);
-  const pitCycle = classifyPitCycle(packets);
-  const phase: LapPhase = pitCycle ?? (packets.some(isF1GridStart) ? "grid_start" : "flying");
+export function classifyLap(context: LapTimelineClassificationContext): LapClassification {
+  const conditions = [...new Set(context.conditions)];
+  const phase: LapPhase = context.pitPhase ?? (context.gridStart ? "grid_start" : "flying");
 
   return {
     phase,

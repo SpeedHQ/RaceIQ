@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 function loadReleaseEnvironment(path: string) {
-  const process = Bun.spawnSync({
+  const environment = { ...process.env };
+  delete environment.RACEIQ_FEATURE_F1_EXPERIMENTS;
+  delete environment.RACEIQ_FEATURE_IRACING_ADAPTER;
+  const child = Bun.spawnSync({
     cmd: [
       "bun",
       `--env-file=${path}`,
@@ -10,9 +13,10 @@ function loadReleaseEnvironment(path: string) {
       'process.stdout.write(JSON.stringify({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER }))',
     ],
     cwd: import.meta.dir,
+    env: environment,
   });
-  expect(process.exitCode).toBe(0);
-  return JSON.parse(process.stdout.toString());
+  expect(child.exitCode).toBe(0);
+  return JSON.parse(child.stdout.toString());
 }
 
 describe("release feature flags", () => {

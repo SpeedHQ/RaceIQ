@@ -6,6 +6,12 @@ import { fmTrackCatalog } from "../../../shared/racing/tracks/catalogs/fm";
 import { getForzaSharedOutline } from "../../../shared/racing/tracks/geometry/outlines";
 import { LAP_DETECTOR_ID, LapDetector } from "../../lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
+import {
+	baseRaceEventObservation,
+	localPlayerObservation,
+	normalizedFuelLitres,
+	normalizedTireWear,
+} from "../race-event-observation";
 
 const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
@@ -74,6 +80,26 @@ export const forzaServerAdapter: ServerGameAdapter = {
 
 	createParserState() {
 		return null;
+	},
+
+	toRaceEventObservation(packet, context) {
+		const observation = baseRaceEventObservation(packet, context);
+		observation.participants = [
+			localPlayerObservation(packet, {
+				pitState: "unknown",
+				nativePitCode: null,
+				fuelLitres: normalizedFuelLitres(
+					packet,
+					forzaAdapter.telemetry.fuel.packetUnit,
+				),
+				tireCompound: null,
+				tireWear: normalizedTireWear(packet),
+				damage: null,
+				penaltyValue: null,
+				incidentCount: null,
+			}),
+		];
+		return observation;
 	},
 
 	lapDetectorId: LAP_DETECTOR_ID,

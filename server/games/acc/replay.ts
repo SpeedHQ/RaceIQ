@@ -71,7 +71,7 @@ export async function replayRecording(
         await processPacket(packet);
       }
       if (loop && !cancelled) {
-        await lapDetector.finalizeCurrentSession();
+        await lapDetector.finalizeCurrentSession("session-rotated");
       }
     } while (loop && !cancelled);
 

@@ -8,6 +8,7 @@ import {
 } from "../../../server/games/iracing/normalizer";
 import { LapDetectorIRacing } from "../../../server/games/iracing/lap-detector";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
+import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../../server/lap-detection/types";
 import { SectorTracker } from "../../../server/live-strategy/sector-tracker";
 import { initGameAdapters } from "../../../shared/games/init";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
@@ -142,6 +143,7 @@ describe("iRacing lap timing and native sectors", () => {
     const db = new CapturingDbAdapter();
     const detector = new LapDetectorIRacing({
       db,
+      lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
       bypassPacketRateFilter: true,
     });
     const trackLength = 2350;

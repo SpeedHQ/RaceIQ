@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { LapDetector, type LapCompleteEvent } from "../../server/lap-detection/detector";
 import { CapturingDbAdapter } from "../../server/telemetry/pipeline-ports";
+import type { LapTimelineClassificationContext } from "../../shared/racing/laps/classification";
 import { initServerGameAdapters } from "../../server/games/init";
 import type { GameId } from "../../shared/games/ids";
 import { initGameAdapters } from "../../shared/games/init";
@@ -19,6 +20,7 @@ type LapScenario = {
   iracing?: TelemetryPacket["iracing"];
   distanceStep?: number;
   f1?: TelemetryPacket["f1"];
+  classification?: LapTimelineClassificationContext;
 };
 
 function packet(scenario: LapScenario, index: number, overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
@@ -63,10 +65,23 @@ async function completeLap(scenario: LapScenario) {
   const evaluated: LapCompleteEvent[] = [];
   const detector = new LapDetector({
     db,
+    lapTimelineContext: {
+      classificationForLap: () =>
+        scenario.classification ?? {
+          pitPhase: null,
+          conditions: [],
+          gridStart: false,
+        },
+      eventIdsForLap: () => [],
+    },
     bypassPacketRateFilter: true,
     callbacks: {
-      onLapEvaluated: (event) => evaluated.push(event),
-      onLapComplete: (event) => completed.push(event),
+      onLapEvaluated: (event) => {
+        evaluated.push(event);
+      },
+      onLapComplete: (event) => {
+        completed.push(event);
+      },
     },
   });
 
@@ -99,6 +114,7 @@ describe("LapDetector normal-pace geometry recording gates", () => {
         gameId: "iracing",
         lapNumber: 2,
         iracing: { onPitRoad: true, incidents: 0 } as TelemetryPacket["iracing"],
+        classification: { pitPhase: "pit", conditions: [], gridStart: false },
       });
 
       expect(result.db.laps).toHaveLength(1);
@@ -125,6 +141,7 @@ describe("LapDetector normal-pace geometry recording gates", () => {
         gameId: "f1-2025",
         lapNumber: 1,
         f1: { gridPosition: 1, safetyCarStatus: 0 } as TelemetryPacket["f1"],
+        classification: { pitPhase: null, conditions: [], gridStart: true },
       });
 
       expect(result.db.laps).toHaveLength(1);
@@ -150,6 +167,7 @@ describe("LapDetector normal-pace geometry recording gates", () => {
         gameId: "f1-2025",
         lapNumber: 2,
         f1: { gridPosition: 0, safetyCarStatus: 1 } as TelemetryPacket["f1"],
+        classification: { pitPhase: null, conditions: ["caution"], gridStart: false },
       });
 
       expect(result.db.laps).toHaveLength(1);

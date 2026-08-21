@@ -72,6 +72,38 @@ describe("F1 telemetry contract", () => {
     expect(packet!.TireCarcassTempFL).toBe(88);
   });
 
+  test("preserves player car identity and local native pit status", () => {
+    const accumulator = new F1StateAccumulator();
+    const playerCarIndex = 2;
+    const playerHeader = (packetId: number): F1Header => ({
+      ...header(packetId),
+      playerCarIndex,
+    });
+
+    accumulator.feed(playerHeader(0), frame(Buffer.alloc(3 * 60)));
+    accumulator.feed(playerHeader(1), frame(Buffer.alloc(9)));
+
+    const lapData = Buffer.alloc(3 * 57);
+    lapData.writeUInt8(2, playerCarIndex * 57 + 34);
+    accumulator.feed(playerHeader(2), frame(lapData));
+
+    const participants = Buffer.alloc(1 + 3 * 57);
+    participants.writeUInt8(3, 0);
+    accumulator.feed(playerHeader(4), frame(participants));
+    const packet = accumulator.feed(
+      playerHeader(6),
+      frame(Buffer.alloc(3 * 60)),
+    );
+
+    expect(packet?.f1?.playerCarIndex).toBe(2);
+    expect(packet?.f1?.pitStatus).toBe(2);
+    expect(packet?.f1?.grid.map(({ carIndex, isPlayer }) => ({ carIndex, isPlayer }))).toEqual([
+      { carIndex: 0, isPlayer: false },
+      { carIndex: 1, isPlayer: false },
+      { carIndex: 2, isPlayer: true },
+    ]);
+  });
+
   test("clears cached lap sectors when the session UID changes", () => {
     const accumulator = new F1StateAccumulator();
     const oldSectors = { s1: 30, s2: 31, s3: 29, lapTime: 90 };

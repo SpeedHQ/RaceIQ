@@ -14,6 +14,7 @@ import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LapDetectorAcc } from "../../../server/games/acc/lap-detector"
+import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../../server/lap-detection/types";
 import { TripletPipeline } from "../../../server/games/kunos/triplet-pipeline";
 import { StatusCheckProcessor } from "../../../server/games/acc/processors";
 import type { TripletProcessor } from "../../../server/games/kunos/triplet-pipeline";
@@ -136,7 +137,7 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();
-    const detector = new LapDetectorAcc({ db });
+    const detector = new LapDetectorAcc({ db, lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT });
 
     // Race 1
     await detector.feed(packet!);
@@ -170,7 +171,7 @@ describe("ACC lap detector — session lifecycle", () => {
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();
-    const detector = new LapDetectorAcc({ db });
+    const detector = new LapDetectorAcc({ db, lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT });
 
     await detector.feed(packet!);
     expect(detector.session).not.toBeNull();

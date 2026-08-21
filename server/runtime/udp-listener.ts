@@ -221,7 +221,7 @@ export class UdpListener {
         } else {
           console.log("[Game] state change to null");
           // Finalize session immediately when game disconnects
-          void lapDetector.finalizeCurrentSession().catch((error) => {
+          void lapDetector.finalizeCurrentSession("source-disconnected").catch((error) => {
             console.error("[Live Telemetry] Session finalization failed:", error);
           });
         }

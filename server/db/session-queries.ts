@@ -3,7 +3,7 @@ import { getLapById } from "./lap-read-queries";
 import { analysisEligibility, currentQualitySnapshot } from "./lap-eligibility";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents, lapAnalyses, compareAnalyses } from "./schema";
+import { sessions, laps, sessionResults, raceEvents, lapAnalyses, compareAnalyses } from "./schema";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
@@ -26,6 +26,8 @@ import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration } from
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 export async function insertSession(
@@ -104,9 +106,13 @@ function recordingFactsForLap(recordingQuality: RecordingQualitySummary, lapQual
     .map((fact) => ({ ...fact, id: `session:${fact.id}` }));
 }
 
-export async function updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
+export async function updateSessionQuality(
+  sessionId: number,
+  quality: RecordingQualitySummary,
+  transaction?: DbTransaction,
+): Promise<RecordingQualitySummary> {
   const finalized = finalizeRecordingQualityGeneration(quality);
-  return db.transaction(async (tx) => {
+  const update = async (tx: DbTransaction) => {
     const lapRows = await tx
       .select({
         id: laps.id,
@@ -193,7 +199,8 @@ export async function updateSessionQuality(sessionId: number, quality: Recording
       .where(eq(sessions.id, sessionId))
       .run();
     return finalized;
-  });
+  };
+  return transaction ? update(transaction) : db.transaction(update);
 }
 
 /**
@@ -208,8 +215,15 @@ export async function updateSessionCarTrack(sessionId: number, carOrdinal: numbe
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
 
-export async function updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, versionIdentity?: TelemetryVersionIdentity): Promise<void> {
-  await db
+export async function updateSessionRawFile(
+  sessionId: number,
+  rawFile: string,
+  lapDetectorVersion: string,
+  versionIdentity?: TelemetryVersionIdentity,
+  transaction?: DbTransaction,
+): Promise<void> {
+  const client = transaction ?? db;
+  await client
     .update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
     .where(eq(sessions.id, sessionId))
@@ -420,9 +434,9 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       .get();
     const pitDurationRow = resultRow
       ? await db
-          .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
-          .from(pitEvents)
-          .where(eq(pitEvents.resultId, resultRow.id))
+          .select({ duration: sql<number | null>`sum(json_extract(${raceEvents.payload}, '$.durationMs')) / 1000.0` })
+          .from(raceEvents)
+          .where(and(eq(raceEvents.sessionId, session.id), eq(raceEvents.eventType, "pit_service_completed")))
           .get()
       : null;
     result.push({

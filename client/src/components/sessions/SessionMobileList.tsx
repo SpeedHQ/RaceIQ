@@ -1,7 +1,7 @@
 import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
-import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
+import { RaceEventTimeline } from "@/components/race-events/RaceEventTimeline";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { formatSessionType } from "./helpers";
@@ -149,7 +149,7 @@ export function SessionMobileList({
                   </div>
                 </div>
               </div>
-              {isExpanded && gameId && <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />}
+              {isExpanded && gameId && <RaceEventTimeline sessionId={session.id} enabled={isExpanded} />}
               {isExpanded && sessionLaps.length > 0 && (
                 <div className="border-t border-app-border overflow-x-auto">
                   <SessionLapTable

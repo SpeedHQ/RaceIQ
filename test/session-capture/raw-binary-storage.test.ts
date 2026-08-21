@@ -11,7 +11,7 @@ import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { encodeFrameLength, encodeMetaFrame, META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import { db } from "../../server/db/index";
-import { compareAnalyses, sessions, laps, pitEvents, sessionResults } from "../../server/db/schema";
+import { compareAnalyses, sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
@@ -401,38 +401,6 @@ describe("reprocessSession", () => {
     expect(reprocessed?.recordingQuality?.facts.find(({ code }) => code === "source_reconnect")?.eventIds).toEqual(["lifecycle:reconnect:1"]);
     expect(reprocessed?.recordingQuality?.facts.some(({ code }) => code === "writer_drop" || code === "timeline_discontinuity")).toBe(false);
     expect(reprocessed?.recordingQuality?.lifecycleState).toBe("degraded");
-  });
-
-  test("relinks existing durable pit and position events after rebuilding laps", async () => {
-    const recording = getRecordingFixture("iracing-road-america-gt3.bin.gz");
-    if (!recording) throw new Error("Required recording fixture is missing");
-    const capturePath = join(tmpDir, "session.bin");
-    const recorder = new SessionRecorder();
-    recorder.start(capturePath);
-    recorder.writeMetaFrame();
-    for (const frame of readIRacingFrames(recording)) recorder.writeRecord(frame);
-    await recorder.stop();
-    const priorAccumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
-    priorAccumulator.noteWriterFailure(new Error("recording write failed"));
-    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: "sha256:prior-event-test" }));
-    sessionId = (
-      await db
-        .insert(sessions)
-        .values({ carOrdinal: 42, trackOrdinal: 99, gameId: "iracing", source: "native-live", rawFile: capturePath, recordingQuality: previous })
-        .returning({ id: sessions.id })
-        .get()
-    ).id;
-    const resultId = (await db.insert(sessionResults).values({ sessionId }).returning({ id: sessionResults.id }).get()).id;
-    const pitEventId = (await db.insert(pitEvents).values({ resultId, sequence: 1, eventType: "pit", lapNumber: 1 }).returning({ id: pitEvents.id }).get()).id;
-    const positionEventId = (await db.insert(pitEvents).values({ resultId, sequence: 2, eventType: "position-change", lapNumber: 1 }).returning({ id: pitEvents.id }).get()).id;
-
-    await reprocessSession(sessionId);
-
-    const lap = await db.select({ quality: laps.quality }).from(laps).where(eq(laps.sessionId, sessionId)).get();
-    expect(lap?.quality?.facts.length).toBeGreaterThan(0);
-    const eventIds = lap?.quality?.facts.flatMap((fact) => fact.eventIds);
-    expect(eventIds).toContain(`pit-event:${pitEventId}`);
-    expect(eventIds).toContain(`position-event:${positionEventId}`);
   });
 
   test("replace strategy when lap count differs", async () => {

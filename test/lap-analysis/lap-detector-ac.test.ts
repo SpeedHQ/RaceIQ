@@ -9,10 +9,27 @@ import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
 import type { DbAdapter } from "../../server/telemetry/pipeline-ports";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import {
+  EMPTY_LAP_TIMELINE_CONTEXT,
+  type LapTimelineContextProvider,
+} from "../../server/lap-detection/types";
 
 afterAll(() => stopMaintenanceTasks());
 initGameAdapters();
 initServerGameAdapters();
+
+function timelineWithPitPhases(
+  phases: Readonly<Record<number, "out" | "in" | "pit">>,
+): LapTimelineContextProvider {
+  return {
+    classificationForLap: (_sessionId, lapNumber) => ({
+      pitPhase: phases[lapNumber] ?? null,
+      conditions: [],
+      gridStart: false,
+    }),
+    eventIdsForLap: () => [],
+  };
+}
 
 // Fake DB stub captures lap validity separately from pace classification.
 type CapturedLap = {
@@ -82,8 +99,11 @@ describe("LapDetectorAc — reset detection", () => {
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
     const d = new LapDetectorAcc({
       db,
+      lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
       callbacks: {
-        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+        onLapSaved: (event) => {
+          saved.push({ lapNumber: event.lapNumber, lapTime: event.lapTime });
+        },
       },
     });
 
@@ -121,6 +141,7 @@ describe("LapDetectorAc — reset detection", () => {
     }> = [];
     const d = new LapDetectorAcc({
       db,
+      lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
       callbacks: {
         onLapComplete: (event) => {
           callbackOrder.push("complete");
@@ -168,8 +189,11 @@ describe("LapDetectorAc — reset detection", () => {
     let completeCount = 0;
     const d = new LapDetectorAcc({
       db,
+      lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
       callbacks: {
-        onLapComplete: () => completeCount++,
+        onLapComplete: () => {
+          completeCount += 1;
+        },
       },
     });
 
@@ -184,7 +208,10 @@ describe("LapDetectorAc — reset detection", () => {
 
   test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorAcc({ db });
+    const d = new LapDetectorAcc({
+      db,
+      lapTimelineContext: timelineWithPitPhases({ 1: "out" }),
+    });
 
     // Recording starts with the car in the pit lane, ~50s into some pre-recording lap
     for (let t = 50; t <= 70; t += 1) {
@@ -254,8 +281,11 @@ describe("LapDetectorAc — reset detection", () => {
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
     const d = new LapDetectorAcc({
       db,
+      lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
       callbacks: {
-        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+        onLapSaved: (event) => {
+          saved.push({ lapNumber: event.lapNumber, lapTime: event.lapTime });
+        },
       },
     });
 
@@ -289,12 +319,14 @@ describe("LapDetectorAc — reset detection", () => {
     }> = [];
     const d = new LapDetectorAcc({
       db,
+      lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
       callbacks: {
-        onLapSaved: (event) =>
+        onLapSaved: (event) => {
           saved.push({
             isValid: event.isValid,
             quality: event.quality,
-          }),
+          });
+        },
       },
     });
 
@@ -317,7 +349,10 @@ describe("LapDetectorAc — reset detection", () => {
 
   test("classifies ACC lap as out_lap without invalidating telemetry", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorAcc({ db });
+    const d = new LapDetectorAcc({
+      db,
+      lapTimelineContext: timelineWithPitPhases({ 1: "out" }),
+    });
 
     // Out-lap: starts in pit lane, exits to track, drives a full clean lap
     // First packet: CurrentLap=0, pitStatus=pit_lane (car in pit exit)
@@ -369,7 +404,10 @@ describe("LapDetectorAc — reset detection", () => {
 
   test("classifies ACC lap as in_lap without invalidating telemetry", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorAcc({ db });
+    const d = new LapDetectorAcc({
+      db,
+      lapTimelineContext: timelineWithPitPhases({ 1: "in" }),
+    });
 
     // In-lap: drives most of the lap on track, enters pit lane near the finish
     for (let t = 0; t <= 60; t += 1) {
@@ -412,7 +450,11 @@ describe("LapDetectorAc — reset detection", () => {
   test("keeps native-live and replay boundaries and normalized quality semantics in parity", async () => {
     async function detect(sourceKind: "native-live" | "raceiq-raw") {
       const db = makeFakeDb();
-      const detector = new LapDetectorAcc({ db, sourceKind });
+      const detector = new LapDetectorAcc({
+        db,
+        sourceKind,
+        lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT,
+      });
       for (let tick = 0; tick <= 90; tick += 1) {
         if (tick === 45) continue;
         await detector.feed(packet({ CurrentLap: tick, DistanceTraveled: tick * 50, TimestampMS: tick * 1_000 }), tick * 100);

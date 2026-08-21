@@ -7,15 +7,15 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589`
-- Content SHA-256: `1a30660dbd1d3d3e25dbf7aaa0d648ab5c8b8fe010bba398c7c4e760bbc1c434`
+- Generator source SHA-256: `a92bfd3414573aec80219d95588463fb0aab51e74dea45a7423c9f20aeb3dba8`
+- Content SHA-256: `5feefb3453038d5afff1091e3c9d9992d24df784feda7b4689bd2cf327cedc9a`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 290 | 290 | 119 | 171 | 0 | 0 | 0 |
+| f1-2025 | 294 | 294 | 119 | 175 | 0 | 0 | 0 |
 | acc | 202 | 169 | 124 | 45 | 0 | 0 | 33 |
 | ac-evo | 257 | 221 | 124 | 97 | 0 | 0 | 36 |
 | iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
@@ -373,6 +373,8 @@
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
+| `race.grid-car-index` | Grid car Index | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-is-player` | Grid is Player | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.is-race-on` | Is Race On | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -398,6 +400,7 @@
 | `race.player-car-weight-penalty` | Player Car Weight Penalty | number | mass | kg | scalar |  |  |  |
 | `race.player-class-position` | Player class position | number | dimensionless | count | scalar |  |  |  |
 | `race.player-incident-count` | Player incident count | number | dimensionless | count | scalar |  |  |  |
+| `race.player-pit-code` | Player pit code | number | dimensionless | count | scalar |  |  |  |
 | `race.player.push-to-pass-active` | Player push-to-pass active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player.push-to-pass-count` | Player push-to-pass count | number | dimensionless | count | scalar |  |  |  |
 | `race.race-laps` | Race Laps | number | dimensionless | count | scalar |  |  |  |

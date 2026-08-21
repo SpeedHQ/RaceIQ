@@ -20,6 +20,7 @@ import { ACEVO_STATUS, GRAPHICS_EVO } from "../../../server/games/ac-evo/structs
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
+import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../../server/lap-detection/types";
 
 initGameAdapters(developmentReleaseFeatures);
 initServerGameAdapters(developmentReleaseFeatures);
@@ -54,7 +55,7 @@ const statusName = (s: number) => {
 };
 
 const db = new CapturingDbAdapter();
-const detector = new LapDetectorAcEvo({ db });
+const detector = new LapDetectorAcEvo({ db, lapTimelineContext: EMPTY_LAP_TIMELINE_CONTEXT });
 
 let frameCount = 0;
 let parsedCount = 0;

@@ -6,15 +6,17 @@ import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
+import { listSessionRaceEvents } from "../db/race-event-queries";
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
-import type { PitEvent } from "./types";
+import type { RaceEvent } from "../../shared/racing/events/contracts";
 import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/racing/results/types";
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
+import { reprocessSession } from "../session-capture/reprocess";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v3";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v4";
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
   if (packets.length === 0) return null;
@@ -36,23 +38,15 @@ async function rawInputIdentity(sessionId: number, rawFile: string | null | unde
   }
 }
 
-function toStoredPitEvent(event: PitEvent) {
-  return {
-    sequence: event.sequence,
-    eventType: event.eventType ?? "pit",
-    lapNumber: event.lapNumber,
-    elapsedSeconds: event.elapsedSeconds,
-    durationSeconds: event.durationSeconds,
-    service: event.service,
-    tyreChange: event.tyreChange,
-    fuelAdded: event.fuelAdded,
-    fuelBefore: event.fuelBefore,
-    fuelAfter: event.fuelAfter,
-    positionBefore: event.positionBefore ?? null,
-    positionAfter: event.positionAfter ?? null,
-    linkage: event.linkage,
-    source: event.source,
-  };
+async function loadSessionTimeline(sessionId: number): Promise<RaceEvent[]> {
+  const events: RaceEvent[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await listSessionRaceEvents(sessionId, { limit: 1_000, cursor });
+    events.push(...page.items);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+  return events;
 }
 
 export interface ReconcileSessionReport {
@@ -70,6 +64,31 @@ export interface BackfillReport {
   ambiguous: number;
   errors: number;
   results: ReconcileSessionReport[];
+}
+
+const TRANSPORT_TYPES = new Set<RaceEvent["eventType"]>([
+  "source_connected",
+  "source_disconnected",
+  "source_stale",
+  "source_recovered",
+  "storage_drop",
+  "storage_failure",
+]);
+
+async function ensureReplayableTimelineForStaleSession(sessionId: number): Promise<void> {
+  const events = await loadSessionTimeline(sessionId);
+  if (events.some((event) => !TRANSPORT_TYPES.has(event.eventType) && event.detectorVersion !== "legacy" && event.detectorVersion !== "legacy-v1")) {
+    return;
+  }
+  await reprocessSession(sessionId);
+}
+
+export async function reconcileStaleSessionResult(
+  sessionId: number,
+  gameId: GameId,
+): Promise<ReconcileSessionReport> {
+  await ensureReplayableTimelineForStaleSession(sessionId);
+  return reconcileSessionResult(sessionId, gameId);
 }
 
 export async function reconcileSessionResult(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
@@ -108,7 +127,11 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
       source.evidence.conflicts.push(`session-type:session-row=${session.sessionType}|telemetry=${source.sessionType}`);
     }
   }
-  const derived = deriveRaceResult({ ...source, reasons: [...source.reasons, ...readReasons] });
+  const timeline = await loadSessionTimeline(sessionId);
+  const derived = deriveRaceResult(
+    { ...source, reasons: [...source.reasons, ...readReasons] },
+    timeline,
+  );
   derived.provenance = {
     ...derived.provenance,
     rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
@@ -126,32 +149,12 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     existing.isPodium === derived.isPodium &&
     existing.isFastestLap === derived.isFastestLap &&
     existing.pitCount === derived.pitCount &&
+    JSON.stringify(existing.eventIds) === JSON.stringify(derived.eventIds) &&
     JSON.stringify(existing.tyreStrategy) === JSON.stringify(derived.tyreStrategy) &&
     JSON.stringify(existing.fuelStrategy) === JSON.stringify(derived.fuelStrategy) &&
     JSON.stringify(existing.provenance) === JSON.stringify(derived.provenance) &&
     JSON.stringify(existing.evidence) === JSON.stringify(derived.evidence) &&
-    JSON.stringify(existing.reasons) === JSON.stringify(derived.reasons) &&
-    existing.events.length === derived.events.length &&
-    existing.events.every((event, index) => {
-      const expected = derived.events[index];
-      return (
-        expected != null &&
-        event.sequence === expected.sequence &&
-        event.eventType === (expected.eventType ?? "pit") &&
-        event.positionBefore === (expected.positionBefore ?? null) &&
-        event.positionAfter === (expected.positionAfter ?? null) &&
-        event.lapNumber === expected.lapNumber &&
-        event.elapsedSeconds === expected.elapsedSeconds &&
-        event.durationSeconds === expected.durationSeconds &&
-        event.service === expected.service &&
-        event.fuelAdded === expected.fuelAdded &&
-        event.fuelBefore === expected.fuelBefore &&
-        event.fuelAfter === expected.fuelAfter &&
-        event.linkage === expected.linkage &&
-        JSON.stringify(event.tyreChange) === JSON.stringify(expected.tyreChange) &&
-        JSON.stringify(event.source) === JSON.stringify(expected.source)
-      );
-    });
+    JSON.stringify(existing.reasons) === JSON.stringify(derived.reasons);
   if (!unchanged) {
     await upsertSessionResult(
       {
@@ -165,19 +168,19 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
         isPodium: derived.isPodium,
         isFastestLap: derived.isFastestLap,
         pitCount: derived.pitCount,
+        eventIds: derived.eventIds,
         tyreStrategy: derived.tyreStrategy,
         fuelStrategy: derived.fuelStrategy,
         provenance: derived.provenance,
         evidence: derived.evidence,
         reasons: derived.reasons,
       },
-      derived.events.map(toStoredPitEvent),
     );
   }
   await linkSessionQualityEvents(sessionId);
 
   const status = unchanged ? "unchanged" : derived.outcomeStatus === "confirmed" ? "enriched" : "ambiguous";
-  return { sessionId, status, eventCount: derived.events.length, reasons: derived.reasons };
+  return { sessionId, status, eventCount: derived.eventIds.length, reasons: derived.reasons };
 }
 
 const reconciliationInFlight = new Map<number, Promise<ReconcileSessionReport>>();
@@ -200,6 +203,7 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
   const results: ReconcileSessionReport[] = [];
   for (const session of sessions) {
     try {
+      if (options.eligibleSessionIds) await ensureReplayableTimelineForStaleSession(session.id);
       results.push(await reconcileSessionResult(session.id, options.gameId));
     } catch (error) {
       results.push({ sessionId: session.id, status: "error", eventCount: 0, reasons: [error instanceof Error ? error.message : "unknown-error"] });

@@ -15,6 +15,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.tyreVisualCompound": "tires.tire-compound-code",
   "f1.trackLength": "timing.track-length",
   "f1.pitSpeedLimit": "race.pit-speed-limit",
+  "f1.pitStatus": "race.player-pit-code",
   "f1.weather": "weather.weather-type",
   "f1.trackTemperature": "weather.track-temp",
   "f1.airTemperature": "weather.air-temp",
@@ -165,6 +166,10 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     unit: "m",
     description: "F1 session packet track length.",
     freshness: "session-update",
+  },
+  "f1.pitStatus": {
+    unit: "count",
+    description: "Native player pit code: 0=none, 1=pitting, 2=pit area.",
   },
   "f1.pitSpeedLimit": {
     unit: "km/h",

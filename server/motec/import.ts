@@ -119,6 +119,7 @@ export async function importMotec(ldBytes: Buffer, ldxBytes?: Buffer, options?: 
   });
   const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId, {
     ownership: options?.ownership,
+    notifyDriverProfile: false,
     sourceKind: "motec",
     sourceArchiveVerification: {
       state: "verified",

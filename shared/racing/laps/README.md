@@ -5,7 +5,7 @@ Reusable lap curation, stint statistics, and telemetry-trace transport.
 ## Modules
 
 - `classification.ts` keeps lap phase, race conditions, and pace eligibility independent from structural validity.
-- `pit-cycle.ts` owns the persisted pit-cycle reason vocabulary and classifier helper.
+- `classification.ts` classifies persisted laps from coordinator-owned timeline context; packet buffers never classify pit or flag state.
 - `review-selection.ts` applies shared quality decisions before canonical fastest-clean-lap ranking, exclusion reporting, and caps.
 - `stint-stats.ts` computes repeatability, consistency, and degradation from lap metadata.
 - `trace/types.ts` defines in-memory and encoded lap traces.

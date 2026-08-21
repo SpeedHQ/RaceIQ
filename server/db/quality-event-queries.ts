@@ -1,79 +1,98 @@
-import { eq, inArray, or } from "drizzle-orm";
-import { GameIdSchema, type GameId } from "../../shared/games/ids";
-import type { QualityFact, QualityTimeRange } from "../../shared/racing/quality/contracts";
+import { asc, eq, inArray, or } from "drizzle-orm";
+import type { RaceEvent } from "../../shared/racing/events/contracts";
+import { RaceEventSchema } from "../../shared/racing/events/contracts";
+import type { QualityFact } from "../../shared/racing/quality/contracts";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { db } from "./index";
-import { compareAnalyses, lapAnalyses, laps, pitEvents, sessionResults, sessions } from "./schema";
+import { compareAnalyses, lapAnalyses, laps, raceEvents, sessions } from "./schema";
 
-interface DurableQualityEvent {
-  id: number;
-  eventType: string;
-  lapNumber: number | null;
-  elapsedSeconds: number | null;
-  durationSeconds: number | null;
-}
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-type QualityEventClockDomain = "session" | "race" | "lap" | "game-uptime" | "source";
-
-const CLOCK_DOMAINS_BY_GAME: Record<GameId, { event: QualityEventClockDomain; fact: QualityEventClockDomain }> = {
-  "fm-2023": { event: "race", fact: "game-uptime" },
-  "f1-2025": { event: "session", fact: "session" },
-  acc: { event: "lap", fact: "source" },
-  "ac-evo": { event: "lap", fact: "source" },
-  iracing: { event: "session", fact: "session" },
-};
-
-function normalizeEventTimeRange(event: DurableQualityEvent, gameId: GameId | null): QualityTimeRange | null {
-  if (gameId == null || event.elapsedSeconds == null) return null;
-  const domains = CLOCK_DOMAINS_BY_GAME[gameId];
-  if (domains.event !== domains.fact) return null;
-  const startMs = event.elapsedSeconds * 1_000;
-  return {
-    startMs,
-    endMs: startMs + Math.max(0, event.durationSeconds ?? 0) * 1_000,
-  };
-}
+const LINKED_EVENT_TYPES = new Set<RaceEvent["eventType"]>([
+  "pit_entry",
+  "pit_stall_arrival",
+  "pit_service_started",
+  "tire_service_observed",
+  "fuel_service_observed",
+  "repair_service_observed",
+  "driver_service_observed",
+  "pit_service_completed",
+  "pit_stall_departure",
+  "pit_exit",
+  "pit_visit_incomplete",
+  "drive_through_observed",
+  "incident_observed",
+  "damage_warning_started",
+  "damage_warning_cleared",
+  "penalty_issued",
+  "penalty_cleared",
+  "car_reset",
+  "fast_repair_used",
+  "retirement_observed",
+  "source_connected",
+  "source_disconnected",
+  "source_stale",
+  "source_recovered",
+  "telemetry_gap",
+  "out_of_order_input",
+  "duplicate_input_suppressed",
+  "storage_drop",
+  "storage_failure",
+  "timeline_discontinuity",
+]);
 
 export function qualityEventOverlapsFact(
-  event: DurableQualityEvent,
+  event: Pick<RaceEvent, "lapNumber" | "sourceTimeMs" | "sourceEndTimeMs">,
   lapNumber: number,
   fact: Pick<QualityFact, "timeRange">,
-  gameId: GameId | null,
 ): boolean {
-  const lapMatches = event.lapNumber === lapNumber;
-  if (event.lapNumber != null && !lapMatches) return false;
-  if (event.elapsedSeconds != null && fact.timeRange != null) {
-    const normalizedEventRange = normalizeEventTimeRange(event, gameId);
-    if (normalizedEventRange == null) return lapMatches;
-    return normalizedEventRange.startMs <= fact.timeRange.endMs && normalizedEventRange.endMs >= fact.timeRange.startMs;
+  if (event.lapNumber != null && event.lapNumber !== lapNumber) return false;
+  if (
+    event.sourceTimeMs != null &&
+    event.sourceEndTimeMs != null &&
+    fact.timeRange != null
+  ) {
+    return event.sourceTimeMs <= fact.timeRange.endMs && event.sourceEndTimeMs >= fact.timeRange.startMs;
   }
-  return lapMatches;
+  return event.lapNumber === lapNumber;
 }
 
-function durableEventId(event: DurableQualityEvent): string {
-  return `${event.eventType === "position-change" ? "position-event" : "pit-event"}:${event.id}`;
+function isTimelineEventId(eventId: string): boolean {
+  return (
+    eventId.startsWith("race-event:sha256:") ||
+    eventId.startsWith("pit-event:") ||
+    eventId.startsWith("position-event:") ||
+    eventId.startsWith("pit:") ||
+    eventId.startsWith("position-change:")
+  );
 }
 
-export async function linkSessionQualityEvents(sessionId: number): Promise<number> {
-  const session = await db.select({ gameId: sessions.gameId, recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sessionId)).get();
-  const result = await db.select({ id: sessionResults.id }).from(sessionResults).where(eq(sessionResults.sessionId, sessionId)).get();
-  if (!session?.recordingQuality || !result) return 0;
-  const parsedGameId = GameIdSchema.safeParse(session.gameId);
-  const gameId = parsedGameId.success ? parsedGameId.data : null;
-
-  const events = await db
-    .select({
-      id: pitEvents.id,
-      eventType: pitEvents.eventType,
-      lapNumber: pitEvents.lapNumber,
-      elapsedSeconds: pitEvents.elapsedSeconds,
-      durationSeconds: pitEvents.durationSeconds,
-    })
-    .from(pitEvents)
-    .where(eq(pitEvents.resultId, result.id))
+async function linkSessionQualityEventsInTransaction(
+  tx: DbTransaction,
+  sessionId: number,
+): Promise<number> {
+  const [session] = await tx
+    .select({ recordingQuality: sessions.recordingQuality })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
     .all();
+  if (!session?.recordingQuality) return 0;
 
-  const lapRows = await db
+  const eventRows = await tx
+    .select()
+    .from(raceEvents)
+    .where(eq(raceEvents.sessionId, sessionId))
+    .orderBy(
+      asc(raceEvents.timelineEpoch),
+      asc(raceEvents.sequence),
+      asc(raceEvents.eventOrder),
+      asc(raceEvents.eventId),
+    )
+    .all();
+  const events = eventRows
+    .map((row) => RaceEventSchema.parse(row))
+    .filter((event) => LINKED_EVENT_TYPES.has(event.eventType));
+  const lapRows = await tx
     .select({
       id: laps.id,
       lapNumber: laps.lapNumber,
@@ -90,30 +109,31 @@ export async function linkSessionQualityEvents(sessionId: number): Promise<numbe
     if (!lap.quality) continue;
     let changed = false;
     const facts = lap.quality.facts.map((fact) => {
-      const currentIds = fact.eventIds.filter(
-        (eventId) =>
-          !eventId.startsWith("pit:") &&
-          !eventId.startsWith("position-change:") &&
-          !eventId.startsWith("pit-event:") &&
-          !eventId.startsWith("position-event:"),
-      );
+      const currentIds = fact.eventIds.filter((eventId) => !isTimelineEventId(eventId));
       for (const event of events) {
-        if (qualityEventOverlapsFact(event, lap.lapNumber, fact, gameId)) currentIds.push(durableEventId(event));
+        if (qualityEventOverlapsFact(event, lap.lapNumber, fact)) currentIds.push(event.eventId);
       }
       const eventIds = [...new Set(currentIds)].sort();
-      if (eventIds.length !== fact.eventIds.length || eventIds.some((id, index) => id !== fact.eventIds[index])) {
+      if (
+        eventIds.length !== fact.eventIds.length ||
+        eventIds.some((eventId, index) => eventId !== fact.eventIds[index])
+      ) {
         changed = true;
       }
       return { ...fact, eventIds };
     });
     if (!changed) continue;
 
-    const generated = finalizeLapQualityGeneration({ ...lap.quality, facts }, session.recordingQuality.provenance.sourceGeneration, {
-      lapNumber: lap.lapNumber,
-      rawByteOffset: lap.rawByteOffset,
-      rawFrameCount: lap.rawFrameCount ?? 0,
-    });
-    await db
+    const generated = finalizeLapQualityGeneration(
+      { ...lap.quality, facts },
+      session.recordingQuality.provenance.sourceGeneration,
+      {
+        lapNumber: lap.lapNumber,
+        rawByteOffset: lap.rawByteOffset,
+        rawFrameCount: lap.rawFrameCount ?? 0,
+      },
+    );
+    await tx
       .update(laps)
       .set({
         quality: generated.quality,
@@ -129,11 +149,24 @@ export async function linkSessionQualityEvents(sessionId: number): Promise<numbe
   }
 
   if (changedLapIds.length > 0) {
-    await db.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, changedLapIds)).run();
-    await db
+    await tx.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, changedLapIds)).run();
+    await tx
       .delete(compareAnalyses)
-      .where(or(inArray(compareAnalyses.lapAId, changedLapIds), inArray(compareAnalyses.lapBId, changedLapIds)))
+      .where(
+        or(
+          inArray(compareAnalyses.lapAId, changedLapIds),
+          inArray(compareAnalyses.lapBId, changedLapIds),
+        ),
+      )
       .run();
   }
   return changedLapIds.length;
+}
+
+export function linkSessionQualityEvents(
+  sessionId: number,
+  transaction?: DbTransaction,
+): Promise<number> {
+  if (transaction) return linkSessionQualityEventsInTransaction(transaction, sessionId);
+  return db.transaction((tx) => linkSessionQualityEventsInTransaction(tx, sessionId));
 }

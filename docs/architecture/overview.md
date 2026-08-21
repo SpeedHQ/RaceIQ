@@ -8,6 +8,8 @@ RaceIQ is a Bun server and React client built around a shared, registry-based ga
 graph LR
   Games[Game telemetry] --> Adapters[Server game adapters]
   Adapters --> Pipeline[Telemetry pipeline]
+  Pipeline --> Timeline[Race event coordinator]
+  Timeline --> DB
   Pipeline --> DB[(SQLite + session recordings)]
   Pipeline --> WS[WebSocket]
   API[Hono API] --> DB
@@ -41,10 +43,10 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 1. UDP sources enter through `server/runtime/udp-listener.ts`; native sources enter through their adapter-owned readers.
 2. Adapter parsing produces typed `TelemetryPacket` values using each source's coordinate conventions.
-3. `server/telemetry/live-pipeline.ts` applies coordinate normalization, lap detection, sector and pit tracking, track calibration, persistence callbacks, and live broadcast.
-4. Completed sessions and laps are stored in SQLite; raw telemetry is retained through game-specific recording paths for replay and reprocessing.
-5. `server/runtime/websocket-manager.ts` broadcasts live telemetry to `client/src/stores/telemetry.ts`.
-6. React components render live state from the store. Historical and administrative data comes through typed Hono RPC and TanStack Query.
+3. `server/telemetry/live-pipeline.ts` applies coordinate normalization, coordinates lap detection and canonical race-event detection, performs track calibration, and activates durable projections before notification.
+4. Completed sessions, laps, and the authoritative race-event timeline are stored in SQLite; raw telemetry is retained through game-specific recording paths for replay and transactional rebuild.
+5. `server/runtime/websocket-manager.ts` broadcasts live telemetry plus post-commit race-event invalidation messages.
+6. React components render live state from the store. Historical timelines and administrative data come through typed Hono RPC and TanStack Query.
 
 ## Persistence and API
 
@@ -52,7 +54,7 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 ## Boundaries
 
-- Server is authoritative for telemetry-domain state such as lap boundaries, sector timing, pit estimates, and persisted session results.
+- Server is authoritative for telemetry-domain state such as lap boundaries, sector timing, the durable race-event timeline, pit estimates, and persisted session-result projections.
 - Client may own presentation state, but must not duplicate authoritative telemetry calculations. See [Frontend contribution guide](../contributing/frontend.md).
 - Game-specific behavior belongs in registered adapters. Shared consumers resolve the active game instead of falling back to `fm-2023`.
 - Pipeline dependencies are injected through `DbAdapter`, `WsAdapter`, and session-recorder adapters so focused code can use real, null, or capturing implementations.
@@ -62,5 +64,6 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 - [Lap detection](lap-detection.md)
 - [Lap telemetry cache](lap-cache.md)
 - [Race results](race-results.md)
+- [Race event timeline](race-event-timeline.md)
 - [Setup Engineer](setup-engineer.md)
 - [Telemetry recording](telemetry-recording.md)

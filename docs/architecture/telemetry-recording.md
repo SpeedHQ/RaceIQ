@@ -1,6 +1,6 @@
 # Telemetry Recording Architecture
 
-RaceIQ retains canonical raw source frames beside normalized lap metadata. Raw retention allows future parser, lap-detector, and derived-channel changes to reprocess existing sessions without another drive.
+RaceIQ retains canonical raw source frames beside normalized lap metadata and the durable race-event timeline. Raw retention allows future parser, lap-detector, event-detector, and derived-channel changes to rebuild existing sessions without another drive.
 
 ## Data flow
 
@@ -13,8 +13,10 @@ graph LR
   Raw --> Pipeline
   Pipeline --> Recorder[SessionRecorder]
   Pipeline --> Detector[Lap detector]
+  Pipeline --> Events[Race event coordinator]
   Recorder --> Bin[Session .bin or .bin.gz]
-  Detector --> DB[(sessions and laps)]
+  Detector --> DB[(sessions, laps, and race events)]
+  Events --> DB
   Bin --> Replay[Import or reprocess]
   Replay --> Adapter
 ```
@@ -61,9 +63,9 @@ The framing keeps `SessionRecorder` game-agnostic. Each server adapter's `tryPar
 
 ## Replay, import, and reprocessing
 
-`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap counts update raw indexes and metadata in place; changed counts rebuild detected lap rows while preserving eligible user data on matched replacements.
+`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, and calls the registered game parser. The shared rebuild path stages normalized observations, detected laps, canonical race events, linked quality, and the materialized result entirely in memory. After full validation, one transaction replaces replayable events and laps, relinks event evidence, activates quality and result projections, and invalidates dependent analyses. Failure rolls the transaction back and leaves the previous session state authoritative.
 
-`server/session-capture/import-capture.ts` uses the same parser and pipeline path for uploaded `.bin` or `.bin.gz` data. It rewrites accepted input as a canonical RaceIQ session capture, so later replay and reprocessing do not depend on the upload format.
+`server/session-capture/import-capture.ts` uses the same parser, live pipeline, lap detector, and race-event coordinator for uploaded `.bin` or `.bin.gz` data. It rewrites accepted input as a canonical RaceIQ session capture, so later replay and reprocessing do not depend on the upload format.
 
 Development dump files are different, adapter-specific capture formats. Use [Telemetry recordings](../contributing/telemetry-recordings.md) for fixture capture and import commands; do not treat those dump containers as production session framing.
 
@@ -88,6 +90,8 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - Graceful shutdown flushes the session recorder and native readers before exit.
 - Lap byte offsets always point to the length prefix of a canonical raw record.
 - Parser and replay state are isolated per import/reprocess operation.
+- Raw rebuild validates the complete staged lap/event/result state before a single transactional activation.
+- Race-event WebSocket notifications are emitted only after the corresponding durable commit.
 - Raw bytes remain source-format bytes; normalization occurs after recording.
 - Compressed and uncompressed files must decode to the same record stream.
 
@@ -99,5 +103,7 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - `server/games/iracing/source-frame.ts` — iRacing records
 - `server/session-capture/import-capture.ts` — capture detection and canonical import entry
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline
-- `server/session-capture/reprocess.ts` — detector replay and index refresh
+- `server/session-capture/reprocess.ts` — raw rebuild staging and activation
+- `server/race-events/rebuild.ts` — shared staged race-event and lap rebuild
+- `server/db/race-event-queries.ts` — transactional event replacement and relinking
 - `server/session-capture/compressor.ts` — background gzip
