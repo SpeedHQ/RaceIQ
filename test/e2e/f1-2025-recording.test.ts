@@ -14,7 +14,7 @@ describe("F1-2025 recording", () => {
       if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);
-      const { laps, carModel, trackName, wsNotifications } = await parseDump("f1-2025", recording);
+      const { laps, carModel, trackName, wsNotifications, rawPackets } = await parseDump("f1-2025", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);
@@ -92,12 +92,8 @@ describe("F1-2025 recording", () => {
         }
       }
 
-      // Regenerate SVG + GIF visualizations for this recording
-      if (wsNotifications.length > 0) {
-        const { rawPackets } = await parseDump("f1-2025", recording);
-        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
-        console.log(`[Visualizations] Generated for ${laps.length} laps`);
-      }
+      // Generate SVG + GIF diagnostics only when explicitly enabled.
+      generateRecordingVisualizations(recordingFile, laps, rawPackets);
     }, 120000);
   });
 });

@@ -8,6 +8,11 @@ import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../../
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { parseDump, segmentTelemetryLaps, type TelemetryLapSegment } from "../recordings/parse-dump";
 
+// Catalog assertions need representative lap dynamics, not every broadcast
+// frame. parseDump preserves each lap/session boundary plus this deterministic
+// reservoir sample of its interior.
+const CATALOG_PACKETS_PER_SEGMENT = 512;
+
 export interface RecordedSemanticExpectation {
   readonly semanticId: string;
   readonly mappingStatus: Exclude<TelemetryLinkKind, "unavailable">;
@@ -116,9 +121,27 @@ function assertLapDynamics(gameId: GameId, packets: readonly TelemetryPacket[], 
  * pipeline, then resolve canonical semantic values from the emitted packets.
  */
 export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCoverage): Promise<ReadonlyMap<string, ResolvedValue<unknown>>> {
-  const parsed = await parseDump(coverage.gameId, coverage.recording);
+  const parsed = await parseDump(coverage.gameId, coverage.recording, {
+    packetSampling: {
+      maxPacketsPerSegment: CATALOG_PACKETS_PER_SEGMENT,
+      validatePacket: (packet) => {
+        if (packet.gameId !== coverage.gameId) {
+          throw new Error(`${coverage.gameId} parser emitted a ${packet.gameId} packet`);
+        }
+      },
+    },
+  });
   if (parsed.rawPackets.length === 0) {
     throw new Error(`${coverage.gameId} recording produced no packets: ${coverage.recording}`);
+  }
+
+  const oversizedSegment = segmentTelemetryLaps(parsed.rawPackets)
+    .find((segment) => segment.end - segment.start > CATALOG_PACKETS_PER_SEGMENT);
+  if (oversizedSegment) {
+    throw new Error(
+      `${coverage.gameId} retained ${oversizedSegment.end - oversizedSegment.start} packets for one segment; ` +
+      `catalog replay is capped at ${CATALOG_PACKETS_PER_SEGMENT}`,
+    );
   }
 
   expect(parsed.rawPackets.every((packet) => packet.gameId === coverage.gameId)).toBe(true);

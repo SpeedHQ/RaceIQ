@@ -255,13 +255,13 @@ describe("AC Evo v0.6 recording", () => {
 		}
 	});
 
-	test("outputs SVG visualization", () => {
+	test("optionally outputs SVG visualization", () => {
 		if (!recording) return;
-		const sampled = packets.filter((_, i) => i % 10 === 0);
 		generateRecordingVisualizations(
 			recording.split(/[\\/]/).pop()!,
 			laps,
-			sampled,
+			packets,
+			10,
 		);
 	});
 });

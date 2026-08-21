@@ -1,9 +1,9 @@
 import type { GameId } from "../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { CapturedLap, CapturedSession } from "../../../server/telemetry/pipeline-ports"
-import type { LapSavedNotification } from "../../../server/lap-detection/types"
+import type { CapturedLap, CapturedSession, LiveTelemetryPublication, WsAdapter } from "../../../server/telemetry/pipeline-ports"
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline } from "../../../server/telemetry/live-pipeline"
+import type { LapSavedNotification } from "../../../server/lap-detection/types"
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getAllServerGames, getServerGame } from "../../../server/games/registry";
@@ -195,11 +195,145 @@ export function readUdpPackets(dumpPath: string, gameId?: GameId): ParsedFrames 
 
 const DEFAULT_ACC_FRAME_STRIDE = 4;
 
+/**
+ * Retains at most this many published packets for each contiguous lap/session
+ * segment. The first and last packets are always retained; interior packets
+ * are selected with a deterministic reservoir sample.
+ */
+export interface PacketSamplingOptions {
+  readonly maxPacketsPerSegment: number;
+  /** Runs for every published packet before retention sampling. */
+  readonly validatePacket?: (packet: TelemetryPacket) => void;
+}
+
 export interface ParseDumpOptions {
   /** Capture broadcast packets and attach them to laps. Disable when a fixture only asserts lap metadata/events. */
   capturePackets?: boolean;
+  /**
+   * Bound retained broadcast history while every frame still traverses the
+   * production parser and {@link LiveTelemetryPipeline}. Sampling preserves
+   * each segment's boundaries and timing endpoints.
+   */
+  packetSampling?: PacketSamplingOptions;
   /** Override default ACCTEST downsampling. Fixtures are recorded above pipeline broadcast rate. */
   accFrameStride?: number;
+}
+
+interface CapturedPublication {
+  readonly packet: TelemetryPacket;
+  readonly sectors?: LiveTelemetryPublication["sectors"];
+  readonly pit?: LiveTelemetryPublication["pit"];
+  readonly liveIssues?: LiveTelemetryPublication["liveIssues"];
+}
+
+function isTelemetrySegmentBoundary(previous: TelemetryPacket, packet: TelemetryPacket): boolean {
+  return (
+    (previous.sessionUID !== undefined &&
+      packet.sessionUID !== undefined &&
+      previous.sessionUID !== packet.sessionUID) ||
+    previous.LapNumber !== packet.LapNumber ||
+    (previous.CurrentLap > 5 && packet.CurrentLap < 1) ||
+    previous.DistanceTraveled - packet.DistanceTraveled > 500
+  );
+}
+
+/**
+ * Test-only packet capture for long replays. It never opts into native dev
+ * telemetry, so the pipeline does not structured-clone every source frame.
+ */
+class SampledCapturingWsAdapter implements WsAdapter {
+  readonly broadcastedPackets: CapturedPublication[] = [];
+  readonly broadcastedNotifications: Record<string, unknown>[] = [];
+  readonly broadcastedDevStates: Record<string, unknown>[] = [];
+  readonly wantsDevTelemetry = false;
+  private readonly maxPacketsPerSegment: number;
+  private readonly validatePacket: ((packet: TelemetryPacket) => void) | undefined;
+  private segment: {
+    first: CapturedPublication;
+    last: CapturedPublication;
+    previous: TelemetryPacket;
+    packetCount: number;
+    interiorCount: number;
+    randomState: number;
+    interior: Array<{ publication: CapturedPublication; packetIndex: number }>;
+  } | undefined;
+
+  constructor(options: PacketSamplingOptions) {
+    if (!Number.isSafeInteger(options.maxPacketsPerSegment) || options.maxPacketsPerSegment < 4) {
+      throw new RangeError("packetSampling.maxPacketsPerSegment must be an integer of at least 4");
+    }
+    this.maxPacketsPerSegment = options.maxPacketsPerSegment;
+    this.validatePacket = options.validatePacket;
+  }
+
+  broadcast(packet: TelemetryPacket, sectors?: LiveTelemetryPublication["sectors"], pit?: LiveTelemetryPublication["pit"], liveIssues?: LiveTelemetryPublication["liveIssues"]): void {
+    this.validatePacket?.(packet);
+    const publication = { packet, sectors, pit, liveIssues };
+    if (this.segment && isTelemetrySegmentBoundary(this.segment.previous, packet)) {
+      this.flushSegment();
+    }
+    if (!this.segment) {
+      this.segment = {
+        first: publication,
+        last: publication,
+        previous: packet,
+        packetCount: 1,
+        interiorCount: 0,
+        randomState: 0x6d2b79f5,
+        interior: [],
+      };
+      return;
+    }
+
+    const segment = this.segment;
+    const priorLast = segment.last;
+    segment.last = publication;
+    segment.previous = packet;
+    segment.packetCount += 1;
+    if (segment.packetCount <= 2) return;
+
+    segment.interiorCount += 1;
+    const capacity = this.maxPacketsPerSegment - 2;
+    if (segment.interior.length < capacity) {
+      segment.interior.push({ publication: priorLast, packetIndex: segment.packetCount - 2 });
+      return;
+    }
+
+    segment.randomState = (Math.imul(segment.randomState, 1664525) + 1013904223) >>> 0;
+    const replacementIndex = segment.randomState % segment.interiorCount;
+    if (replacementIndex < capacity) {
+      segment.interior[replacementIndex] = { publication: priorLast, packetIndex: segment.packetCount - 2 };
+    }
+  }
+
+  stageDevTelemetry(_packet: TelemetryPacket): void {}
+
+  publishTelemetry(publication: LiveTelemetryPublication): void {
+    this.broadcast(publication.packet, publication.sectors, publication.pit, publication.liveIssues);
+  }
+
+  broadcastNotification(event: Record<string, unknown>): void {
+    this.broadcastedNotifications.push(event);
+  }
+
+  broadcastDevState(_state: Record<string, unknown>): void {}
+
+  finalizePacketCapture(): void {
+    this.flushSegment();
+  }
+
+  private flushSegment(): void {
+    const segment = this.segment;
+    if (!segment) return;
+    this.broadcastedPackets.push(segment.first);
+    if (segment.packetCount > 1) {
+      segment.interior
+        .sort((left, right) => left.packetIndex - right.packetIndex)
+        .forEach(({ publication }) => this.broadcastedPackets.push(publication));
+      this.broadcastedPackets.push(segment.last);
+    }
+    this.segment = undefined;
+  }
 }
 
 /**
@@ -216,10 +350,17 @@ export async function parseDump(
 ): Promise<DumpResult> {
   ensureInit();
 
+  if (options.packetSampling && options.capturePackets === false) {
+    throw new RangeError("packetSampling cannot be used when capturePackets is false");
+  }
+
   const db = new CapturingDbAdapter();
-  const ws = new CapturingWsAdapter(options.capturePackets ?? true);
+  const ws = options.packetSampling
+    ? new SampledCapturingWsAdapter(options.packetSampling)
+    : new CapturingWsAdapter(options.capturePackets ?? true);
   const pipeline = new LiveTelemetryPipeline(db, ws, {
     bypassPacketRateFilter: true,
+    skipDevState: options.packetSampling !== undefined,
     recorder: new NullSessionRecorderAdapter(),
   });
 
@@ -317,6 +458,27 @@ export async function parseDump(
       trackName ??= packet.iracing?.trackName ?? null;
       await pipeline.processPacket(packet);
     }
+  } else if (options.packetSampling) {
+    let frames: Buffer[];
+    try {
+      frames = readUdpDump(dumpPath);
+    } catch {
+      frames = [];
+    }
+    if (frames.length === 0) {
+      return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
+    }
+
+    const serverAdapter = getServerGame(gameId);
+    const parserState = serverAdapter.createParserState?.() ?? null;
+    let processedFrames = 0;
+    for (const frame of frames) {
+      const packet = serverAdapter.tryParse(frame, parserState);
+      if (packet) await pipeline.processPacket(packet);
+      if ((++processedFrames & 1023) === 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      }
+    }
   } else {
     const parsed = readUdpPackets(dumpPath, gameId);
     if (parsed.packets.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
@@ -331,7 +493,11 @@ export async function parseDump(
   // Flush deferred insertLap calls (lap-detector uses setTimeout(..., 0))
   await new Promise<void>((r) => setTimeout(r, 0));
 
-  // Extract raw packets from broadcast events (all packets that went through the pipeline)
+  // Finalize the trailing sampled segment before extracting packet history.
+  if (ws instanceof SampledCapturingWsAdapter) ws.finalizePacketCapture();
+
+  // Extract retained packets from broadcast events. By default this is every
+  // packet; packetSampling keeps deterministic boundary-preserving samples.
   const rawPackets = ws.broadcastedPackets.map((e) => e.packet);
 
   // Match each captured DB lap to one contiguous packet segment. Lap numbers

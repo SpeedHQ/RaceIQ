@@ -90,12 +90,8 @@ describe("FM-2023 recording", () => {
         }
       }
 
-      // Regenerate SVG + GIF visualizations for this recording
-      if (wsNotifications.length > 0) {
-        const { rawPackets } = await parseDump("fm-2023", recording);
-        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
-        console.log(`[Visualizations] Generated for ${laps.length} laps`);
-      }
+      // Generate SVG + GIF diagnostics only when explicitly enabled.
+      generateRecordingVisualizations(recordingFile, laps, rawPackets);
     }, { timeout: 30000 });
   });
 
@@ -107,7 +103,7 @@ describe("FM-2023 recording", () => {
       if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);
-      const { laps, carModel, trackName, wsNotifications } = await parseDump("fm-2023", recording);
+      const { laps, carModel, trackName, wsNotifications, rawPackets } = await parseDump("fm-2023", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);
@@ -184,12 +180,8 @@ describe("FM-2023 recording", () => {
         }
       }
 
-      // Regenerate SVG + GIF visualizations for this recording
-      if (wsNotifications.length > 0) {
-        const { rawPackets } = await parseDump("fm-2023", recording);
-        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
-        console.log(`[Visualizations] Generated for ${laps.length} laps`);
-      }
+      // Generate SVG + GIF diagnostics only when explicitly enabled.
+      generateRecordingVisualizations(recordingFile, laps, rawPackets);
     }, { timeout: 30000 });
   });
 });

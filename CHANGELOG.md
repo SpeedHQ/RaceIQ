@@ -74,6 +74,7 @@
 
 ### Internal
 - Run pull-request E2E suites as ordered, isolated batches with shared setup to reduce hosted-runner pressure and preserve combined diagnostics
+- Keep recorded telemetry contracts within their timeout budgets by retaining boundary-preserving packet samples, avoiding duplicate fixture replays, and generating diagnostic visualizations only on request
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
