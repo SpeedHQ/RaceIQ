@@ -41,6 +41,7 @@ jobs:
       - 5G
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
+      PW_SCREENSHOT_WORKERS: "1"
     steps:
       # Resolve through the API for both event types. This keeps manual runs
       # aligned with the PR's current base revision too.
