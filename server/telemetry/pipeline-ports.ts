@@ -26,7 +26,7 @@ import {
 } from "../../shared/telemetry/catalog/data";
 import { TELEMETRY_DERIVATION_VERSION } from "../../shared/telemetry/derivations/builtins";
 import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../shared/telemetry/resolver/versions";
-import { insertSession, updateSessionQuality, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
+import { insertSession, setSessionAnalysisGeneration, updateSessionQuality, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
 import { insertLap, setLapMetrics, type PersistLapInput } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
@@ -57,6 +57,7 @@ export interface CapturedSession {
   sourceKind?: EvidenceSourceKind;
   sourceChannelProfile?: SourceChannelProfile;
   ownership?: SessionOwnership;
+  analysisGenerationId?: string;
 }
 
 export interface CapturedLap extends LapClassification {
@@ -75,6 +76,7 @@ export interface CapturedLap extends LapClassification {
   versionIdentity?: TelemetryVersionIdentity;
   quality: LapQualitySummary | null;
   eligibility: EligibilityDecisionSet | null;
+  analysisGenerationId?: string | null;
 }
 
 export interface DbAdapter {
@@ -89,6 +91,7 @@ export interface DbAdapter {
     ownership?: SessionOwnership,
   ): Promise<number>;
   insertLap(input: PersistLapInput): Promise<number>;
+  setSessionAnalysisGeneration?(sessionId: number, generationId: string): Promise<void>;
   updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary>;
   /** Persist precomputed per-lap fuel/tyre metrics (migration v32 columns).
    *  Called right after insertLap so /lap-metrics is a pure column read and
@@ -229,6 +232,7 @@ export class RealDbAdapter implements DbAdapter {
       carOrdinal: number;
       trackOrdinal: number;
       versionIdentity: TelemetryVersionIdentity;
+      analysisGenerationId?: string;
     }
   >();
   private readonly options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership };
@@ -257,10 +261,18 @@ export class RealDbAdapter implements DbAdapter {
     const scope = this.sessionScopes.get(input.sessionId);
     const lapId = await insertLap({
       ...input,
+      analysisGenerationId: input.analysisGenerationId ?? scope?.analysisGenerationId ?? null,
       versionIdentity: input.versionIdentity ?? scope?.versionIdentity,
     });
     if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
     return lapId;
+  }
+  async setSessionAnalysisGeneration(sessionId: number, generationId: string): Promise<void> {
+    await setSessionAnalysisGeneration(sessionId, generationId);
+    const existing = this.sessionScopes.get(sessionId);
+    if (existing) {
+      this.sessionScopes.set(sessionId, { ...existing, analysisGenerationId: generationId });
+    }
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return setLapMetrics(lapId, fuelPerLap, tyreWear);
@@ -297,6 +309,7 @@ export class RealDbAdapter implements DbAdapter {
 export class CapturingDbAdapter implements DbAdapter {
   readonly sessions: CapturedSession[] = [];
   readonly laps: CapturedLap[] = [];
+  private readonly _analysisGenerations = new Map<number, string>();
   private _sessionId = 0;
   private _lapId = 0;
 
@@ -316,8 +329,24 @@ export class CapturingDbAdapter implements DbAdapter {
 
   insertLap(input: PersistLapInput): Promise<number> {
     const { classification, ...captured } = input;
-    this.laps.push({ ...captured, ...classification });
+    this.laps.push({
+      ...captured,
+      analysisGenerationId:
+        input.analysisGenerationId ??
+        this._analysisGenerations.get(input.sessionId) ??
+        null,
+      ...classification,
+    });
     return Promise.resolve(++this._lapId);
+  }
+  setSessionAnalysisGeneration(
+    sessionId: number,
+    generationId: string,
+  ): Promise<void> {
+    this._analysisGenerations.set(sessionId, generationId);
+    const session = this.sessions[sessionId - 1];
+    if (session) session.analysisGenerationId = generationId;
+    return Promise.resolve();
   }
 
   readonly sessionQuality = new Map<number, RecordingQualitySummary>();

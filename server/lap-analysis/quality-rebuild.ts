@@ -17,7 +17,8 @@ import {
 } from "../../shared/racing/provenance/contracts";
 import { auditPersistedSessionAnalysis } from "../analysis-provenance/inventory";
 import { createPersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
-import { analysisCanonicalHash, currentAnalysisContract } from "../analysis-provenance/current-contract";
+import { currentAnalysisContract } from "../analysis-provenance/current-contract";
+import { analysisCanonicalHash } from "../analysis-provenance/hash";
 import {
   activateAnalysisGeneration,
   beginAnalysisGeneration,
@@ -32,7 +33,7 @@ import { updateSessionQuality } from "../db/session-queries";
 import { tryGetServerGame } from "../games/registry";
 import { loadRawCaptureIdentity } from "../session-capture/identity";
 
-export type QualityRebuildAction = "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
+export type QualityRebuildAction = "current" | "rebuild_eligibility" | "reprocess" | "rebuild_in_progress" | "unavailable";
 
 export interface QualityRebuildStatus {
   sessionId: number;
@@ -161,7 +162,7 @@ async function evaluateAnalysisStatus(
   const contract = currentAnalysisContract(session.gameId as GameId, session.sourceChannelProfile);
   const staleReasons: AnalysisStaleReason[] = [];
   if (!sourceExecutorAvailable) staleReasons.push("source_unavailable");
-  if (receipt.contractHash !== contract.contractHash) staleReasons.push("telemetry_contract_changed");
+  const contractHashMismatch = receipt.contractHash !== contract.contractHash;
   if (!sourceContentHash) staleReasons.push("source_unavailable");
   else if (receipt.evidence.contentHash !== sourceContentHash) staleReasons.push("source_hash_changed");
   if (analysisCanonicalHash(receipt.telemetryVersion) !== analysisCanonicalHash(contract.telemetryVersion)) staleReasons.push("telemetry_contract_changed");
@@ -169,10 +170,15 @@ async function evaluateAnalysisStatus(
   for (const component of receipt.analysisComponents) {
     const current = currentComponents.get(component.id);
     if (!current || current.version !== component.version || current.schemaVersion !== component.schemaVersion) {
-      staleReasons.push(component.id.includes("detector") || component.id === "lap-timeline" ? "detector_changed" : "algorithm_changed");
+      staleReasons.push(component.id === "quality"
+        ? "configuration_changed"
+        : component.id.includes("detector") || component.id === "lap-timeline"
+          ? "detector_changed"
+          : "algorithm_changed");
     }
   }
   if (receipt.configuration.hash !== contract.configurationHash) staleReasons.push("configuration_changed");
+  if (contractHashMismatch && staleReasons.length === 0) staleReasons.push("telemetry_contract_changed");
   const uniqueReasons = [...new Set(staleReasons)];
   if (uniqueReasons.length > 0) {
     return {
@@ -182,6 +188,27 @@ async function evaluateAnalysisStatus(
     };
   }
   return { ...base, status: "current", staleReasons: [] };
+}
+
+function configurationWithoutQuality(value: unknown): Record<string, unknown> | null {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return null;
+  const { quality: _quality, ...configuration } = value as Record<string, unknown>;
+  return configuration;
+}
+
+function isPolicyOnlyReceiptStaleness(
+  analysisStatus: AnalysisStatus,
+  policyStale: boolean,
+  measurementStale: boolean,
+  currentConfiguration: unknown,
+): boolean {
+  if (!policyStale || measurementStale || analysisStatus.status !== "stale_rebuild_available") return false;
+  if (analysisStatus.staleReasons.length === 0 || analysisStatus.staleReasons.some((reason) => reason !== "configuration_changed")) return false;
+  const receiptConfiguration = configurationWithoutQuality(analysisStatus.receipt?.configuration.effective);
+  const currentNonQualityConfiguration = configurationWithoutQuality(currentConfiguration);
+  return receiptConfiguration != null
+    && currentNonQualityConfiguration != null
+    && analysisCanonicalHash(receiptConfiguration) === analysisCanonicalHash(currentNonQualityConfiguration);
 }
 
 export async function getQualityRebuildStatus(sessionId: number): Promise<QualityRebuildStatus> {
@@ -216,12 +243,25 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     configuration: session.configurationVersion !== QUALITY_CONFIG_VERSION,
     source: sourceStale,
   };
+  const analysisStatus = await evaluateAnalysisStatus(sessionId, session, source.rawAvailable, source.contentHash);
   const measurementStale = !session.recordingQuality || stale.schema || stale.detector || stale.configuration || stale.source;
-  const action: QualityRebuildAction = measurementStale
-    ? (source.rawAvailable && currentDetectorId !== null ? "reprocess" : "unavailable")
-    : stale.policy
-      ? "rebuild_eligibility"
-      : "current";
+  const contract = currentAnalysisContract(session.gameId as GameId, session.sourceChannelProfile);
+  const policyOnlyReceiptStaleness = isPolicyOnlyReceiptStaleness(
+    analysisStatus,
+    stale.policy,
+    measurementStale,
+    contract.effectiveConfiguration,
+  );
+  const receiptRequiresReprocess = analysisStatus.status !== "current"
+    && analysisStatus.status !== "rebuild_in_progress"
+    && !policyOnlyReceiptStaleness;
+  const action: QualityRebuildAction = analysisStatus.status === "rebuild_in_progress"
+    ? "rebuild_in_progress"
+    : measurementStale || receiptRequiresReprocess
+      ? (source.rawAvailable && currentDetectorId !== null ? "reprocess" : "unavailable")
+      : stale.policy
+        ? "rebuild_eligibility"
+        : "current";
   return {
     sessionId,
     currentDetectorId,
@@ -231,7 +271,7 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     recordingQuality: session.recordingQuality,
     qualityGeneration: session.qualityGeneration,
     stale,
-    analysisStatus: await evaluateAnalysisStatus(sessionId, session, source.rawAvailable, source.contentHash),
+    analysisStatus,
   };
 }
 

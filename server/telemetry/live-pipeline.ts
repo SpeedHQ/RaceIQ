@@ -4,6 +4,7 @@ import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
 import type { OpenSessionRun } from "../../shared/racing/runs/contracts";
+import type { SessionRun } from "../../shared/racing/runs/contracts";
 import type { CompletedSessionRunLap } from "../../shared/racing/runs/summary";
 import { isEligibilityUsable } from "../../shared/racing/quality/policies";
 import {
@@ -45,7 +46,8 @@ import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
-import { activatePersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
+import { activateSessionAnalysisAttempt, beginSessionAnalysisAttempt } from "../analysis-provenance/session-attempt";
+import type { AnalysisReceiptRow } from "../db/analysis-receipt-queries";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { RaceEventCoordinator } from "../race-events/coordinator";
@@ -69,6 +71,7 @@ interface RecordingSessionState {
   sessionId: number;
   gameId: GameId;
   detector: ILapDetector;
+  analysisAttempt: AnalysisReceiptRow | null;
 }
 
 interface ClosedRecordingSession {
@@ -78,6 +81,7 @@ interface ClosedRecordingSession {
   transportVerification?: ArchiveVerification;
   canonicalVerification?: ArchiveVerification;
   finalizedQuality?: RecordingQualitySummary;
+  finalizedSessionRuns?: readonly SessionRun[];
   closureEvents: RaceEvent[];
 }
 interface PendingLapIssueEvaluation {
@@ -142,8 +146,9 @@ export class LiveTelemetryPipeline {
   private readonly _pendingLapIssues = new Map<string, PendingLapIssueEvaluation>();
   private _recordingSession: RecordingSessionState | null = null;
   private _recordingQuality: RecordingQualityAccumulator | null = null;
-  private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
-  private _onSessionAnalysisFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+  private _onSessionFinalized?: (sessionId: number, gameId: GameId, analysisGenerationId?: string) => Promise<void>;
+  private _onSessionAnalysisStarted?: (sessionId: number, gameId: GameId) => Promise<AnalysisReceiptRow>;
+  private _onSessionAnalysisFinalized?: (attempt: AnalysisReceiptRow, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
@@ -219,8 +224,9 @@ export class LiveTelemetryPipeline {
       skipHistorySeeding?: boolean;
       skipDevState?: boolean;
       recorder?: SessionRecorderAdapter;
-      onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
-      onSessionAnalysisFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+      onSessionFinalized?: (sessionId: number, gameId: GameId, analysisGenerationId?: string) => Promise<void>;
+      onSessionAnalysisStarted?: (sessionId: number, gameId: GameId) => Promise<AnalysisReceiptRow>;
+      onSessionAnalysisFinalized?: (attempt: AnalysisReceiptRow, gameId: GameId) => Promise<void>;
       sourceKind?: EvidenceSourceKind;
       participant?: ParticipantEvidence;
       sourceArchiveVerification?: ArchiveVerification;
@@ -242,6 +248,7 @@ export class LiveTelemetryPipeline {
     this._skipDevState = options?.skipDevState ?? false;
     this._sourceKind = options?.sourceKind ?? "native-live";
     this._onSessionFinalized = options?.onSessionFinalized;
+    this._onSessionAnalysisStarted = options?.onSessionAnalysisStarted;
     this._onSessionAnalysisFinalized = options?.onSessionAnalysisFinalized;
     this._participant = options?.participant ?? LOCAL_PLAYER_EVIDENCE;
     this._versionIdentity = options?.versionIdentity;
@@ -489,14 +496,18 @@ export class LiveTelemetryPipeline {
     await this._drainSessionFinalizations();
   }
 
-  private _scheduleLapReconciliation(sessionId: number, gameId: GameId): Promise<void> {
+  private _scheduleLapReconciliation(
+    sessionId: number,
+    gameId: GameId,
+    analysisGenerationId?: string,
+  ): Promise<void> {
     const reconcile = this._onSessionFinalized;
     if (!reconcile) return Promise.resolve();
     const previous = this._lapReconciliations.get(sessionId) ?? Promise.resolve();
     let current: Promise<void>;
     current = previous
       .catch(() => {})
-      .then(() => reconcile(sessionId, gameId))
+      .then(() => reconcile(sessionId, gameId, analysisGenerationId))
       .finally(() => {
         if (this._lapReconciliations.get(sessionId) === current) {
           this._lapReconciliations.delete(sessionId);
@@ -518,7 +529,7 @@ export class LiveTelemetryPipeline {
     });
   }
 
-  private _reconcileRecordedSession(session: { sessionId: number; gameId: GameId }): Promise<void> {
+  private _reconcileRecordedSession(session: RecordingSessionState): Promise<void> {
     if (this._finalizedResultSessions.has(session.sessionId)) {
       return Promise.resolve();
     }
@@ -526,12 +537,19 @@ export class LiveTelemetryPipeline {
     if (pending) return pending;
     const finalization = (async () => {
       await this._drainLapReconciliations(session.sessionId);
+      const analysisAttempt = session.analysisAttempt;
       if (this._onSessionFinalized) {
-        await this._onSessionFinalized(session.sessionId, session.gameId);
-        this._publishRaceResultInvalidation(session.sessionId);
+        await this._onSessionFinalized(
+          session.sessionId,
+          session.gameId,
+          analysisAttempt?.generationId,
+        );
       }
-      if (this._onSessionAnalysisFinalized) {
-        await this._onSessionAnalysisFinalized(session.sessionId, session.gameId);
+      if (analysisAttempt && this._onSessionAnalysisFinalized) {
+        await this._onSessionAnalysisFinalized(analysisAttempt, session.gameId);
+      }
+      if (this._onSessionFinalized) {
+        this._publishRaceResultInvalidation(session.sessionId);
       }
       this._finalizedResultSessions.add(session.sessionId);
     })();
@@ -613,6 +631,11 @@ export class LiveTelemetryPipeline {
       if (!finalized.provenance.sourceGeneration.startsWith("provisional:")) {
         await this.raceEventStore.finalizeSourceGeneration(closed.session.sessionId, finalized.provenance.sourceGeneration);
       }
+      await this._refreshFinalizedSessionLaps(
+        closed.session.sessionId,
+        closed.session.gameId,
+      );
+      await this._reconcileRecordedSession(closed.session);
       try {
         this.raceEventPublisher.publishReplaced(closed.session.sessionId);
       } catch (error) {
@@ -621,7 +644,19 @@ export class LiveTelemetryPipeline {
           error,
         );
       }
-      await this.raceEventStore.refreshSessionRuns(closed.session.sessionId);
+      if ((closed.finalizedSessionRuns?.length ?? 0) > 0) {
+        try {
+          this.sessionRunPublisher.publishCompleted(
+            closed.session.sessionId,
+            closed.finalizedSessionRuns!,
+          );
+        } catch (error) {
+          console.error(
+            `[Live Telemetry] Session-run publication failed for session ${closed.session.sessionId}:`,
+            error,
+          );
+        }
+      }
       try {
         this.sessionRunPublisher.publishReplaced(closed.session.sessionId);
       } catch (error) {
@@ -630,11 +665,6 @@ export class LiveTelemetryPipeline {
           error,
         );
       }
-      await this._refreshFinalizedSessionLaps(
-        closed.session.sessionId,
-        closed.session.gameId,
-      );
-      await this._reconcileRecordedSession(closed.session);
       this.ws.broadcastNotification({
         type: "quality-updated",
         sessionId: closed.session.sessionId,
@@ -645,22 +675,15 @@ export class LiveTelemetryPipeline {
     await this._reconcileRecordedSession(closed.session);
   }
 
-  private async _finalizeSessionRuns(sessionId: number): Promise<void> {
+  private async _finalizeSessionRuns(
+    sessionId: number,
+  ): Promise<readonly SessionRun[]> {
     const preparedUpdate = this.sessionRunBuilder.finalize({ sessionId });
     const inserted = await this.raceEventStore.appendSessionRunUpdate(
       preparedUpdate,
     );
     preparedUpdate.commit();
-    if (inserted.length > 0) {
-      try {
-        this.sessionRunPublisher.publishCompleted(sessionId, inserted);
-      } catch (error) {
-        console.error(
-          `[Live Telemetry] Session-run publication failed for session ${sessionId}:`,
-          error,
-        );
-      }
-    }
+    return inserted;
   }
 
   private async _finalizeClosedSession(
@@ -669,7 +692,7 @@ export class LiveTelemetryPipeline {
   ): Promise<CaptureFinalizationResult> {
     const sessionId = closed.session.sessionId;
     this._pendingClosedRunFinalizations.set(sessionId, { closed, endReason });
-    await this._finalizeSessionRuns(sessionId);
+    closed.finalizedSessionRuns ??= await this._finalizeSessionRuns(sessionId);
     const finalization = this._trackSessionFinalization(closed, endReason);
     void finalization
       .then(() => {
@@ -735,13 +758,26 @@ export class LiveTelemetryPipeline {
         const closedPrevious = await withSessionCaptureMaintenanceLock(async () => {
           const previousSession = this._recordingSession;
           const closed = previousSession ? await this._closeRecordedSession(previousSession) : (await this.recorder.stop(), null);
+          const analysisAttempt = this._onSessionAnalysisStarted
+            ? await this._onSessionAnalysisStarted(session.sessionId, session.gameId)
+            : null;
 
+          if (analysisAttempt) {
+            await this.db.setSessionAnalysisGeneration?.(
+              session.sessionId,
+              analysisAttempt.generationId,
+            );
+          }
+          this.raceEvents.setAnalysisGenerationId(
+            analysisAttempt?.generationId ?? null,
+          );
           this.recorder.start(session.gameId);
           this.recorder.writeMetaFrame();
           this._recordingSession = {
             sessionId: session.sessionId,
             gameId: session.gameId,
             detector: this._lapDetector!,
+            analysisAttempt,
           };
           this._recordingQuality = new RecordingQualityAccumulator(this._sourceKind, this._participant, this._versionIdentity ?? currentTelemetryVersionIdentity(session.gameId));
           if (this.recorder.path) {
@@ -930,17 +966,13 @@ export class LiveTelemetryPipeline {
           this._broadcastSessionLaps();
         };
         const reconcile = () => {
-          const pending = this._scheduleLapReconciliation(
+          void this._scheduleLapReconciliation(
             session.sessionId,
             session.gameId,
-          );
-          void pending
-            .then(() => {
-              if (this._onSessionFinalized) {
-                this._publishRaceResultInvalidation(session.sessionId);
-              }
-            })
-            .catch(() => {});
+            this._recordingSession?.sessionId === session.sessionId
+              ? this._recordingSession.analysisAttempt?.generationId
+              : undefined,
+          ).catch(() => {});
         };
 
         if (staged) {
@@ -1285,7 +1317,8 @@ const _defaultWs: WsAdapter = {
   get wantsDevTelemetry() {
     return wsManager.wantsDevTelemetry;
   },
-  broadcast: (packet, sectors, pit, liveIssues) => wsManager.broadcast(packet, sectors, pit, liveIssues),
+  broadcast: (packet, sectors, pit, liveIssues) =>
+    wsManager.broadcast(packet, sectors, pit, liveIssues),
   stageDevTelemetry: (packet) => wsManager.stageDevTelemetry(packet),
   publishTelemetry: ({ packet, sectors, pit, liveIssues, projection }) => {
     wsManager.broadcast(packet, sectors, pit, liveIssues);
@@ -1296,15 +1329,13 @@ const _defaultWs: WsAdapter = {
 };
 const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
   raceEventStore: new DatabaseRaceEventStore(),
-  onSessionFinalized: async (sessionId, gameId) => {
-    await reconcileSessionResult(sessionId, gameId);
+  onSessionAnalysisStarted: (sessionId, gameId) =>
+    beginSessionAnalysisAttempt(sessionId, gameId, null),
+  onSessionFinalized: async (sessionId, gameId, analysisGenerationId) => {
+    await reconcileSessionResult(sessionId, gameId, analysisGenerationId);
   },
-  onSessionAnalysisFinalized: async (sessionId, gameId) => {
-    try {
-      await activatePersistedSessionAnalysisReceipt(sessionId, gameId);
-    } catch (error) {
-      console.error(`[Live Telemetry] Failed to activate analysis receipt for session ${sessionId}:`, error);
-    }
+  onSessionAnalysisFinalized: async (attempt, gameId) => {
+    await activateSessionAnalysisAttempt(attempt, gameId);
   },
 });
 

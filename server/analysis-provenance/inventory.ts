@@ -20,7 +20,7 @@ import {
   sessions,
 } from "../db/schema";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
-import { analysisCanonicalHash } from "./current-contract";
+import { analysisCanonicalHash } from "./hash";
 
 export interface SessionAnalysisInventory {
   outputs: AnalysisOutputInventoryEntry[];
@@ -89,6 +89,7 @@ export async function buildPersistedSessionAnalysisInventory(
   const lapSemantic = lapRows.map((lap) => ({
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
+    sectorTimes: lap.sectorTimes,
     isValid: lap.isValid,
     phase: lap.phase,
     conditions: lap.conditions,
@@ -233,18 +234,39 @@ export async function auditPersistedSessionAnalysis(receipt: AnalysisProvenanceR
     return [{ id: "storage_state", status: "not_applicable", details: "Receipt does not describe session analysis" }];
   }
   try {
-    const inventory = await buildPersistedSessionAnalysisInventory(receipt.sessionId);
+    const [inventory, sessionStampRows, lapStampRows, eventStampRows, runStampRows, resultStampRows] = await Promise.all([
+      buildPersistedSessionAnalysisInventory(receipt.sessionId),
+      db.select({ analysisGenerationId: sessions.analysisGenerationId }).from(sessions).where(eq(sessions.id, receipt.sessionId)).limit(1),
+      db.select({ analysisGenerationId: laps.analysisGenerationId }).from(laps).where(eq(laps.sessionId, receipt.sessionId)),
+      db.select({ analysisGenerationId: raceEvents.analysisGenerationId }).from(raceEvents).where(eq(raceEvents.sessionId, receipt.sessionId)),
+      db.select({ analysisGenerationId: sessionRuns.analysisGenerationId }).from(sessionRuns).where(eq(sessionRuns.sessionId, receipt.sessionId)),
+      db.select({ analysisGenerationId: sessionResults.analysisGenerationId }).from(sessionResults).where(eq(sessionResults.sessionId, receipt.sessionId)),
+    ]);
     const expected = new Map(receipt.outputs.map((entry) => [entry.name, entry]));
     const mismatches = inventory.outputs.filter((entry) => {
       const declared = expected.get(entry.name);
       return !declared || declared.count !== entry.count || declared.contentHash !== entry.contentHash || analysisCanonicalHash(declared) !== analysisCanonicalHash(entry);
     });
+    const stampGroups = [
+      ["session", sessionStampRows.map((row) => row.analysisGenerationId)],
+      ["laps", lapStampRows.map((row) => row.analysisGenerationId)],
+      ["race_events", eventStampRows.map((row) => row.analysisGenerationId)],
+      ["session_runs", runStampRows.map((row) => row.analysisGenerationId)],
+      ["session_result", resultStampRows.map((row) => row.analysisGenerationId)],
+    ] as const;
+    const staleGenerationStamps = stampGroups
+      .filter(([, generationIds]) => generationIds.some((generationId) => generationId !== receipt.generationId))
+      .map(([name]) => name);
+    const details = [
+      mismatches.length === 0 ? null : `Persisted outputs differ: ${mismatches.map((entry) => entry.name).join(", ")}`,
+      staleGenerationStamps.length === 0 ? null : `Active generation stamp differs: ${staleGenerationStamps.join(", ")}`,
+    ].filter((detail): detail is string => detail != null);
     return [
       ...inventory.checks,
       {
         id: "storage_state",
-        status: mismatches.length === 0 ? "passed" : "failed",
-        details: mismatches.length === 0 ? "Persisted outputs match active receipt" : `Persisted outputs differ: ${mismatches.map((entry) => entry.name).join(", ")}`,
+        status: details.length === 0 ? "passed" : "failed",
+        details: details.length === 0 ? "Persisted outputs and active generation stamps match receipt" : details.join("; "),
       },
     ];
   } catch {

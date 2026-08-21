@@ -157,4 +157,34 @@ describe("telemetry import quality errors", () => {
       expect(updatedSessions).toEqual(sessionIds.slice(0, index + 1));
     }
   });
+
+  test("forwards generation ownership to imported output writes", async () => {
+    const persistence = new CapturingDbAdapter();
+    const capture = new ImportCaptureAdapter({ db: persistence });
+    const sessionId = await capture.insertSession(
+      100,
+      5,
+      "fm-2023",
+      undefined,
+      TEST_VERSION_IDENTITY,
+      "raceiq-raw",
+    );
+    const lapQuality = summarize(qualityPackets(3), {
+      sourceKind: "raceiq-raw",
+      versionIdentity: TEST_VERSION_IDENTITY,
+    });
+
+    await capture.setSessionAnalysisGeneration(
+      sessionId,
+      "analysis-generation:import-stamp",
+    );
+    await capture.insertLap(lapInput(sessionId, 1, lapQuality));
+
+    expect(persistence.sessions[0]?.analysisGenerationId).toBe(
+      "analysis-generation:import-stamp",
+    );
+    expect(persistence.laps[0]?.analysisGenerationId).toBe(
+      "analysis-generation:import-stamp",
+    );
+  });
 });

@@ -1,6 +1,6 @@
 # Analysis provenance
 
-RaceIQ persists one versioned receipt for each telemetry-derived artifact set. Receipt JSON is browser-safe and contains source identity, telemetry and analysis component versions, effective configuration, output inventory, coverage, capability, warnings, and verification checks. `analysis-receipt-v1` is strict: unknown fields are rejected and hashes use canonical JSON with `sha256:` followed by 64 lowercase hexadecimal characters.
+RaceIQ persists one versioned receipt for each telemetry-derived artifact set. Receipt JSON is browser-safe and contains source identity, telemetry and analysis component versions, effective configuration, output inventory, coverage, capability, warnings, and verification checks. `analysis-receipt-v1` is strict: unknown fields are rejected. Hash encoding depends on hash class; every digest is `sha256:` followed by 64 lowercase hexadecimal characters.
 
 ## Receipt contract
 
@@ -9,6 +9,18 @@ RaceIQ persists one versioned receipt for each telemetry-derived artifact set. R
 Artifact-set types are `canonical_archive`, `session_analysis`, `lap_analysis`, `comparison_analysis`, `driver_profile`, and `report`. User statuses are `current`, `stale_rebuild_available`, `stale_source_missing`, `rebuild_in_progress`, `verification_failed`, `incompatible`, and `corrupt`. Stale reasons are `receipt_missing`, `source_hash_changed`, `source_unavailable`, `receipt_schema_changed`, `telemetry_contract_changed`, `detector_changed`, `algorithm_changed`, `configuration_changed`, `output_verification_failed`, and `rebuild_interrupted`.
 
 Rebuild capability is `exact`, `limited`, or `unavailable`, with source kind, rebuildable artifacts, unavailable artifacts, and limitations. Fixed verification checks are `source_hash`, `schema_supported`, `session_identity`, `participant_identity`, `ordering`, `coverage`, `channel_inventory`, `partitions_readable`, `analyse_read`, `compare_read`, and `storage_state`; each is `passed`, `failed`, or `not_applicable`.
+
+## Hash identities and reproduction
+
+Structured contract, configuration, and semantic-output hashes use `analysisCanonicalHash(value)`: hash UTF-8 `canonicalJson(value)` bytes with SHA-256, then prepend `sha256:`. Use RaceIQ's `shared/core/canonical-json` implementation, not an arbitrary JSON serializer.
+
+- Configuration hash: canonical JSON of `effectiveConfiguration`.
+- Contract hash: canonical JSON of `{ receiptSchemaVersion, telemetryVersion, analysisComponents }`, with `analysisComponents` sorted by `id`.
+- Semantic output hash: canonical JSON of each output's logical semantic payload, after inventory builds its documented canonical logical ordering. Semantic hashes deliberately exclude SQLite IDs, timestamps, local paths, user notes, and tune links.
+
+Raw evidence never uses canonical JSON. For one raw capture, read stored bytes, gzip-decompress when storage is gzip, then SHA-256 those decompressed bytes. Hashing compressed storage bytes produces a different and invalid evidence hash.
+
+For multi-artifact evidence, preserve importer artifact order. For each artifact, append and hash this exact byte sequence: unsigned 32-bit little-endian UTF-8 name length, unsigned 64-bit little-endian artifact-byte length, UTF-8 name bytes, then artifact bytes. Continue directly with next artifact; no JSON wrapper, delimiter, or sort is added. For example, a MoTeC import hashes `source.ld` followed by optional `source.ldx` using this framing. This length-prefixing makes artifact boundaries unambiguous.
 
 ## Lifecycle and status
 

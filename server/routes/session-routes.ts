@@ -391,21 +391,27 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       if (status.action === "unavailable") {
         return c.json({ error: "Source recording unavailable", status }, 409);
       }
-      if (status.action === "reprocess") {
-        try {
+      if (status.action === "rebuild_in_progress") {
+        return c.json({ error: "Analysis rebuild already in progress", status }, 409);
+      }
+      if (status.action === "current") {
+        return c.json({ strategy: "current" as const, status });
+      }
+      try {
+        if (status.action === "reprocess") {
           const result = await dependencies.reprocessSession(id);
           dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
           return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
-        } catch (error) {
-          if (error instanceof AnalysisGenerationConflictError) {
-            return c.json({ error: "Analysis rebuild already in progress", status }, 409);
-          }
-          throw error;
         }
+        const rebuilt = await dependencies.rebuildSessionEligibility(id);
+        dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
+        return c.json({ strategy: "eligibility" as const, status: rebuilt });
+      } catch (error) {
+        if (error instanceof AnalysisGenerationConflictError) {
+          return c.json({ error: "Analysis rebuild already in progress", status }, 409);
+        }
+        throw error;
       }
-      const rebuilt = await dependencies.rebuildSessionEligibility(id);
-      dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
-      return c.json({ strategy: status.action === "current" ? ("none" as const) : ("eligibility" as const), status: rebuilt });
     },
   )
   .patch("/api/sessions/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
@@ -449,6 +455,8 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
           const result = await dependencies.rebuildSessionEligibility(id);
           dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
           results.push({ sessionId: id, strategy: "eligibility" as const, result });
+        } else if (status.action === "rebuild_in_progress") {
+          results.push({ sessionId: id, strategy: "conflict" as const, error: "Analysis rebuild already in progress" });
         } else {
           results.push({ sessionId: id, strategy: status.action, result: status });
         }
@@ -456,6 +464,8 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
         if (error instanceof SessionRawFileMissingError) {
           console.warn(`[Reprocess] Skipping session ${id}: ${error.message}`);
           skipped.push({ sessionId: id, reason: "raw-file-missing" });
+        } else if (error instanceof AnalysisGenerationConflictError) {
+          results.push({ sessionId: id, strategy: "conflict" as const, error: "Analysis rebuild already in progress" });
         } else {
           results.push({ sessionId: id, strategy: "failed" as const, error: "Processing failed" });
         }
@@ -464,8 +474,9 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
 
     const reprocessed = results.filter(({ strategy }) => strategy === "reprocess").length;
     const failed = results.filter(({ strategy }) => strategy === "failed").length;
+    const conflicts = results.filter(({ strategy }) => strategy === "conflict").length;
     const remaining = await dependencies.countStaleSessions(ALL_DETECTOR_IDS);
-    if (failed === 0 && remaining === 0) {
+    if (failed === 0 && conflicts === 0 && remaining === 0) {
       dependencies.setStaleSessionsNotification(null);
     } else if (remaining > 0) {
       dependencies.setStaleSessionsNotification(staleSessionsNotification(remaining));
@@ -473,8 +484,9 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
 
     const body = { reprocessed, failed, remaining, skipped, results };
     if (failed > 0) return c.json(body, 500);
-    if (remaining > 0) return c.json(body, 409);
+    if (conflicts > 0 || remaining > 0) return c.json(body, 409);
     return c.json(body);
+
   })
   .post("/api/sessions/bulk-delete", zValidator("json", z.object({ ids: z.array(z.number().int()) })), async (c) => {
     const { ids } = c.req.valid("json");

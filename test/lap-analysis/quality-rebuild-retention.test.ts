@@ -86,12 +86,12 @@ describe("quality rebuild detector identity", () => {
     return path;
   }
 
-  test("reports current state from registered adapter identity", async () => {
+  test("marks legacy current quality without a receipt unavailable when source is absent", async () => {
     const { id } = await insertSession();
 
     expect(await getQualityRebuildStatus(id)).toMatchObject({
       sessionId: id,
-      action: "current",
+      action: "unavailable",
       currentDetectorId: LAP_DETECTOR_ID,
       rawAvailable: false,
       stale: {
@@ -101,16 +101,20 @@ describe("quality rebuild detector identity", () => {
         configuration: false,
         source: false,
       },
+      analysisStatus: {
+        status: "stale_source_missing",
+        staleReasons: ["receipt_missing", "source_unavailable"],
+      },
     });
   });
 
-  test("rebuilds policy-only staleness without changing replay measurements", async () => {
-    const { id, quality } = await insertSession({
+  test("marks legacy policy-only quality without a receipt unavailable when source is absent", async () => {
+    const { id } = await insertSession({
       qualityPolicyVersion: "stale-policy",
     });
 
     const before = await getQualityRebuildStatus(id);
-    expect(before.action).toBe("rebuild_eligibility");
+    expect(before.action).toBe("unavailable");
     expect(before.stale).toEqual({
       detector: false,
       schema: false,
@@ -120,14 +124,10 @@ describe("quality rebuild detector identity", () => {
     });
 
     const rebuilt = await rebuildSessionEligibility(id);
-    expect(rebuilt.action).toBe("current");
-    expect(rebuilt.currentDetectorId).toBe(LAP_DETECTOR_ID);
-    const row = await db.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, id)).get();
-    expect(row?.recordingQuality).not.toBeNull();
-    expect(replayMeasurements(row!.recordingQuality!)).toEqual(replayMeasurements(quality));
+    expect(rebuilt.action).toBe("unavailable");
   });
 
-  test("keeps unchanged retained bytes current using canonical or source verification", async () => {
+  test("routes legacy current quality with source bytes but no receipt through full reprocess", async () => {
     const bytes = Buffer.from("unchanged-capture");
     const generation = sha256ContentHash(bytes);
     const canonicalQuality: RecordingQualitySummary = {
@@ -154,9 +154,13 @@ describe("quality rebuild detector identity", () => {
         recordingQuality: quality,
       });
       const status = await getQualityRebuildStatus(id);
-      expect(status.action).toBe("current");
+      expect(status.action).toBe("reprocess");
       expect(status.rawAvailable).toBe(true);
       expect(status.stale.source).toBe(false);
+      expect(status.analysisStatus).toMatchObject({
+        status: "stale_rebuild_available",
+        staleReasons: ["receipt_missing"],
+      });
     }
   });
 

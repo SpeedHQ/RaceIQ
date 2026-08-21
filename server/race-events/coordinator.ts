@@ -138,7 +138,7 @@ const TIRE_CORNERS = ["fl", "fr", "rl", "rr"] as const;
 export class RaceEventCoordinator {
   private readonly sourceKind: EvidenceSourceKind;
   private readonly sourceGeneration: string | null;
-  private readonly analysisGenerationId: string | null;
+  private analysisGenerationId: string | null;
   private readonly createdAt: (receivedAtMs: number) => string;
   private readonly validationMode: "live" | "rebuild";
   private sessionId: number | null;
@@ -192,6 +192,11 @@ export class RaceEventCoordinator {
     this.analysisGenerationId = options.analysisGenerationId ?? null;
     this.createdAt = options.createdAt ?? defaultCreatedAt;
     this.validationMode = options.validationMode ?? "live";
+  }
+
+  /** Set immutable generation ownership before this session's events materialize. */
+  setAnalysisGenerationId(analysisGenerationId: string | null): void {
+    this.analysisGenerationId = analysisGenerationId;
   }
 
   /** Bind the coordinator after the lap detector creates the real DB session. */

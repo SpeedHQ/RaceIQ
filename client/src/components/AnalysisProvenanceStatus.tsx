@@ -24,27 +24,28 @@ const STALE_REASON_LABELS: Record<AnalysisStaleReason, () => string> = {
   rebuild_interrupted: m.analysis_stale_reason_rebuild_interrupted,
 };
 
+type StatusPresentationResolver = (analysis: AnalysisStatus) => AnalysisStatusPresentation;
+
+const STATUS_PRESENTATIONS = {
+  current: () => ({ label: m.analysis_status_current(), description: m.analysis_status_current_copy(), variant: "success" }),
+  stale_rebuild_available: (analysis) =>
+    analysis.capability.mode === "limited"
+      ? { label: m.analysis_status_limited_rebuild_available(), description: m.analysis_status_limited_rebuild_available_copy(), variant: "warning" }
+      : analysis.capability.mode === "unavailable"
+        ? { label: m.analysis_status_cannot_rebuild(), description: m.analysis_status_cannot_rebuild_copy(), variant: "danger" }
+        : { label: m.analysis_status_rebuild_available(), description: m.analysis_status_rebuild_available_copy(), variant: "warning" },
+  stale_source_missing: () => ({ label: m.analysis_status_cannot_rebuild(), description: m.analysis_status_cannot_rebuild_copy(), variant: "danger" }),
+  rebuild_in_progress: () => ({ label: m.analysis_status_rebuild_in_progress(), description: m.analysis_status_rebuild_in_progress_copy(), variant: "info" }),
+  verification_failed: (analysis) =>
+    analysis.activeGeneration
+      ? { label: m.analysis_status_verification_failed(), description: m.analysis_status_verification_failed_copy(), variant: "danger" }
+      : { label: m.analysis_status_verification_failed(), description: m.analysis_status_verification_failed_no_active_copy(), variant: "danger" },
+  incompatible: () => ({ label: m.analysis_status_incompatible(), description: m.analysis_status_incompatible_copy(), variant: "danger" }),
+  corrupt: () => ({ label: m.analysis_status_corrupt(), description: m.analysis_status_corrupt_copy(), variant: "danger" }),
+} satisfies Record<AnalysisStatus["status"], StatusPresentationResolver>;
+
 export function analysisStatusPresentation(analysis: AnalysisStatus): AnalysisStatusPresentation {
-  switch (analysis.status) {
-    case "current":
-      return { label: m.analysis_status_current(), description: m.analysis_status_current_copy(), variant: "success" };
-    case "stale_rebuild_available":
-      return analysis.capability.mode === "limited"
-        ? { label: m.analysis_status_limited_rebuild_available(), description: m.analysis_status_limited_rebuild_available_copy(), variant: "warning" }
-        : analysis.capability.mode === "unavailable"
-          ? { label: m.analysis_status_cannot_rebuild(), description: m.analysis_status_cannot_rebuild_copy(), variant: "danger" }
-          : { label: m.analysis_status_rebuild_available(), description: m.analysis_status_rebuild_available_copy(), variant: "warning" };
-    case "stale_source_missing":
-      return { label: m.analysis_status_cannot_rebuild(), description: m.analysis_status_cannot_rebuild_copy(), variant: "danger" };
-    case "rebuild_in_progress":
-      return { label: m.analysis_status_rebuild_in_progress(), description: m.analysis_status_rebuild_in_progress_copy(), variant: "info" };
-    case "verification_failed":
-      return analysis.activeGeneration
-        ? { label: m.analysis_status_verification_failed(), description: m.analysis_status_verification_failed_copy(), variant: "danger" }
-        : { label: m.analysis_status_verification_failed(), description: m.analysis_status_verification_failed_no_active_copy(), variant: "danger" };
-    default:
-      throw new Error(`Unknown analysis status: ${analysis.status}`);
-  }
+  return STATUS_PRESENTATIONS[analysis.status](analysis);
 }
 
 

@@ -22,7 +22,10 @@ import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
-import { activatePersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
+import {
+  activateSessionAnalysisAttempt,
+  beginSessionAnalysisAttempt,
+} from "../analysis-provenance/session-attempt";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { DatabaseRaceEventStore } from "../race-events/store";
 export class TelemetryImportError extends Error {
@@ -150,6 +153,9 @@ export class ImportCaptureAdapter implements DbAdapter {
     );
     return pending;
   }
+  setSessionAnalysisGeneration(sessionId: number, generationId: string): Promise<void> {
+    return this._inner.setSessionAnalysisGeneration?.(sessionId, generationId) ?? Promise.resolve();
+  }
 
   async updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
     await this.waitForPendingLapWrites();
@@ -271,6 +277,26 @@ export async function importSessionFrames(
     sourceChannelProfile: options.sourceChannelProfile,
     sourceArchiveVerification: options.sourceArchiveVerification,
     sourceTransportVerification: options.sourceTransportVerification,
+    onSessionAnalysisStarted: (sessionId, sessionGameId) =>
+      beginSessionAnalysisAttempt(
+        sessionId,
+        sessionGameId,
+        options.sourceChannelProfile,
+      ),
+    onSessionFinalized: async (
+      sessionId,
+      sessionGameId,
+      analysisGenerationId,
+    ) => {
+      await reconcileSessionResult(
+        sessionId,
+        sessionGameId,
+        analysisGenerationId,
+      );
+    },
+    onSessionAnalysisFinalized: async (attempt, sessionGameId) => {
+      await activateSessionAnalysisAttempt(attempt, sessionGameId);
+    },
   });
 
   let packetCount = 0;
@@ -322,15 +348,6 @@ export async function importSessionFrames(
   }
   if (options.requireLaps && !db.laps.some((lap) => lap.quality.complete)) {
     return rollbackImport(db, new IncompleteImportError());
-  }
-
-  try {
-    for (const sessionId of db.sessionIds) {
-      await reconcileSessionResult(sessionId, gameId);
-      await activatePersistedSessionAnalysisReceipt(sessionId, gameId);
-    }
-  } catch (error) {
-    return rollbackImport(db, error);
   }
   return {
     packetCount,

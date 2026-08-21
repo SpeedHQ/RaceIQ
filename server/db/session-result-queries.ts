@@ -79,6 +79,7 @@ export async function loadRaceResultLapQuality(
 export interface SessionResultInput {
   sessionId: number;
   processorVersion?: string;
+  analysisGenerationId?: string | null;
   sessionType: string;
   classification: RaceResultStatus;
   outcomeStatus?: RaceResultOutcomeStatus;
@@ -130,6 +131,9 @@ export async function upsertSessionResult(
       .get();
     const values = {
       sessionId: input.sessionId,
+      ...(input.analysisGenerationId !== undefined
+        ? { analysisGenerationId: input.analysisGenerationId }
+        : {}),
       processorVersion: input.processorVersion ?? RACE_RESULT_PROCESSOR_ID,
       sessionType: input.sessionType,
       classification: input.classification,

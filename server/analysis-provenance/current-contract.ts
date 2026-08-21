@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
-
-import { canonicalJson } from "../../shared/core/canonical-json";
+import {
+  analysisConfigurationHash,
+  analysisContractHash,
+} from "./hash";
 import type { GameId } from "../../shared/games/ids";
 import { RACE_EVENT_SCHEMA_VERSION } from "../../shared/racing/events/contracts";
 import {
@@ -47,9 +48,6 @@ import {
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
 import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 
-export function analysisCanonicalHash(value: unknown): `sha256:${string}` {
-  return `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}`;
-}
 
 export interface CurrentAnalysisContract {
   telemetryVersion: TelemetryVersionIdentity;
@@ -86,8 +84,8 @@ export function currentAnalysisContract(
     },
     sourceChannelProfile,
   };
-  const configurationHash = analysisCanonicalHash(effectiveConfiguration);
-  const contractHash = analysisCanonicalHash({
+  const configurationHash = analysisConfigurationHash(effectiveConfiguration);
+  const contractHash = analysisContractHash({
     receiptSchemaVersion: ANALYSIS_RECEIPT_SCHEMA_VERSION,
     telemetryVersion,
     analysisComponents,

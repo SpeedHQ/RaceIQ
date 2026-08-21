@@ -3,6 +3,9 @@ import { z } from "zod";
 import type { EvidenceSourceKind } from "../quality/contracts";
 import type { TelemetryVersionIdentity } from "../../telemetry/version";
 
+// Artifact-set IDs are permanent v1 identities. Keep this seed independent from
+// receipt-schema evolution so upgrades keep resolving historical artifact sets.
+export const ANALYSIS_ARTIFACT_SET_IDENTITY_SEED = "analysis-receipt-v1" as const;
 export const ANALYSIS_RECEIPT_SCHEMA_VERSION = "analysis-receipt-v1" as const;
 
 export const AnalysisArtifactSetTypeSchema = z.enum([

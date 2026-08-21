@@ -107,6 +107,48 @@ describe("session quality route semantics", () => {
     expect(response.status).toBe(409);
   });
 
+  test("reprocesses legacy current quality when receipt status is stale", async () => {
+    const reprocessSession = mock(async (sessionId: number) => ({
+      sessionId,
+      lapsDetected: 1,
+      lapsUpdated: 1,
+      strategy: "in-place" as const,
+      analysisGenerationId: "analysis-generation:test",
+    }));
+    const response = await routes({
+      getQualityRebuildStatus: async (sessionId) => ({
+        ...status(sessionId, "reprocess"),
+        analysisStatus: analysisStatus("stale_rebuild_available"),
+      }),
+      reprocessSession,
+    }).request("/api/sessions/42/quality/rebuild?gameId=iracing", { method: "POST" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ strategy: "reprocess" });
+    expect(reprocessSession).toHaveBeenCalledWith(42);
+  });
+
+  test("maps eligibility rebuild conflict to 409", async () => {
+    const response = await routes({
+      getQualityRebuildStatus: async (sessionId) => status(sessionId, "rebuild_eligibility"),
+      rebuildSessionEligibility: async () => {
+        throw new AnalysisGenerationConflictError("analysis-set:test");
+      },
+    }).request("/api/sessions/42/quality/rebuild?gameId=iracing", { method: "POST" });
+
+    expect(response.status).toBe(409);
+  });
+
+  test("reports current strategy instead of a false no-op", async () => {
+    const rebuildSessionEligibility = mock(async (sessionId: number) => status(sessionId, "current"));
+    const response = await routes({ rebuildSessionEligibility })
+      .request("/api/sessions/42/quality/rebuild?gameId=iracing", { method: "POST" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ strategy: "current" });
+    expect(rebuildSessionEligibility).not.toHaveBeenCalled();
+  });
+
   test("returns 404 only when session existence check reports missing", async () => {
     const getQualityRebuildStatus = mock(async (sessionId: number) => status(sessionId, "current"));
     const response = await routes({
@@ -177,6 +219,23 @@ describe("session quality route semantics", () => {
     });
     expect(setStaleSessionsNotification).toHaveBeenCalledTimes(1);
     expect(setStaleSessionsNotification).not.toHaveBeenCalledWith(null);
+  });
+
+  test("reports bulk eligibility conflicts as 409", async () => {
+    const response = await routes({
+      getStaleSessions: async () => [42],
+      getQualityRebuildStatus: async (sessionId) => status(sessionId, "rebuild_eligibility"),
+      rebuildSessionEligibility: async () => {
+        throw new AnalysisGenerationConflictError("analysis-set:test");
+      },
+      countStaleSessions: async () => 1,
+    }).request("/api/sessions/reprocess-stale", { method: "POST" });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      failed: 0,
+      results: [{ sessionId: 42, strategy: "conflict", error: "Analysis rebuild already in progress" }],
+    });
   });
 
   test("routes a no-raw policy-only stale session through eligibility rebuild", async () => {

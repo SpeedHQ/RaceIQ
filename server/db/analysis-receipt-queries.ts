@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { canonicalJson } from "../../shared/core/canonical-json";
 import {
+  ANALYSIS_ARTIFACT_SET_IDENTITY_SEED,
   ANALYSIS_RECEIPT_SCHEMA_VERSION,
   AnalysisProvenanceReceiptSchema,
   AnalysisReceiptFailureSchema,
@@ -19,6 +20,10 @@ import {
   sessionRuns,
   sessions,
 } from "./schema";
+import {
+  analysisConfigurationHash,
+  analysisContractHash,
+} from "../analysis-provenance/hash";
 
 export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type AnalysisReceiptRow = typeof analysisReceipts.$inferSelect;
@@ -46,7 +51,7 @@ export function deriveAnalysisArtifactSetId(input: {
   artifactSetType: AnalysisArtifactSetType;
 }): string {
   return `analysis-set:${sha256Identity([
-    ANALYSIS_RECEIPT_SCHEMA_VERSION,
+    ANALYSIS_ARTIFACT_SET_IDENTITY_SEED,
     input.sessionId,
     input.participantId,
     input.artifactSetType,
@@ -127,6 +132,50 @@ export async function beginAnalysisGeneration(
   return db.transaction((tx) => beginWithClient(tx, input));
 }
 
+export interface BindAnalysisGenerationSourceInput {
+  generationId: string;
+  sourceContentHash: string;
+}
+
+async function bindSourceWithClient(
+  client: ReceiptClient,
+  input: BindAnalysisGenerationSourceInput,
+): Promise<AnalysisReceiptRow> {
+  const [pending] = await client
+    .select()
+    .from(analysisReceipts)
+    .where(and(
+      eq(analysisReceipts.generationId, input.generationId),
+      eq(analysisReceipts.lifecycle, "rebuild_in_progress"),
+    ))
+    .limit(1);
+  if (!pending) throw new Error("Analysis generation is not in progress");
+  if (pending.sourceContentHash != null && pending.sourceContentHash !== input.sourceContentHash) {
+    throw new Error("Analysis generation source hash is already bound");
+  }
+  if (pending.sourceContentHash === input.sourceContentHash) return pending;
+
+  const [bound] = await client
+    .update(analysisReceipts)
+    .set({ sourceContentHash: input.sourceContentHash })
+    .where(and(
+      eq(analysisReceipts.generationId, input.generationId),
+      eq(analysisReceipts.lifecycle, "rebuild_in_progress"),
+      isNull(analysisReceipts.sourceContentHash),
+    ))
+    .returning();
+  if (!bound) throw new Error("Analysis generation source binding failed");
+  return bound;
+}
+
+export async function bindAnalysisGenerationSource(
+  input: BindAnalysisGenerationSourceInput,
+  transaction?: DbTransaction,
+): Promise<AnalysisReceiptRow> {
+  if (transaction) return bindSourceWithClient(transaction, input);
+  return db.transaction((tx) => bindSourceWithClient(tx, input));
+}
+
 export interface ActivateAnalysisGenerationInput {
   generationId: string;
   receipt: AnalysisProvenanceReceipt;
@@ -163,11 +212,27 @@ async function activateWithClient(
   if (receipt.verification.some((check) => check.status === "failed")) {
     throw new Error("Analysis receipt contains failed verification checks");
   }
-  if (pending.sourceContentHash !== null && pending.sourceContentHash !== receipt.evidence.contentHash) {
+  if (pending.sourceContentHash !== receipt.evidence.contentHash) {
     throw new Error("Analysis receipt source hash does not match generation attempt");
   }
   if (receipt.receiptSchemaVersion !== pending.receiptSchemaVersion) {
     throw new Error("Analysis receipt schema does not match generation attempt");
+  }
+  if (pending.contractHash !== receipt.contractHash) {
+    throw new Error("Analysis receipt contract hash does not match generation attempt");
+  }
+  if (pending.configurationHash !== receipt.configuration.hash) {
+    throw new Error("Analysis receipt configuration hash does not match generation attempt");
+  }
+  if (receipt.contractHash !== analysisContractHash({
+    receiptSchemaVersion: receipt.receiptSchemaVersion,
+    telemetryVersion: receipt.telemetryVersion,
+    analysisComponents: receipt.analysisComponents,
+  })) {
+    throw new Error("Analysis receipt contract hash does not match receipt content");
+  }
+  if (receipt.configuration.hash !== analysisConfigurationHash(receipt.configuration.effective)) {
+    throw new Error("Analysis receipt configuration hash does not match receipt content");
   }
 
   await tx

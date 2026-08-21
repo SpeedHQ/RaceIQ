@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { db } from "../db";
@@ -11,25 +10,34 @@ import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { listSessionRaceEvents } from "../db/race-event-queries";
 import { sessions } from "../db/schema";
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
+import { getActiveAnalysisReceipt } from "../db/analysis-receipt-queries";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
-import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/racing/results/types";
+import type { RaceEventId } from "../../shared/racing/events/contracts";
+import type {
+  RaceResultCanonicalInputIdentity,
+  RaceResultOutcomeStatus,
+  RaceResultRawInputIdentity,
+} from "../../shared/racing/results/types";
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames, getServerGame } from "../games/registry";
 import { reprocessSession } from "../session-capture/reprocess";
 import { RACE_RESULT_PROCESSOR_ID } from "./constants";
+import { canonicalPacketContentHash } from "./canonical-input";
 
 export { RACE_RESULT_PROCESSOR_ID } from "./constants";
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
-  if (packets.length === 0) return null;
-  const hash = createHash("sha256");
-  for (const packet of packets) {
-    hash.update(JSON.stringify(packet));
-    hash.update("\n");
-  }
-  return { sessionId: String(sessionId), firstSequence: 0, lastSequence: packets.length - 1, contentHash: `sha256:${hash.digest("hex")}` };
+  const contentHash = canonicalPacketContentHash(packets);
+  return contentHash == null
+    ? null
+    : {
+        sessionId: String(sessionId),
+        firstSequence: 0,
+        lastSequence: packets.length - 1,
+        contentHash,
+      };
 }
 
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
@@ -81,7 +89,38 @@ function hasActivatedReplayGeneration(
   );
 }
 
-async function ensureReplayableTimelineForStaleSession(sessionId: number, gameId: GameId): Promise<void> {
+interface PersistedResultReportSource {
+  outcomeStatus: RaceResultOutcomeStatus;
+  eventIds: readonly RaceEventId[];
+  reasons: readonly string[];
+}
+
+function persistedResultReport(
+  sessionId: number,
+  result: PersistedResultReportSource,
+): ReconcileSessionReport {
+  return {
+    sessionId,
+    status: result.outcomeStatus === "confirmed" ? "enriched" : "ambiguous",
+    eventCount: result.eventIds.length,
+    reasons: [...result.reasons],
+  };
+}
+
+async function reprocessSessionGeneration(
+  sessionId: number,
+  gameId: GameId,
+): Promise<ReconcileSessionReport> {
+  await reprocessSession(sessionId);
+  const result = await getSessionResult(sessionId, gameId);
+  if (!result) throw new Error(`Session ${sessionId} reprocess did not persist race result`);
+  return persistedResultReport(sessionId, result);
+}
+
+async function ensureReplayableTimelineForStaleSession(
+  sessionId: number,
+  gameId: GameId,
+): Promise<ReconcileSessionReport | null> {
   const [events, session] = await Promise.all([
     loadSessionTimeline(sessionId),
     db
@@ -99,19 +138,22 @@ async function ensureReplayableTimelineForStaleSession(sessionId: number, gameId
     hasActivatedReplayGeneration(quality) &&
     events.some((event) => event.eventType === "session_started") &&
     events.every((event) => event.sourceGeneration === quality.provenance.sourceGeneration);
-  if (complete) return;
-  await reprocessSession(sessionId);
+  return complete ? null : reprocessSessionGeneration(sessionId, gameId);
 }
 
 export async function reconcileStaleSessionResult(
   sessionId: number,
   gameId: GameId,
 ): Promise<ReconcileSessionReport> {
-  await ensureReplayableTimelineForStaleSession(sessionId, gameId);
-  return reconcileSessionResult(sessionId, gameId);
+  const rebuilt = await ensureReplayableTimelineForStaleSession(sessionId, gameId);
+  return rebuilt ?? reconcileSessionResult(sessionId, gameId);
 }
 
-export async function reconcileSessionResult(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
+export async function reconcileSessionResult(
+  sessionId: number,
+  gameId: GameId,
+  analysisGenerationId?: string,
+): Promise<ReconcileSessionReport> {
   const sessions = await getSessions(gameId);
   const session = sessions.find((candidate) => candidate.id === sessionId);
   if (!session) return { sessionId, status: "skipped", eventCount: 0, reasons: ["session-not-found"] };
@@ -157,7 +199,10 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
     canonicalInput: canonicalInputIdentity(sessionId, packets),
   };
-  const existing = await getSessionResult(sessionId, gameId);
+  const [existing, activeReceipt] = await Promise.all([
+    getSessionResult(sessionId, gameId),
+    getActiveAnalysisReceipt({ sessionId, artifactSetType: "session_analysis" }),
+  ]);
   const unchanged =
     existing != null &&
     existing.processorVersion === RACE_RESULT_PROCESSOR_ID &&
@@ -175,29 +220,42 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     JSON.stringify(existing.provenance) === JSON.stringify(derived.provenance) &&
     JSON.stringify(existing.evidence) === JSON.stringify(derived.evidence) &&
     JSON.stringify(existing.reasons) === JSON.stringify(derived.reasons);
-  if (!unchanged) {
-    await upsertSessionResult(
-      {
-        sessionId,
-        processorVersion: RACE_RESULT_PROCESSOR_ID,
-        sessionType: derived.sessionType,
-        classification: derived.classification,
-        outcomeStatus: derived.outcomeStatus,
-        finishingPosition: derived.finishingPosition,
-        qualifyingPosition: derived.qualifyingPosition,
-        isPodium: derived.isPodium,
-        isFastestLap: derived.isFastestLap,
-        pitCount: derived.pitCount,
-        eventIds: derived.eventIds,
-        tyreStrategy: derived.tyreStrategy,
-        fuelStrategy: derived.fuelStrategy,
-        provenance: derived.provenance,
-        evidence: derived.evidence,
-        reasons: derived.reasons,
-      },
-    );
+  const generationWriteRequired =
+    analysisGenerationId != null &&
+    existing?.analysisGenerationId !== analysisGenerationId;
+  if (
+    activeReceipt &&
+    analysisGenerationId == null &&
+    (!unchanged || existing?.analysisGenerationId !== activeReceipt.generationId)
+  ) {
+    return reprocessSessionGeneration(sessionId, gameId);
   }
-  await linkSessionQualityEvents(sessionId);
+  if (!activeReceipt || analysisGenerationId != null) {
+    if (!unchanged || generationWriteRequired) {
+      await upsertSessionResult(
+        {
+          sessionId,
+          processorVersion: RACE_RESULT_PROCESSOR_ID,
+          ...(analysisGenerationId != null ? { analysisGenerationId } : {}),
+          sessionType: derived.sessionType,
+          classification: derived.classification,
+          outcomeStatus: derived.outcomeStatus,
+          finishingPosition: derived.finishingPosition,
+          qualifyingPosition: derived.qualifyingPosition,
+          isPodium: derived.isPodium,
+          isFastestLap: derived.isFastestLap,
+          pitCount: derived.pitCount,
+          eventIds: derived.eventIds,
+          tyreStrategy: derived.tyreStrategy,
+          fuelStrategy: derived.fuelStrategy,
+          provenance: derived.provenance,
+          evidence: derived.evidence,
+          reasons: derived.reasons,
+        },
+      );
+    }
+    await linkSessionQualityEvents(sessionId);
+  }
 
   const status = unchanged ? "unchanged" : derived.outcomeStatus === "confirmed" ? "enriched" : "ambiguous";
   return { sessionId, status, eventCount: derived.eventIds.length, reasons: derived.reasons };
@@ -223,8 +281,10 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
   const results: ReconcileSessionReport[] = [];
   for (const session of sessions) {
     try {
-      if (options.eligibleSessionIds) await ensureReplayableTimelineForStaleSession(session.id, session.gameId as GameId);
-      results.push(await reconcileSessionResult(session.id, options.gameId));
+      const rebuilt = options.eligibleSessionIds
+        ? await ensureReplayableTimelineForStaleSession(session.id, session.gameId as GameId)
+        : null;
+      results.push(rebuilt ?? await reconcileSessionResult(session.id, options.gameId));
     } catch (error) {
       results.push({ sessionId: session.id, status: "error", eventCount: 0, reasons: [error instanceof Error ? error.message : "unknown-error"] });
     }

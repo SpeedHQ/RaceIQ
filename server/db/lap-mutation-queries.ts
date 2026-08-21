@@ -47,11 +47,12 @@ export interface PersistLapInput {
   classification: LapClassification;
   quality: LapQualitySummary | null;
   eligibility: EligibilityDecisionSet | null;
+  analysisGenerationId?: string | null;
   versionIdentity?: TelemetryVersionIdentity;
 }
 
 export async function insertLap(input: PersistLapInput): Promise<number> {
-  const { sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, quality, eligibility, versionIdentity } = input;
+  const { sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, quality, eligibility, analysisGenerationId, versionIdentity } = input;
   // Stamp the lap with the active tuning session (if any). This is the single
   // choke point every live lap-detector funnels through (via the DbAdapter), so
   // reading the in-memory active id here links laps to a tuning session
@@ -79,6 +80,7 @@ export async function insertLap(input: PersistLapInput): Promise<number> {
       qualityPolicyVersion: quality?.provenance.policyVersion ?? null,
       qualityConfigVersion: quality?.provenance.configurationVersion ?? null,
       qualityGeneration: quality?.provenance.outputGeneration ?? null,
+      analysisGenerationId,
       experimentId: activeExperimentId,
       experimentVersionId: activeExperimentVersionId,
       ...versionIdentity,
