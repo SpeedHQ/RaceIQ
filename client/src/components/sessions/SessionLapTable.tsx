@@ -1,7 +1,9 @@
-import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { LapStatus } from "@/components/LapStatus";
+import { LapQualityBadge } from "@/components/LapQualityBadge";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
@@ -26,7 +28,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
   const bestSectorLaps = useMemo(
     () =>
       bestSectorLapIds(
-        laps.filter((lap) => lap.isValid && !isPitCycleLap(lap)),
+        laps.filter((lap) => isTimedLapEligibilityUsable(lap)),
         sectorCount,
       ),
     [laps, sectorCount],
@@ -80,17 +82,13 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                 <TD>
                   <div className="flex items-center gap-2">
                     <span className={`font-mono tabular-nums ${isBest ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
-                    {lap.isValid ? (
-                      <span className="text-status-success text-sm">&#10003;</span>
-                    ) : (
-                      <span className="text-status-danger text-sm" title={lap.invalidReason}>
-                        &#10007;
-                      </span>
-                    )}
+                    <LapStatus lap={lap} presentation="compact" />
+                    <LapQualityBadge lap={lap} policyId="corner-trace" />
                     <Button
                       variant="app-outline"
                       size="app-sm"
                       className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
+                      title={m.label_analyse()}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={(event) => {
                         event.stopPropagation();

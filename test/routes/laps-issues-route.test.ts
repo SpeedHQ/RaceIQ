@@ -18,11 +18,7 @@ initServerGameAdapters();
 const TRACK_ORDINAL = 434343;
 
 async function insertSession(rawFile: string | null): Promise<number> {
-  const row = await db
-    .insert(sessions)
-    .values({ carOrdinal: 1, trackOrdinal: TRACK_ORDINAL, gameId: "fm-2023", rawFile })
-    .returning({ id: sessions.id })
-    .get();
+  const row = await db.insert(sessions).values({ carOrdinal: 1, trackOrdinal: TRACK_ORDINAL, gameId: "fm-2023", rawFile }).returning({ id: sessions.id }).get();
   return row!.id;
 }
 
@@ -53,14 +49,18 @@ describe("GET /api/laps/:id/issues", () => {
     sessionIds.length = 0;
   });
 
-  test("legacy lap with no stored telemetry returns an empty feed", async () => {
+  test("legacy lap with no current quality evidence rejects generated issues", async () => {
     const sid = await insertSession(null); // no rawFile → legacy, telemetry === []
     sessionIds.push(sid);
     const lapId = await insertLap(sid, 1);
 
     const res = await tuneRoutes.request(`/api/laps/${lapId}/issues`);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      decision: { status: string; reasons: { code: string }[] };
+    };
+    expect(body.decision.status).toBe("unknown");
+    expect(body.decision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
   });
 
   test("unknown lap id returns 404", async () => {

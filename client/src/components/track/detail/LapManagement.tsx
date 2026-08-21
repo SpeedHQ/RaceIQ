@@ -1,5 +1,8 @@
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { LapStatus } from "@/components/LapStatus";
+import { LapQualityBadge } from "@/components/LapQualityBadge";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
@@ -236,17 +239,17 @@ export function LapManagement(props: LapManagementProps) {
                   style={carouselHeight ? { height: carouselHeight } : undefined}
                 >
                   <div className="snap-center shrink-0 w-full">
-                    <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
+                    <LapStatsPanel laps={filteredLaps} sectorCount={sectorCount} showSessionFilter={isF125} />
                   </div>
                   <div className="snap-center shrink-0 w-full flex flex-col gap-2">
                     {(() => {
-                      const validLaps = filteredLaps.filter((l) => l.isValid !== false);
-                      const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+                      const paceLaps = filteredLaps.filter((lap) => isTimedLapEligibilityUsable(lap));
+                      const fastestTime = paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : null;
                       if (filteredLaps.length === 0) {
                         return <div className="px-3 py-6 text-center text-sm text-app-text-dim">{m.track_detail_no_laps_match_filters()}</div>;
                       }
                       return filteredLaps.map((lap) => {
-                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && isTimedLapEligibilityUsable(lap);
                         const selected = selectedLaps.has(lap.lapId);
                         return (
                           <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-app-accent/5 border-app-accent/30" : ""}`}>
@@ -287,13 +290,8 @@ export function LapManagement(props: LapManagementProps) {
                                       <span className={isFastest ? "font-bold" : undefined} style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
                                         {formatLapTime(lap.lapTime)}
                                       </span>
-                                      {lap.isValid === false ? (
-                                        <span className="text-status-danger w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
-                                          ✕
-                                        </span>
-                                      ) : (
-                                        <span className="text-status-success w-6 text-center">✓</span>
-                                      )}
+                                      <LapStatus lap={lap} presentation="compact" />
+                                      <LapQualityBadge lap={lap} policyId="corner-trace" />
                                     </div>
                                     {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
                                       <div key={label} className="flex items-center gap-1">
@@ -315,7 +313,7 @@ export function LapManagement(props: LapManagementProps) {
 
               {/* Desktop: stats + table side-by-side */}
               <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden @3xl/workspace:flex">
-                <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
+                <LapStatsPanel laps={filteredLaps} sectorCount={sectorCount} showSessionFilter={isF125} />
                 {/* Lap table (md+) */}
                 <div className="flex-1 min-w-0 overflow-y-auto">
                   <Table fit>
@@ -343,10 +341,10 @@ export function LapManagement(props: LapManagementProps) {
                     </THead>
                     <TBody>
                       {(() => {
-                        const validLaps = filteredLaps.filter((l) => l.isValid !== false);
-                        const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+                        const paceLaps = filteredLaps.filter((lap) => isTimedLapEligibilityUsable(lap));
+                        const fastestTime = paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : null;
                         return filteredLaps.map((lap) => {
-                          const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                          const isFastest = fastestTime !== null && lap.lapTime === fastestTime && isTimedLapEligibilityUsable(lap);
                           return (
                             <TRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} selected={selectedLaps.has(lap.lapId)}>
                               <TD>
@@ -378,16 +376,8 @@ export function LapManagement(props: LapManagementProps) {
                                   <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>
                                     {formatLapTime(lap.lapTime)}
                                   </span>
-                                  {lap.isValid === false ? (
-                                    <span className="group/inv relative text-sm text-status-danger cursor-default">
-                                      ✕
-                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                                        {lap.invalidReason ?? m.trackdetail_invalid_lap()}
-                                      </span>
-                                    </span>
-                                  ) : (
-                                    <span className="text-sm text-status-success">✓</span>
-                                  )}
+                                  <LapStatus lap={lap} presentation="compact" />
+                                  <LapQualityBadge lap={lap} policyId="corner-trace" />
                                 </div>
                               </TD>
                               <TD nowrap>
@@ -395,6 +385,7 @@ export function LapManagement(props: LapManagementProps) {
                                   variant="app-outline"
                                   size="app-sm"
                                   className="bg-app-accent/10 !border-app-accent/40 text-app-accent hover:bg-app-accent/20"
+                                  title={m.trackdetail_analyse()}
                                   onClick={() => {
                                     if (!gameId) return;
                                     navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);

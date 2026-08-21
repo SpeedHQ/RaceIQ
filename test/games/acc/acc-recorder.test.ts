@@ -36,6 +36,30 @@ describe("readKunosFrames", () => {
     }
   });
 
+  test("reconstructs deterministic source time from legacy physics packet IDs", async () => {
+    const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
+    try {
+      const recorder = new KunosRecorder();
+      const filePath = recorder.start(dir);
+      const graphics = Buffer.alloc(GRAPHICS.SIZE);
+      const staticData = Buffer.alloc(STATIC.SIZE);
+
+      for (const packetId of [100, 104]) {
+        const physics = Buffer.alloc(PHYSICS.SIZE);
+        physics.writeInt32LE(packetId, PHYSICS.packetId.offset);
+        recorder.writePhysics(physics);
+        recorder.writeGraphics(graphics);
+        recorder.writeStatic(staticData);
+      }
+      await recorder.stop();
+
+      const frames = readKunosFrames(filePath);
+      expect(frames.map((frame) => frame.timestampMS)).toEqual([0, 12]);
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
   test("deduplicates identical static frames but captures every change", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {

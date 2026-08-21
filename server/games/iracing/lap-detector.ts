@@ -10,7 +10,7 @@ import type {
   LapDetectorOptions,
 } from "../../lap-detection/types";
 
-export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v4";
+export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v5";
 
 interface DeferredPacket {
   packet: TelemetryPacket;
@@ -141,6 +141,10 @@ export class LapDetectorIRacing implements ILapDetector {
     this.peakNativeCurrentLap = 0;
     this.lastActivePacketTime = 0;
     await this.detector.finalizeCurrentSession();
+  }
+
+  async waitForPendingLapWrites(sessionId: number): Promise<void> {
+    await this.detector.waitForPendingLapWrites(sessionId);
   }
 
   getDebugState(): Record<string, unknown> {

@@ -1,20 +1,64 @@
 ## Unreleased
 
 ### Breaking
+
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
+- Persist versioned lap-quality evidence in primary database; databases upgraded by this release require builds that understand quality schema
 
 ### Features
+
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
+- Classify flying, out, in, pit, and grid-start phases independently from caution, slow-zone, and formation conditions so overlapping lap states stay visible and out of pace analysis
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Show telemetry quality, evidence limits, and analysis suitability per lap, with safe rebuild actions when source recordings remain available
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
+
 ### Fixes
+
+- Prevent unfinished or stale lap-quality generations and decisions from driving pace, experiment, AI, or cached lap-metric analysis
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
 - Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
+- Detect F1 race-start laps even when the first telemetry sample is stationary, keeping standing-start Lap 1 out of normal pace comparisons
+- Refresh lap quality, eligibility, metrics, and AI analysis when telemetry sources, pit classification, reprocessing, or policy versions change so stale results are never shown as current
+- Refresh quality badges and analysis controls after quality changes, keep unsuitable AI panels closed, and let users re-include excluded laps to rebuild a usable analysis pool
+- Keep recorded laps inspectable when AI evidence is unsafe, isolate Analyse and Compare conversations by current quality generation, and show stale rebuild state in English and German
+- Keep quality-aware session summaries, localized lap insights, Track Focus statistics, rebuild status, and analysis controls accurate when evidence is stale, ranged, capped, or unavailable
+- Show an explicit Track Detail empty state when recorded laps do not qualify for pace statistics
+- Show complete evidence source, generation, and rebuild state in Track Detail quality badges
+- Refresh Track Detail, session recap, and experiment views after lap quality rebuilds or reprocessing
+- Measure telemetry coverage and cadence from each native source packet family so cached values cannot hide missed channel updates
+- Count isolated missing telemetry samples inside requested track ranges so strict analyses reject unreliable evidence without excluding unaffected ranges
+- Carry imported channel fidelity into eligibility reasons and confidence so strict analyses reject held, resampled, reconstructed, or assumed evidence
+- Distinguish stale lap quality from quality that has not been rebuilt so blocked analyses show the correct recovery state
+- Measure lap coverage from native progress or track length without penalizing later laps whose distance counter is cumulative
+- Keep packet ordering faults confined to affected laps and telemetry ranges instead of limiting unrelated analysis
+- Record reconnect and timeout quality warnings only for accepted telemetry from same game and session, preventing stale UDP traffic from degrading another recording
+- Replace provisional live lap evidence with finalized quality in current and newly connected clients
+- Keep live and replay telemetry gap measurements aligned across native packet IDs and timestamp-only sources
+- Clear stale degraded lap-quality states after a clean recording rebuild
+- Validate RaceIQ canonical recording and every archive manifest/member separately from imported-source provenance so valid source cannot hide corrupt local evidence
+- Keep imported opponent laps attributed to the correct participant across archive round-trips and reprocessing
+- Detect retained capture changes before quality rebuilds so stale source evidence is never treated as current
+- Reject RaceIQ v3 archives when declared captures are missing, checksums differ, or undeclared members remain, while retaining v1, v2, and manifestless import compatibility
+- Clear F1 lap-sector history when the session changes so repeated lap numbers cannot reuse stale splits
+- Finalize ACC replay sessions between loop passes so each pass starts with independent lap and quality state
+- Preserve native-live provenance when migrating legacy sessions while retaining explicit imported-source labels
+- Mark analysis unsuitable when imported recording omits required controls or continuous tire channel contains only isolated samples instead of treating filled zeroes as real telemetry
+- Keep valid timed laps in lap-time experiment metrics when unrelated steering or input trace channels are unavailable
+- Reject stale eligibility snapshots in policy consumers, AI cache reads, and raw-recording cleanup decisions
+- Keep every recorded experiment lap available for inspection in Tune Review while limiting aggregate setup evaluation to its curated evidence pool
+- Preserve telemetry warning reasons in setup-analysis decisions and Setup Engineer lap summaries
+- Keep lap exclusions, detailed telemetry, comparisons, and track outlines scoped to matching owned experiments and current quality evidence
+- Clear displayed comparison analysis and conversations when either lap quality generation changes
+- Collect recent fuel and tire history independently so several fuel-only laps cannot prevent older tire data from seeding strategy estimates, and vice versa
+- Regenerate cached driver profiles when underlying lap quality or eligibility changes
+- Keep race-result summaries stable across repeated reconciliation while repairing missing lap-quality links
+- Keep recorded laps inspectable when AI evidence is unsafe, isolate Analyse and Compare conversations by current quality generation, and clear stale results when evidence changes
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
@@ -103,6 +147,7 @@
 ## v0.14.0 - 2026-08-05
 
 ### Features
+
 - Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
 - Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
 - Import MoTeC logs as normal sessions for analysis, comparison, and experiments
@@ -117,6 +162,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+
 - Keep unfinished game integrations and experiments out of production releases
 - Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
 - Show actionable guidance when AI provider, credentials, or model configuration is incomplete
@@ -129,6 +175,7 @@
 - Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
 
 ### Internal
+
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
 - Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
@@ -149,6 +196,7 @@
 ## v0.13.0 - 2026-07-16
 
 ### Features
+
 - New lap insight detectors and server-side computation
 - Static corner names and sector data from track geometry
 - Session recap card with sector-coloured track map
@@ -156,9 +204,11 @@
 - AC Evo car and track extraction updates
 
 ### Fixes
+
 - Separate Power and Torque rows in analysis
 - Correct ACC centreline for corner detection
 - Correct AC Evo track and car resolution
 
 ### Internal
+
 - Backfilled from the pre-changelog GitHub release body

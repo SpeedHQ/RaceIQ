@@ -5,10 +5,13 @@
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
+import type { EvidenceSourceKind, ParticipantEvidence, SourceChannelProfile } from "../../shared/racing/quality/contracts";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 
 // Re-export all event/state types so callers only need one import point
 export type {
   SessionState,
+  LapEventContext,
   LapSavedEvent,
   LapSavedNotification,
   LapCompleteEvent,
@@ -16,20 +19,14 @@ export type {
   LapTireWearData,
 } from "./detector";
 
-import type {
-  SessionState,
-  LapSavedEvent,
-  LapSavedNotification,
-  LapCompleteEvent,
-  LapFuelData,
-  LapTireWearData,
-} from "./detector";
+import type { SessionState, LapEventContext, LapSavedEvent, LapSavedNotification, LapCompleteEvent, LapFuelData, LapTireWearData } from "./detector";
 
 /** Optional event callbacks available to every detector implementation. */
 export interface LapDetectorCallbacks {
-  onLapSaved?: (event: LapSavedEvent | LapSavedNotification) => void;
+  onLapSaved?: (event: LapSavedEvent | LapSavedNotification, context: LapEventContext) => void;
   onSessionStart?: (session: SessionState) => void | Promise<void>;
-  onLapComplete?: (event: LapCompleteEvent) => void;
+  onLapEvaluated?: (event: LapCompleteEvent, context: LapEventContext) => void;
+  onLapComplete?: (event: LapCompleteEvent, context: LapEventContext) => void;
 }
 
 /** Unified constructor options accepted by all lap detector implementations. */
@@ -38,6 +35,14 @@ export interface LapDetectorOptions {
   callbacks?: LapDetectorCallbacks;
   /** Bypass an implementation's packet-rate guard when supported (used in tests). */
   bypassPacketRateFilter?: boolean;
+  /** Evidence origin used while measuring quality; live capture is default. */
+  sourceKind?: EvidenceSourceKind;
+  /** Participant identity; local player is default. */
+  participant?: ParticipantEvidence;
+  /** Override parser/catalog identity for imports and deterministic rebuilds. */
+  versionIdentity?: TelemetryVersionIdentity;
+  /** Session-wide fidelity overrides supplied by transcoded evidence sources. */
+  sourceChannelProfile?: SourceChannelProfile;
 }
 
 /** Common interface implemented by all lap detector variants. */
@@ -62,6 +67,8 @@ export interface ILapDetector {
    * stuck at null.
    */
   setCurrentLapByteOffset?(offset: number): void;
+  /** Wait until every accepted lap for one session and its persistence follow-ups settle. */
+  waitForPendingLapWrites?(sessionId: number): Promise<void>;
   /** Return implementation-specific debug state for the dev panel. */
   getDebugState?(): Record<string, unknown>;
 }

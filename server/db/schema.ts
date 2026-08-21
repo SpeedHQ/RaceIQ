@@ -10,6 +10,13 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
+import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
+import type {
+	EligibilityDecisionSet,
+	LapQualitySummary,
+	RecordingQualitySummary,
+	SourceChannelProfile,
+} from "../../shared/racing/quality/contracts";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 
 export const profiles = sqliteTable("profiles", {
@@ -102,11 +109,18 @@ export const sessions = sqliteTable("sessions", {
 	parserVersion: text("parser_version"),
 	resolverVersion: text("resolver_version"),
 	derivationVersion: text("derivation_version"),
-	// How this session's telemetry was obtained (migration v43). NULL = recorded
-	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
-	// racing line is dead-reckoned rather than logged — see server/motec/.
+	// How this session's telemetry was obtained (migration v43). Pre-v43 NULL
+	// values are direct live captures and migrate to 'native-live' in v60.
+	// 'motec' marks a transcoded MoTeC .ld export, where the racing line is
+	// dead-reckoned rather than logged — see server/motec/.
 	source: text("source"),
 	ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
+	sourceChannelProfile: text("source_channel_profile", { mode: "json" }).$type<SourceChannelProfile>(),
+	recordingQuality: text("recording_quality", { mode: "json" }).$type<RecordingQualitySummary>(),
+	qualitySchemaVersion: text("quality_schema_version"),
+	qualityPolicyVersion: text("quality_policy_version"),
+	qualityConfigVersion: text("quality_config_version"),
+	qualityGeneration: text("quality_generation"),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 export const sessionResults = sqliteTable(
@@ -179,6 +193,9 @@ export const laps = sqliteTable(
 		lapNumber: integer("lap_number").notNull(),
 		lapTime: real("lap_time").notNull(),
 		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
+		phase: text("phase").$type<LapPhase>().notNull().default("flying"),
+		conditions: text("conditions", { mode: "json" }).$type<LapCondition[]>().notNull().default(sql`'[]'`),
+		paceEligibility: text("pace_eligibility").$type<PaceEligibility>().notNull().default("eligible"),
 		invalidReason: text("invalid_reason"),
 		notes: text("notes"),
 		profileId: integer("profile_id").references(() => profiles.id),
@@ -198,6 +215,12 @@ export const laps = sqliteTable(
 		parserVersion: text("parser_version"),
 		resolverVersion: text("resolver_version"),
 		derivationVersion: text("derivation_version"),
+		quality: text("quality", { mode: "json" }).$type<LapQualitySummary>(),
+		eligibility: text("eligibility", { mode: "json" }).$type<EligibilityDecisionSet>(),
+		qualitySchemaVersion: text("quality_schema_version"),
+		qualityPolicyVersion: text("quality_policy_version"),
+		qualityConfigVersion: text("quality_config_version"),
+		qualityGeneration: text("quality_generation"),
 		// Explicit experiment link (migration v25). Stamped at insert from the
 		// in-memory active tuning session (server/experiments/active.ts) so a tuning
 		// session can span many race sessions. The `.references()` here is
@@ -299,6 +322,8 @@ export const lapAnalyses = sqliteTable(
 		durationMs: integer("duration_ms").notNull().default(0),
 		model: text("model").notNull().default(""),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		qualityGeneration: text("quality_generation"),
+		qualityPolicyVersion: text("quality_policy_version"),
 	},
 	(table) => [unique().on(table.lapId)],
 );
@@ -544,6 +569,8 @@ export const compareAnalyses = sqliteTable(
 		durationMs: integer("duration_ms").notNull().default(0),
 		model: text("model").notNull().default(""),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		qualityGeneration: text("quality_generation"),
+		qualityPolicyVersion: text("quality_policy_version"),
 	},
 	(table) => [unique().on(table.lapAId, table.lapBId, table.kind)],
 );
@@ -552,16 +579,16 @@ export const compareAnalyses = sqliteTable(
  * Per-lap derived metrics (insights + per-segment input stats), cached so the
  * tuning views don't re-decode a lap's raw .bin on every read.
  *
- * `algo_version` is the cache key alongside `lap_id`: bumping
- * `LAP_METRICS_ALGO_VERSION` invalidates every stored row on next read rather
- * than requiring a migration to recompute. One row per lap — the recompute
- * overwrites in place.
+ * `algo_version` and `quality_generation` validate the cache alongside
+ * `lap_id`: changing either dependency invalidates the stored row on next
+ * read. One row per lap — the recompute overwrites in place.
  */
 export const lapMetrics = sqliteTable("lap_metrics", {
 	lapId: integer("lap_id")
 		.primaryKey()
 		.references(() => laps.id, { onDelete: "cascade" }),
 	algoVersion: integer("algo_version").notNull().default(1),
+	qualityGeneration: text("quality_generation"),
 	insights: text("insights").notNull(),
 	segmentStats: text("segment_stats").notNull(),
 	computedAt: text("computed_at").notNull().default(sql`(datetime('now'))`),

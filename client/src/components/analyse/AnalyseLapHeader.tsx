@@ -2,6 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { memo, useMemo, useRef, useState } from "react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../../shared/racing/quality/policies";
+import { LapStatus, lapStatusLabel } from "@/components/LapStatus";
+import { LapQualityBadge, localizedEligibilityDecisionText } from "@/components/LapQualityBadge";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
@@ -10,7 +13,7 @@ import { SearchSelect } from "../ui/SearchSelect";
 export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
     value: String(lap.id),
-    label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " ✕" : ""}`,
+    label: [`Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " ✕" : ""}`, lapStatusLabel(lap, "issues")].filter(Boolean).join(" · "),
   };
 }
 import { DropdownMenu } from "../ui/DropdownMenu";
@@ -94,6 +97,8 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   const [motecOpen, setMotecOpen] = useState(false);
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
+  const analysisDecision = selectedLap ? resolveEligibilityDecision(selectedLap, "corner-trace") : undefined;
+  const analysisUsable = isEligibilityUsable(analysisDecision);
   const importInputRef = useRef<HTMLInputElement>(null);
   const trackOptions = useMemo(() => tracks.map(([ordinal, count]) => ({ value: String(ordinal), label: `${trackNames[ordinal] || `Track ${ordinal}`} (${count})` })), [trackNames, tracks]);
   const carOptions = useMemo(() => carsForTrack.map(([ordinal, count]) => ({ value: String(ordinal), label: `${carNames[ordinal] || `Car ${ordinal}`} (${count})` })), [carNames, carsForTrack]);
@@ -136,6 +141,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
         />
 
+        {/* Lap selector */}
         <div className="flex items-center gap-2">
           <SearchSelect
             value={selectedLapId != null ? String(selectedLapId) : ""}
@@ -197,6 +203,12 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           />
         )}
         <div className="flex w-full flex-wrap items-center gap-2 @3xl/workspace:ml-auto @3xl/workspace:w-auto">
+          {selectedLap && (
+            <>
+              <LapStatus lap={selectedLap} presentation="badge" />
+              <LapQualityBadge lap={selectedLap} policyId="corner-trace" />
+            </>
+          )}
           {selectedLapId != null && (
             <Button
               variant="app-outline"
@@ -279,7 +291,13 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             ]}
           />
           {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
+            <Button
+              variant={aiPanelOpen && analysisUsable ? "selected-toggle" : "app-outline"}
+              size="app-lg"
+              onClick={onToggleAi}
+              disabled={!analysisUsable && !aiPanelOpen}
+              title={!analysisUsable ? localizedEligibilityDecisionText(analysisDecision) : undefined}
+            >
               <Sparkles className="size-3.5" />
               {m.label_ai_analysis()}
             </Button>

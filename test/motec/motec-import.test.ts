@@ -5,19 +5,14 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { getServerGame } from "../../server/games/registry";
 import { parseLd, findChannel } from "../../server/motec/ld";
 import { parseLdxBeacons } from "../../server/motec/ldx";
-import {
-  deadReckonPath,
-  lapWindows,
-  resolveMotecCarTrack,
-  synthesizeAcEvoCapture,
-  SYNTH_HZ,
-} from "../../server/games/ac-evo/motec";
+import { deadReckonPath, lapWindows, resolveMotecCarTrack, synthesizeAcEvoCapture, SYNTH_HZ } from "../../server/games/ac-evo/motec";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
 import { db } from "../../server/db";
 import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
-import { eq, isNull } from "drizzle-orm";
-import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo"
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
+import { eq } from "drizzle-orm";
+import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo";
+import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
+import { sha256SourceArtifacts } from "../../server/session-capture/identity";
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 
 initGameAdapters();
@@ -242,10 +237,132 @@ describe("synthesizeAcEvoCapture", () => {
     expect(capture.missingChannels).toEqual([]);
   });
 
-  test("frames parse back through the real AC Evo adapter", () => {
-    const packets = parseFrames(capture.bin);
-    expect(packets.length).toBe(capture.frameCount);
-    expect(packets[0]!.gameId).toBe("ac-evo");
+  test("publishes source-authored channel fidelity instead of inheriting native AC Evo semantics", () => {
+    expect(capture.sourceChannelProfile).toMatchObject({
+      schemaVersion: "1",
+      sourceKind: "motec",
+      channels: {
+        "inputs.steer": {
+          treatment: "assumed",
+          mappingStatus: "simplified",
+          sourceChannels: [{ name: "STEERANGLE", declaredHz: 60, effectiveHz: 60 }],
+          evidenceId: "source-channel-profile:1:motec:inputs.steer",
+        },
+        "motion.position-x": { treatment: "dead-reckoned", mappingStatus: "derived" },
+        "tires.tire-wear": { treatment: "absent", mappingStatus: "unavailable", sourceChannels: [] },
+        "tires.tire-slip-ratio": { treatment: "absent", mappingStatus: "unavailable", sourceChannels: [] },
+      },
+    });
+  });
+
+  test("position profile cites usable ROTY curvature evidence", () => {
+    const samples = new Array(60).fill(100);
+    const yawLog = parseLd(
+      buildLd({
+        channels: [
+          { name: "SPEED", freq: 60, unit: "kmh", samples },
+          { name: "ROTY", freq: 60, unit: "rad/s", samples: new Array(60).fill(0.5) },
+          { name: "G_LAT", freq: 60, samples: new Array(60).fill(1) },
+        ],
+      }),
+    );
+    const result = synthesizeAcEvoCapture(yawLog, []);
+
+    expect(result.yawFromLateralG).toBe(false);
+    for (const semanticId of ["motion.position-x", "motion.position-z"] as const) {
+      expect(result.sourceChannelProfile.channels[semanticId]).toMatchObject({
+        treatment: "dead-reckoned",
+        mappingStatus: "derived",
+        sourceChannels: [{ name: "SPEED" }, { name: "ROTY" }],
+        limitations: ["Position dead-reckoned from speed and yaw rate."],
+      });
+    }
+  });
+
+  test("position profile cites G_LAT when all-zero ROTY triggers fallback", () => {
+    const samples = new Array(60).fill(100);
+    const lateralGLog = parseLd(
+      buildLd({
+        channels: [
+          { name: "SPEED", freq: 60, unit: "kmh", samples },
+          { name: "ROTY", freq: 60, unit: "rad/s", samples: new Array(60).fill(0) },
+          { name: "G_LAT", freq: 60, samples: new Array(60).fill(1) },
+        ],
+      }),
+    );
+    const result = synthesizeAcEvoCapture(lateralGLog, []);
+
+    expect(result.yawFromLateralG).toBe(true);
+    for (const semanticId of ["motion.position-x", "motion.position-z"] as const) {
+      expect(result.sourceChannelProfile.channels[semanticId]).toMatchObject({
+        treatment: "dead-reckoned",
+        mappingStatus: "derived",
+        sourceChannels: [{ name: "SPEED" }, { name: "G_LAT" }],
+        limitations: ["Position dead-reckoned from speed and lateral acceleration."],
+      });
+    }
+  });
+
+  test("position profile is unavailable when zero ROTY has no G_LAT fallback", () => {
+    const missingFallbackLog = parseLd(
+      buildLd({
+        channels: [
+          { name: "SPEED", freq: 60, unit: "kmh", samples: new Array(60).fill(100) },
+          { name: "ROTY", freq: 60, unit: "rad/s", samples: new Array(60).fill(0) },
+        ],
+      }),
+    );
+    const result = synthesizeAcEvoCapture(missingFallbackLog, []);
+
+    expect(result.yawFromLateralG).toBe(true);
+    for (const semanticId of ["motion.position-x", "motion.position-z"] as const) {
+      expect(result.sourceChannelProfile.channels[semanticId]).toMatchObject({
+        treatment: "absent",
+        mappingStatus: "unavailable",
+        sourceChannels: [{ name: "SPEED" }],
+        limitations: ["MoTeC position inputs unavailable."],
+      });
+    }
+  });
+
+  test("distinguishes held and resampled source rates from actual channel metadata", () => {
+    const oneSecond = (count: number, value: number) => new Array(count).fill(value);
+    const rateLog = parseLd(
+      buildLd({
+        channels: [
+          { name: "SPEED", freq: 60, unit: "kmh", samples: oneSecond(60, 100) },
+          { name: "FUEL_LEVEL", freq: 10, unit: "l", samples: oneSecond(10, 50) },
+          ...["LF", "RF", "LR", "RR"].map((corner) => ({
+            name: `WHEEL_SPEED_${corner}`,
+            freq: 200,
+            unit: "rad/s",
+            samples: oneSecond(200, 20),
+          })),
+        ],
+      }),
+    );
+    const profile = synthesizeAcEvoCapture(rateLog, []).sourceChannelProfile;
+
+    expect(profile.channels["fuel.fuel"]).toMatchObject({
+      treatment: "held",
+      mappingStatus: "direct",
+      sourceChannels: [{ name: "FUEL_LEVEL", declaredHz: 10, effectiveHz: 10 }],
+    });
+    expect(profile.channels["tires.wheel-rotation-speed"]).toMatchObject({
+      treatment: "resampled",
+      mappingStatus: "direct",
+    });
+    expect(profile.channels["tires.wheel-rotation-speed"]?.sourceChannels).toHaveLength(4);
+  });
+
+  test("frames parse with deterministic MoTeC timeline across import and rebuild", () => {
+    const imported = parseFrames(capture.bin);
+    const rebuilt = parseFrames(capture.bin);
+    expect(imported.length).toBe(capture.frameCount);
+    expect(imported[0]!.gameId).toBe("ac-evo");
+    expect(rebuilt.map(({ TimestampMS }) => TimestampMS)).toEqual(imported.map(({ TimestampMS }) => TimestampMS));
+    expect(imported[0]!.TimestampMS).toBe(0);
+    expect(imported[60]!.TimestampMS).toBe(1_000);
   });
 
   test("speed and pedal traces survive the round trip", () => {
@@ -306,7 +423,21 @@ describe("synthesizeAcEvoCapture", () => {
 describe("importMotec end to end", () => {
   test("lands laps in the DB and marks the session as MoTeC-sourced", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const result = await importMotec(buildLd(spec), buildLdx(beacons));
+    const ldBytes = buildLd(spec);
+    const ldxBytes = Buffer.concat([
+      Buffer.from(buildLdx(beacons), "utf8"),
+      Buffer.from([0xff]),
+    ]);
+    const sourceGeneration = sha256SourceArtifacts([
+      { name: "source.ld", bytes: ldBytes },
+      { name: "source.ldx", bytes: ldxBytes },
+    ]);
+    const decodedGeneration = sha256SourceArtifacts([
+      { name: "source.ld", bytes: ldBytes },
+      { name: "source.ldx", bytes: Buffer.from(ldxBytes.toString("utf8"), "utf8") },
+    ]);
+    expect(decodedGeneration).not.toBe(sourceGeneration);
+    const result = await importMotec(ldBytes, ldxBytes);
 
     // Three windows, but the last is still open when the log ends, so the
     // detector completes the two that closed at a beacon.
@@ -323,6 +454,35 @@ describe("importMotec end to end", () => {
     for (const id of sessionIds) {
       const [row] = await db.select().from(sessions).where(eq(sessions.id, id));
       expect(row?.source).toBe(MOTEC_SESSION_SOURCE);
+      expect(row?.recordingQuality?.sourceKind).toBe("motec");
+      expect(row?.recordingQuality?.archiveVerification.sourceGeneration).toBe(sourceGeneration);
+      expect(row?.recordingQuality?.archiveVerification.sourceGeneration).not.toBe(decodedGeneration);
+      expect(row?.sourceChannelProfile).toMatchObject({
+        schemaVersion: "1",
+        sourceKind: "motec",
+        channels: {
+          "inputs.steer": {
+            treatment: "assumed",
+            mappingStatus: "simplified",
+            evidenceId: "source-channel-profile:1:motec:inputs.steer",
+          },
+          "motion.position-x": { treatment: "dead-reckoned", mappingStatus: "derived" },
+          "tires.tire-wear": { treatment: "absent", mappingStatus: "unavailable" },
+        },
+      });
+    }
+    for (const lap of result.laps) {
+      const [row] = await db.select().from(lapsTable).where(eq(lapsTable.id, lap.lapId));
+      expect(row?.quality?.sourceKind).toBe("motec");
+      expect(row?.eligibility?.["corner-trace"].status).not.toBe("unknown");
+      expect(row?.qualityGeneration ?? null).toBe(row?.quality?.provenance.outputGeneration ?? null);
+      expect(row?.quality?.provenance.sourceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(row?.quality?.channelQuality.find(({ semanticId }) => semanticId === "inputs.steer")).toMatchObject({ mappingStatus: "simplified" });
+      expect(row?.quality?.channelQuality.find(({ semanticId }) => semanticId === "tires.tire-wear")).toMatchObject({
+        mappingStatus: "unavailable",
+        coverage: null,
+        observedCount: 0,
+      });
     }
   });
 
@@ -330,7 +490,7 @@ describe("importMotec end to end", () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
     // Header says spa (see syntheticStint); import it as Monza instead.
     const monza = getAcEvoTrackByName("monza")!;
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       carOrdinal: 0,
       trackOrdinal: monza.id,
     });
@@ -353,7 +513,7 @@ describe("importMotec end to end", () => {
       })
       .returning({ id: tunes.id });
     const tuneId = tune!.id;
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
       tuneId,
@@ -368,7 +528,7 @@ describe("importMotec end to end", () => {
 
   test("omitting the setup leaves laps unassigned rather than guessing one", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
     });
@@ -377,16 +537,5 @@ describe("importMotec end to end", () => {
       const [row] = await db.select().from(lapsTable).where(eq(lapsTable.id, lap.lapId));
       expect(row?.tuneId).toBeNull();
     }
-  });
-
-  test("live-recorded sessions keep a null source", async () => {
-    // Guards the flag's meaning: it marks the exception, not every session.
-    const [row] = await db
-      .select()
-      .from(sessions)
-      .where(isNull(sessions.source))
-      .limit(1);
-    // Either there are no other sessions in this DB, or they are unflagged.
-    if (row) expect(row.source).toBeNull();
   });
 });

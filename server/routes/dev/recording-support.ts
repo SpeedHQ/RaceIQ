@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { readKunosFrames } from "../../games/kunos/frame-reader";
+import { readKunosFrames, type KunosRecordingFrame } from "../../games/kunos/frame-reader";
+export type { KunosRecordingFrame } from "../../games/kunos/frame-reader";
 import { parseAccBuffers } from "../../games/acc/parser";
 import { readWString } from "../../games/acc/utils";
 import { STATIC } from "../../games/acc/structs";
@@ -18,11 +19,6 @@ export type E2eRecordingFile = {
 
 export type Point2D = { x: number; y: number };
 export type Point3D = { x: number; y: number; speed: number };
-export type KunosRecordingFrame = {
-  physics: Buffer;
-  graphics: Buffer;
-  staticData: Buffer;
-};
 
 export type E2eLap = {
   lapNumber: number;
@@ -137,6 +133,7 @@ export function parseAccRecordingPoints(frames: KunosRecordingFrame[]): Point2D[
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
       carOrdinal,
       trackOrdinal,
+      timestampMS: frame.timestampMS,
     });
 
     if (packet) {
@@ -175,6 +172,7 @@ export function parseAccRecordingPacketsWithSpeed(frames: KunosRecordingFrame[])
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
       carOrdinal,
       trackOrdinal,
+      timestampMS: frame.timestampMS,
     });
 
     if (packet) {
@@ -218,6 +216,7 @@ export function parseAccRecordingLaps(frames: KunosRecordingFrame[]): E2eLapResu
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
       carOrdinal,
       trackOrdinal,
+      timestampMS: frame.timestampMS,
     });
 
     if (packet && packet.LapNumber !== undefined) {

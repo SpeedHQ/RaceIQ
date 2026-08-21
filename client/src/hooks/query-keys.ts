@@ -2,6 +2,9 @@ import type { GameId } from "../../../shared/games/ids";
 
 export const queryKeys = {
   laps: ["laps"] as const,
+  lapSemanticTelemetry: ["lap-semantic-telemetry"] as const,
+  stintTraces: ["stint-traces"] as const,
+  lapIssues: ["lap-issues"] as const,
   settings: ["settings"] as const,
   trackName: (ord: number) => ["track-name", ord] as const,
   trackSectors: (ord: number) => ["track-sectors", ord] as const,
@@ -21,3 +24,24 @@ export const queryKeys = {
   raceResultRecents: ["race-result-recent"] as const,
   raceResultRecent: (gameId: GameId | null) => ["race-result-recent", gameId] as const,
 };
+
+export function qualityUpdatedQueryKeys(sessionId: number) {
+  return [
+    queryKeys.laps,
+    queryKeys.sessions,
+    queryKeys.lapSemanticTelemetry,
+    queryKeys.stintTraces,
+    queryKeys.lapIssues,
+    queryKeys.sessionResults,
+    queryKeys.raceResultSummaries,
+    queryKeys.raceResultRecents,
+    ["track-laps"] as const,
+    ["session-recap", sessionId] as const,
+    ["session-quality", sessionId] as const,
+    ["experiment-tests"] as const,
+    ["experiment-arm-comparison"] as const,
+    ["experiment-line-spread"] as const,
+    ["experiment-importable-laps"] as const,
+    ["experiment-lap-metrics"] as const,
+  ] as const;
+}

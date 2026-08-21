@@ -5,6 +5,7 @@ import { fmCarSpecsCatalog } from "../../../shared/racing/cars/fm";
 import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
 import { tryGetServerGame } from "../../games/registry";
 import type { GameId } from "../../../shared/games/ids";
+import { isTimedLapEligibilityUsable } from "../../../shared/racing/quality/policies";
 import { TrackOrdinalParamSchema } from "./support";
 
 export const trackLeaderboardRoutes = new Hono()
@@ -23,7 +24,7 @@ export const trackLeaderboardRoutes = new Hono()
       // belt-and-braces so cross-game ordinal collisions (Forza track 2 ≠ AC
       // Evo track 2) can never leak into the wrong tracks page.
       const trackLaps = (await getLaps(gameId)).filter(
-        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0 && l.gameId === gameId
+        (lap) => lap.trackOrdinal === trackOrdinal && isTimedLapEligibilityUsable(lap) && lap.gameId === gameId
       );
 
       // Derive class letter from PI value
@@ -107,6 +108,14 @@ export const trackLeaderboardRoutes = new Hono()
           sessionId: lap.sessionId,
           sectorTimes: lap.sectorTimes,
           isValid: lap.isValid,
+          phase: lap.phase,
+          conditions: lap.conditions,
+          paceEligibility: lap.paceEligibility,
+          eligibility: lap.eligibility,
+          quality: lap.quality,
+          qualityGeneration: lap.qualityGeneration,
+          qualityStale: lap.qualityStale,
+          source: lap.source,
           invalidReason: lap.invalidReason,
           division: fmCarSpecsCatalog.get(lap.carOrdinal)?.division ?? null,
           notes: lap.notes,

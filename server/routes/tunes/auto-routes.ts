@@ -3,6 +3,8 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { Hono } from "hono";
 import { resolve, sep } from "node:path";
 import { z } from "zod";
+import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 
 import { requestTuneIntents } from "../../ai/tune-intent";
 import { symptomsToIntents } from "../../ai/tune-recommend";
@@ -34,6 +36,11 @@ export const tuneAutoRoutes = new Hono()
 
       const lap = await getLapById(body.stintId);
       if (!lap) return c.json({ error: "Stint not found" }, 404);
+      const decision = resolveEligibilityDecision(lap, "setup-analysis");
+      if (!isEligibilityUsable(decision)) {
+        return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
+      }
+
       const packets = lap.telemetry;
       if (packets.length < 30) {
         return c.json({ error: "Not enough telemetry to analyse this stint" }, 400);

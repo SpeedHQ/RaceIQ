@@ -150,6 +150,7 @@ describe("buildLapsZip", () => {
 
     const slice = readEntry(bytes, manifest.entries[0].file);
     expect(slice.readUInt32LE(0)).toBe(META_FRAME_MAGIC); // meta frame re-prepended
+    expect(slice.readUInt32LE(8)).toBe(3);
     expect(frameIndices(slice)).toEqual([0, 1, 2]); // lap 1's frames + 1 trigger
   });
 
@@ -225,6 +226,7 @@ describe("buildLapsZip", () => {
     const lapId = await insertLap(sid, 2, offsets[2]!, 1);
     const { bytes, manifest } = await buildLapsZip([lapId]);
     const slice = readEntry(bytes, manifest.entries[0]!.file);
+    expect(slice.readUInt32LE(8)).toBe(3);
 
     const exportedFrames: Buffer[] = [];
     let at = META;

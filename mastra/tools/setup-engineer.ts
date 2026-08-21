@@ -31,38 +31,51 @@ import {
   setExperimentVersionNote,
   setExperimentVersionNotes,
 } from "../../server/db/experiment-version-queries";
-import { setSessionHead } from "../../server/db/experiment-queries";
+import { getExperiment, setSessionHead } from "../../server/db/experiment-queries";
 import { changeSlug, computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
 import { wsManager } from "../../server/runtime/websocket-manager";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import { buildAppliedChangesMarkdown } from "../../server/setups/applied-change-markdown";
-import {
-  computeSessionSymptoms,
-  computeSessionTrackConditions,
-} from "../../server/experiments/representative-lap";
 import { formatTrackConditions } from "../../server/ai/track-conditions";
-import {
-  gameHasSetupFile,
-  loadActiveExperimentContext,
-} from "../../server/experiments/setup-lineage";
+import { gameHasSetupFile, loadActiveExperimentContext } from "../../server/experiments/setup-lineage";
 import { readActiveSetup, writeAppliedSetup } from "../../server/setups/io";
-import { readSetupEngineerContext } from "./setup-engineer-request-context";
+import { readSetupEngineerContext, type SetupEngineerRequestContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../server/experiments/lap-evidence/aggregate";
+import { selectEvaluationLaps } from "../../shared/racing/laps/review-selection";
+import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
+import type { EligibilityPolicyId } from "../../shared/racing/quality/contracts";
 import { setLapExperimentExcluded, getLapsForExperiment } from "../../server/db/experiment-lap-queries";
-import { getLapById } from "../../server/db/lap-read-queries";
+import { getLapById, type LoadedLap } from "../../server/db/lap-read-queries";
 import { resolveTrack } from "../../server/tracks/info";
 import { recordAction } from "../../server/db/experiment-action-queries";
-import { undoLastAction } from "../../server/experiments/undo"
+import { undoLastAction } from "../../server/experiments/undo";
 import { detectCorners } from "../../server/lap-analysis/corners";
 import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../server/ai/tune-issues";
 import { compareLaps } from "../../server/lap-analysis/comparison";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
+const EligibilityStatusEnum = z.enum(["eligible", "eligible_with_warning", "ineligible", "unknown"]);
+const EligibilityReasonShape = z.object({
+  code: z.string(),
+  severity: z.enum(["info", "warning", "error"]),
+  evidenceIds: z.array(z.string()),
+  timeRange: z.object({ startMs: z.number(), endMs: z.number() }).nullable(),
+  distanceRange: z.object({ startFraction: z.number(), endFraction: z.number() }).nullable(),
+  semanticIds: z.array(z.string()),
+});
+
+const LocalEligibilityShape = z.object({
+  status: EligibilityStatusEnum,
+  reasons: z.array(EligibilityReasonShape),
+});
 
 // Per-session binding (gameId, sessionId) comes from Mastra requestContext, set
 // once per turn by the chat route — NOT a model-supplied tool arg. Weak local
@@ -121,8 +134,104 @@ const MAX_ISSUE_LAPS = 8;
 // Matches loadRepresentativeLap's/clean-lap-aggregate's analysable-lap gate.
 const MIN_TELEMETRY_FRAMES = 30;
 
-export function buildSetupEngineerTools() {
+type FullLap = LoadedLap;
 
+interface SetupEngineerLapScope {
+  experimentId: number;
+  gameId: SetupEngineerRequestContext["gameId"];
+  trackOrdinal: number;
+  lapsById: Map<number, LapMeta>;
+}
+
+type SetupEngineerScopeResult = { ok: true; scope: SetupEngineerLapScope } | { ok: false; error: string };
+type SetupEngineerLapResult = { ok: true; meta: LapMeta; lap: FullLap } | { ok: false; error: string };
+
+async function loadSetupEngineerLapScope(context: SetupEngineerRequestContext): Promise<SetupEngineerScopeResult> {
+  const experiment = await getExperiment(context.sessionId);
+  if (!experiment || experiment.gameId !== context.gameId) {
+    return { ok: false, error: `Experiment ${context.sessionId} is not available for game ${context.gameId}.` };
+  }
+  if (experiment.trackOrdinal == null) {
+    return { ok: false, error: `Experiment ${context.sessionId} has no track scope.` };
+  }
+
+  const linkedLaps = (await getLapsForExperiment(context.sessionId)).filter(
+    (lap) => lap.experimentId === context.sessionId && lap.gameId === context.gameId && lap.trackOrdinal === experiment.trackOrdinal && lap.ownership === "mine",
+  );
+  return {
+    ok: true,
+    scope: {
+      experimentId: context.sessionId,
+      gameId: context.gameId,
+      trackOrdinal: experiment.trackOrdinal,
+      lapsById: new Map(linkedLaps.map((lap) => [lap.id, lap])),
+    },
+  };
+}
+
+async function loadSetupEngineerLap(scope: SetupEngineerLapScope, lapId: number): Promise<SetupEngineerLapResult> {
+  const meta = scope.lapsById.get(lapId);
+  if (!meta || meta.experimentId !== scope.experimentId || meta.gameId !== scope.gameId || meta.trackOrdinal !== scope.trackOrdinal || meta.ownership !== "mine") {
+    return { ok: false, error: `Lap ${lapId} is not accessible in this experiment.` };
+  }
+
+  const lap = await getLapById(lapId);
+  if (!lap || lap.experimentId !== scope.experimentId || lap.gameId !== scope.gameId || lap.trackOrdinal !== scope.trackOrdinal || lap.ownership !== "mine") {
+    return { ok: false, error: `Lap ${lapId} is not accessible in this experiment.` };
+  }
+  return { ok: true, meta, lap };
+}
+
+function lapPolicyRejection(lap: LapMeta, policyIds: readonly EligibilityPolicyId[]) {
+  for (const policyId of policyIds) {
+    const decision = resolveEligibilityDecision(lap, policyId);
+    if (!isEligibilityUsable(decision)) {
+      return {
+        ok: false as const,
+        error: `Lap ${lap.id} cannot support ${policyId}: ${eligibilityDecisionText(decision)}`,
+        eligibilityStatus: decision.status,
+        reasonCodes: decision.reasons.map((reason) => reason.code),
+      };
+    }
+  }
+  return null;
+}
+
+export function buildSetupEngineerLapSummaries(laps: LapMeta[]) {
+  const selection = selectEvaluationLaps(laps, Number.POSITIVE_INFINITY);
+  const bestLapTime = selection.chosen[0]?.lapTime ?? null;
+  return {
+    setupAnalysis: {
+      status: selection.setupDecision.status,
+      reasons: selection.setupDecision.reasons,
+      summary: eligibilityDecisionText(selection.setupDecision),
+    },
+    laps: laps.map((lap) => {
+      const normalPace = resolveEligibilityDecision(lap, "normal-pace");
+      const cornerTrace = resolveEligibilityDecision(lap, "corner-trace");
+      const analysisEligible = selection.chosenIds.has(lap.id);
+      return {
+        lapId: lap.id,
+        lapNumber: lap.lapNumber,
+        lapTime: lap.lapTime,
+        isValid: lap.isValid,
+        excluded: Boolean(lap.experimentExcluded),
+        analysisEligible,
+        qualityGeneration: lap.qualityGeneration ?? lap.quality?.provenance.outputGeneration ?? null,
+        normalPace: { status: normalPace.status, reasons: normalPace.reasons },
+        cornerTrace: { status: cornerTrace.status, reasons: cornerTrace.reasons },
+        selectionReason: selection.reasonById.get(lap.id) ?? "invalid",
+        selectionReasonCodes: [...(selection.reasonCodesById.get(lap.id) ?? [])],
+        s1Time: lap.sectorTimes?.[0] ?? null,
+        s2Time: lap.sectorTimes?.[1] ?? null,
+        s3Time: lap.sectorTimes?.[2] ?? null,
+        deltaToBestSec: bestLapTime != null && analysisEligible ? lap.lapTime - bestLapTime : null,
+      };
+    }),
+  };
+}
+
+export function buildSetupEngineerTools() {
   const getSetupTool = createTool({
     id: "get-setup",
     description:
@@ -134,13 +243,17 @@ export function buildSetupEngineerTools() {
       ok: z.boolean(),
       error: z.string().optional(),
       version: z.number().optional(),
-      knobs: z.array(z.object({
-        component: z.string(),
-        current: z.number().nullable(),
-        min: z.number(),
-        max: z.number(),
-        step: z.object({ small: z.number(), medium: z.number(), large: z.number() }),
-      })).default([]),
+      knobs: z
+        .array(
+          z.object({
+            component: z.string(),
+            current: z.number().nullable(),
+            min: z.number(),
+            max: z.number(),
+            step: z.object({ small: z.number(), medium: z.number(), large: z.number() }),
+          }),
+        )
+        .default([]),
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
@@ -157,36 +270,50 @@ export function buildSetupEngineerTools() {
   const getSymptomsTool = createTool({
     id: "get-symptoms",
     description:
-      "Get the deterministic symptom report (balance per corner phase, lockups, bottoming) computed from " +
-      "the session's fastest valid lap. Call this before diagnosing handling problems or proposing setup " +
-      "changes, so recommendations target measured symptoms rather than guesses. Returns 'available: false' " +
-      "when no lap has been driven yet — in that case, discuss the setup from the driver's description of " +
-      "how the car feels.",
+      "Get the deterministic symptom report computed from the shared setup-analysis lap pool. " +
+      "Returns the exact policy status and machine-readable reason codes. Unknown or ineligible " +
+      "evidence is unavailable and must not be used for setup conclusions.",
     inputSchema: NoInput,
     outputSchema: z.object({
       available: z.boolean(),
       summary: z.string(),
+      eligibilityStatus: EligibilityStatusEnum,
+      reasonCodes: z.array(z.string()),
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const symptoms = await computeSessionSymptoms(sessionId);
-      if (!symptoms) return { available: false, summary: "No analysable lap yet for this session." };
-      return { available: true, summary: formatSymptoms(symptoms) };
+      const agg = await loadCleanLapAggregate(sessionId);
+      const eligibilityStatus = agg.setupDecision.status;
+      const reasonCodes = agg.setupDecision.reasons.map((reason) => reason.code);
+      if (!agg.symptoms) {
+        return {
+          available: false,
+          summary: eligibilityDecisionText(agg.setupDecision),
+          eligibilityStatus,
+          reasonCodes,
+        };
+      }
+      return {
+        available: true,
+        summary: formatSymptoms(agg.symptoms),
+        eligibilityStatus,
+        reasonCodes,
+      };
     },
   });
 
   const getTrackConditionsTool = createTool({
     id: "get-track-conditions",
     description:
-      "Get the deterministic weather / track-surface conditions (air & road temperature, rain, grip level, " +
-      "wind, and for AC-EVO the static starting-grip label) measured across the session's representative lap — " +
-      "the same fastest valid lap the symptom report uses. Returns 'available: false' when no lap has been " +
-      "driven yet. Use this to reason about temperature-sensitive knobs (tyre pressures, which climb with hot " +
-      "track/air) and grip: a green or wet track wants a softer, more compliant setup than an optimum dry one.",
+      "Get deterministic weather / track-surface conditions from the same shared setup-analysis " +
+      "lap pool as the symptom report. Returns the exact policy status and machine-readable reason " +
+      "codes. Unknown or ineligible evidence is unavailable.",
     inputSchema: NoInput,
     outputSchema: z.object({
       available: z.boolean(),
       summary: z.string(),
+      eligibilityStatus: EligibilityStatusEnum,
+      reasonCodes: z.array(z.string()),
       airTempC: z.object({ min: z.number(), max: z.number(), avg: z.number() }).nullable().optional(),
       roadTempC: z.object({ min: z.number(), max: z.number(), avg: z.number() }).nullable().optional(),
       rainIntensity: z.number().optional(),
@@ -199,11 +326,23 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const tc = await computeSessionTrackConditions(sessionId);
-      if (!tc) return { available: false, summary: "No analysable lap yet for this session." };
+      const agg = await loadCleanLapAggregate(sessionId);
+      const eligibilityStatus = agg.setupDecision.status;
+      const reasonCodes = agg.setupDecision.reasons.map((reason) => reason.code);
+      const tc = agg.trackConditions;
+      if (!tc) {
+        return {
+          available: false,
+          summary: eligibilityDecisionText(agg.setupDecision),
+          eligibilityStatus,
+          reasonCodes,
+        };
+      }
       return {
         available: true,
         summary: formatTrackConditions(tc),
+        eligibilityStatus,
+        reasonCodes,
         airTempC: tc.airTempC,
         roadTempC: tc.roadTempC,
         rainIntensity: tc.rainIntensity,
@@ -220,16 +359,16 @@ export function buildSetupEngineerTools() {
   const consultLapAnalystTool = createTool({
     id: "consult-lap-analyst",
     description:
-      "Delegate a full corner-by-corner driving/telemetry analysis of the session's representative lap to the " +
-      "Lap Analyst — a separate expert agent. Use this when the driver asks something that needs telemetry " +
-      "insight beyond the setup itself (e.g. where they're losing time, braking/throttle habits, which corners " +
-      "cost the most), or to decide whether a slow lap is a driving issue rather than a setup one. Returns " +
-      "'available: false' when no lap has been driven yet. This is a heavier call than get_symptoms — reach for " +
-      "it when the setup signals aren't enough.",
+      "Delegate corner-by-corner driving/telemetry analysis of the shared policy-selected lap to " +
+      "the Lap Analyst. Use this when the driver asks where time is lost or whether a problem is " +
+      "driving rather than setup. Returns exact eligibility status and machine-readable reason codes; " +
+      "unknown or ineligible evidence is unavailable.",
     inputSchema: NoInput,
     outputSchema: z.object({
       available: z.boolean(),
       summary: z.string(),
+      eligibilityStatus: EligibilityStatusEnum,
+      reasonCodes: z.array(z.string()),
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
@@ -245,19 +384,23 @@ export function buildSetupEngineerTools() {
       "a change that was already tried, or to reason about what's been attempted.",
     inputSchema: NoInput,
     outputSchema: z.object({
-      versions: z.array(z.object({
-        version: z.number(),
-        label: z.string(),
-        engine: z.string().nullable(),
-        driverComment: z.string().nullable(),
-        notes: z.string().nullable(),
-        changes: z.array(z.object({
-          component: z.string(),
-          from: z.number(),
-          to: z.number(),
-          direction: z.string(),
-        })),
-      })),
+      versions: z.array(
+        z.object({
+          version: z.number(),
+          label: z.string(),
+          engine: z.string().nullable(),
+          driverComment: z.string().nullable(),
+          notes: z.string().nullable(),
+          changes: z.array(
+            z.object({
+              component: z.string(),
+              from: z.number(),
+              to: z.number(),
+              direction: z.string(),
+            }),
+          ),
+        }),
+      ),
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
@@ -270,7 +413,9 @@ export function buildSetupEngineerTools() {
             try {
               const parsed = JSON.parse(t.appliedChanges);
               if (Array.isArray(parsed)) changes = parsed;
-            } catch { /* malformed history row — surface as no changes */ }
+            } catch {
+              /* malformed history row — surface as no changes */
+            }
           }
           return {
             version: t.version,
@@ -309,12 +454,14 @@ export function buildSetupEngineerTools() {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const ctx = await loadActiveExperimentContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error };
-      const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, [{
-        component: inputData.component,
-        direction: inputData.direction as TuneDirection,
-        magnitude: inputData.magnitude as TuneMagnitude,
-        reason: "preview",
-      }]);
+      const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, [
+        {
+          component: inputData.component,
+          direction: inputData.direction as TuneDirection,
+          magnitude: inputData.magnitude as TuneMagnitude,
+          reason: "preview",
+        },
+      ]);
       void setup;
       if (applied.length > 0) {
         const c = applied[0]!;
@@ -335,14 +482,22 @@ export function buildSetupEngineerTools() {
       "several experimental children of v1), pass `target` — do NOT use branch-from-version for that, since " +
       "a plain branch is a byte-copy with no changes recorded.",
     inputSchema: z.object({
-      changes: z.array(z.object({
-        component: z.string(),
-        direction: DirectionEnum,
-        magnitude: MagnitudeEnum,
-        reason: z.string().describe("One short sentence: why this change, grounded in the symptoms/conversation."),
-      })).min(1),
-      goal: z.string().describe("One short line: the driver's goal for this version, e.g. \"faster straight speed\", \"stiffer suspension\". Stored on the version and shown in the tree."),
-      driverConfirmed: z.boolean().describe("true ONLY if the driver explicitly approved this exact set of changes in a message AFTER you proposed it (e.g. \"yes\", \"apply that\"). false if you have not yet proposed the changes and been told to go ahead."),
+      changes: z
+        .array(
+          z.object({
+            component: z.string(),
+            direction: DirectionEnum,
+            magnitude: MagnitudeEnum,
+            reason: z.string().describe("One short sentence: why this change, grounded in the symptoms/conversation."),
+          }),
+        )
+        .min(1),
+      goal: z.string().describe('One short line: the driver\'s goal for this version, e.g. "faster straight speed", "stiffer suspension". Stored on the version and shown in the tree.'),
+      driverConfirmed: z
+        .boolean()
+        .describe(
+          'true ONLY if the driver explicitly approved this exact set of changes in a message AFTER you proposed it (e.g. "yes", "apply that"). false if you have not yet proposed the changes and been told to go ahead.',
+        ),
       target: z.string().optional().describe("Label or version number to apply the changes on top of (becomes the new version's parent). Omit to apply on the current head."),
     }),
     outputSchema: z.object({
@@ -371,10 +526,7 @@ export function buildSetupEngineerTools() {
         };
       }
       const turnMessages = execCtx?.requestContext?.get(CHAT_TURN_MESSAGES_KEY);
-      if (
-        Array.isArray(turnMessages) &&
-        !inputData.changes.every((change) => hasExplicitChangeConfirmation(turnMessages as { role?: string; parts?: unknown[]; content?: unknown }[], change))
-      ) {
+      if (Array.isArray(turnMessages) && !inputData.changes.every((change) => hasExplicitChangeConfirmation(turnMessages as { role?: string; parts?: unknown[]; content?: unknown }[], change))) {
         return {
           ok: false,
           error: "Not applied — explicit confirmation must follow a matching preview in a later driver message.",
@@ -499,10 +651,7 @@ export function buildSetupEngineerTools() {
       // Best-effort: a memory write failure must not fail the apply — the
       // file + tuning test are already committed.
       try {
-        await saveAssistantChatMessage(
-          tuneSessionThreadId(sessionId),
-          buildAppliedChangesMarkdown(label, applied, written.fileName, gameHasSetupFile(ctx.gameId), inputData.goal?.trim() || null),
-        );
+        await saveAssistantChatMessage(tuneSessionThreadId(sessionId), buildAppliedChangesMarkdown(label, applied, written.fileName, gameHasSetupFile(ctx.gameId), inputData.goal?.trim() || null));
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to post applied-tweaks message:", err?.message);
       }
@@ -536,15 +685,15 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const { ok, prev } = await setLapExperimentExcluded(inputData.lapId, inputData.excluded);
-      if (!ok) return { ok: false, error: `No lap ${inputData.lapId} found.` };
+      const result = await setLapExperimentExcluded(inputData.lapId, sessionId, inputData.excluded);
+      if (!result.ok) return { ok: false, error: `No lap ${inputData.lapId} found in this experiment.` };
 
       // Best-effort: an action-log write failure must not fail the tool — the
       // lap flag is already committed.
       try {
-        await recordAction(sessionId, "set-lap-excluded", { lapId: inputData.lapId, prevExcluded: prev });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log set-lap-excluded action:", err?.message);
+        await recordAction(sessionId, "set-lap-excluded", { lapId: inputData.lapId, prevExcluded: result.prev });
+      } catch (error: unknown) {
+        console.error("[SetupEngineer] Failed to log set-lap-excluded action:", error instanceof Error ? error.message : String(error));
       }
 
       return { ok: true, lapId: inputData.lapId, excluded: inputData.excluded };
@@ -561,12 +710,7 @@ export function buildSetupEngineerTools() {
       "instead. Defaults to the current version; pass `version` to annotate an earlier one. This OVERWRITES " +
       "the note, so include anything from the existing note you want to keep. Pass an empty note to clear it.",
     inputSchema: z.object({
-      version: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .describe("Version number to annotate. Omit to note the current (head) version."),
+      version: z.number().int().positive().optional().describe("Version number to annotate. Omit to note the current (head) version."),
       note: z.string().max(4000).describe("The note text. Empty string clears the note."),
     }),
     outputSchema: z.object({
@@ -618,21 +762,11 @@ export function buildSetupEngineerTools() {
       "and only call this with `driverConfirmed: true` after they approve it in a later message. Defaults to " +
       "the current version; pass `version` to annotate an earlier one.",
     inputSchema: z.object({
-      version: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .describe("Version number to annotate. Omit to note the current (head) version."),
-      note: z
-        .string()
-        .max(4000)
-        .describe("The driver's notes, in their terms — feel and issues. Empty string clears the note."),
+      version: z.number().int().positive().optional().describe("Version number to annotate. Omit to note the current (head) version."),
+      note: z.string().max(4000).describe("The driver's notes, in their terms — feel and issues. Empty string clears the note."),
       driverConfirmed: z
         .boolean()
-        .describe(
-          "true ONLY if the driver explicitly approved this exact note text in a message AFTER you read it back to them. false if you have not yet shown them the wording.",
-        ),
+        .describe("true ONLY if the driver explicitly approved this exact note text in a message AFTER you read it back to them. false if you have not yet shown them the wording."),
     }),
     outputSchema: z.object({
       ok: z.boolean(),
@@ -692,13 +826,17 @@ export function buildSetupEngineerTools() {
     outputSchema: z.object({
       available: z.boolean(),
       summary: z.string(),
-      corners: z.array(z.object({
-        corner: z.string(),
-        lateralSpreadM: z.number(),
-        brakeVar: z.number(),
-        throttleVar: z.number(),
-        lowTrust: z.boolean(),
-      })).default([]),
+      corners: z
+        .array(
+          z.object({
+            corner: z.string(),
+            lateralSpreadM: z.number(),
+            brakeVar: z.number(),
+            throttleVar: z.number(),
+            lowTrust: z.boolean(),
+          }),
+        )
+        .default([]),
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
@@ -722,46 +860,46 @@ export function buildSetupEngineerTools() {
   const listLapsTool = createTool({
     id: "list-laps",
     description:
-      "Read-only. List every lap recorded in this tuning session: lap id/number, lap time, sector times, " +
-      "delta to the session's best valid lap, validity, and the excluded flag. Compact — no telemetry arrays. " +
-      "Use this to see the full lap pool before deciding which lap(s) to dig into with get_lap_detail, " +
-      "get_lap_issues, or compare_laps.",
+      "Read-only. List every lap in this tuning session with structural validity, local normal-pace and " +
+      "corner-trace decisions, exact selection provenance, quality generation, and delta to best selected lap. " +
+      "The setup-analysis group decision is returned once at top level. Compact — no telemetry arrays.",
     inputSchema: NoInput,
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
-      laps: z.array(z.object({
-        lapId: z.number(),
-        lapNumber: z.number(),
-        lapTime: z.number(),
-        isValid: z.boolean(),
-        excluded: z.boolean(),
-        s1Time: z.number().nullable(),
-        s2Time: z.number().nullable(),
-        s3Time: z.number().nullable(),
-        deltaToBestSec: z.number().nullable(),
-      })).default([]),
+      setupAnalysis: z.object({
+        status: EligibilityStatusEnum,
+        reasons: z.array(EligibilityReasonShape),
+        summary: z.string(),
+      }),
+      laps: z
+        .array(
+          z.object({
+            lapId: z.number(),
+            lapNumber: z.number(),
+            lapTime: z.number(),
+            isValid: z.boolean(),
+            excluded: z.boolean(),
+            analysisEligible: z.boolean(),
+            qualityGeneration: z.string().nullable(),
+            normalPace: LocalEligibilityShape,
+            cornerTrace: LocalEligibilityShape,
+            selectionReason: z.enum(["chosen", "invalid", "non-pace", "manual", "auto", "slower-than-cap"]),
+            selectionReasonCodes: z.array(z.string()),
+            s1Time: z.number().nullable(),
+            s2Time: z.number().nullable(),
+            s3Time: z.number().nullable(),
+            deltaToBestSec: z.number().nullable(),
+          }),
+        )
+        .default([]),
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const laps = await getLapsForExperiment(sessionId);
-      const bestLapTime = laps.reduce<number | null>((best, l) => {
-        if (!l.isValid || l.lapTime <= 0) return best;
-        return best == null || l.lapTime < best ? l.lapTime : best;
-      }, null);
       return {
         ok: true,
-        laps: laps.map((l) => ({
-          lapId: l.id,
-          lapNumber: l.lapNumber,
-          lapTime: l.lapTime,
-          isValid: l.isValid,
-          excluded: Boolean(l.experimentExcluded),
-          s1Time: l.sectorTimes?.[0] ?? null,
-          s2Time: l.sectorTimes?.[1] ?? null,
-          s3Time: l.sectorTimes?.[2] ?? null,
-          deltaToBestSec: bestLapTime != null && l.isValid && l.lapTime > 0 ? l.lapTime - bestLapTime : null,
-        })),
+        ...buildSetupEngineerLapSummaries(laps),
       };
     },
   });
@@ -777,6 +915,8 @@ export function buildSetupEngineerTools() {
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
+      eligibilityStatus: EligibilityStatusEnum.optional(),
+      reasonCodes: z.array(z.string()).optional(),
       lapNumber: z.number().optional(),
       lapTime: z.number().optional(),
       isValid: z.boolean().optional(),
@@ -784,30 +924,41 @@ export function buildSetupEngineerTools() {
       s1Time: z.number().nullable().optional(),
       s2Time: z.number().nullable().optional(),
       s3Time: z.number().nullable().optional(),
-      corners: z.array(z.object({
-        label: z.string(),
-        minSpeedKph: z.number().optional(),
-      })).optional(),
-      tires: z.object({
-        FL: CornerSnapShape,
-        FR: CornerSnapShape,
-        RL: CornerSnapShape,
-        RR: CornerSnapShape,
-      }).nullable().optional(),
-      metrics: z.object({
-        topSpeedKph: z.number(),
-        avgThrottle: z.number(),
-        avgBrake: z.number(),
-      }).nullable().optional(),
+      corners: z
+        .array(
+          z.object({
+            label: z.string(),
+            minSpeedKph: z.number().optional(),
+          }),
+        )
+        .optional(),
+      tires: z
+        .object({
+          FL: CornerSnapShape,
+          FR: CornerSnapShape,
+          RL: CornerSnapShape,
+          RR: CornerSnapShape,
+        })
+        .nullable()
+        .optional(),
+      metrics: z
+        .object({
+          topSpeedKph: z.number(),
+          avgThrottle: z.number(),
+          avgBrake: z.number(),
+        })
+        .nullable()
+        .optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForExperiment(sessionId);
-      const meta = sessionLaps.find((l) => l.id === inputData.lapId);
-      if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.` };
-
-      const lap = await getLapById(inputData.lapId);
-      if (!lap) return { ok: false, error: `Lap ${inputData.lapId} not found.` };
+      const context = readSetupEngineerContext(execCtx?.requestContext);
+      const scopeResult = await loadSetupEngineerLapScope(context);
+      if (!scopeResult.ok) return scopeResult;
+      const lapResult = await loadSetupEngineerLap(scopeResult.scope, inputData.lapId);
+      if (!lapResult.ok) return lapResult;
+      const { meta, lap } = lapResult;
+      const policyRejection = lapPolicyRejection(lap, ["corner-trace", "tire-analysis"]);
+      if (policyRejection) return policyRejection;
 
       const telemetry = lap.telemetry;
       if (telemetry.length === 0) {
@@ -853,45 +1004,81 @@ export function buildSetupEngineerTools() {
   const getLapIssuesTool = createTool({
     id: "get-lap-issues",
     description:
-      "Read-only. Detected issues (understeer/oversteer, brake lockup, suspension bottoming, tyre pressure) " +
-      "for a lap in this session, via the SAME deterministic detector the review dashboard's issue feed uses. " +
-      "Pass lapId for one lap; omit it to scan every analysable lap in the session (capped, newest matter most). " +
-      "Rejects a lapId that isn't in this session.",
+      "Read-only. Detect handling issues only from laps accepted by shared setup-analysis policy. " +
+      "Pass lapId for one lap; omit it to scan policy-selected laps (capped). Unknown/ineligible " +
+      "laps are rejected with exact machine-readable policy reason codes.",
     inputSchema: z.object({ lapId: z.number().int().positive().optional() }),
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
+      eligibilityStatus: EligibilityStatusEnum.optional(),
+      reasonCodes: z.array(z.string()).optional(),
       truncated: z.boolean().optional(),
-      laps: z.array(z.object({
-        lapId: z.number(),
-        lapNumber: z.number(),
-        issues: z.array(IssueShape),
-      })).default([]),
+      laps: z
+        .array(
+          z.object({
+            lapId: z.number(),
+            lapNumber: z.number(),
+            issues: z.array(IssueShape),
+          }),
+        )
+        .default([]),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForExperiment(sessionId);
+      const context = readSetupEngineerContext(execCtx?.requestContext);
+      const scopeResult = await loadSetupEngineerLapScope(context);
+      if (!scopeResult.ok) return { ...scopeResult, laps: [] };
+      const { scope } = scopeResult;
+      const sessionLaps = [...scope.lapsById.values()];
+      const selection = selectEvaluationLaps(sessionLaps, Number.POSITIVE_INFINITY);
 
-      const issuesForLap = async (meta: (typeof sessionLaps)[number]) => {
-        const lap = await getLapById(meta.id);
-        if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
-        const corners = detectCorners(lap.telemetry);
-        const symptoms = telemetryToSymptoms(lap.telemetry, corners);
+      const issuesForLap = async (meta: LapMeta, loadedLap?: FullLap) => {
+        const lapResult = loadedLap ? { ok: true as const, meta, lap: loadedLap } : await loadSetupEngineerLap(scope, meta.id);
+        if (!lapResult.ok || lapResult.lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
+        const corners = detectCorners(lapResult.lap.telemetry);
+        const symptoms = telemetryToSymptoms(lapResult.lap.telemetry, corners);
         return symptomsToIssues(symptoms, meta.lapNumber);
       };
 
       if (inputData.lapId != null) {
-        const meta = sessionLaps.find((l) => l.id === inputData.lapId);
-        if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.`, laps: [] };
-        const issues = await issuesForLap(meta);
+        const lapResult = await loadSetupEngineerLap(scope, inputData.lapId);
+        if (!lapResult.ok) return { ...lapResult, laps: [] };
+        const { meta } = lapResult;
+        const selectionReason = selection.reasonById.get(meta.id);
+        if (selectionReason === "invalid") {
+          return {
+            ok: false,
+            error: `Lap ${meta.id} is structurally invalid and cannot support handling conclusions.`,
+            laps: [],
+          };
+        }
+        if (selectionReason === "manual") {
+          return {
+            ok: false,
+            error: `Lap ${meta.id} was manually excluded from setup analysis.`,
+            laps: [],
+          };
+        }
+        if (!selection.chosenIds.has(meta.id)) {
+          const decision = selection.rejectionDecisionById.get(meta.id) ?? selection.setupDecision;
+          const codes = selection.reasonCodesById.get(meta.id) ?? [];
+          return {
+            ok: false,
+            error: `Lap ${meta.id} is ${decision.status} for ${decision.policyId}: ${codes.join(", ") || "no policy reason"}.`,
+            eligibilityStatus: decision.status,
+            reasonCodes: [...codes],
+            laps: [],
+          };
+        }
+        const issues = await issuesForLap(meta, lapResult.lap);
         if (issues == null) return { ok: false, error: `Lap ${inputData.lapId} has no analysable telemetry.`, laps: [] };
         return { ok: true, laps: [{ lapId: meta.id, lapNumber: meta.lapNumber, issues }] };
       }
 
-      const analysable = sessionLaps.filter((l) => l.isValid && l.lapTime > 0);
+      const analysable = selection.chosen;
       const truncated = analysable.length > MAX_ISSUE_LAPS;
       const scoped = analysable.slice(0, MAX_ISSUE_LAPS);
-      const laps: { lapId: number; lapNumber: number; issues: ReturnType<typeof symptomsToIssues> }[] = [];
+      const laps: { lapId: number; lapNumber: number; issues: TuneIssue[] }[] = [];
       for (const meta of scoped) {
         const issues = await issuesForLap(meta);
         if (issues != null) laps.push({ lapId: meta.id, lapNumber: meta.lapNumber, issues });
@@ -913,29 +1100,40 @@ export function buildSetupEngineerTools() {
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
+      eligibilityStatus: EligibilityStatusEnum.optional(),
+      reasonCodes: z.array(z.string()).optional(),
       lapA: z.object({ lapId: z.number(), lapNumber: z.number(), lapTime: z.number() }).optional(),
       lapB: z.object({ lapId: z.number(), lapNumber: z.number(), lapTime: z.number() }).optional(),
       timeDeltaSec: z.number().optional().describe("Final cumulative delta: positive = lap A slower overall."),
-      corners: z.array(z.object({
-        label: z.string(),
-        deltaSeconds: z.number(),
-        timeA: z.number(),
-        timeB: z.number(),
-      })).optional(),
+      corners: z
+        .array(
+          z.object({
+            label: z.string(),
+            deltaSeconds: z.number(),
+            timeA: z.number(),
+            timeB: z.number(),
+          }),
+        )
+        .optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const context = readSetupEngineerContext(execCtx?.requestContext);
       if (inputData.lapId1 === inputData.lapId2) return { ok: false, error: "Cannot compare a lap with itself." };
 
-      const sessionLaps = await getLapsForExperiment(sessionId);
-      const metaA = sessionLaps.find((l) => l.id === inputData.lapId1);
-      const metaB = sessionLaps.find((l) => l.id === inputData.lapId2);
-      if (!metaA) return { ok: false, error: `Lap ${inputData.lapId1} is not in this session.` };
-      if (!metaB) return { ok: false, error: `Lap ${inputData.lapId2} is not in this session.` };
-
-      const lapA = await getLapById(inputData.lapId1);
-      const lapB = await getLapById(inputData.lapId2);
-      if (!lapA || !lapB) return { ok: false, error: "One or both laps could not be loaded." };
+      const scopeResult = await loadSetupEngineerLapScope(context);
+      if (!scopeResult.ok) return scopeResult;
+      const [resultA, resultB] = await Promise.all([loadSetupEngineerLap(scopeResult.scope, inputData.lapId1), loadSetupEngineerLap(scopeResult.scope, inputData.lapId2)]);
+      if (!resultA.ok) return resultA;
+      if (!resultB.ok) return resultB;
+      const { meta: metaA, lap: lapA } = resultA;
+      const { meta: metaB, lap: lapB } = resultB;
+      if (lapA.gameId !== lapB.gameId || lapA.trackOrdinal !== lapB.trackOrdinal) {
+        return { ok: false, error: "Laps must belong to the same game and track." };
+      }
+      const policyRejectionA = lapPolicyRejection(lapA, ["lap-comparison"]);
+      if (policyRejectionA) return policyRejectionA;
+      const policyRejectionB = lapPolicyRejection(lapB, ["lap-comparison"]);
+      if (policyRejectionB) return policyRejectionB;
       if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) {
         return { ok: false, error: "One or both laps have no telemetry data." };
       }
@@ -1003,8 +1201,8 @@ export function buildSetupEngineerTools() {
     id: "undo-last-action",
     description:
       "Undo the most recent action taken in this session (apply/branch/add-base/inspire/import/set-head/delete/" +
-      "restore/rename/exclude) — user or AI. Use when the driver says \"undo that\" / \"undo the last change\" / " +
-      "\"go back\". Reverses exactly one action per call; call again to go further back. If undoing a version " +
+      'restore/rename/exclude) — user or AI. Use when the driver says "undo that" / "undo the last change" / ' +
+      '"go back". Reverses exactly one action per call; call again to go further back. If undoing a version ' +
       "created by apply/branch/add-base/inspire and that version already has laps or child branches on it, it " +
       "warns and soft-deletes the whole subtree so nothing is silently stranded (restorable from the trash).",
     inputSchema: NoInput,
@@ -1021,10 +1219,7 @@ export function buildSetupEngineerTools() {
 
       if (result.undone) {
         try {
-          await saveAssistantChatMessage(
-            tuneSessionThreadId(sessionId),
-            result.warning ? `Undone — ${result.warning}` : `Undone (${result.kind}).`,
-          );
+          await saveAssistantChatMessage(tuneSessionThreadId(sessionId), result.warning ? `Undone — ${result.warning}` : `Undone (${result.kind}).`);
         } catch (err: any) {
           console.error("[SetupEngineer] Failed to post undo note:", err?.message);
         }

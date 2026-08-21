@@ -8,7 +8,7 @@ import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getAllServerGames, getServerGame } from "../../../server/games/registry";
 import { readUdpDump } from "./udp";
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
+import { readKunosFrames, type KunosRecordingFrame } from "../../../server/games/kunos/frame-reader";
 import { readIRacingFrames } from "../../../server/games/iracing/recorder";
 import { parseAccBuffers } from "../../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
@@ -116,7 +116,7 @@ export function segmentTelemetryLaps(
  * Read all packets from an ACC recording. Exported for reuse by parseDumpV2.
  */
 export function readAccPackets(dumpPath: string): ParsedFrames {
-  let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+  let frames: KunosRecordingFrame[];
   try {
     frames = readKunosFrames(dumpPath);
   } catch {
@@ -134,7 +134,7 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
       if (cm) { carModel = cm; carOrdinal = getAccCarByModel(cm)?.id ?? 0; }
       if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
     }
-    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal, timestampMS: frame.timestampMS });
     if (packet) packets.push(packet);
   }
   return { packets, carModel, trackName };
@@ -147,7 +147,7 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
  * parser cache to resolve names rather than reading them here directly.
  */
 export function readAcEvoPackets(dumpPath: string): ParsedFrames {
-  let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+  let frames: KunosRecordingFrame[];
   try {
     frames = readKunosFrames(dumpPath);
   } catch {
@@ -156,7 +156,7 @@ export function readAcEvoPackets(dumpPath: string): ParsedFrames {
   const cache = createAcEvoParserCache();
   const packets: TelemetryPacket[] = [];
   for (const frame of frames) {
-    const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
+    const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache, frame.timestampMS);
     if (packet) packets.push(packet);
   }
   return {
@@ -227,7 +227,7 @@ export async function parseDump(
   let trackName: string | null = null;
 
   if (gameId === "acc") {
-    let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+    let frames: KunosRecordingFrame[];
     try {
       frames = readKunosFrames(dumpPath);
     } catch {
@@ -256,7 +256,7 @@ export async function parseDump(
             trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
           }
         }
-        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal, timestampMS: frame.timestampMS });
         if (packet) await pipeline.processPacket(packet);
         // Capture adapter writes resolve synchronously. Yield
         // periodically so long recordings do not defer GC until suite timeout.

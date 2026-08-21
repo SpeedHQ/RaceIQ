@@ -18,6 +18,8 @@ Parses MoTeC i2 `.ld` logs and optional `.ldx` beacon sidecars, selects a game-s
 
 Game-specific channel mapping and capture synthesis stay under `server/games/<game>`. This domain does not define telemetry meaning, capture framing, lap detection, database schema, or HTTP routes; it calls those owners through their existing entry points. Caller-supplied car and track ordinals remain authoritative over log-header hints.
 
+Transcoders declare the effective path inputs, channel treatment, source cadence, and missing channels they actually used. Imported-source verification identifies the original log, while canonical RaceIQ capture integrity remains a separate retained fact.
+
 ## Testing
 
 `test/motec-import.test.ts` covers LD metadata and samples, malformed input, effective-rate correction, LDX beacons, car/track resolution, synthesis, and database import behavior. `test/motec-viz.test.ts` checks reconstructed paths against known track geometry. Binary fixtures should be compared byte-for-byte when parser or synthesis boundaries change.

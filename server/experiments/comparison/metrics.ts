@@ -54,6 +54,7 @@
  */
 
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { EligibilityPolicyId } from "../../../shared/racing/quality/contracts";
 import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
 import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "../../lap-analysis/consistency";
@@ -64,18 +65,14 @@ import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
  *  which arm a *statistically distinguishable* difference points at. */
 type MetricDirection = "lower-better" | "higher-better";
 
-export const OUTCOME_METRIC_IDS = [
-  "lapTimeSec",
-  "consistencySpreadSec",
-  "inputVarianceBrake",
-  "inputVarianceThrottle",
-  "lineSpreadScore",
-] as const;
+export const OUTCOME_METRIC_IDS = ["lapTimeSec", "consistencySpreadSec", "inputVarianceBrake", "inputVarianceThrottle", "lineSpreadScore"] as const;
 
 export type OutcomeMetricId = (typeof OUTCOME_METRIC_IDS)[number];
 
 /** Input channel an `inputVariance*` metric measures. */
 type InputChannel = "brake" | "throttle";
+const TIMING_ELIGIBILITY_POLICY_IDS = ["normal-pace"] as const satisfies readonly EligibilityPolicyId[];
+const TRACE_ELIGIBILITY_POLICY_IDS = ["normal-pace", "corner-trace"] as const satisfies readonly EligibilityPolicyId[];
 
 /**
  * How an arm's raw lap pool is reduced to the laps a metric is computed over.
@@ -95,6 +92,8 @@ type InputChannel = "brake" | "throttle";
  *   distribution.
  */
 export interface CurationSpec {
+  /** Per-lap evidence policies this metric needs; unrelated channels cannot shrink its sample. */
+  requiredPolicyIds: readonly EligibilityPolicyId[];
   mode: "fastest-n" | "all-valid";
   /** Only meaningful for `fastest-n`. */
   n?: number;
@@ -130,7 +129,6 @@ export interface CuratedPool<T> {
 const MIN_FENCE_SAMPLES = 4;
 const FENCE_IQR_MULT = 3;
 const FENCE_MIN_REL_GAP = 1.05;
-
 
 /** The blunder threshold for a lap-time pool, or null when the fence can't fire. */
 export function blunderFence(lapTimes: number[]): number | null {
@@ -192,13 +190,12 @@ export function blunderFencesForArms(armLapTimes: number[][]): (number | null)[]
  * Eligibility is delegated to `selectEvaluationLaps` so this never becomes a
  * fourth place that re-derives "which laps count".
  */
-export function curateLaps<T extends EvaluableLap>(
-  laps: T[],
-  curation: CurationSpec,
-  opts?: { fence?: number | null },
-): CuratedPool<T> {
+export function curateLaps<T extends EvaluableLap>(laps: T[], curation: CurationSpec, opts?: { fence?: number | null }): CuratedPool<T> {
   const cap = curation.mode === "fastest-n" ? (curation.n ?? REVIEW_LAP_CAP) : Number.POSITIVE_INFINITY;
-  const selection = selectEvaluationLaps(laps, cap);
+  const selection = selectEvaluationLaps(laps, cap, {
+    requireSetupEligibility: false,
+    requiredPolicyIds: curation.requiredPolicyIds,
+  });
 
   const reasonById = new Map<number, CurationReason>(selection.reasonById);
   let kept = selection.chosen;
@@ -227,7 +224,7 @@ export function curateLaps<T extends EvaluableLap>(
 
   let droppedIneligible = 0;
   for (const reason of reasonById.values()) {
-    if (reason === "invalid" || reason === "pit" || reason === "manual") droppedIneligible++;
+    if (reason === "invalid" || reason === "non-pace" || reason === "manual") droppedIneligible++;
   }
 
   return {
@@ -308,14 +305,8 @@ export function metricNeedsTelemetry(metric: OutcomeMetric): boolean {
   return metric.sampling === "pairwise-frames";
 }
 /** Shared fence policy for two arms, used by both in-memory and DB-backed comparisons. */
-export function comparisonFences(
-  metric: OutcomeMetric,
-  aLapTimes: number[],
-  bLapTimes: number[],
-): [number | null | undefined, number | null | undefined] {
-  return metric.curation.outlierRule === "blunder-fence"
-    ? (blunderFencesForArms([aLapTimes, bLapTimes]) as [number | null, number | null])
-    : [undefined, undefined];
+export function comparisonFences(metric: OutcomeMetric, aLapTimes: number[], bLapTimes: number[]): [number | null | undefined, number | null | undefined] {
+  return metric.curation.outlierRule === "blunder-fence" ? (blunderFencesForArms([aLapTimes, bLapTimes]) as [number | null, number | null]) : [undefined, undefined];
 }
 
 /** Public comparison alias for the domain-wide analysable-lap threshold. */
@@ -449,7 +440,7 @@ const lapTimeSec: MetadataOutcomeMetric = {
   label: "Lap time",
   unit: "s",
   direction: "lower-better",
-  curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+  curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TIMING_ELIGIBILITY_POLICY_IDS },
   sampling: "metadata",
   extract: (input) => input.laps.map((e) => ({ lapId: e.lap.id, value: e.lap.lapTime })),
 };
@@ -476,7 +467,7 @@ const consistencySpreadSec: MetadataOutcomeMetric = {
   label: "Lap-time deviation",
   unit: "s",
   direction: "lower-better",
-  curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+  curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TIMING_ELIGIBILITY_POLICY_IDS },
   sampling: "metadata",
   extract: (input) => {
     const times = input.laps.map((e) => e.lap.lapTime).sort((a, b) => a - b);
@@ -492,7 +483,7 @@ function inputVarianceMetric(channel: InputChannel): PairwiseFramesOutcomeMetric
     label: channel === "brake" ? "Brake input variance" : "Throttle input variance",
     unit: "",
     direction: "lower-better",
-    curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+    curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TRACE_ELIGIBILITY_POLICY_IDS },
     sampling: "pairwise-frames",
     reduce: (input) => {
       const d = pairwiseDelta(input);
@@ -512,7 +503,7 @@ const lineSpreadScore: PairwiseFramesOutcomeMetric = {
   label: "Line consistency",
   unit: "/100",
   direction: "higher-better",
-  curation: { mode: "all-valid", outlierRule: "blunder-fence" },
+  curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TRACE_ELIGIBILITY_POLICY_IDS },
   sampling: "pairwise-frames",
   reduce: (input) => {
     const spread = pairwiseDelta(input).overall.lateralSpreadM;

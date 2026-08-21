@@ -9,13 +9,14 @@ import { tryGetGame } from "../../shared/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LapQualitySummary } from "../../shared/racing/quality/contracts";
 
 /**
  * Bump when any detector or segment-stat definition changes, so cached rows
  * from the old definition are discarded instead of silently mixing with new
  * ones inside a single experiment.
  */
-export const LAP_METRICS_ALGO_VERSION = 1;
+export const LAP_METRICS_ALGO_VERSION = 2;
 
 const MPH_TO_KMH = 1.609344;
 
@@ -109,16 +110,7 @@ export function steerScaleFor(gameId: string | undefined): SteerScale {
  * own index bounds, and re-deriving them from distances inside here would make
  * the resampled case do a redundant search.
  */
-export function computeStatsRange(
-  throttle: number[],
-  brake: number[],
-  steer: number[],
-  speedMph: number[],
-  distances: number[],
-  startIdx: number,
-  endIdx: number,
-  steerScale: SteerScale,
-): InputStats {
+export function computeStatsRange(throttle: number[], brake: number[], steer: number[], speedMph: number[], distances: number[], startIdx: number, endIdx: number, steerScale: SteerScale): InputStats {
   const lo = Math.max(0, Math.min(startIdx, throttle.length - 1));
   const hi = Math.max(lo + 1, Math.min(endIdx, throttle.length));
   const n = hi - lo;
@@ -267,11 +259,7 @@ function extractChannels(packets: TelemetryPacket[]): LapChannels {
  *
  * Pure: no DB, no track lookup. `getOrComputeLapMetrics` supplies the segments.
  */
-function computeLapSegmentStats(
-  packets: TelemetryPacket[],
-  segments: NamedSegment[],
-  steerScale: SteerScale,
-): SegmentStat[] {
+function computeLapSegmentStats(packets: TelemetryPacket[], segments: NamedSegment[], steerScale: SteerScale): SegmentStat[] {
   if (packets.length < 2 || segments.length === 0) return [];
 
   const ch = extractChannels(packets);
@@ -307,16 +295,11 @@ function computeLapSegmentStats(
 }
 
 /** Compute (but do not persist) metrics for an already-decoded lap. */
-export function computeLapMetrics(
-  lapId: number,
-  packets: TelemetryPacket[],
-  gameId: GameId,
-  segments: NamedSegment[],
-): LapMetrics {
+export function computeLapMetrics(lapId: number, packets: TelemetryPacket[], gameId: GameId, segments: NamedSegment[], quality: LapQualitySummary | null | undefined): LapMetrics {
   return {
     lapId,
     algoVersion: LAP_METRICS_ALGO_VERSION,
-    insights: analyzeLap(packets, gameId),
+    insights: analyzeLap(packets, gameId, quality),
     segmentStats: computeLapSegmentStats(packets, segments, steerScaleFor(gameId)),
     computedAt: new Date().toISOString(),
   };
@@ -415,4 +398,3 @@ export function deriveTyreWear(packets: TelemetryPacket[]): number | undefined {
   }
   return undefined;
 }
-

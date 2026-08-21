@@ -14,6 +14,7 @@ import { useLapSemanticTelemetry } from "../../../hooks/laps";
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
+import { localizedEligibilityDecisionText } from "../../LapQualityBadge";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
@@ -46,39 +47,53 @@ const TABS = ["consistency", "tires", "balance", "suspension"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Tires & grip", balance: "Balance", suspension: "Suspension" };
 
+export interface TrackFocusLapPools {
+  /** Fastest capped subset used by per-frame trace views. */
+  traceLaps: LapMeta[];
+  /** Every policy-eligible lap used by cheap stint-wide calculations and inventory. */
+  eligibleLaps: LapMeta[];
+  /** Eligible laps with evaluation-only exclusion stamps cleared for stint statistics. */
+  statisticsLaps: LapMeta[];
+}
+
+/** Split review laps using the shared selector's chosen and capped outputs.
+ *  Policy eligibility stays owned by review-selection; this only restores the
+ *  capped laps to cheap full-stint consumers. */
+export function trackFocusLapPools(laps: LapMeta[]): TrackFocusLapPools {
+  const selection = selectEvaluationLaps(laps);
+  const eligibleIds = new Set([...selection.chosenIds, ...selection.cappedIds]);
+  const byLapNumber = (a: LapMeta, b: LapMeta) => a.lapNumber - b.lapNumber;
+  const traceLaps = [...selection.chosen].sort(byLapNumber);
+  const eligibleLaps = laps.filter((lap) => eligibleIds.has(lap.id)).sort(byLapNumber);
+  return {
+    traceLaps,
+    eligibleLaps,
+    // Shared selection already removed real exclusions. Remaining auto stamps
+    // only record fastest-N capping and must not remove laps from full-stint math.
+    statisticsLaps: eligibleLaps.map((lap) => (lap.experimentExcluded ? { ...lap, experimentExcluded: false } : lap)),
+  };
+}
+
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
 export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId, activeTab, onActiveTabChange }: TrackFocusViewProps) {
-  // Invalid laps are excluded from the whole Track Focus view —
-  // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
-  const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
-  // Per-frame telemetry (traces, consistency lanes, tyres) runs on the fastest
-  // N clean laps — bounds decode + payload on long tracks. Header stats read
-  // the same pool. Matches the server /line-spread pool.
-  // Fastest valid, non-excluded laps — matches the server /line-spread clean
-  // pool. Routed through the shared selector so the traces rendered here are
-  // exactly the laps the UI badges as "Eval" (see shared/racing/laps/review-selection.ts);
-  // the old local fastestLaps() trim could disagree when auto-exclude had
-  // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
-  // applies the valid/legacy/pit rules itself and reports why each lap fell out.
-  const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const { traces } = useStintTraces(reviewLaps);
+  const { traceLaps, eligibleLaps, statisticsLaps } = useMemo(() => trackFocusLapPools(laps), [laps]);
+  const { traces } = useStintTraces(traceLaps);
   const { data: lineSpread } = useLineSpread(experimentId);
 
   const bestLapId = useMemo(() => {
     let best: LapMeta | null = null;
-    for (const l of stintLaps) {
-      if (!l.isValid || l.experimentExcluded) continue;
-      if (best == null || l.lapTime < best.lapTime) best = l;
+    for (const lap of eligibleLaps) {
+      if (best == null || lap.lapTime < best.lapTime) best = lap;
     }
     return best?.id ?? null;
-  }, [stintLaps]);
+  }, [eligibleLaps]);
 
   const [localFocusId, setLocalFocusId] = useState<number | null>(null);
   const focusLapId = controlledFocusId !== undefined ? controlledFocusId : localFocusId;
   const setFocusLapId = controlledOnFocusLap ?? setLocalFocusId;
-  const effectiveFocusId = focusLapId ?? bestLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
+  const effectiveFocusId = focusLapId ?? bestLapId ?? eligibleLaps[eligibleLaps.length - 1]?.id ?? null;
 
   const { data: focusTel } = useLapSemanticTelemetry(effectiveFocusId);
   const { data: issues } = useLapIssues(effectiveFocusId);
@@ -104,15 +119,13 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
     return { s1End, s2End };
   }, [sectorBoundaries?.s1End, sectorBoundaries?.s2End]);
 
-  // Stats read the same eval-lap pool as the traces/lanes/ledgers below. Using
-  // the full stintLaps here made the header disagree with everything under it
-  // (out-laps and scrappy laps dragged the averages/degradation around while
-  // the line + consistency views only ever showed the chosen laps).
-  const stats = useMemo(() => stintStats(reviewLaps, { dropOutLap: false }), [reviewLaps]);
+  // Lap-time math is cheap and needs the full eligible stint for honest
+  // consistency and degradation. Only frame-heavy trace paths use traceLaps.
+  const stats = useMemo(() => stintStats(statisticsLaps), [statisticsLaps]);
 
   return (
     <TrackFocusViewInner
-      laps={stintLaps}
+      laps={eligibleLaps}
       traces={traces}
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
@@ -125,8 +138,8 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       stats={stats}
       lineSpread={lineSpread ?? null}
       metaSectors={metaSectors}
-      shownLapCount={reviewLaps.length}
-      totalLapCount={stintLaps.length}
+      shownLapCount={traceLaps.length}
+      totalLapCount={eligibleLaps.length}
       activeTab={activeTab}
       onActiveTabChange={onActiveTabChange}
     />
@@ -254,13 +267,14 @@ export function TrackFocusViewInner({
           label="Degradation"
           value={stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—"}
           unit={stats.degSlopeSPerLap != null ? "s/lap" : undefined}
+          description={stats.degSlopeSPerLap == null ? localizedEligibilityDecisionText(stats.falloffEligibility) : undefined}
         />
         <StatCell label="Issues" value={String(issues.length)} />
       </div>
 
       {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
         <p className="flex-none text-xs text-muted-foreground -mt-2">
-          Stats, line + consistency views all use the {shownLapCount} fastest of {totalLapCount} laps.
+          Trace views show the {shownLapCount} fastest of {totalLapCount} eligible laps. Statistics use all {totalLapCount}.
         </p>
       )}
 
@@ -370,14 +384,15 @@ export function TrackFocusViewInner({
   );
 }
 
-function StatCell({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function StatCell({ label, value, unit, description }: { label: string; value: string; unit?: string; description?: string }) {
   return (
-    <div className="rounded bg-app-surface border border-app-border px-3 py-2">
+    <div className="rounded bg-app-surface border border-app-border px-3 py-2" title={description}>
       <div className="text-app-caption uppercase tracking-wider text-app-text-dim">{label}</div>
       <div className="text-base font-mono tabular-nums text-app-text">
         {value}
         {unit && <span className="text-app-caption text-app-text-dim ml-1">{unit}</span>}
       </div>
+      {description && <div className="truncate text-app-caption text-app-text-dim">{description}</div>}
     </div>
   );
 }

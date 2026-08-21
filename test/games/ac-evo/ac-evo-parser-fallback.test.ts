@@ -35,6 +35,25 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     expect(packet!.TrackOrdinal).toBe(-1);
   });
 
+  test("native packets keep wall-clock timestamps", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    physics.writeInt32LE(0, PHYSICS.packetId.offset);
+    const before = Date.now();
+    const packet = parseAcEvoBuffers(physics, graphics, staticData, createAcEvoParserCache());
+    const after = Date.now();
+
+    expect(packet?.TimestampMS).toBeGreaterThanOrEqual(before);
+    expect(packet?.TimestampMS).toBeLessThanOrEqual(after);
+  });
+
+  test("uses an explicit replay timestamp without changing native clock behavior", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+
+    const packet = parseAcEvoBuffers(physics, graphics, staticData, createAcEvoParserCache(), 1_234_567);
+
+    expect(packet?.TimestampMS).toBe(1_234_567);
+  });
+
   test("unknown track name resolves to -1 sentinel, not ordinal 0", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "__not_a_real_track__");
@@ -76,12 +95,7 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
 
   test("undersized buffers return null (no throw)", () => {
     const cache = createAcEvoParserCache();
-    const packet = parseAcEvoBuffers(
-      Buffer.alloc(PHYSICS.SIZE - 1),
-      Buffer.alloc(GRAPHICS_EVO.SIZE),
-      Buffer.alloc(STATIC_EVO.SIZE),
-      cache,
-    );
+    const packet = parseAcEvoBuffers(Buffer.alloc(PHYSICS.SIZE - 1), Buffer.alloc(GRAPHICS_EVO.SIZE), Buffer.alloc(STATIC_EVO.SIZE), cache);
     expect(packet).toBeNull();
   });
 
@@ -90,12 +104,7 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     physics.writeFloatLE(42, PHYSICS.fuel.offset);
     graphics.writeFloatLE(100, GRAPHICS_EVO.max_fuel.offset);
 
-    const packet = parseAcEvoBuffers(
-      physics,
-      graphics,
-      staticData,
-      createAcEvoParserCache(),
-    );
+    const packet = parseAcEvoBuffers(physics, graphics, staticData, createAcEvoParserCache());
 
     expect(packet).not.toBeNull();
     expect(packet!.Fuel).toBeCloseTo(42);

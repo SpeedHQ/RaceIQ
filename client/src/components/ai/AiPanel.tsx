@@ -2,7 +2,7 @@ import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
 import { Sparkles } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ChatPanel } from "@/components/ai-chat/ChatPanel";
+import { ChatPanel, type ChatHistoryResult } from "@/components/ai-chat/ChatPanel";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "@/lib/chat-stream";
@@ -48,8 +48,9 @@ function safeParseAnalysis(raw: string): AnalysisData | null {
   return null;
 }
 
-interface AiPanelProps {
+export interface AiPanelProps {
   lapId: number;
+  qualityStateKey: string;
   carName: string;
   trackName: string;
   segments?: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
@@ -59,12 +60,15 @@ interface AiPanelProps {
   panelOpen?: boolean;
 }
 
-async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
+async function fetchLapChatHistory(lapId: number, gen?: number): Promise<ChatHistoryResult> {
   const url = gen === undefined ? `/api/laps/${lapId}/chat` : `/api/laps/${lapId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
-  const data = (await res.json()) as { messages?: UIMessage[] };
-  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+  const data = (await res.json()) as { messages?: UIMessage[]; threadId?: string | null };
+  return {
+    messages: (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant"),
+    threadId: data.threadId,
+  };
 }
 
 export interface AiPanelHandle {
@@ -75,7 +79,10 @@ export interface AiPanelHandle {
 
 // ── Main component ───────────────────────────────────────────
 
-export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel({ lapId, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false }, ref) {
+export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
+  { lapId, qualityStateKey, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false },
+  ref,
+) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiAnalysisConfigured(displaySettings);
@@ -286,13 +293,13 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       }
       setHasTune(!!data.hasTune);
     } catch {}
-  }, [lapId]);
+  }, [lapId, qualityStateKey]);
 
   // Load cached analysis on open
   useEffect(() => {
     if (!panelOpen) return;
     loadCachedAnalysis();
-  }, [lapId, panelOpen, loadCachedAnalysis]);
+  }, [lapId, panelOpen, loadCachedAnalysis, qualityStateKey]);
   useEffect(() => {
     if (!panelOpen) return;
     let cancelled = false;
@@ -319,17 +326,19 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [lapId, panelOpen, loadCachedAnalysis]);
+  }, [lapId, panelOpen, loadCachedAnalysis, qualityStateKey]);
 
   // Reset lap-scoped display state before loading the next cached result.
   useEffect(() => {
     setAnalysis(null);
     setUsage(null);
     setError(null);
+    setCornerFracs([]);
     setHasTune(false);
     setAnalysisOpen(false);
     setModalTab("analysis");
-  }, [lapId]);
+    onHighlightsChange?.([]);
+  }, [lapId, onHighlightsChange, qualityStateKey]);
 
   // Export analysis as image
   const handleExport = useCallback(async () => {
@@ -374,7 +383,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     [aiConfigured, clearChat, configureAi, fetchAnalysis],
   );
   const deleteAnalysis = useCallback(async () => {
-    if (analysisDeleting || loading || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    if (analysisDeleting || loading || !window.confirm(m.analysis_delete_lap_confirm())) return;
     setAnalysisDeleting(true);
     try {
       const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
@@ -485,7 +494,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               onRegenerate={regenerateAnalysis}
               onDelete={() => void deleteAnalysis()}
               deleteLabel={m.label_clear()}
-              actionsDisabled={analysisDeleting}
+              generationDisabled={analysisDeleting}
+              deletionDisabled={analysisDeleting}
             >
               <AnalysisSummaryRow
                 detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
@@ -539,13 +549,12 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       {analysis && !loading && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
           <ChatPanel
-            key={chatRemountKey}
+            key={`${qualityStateKey}:${chatRemountKey}`}
             api={`/api/laps/${lapId}/chat`}
             clearChatApi={`/api/laps/${lapId}/chat?keepAnalysis=true`}
             fetchHistory={(gen) => fetchLapChatHistory(lapId, gen)}
-            historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
-            remountKey={`${lapId}:${chatRemountKey}`}
-            compactThreadId={`lap-${lapId}`}
+            historyQueryKey={["lap-chat-history", lapId, qualityStateKey, chatRemountKey]}
+            remountKey={`${qualityStateKey}:${chatRemountKey}`}
             components={{ Text: LapAnalysisText }}
           />
         </div>

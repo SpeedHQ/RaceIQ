@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { ChannelQualitySummary, EligibilityDecision } from "../../../shared/racing/quality/contracts";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
@@ -19,7 +20,6 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-
 export interface SemanticReplayFrame {
   sequence: number;
   observedAt: { domain: string; milliseconds: number };
@@ -35,6 +35,10 @@ export interface SemanticLapTelemetry {
   sectorStarts?: number[] | null;
   insights?: unknown[];
   parseError?: string | null;
+  decision: EligibilityDecision;
+  qualityGeneration: string | null;
+  /** Fidelity, freshness, units, issue intervals, and source limitations for replayed semantic channels. */
+  channelQuality: ChannelQualitySummary[];
   envelopes: SemanticReplayFrame[];
 }
 
@@ -49,14 +53,17 @@ export function useLapSemanticTelemetry(lapId: number | null) {
     queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
-      const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
-      const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
-      if (!res.ok || body?.parseError) {
-        const error = new Error(body?.parseError ?? body?.error ?? res.statusText) as SemanticTelemetryError;
-        error.parseError = body?.parseError;
+      const res = await client.api.laps[":id"]["semantic-telemetry"].$get(
+        { param: { id: String(lapId) } },
+        { headers: { "X-Game-Id": gameId } },
+      );
+      if (!res.ok) throw await errorFromResponse(res);
+      const body = await rpcJson<SemanticLapTelemetry & { error?: string }>(res);
+      if (body.parseError) {
+        const error = new Error(body.parseError ?? body.error ?? res.statusText) as SemanticTelemetryError;
+        error.parseError = body.parseError;
         throw error;
       }
-      if (!body) throw new Error("Unable to replay telemetry");
       return body;
     },
     enabled: lapId != null && gameId != null,
@@ -96,10 +103,10 @@ export function useBulkDeleteLaps() {
 export function useSetLapExcluded() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ lapId, excluded }: { lapId: number; excluded: boolean; experimentId?: number | null }) => {
-      const res = await (client.api.laps as any)[":id"]["experiment-excluded"].$post({
+    mutationFn: async ({ lapId, excluded, experimentId }: { lapId: number; excluded: boolean; experimentId: number }) => {
+      const res = await client.api.laps[":id"]["experiment-excluded"].$post({
         param: { id: String(lapId) },
-        json: { excluded },
+        json: { experimentId, excluded },
       });
       if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: true; lapId: number; excluded: boolean };

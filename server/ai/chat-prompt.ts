@@ -3,10 +3,12 @@
  * Includes the same telemetry context as the analysis prompt,
  * plus the original analysis as reference.
  */
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { buildQualityPromptContext } from "./quality-context";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
@@ -43,6 +45,9 @@ export function buildChatSystemPrompt(
     carOrdinal?: number;
     trackOrdinal?: number;
     gameId?: GameId;
+    quality?: LapQualitySummary | null;
+    eligibility?: EligibilityDecisionSet | null;
+    qualityGeneration?: string | null;
   },
   packets: TelemetryPacket[],
   corners: CornerDef[],
@@ -65,7 +70,7 @@ export function buildChatSystemPrompt(
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Precomputed insights
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
+  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId, lap.quality);
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights ---\n";
@@ -111,7 +116,6 @@ export function buildChatSystemPrompt(
     }
   }
 
-
   // Game-specific extended context
   let extendedContext = "";
   if (serverAdapter?.buildAiContext && packets.length > 0) {
@@ -120,6 +124,7 @@ export function buildChatSystemPrompt(
 
   // Game-specific system prompt override (use chat version, not analysis JSON version)
   const gameSystemNote = serverAdapter?.aiSystemPrompt ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n` : "";
+  const qualityContext = buildQualityPromptContext(lap, ["corner-trace", "transient-event", "fuel-burn", "tire-analysis"]);
 
   return `${chatSystemPrompt(unit, temperatureUnit, language)}
 ${gameSystemNote}
@@ -135,6 +140,7 @@ ${formatLapChatIdentity(lap)}
 Car: ${carName}
 Track: ${trackName}
 Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s${lap.isValid ? "" : " (INVALID)"}
+${qualityContext}
 ${tuneText}${analysisContext}
 --- TELEMETRY DATA ---
 ${exportText}

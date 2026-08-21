@@ -1,4 +1,6 @@
-import { isPitCycleLap } from "./pit-cycle";
+import type { ClassifiedLap } from "./classification";
+import type { EligibilityDecision, EligibilityDecisionSet, EligibilityPolicyId, LapQualitySummary, QualityReasonCode } from "../quality/contracts";
+import { evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecision, type QualitySnapshotEvidence } from "../quality/policies";
 
 /**
  * Review lap curation. The Track Focus review analyses a stint's telemetry
@@ -14,6 +16,7 @@ import { isPitCycleLap } from "./pit-cycle";
  * genuinely needs every lap.
  */
 export const REVIEW_LAP_CAP = 5;
+const REVIEW_REQUIRED_POLICY_IDS = ["normal-pace", "corner-trace"] as const satisfies readonly EligibilityPolicyId[];
 
 /** The `n` fastest laps by lap time. Input is expected to be pre-filtered to
  *  clean/eligible laps; this only ranks + trims. */
@@ -28,19 +31,19 @@ export function fastestLaps<T extends { lapTime: number }>(laps: T[], n: number 
  * perfectly clean and simply lost the fastest-N ranking. Conflating the two in
  * the UI reads as "the app threw away my good lap".
  */
-export type EvaluationReason =
-  | "chosen"
-  | "invalid"
-  | "pit"
-  | "manual"
-  | "auto"
-  | "slower-than-cap";
+export type EvaluationReason = "chosen" | "invalid" | "non-pace" | "manual" | "auto" | "slower-than-cap";
 
 export interface EvaluationSelection<T> {
   /** The curated laps, fastest first. */
   chosen: T[];
   chosenIds: Set<number>;
   reasonById: Map<number, EvaluationReason>;
+  /** Exact policy reasons that rejected each lap. Empty means no policy rejection. */
+  reasonCodesById: Map<number, readonly QualityReasonCode[]>;
+  /** Exact source decision for a policy rejection; absent for non-policy drops. */
+  rejectionDecisionById: Map<number, EligibilityDecision>;
+  /** Policy-owned session/group decision used for setup evidence. */
+  setupDecision: EligibilityDecision;
   /** Clean laps that only missed out on the cap — the honest "not evaluated
    *  but nothing wrong with it" bucket. */
   cappedIds: Set<number>;
@@ -48,54 +51,108 @@ export interface EvaluationSelection<T> {
 
 /** Minimal lap shape the selector needs. Satisfied by both `LapMeta` (client)
  *  and the server's `ExclusionScopeLap` row projection. */
-export interface EvaluableLap {
+export interface EvaluableLap extends ClassifiedLap, QualitySnapshotEvidence {
   id: number;
   lapTime: number;
   isValid: boolean;
   invalidReason?: string | null;
   experimentExcluded?: boolean;
   experimentExcludedSource?: "auto" | "manual" | null;
+  quality?: LapQualitySummary | null;
+  eligibility?: EligibilityDecisionSet | null;
+}
+
+interface SetupLapPolicyDecisions {
+  normalPace: EligibilityDecision;
+  cornerTrace: EligibilityDecision;
+}
+
+/**
+ * Consume persisted lap decisions first, falling back to policy evaluation only
+ * when quality evidence exists but its decision snapshot is missing. Missing
+ * evidence stays unknown (`quality_not_rebuilt`); it is never treated as zero or
+ * silently accepted.
+ */
+function setupLapPolicyDecisions(lap: EvaluableLap): SetupLapPolicyDecisions {
+  return {
+    normalPace: resolveEligibilityDecision(lap, "normal-pace"),
+    cornerTrace: resolveEligibilityDecision(lap, "corner-trace"),
+  };
+}
+
+/**
+ * Evaluate setup-analysis once through shared policy code. Consumers must not
+ * duplicate its sample-pool or consistency rules. Persisted per-lap decisions
+ * remain authoritative inputs; setup-analysis itself is a group decision.
+ */
+export function evaluateSetupSelection(laps: readonly EvaluableLap[]): EligibilityDecision {
+  return evaluateGroupEligibility(
+    "setup-analysis",
+    laps.flatMap((lap) => {
+      if (!lap.quality || lap.lapTime <= 0 || (lap.experimentExcludedSource === "manual" && lap.experimentExcluded)) {
+        return [];
+      }
+      const decisions = setupLapPolicyDecisions(lap);
+      return [
+        {
+          lapId: lap.id,
+          lapTime: lap.lapTime,
+          quality: lap.quality,
+          eligibility: {
+            ...(lap.eligibility ?? {}),
+            "normal-pace": decisions.normalPace,
+            "corner-trace": decisions.cornerTrace,
+          } as EligibilityDecisionSet,
+        },
+      ];
+    }),
+  );
 }
 
 /**
  * THE definition of "which laps does the review actually evaluate".
  *
- * Previously this decision was re-derived in three places that could disagree:
- * the server auto-exclude pass, the /line-spread route, and TrackFocusView.
- * When auto-exclude had never run for a scope (e.g. a lap with no tuning
- * session / tune stamped) the client's extra `fastestLaps()` trim would
- * silently drop laps that the UI still rendered as included. Everything routes
- * through here now so what's displayed is what's computed.
- *
- * Ordering mirrors the auto-exclude pass in server/experiments/auto-exclude.ts:
- * manual decisions are pinned first, then hard-ineligible laps, then the
- * fastest-N ranking over whatever remains.
+ * manual decisions are pinned first, then non-positive timing, then policy
+ * eligibility (including structural validity), then the fastest-N ranking.
  */
 export function selectEvaluationLaps<T extends EvaluableLap>(
   laps: T[],
   n: number = REVIEW_LAP_CAP,
+  options: { requireSetupEligibility?: boolean; requiredPolicyIds?: readonly EligibilityPolicyId[] } = {},
 ): EvaluationSelection<T> {
   const reasonById = new Map<number, EvaluationReason>();
+  const reasonCodesById = new Map<number, readonly QualityReasonCode[]>();
+  const rejectionDecisionById = new Map<number, EligibilityDecision>();
   const candidates: T[] = [];
+  const setupDecision = evaluateSetupSelection(laps);
+  const requiredPolicyIds = options.requiredPolicyIds ?? REVIEW_REQUIRED_POLICY_IDS;
 
   for (const lap of laps) {
     // Manual pins win over everything — never read, never overridden.
     if (lap.experimentExcludedSource === "manual" && lap.experimentExcluded) {
       reasonById.set(lap.id, "manual");
-    } else if (!lap.isValid || lap.lapTime <= 0) {
+      reasonCodesById.set(lap.id, []);
+    } else if (lap.lapTime <= 0) {
       reasonById.set(lap.id, "invalid");
-    } else if (isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
-      reasonById.set(lap.id, "pit");
+      reasonCodesById.set(lap.id, []);
     } else {
-      candidates.push(lap);
+      const policyFailures = requiredPolicyIds.map((policyId) => resolveEligibilityDecision(lap, policyId)).filter((decision) => !isEligibilityUsable(decision));
+      if ((options.requireSetupEligibility !== false && !isEligibilityUsable(setupDecision)) || policyFailures.length > 0) {
+        rejectionDecisionById.set(lap.id, policyFailures[0] ?? setupDecision);
+        reasonById.set(lap.id, "non-pace");
+        reasonCodesById.set(lap.id, [...new Set((policyFailures.length > 0 ? policyFailures : [setupDecision]).flatMap((decision) => decision.reasons.map((reason) => reason.code)))]);
+      } else {
+        candidates.push(lap);
+      }
     }
   }
 
   const chosen = fastestLaps(candidates, n);
-  const chosenIds = new Set(chosen.map((l) => l.id));
+  const chosenIds = new Set(chosen.map((lap) => lap.id));
   const cappedIds = new Set<number>();
 
   for (const lap of candidates) {
+    reasonCodesById.set(lap.id, []);
     if (chosenIds.has(lap.id)) {
       reasonById.set(lap.id, "chosen");
     } else {
@@ -106,7 +163,15 @@ export function selectEvaluationLaps<T extends EvaluableLap>(
     }
   }
 
-  return { chosen, chosenIds, reasonById, cappedIds };
+  return {
+    chosen,
+    chosenIds,
+    reasonById,
+    reasonCodesById,
+    rejectionDecisionById,
+    setupDecision,
+    cappedIds,
+  };
 }
 
 /** Short, user-facing label per reason. Kept next to the rule it describes. */
@@ -116,8 +181,8 @@ export function evaluationReasonLabel(reason: EvaluationReason): string {
       return "Eval";
     case "invalid":
       return "Invalid";
-    case "pit":
-      return "Pit lap";
+    case "non-pace":
+      return "Non-pace";
     case "manual":
       return "Excluded";
     case "auto":

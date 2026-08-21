@@ -17,6 +17,8 @@ Own server-side integration for each supported racing game: source-format detect
 
 Game adapters own source interpretation. Preserve adapter IDs, registration order, source magic/version checks, parser state lifetimes, recording formats, and ordinal resolution semantics.
 
+Transcoding import adapters that resample, hold, derive, or omit source channels declare a typed `SourceChannelProfile`; native adapters preserve availability through catalog/resolver provenance. Missing source values remain unavailable evidence rather than observed zeroes.
+
 Runtime owns source lifecycle and process supervision; telemetry owns normalized packet processing. Games may call those entry points but must not absorb their session orchestration. Database-backed identity registration is restricted to explicit live or committed-import boundaries so passive parsing remains side-effect free.
 
 ## Testing

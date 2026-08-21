@@ -6,7 +6,27 @@ import { getLapsForExperiment } from "../../../server/db/experiment-lap-queries"
 import { insertLap } from "../../../server/db/lap-mutation-queries";
 import { insertSession } from "../../../server/db/session-queries";
 import { createExperiment } from "../../../server/db/experiment-queries";
-import { getActiveExperiment, setActiveExperiment } from "../../../server/experiments/active"
+import { getActiveExperiment, setActiveExperiment } from "../../../server/experiments/active";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
+import type { PersistLapInput } from "../../../server/db/lap-mutation-queries";
+
+function testLap(sessionId: number, lapNumber: number, lapTime: number): PersistLapInput {
+  return {
+    sessionId,
+    lapNumber,
+    lapTime,
+    isValid: true,
+    rawByteOffset: null,
+    rawFrameCount: 0,
+    profileId: null,
+    tuneId: null,
+    invalidReason: null,
+    sectors: null,
+    classification: DEFAULT_LAP_CLASSIFICATION,
+    quality: null,
+    eligibility: null,
+  };
+}
 
 /**
  * Explicit lap ↔ experiment link (migration v25). Tests the DB layer +
@@ -43,20 +63,20 @@ describe("lap ↔ experiment explicit link", () => {
     // Race session A. First lap recorded with NO active tuning session → unlinked.
     const raceA = await insertSession(1, 2, "acc");
     createdSessionIds.push(raceA);
-    const unlinkedLap = await insertLap(raceA, 1, 90000, true, null, 0);
+    const unlinkedLap = await insertLap(testLap(raceA, 1, 90000));
 
     // Activate, then record laps across TWO different race sessions.
     setActiveExperiment(tsId);
     expect(getActiveExperiment()).toBe(tsId);
-    const linkedA = await insertLap(raceA, 2, 89000, true, null, 0);
+    const linkedA = await insertLap(testLap(raceA, 2, 89000));
 
     const raceB = await insertSession(1, 2, "acc");
     createdSessionIds.push(raceB);
-    const linkedB = await insertLap(raceB, 1, 88000, true, null, 0);
+    const linkedB = await insertLap(testLap(raceB, 1, 88000));
 
     // Deactivate → subsequent laps are unlinked again.
     setActiveExperiment(null);
-    const afterLap = await insertLap(raceB, 2, 91000, true, null, 0);
+    const afterLap = await insertLap(testLap(raceB, 2, 91000));
 
     const linked = await getLapsForExperiment(tsId);
     const ids = linked.map((l) => l.id).sort((a, b) => a - b);

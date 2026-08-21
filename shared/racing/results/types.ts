@@ -1,21 +1,11 @@
 import type { GameId } from "@shared/games/ids";
+import type { EligibilityDecision, EligibilityPolicyId, EligibilityStatus, QualityReasonCode } from "@shared/racing/quality/contracts";
 
 export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
 export type RaceResultOutcomeStatus = "confirmed" | "provisional" | "unavailable";
-export type RaceResultStatus =
-  | "finished"
-  | "dnf"
-  | "disqualified"
-  | "not-classified"
-  | "retired"
-  | "qualifying"
-  | "unknown";
+export type RaceResultStatus = "finished" | "dnf" | "disqualified" | "not-classified" | "retired" | "qualifying" | "unknown";
 
-export type RaceResultAuthorityStrategy =
-  | "highest-authority"
-  | "preserve-alternatives"
-  | "require-consensus"
-  | "abstain-on-conflict";
+export type RaceResultAuthorityStrategy = "highest-authority" | "preserve-alternatives" | "require-consensus" | "abstain-on-conflict";
 
 export type RaceResultEvidenceKind = "deterministic" | "ml" | "human";
 
@@ -151,6 +141,29 @@ export interface RaceResultEvidence {
   conflicts: string[];
   decisions?: Record<string, RaceResultAuthorityDecision>;
 }
+export interface RaceResultLapQualityEvidence {
+  lapId: number;
+  lapNumber: number;
+  qualityGeneration: string | null;
+  officialTiming: EligibilityDecision;
+  normalPace: EligibilityDecision;
+}
+
+export type RaceResultEligibilityStatusCounts = Record<EligibilityStatus, number>;
+
+export interface RaceResultPolicyQualityAggregate {
+  policyId: EligibilityPolicyId;
+  policyVersions: string[];
+  statuses: RaceResultEligibilityStatusCounts;
+  reasons: Partial<Record<QualityReasonCode, number>>;
+}
+
+export interface RaceResultLapQualityAggregate {
+  evidenceGeneration: string | null;
+  total: number;
+  officialTiming: RaceResultPolicyQualityAggregate;
+  normalPace: RaceResultPolicyQualityAggregate;
+}
 
 export interface RaceResult {
   id: number;
@@ -170,6 +183,7 @@ export interface RaceResult {
   reasons: string[];
   outcomeStatus: RaceResultOutcomeStatus;
   evidence: RaceResultEvidence;
+  lapQuality: RaceResultLapQualityEvidence[];
   events: Array<{
     eventType?: "pit" | "position-change";
     sequence: number;
@@ -208,4 +222,5 @@ export interface RaceResultAggregate {
   confirmed: number;
   provisional: number;
   unavailable: number;
+  lapQuality: RaceResultLapQualityAggregate;
 }

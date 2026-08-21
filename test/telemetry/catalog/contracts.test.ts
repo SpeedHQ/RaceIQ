@@ -255,18 +255,23 @@ describe("semantic telemetry catalog contracts", () => {
       kind: "derived",
       execution: { kind: "derivation" },
     });
-    expect(getTelemetryVariable("weather.weather-type").games.acc).toMatchObject({
+    const accWeather = getTelemetryVariable("weather.weather-type").games.acc;
+    expect(accWeather).toMatchObject({
       kind: "simplified",
       execution: { kind: "simplification" },
-      limitations: expect.arrayContaining([expect.any(String)]),
     });
-    expect(
-      getTelemetryVariable("tires.wheel-rotation-speed").games["f1-2025"],
-    ).toMatchObject({
+    // Keep asymmetric matchers outside toMatchObject: Bun otherwise replaces shared catalog arrays with matcher objects.
+    expect(accWeather.kind === "unavailable" ? [] : accWeather.limitations).toEqual(
+      expect.arrayContaining([expect.any(String)]),
+    );
+    const f1WheelSpeed = getTelemetryVariable("tires.wheel-rotation-speed").games["f1-2025"];
+    expect(f1WheelSpeed).toMatchObject({
       kind: "simplified",
       execution: { kind: "simplification" },
-      limitations: expect.arrayContaining([expect.any(String)]),
     });
+    expect(f1WheelSpeed.kind === "unavailable" ? [] : f1WheelSpeed.limitations).toEqual(
+      expect.arrayContaining([expect.any(String)]),
+    );
 
     const playerCarIndex = getTelemetryVariable("identity.player-car-index");
     expect(playerCarIndex.games.iracing).toMatchObject({

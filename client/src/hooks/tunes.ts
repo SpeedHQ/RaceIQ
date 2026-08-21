@@ -117,6 +117,7 @@ export function useLapIssues(lapId: number | null) {
     queryKey: ["lap-issues", lapId],
     queryFn: async () => {
       const res = await (client.api.laps as any)[":id"].issues.$get({ param: { id: String(lapId!) } });
+      if (!res.ok) throw await errorFromResponse(res);
       return rpcJson<TuneIssue[]>(res);
     },
     enabled: lapId != null,

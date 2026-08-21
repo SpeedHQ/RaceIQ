@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { reconcileAutoExclusions,
-reconcileAutoExclusionsForLap,
-type ExclusionScopeLap,
-type LapExclusionWriter,
-type LapExperimentScopeReader, } from "../../../server/experiments/auto-exclude"
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type EligibilityDecisionSet, type QualityReasonCode } from "../../../shared/racing/quality/contracts";
+import { QUALITY_REASON_META } from "../../../shared/racing/quality/reasons";
+import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
+import { reconcileAutoExclusions, reconcileAutoExclusionsForLap, type ExclusionScopeLap, type LapExclusionWriter, type LapExperimentScopeReader } from "../../../server/experiments/auto-exclude";
+import { selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
+import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quality-generation";
 
 /** Auto-exclude fastest-5 curation
  *  (docs/architecture/setup-engineer.md).
@@ -44,22 +45,51 @@ class CapturingLapExclusionWriter implements LapExclusionWriter, LapExperimentSc
     return this.laps.get(lapId);
   }
 }
+const TEST_GENERATED = finalizeLapQualityGeneration(summarize(qualityPackets(200)), "test-auto-exclude", {
+  lapNumber: 1,
+  rawByteOffset: 0,
+  rawFrameCount: 200,
+});
+const TEST_QUALITY = TEST_GENERATED.quality;
+const TEST_ELIGIBILITY = TEST_GENERATED.eligibility;
+
+function ineligibleNormalPace(reason: QualityReasonCode): EligibilityDecisionSet {
+  return {
+    ...TEST_ELIGIBILITY,
+    "normal-pace": {
+      ...TEST_ELIGIBILITY["normal-pace"],
+      status: "ineligible",
+      confidence: { level: "high", score: 1 },
+      reasons: [{ code: reason, severity: QUALITY_REASON_META[reason].defaultSeverity, evidenceIds: [], timeRange: null, distanceRange: null, semanticIds: [] }],
+      evidenceIds: [],
+    },
+  };
+}
 
 /** Convenience builder for a candidate lap in its initial unreconciled state. */
-function lap(
-  id: number,
-  lapTime: number,
-  overrides: Partial<ExclusionScopeLap> = {},
-): ExclusionScopeLap {
-  return {
+function lap(id: number, lapTime: number, overrides: Partial<ExclusionScopeLap> = {}): ExclusionScopeLap {
+  const built: ExclusionScopeLap = {
     id,
     lapTime,
     isValid: true,
+    phase: "flying",
+    conditions: [],
+    paceEligibility: "eligible",
     invalidReason: null,
     experimentExcluded: false,
     experimentExcludedSource: null,
+    quality: TEST_QUALITY,
+    eligibility: TEST_ELIGIBILITY,
+    qualityGeneration: TEST_QUALITY.provenance.outputGeneration,
+    qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+    qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+    qualityConfigVersion: QUALITY_CONFIG_VERSION,
     ...overrides,
   };
+  if ((!built.isValid || built.paceEligibility !== "eligible") && overrides.eligibility === undefined) {
+    built.eligibility = ineligibleNormalPace(built.isValid ? "non_pace_classification" : "structurally_invalid");
+  }
+  return built;
 }
 
 describe("reconcileAutoExclusions", () => {
@@ -86,6 +116,22 @@ describe("reconcileAutoExclusions", () => {
       expect(writer.get(id)?.experimentExcluded).toBe(true);
       expect(writer.get(id)?.experimentExcludedSource).toBe("auto");
     }
+  });
+
+  test.each([
+    ["generation", { qualityGeneration: "sha256:stale" }],
+    ["schema", { qualitySchemaVersion: "stale" }],
+    ["policy", { qualityPolicyVersion: "stale" }],
+    ["configuration", { qualityConfigVersion: "stale" }],
+  ] as const)("stale persisted %s evidence rejects the fastest lap and promotes the next current lap", async (_field, staleEvidence) => {
+    const laps = [lap(1, 89, staleEvidence), lap(2, 90), lap(3, 91), lap(4, 92), lap(5, 93), lap(6, 94)];
+    const selection = selectEvaluationLaps(laps);
+    expect(selection.rejectionDecisionById.get(1)?.reasons.map((reason) => reason.code)).toContain("quality_not_rebuilt");
+
+    const writer = new CapturingLapExclusionWriter(laps);
+    await reconcileAutoExclusions(writer, EXPERIMENT_ID, TUNE_ID);
+    expect(writer.get(1)?.experimentExcluded).toBe(true);
+    expect(writer.get(6)?.experimentExcluded).toBe(false);
   });
 
   test("new fastest lap arrives → previous fifth demoted, new lap included", async () => {
@@ -120,12 +166,7 @@ describe("reconcileAutoExclusions", () => {
   });
 
   test("invalid lap → (1, 'auto'), never occupies a slot", async () => {
-    const laps = [
-      lap(1, 90),
-      lap(2, 91),
-      lap(3, 92),
-      lap(4, 999, { isValid: false, invalidReason: "off track" }),
-    ];
+    const laps = [lap(1, 90), lap(2, 91), lap(3, 92), lap(4, 999, { isValid: false, invalidReason: "off track" })];
     const writer = new CapturingLapExclusionWriter(laps);
     await reconcileAutoExclusions(writer, EXPERIMENT_ID, TUNE_ID);
     expect(writer.get(4)?.experimentExcluded).toBe(true);
@@ -136,18 +177,15 @@ describe("reconcileAutoExclusions", () => {
     expect(writer.get(3)?.experimentExcluded).toBe(false);
   });
 
-  test("pit-cycle lap → (1, 'auto')", async () => {
-    const laps = [
-      lap(1, 90),
-      lap(2, 91),
-      lap(3, 45, { invalidReason: "outlap" }), // fast time but pit-cycle, ineligible
-    ];
+  test("non-pace lap becomes auto-excluded", async () => {
+    const laps = [lap(1, 90), lap(2, 91), lap(3, 45, { phase: "out", paceEligibility: "excluded" }), lap(4, 92)];
     const writer = new CapturingLapExclusionWriter(laps);
     await reconcileAutoExclusions(writer, EXPERIMENT_ID, TUNE_ID);
     expect(writer.get(3)?.experimentExcluded).toBe(true);
     expect(writer.get(3)?.experimentExcludedSource).toBe("auto");
     expect(writer.get(1)?.experimentExcluded).toBe(false);
     expect(writer.get(2)?.experimentExcluded).toBe(false);
+    expect(writer.get(4)?.experimentExcluded).toBe(false);
   });
 
   test("manual exclude on a top-5 lap → stays excluded, sixth-fastest promoted in", async () => {
@@ -205,6 +243,7 @@ describe("reconcileAutoExclusions", () => {
     // Game re-validates lap 6 (fastest time of the set).
     writer.get(6)!.isValid = true;
     writer.get(6)!.invalidReason = null;
+    writer.get(6)!.eligibility = TEST_ELIGIBILITY;
 
     await reconcileAutoExclusions(writer, EXPERIMENT_ID, TUNE_ID);
 
@@ -216,10 +255,7 @@ describe("reconcileAutoExclusions", () => {
   });
 
   test("lap with null tune_id → pass skipped entirely", async () => {
-    const writer = new CapturingLapExclusionWriter(
-      [lap(1, 90), lap(2, 91)],
-      new Map([[42, { experimentId: 1, tuneId: null }]]),
-    );
+    const writer = new CapturingLapExclusionWriter([lap(1, 90), lap(2, 91)], new Map([[42, { experimentId: 1, tuneId: null }]]));
     await reconcileAutoExclusionsForLap(writer, 42);
     expect(writer.writes).toHaveLength(0);
   });

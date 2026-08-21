@@ -10,6 +10,6 @@ describe("race-result staleness state", () => {
     const state = useTelemetryStore.getState();
     expect(state.staleRaceResults).toEqual({ sessionCount: 3, currentVersion: "race-result-v2" });
     expect(state.raceResultReprocessProgress).toEqual({ done: 1, total: 3 });
-    expect(state.reprocessProgress).toBeNull();
+    expect(state.reprocessState).toEqual({ status: "idle", open: false });
   });
 });

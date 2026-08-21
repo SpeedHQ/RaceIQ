@@ -27,4 +27,5 @@ Dependency flow is:
 - Add detectors beside the matching signal family, then call them explicitly from `insights/analyze.ts`.
 - Build lap-wide context once in `analyzeLap`; pass it into detectors rather than rescanning telemetry independently.
 - Keep outputs conservative: `timeLossS` is optional, overlapping losses are not additive, and unavailable measurements are not zero.
+- `analyzeLap` gates detector families by named quality policy. Localized corner and transient analysis segments telemetry at policy boundaries and remaps emitted `frameIndices` to original lap indices.
 - Keep functions deterministic and import explicit leaf modules, for example `shared/racing/analysis/laps/insights/analyze`; do not add a barrel.

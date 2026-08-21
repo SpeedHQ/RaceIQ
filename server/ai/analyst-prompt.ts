@@ -1,7 +1,9 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { buildQualityPromptContext } from "./quality-context";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
@@ -143,6 +145,9 @@ export function buildAnalystPrompt(
     carOrdinal?: number;
     trackOrdinal?: number;
     gameId?: GameId;
+    quality?: LapQualitySummary | null;
+    eligibility?: EligibilityDecisionSet | null;
+    qualityGeneration?: string | null;
   },
   packets: TelemetryPacket[],
   corners: CornerDef[],
@@ -161,13 +166,11 @@ export function buildAnalystPrompt(
   const trackName = resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId);
 
   // F1 uses adapter-specific compact context; generic export is Forza-specific.
-  const exportText = lap.gameId === "f1-2025"
-    ? ""
-    : generateExport(lap, packets, unit, temperatureUnit);
+  const exportText = lap.gameId === "f1-2025" ? "" : generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
+  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId, lap.quality);
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
@@ -240,12 +243,7 @@ export function buildAnalystPrompt(
       const covers = inSector(index);
       sectorsText += `S${n}: ${t.toFixed(3)}s${covers ? ` — covers ${covers}` : ""}\n`;
     }
-    const boundaries = sectorStarts
-      .slice(1)
-      .map(
-        (start, index) =>
-          `S${index + 1} ends at ${(start * 100).toFixed(1)}%`,
-      );
+    const boundaries = sectorStarts.slice(1).map((start, index) => `S${index + 1} ends at ${(start * 100).toFixed(1)}%`);
     sectorsText += `Boundaries: ${boundaries.join(", ")} of the lap.\n`;
   }
 
@@ -282,9 +280,11 @@ export function buildAnalystPrompt(
   const conditionsText = conditions
     ? `\n--- Track Conditions ---\n${formatTrackConditions(conditions)}\nWeigh these before blaming pace on the driver or setup — a cold, green, or wet surface costs grip everywhere.\n`
     : "";
+  const qualityContext = buildQualityPromptContext(lap, ["official-timing", "normal-pace", "corner-trace", "transient-event", "fuel-burn", "tire-analysis"]);
 
   const context = `${carDetailsText}
 Track: ${trackName}
+${qualityContext}
 ${conditionsText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}

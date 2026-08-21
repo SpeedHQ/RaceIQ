@@ -18,31 +18,30 @@ describe("normalized driver trend", () => {
     expect(trend.recent.laps.find((x) => x.id === 70)?.relativePacePct).toBeCloseTo((100.7 / 100.01 - 1) * 100, 8);
   });
 
-  test("keeps dirty laps, lowers clean rate, and includes them in normalized spread", () => {
-    const clean = Array.from({ length: 60 }, (_, i) => lap(60 - i, { lapTime: 100 }));
-    for (let i = 0; i < 16; i++) {
-      clean[i].isValid = false;
-      clean[i].lapTime = 130;
-    }
-    const trend = buildDriverTrend(clean);
+  test("keeps dirty laps in totals and clean rate without including them in normalized pace", () => {
+    const laps = Array.from({ length: 60 }, (_, i) => lap(60 - i, { lapTime: i < 16 ? 130 : 100, isValid: i >= 16 }));
+    const trend = buildDriverTrend(laps);
     expect(trend.recent.laps.map((x) => x.id)).toContain(60);
     expect(trend.recent.dirty).toBe(16);
     expect(trend.recent.cleanRate).toBeCloseTo(14 / 30, 8);
-    expect(trend.recent.normalized).toBe(30);
-    expect(trend.recent.medianPacePct).toBeGreaterThan(0);
-    expect(trend.recent.spreadPct).toBeGreaterThan(0);
-    expect(trend.recent.consistency).toBeLessThan(100);
+    expect(trend.recent.normalized).toBe(14);
+    expect(trend.recent.medianPacePct).toBe(0);
+    expect(trend.recent.spreadPct).toBe(0);
+    expect(trend.recent.consistency).toBe(100);
   });
 
-  test("invalid shortcut faster than valid benchmark clamps relative pace at zero", () => {
+  test("invalid shortcut remains visible without contributing a pace sample", () => {
     const laps = [
       lap(3, { lapTime: 90, isValid: false }),
       lap(2, { lapTime: 100, isValid: true }),
       lap(1, { lapTime: 110, isValid: true }),
     ];
     const trend = buildDriverTrend(laps);
-    expect(trend.recent.laps.find((x) => x.id === 3)?.relativePacePct).toBe(0);
-    expect(trend.recent.medianPacePct).toBe(0);
+    expect(trend.recent.total).toBe(3);
+    expect(trend.recent.dirty).toBe(1);
+    expect(trend.recent.laps.find((x) => x.id === 3)?.relativePacePct).toBeNull();
+    expect(trend.recent.normalized).toBe(2);
+    expect(trend.recent.medianPacePct).toBe(5);
   });
 
   test("normalizes mixed 90-second and 200-second contexts to percentages", () => {
@@ -58,7 +57,7 @@ describe("normalized driver trend", () => {
     expect(JSON.stringify(trend)).not.toContain("200");
   });
 
-  test("benchmarks stay isolated per game context", () => {
+  test("benchmarks stay isolated per game context without assigning pace to invalid laps", () => {
     const trend = buildDriverTrend([
       lap(4, { gameId: "fm-2023", lapTime: 90, isValid: false }),
       lap(3, { gameId: "fm-2023", lapTime: 100 }),
@@ -66,8 +65,23 @@ describe("normalized driver trend", () => {
       lap(1, { gameId: "acc", lapTime: 200 }),
     ]);
     expect(trend.recent.contexts).toBe(2);
-    expect(trend.recent.laps.find((x) => x.id === 4)?.relativePacePct).toBe(0);
-    expect(trend.recent.laps.find((x) => x.id === 2)?.relativePacePct).toBe(0);
+    expect(trend.recent.laps.find((x) => x.id === 4)?.relativePacePct).toBeNull();
+    expect(trend.recent.laps.find((x) => x.id === 2)?.relativePacePct).toBeNull();
+    expect(trend.recent.normalized).toBe(2);
+  });
+
+  test("structurally valid non-pace lap remains clean and visible without contributing pace", () => {
+    const trend = buildDriverTrend([
+      lap(3, { lapTime: 80, isValid: true, phase: "out", paceEligibility: "excluded" }),
+      lap(2, { lapTime: 100 }),
+      lap(1, { lapTime: 110 }),
+    ]);
+    expect(trend.recent.total).toBe(3);
+    expect(trend.recent.valid).toBe(3);
+    expect(trend.recent.cleanRate).toBe(1);
+    expect(trend.recent.laps.find((x) => x.id === 3)?.relativePacePct).toBeNull();
+    expect(trend.recent.normalized).toBe(2);
+    expect(trend.recent.medianPacePct).toBe(5);
   });
 
   test("missing valid benchmark keeps lap totals and produces null pace", () => {

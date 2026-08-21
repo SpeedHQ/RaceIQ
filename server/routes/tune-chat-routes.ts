@@ -3,6 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import type { GameId } from "../../shared/games/ids";
+import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
@@ -66,6 +68,10 @@ export const tuneChatRoutes = new Hono()
       const { id } = c.req.valid("param");
       const lap = await getLapById(id);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
+      const decision = resolveEligibilityDecision(lap, "setup-analysis");
+      if (!isEligibilityUsable(decision)) {
+        return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
+      }
 
       const packets = lap.telemetry;
       if (packets.length < 30) return c.json([]);

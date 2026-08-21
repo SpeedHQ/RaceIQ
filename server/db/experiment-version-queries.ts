@@ -3,6 +3,7 @@ import { db } from "./index";
 import { laps, experiments, experimentVersions } from "./schema";
 import { setSessionHead } from "./experiment-queries";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus, versionKindForFocus, type VersionKind } from "../../shared/racing/experiments/focus";
+import { selectEvaluationLaps } from "../../shared/racing/laps/review-selection";
 
 interface CreateExperimentVersionData {
   experimentId: number;
@@ -30,11 +31,7 @@ export async function createExperimentVersion(data: CreateExperimentVersionData)
   // setup versions already recorded into drills.
   let kind = data.kind;
   if (!kind) {
-    const parent = await db
-      .select({ focus: experiments.focus })
-      .from(experiments)
-      .where(eq(experiments.id, data.experimentId))
-      .get();
+    const parent = await db.select({ focus: experiments.focus }).from(experiments).where(eq(experiments.id, data.experimentId)).get();
     kind = versionKindForFocus((parent?.focus as ExperimentFocus | undefined) ?? DEFAULT_EXPERIMENT_FOCUS);
   }
 
@@ -77,10 +74,7 @@ export async function listExperimentVersions(sessionId: number, opts: { includeD
 /** Walk `parentVersionId` children transitively from `rootId` (inclusive) over an
  *  already-fetched test list — pure/pure-ish helper shared by delete/restore
  *  so the subtree definition can't drift between the two ops. */
-function collectSubtreeIds(
-  tests: { id: number; parentVersionId: number | null }[],
-  rootId: number,
-): number[] {
+function collectSubtreeIds(tests: { id: number; parentVersionId: number | null }[], rootId: number): number[] {
   const childrenOf = new Map<number, number[]>();
   for (const t of tests) {
     if (t.parentVersionId == null) continue;
@@ -105,11 +99,7 @@ function collectSubtreeIds(
  *  `status='deleted'` — where a trashed head gets moved to. `null` when no
  *  surviving ancestor exists (falls back to the mainline tip via
  *  `resolveActiveTestId`). */
-function findNearestSurvivingAncestor(
-  tests: { id: number; parentVersionId: number | null; status: string }[],
-  fromId: number,
-  trashedIds: Set<number>,
-): number | null {
+function findNearestSurvivingAncestor(tests: { id: number; parentVersionId: number | null; status: string }[], fromId: number, trashedIds: Set<number>): number | null {
   const byId = new Map(tests.map((t) => [t.id, t]));
   let cur = byId.get(fromId);
   while (cur?.parentVersionId != null) {
@@ -142,11 +132,7 @@ interface DeleteSubtreeResult {
  * inside the trashed subtree, the session head is moved off it to the
  * nearest surviving ancestor (or cleared, falling back to the mainline tip).
  */
-export async function deleteTestSubtree(
-  sessionId: number,
-  versionId: number,
-  currentHeadTestId: number | null,
-): Promise<DeleteSubtreeResult> {
+export async function deleteTestSubtree(sessionId: number, versionId: number, currentHeadTestId: number | null): Promise<DeleteSubtreeResult> {
   const allTests = await listExperimentVersions(sessionId, { includeDeleted: true });
   const deletedIds = collectSubtreeIds(allTests, versionId);
   await setTestsStatus(deletedIds, "deleted");
@@ -236,11 +222,7 @@ export async function nextVersion(sessionId: number): Promise<number> {
  * null when the session has no tests yet.
  */
 export async function resolveActiveTestId(sessionId: number): Promise<number | null> {
-  const session = await db
-    .select({ headVersionId: experiments.headVersionId })
-    .from(experiments)
-    .where(eq(experiments.id, sessionId))
-    .get();
+  const session = await db.select({ headVersionId: experiments.headVersionId }).from(experiments).where(eq(experiments.id, sessionId)).get();
   if (session?.headVersionId != null) return session.headVersionId;
 
   const tip = await db
@@ -252,25 +234,50 @@ export async function resolveActiveTestId(sessionId: number): Promise<number | n
   return tip?.id ?? null;
 }
 
-/** Lap count + best (min positive) lap time per experiment_version_id for a session. */
-export async function getLapCountsByTest(
-  sessionId: number,
-): Promise<Map<number, { lapCount: number; bestLapMs: number | null }>> {
+/** Recorded-lap count plus best pace-eligible lap time per experiment version. */
+export async function getLapCountsByTest(sessionId: number): Promise<Map<number, { lapCount: number; bestLapMs: number | null }>> {
   const rows = await db
     .select({
+      id: laps.id,
       versionId: laps.experimentVersionId,
-      lapCount: sql<number>`COUNT(*)`,
-      bestLapMs: sql<number | null>`MIN(CASE WHEN ${laps.lapTime} > 0 THEN ${laps.lapTime} END)`,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualityGeneration: laps.qualityGeneration,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
     })
     .from(laps)
     .where(eq(laps.experimentId, sessionId))
-    .groupBy(laps.experimentVersionId)
     .all();
 
-  const map = new Map<number, { lapCount: number; bestLapMs: number | null }>();
-  for (const r of rows) {
-    if (r.versionId == null) continue;
-    map.set(r.versionId, { lapCount: Number(r.lapCount), bestLapMs: r.bestLapMs ?? null });
+  const grouped = new Map<number, typeof rows>();
+  for (const row of rows) {
+    if (row.versionId == null) continue;
+    const existing = grouped.get(row.versionId);
+    if (existing) existing.push(row);
+    else grouped.set(row.versionId, [row]);
   }
-  return map;
+
+  const result = new Map<number, { lapCount: number; bestLapMs: number | null }>();
+  for (const [versionId, versionLaps] of grouped) {
+    const selection = selectEvaluationLaps(
+      versionLaps.map((lap) => ({
+        ...lap,
+        experimentExcluded: lap.experimentExcluded === 1,
+        experimentExcludedSource: lap.experimentExcludedSource === "auto" || lap.experimentExcludedSource === "manual" ? lap.experimentExcludedSource : null,
+      })),
+      Number.POSITIVE_INFINITY,
+    );
+    const usableLapTimes = selection.chosen.map(({ lapTime }) => lapTime);
+    result.set(versionId, {
+      lapCount: versionLaps.length,
+      bestLapMs: usableLapTimes.length > 0 ? Math.min(...usableLapTimes) : null,
+    });
+  }
+  return result;
 }

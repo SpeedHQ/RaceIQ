@@ -31,12 +31,11 @@ import { describeKnobs } from "../../server/setups/rules/engine";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import { formatTrackConditions } from "../../server/ai/track-conditions";
 import { loadActiveExperimentContext } from "../../server/experiments/setup-lineage";
-import {
-  loadCleanLapAggregate,
-  baselineFallbackNote,
-} from "../../server/experiments/lap-evidence/aggregate";
+import { loadCleanLapAggregate, baselineFallbackNote, type CleanLapAggregate, type LapPolicyProvenance } from "../../server/experiments/lap-evidence/aggregate";
 import { formatLapObservations } from "../../server/ai/lap-observations";
 import { getOrComputeLapMetricsBatch } from "../../server/lap-analysis/metrics-store";
+import { eligibilityDecisionText } from "../../shared/racing/quality/display";
+import { formatQualityPromptReason } from "../../server/ai/quality-context";
 import { listExperimentVersions } from "../../server/db/experiment-version-queries";
 
 const InputSchema = z.object({
@@ -46,11 +45,38 @@ const OutputSchema = z.object({
   context: z.string().describe("Assembled, human-readable prerequisite context for the engineer prompt."),
 });
 
+function renderLocalPolicy(name: "normal-pace" | "corner-trace", policy: LapPolicyProvenance): string[] {
+  return [`  ${name}: ${policy.status}`, ...policy.reasons.map((reason) => `    - ${formatQualityPromptReason(reason)}`)];
+}
+
+export function renderSetupEngineerQualityProvenance(aggregate: Pick<CleanLapAggregate, "setupDecision" | "lapBreakdown">): { confidenceLines: string[]; lapBreakdown: string } {
+  const confidenceLines = [
+    `setup-analysis policy: ${aggregate.setupDecision.status}; ${eligibilityDecisionText(aggregate.setupDecision)}`,
+    ...aggregate.setupDecision.reasons.map((reason) => `- ${formatQualityPromptReason(reason)}`),
+  ];
+  const lapBreakdown =
+    aggregate.lapBreakdown.length > 0
+      ? aggregate.lapBreakdown
+          .map((row) => {
+            const selectionCodes = row.selectionReasonCodes.length > 0 ? ` [${row.selectionReasonCodes.join(", ")}]` : "";
+            const aggregateCodes = row.reasonCodes.length > 0 ? ` [aggregate: ${row.reasonCodes.join(", ")}]` : "";
+            return [
+              `lap ${row.lapId}: ${row.lapTimeSec.toFixed(3)}s — ${row.reason}${aggregateCodes}${row.imported ? " (imported)" : ""}`,
+              `  quality-generation: ${row.qualityGeneration ?? "unknown"}`,
+              `  selection: ${row.selectionReason}${selectionCodes}`,
+              ...renderLocalPolicy("normal-pace", row.normalPace),
+              ...renderLocalPolicy("corner-trace", row.cornerTrace),
+            ].join("\n");
+          })
+          .join("\n")
+      : "No laps recorded for this session yet.";
+  return { confidenceLines, lapBreakdown };
+}
+
 const gatherPrereqs = createStep({
   id: "gather-prereqs",
   description:
-    "Force-call the Setup Engineer read tools (current setup, symptoms, track conditions, version " +
-    "history) deterministically so the engineer always reasons from grounded, current data.",
+    "Force-call the Setup Engineer read tools (current setup, symptoms, track conditions, version " + "history) deterministically so the engineer always reasons from grounded, current data.",
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   execute: async ({ inputData }) => {
@@ -66,10 +92,7 @@ const gatherPrereqs = createStep({
       sections.push(
         `--- CURRENT SETUP (v${ctx.activeTest?.version ?? 0}) — the ONLY knobs you may move ---\n` +
           tunable.map((k) => `${k.component}: ${k.current} [${k.min}..${k.max}]`).join("\n") +
-          (missing.length
-            ? `\n--- NOT TUNABLE ON THIS CAR (value: None — never suggest or apply changes to these) ---\n` +
-              missing.map((k) => `${k.component}: None`).join("\n")
-            : ""),
+          (missing.length ? `\n--- NOT TUNABLE ON THIS CAR (value: None — never suggest or apply changes to these) ---\n` + missing.map((k) => `${k.component}: None`).join("\n") : ""),
       );
     } else {
       sections.push(`--- CURRENT SETUP ---\n(unavailable: ${ctx.error})`);
@@ -85,12 +108,16 @@ const gatherPrereqs = createStep({
       `confidence: ${consistency.confidence.toUpperCase()}`,
       `clean laps: ${consistency.cleanLapCount}`,
       `best lap: ${consistency.bestLapSec != null ? `${consistency.bestLapSec.toFixed(3)}s` : "n/a"}`,
-      `spread: ${consistency.spreadSec != null ? `${consistency.spreadSec.toFixed(3)}s` : "n/a"}` +
-        (consistency.spreadPct != null ? ` (${(consistency.spreadPct * 100).toFixed(2)}%)` : ""),
+      `spread: ${consistency.spreadSec != null ? `${consistency.spreadSec.toFixed(3)}s` : "n/a"}` + (consistency.spreadPct != null ? ` (${(consistency.spreadPct * 100).toFixed(2)}%)` : ""),
       `dropped outliers: ${consistency.droppedOutliers}`,
       `fallback to single lap: ${agg.fallbackSingleLap}`,
       `source: ${agg.sourceScope}`,
     ];
+    const qualityProvenance = renderSetupEngineerQualityProvenance(agg);
+    confidenceLines.push(...qualityProvenance.confidenceLines);
+    if (agg.setupDecision.status === "unknown" || agg.setupDecision.status === "ineligible") {
+      confidenceLines.push("SETUP EVIDENCE BLOCKED: do not draw handling or setup conclusions from these laps.");
+    }
     if (agg.sourceScope === "session-baseline") {
       confidenceLines.push("(session baseline pool — laps may mix setups; confidence capped at medium)");
     }
@@ -99,20 +126,11 @@ const gatherPrereqs = createStep({
     const fallbackNote = baselineFallbackNote(agg);
     if (fallbackNote) confidenceLines.push(fallbackNote);
     if (agg.fallbackSingleLap) {
-      confidenceLines.push(
-        "(only <2 clean laps — reasoning from the single fastest lap; treat suggestions as low-confidence)",
-      );
+      confidenceLines.push("(only <2 clean laps — reasoning from the single fastest lap; treat suggestions as low-confidence)");
     }
     sections.push(`--- CONFIDENCE ---\n${confidenceLines.join("\n")}`);
 
-    sections.push(
-      "--- LAP BREAKDOWN ---\n" +
-        (agg.lapBreakdown.length
-          ? agg.lapBreakdown
-              .map((r) => `lap ${r.lapId}: ${r.lapTimeSec.toFixed(3)}s — ${r.reason}${r.imported ? " (imported)" : ""}`)
-              .join("\n")
-          : "No laps recorded for this session yet."),
-    );
+    sections.push(`--- LAP BREAKDOWN ---\n${qualityProvenance.lapBreakdown}`);
 
     sections.push(
       "--- CONSISTENCY BY CORNER ---\n" +
@@ -145,8 +163,7 @@ const gatherPrereqs = createStep({
     );
 
     sections.push(
-      `--- SYMPTOMS (aggregate over ${consistency.cleanLapCount} clean laps) ---\n` +
-        (agg.symptoms ? formatSymptoms(agg.symptoms) : "No analysable lap yet — reason from the driver's description."),
+      `--- SYMPTOMS (aggregate over ${consistency.cleanLapCount} clean laps) ---\n` + (agg.symptoms ? formatSymptoms(agg.symptoms) : "No analysable lap yet — reason from the driver's description."),
     );
 
     // Raw driving observations over the same clean pool. Deliberately separate
@@ -155,14 +172,9 @@ const gatherPrereqs = createStep({
     // no knowledge of which experiment is running. Cached per lap in
     // `lap_metrics`, so a week-long experiment does not re-decode every .bin.
     const metricsByLap = await getOrComputeLapMetricsBatch(agg.lapIds);
-    sections.push(
-      `--- DRIVING OBSERVATIONS (raw measurements) ---\n${formatLapObservations([...metricsByLap.values()])}`,
-    );
+    sections.push(`--- DRIVING OBSERVATIONS (raw measurements) ---\n${formatLapObservations([...metricsByLap.values()])}`);
 
-    sections.push(
-      "--- TRACK CONDITIONS ---\n" +
-        (agg.trackConditions ? formatTrackConditions(agg.trackConditions) : "No conditions data for this session yet."),
-    );
+    sections.push("--- TRACK CONDITIONS ---\n" + (agg.trackConditions ? formatTrackConditions(agg.trackConditions) : "No conditions data for this session yet."));
 
     // What's already been tried this session, so the model doesn't repeat it.
     // This is the one test-scoped block: the experiment frame (what was expected
@@ -181,11 +193,7 @@ const gatherPrereqs = createStep({
                   t.verdict ? `driver's verdict: ${t.verdict}` : null,
                   t.notes ? `note: ${t.notes}` : null,
                 ].filter((s): s is string => s != null);
-                return (
-                  `v${t.version} "${t.label}"${t.kind === "drill" ? " (driving drill)" : ""}` +
-                  `${t.engine ? ` (${t.engine})` : ""}` +
-                  (frame.length ? ` — ${frame.join("; ")}` : "")
-                );
+                return `v${t.version} "${t.label}"${t.kind === "drill" ? " (driving drill)" : ""}` + `${t.engine ? ` (${t.engine})` : ""}` + (frame.length ? ` — ${frame.join("; ")}` : "");
               })
               .join("\n")
           : "none yet"),
@@ -199,6 +207,5 @@ export const setupEngineerTurnWorkflow = createWorkflow({
   id: "setup-engineer-turn",
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
-})
-  .then(gatherPrereqs);
+}).then(gatherPrereqs);
 setupEngineerTurnWorkflow.commit();

@@ -21,7 +21,7 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { getServerGame } from "../../server/games/registry";
 import { getGame } from "../../shared/games/registry";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
+import { encodeMetaFrame, META_FRAME_MAGIC } from "../../server/session-capture/framing"
 import { detectGameIdFromBuffer } from "../../server/session-capture/import-capture"
 import { getAccTrackName } from "../../shared/racing/tracks/catalogs/acc"
 import { getAccCarName } from "../../shared/racing/cars/acc"
@@ -127,6 +127,17 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const playerCarOrdinal = [...carCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
     expect(getAcEvoCarName(playerCarOrdinal)).toBe("Audi R8 LMS GT3 Evo II");
   }, { timeout: 30000 });
+
+  test("malformed session-capture framing remains strict", () => {
+    const truncatedFrame = Buffer.concat([
+      encodeMetaFrame(1),
+      Buffer.from([2, 0, 0, 0, 0xaa]),
+    ]);
+
+    expect(() => detectGameIdFromBuffer(truncatedFrame)).toThrow(
+      "Truncated frame payload at byte 12",
+    );
+  });
 
   test("f1-2025-2026-04-09T21-34-10-190Z.bin.gz — raw UDP dump, F1 2025 — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/f1-2025-2026-04-09T21-34-10-190Z.bin.gz`;

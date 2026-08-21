@@ -1,15 +1,83 @@
 import { describe, expect, test } from "bun:test";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
+import { evaluateEligibility } from "@shared/racing/quality/policies";
 import { initGameAdapters } from "@shared/games/init";
 import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
+import type { ChannelQualitySummary, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 const RADIUS = 0.33;
 const STEP_MS = 16;
 const STEP_S = STEP_MS / 1000;
 
-
+const ANALYSIS_CHANNELS = [
+  "timing.distance-traveled",
+  "motion.speed",
+  "inputs.accel",
+  "inputs.brake",
+  "inputs.steer",
+  "tires.tire-slip-ratio",
+  "tires.tire-slip-angle",
+  "tires.wheel-rotation-speed",
+  "suspension.norm-suspension-travel",
+  "fuel.fuel",
+  "tire.temperature.average",
+  "tires.tire-wear",
+] as const;
+const ANALYSIS_QUALITY = {
+  lifecycleState: "exact",
+  complete: true,
+  structurallyValid: true,
+  timing: {
+    source: "simulator-last-lap",
+    lapTimeMs: 10_000,
+    peakTelemetryLapTimeMs: 10_000,
+    confirmed: true,
+  },
+  gapSummary: {
+    expectedCount: 100,
+    observedCount: 100,
+    totalMissingCount: 0,
+    totalMissingFraction: 0,
+    largestContiguousGapMs: 0,
+    countMethod: "native-sequence",
+  },
+  trackDistanceCoverage: 1,
+  worldPositionCoverage: 1,
+  channelQuality: ANALYSIS_CHANNELS.map(
+    (semanticId) =>
+      ({
+        semanticId,
+        channelFamily: semanticId.split(".")[0] as ChannelQualitySummary["channelFamily"],
+        mappingStatus: "direct",
+        canonicalUnit: null,
+        nativeUnit: null,
+        coverage: 1,
+        observedCount: 100,
+        expectedCount: 100,
+        expectedCadenceMs: STEP_MS,
+        observedCadenceMs: STEP_MS,
+        boundaryCoverage: { first500Ms: 1, last500Ms: 1 },
+        confidenceMean: 1,
+        freshnessCounts: { fresh: 100, stale: 0, unknown: 0 },
+        resolutionCounts: { ok: 100, missing: 0, stale: 0, invalid: 0, "not-applicable": 0, error: 0 },
+        issueIntervals: [],
+        limitations: [],
+        provenance: null,
+        sourceProfile: null,
+      }) satisfies ChannelQualitySummary,
+  ),
+  facts: [],
+  classification: {
+    phase: "flying",
+    conditions: [],
+    paceEligibility: "eligible",
+  },
+} as unknown as LapQualitySummary;
 initGameAdapters();
+const CLEAN_QUALITY = summarize(qualityPackets(200).map((packet) => ({ ...packet, gameId: "fm-2023" })));
+
 interface Frame {
   speed: number;
   accel?: number;
@@ -40,6 +108,7 @@ function pkt(f: Frame, t: number): TelemetryPacket {
   const rot = f.speed / RADIUS;
   return {
     TimestampMS: t,
+    DistanceTraveled: (t / 1_000) * f.speed,
     Speed: f.speed,
     Accel: f.accel ?? 0,
     Brake: f.brake ?? 0,
@@ -55,9 +124,66 @@ function find(insights: ReturnType<typeof analyzeLap>, id: string) {
   return insights.find((i) => i.id === id);
 }
 
+function analyzeFixtureLap(telemetry: TelemetryPacket[], gameId: Parameters<typeof analyzeLap>[1]) {
+  return analyzeLap(telemetry, gameId, ANALYSIS_QUALITY);
+}
+
+const LOCALIZED_ISSUE_RANGE = { startFraction: 0.2, endFraction: 0.4 };
+
+function qualityWithLocalizedIssue(semanticId: ChannelQualitySummary["semanticId"]): LapQualitySummary {
+  const quality = structuredClone(ANALYSIS_QUALITY);
+  const channel = quality.channelQuality.find((candidate) => candidate.semanticId === semanticId);
+  if (!channel) throw new Error(`Missing analysis channel ${semanticId}`);
+  channel.issueIntervals.push({
+    state: "missing",
+    freshness: "unknown",
+    timeRange: { startMs: 320, endMs: 640 },
+    distanceRange: LOCALIZED_ISSUE_RANGE,
+    count: 20,
+  });
+  return quality;
+}
+
+function qualityWithLocalizedWarning(): LapQualitySummary {
+  const quality = structuredClone(ANALYSIS_QUALITY);
+  quality.facts.push({
+    id: "test:localized-minor-gap",
+    code: "telemetry_gap_minor",
+    severity: "warning",
+    timeRange: { startMs: 320, endMs: 352 },
+    distanceRange: LOCALIZED_ISSUE_RANGE,
+    semanticIds: [],
+    channelFamilies: [],
+    provenance: quality.provenance,
+    eventIds: [],
+  });
+  return quality;
+}
+
+function qualityWithGlobalWarning(): LapQualitySummary {
+  const quality = structuredClone(ANALYSIS_QUALITY);
+  quality.timing.source = "telemetry-elapsed";
+  return quality;
+}
+
+function localizedInsightLap(): TelemetryPacket[] {
+  const telemetry = lap([{ n: 100, a: 0, accel: 128 }], 30);
+  for (let index = 0; index < telemetry.length; index++) {
+    const packet = telemetry[index]!;
+    packet.DistanceTraveled = index;
+    packet.EngineMaxRpm = 8_000;
+    packet.CurrentEngineRpm = 4_000;
+  }
+  return telemetry;
+}
+
+function markFrames(telemetry: TelemetryPacket[], start: number, end: number, mark: (packet: TelemetryPacket) => void): void {
+  for (let index = start; index <= end; index++) mark(telemetry[index]!);
+}
+
 describe("analyzeLap time-loss quantification", () => {
   test("coasting that is not corner entry is charged for the speed it bled", () => {
-    const insights = analyzeLap(
+    const insights = analyzeFixtureLap(
       lap([
         // Establish what the car can do: a long clean full-throttle pull.
         { n: 400, a: 4, accel: 255 },
@@ -78,7 +204,7 @@ describe("analyzeLap time-loss quantification", () => {
   });
 
   test("a coast that runs into braking is deliberate corner entry, not charged", () => {
-    const insights = analyzeLap(
+    const insights = analyzeFixtureLap(
       lap([
         { n: 400, a: 4, accel: 255 },
         { n: 100, a: -2, accel: 0 },
@@ -95,7 +221,7 @@ describe("analyzeLap time-loss quantification", () => {
   });
 
   test("detectors that only describe a symptom stay unquantified", () => {
-    const insights = analyzeLap(
+    const insights = analyzeFixtureLap(
       lap([
         { n: 400, a: 4, accel: 255 },
         { n: 100, a: -2, accel: 0 },
@@ -114,7 +240,7 @@ describe("analyzeLap time-loss quantification", () => {
   });
 
   test("a lap too short to analyse yields nothing rather than guesses", () => {
-    expect(analyzeLap(lap([{ n: 5, a: 0, accel: 255 }]), "fm-2023")).toEqual([]);
+    expect(analyzeFixtureLap(lap([{ n: 5, a: 0, accel: 255 }]), "fm-2023")).toEqual([]);
   });
 });
 
@@ -124,14 +250,15 @@ describe("analyzeLap wheel-state capabilities", () => {
   }
 
   test("retains lockup insights when wheel rotation is available", () => {
-    const insights = analyzeLap(lockedLap(), "fm-2023");
+    expect(evaluateEligibility("transient-event", CLEAN_QUALITY).status).toBe("ineligible");
+    const insights = analyzeFixtureLap(lockedLap(), "fm-2023");
 
     expect(find(insights, "tire-lockup-FL")).toBeDefined();
     expect(find(insights, "driving-brake-traction-loss")).toBeDefined();
   });
 
   test("omits lockup insights when iRacing wheel rotation is unavailable", () => {
-    const insights = analyzeLap(lockedLap(), "iracing");
+    const insights = analyzeFixtureLap(lockedLap(), "iracing");
 
     expect(find(insights, "tire-lockup-FL")).toBeUndefined();
     expect(find(insights, "driving-brake-traction-loss")).toBeUndefined();
@@ -147,14 +274,118 @@ describe("analyzeLap fuel units", () => {
   }
 
   test("reports litre-based iRacing consumption in litres", () => {
-    const fuel = find(analyzeLap(fuelLap(40, 38.5), "iracing"), "mech-fuel");
+    const fuel = find(analyzeFixtureLap(fuelLap(40, 38.5), "iracing"), "mech-fuel");
 
     expect(fuel?.detail).toBe("Used 1.50 L — ~25.7 laps remaining");
   });
 
   test("retains percentage consumption for fractional-fuel games", () => {
-    const fuel = find(analyzeLap(fuelLap(0.8, 0.75), "fm-2023"), "mech-fuel");
+    const fuel = find(analyzeFixtureLap(fuelLap(0.8, 0.75), "fm-2023"), "mech-fuel");
 
     expect(fuel?.detail).toBe("Used 5.0% — ~15.0 laps remaining");
+  });
+});
+
+describe("analyzeLap localized insight eligibility", () => {
+  test("keeps global warning limitations while ranged warnings exclude affected events", () => {
+    const telemetry = localizedInsightLap();
+    markFrames(telemetry, 22, 33, (packet) => {
+      packet.CurrentEngineRpm = packet.EngineMaxRpm;
+    });
+    markFrames(telemetry, 22, 27, (packet) => {
+      packet.WheelRotationSpeedFL = 0;
+    });
+    markFrames(telemetry, 60, 71, (packet) => {
+      packet.CurrentEngineRpm = packet.EngineMaxRpm;
+    });
+    markFrames(telemetry, 60, 65, (packet) => {
+      packet.WheelRotationSpeedFL = 0;
+    });
+    const globalQuality = qualityWithGlobalWarning();
+
+    const decision = evaluateEligibility("corner-trace", globalQuality);
+    const globalInsights = analyzeLap(telemetry, "fm-2023", globalQuality);
+    const rangedInsights = analyzeLap(telemetry, "fm-2023", qualityWithLocalizedWarning());
+
+    expect(decision.status).toBe("eligible_with_warning");
+    expect(decision.reasons).toContainEqual(
+      expect.objectContaining({
+        code: "lap_time_fallback",
+        timeRange: null,
+        distanceRange: null,
+      }),
+    );
+    expect(find(globalInsights, "driving-rev-limiter")?.frameIndices).toEqual([28, 66]);
+    expect(find(globalInsights, "tire-lockup-FL")?.frameIndices).toEqual([25, 63]);
+    expect(find(rangedInsights, "driving-rev-limiter")?.frameIndices).toEqual([66]);
+    expect(find(rangedInsights, "tire-lockup-FL")?.frameIndices).toEqual([63]);
+  });
+
+  test("analyzes corner events outside a policy-ineligible range and remaps source frames", () => {
+    const telemetry = localizedInsightLap();
+    markFrames(telemetry, 60, 71, (packet) => {
+      packet.CurrentEngineRpm = packet.EngineMaxRpm;
+    });
+
+    const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("inputs.steer")), "driving-rev-limiter");
+
+    expect(insight?.frameIndices).toEqual([66]);
+  });
+
+  test("excludes corner warning ranges while retaining and remapping unaffected events", () => {
+    const telemetry = localizedInsightLap();
+    markFrames(telemetry, 22, 33, (packet) => {
+      packet.CurrentEngineRpm = packet.EngineMaxRpm;
+    });
+    markFrames(telemetry, 60, 71, (packet) => {
+      packet.CurrentEngineRpm = packet.EngineMaxRpm;
+    });
+
+    const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedWarning()), "driving-rev-limiter");
+
+    expect(insight?.frameIndices).toEqual([66]);
+  });
+
+  test("does not emit corner insights confined to a policy-ineligible range", () => {
+    const telemetry = localizedInsightLap();
+    markFrames(telemetry, 22, 33, (packet) => {
+      packet.CurrentEngineRpm = packet.EngineMaxRpm;
+    });
+
+    expect(find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("inputs.steer")), "driving-rev-limiter")).toBeUndefined();
+  });
+
+  test("analyzes transient events outside a policy-ineligible range and remaps source frames", () => {
+    const telemetry = localizedInsightLap();
+    markFrames(telemetry, 60, 65, (packet) => {
+      packet.WheelRotationSpeedFL = 0;
+    });
+
+    const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("tires.wheel-rotation-speed")), "tire-lockup-FL");
+
+    expect(insight?.frameIndices).toEqual([63]);
+  });
+
+  test("excludes transient warning ranges while retaining and remapping unaffected events", () => {
+    const telemetry = localizedInsightLap();
+    markFrames(telemetry, 22, 27, (packet) => {
+      packet.WheelRotationSpeedFL = 0;
+    });
+    markFrames(telemetry, 60, 65, (packet) => {
+      packet.WheelRotationSpeedFL = 0;
+    });
+
+    const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedWarning()), "tire-lockup-FL");
+
+    expect(insight?.frameIndices).toEqual([63]);
+  });
+
+  test("does not emit transient insights confined to a policy-ineligible range", () => {
+    const telemetry = localizedInsightLap();
+    markFrames(telemetry, 22, 27, (packet) => {
+      packet.WheelRotationSpeedFL = 0;
+    });
+
+    expect(find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("tires.wheel-rotation-speed")), "tire-lockup-FL")).toBeUndefined();
   });
 });

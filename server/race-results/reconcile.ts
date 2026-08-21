@@ -5,6 +5,7 @@ import { getLapsByIds } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
+import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
@@ -13,7 +14,7 @@ import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } fro
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v2";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v3";
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
   if (packets.length === 0) return null;
@@ -114,7 +115,8 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     canonicalInput: canonicalInputIdentity(sessionId, packets),
   };
   const existing = await getSessionResult(sessionId, gameId);
-  const unchanged = existing != null &&
+  const unchanged =
+    existing != null &&
     existing.processorVersion === RACE_RESULT_PROCESSOR_ID &&
     existing.sessionType === derived.sessionType &&
     existing.classification === derived.classification &&
@@ -132,7 +134,8 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     existing.events.length === derived.events.length &&
     existing.events.every((event, index) => {
       const expected = derived.events[index];
-      return expected != null &&
+      return (
+        expected != null &&
         event.sequence === expected.sequence &&
         event.eventType === (expected.eventType ?? "pit") &&
         event.positionBefore === (expected.positionBefore ?? null) &&
@@ -146,25 +149,32 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
         event.fuelAfter === expected.fuelAfter &&
         event.linkage === expected.linkage &&
         JSON.stringify(event.tyreChange) === JSON.stringify(expected.tyreChange) &&
-        JSON.stringify(event.source) === JSON.stringify(expected.source);
+        JSON.stringify(event.source) === JSON.stringify(expected.source)
+      );
     });
-  await upsertSessionResult({
-    sessionId,
-    processorVersion: RACE_RESULT_PROCESSOR_ID,
-    sessionType: derived.sessionType,
-    classification: derived.classification,
-    outcomeStatus: derived.outcomeStatus,
-    finishingPosition: derived.finishingPosition,
-    qualifyingPosition: derived.qualifyingPosition,
-    isPodium: derived.isPodium,
-    isFastestLap: derived.isFastestLap,
-    pitCount: derived.pitCount,
-    tyreStrategy: derived.tyreStrategy,
-    fuelStrategy: derived.fuelStrategy,
-    provenance: derived.provenance,
-    evidence: derived.evidence,
-    reasons: derived.reasons,
-  }, derived.events.map(toStoredPitEvent));
+  if (!unchanged) {
+    await upsertSessionResult(
+      {
+        sessionId,
+        processorVersion: RACE_RESULT_PROCESSOR_ID,
+        sessionType: derived.sessionType,
+        classification: derived.classification,
+        outcomeStatus: derived.outcomeStatus,
+        finishingPosition: derived.finishingPosition,
+        qualifyingPosition: derived.qualifyingPosition,
+        isPodium: derived.isPodium,
+        isFastestLap: derived.isFastestLap,
+        pitCount: derived.pitCount,
+        tyreStrategy: derived.tyreStrategy,
+        fuelStrategy: derived.fuelStrategy,
+        provenance: derived.provenance,
+        evidence: derived.evidence,
+        reasons: derived.reasons,
+      },
+      derived.events.map(toStoredPitEvent),
+    );
+  }
+  await linkSessionQualityEvents(sessionId);
 
   const status = unchanged ? "unchanged" : derived.outcomeStatus === "confirmed" ? "enriched" : "ambiguous";
   return { sessionId, status, eventCount: derived.events.length, reasons: derived.reasons };
@@ -180,12 +190,7 @@ export function reconcileSessionResultAfterLap(sessionId: number, gameId: GameId
   return pending;
 }
 
-export async function backfillRaceResults(options: {
-  gameId: GameId;
-  limit: number;
-  afterSessionId?: number;
-  eligibleSessionIds?: ReadonlySet<number>;
-}): Promise<BackfillReport> {
+export async function backfillRaceResults(options: { gameId: GameId; limit: number; afterSessionId?: number; eligibleSessionIds?: ReadonlySet<number> }): Promise<BackfillReport> {
   const limit = Math.max(1, Math.min(100, Math.trunc(options.limit)));
   const sessions = (await getSessions(options.gameId))
     .filter((session) => options.eligibleSessionIds?.has(session.id) ?? true)
@@ -205,16 +210,9 @@ export async function backfillRaceResults(options: {
   return { processed: results.length, enriched: counts.enriched, unchanged: counts.unchanged, skipped: counts.skipped, ambiguous: counts.ambiguous, errors: counts.error, results };
 }
 
-
 /** Reconcile only missing results or rows written by an older processor. */
-export async function backfillStaleRaceResults(options: {
-  gameId: GameId;
-  limit: number;
-  afterSessionId?: number;
-}): Promise<BackfillReport> {
-  const eligibleSessionIds = new Set(
-    await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID),
-  );
+export async function backfillStaleRaceResults(options: { gameId: GameId; limit: number; afterSessionId?: number }): Promise<BackfillReport> {
+  const eligibleSessionIds = new Set(await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID));
   return backfillRaceResults({ ...options, eligibleSessionIds });
 }
 export async function backfillAllRaceResults(): Promise<void> {

@@ -11,19 +11,34 @@ import {
   pickReferenceLap,
 } from "../../../server/experiments/comparison/metrics";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
+import { policyEvidence } from "../../support/experiments/arms";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
  *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */
-const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };
+const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none", requiredPolicyIds: ["normal-pace"] };
 
 function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {
-  return {
+  const candidate = {
+    ...DEFAULT_LAP_CLASSIFICATION,
     lapTime: 90,
     isValid: true,
     invalidReason: null,
     experimentExcluded: false,
     experimentExcludedSource: null,
     ...overrides,
+  };
+  return {
+    ...candidate,
+    ...policyEvidence(
+      {
+        phase: candidate.phase ?? DEFAULT_LAP_CLASSIFICATION.phase,
+        conditions: candidate.conditions ?? DEFAULT_LAP_CLASSIFICATION.conditions,
+        paceEligibility: candidate.paceEligibility ?? DEFAULT_LAP_CLASSIFICATION.paceEligibility,
+      },
+      candidate.isValid,
+      candidate.invalidReason,
+    ),
   };
 }
 
@@ -137,20 +152,38 @@ describe("curation policy is per-metric", () => {
     expect(all.droppedIneligible).toBe(1);
   });
 
-  test("invalid and pit laps are ineligible under both policies", () => {
+  test("invalid and non-pace laps are ineligible under both policies", () => {
     const laps = [
       lap({ id: 1, lapTime: 90.0 }),
       lap({ id: 2, lapTime: 91.0, isValid: false }),
-      lap({ id: 3, lapTime: 120.0, invalidReason: "inlap" }),
+      lap({ id: 3, lapTime: 120.0, phase: "in", paceEligibility: "excluded" }),
       lap({ id: 4, lapTime: 90.4 }),
     ];
 
     for (const curation of [FASTEST_5, OUTCOME_METRICS.consistencySpreadSec.curation]) {
       const pool = curateLaps(laps, curation);
       expect(pool.kept.map((l) => l.id)).toEqual([1, 4]);
-      expect(pool.reasonById.get(2)).toBe("invalid");
-      expect(pool.reasonById.get(3)).toBe("pit");
+      expect(pool.reasonById.get(2)).toBe("non-pace");
+      expect(pool.reasonById.get(3)).toBe("non-pace");
     }
+  });
+
+  test("metadata metrics do not require unrelated trace eligibility", () => {
+    const timedLap = lap({ id: 1, lapTime: 90 });
+    const cornerTrace = timedLap.eligibility?.["corner-trace"];
+    expect(cornerTrace).toBeDefined();
+    timedLap.eligibility = {
+      ...timedLap.eligibility!,
+      "corner-trace": {
+        ...cornerTrace!,
+        status: "ineligible",
+      },
+    };
+
+    for (const metric of [OUTCOME_METRICS.lapTimeSec, OUTCOME_METRICS.consistencySpreadSec]) {
+      expect(curateLaps([timedLap], metric.curation).kept.map(({ id }) => id)).toEqual([1]);
+    }
+    expect(curateLaps([timedLap], OUTCOME_METRICS.lineSpreadScore.curation).kept).toEqual([]);
   });
 });
 

@@ -4,11 +4,12 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/racing/cars/ac-evo"
 import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
-import { LapDetectorAcEvo } from "./lap-detector"
-import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
+import { LAP_DETECTOR_AC_EVO_ID, LapDetectorAcEvo } from "./lap-detector"
+import { parseAcEvoBuffers, createAcEvoParserCache, type AcEvoParserCache } from "./parser";
 import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { buildKunosAiContext } from "../kunos/ai-context";
+import { resolveKunosReplayTimestamp } from "../kunos/replay-clock";
 
 const AC_EVO_SYSTEM_PROMPT = `You are an expert motorsport engineer and data analyst specializing in Assetto Corsa Evo.
 
@@ -86,13 +87,17 @@ export const acEvoServerAdapter: ServerGameAdapter = {
   tryParse(buf: Buffer, state: unknown): TelemetryPacket | null {
     const triplet = unpackTriplet(buf);
     if (!triplet) return null;
-    const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
-    return parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, cache);
+    if (triplet.physics.length < 4) return null;
+    const cache = (state as AcEvoParserCache | null) ?? createAcEvoParserCache();
+    const timestampMS = resolveKunosReplayTimestamp(cache.replayClock, triplet.physics.readInt32LE(0), triplet.timestampMS);
+    return parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, cache, timestampMS);
   },
 
-  createParserState(): ReturnType<typeof createAcEvoParserCache> {
+  createParserState(): AcEvoParserCache {
     return createAcEvoParserCache();
   },
+
+  lapDetectorId: LAP_DETECTOR_AC_EVO_ID,
 
   createLapDetector: (opts) => new LapDetectorAcEvo(opts),
 

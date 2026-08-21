@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
 import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
+import type { EligibilityDecision } from "../../../shared/racing/quality/contracts";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../shared/racing/tuning/issues";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
@@ -142,14 +143,14 @@ interface TelemetryState {
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
   liveIssues: TuneIssue[];
   /** Live Tuning Dashboard: per-lap issue feed, most recent lap first. */
-  lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[] }[];
+  lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[]; eligibility: EligibilityDecision }[];
   setConnected: (connected: boolean) => void;
   setTelemetrySchema: (schema: LiveTelemetrySchemaMessageV1) => void;
   setTelemetryFrame: (frame: LiveTelemetryFrameMessageV1) => void;
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
   setLiveIssues: (issues: TuneIssue[]) => void;
-  addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[] }) => void;
+  addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[]; eligibility: EligibilityDecision }) => void;
   clearTelemetry: () => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
