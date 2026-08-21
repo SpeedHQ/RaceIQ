@@ -16,7 +16,7 @@
 - Show telemetry quality, evidence limits, and analysis suitability per lap, with safe rebuild actions when source recordings remain available
 - Persist simulator-independent participant runs, tire and driver stints, pace segments, lap membership, evidence, and summaries for live and reprocessed sessions, with typed APIs for filtering and comparison
 - Show versioned analysis receipts, current or stale rebuild status, verification failures, and safe whole-session rebuild diagnostics
-- Preserve verified canonical telemetry archives so RaceIQ can safely rebuild session analysis after raw recordings are removed
+- Preserve verified complete canonical telemetry archives so RaceIQ can safely rebuild declared session analysis after raw recordings are removed
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 

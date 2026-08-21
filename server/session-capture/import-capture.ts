@@ -1,8 +1,9 @@
+import { gunzipSync } from "node:zlib";
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { getAllServerGames } from "../games/registry";
-import { decompressIfGzipSync, iterateSessionFrameRecords, iterateSessionFrames, META_FRAME_MAGIC } from "./framing";
+import { iterateSessionFrameRecords, iterateSessionFrames, isGzip, META_FRAME_MAGIC } from "./framing";
+import { MAX_RAW_CAPTURE_BUFFERED_BYTES, MAX_RAW_CAPTURE_EXPANDED_BYTES, sha256ContentHash } from "./identity";
 import { importSessionFrames, InvalidImportDataError, type ImportedLap, type ImportSessionFramesOptions } from "./import-pipeline";
-import { sha256ContentHash } from "./identity";
 
 const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort((a, b) => b.length - a.length);
 
@@ -12,6 +13,18 @@ export function detectGameIdFromFilename(name: string): GameId | null {
     if (name.startsWith(`${id}-`) || name.startsWith(`${id}_`)) return id;
   }
   return null;
+}
+
+function decompressImportCapture(bytes: Buffer): Buffer {
+  if (bytes.byteLength > MAX_RAW_CAPTURE_BUFFERED_BYTES) {
+    throw new InvalidImportDataError(`Import exceeds ${MAX_RAW_CAPTURE_BUFFERED_BYTES} byte buffered limit`);
+  }
+  if (!isGzip(bytes)) return bytes;
+  const decoded = gunzipSync(bytes, { maxOutputLength: MAX_RAW_CAPTURE_EXPANDED_BYTES });
+  if (decoded.byteLength > MAX_RAW_CAPTURE_EXPANDED_BYTES) {
+    throw new InvalidImportDataError(`Import exceeds ${MAX_RAW_CAPTURE_EXPANDED_BYTES} byte expanded limit`);
+  }
+  return decoded;
 }
 
 function* iterateGameDetectionFrames(bytes: Buffer): Generator<Buffer> {
@@ -27,7 +40,7 @@ function* iterateGameDetectionFrames(bytes: Buffer): Generator<Buffer> {
 
 /** Detect a gameId from actual capture frame content. */
 export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
-  const buf = decompressIfGzipSync(bytes);
+  const buf = decompressImportCapture(bytes);
   const games = getAllServerGames();
   let checked = 0;
   for (const frame of iterateGameDetectionFrames(buf)) {
@@ -44,7 +57,7 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
 export async function importSessionBin(bytes: Buffer, gameId: GameId, options: ImportSessionFramesOptions = {}): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   let buf: Buffer;
   try {
-    buf = decompressIfGzipSync(bytes);
+    buf = decompressImportCapture(bytes);
   } catch (cause) {
     throw new InvalidImportDataError("Import compression stream is corrupt", { cause });
   }

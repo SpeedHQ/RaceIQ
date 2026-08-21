@@ -7,11 +7,32 @@ import { getLapsForSession } from "../../db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
-import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
+import { cancelStagedIbt, commitStagedIbt, IbtImportError, MAX_IBT_BYTES, stageIbtUpload } from "../../games/iracing/import-ibt";
+import { MAX_RAW_CAPTURE_BUFFERED_BYTES } from "../../session-capture/identity";
 import { importErrorPayload, TelemetryImportError } from "../../session-capture/import-pipeline";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
+
+const MAX_LAPS_ZIP_UPLOAD_BYTES = MAX_RAW_CAPTURE_BUFFERED_BYTES;
+const MAX_SESSION_BIN_UPLOAD_BYTES = MAX_RAW_CAPTURE_BUFFERED_BYTES;
+const MAX_MOTEC_UPLOAD_BYTES = MAX_RAW_CAPTURE_BUFFERED_BYTES;
+const MAX_MOTEC_SIDECAR_UPLOAD_BYTES = 64 * 1024 * 1024;
+
+function uploadValidationError(
+  file: File,
+  allowedExtensions: readonly string[],
+  maximumBytes: number,
+): string | null {
+  const lowerName = file.name.toLowerCase();
+  if (!allowedExtensions.some((extension) => lowerName.endsWith(extension))) {
+    return `Expected ${allowedExtensions.join(" or ")} file`;
+  }
+  if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > maximumBytes) {
+    return `Upload exceeds the ${maximumBytes / 1024 ** 2} MiB limit`;
+  }
+  return null;
+}
 
 export const transferRoutes = new Hono()
   .get("/api/laps/export-zip", zValidator("query", ExportZipQuerySchema), async (c) => {
@@ -40,9 +61,14 @@ export const transferRoutes = new Hono()
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const lower = file.name.toLowerCase();
-    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+    if (lower.endsWith(".zip")) {
+      const error = uploadValidationError(file, [".zip"], MAX_LAPS_ZIP_UPLOAD_BYTES);
+      if (error) return c.json({ error }, 413);
+      const bytes = Buffer.from(await file.arrayBuffer());
+      if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+        return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "File is not a readable ZIP archive." });
+      }
       try {
         const detection = detectLapsZip(bytes);
         return c.json({
@@ -57,7 +83,9 @@ export const transferRoutes = new Hono()
       }
     }
     if (lower.endsWith(".bin") || lower.endsWith(".bin.gz")) {
-      const gameId = detectGameIdFromBuffer(Buffer.from(bytes));
+      const error = uploadValidationError(file, [".bin", ".bin.gz"], MAX_SESSION_BIN_UPLOAD_BYTES);
+      if (error) return c.json({ error }, 413);
+      const gameId = detectGameIdFromBuffer(Buffer.from(await file.arrayBuffer()));
       return c.json({
         format: "bin" as const,
         supported: gameId != null,
@@ -66,8 +94,16 @@ export const transferRoutes = new Hono()
         message: gameId ? null : "Could not detect a supported game from this capture.",
       });
     }
-    if (lower.endsWith(".ibt")) return c.json({ format: "ibt" as const, supported: true, gameIds: ["iracing"], captureCount: 1, message: null });
-    if (lower.endsWith(".ld")) return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
+    if (lower.endsWith(".ibt")) {
+      const error = uploadValidationError(file, [".ibt"], MAX_IBT_BYTES);
+      if (error) return c.json({ error }, 413);
+      return c.json({ format: "ibt" as const, supported: true, gameIds: ["iracing"], captureCount: 1, message: null });
+    }
+    if (lower.endsWith(".ld")) {
+      const error = uploadValidationError(file, [".ld"], MAX_MOTEC_UPLOAD_BYTES);
+      if (error) return c.json({ error }, 413);
+      return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
+    }
     return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "Unsupported import file." });
   })
   .post("/api/laps/import-zip", async (c) => {
@@ -76,7 +112,8 @@ export const transferRoutes = new Hono()
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
-    if (!file.name.toLowerCase().endsWith(".zip")) return c.json({ error: "Expected a .zip file" }, 400);
+    const uploadError = uploadValidationError(file, [".zip"], MAX_LAPS_ZIP_UPLOAD_BYTES);
+    if (uploadError) return c.json({ error: uploadError }, 413);
     try {
       const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data });
       return c.json(result);
@@ -91,10 +128,8 @@ export const transferRoutes = new Hono()
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
 
     const uploadName = file.name || "upload.bin";
-    const lower = uploadName.toLowerCase();
-    if (!lower.endsWith(".bin") && !lower.endsWith(".bin.gz")) {
-      return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
-    }
+    const uploadError = uploadValidationError(file, [".bin", ".bin.gz"], MAX_SESSION_BIN_UPLOAD_BYTES);
+    if (uploadError) return c.json({ error: uploadError }, 413);
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
     const bytes = Buffer.from(await file.arrayBuffer());
@@ -162,14 +197,22 @@ export const transferRoutes = new Hono()
     if (!file.name.toLowerCase().endsWith(".ld")) {
       return c.json({ error: "Expected a MoTeC .ld file" }, 400);
     }
+    if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_MOTEC_UPLOAD_BYTES) {
+      return c.json({ error: `Upload exceeds the ${MAX_MOTEC_UPLOAD_BYTES / 1024 ** 2} MiB limit` }, 413);
+    }
 
     // The sidecar carries the lap beacons. Without it the log imports as a
     // single unsplit stint, which is correct for a standalone hotlap export.
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     const sidecar = form?.get("ldx");
-    const ldxBytes = sidecar instanceof File
-      ? Buffer.from(await sidecar.arrayBuffer())
-      : undefined;
+    if (sidecar instanceof File) {
+      if (!sidecar.name.toLowerCase().endsWith(".ldx")) {
+        return c.json({ error: "Expected a MoTeC .ldx sidecar file" }, 400);
+      }
+      if (!Number.isSafeInteger(sidecar.size) || sidecar.size < 0 || sidecar.size > MAX_MOTEC_SIDECAR_UPLOAD_BYTES) {
+        return c.json({ error: `Upload exceeds the ${MAX_MOTEC_SIDECAR_UPLOAD_BYTES / 1024 ** 2} MiB limit` }, 413);
+      }
+    }
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
 
     // Car and track are the user's call, not the log header's — a log filed
@@ -208,7 +251,11 @@ export const transferRoutes = new Hono()
     }
 
     try {
-      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxBytes, {
+      const [bytes, ldxBytes] = await Promise.all([
+        file.arrayBuffer(),
+        sidecar instanceof File ? sidecar.arrayBuffer() : undefined,
+      ]);
+      const result = await importMotec(Buffer.from(bytes), ldxBytes ? Buffer.from(ldxBytes) : undefined, {
         gameId: target.gameId,
         carOrdinal,
         trackOrdinal,

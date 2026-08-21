@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { RaceEventIdSchema } from "../events/contracts";
+import { isTelemetryVariableId } from "../../telemetry/catalog/query";
+import type { TelemetryVariableId } from "../../telemetry/catalog/generated/telemetry-catalog.types";
 import type { TelemetryVersionIdentity } from "../../telemetry/version";
 
 export const CANONICAL_ARCHIVE_SCHEMA_VERSION = "canonical-archive-v1" as const;
@@ -160,14 +163,29 @@ export const CanonicalArchiveVerificationSchema = z.strictObject({
 });
 export type CanonicalArchiveVerification = z.infer<typeof CanonicalArchiveVerificationSchema>;
 
+const TelemetryVariableIdSchema = z.custom<TelemetryVariableId>(
+  (value) => typeof value === "string" && isTelemetryVariableId(value),
+  { message: "Unknown telemetry variable ID" },
+);
+
+export const CanonicalArchiveProvenanceSchema = z.strictObject({
+  archiveIdentity: z.string().min(1),
+  schemaIdentity: z.string().min(1),
+  configIdentity: Sha256Schema,
+  sourceIdentity: Sha256Schema,
+  outputIdentity: Sha256Schema,
+});
+export type CanonicalArchiveProvenance = z.infer<typeof CanonicalArchiveProvenanceSchema>;
+
 export const CanonicalArchiveAvailabilitySchema = z.strictObject({
   state: z.enum(["available", "unavailable", "unknown"]),
   status: CanonicalArchiveStatusSchema.nullable(),
   completeness: z.enum(["complete", "partial", "empty", "unavailable"]).nullable(),
   archiveId: z.string().min(1).nullable(),
   generationId: z.string().min(1).nullable(),
-  semanticIds: z.array(z.string()),
-  eventIds: z.array(z.string()),
+  semanticIds: z.array(TelemetryVariableIdSchema),
+  eventIds: z.array(RaceEventIdSchema),
+  provenance: CanonicalArchiveProvenanceSchema.nullable(),
   details: z.string().nullable(),
 });
 export type CanonicalArchiveAvailability = z.infer<typeof CanonicalArchiveAvailabilitySchema>;

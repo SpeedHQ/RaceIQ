@@ -14,6 +14,7 @@ import {
 import { db } from "./index";
 import {
   analysisReceipts,
+  canonicalArchives,
   laps,
   raceEvents,
   sessionResults,
@@ -211,7 +212,28 @@ async function activateWithClient(
   if (receipt.verification.some((check) => check.status === "failed")) {
     throw new Error("Analysis receipt contains failed verification checks");
   }
-  if (pending.sourceContentHash !== receipt.evidence.contentHash) {
+  if (pending.artifactSetType === "canonical_archive") {
+    const archiveOutput = receipt.outputs.find((entry) => entry.artifactType === "canonical_archive");
+    const archive = await tx
+      .select({
+        sourceContentHash: canonicalArchives.sourceContentHash,
+        outputContentHash: canonicalArchives.outputContentHash,
+      })
+      .from(canonicalArchives)
+      .where(and(
+        eq(canonicalArchives.archiveId, receipt.evidence.objectId),
+        eq(canonicalArchives.sessionId, pending.sessionId),
+        eq(canonicalArchives.generationId, pending.generationId),
+      ))
+      .get();
+    if (
+      !archive
+      || archive.sourceContentHash !== pending.sourceContentHash
+      || archive.outputContentHash == null
+      || receipt.evidence.contentHash !== archive.outputContentHash
+      || archiveOutput?.contentHash !== archive.outputContentHash
+    ) throw new Error("Canonical archive identities do not match generation attempt");
+  } else if (pending.sourceContentHash !== receipt.evidence.contentHash) {
     throw new Error("Analysis receipt source hash does not match generation attempt");
   }
   if (receipt.receiptSchemaVersion !== pending.receiptSchemaVersion) {
@@ -256,7 +278,7 @@ async function activateWithClient(
     .update(analysisReceipts)
     .set({
       lifecycle: "active",
-      sourceContentHash: receipt.evidence.contentHash,
+      sourceContentHash: pending.sourceContentHash,
       receipt,
       failure: null,
       completedAt,

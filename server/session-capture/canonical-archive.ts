@@ -1,6 +1,7 @@
 import { DuckDBInstance } from "@duckdb/node-api";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -24,20 +25,35 @@ import {
 import { getActiveAnalysisReceipt, type AnalysisReceiptRow } from "../db/analysis-receipt-queries";
 import { db } from "../db/index";
 import { readCanonicalArchiveSamples } from "../db/canonical-archive-reader";
-import { enqueueCanonicalArchiveJob, getActiveVerifiedCanonicalArchive } from "../db/canonical-archive-queries";
+import {
+  assertCanonicalArchiveJobLease,
+  enqueueCanonicalArchiveJob,
+  getActiveVerifiedCanonicalArchive,
+  type CanonicalArchiveJobLease,
+} from "../db/canonical-archive-queries";
 import { getCorners } from "../db/track-queries";
 import { canonicalArchiveNodes, canonicalArchives, laps, sessionRuns, sessions } from "../db/schema";
-import { getSessionTelemetry, getSessionRawFile } from "../db/telemetry-replay-storage";
+import { getSessionRawFile } from "../db/telemetry-replay-storage";
 import { currentAnalysisContract } from "../analysis-provenance/current-contract";
 import { analysisCanonicalHash, analysisContractHash } from "../analysis-provenance/hash";
 import { resolveTrack } from "../tracks/info";
 import { activateCanonicalArchiveReceipt } from "../analysis-provenance/receipt";
+import { getServerGame } from "../games/registry";
+import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { resolveDataDir } from "../runtime/config/data-dir";
-import { loadRawCaptureIdentity } from "./identity";
+import { inspectRawCaptureIdentity, iterateRawCaptureBytes } from "./identity";
+import { META_FRAME_MAGIC } from "./framing";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 
 const ARCHIVE_DIR = "archives/sessions";
 const SAMPLE_TABLE = "telemetry_samples";
+const DUCKDB_MEMORY_LIMIT = "512MB";
+const DUCKDB_THREADS = 1;
+const APPENDER_BATCH_SIZE = 4_096;
+const MAX_CANONICAL_ARCHIVE_PACKETS = 500_000;
+const MAX_CANONICAL_PACKET_JSON_BYTES = 256 * 1024;
+const MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES = 512 * 1024 * 1024;
+const MAX_CANONICAL_ARCHIVE_BYTES = 512 * 1024 * 1024;
 
 interface SampleRow {
   sampleOrdinal: number;
@@ -77,8 +93,22 @@ function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-function sha256File(bytes: Uint8Array): string {
-  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+async function sha256ArchiveFile(path: string): Promise<{ contentHash: string; byteSize: number }> {
+  const expectedSize = Bun.file(path).size;
+  if (expectedSize > MAX_CANONICAL_ARCHIVE_BYTES) {
+    throw new Error(`Canonical archive exceeds ${MAX_CANONICAL_ARCHIVE_BYTES} byte limit`);
+  }
+  const hash = createHash("sha256");
+  let byteSize = 0;
+  for await (const chunk of createReadStream(path)) {
+    byteSize += chunk.byteLength;
+    if (byteSize > MAX_CANONICAL_ARCHIVE_BYTES) {
+      throw new Error(`Canonical archive exceeds ${MAX_CANONICAL_ARCHIVE_BYTES} byte limit`);
+    }
+    hash.update(chunk);
+  }
+  if (byteSize !== expectedSize) throw new Error("Canonical archive changed while hashing");
+  return { contentHash: `sha256:${hash.digest("hex")}`, byteSize };
 }
 
 function archiveIdFor(sessionId: number, sourceHash: string, generationId: string): string {
@@ -234,13 +264,6 @@ function actualSemanticIds(gameId: GameId, packets: readonly TelemetryPacket[], 
   return candidates.filter((id) => available.has(id));
 }
 
-function requiredSemanticIds(): string[] {
-  const ids = new Set<string>();
-  for (const channels of Object.values(QUALITY_POLICY_CONFIG_V1.requiredChannels)) {
-    for (const id of channels) ids.add(id);
-  }
-  return [...ids];
-}
 
 async function writeParquet(
   stagePath: string,
@@ -249,6 +272,8 @@ async function writeParquet(
   const instance = await DuckDBInstance.create(":memory:");
   const connection = await instance.connect();
   try {
+    await connection.run(`SET memory_limit = '${DUCKDB_MEMORY_LIMIT}'`);
+    await connection.run(`SET threads = ${DUCKDB_THREADS}`);
     await connection.run(`CREATE TABLE ${SAMPLE_TABLE} (
       sample_ordinal BIGINT,
       participant_id VARCHAR,
@@ -277,8 +302,10 @@ async function writeParquet(
       else appender.appendDouble(sample.trackDistancePct);
       appender.appendVarchar(sample.packetJson);
       appender.endRow();
+      if ((sample.sampleOrdinal + 1) % APPENDER_BATCH_SIZE === 0) appender.flushSync();
     }
     appender.flushSync();
+    appender.closeSync();
     await connection.run(`COPY ${SAMPLE_TABLE} TO ${sqlString(stagePath)} (FORMAT PARQUET, COMPRESSION ZSTD)`);
   } finally {
     connection.closeSync();
@@ -289,31 +316,107 @@ export async function verifyCanonicalArchiveParquet(path: string, expectedRows: 
   const instance = await DuckDBInstance.create(":memory:");
   const connection = await instance.connect();
   try {
+    await connection.run(`SET memory_limit = '${DUCKDB_MEMORY_LIMIT}'`);
+    await connection.run(`SET threads = ${DUCKDB_THREADS}`);
     const file = sqlString(path);
-    const countReader = await connection.runAndReadAll(`SELECT count(*) AS count FROM read_parquet(${file})`);
-    await countReader.readAll();
-    const count = Number(countReader.getRowObjectsJS()[0]?.count ?? 0);
+    const reader = await connection.runAndReadAll(`SELECT
+      count(*) AS count,
+      min(sample_ordinal) AS min_ordinal,
+      max(sample_ordinal) AS max_ordinal,
+      count(DISTINCT sample_ordinal) AS distinct_ordinal_count,
+      sum(CASE WHEN NOT json_valid(packet_json) OR json_type(CASE WHEN json_valid(packet_json) THEN packet_json ELSE '{}' END, '$.gameId') <> 'VARCHAR' OR json_extract_string(CASE WHEN json_valid(packet_json) THEN packet_json ELSE '{}' END, '$.gameId') IS NULL OR length(json_extract_string(CASE WHEN json_valid(packet_json) THEN packet_json ELSE '{}' END, '$.gameId')) = 0 THEN 1 ELSE 0 END) AS invalid_packet_count
+      FROM read_parquet(${file})`);
+    await reader.readAll();
+    const aggregate = reader.getRowObjectsJS()[0] ?? {};
+    const count = Number(aggregate.count ?? 0);
+    const minOrdinal = Number(aggregate.min_ordinal ?? -1);
+    const maxOrdinal = Number(aggregate.max_ordinal ?? -1);
+    const distinctOrdinalCount = Number(aggregate.distinct_ordinal_count ?? 0);
+    const invalidPacketCount = Number(aggregate.invalid_packet_count ?? 0);
     if (count !== expectedRows) throw new Error(`Canonical archive row count mismatch: expected ${expectedRows}, got ${count}`);
-    const orderReader = await connection.runAndReadAll(`SELECT sample_ordinal, source_time_ms FROM read_parquet(${file}) ORDER BY sample_ordinal`);
-    await orderReader.readAll();
-    const rows = orderReader.getRowsJS();
-    for (let index = 0; index < rows.length; index += 1) {
-      const ordinal = Number(rows[index]?.[0]);
-      if (ordinal !== index) throw new Error(`Canonical archive sample ordering mismatch at row ${index}`);
+    if (count > 0 && (minOrdinal !== 0 || maxOrdinal !== count - 1 || distinctOrdinalCount !== count)) {
+      throw new Error("Canonical archive sample ordering mismatch");
     }
-    const archiveRows = await readCanonicalArchiveSamples(path, 0, expectedRows);
-    if (archiveRows.length !== expectedRows) throw new Error(`Canonical archive reader row count mismatch: expected ${expectedRows}, got ${archiveRows.length}`);
-    for (const row of archiveRows) {
-      const packet: unknown = JSON.parse(row.packetJson);
-      if (!packet || typeof packet !== "object" || !("gameId" in packet) || typeof packet.gameId !== "string") {
-        throw new Error(`Canonical archive packet JSON is invalid at row ${row.sampleOrdinal}`);
-      }
+    if (invalidPacketCount !== 0) throw new Error(`Canonical archive contains ${invalidPacketCount} invalid packet JSON rows`);
+    if (expectedRows > 0) {
+      const firstPage = await readCanonicalArchiveSamples(path, 0, 1);
+      const lastPage = await readCanonicalArchiveSamples(path, expectedRows - 1, expectedRows);
+      if (firstPage.length !== 1 || lastPage.length !== 1) throw new Error("Canonical archive reader cannot read bounded pages");
     }
-    await connection.run(`SELECT packet_json FROM read_parquet(${file}) LIMIT 1`);
   } finally {
     connection.closeSync();
     instance.closeSync();
   }
+}
+
+let canonicalArchiveBuildHookForTest: (() => void | Promise<void>) | undefined;
+
+/** Narrow test seam: runs after source parse and before source revalidation. */
+export function setCanonicalArchiveBuildHookForTest(hook: (() => void | Promise<void>) | undefined): () => void {
+  canonicalArchiveBuildHookForTest = hook;
+  return () => {
+    if (canonicalArchiveBuildHookForTest === hook) canonicalArchiveBuildHookForTest = undefined;
+  };
+}
+
+async function readCanonicalRawPackets(rawFile: string, gameId: GameId): Promise<TelemetryPacket[]> {
+  const game = getServerGame(gameId);
+  const state = game.createParserState?.() ?? null;
+  const packets: TelemetryPacket[] = [];
+  let pending: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+  let sawLeadingHeader = false;
+  let sawRecord = false;
+  let declaredFrameCount: number | null = null;
+  let frameCount = 0;
+
+  for await (const chunk of iterateRawCaptureBytes(rawFile)) {
+    pending = pending.length === 0 ? chunk : Buffer.concat([pending, chunk]);
+    let offset = 0;
+    while (pending.length - offset >= 4) {
+      const frameLength = pending.readUInt32LE(offset);
+      if (frameLength === META_FRAME_MAGIC) {
+        if (pending.length - offset < 8) break;
+        const metadataLength = pending.readUInt32LE(offset + 4);
+        if (metadataLength !== 4) throw new Error(`Invalid recorder metadata payload length ${metadataLength}`);
+        if (pending.length - offset < 8 + metadataLength) break;
+        if (!sawLeadingHeader && !sawRecord) {
+          declaredFrameCount = pending.readUInt32LE(offset + 8);
+          sawLeadingHeader = true;
+        }
+        offset += 8 + metadataLength;
+        continue;
+      }
+      if (frameLength === 0 || frameLength > MAX_CANONICAL_PACKET_JSON_BYTES) {
+        throw new Error(`Canonical archive frame exceeds ${MAX_CANONICAL_PACKET_JSON_BYTES} byte limit`);
+      }
+      if (pending.length - offset < 4 + frameLength) break;
+      frameCount++;
+      sawRecord = true;
+      if (frameCount > MAX_CANONICAL_ARCHIVE_PACKETS) {
+        throw new Error(`Canonical archive exceeds ${MAX_CANONICAL_ARCHIVE_PACKETS} frame limit`);
+      }
+      const frame = pending.subarray(offset + 4, offset + 4 + frameLength);
+      offset += 4 + frameLength;
+      try {
+        const packet = game.tryParse(frame, state);
+        if (!packet) continue;
+        normalizeTelemetryPacket(packet, game.coordSystem === "standard-xyz", game.runtime.normSuspensionTravelMm);
+        packets.push(packet);
+        if (packets.length > MAX_CANONICAL_ARCHIVE_PACKETS) {
+          throw new Error(`Canonical archive exceeds ${MAX_CANONICAL_ARCHIVE_PACKETS} packet limit`);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith("Canonical archive exceeds")) throw error;
+        // Match native replay semantics: one malformed frame does not poison readable capture.
+      }
+    }
+    if (offset > 0) pending = pending.subarray(offset);
+  }
+  if (pending.length > 0) throw new Error("Canonical archive source has a truncated frame");
+  if (declaredFrameCount !== null && declaredFrameCount !== 0 && declaredFrameCount !== frameCount) {
+    throw new Error(`Canonical archive source declares ${declaredFrameCount} frames, found ${frameCount}`);
+  }
+  return packets;
 }
 
 async function buildRows(sessionId: number, packets: readonly TelemetryPacket[]): Promise<{ samples: SampleRow[]; nodes: CanonicalArchiveNode[]; semanticIds: string[]; completeness: "complete" | "partial"; context: ArchiveWriteResult["context"] }> {
@@ -339,11 +442,23 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
   }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(asc(laps.lapNumber), asc(laps.id));
   const lapByNumber = new Map<number, typeof persistedLaps[number]>();
   for (const lap of persistedLaps) if (!lapByNumber.has(lap.lapNumber)) lapByNumber.set(lap.lapNumber, lap);
-  const samples: SampleRow[] = packets.map((packet, sampleOrdinal) => {
+  const samples: SampleRow[] = new Array(packets.length);
+  let packetJsonBytes = 0;
+  for (let sampleOrdinal = 0; sampleOrdinal < packets.length; sampleOrdinal += 1) {
+    const packet = packets[sampleOrdinal]!;
+    const packetJson = JSON.stringify(packet);
+    const jsonBytes = Buffer.byteLength(packetJson);
+    if (jsonBytes > MAX_CANONICAL_PACKET_JSON_BYTES) {
+      throw new Error(`Canonical archive packet ${sampleOrdinal} exceeds ${MAX_CANONICAL_PACKET_JSON_BYTES} JSON byte limit`);
+    }
+    packetJsonBytes += jsonBytes;
+    if (packetJsonBytes > MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES) {
+      throw new Error(`Canonical archive exceeds ${MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES} packet JSON byte limit`);
+    }
     const lapNumber = packetLapNumber(packet);
     const sourceTimeMs = sourceTime(packet);
     const lap = lapNumber == null ? undefined : lapByNumber.get(lapNumber);
-    return {
+    samples[sampleOrdinal] = {
       sampleOrdinal,
       participantId: participantForTime(sourceTimeMs, runs),
       lapId: lap?.id ?? null,
@@ -352,9 +467,9 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
       receivedAtMs: sourceTimeMs,
       trackDistanceM: packetDistance(packet),
       trackDistancePct: null,
-      packetJson: JSON.stringify(packet),
+      packetJson,
     };
-  });
+  }
   if (samples.length === 0) throw new Error("Canonical archive contains zero readable telemetry samples");
   const archiveId = "pending";
   const nodes: CanonicalArchiveNode[] = [];
@@ -513,7 +628,10 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
       }));
     }
   }
-  const completeness = runs.some((run) => run.status === "incomplete") ? "partial" : "complete";
+  // Complete means every readable raw packet reached canonical storage. Session
+  // run lifecycle describes racing state, not archive byte coverage; partial is
+  // reserved for future explicitly lossy source adapters.
+  const completeness = "complete" as const;
   return {
     samples,
     nodes,
@@ -536,7 +654,6 @@ async function writeArchive(input: {
   gameId: GameId;
   sourceContentHash: string;
   generationId: string;
-  rawFile: string;
   packets: readonly TelemetryPacket[];
 }): Promise<ArchiveWriteResult> {
   const archiveId = archiveIdFor(input.sessionId, input.sourceContentHash, input.generationId);
@@ -570,15 +687,14 @@ async function writeArchive(input: {
   try {
     await writeParquet(stagePath, built.samples);
     await verifyCanonicalArchiveParquet(stagePath, built.samples.length);
-    const bytes = Buffer.from(await Bun.file(stagePath).arrayBuffer());
-    const outputContentHash = sha256File(bytes);
+    const output = await sha256ArchiveFile(stagePath);
     await rename(stagePath, finalPath);
     return {
       archiveId,
       generationId: input.generationId,
       finalPath,
-      outputContentHash,
-      byteSize: bytes.byteLength,
+      outputContentHash: output.contentHash,
+      byteSize: output.byteSize,
       samples: built.samples,
       nodes,
       semanticIds: built.semanticIds,
@@ -596,8 +712,6 @@ function receiptChecks(input: Pick<ArchiveWriteResult, "semanticIds" | "samples"
   const ids = [
     "source_hash", "schema_supported", "session_identity", "participant_identity", "ordering", "coverage", "channel_inventory", "partitions_readable", "analyse_read", "compare_read", "storage_state",
   ] as const satisfies readonly AnalysisVerificationCheckId[];
-  const missing = requiredSemanticIds().filter((id) => !input.semanticIds.includes(id));
-  if (missing.length > 0) throw new Error(`Canonical archive verification missing channels: ${missing.join(", ")}`);
   if (input.samples.length === 0 || input.nodes.some((node) => node.startRow < 0 || node.endRow > input.samples.length || node.endRow < node.startRow)) {
     throw new Error("Canonical archive verification found invalid row coverage");
   }
@@ -612,155 +726,186 @@ function sourceKind(value: string | null): "native-live" | "raceiq-raw" | "racei
 }
 
 function lapCoverage(samples: readonly SampleRow[]): { start: number; end: number } | null {
-  const numbers = samples.flatMap((sample) => sample.lapNumber == null ? [] : [sample.lapNumber]);
-  if (numbers.length === 0) return null;
-  return { start: Math.min(...numbers), end: Math.max(...numbers) };
+  let start: number | null = null;
+  let end: number | null = null;
+  for (const sample of samples) {
+    if (sample.lapNumber == null) continue;
+    start = start == null ? sample.lapNumber : Math.min(start, sample.lapNumber);
+    end = end == null ? sample.lapNumber : Math.max(end, sample.lapNumber);
+  }
+  return start == null || end == null ? null : { start, end };
+}
+function participantCoverage(samples: readonly SampleRow[]): string[] {
+  const participants = new Set<string>();
+  for (const sample of samples) if (sample.participantId != null) participants.add(sample.participantId);
+  return [...participants];
 }
 
-async function buildAndActivate(input: { sessionId: number; sourceContentHash: string; gameId: GameId; rawFile: string }): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow }> {
-  let written: ArchiveWriteResult | null = null;
-  let archiveWritten = false;
-  const contract = currentAnalysisContract(input.gameId);
-  const analysisComponents: AnalysisComponentIdentity[] = [
-    ...contract.analysisComponents,
-    {
-      id: "canonical-archive",
-      version: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
-      schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
-    },
-  ].sort((left, right) => left.id.localeCompare(right.id));
-  const contractHash = analysisContractHash({
-    receiptSchemaVersion: ANALYSIS_RECEIPT_SCHEMA_VERSION,
-    telemetryVersion: contract.telemetryVersion,
-    analysisComponents,
-  });
-  let receipt: AnalysisReceiptRow;
-  try {
-    receipt = await activateCanonicalArchiveReceipt({
+
+async function buildAndActivate(input: { sessionId: number; sourceContentHash: string; gameId: GameId; sourceChannelProfile: typeof sessions.$inferSelect["sourceChannelProfile"]; rawFile: string; lease: CanonicalArchiveJobLease }): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow }> { let written: ArchiveWriteResult | null = null;
+let archiveWritten = false;
+const contract = currentAnalysisContract(input.gameId, input.sourceChannelProfile);
+const analysisComponents: AnalysisComponentIdentity[] = [
+  ...contract.analysisComponents,
+  {
+    id: "canonical-archive",
+    version: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
+    schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+  },
+].sort((left, right) => left.id.localeCompare(right.id));
+const contractHash = analysisContractHash({
+  receiptSchemaVersion: ANALYSIS_RECEIPT_SCHEMA_VERSION,
+  telemetryVersion: contract.telemetryVersion,
+  analysisComponents,
+});
+let receipt: AnalysisReceiptRow;
+try {
+  receipt = await activateCanonicalArchiveReceipt({
+    sessionId: input.sessionId,
+    sourceContentHash: input.sourceContentHash,
+    contractHash,
+    configurationHash: contract.configurationHash,
+    buildReceipt: async (attempt) => {
+      const identityBefore = await inspectRawCaptureIdentity(input.rawFile);
+      if (!identityBefore || identityBefore.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed before build");
+      const packets = await readCanonicalRawPackets(input.rawFile, input.gameId);
+      written = await writeArchive({ sessionId: input.sessionId, gameId: input.gameId, sourceContentHash: input.sourceContentHash, generationId: attempt.generationId, packets });
+      archiveWritten = true;
+      await canonicalArchiveBuildHookForTest?.();
+      const identityAfter = await inspectRawCaptureIdentity(input.rawFile);
+      if (!identityAfter || identityAfter.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed during build");
+    const archiveBuild = written;
+    if (!archiveBuild) throw new Error("Canonical archive build returned no archive");
+    await db.transaction(async (tx) => {
+      await assertCanonicalArchiveJobLease(input.lease, tx);
+      await tx.insert(canonicalArchives).values([{
+      archiveId: archiveBuild.archiveId,
       sessionId: input.sessionId,
+      generationId: attempt.generationId,
+      status: "building",
+      archivePath: archiveBuild.finalPath,
+      schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+      algorithmVersion: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
       sourceContentHash: input.sourceContentHash,
+      outputContentHash: archiveBuild.outputContentHash,
+      byteSize: archiveBuild.byteSize,
+      sampleCount: archiveBuild.samples.length,
+      nodeCount: archiveBuild.nodes.length,
+      semanticIds: archiveBuild.semanticIds,
+      context: archiveBuild.context,
+      manifest: archiveBuild.manifest,
+      completeness: archiveBuild.manifest.completeness,
+      verification: { status: "passed", checks: receiptChecks(archiveBuild), verifiedAt: new Date().toISOString(), details: null },
+      createdAt: archiveBuild.manifest.createdAt,
+      verifiedAt: null,
+      failure: null,
+      }]);
+      await tx.insert(canonicalArchiveNodes).values(archiveBuild.nodes.map((node) => ({
+      nodeId: node.nodeId,
+      archiveId: archiveBuild.archiveId,
+      parentNodeId: node.parentNodeId,
+      level: node.level,
+      semanticKind: node.semanticKind,
+      stableKey: node.stableKey,
+      ordinal: node.ordinal,
+      participantId: node.participantId,
+      sessionRunId: node.sessionRunId,
+      lapId: node.lapId,
+      startRow: node.startRow,
+      endRow: node.endRow,
+      startSourceTimeMs: node.startSourceTimeMs,
+      endSourceTimeMs: node.endSourceTimeMs,
+      startTrackDistanceM: node.startTrackDistanceM,
+      endTrackDistanceM: node.endTrackDistanceM,
+      status: node.status,
+      definitionHash: node.definitionHash,
+      boundaryAlgorithmVersion: node.boundaryAlgorithmVersion,
+      })));
+    });
+    return {
+      receiptSchemaVersion: "analysis-receipt-v1",
+      generationId: attempt.generationId,
+      artifactSetId: attempt.artifactSetId,
+      artifactSetType: "canonical_archive",
+      generation: attempt.generation,
+      lifecycle: "active",
+      sessionId: input.sessionId,
+      participantId: null,
+      evidence: {
+        kind: "canonical-archive",
+        originalSourceKind: sourceKind(archiveBuild.context.sourceKind),
+        objectId: archiveBuild.archiveId,
+        contentHash: archiveBuild.outputContentHash,
+        byteSize: archiveBuild.byteSize,
+        formatVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+        recordCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length },
+      },
+      telemetryVersion: contract.telemetryVersion,
+      analysisComponents,
+      configuration: { hash: contract.configurationHash, effective: JSON.parse(JSON.stringify(contract.effectiveConfiguration)) },
+      context: {
+        gameId: archiveBuild.context.gameId,
+        trackId: archiveBuild.context.trackId,
+        layoutId: archiveBuild.context.layoutId,
+        trackDefinitionHash: archiveBuild.context.trackDefinitionHash,
+        cornerDefinitionHash: archiveBuild.context.cornerDefinitionHash,
+      },
+      sourceFidelity: { profileVersion: null, decisions: [] },
+      outputs: [{ name: "telemetry.parquet", artifactType: "canonical_archive", schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION, count: archiveBuild.samples.length, contentHash: archiveBuild.outputContentHash, timeCoverageMs: { start: archiveBuild.samples[0].sourceTimeMs, end: archiveBuild.samples.at(-1)!.sourceTimeMs }, lapCoverage: lapCoverage(archiveBuild.samples), participantCoverage: participantCoverage(archiveBuild.samples), trackDistanceCoverageM: { start: archiveBuild.samples.find((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null, end: archiveBuild.samples.findLast((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null }}],
+      canonicalInventory: { semanticIds: archiveBuild.semanticIds, eventIds: archiveBuild.eventIds, rowCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length } },
+      warnings: [],
+      unsupportedFields: [],
+      rebuildCapability: { mode: "limited", sourceKind: "canonical-archive", rebuildableArtifacts: ["canonical_archive", "laps", "race_events", "session_runs", "race_result", "quality", "lap_metrics", "findings", "lap_analysis", "comparison_analysis", "report"], unavailableArtifacts: ["driver_profile"], limitations: ["Exact native-source reprocessing requires retained raw evidence"] },
+      verification: receiptChecks(archiveBuild),
       contractHash,
-      configurationHash: contract.configurationHash,
-      buildReceipt: async (attempt) => {
-        const identityBefore = await loadRawCaptureIdentity(input.rawFile);
-        if (!identityBefore || identityBefore.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed before build");
-        const packets = await getSessionTelemetry(input.sessionId, input.gameId, { preferArchive: false });
-        const identityAfter = await loadRawCaptureIdentity(input.rawFile);
-        if (!identityAfter || identityAfter.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed during build");
-        written = await writeArchive({ sessionId: input.sessionId, gameId: input.gameId, sourceContentHash: input.sourceContentHash, generationId: attempt.generationId, rawFile: input.rawFile, packets });
-        archiveWritten = true;
+      startedAt: attempt.startedAt,
+      completedAt: new Date().toISOString(),
+      activatedAt: new Date().toISOString(),
+    };
+    },
+    beforeActivate: async (tx) => {
       const archiveBuild = written;
       if (!archiveBuild) throw new Error("Canonical archive build returned no archive");
-      const missingRequiredChannels = requiredSemanticIds().filter((id) => !archiveBuild.semanticIds.includes(id));
-      if (missingRequiredChannels.length > 0) {
-        throw new Error(`Canonical archive is missing required channels: ${missingRequiredChannels.join(", ")}`);
+      await assertCanonicalArchiveJobLease(input.lease, tx);
+      const session = await tx.select({ recordingQuality: sessions.recordingQuality })
+        .from(sessions)
+        .where(eq(sessions.id, input.sessionId))
+        .get();
+      if (!session) throw new Error(`Session ${input.sessionId} not found`);
+      if (session.recordingQuality) {
+        await tx.update(sessions).set({
+          recordingQuality: {
+            ...session.recordingQuality,
+            canonicalVerification: {
+              state: "verified",
+              sourceGeneration: archiveBuild.outputContentHash,
+              details: "Verified canonical Parquet output",
+            },
+          },
+        }).where(eq(sessions.id, input.sessionId));
       }
-      await db.transaction(async (tx) => {
-        await tx.insert(canonicalArchives).values([{
-        archiveId: archiveBuild.archiveId,
-        sessionId: input.sessionId,
-        generationId: attempt.generationId,
-        status: "building",
-        archivePath: archiveBuild.finalPath,
-        schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
-        algorithmVersion: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
-        sourceContentHash: input.sourceContentHash,
-        outputContentHash: archiveBuild.outputContentHash,
-        byteSize: archiveBuild.byteSize,
-        sampleCount: archiveBuild.samples.length,
-        nodeCount: archiveBuild.nodes.length,
-        semanticIds: archiveBuild.semanticIds,
-        context: archiveBuild.context,
-        manifest: archiveBuild.manifest,
-        completeness: archiveBuild.manifest.completeness,
-        verification: { status: "passed", checks: receiptChecks(archiveBuild), verifiedAt: new Date().toISOString(), details: null },
-        createdAt: archiveBuild.manifest.createdAt,
-        verifiedAt: null,
-        failure: null,
-        }]);
-        await tx.insert(canonicalArchiveNodes).values(archiveBuild.nodes.map((node) => ({
-        nodeId: node.nodeId,
-        archiveId: archiveBuild.archiveId,
-        parentNodeId: node.parentNodeId,
-        level: node.level,
-        semanticKind: node.semanticKind,
-        stableKey: node.stableKey,
-        ordinal: node.ordinal,
-        participantId: node.participantId,
-        sessionRunId: node.sessionRunId,
-        lapId: node.lapId,
-        startRow: node.startRow,
-        endRow: node.endRow,
-        startSourceTimeMs: node.startSourceTimeMs,
-        endSourceTimeMs: node.endSourceTimeMs,
-        startTrackDistanceM: node.startTrackDistanceM,
-        endTrackDistanceM: node.endTrackDistanceM,
-        status: node.status,
-        definitionHash: node.definitionHash,
-        boundaryAlgorithmVersion: node.boundaryAlgorithmVersion,
-        })));
-      });
-      return {
-        receiptSchemaVersion: "analysis-receipt-v1",
-        generationId: attempt.generationId,
-        artifactSetId: attempt.artifactSetId,
-        artifactSetType: "canonical_archive",
-        generation: attempt.generation,
-        lifecycle: "active",
-        sessionId: input.sessionId,
-        participantId: null,
-        evidence: {
-          kind: "canonical-archive",
-          originalSourceKind: sourceKind(archiveBuild.context.sourceKind),
-          objectId: archiveBuild.archiveId,
-          contentHash: input.sourceContentHash,
-          byteSize: identityAfter.bytes.byteLength,
-          formatVersion: "raceiq-raw-v1",
-          recordCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length },
-        },
-        telemetryVersion: contract.telemetryVersion,
-        analysisComponents,
-        configuration: { hash: contract.configurationHash, effective: JSON.parse(JSON.stringify(contract.effectiveConfiguration)) },
-        context: {
-          gameId: archiveBuild.context.gameId,
-          trackId: archiveBuild.context.trackId,
-          layoutId: archiveBuild.context.layoutId,
-          trackDefinitionHash: archiveBuild.context.trackDefinitionHash,
-          cornerDefinitionHash: archiveBuild.context.cornerDefinitionHash,
-        },
-        sourceFidelity: { profileVersion: null, decisions: [] },
-        outputs: [{ name: "telemetry.parquet", artifactType: "canonical_archive", schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION, count: archiveBuild.samples.length, contentHash: archiveBuild.outputContentHash, timeCoverageMs: { start: archiveBuild.samples[0].sourceTimeMs, end: archiveBuild.samples.at(-1)!.sourceTimeMs }, lapCoverage: lapCoverage(archiveBuild.samples), participantCoverage: [...new Set(archiveBuild.samples.map((sample) => sample.participantId).filter((id): id is string => id != null))], trackDistanceCoverageM: { start: archiveBuild.samples.find((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null, end: archiveBuild.samples.findLast((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null }}],
-        canonicalInventory: { semanticIds: archiveBuild.semanticIds, eventIds: archiveBuild.eventIds, rowCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length } },
-        warnings: [],
-        unsupportedFields: [],
-        rebuildCapability: { mode: "limited", sourceKind: "canonical-archive", rebuildableArtifacts: ["canonical_archive", "laps", "race_events", "session_runs", "race_result", "quality", "lap_metrics", "findings", "lap_analysis", "comparison_analysis", "report"], unavailableArtifacts: ["driver_profile"], limitations: ["Exact native-source reprocessing requires retained raw evidence"] },
-        verification: receiptChecks(archiveBuild),
-        contractHash,
-        startedAt: attempt.startedAt,
-        completedAt: new Date().toISOString(),
-        activatedAt: new Date().toISOString(),
-      };
+      const activated = await tx.update(canonicalArchives).set({
+        status: archiveBuild.manifest.completeness === "partial" ? "partial" : "verified",
+        verifiedAt: new Date().toISOString(),
+      }).where(and(
+        eq(canonicalArchives.archiveId, archiveBuild.archiveId),
+        eq(canonicalArchives.status, "building"),
+      )).returning({ archiveId: canonicalArchives.archiveId });
+      if (activated.length !== 1) throw new Error("Canonical archive was not ready for activation");
     },
-    });
-    const activatedAt = new Date().toISOString();
-    const activatedArchive = written as unknown as ArchiveWriteResult;
-    await db.update(canonicalArchives).set({ status: activatedArchive.manifest.completeness === "partial" ? "partial" : "verified", verifiedAt: activatedAt }).where(and(
-      eq(canonicalArchives.archiveId, activatedArchive.archiveId),
-      eq(canonicalArchives.status, "building"),
-    ));
-  } catch (error) {
-    if (archiveWritten) {
-      const failedArchive = written as unknown as ArchiveWriteResult;
-      await rm(failedArchive.finalPath, { force: true }).catch(() => undefined);
-      await db.update(canonicalArchives).set({ status: "failed", failure: error instanceof Error ? error.message : String(error) }).where(eq(canonicalArchives.archiveId, failedArchive.archiveId));
-    }
-    throw error;
+  });
+} catch (error) {
+  if (archiveWritten) {
+    const failedArchive = written as unknown as ArchiveWriteResult;
+    await rm(failedArchive.finalPath, { force: true }).catch(() => undefined);
+    await db.update(canonicalArchives).set({ status: "failed", failure: error instanceof Error ? error.message : String(error) }).where(eq(canonicalArchives.archiveId, failedArchive.archiveId));
   }
-  const builtArchive = written as unknown as ArchiveWriteResult;
-  const archive = await db.select().from(canonicalArchives).where(eq(canonicalArchives.archiveId, builtArchive.archiveId)).get();
-  if (!archive) throw new Error("Canonical archive row missing after activation");
-  return { archive, receipt };
+  throw error;
 }
+const builtArchive = written as unknown as ArchiveWriteResult;
+const archive = await db.select().from(canonicalArchives).where(eq(canonicalArchives.archiveId, builtArchive.archiveId)).get();
+if (!archive) throw new Error("Canonical archive row missing after activation");
+return { archive, receipt }; }
 
 async function existingVerifiedArchive(
   sessionId: number,
@@ -788,20 +933,39 @@ async function existingVerifiedArchive(
 export async function enqueueCanonicalArchiveForSession(sessionId: number, gameId: GameId): Promise<void> {
   const rawFile = await getSessionRawFile(sessionId, gameId);
   if (!rawFile) return;
-  const identity = await loadRawCaptureIdentity(rawFile);
+  const identity = await inspectRawCaptureIdentity(rawFile);
   if (!identity) return;
   await enqueueCanonicalArchiveJob({ sessionId, sourceContentHash: identity.contentHash });
 }
 
-export async function buildCanonicalArchive(input: { sessionId: number; sourceContentHash: string }): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow }> {
+export async function buildCanonicalArchive(input: {
+  sessionId: number;
+  sourceContentHash: string;
+  jobId: string;
+  leaseToken: string;
+}): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow }> {
   return withSessionCaptureMaintenanceLock(async () => {
-    const session = await db.select({ gameId: sessions.gameId }).from(sessions).where(eq(sessions.id, input.sessionId)).get();
+    const lease = {
+      jobId: input.jobId,
+      leaseToken: input.leaseToken,
+      sessionId: input.sessionId,
+      sourceContentHash: input.sourceContentHash,
+    };
+    await assertCanonicalArchiveJobLease(lease);
+    const session = await db.select({ gameId: sessions.gameId, sourceChannelProfile: sessions.sourceChannelProfile }).from(sessions).where(eq(sessions.id, input.sessionId)).get();
     if (!session) throw new Error(`Session ${input.sessionId} not found`);
     const existing = await existingVerifiedArchive(input.sessionId, input.sourceContentHash);
     if (existing) return existing;
     const rawFile = await getSessionRawFile(input.sessionId, session.gameId as GameId);
     if (!rawFile) throw new Error(`Session ${input.sessionId} has no raw capture`);
-    return buildAndActivate({ sessionId: input.sessionId, sourceContentHash: input.sourceContentHash, gameId: session.gameId as GameId, rawFile });
+    return buildAndActivate({
+      sessionId: input.sessionId,
+      sourceContentHash: input.sourceContentHash,
+      gameId: session.gameId as GameId,
+      sourceChannelProfile: session.sourceChannelProfile,
+      rawFile,
+      lease,
+    });
   });
 }
 export { readCanonicalArchiveSamples } from "../db/canonical-archive-reader";

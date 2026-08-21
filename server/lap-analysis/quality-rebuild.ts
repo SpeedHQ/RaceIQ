@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { GameId } from "../../shared/games/ids";
-import { loadRawCaptureIdentity } from "../session-capture/identity";
+import { inspectRawCaptureIdentity } from "../session-capture/identity";
 import {
   ELIGIBILITY_POLICY_VERSION,
   QUALITY_CONFIG_VERSION,
@@ -16,7 +16,10 @@ import {
   type AnalysisStatus,
 } from "../../shared/racing/provenance/contracts";
 import { auditPersistedSessionAnalysis } from "../analysis-provenance/inventory";
-import { createPersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
+import {
+  createPersistedSessionAnalysisReceipt,
+  loadVerifiedCanonicalArchiveEvidence,
+} from "../analysis-provenance/receipt";
 import { currentAnalysisContract } from "../analysis-provenance/current-contract";
 import { analysisCanonicalHash } from "../analysis-provenance/hash";
 import {
@@ -81,7 +84,7 @@ function receiptSummary(row: AnalysisReceiptRow | undefined): AnalysisReceiptSum
 async function sourceState(session: SessionStatusRow) {
   if (!session.rawFile) return { rawAvailable: false, contentHash: null as string | null };
   try {
-    const raw = await loadRawCaptureIdentity(session.rawFile);
+    const raw = await inspectRawCaptureIdentity(session.rawFile);
     return { rawAvailable: raw != null, contentHash: raw?.contentHash ?? null };
   } catch {
     return { rawAvailable: false, contentHash: null as string | null };
@@ -92,15 +95,16 @@ async function evaluateAnalysisStatus(
   sessionId: number,
   session: SessionStatusRow,
   rawAvailable: boolean,
-  sourceContentHash: string | null,
-  canonicalSourceContentHash: string | null,
+  rawSourceIdentity: string | null,
+  canonicalSourceIdentity: string | null,
+  canonicalOutputIdentity: string | null,
 ): Promise<AnalysisStatus> {
   const [active, latest] = await Promise.all([
     getActiveAnalysisReceipt({ sessionId, artifactSetType: "session_analysis" }),
     getLatestAnalysisAttempt({ sessionId, artifactSetType: "session_analysis" }),
   ]);
   const sourceExecutorAvailable = tryGetServerGame(session.gameId) != null;
-  const canonicalAvailable = canonicalSourceContentHash != null;
+  const canonicalAvailable = canonicalOutputIdentity != null;
   const sourceCanRebuild = (rawAvailable || canonicalAvailable) && sourceExecutorAvailable;
   const exactCapability = {
     mode: "exact" as const,
@@ -172,8 +176,10 @@ async function evaluateAnalysisStatus(
 
   const contract = currentAnalysisContract(session.gameId as GameId, session.sourceChannelProfile);
   const staleReasons: AnalysisStaleReason[] = [];
-  const rebuildSourceContentHash = sourceContentHash ?? canonicalSourceContentHash;
-  if (rebuildSourceContentHash && receipt.evidence.contentHash !== rebuildSourceContentHash) {
+  const receiptIdentity = receipt.evidence.kind === "canonical-archive"
+    ? canonicalOutputIdentity
+    : rawSourceIdentity ?? canonicalSourceIdentity;
+  if (receiptIdentity && receipt.evidence.contentHash !== receiptIdentity) {
     staleReasons.push("source_hash_changed");
   }
   if (analysisCanonicalHash(receipt.telemetryVersion) !== analysisCanonicalHash(contract.telemetryVersion)) staleReasons.push("telemetry_contract_changed");
@@ -244,17 +250,24 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     sourceState(session),
     getSessionCanonicalAvailability(sessionId),
   ]);
-  const canonicalSourceContentHash = canonicalArchive?.state === "available"
+  const canonicalSourceIdentity = canonicalArchive?.state === "available"
+    ? canonicalArchive.provenance?.sourceIdentity ?? null
+    : null;
+  const canonicalOutputIdentity = canonicalArchive?.state === "available"
     ? canonicalArchive.provenance?.outputIdentity ?? null
     : null;
-  const canonicalVerification = session.recordingQuality?.canonicalVerification;
-  const expectedGeneration = canonicalVerification !== undefined
-    ? canonicalVerification.sourceGeneration
-    : (session.recordingQuality?.archiveVerification.sourceGeneration ?? null);
-  const sourceStale = session.rawFile !== null
-    && (source.rawAvailable
-      ? source.contentHash !== expectedGeneration
-      : canonicalSourceContentHash == null);
+  const sourceVerificationGeneration = session.recordingQuality?.archiveVerification.sourceGeneration ?? null;
+  const canonicalVerificationGeneration = session.recordingQuality?.canonicalVerification?.sourceGeneration ?? null;
+  const sourceIdentity = source.rawAvailable ? source.contentHash : canonicalSourceIdentity;
+  const sourceStale = (
+    sourceVerificationGeneration !== null
+    && sourceIdentity !== null
+    && sourceVerificationGeneration !== sourceIdentity
+  ) || (
+    canonicalVerificationGeneration !== null
+    && canonicalOutputIdentity !== null
+    && canonicalVerificationGeneration !== canonicalOutputIdentity
+  );
   const currentDetectorId = tryGetServerGame(session.gameId)?.lapDetectorId ?? null;
   const stale = {
     detector: currentDetectorId === null || session.detectorVersion === null || session.detectorVersion !== currentDetectorId,
@@ -268,7 +281,8 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     session,
     source.rawAvailable,
     source.contentHash,
-    canonicalSourceContentHash,
+    canonicalSourceIdentity,
+    canonicalOutputIdentity,
   );
   const measurementStale = !session.recordingQuality || stale.schema || stale.detector || stale.configuration || stale.source;
   const contract = currentAnalysisContract(session.gameId as GameId, session.sourceChannelProfile);
@@ -281,15 +295,18 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
   const missingReceiptWithoutMeasurementStaleness = analysisStatus.receipt == null
     && analysisStatus.staleReasons.includes("receipt_missing")
     && !measurementStale;
+  const canonicalReceiptCanBeRebuilt = missingReceiptWithoutMeasurementStaleness
+    && analysisStatus.capability.sourceKind === "canonical-archive";
   const receiptRequiresReprocess = analysisStatus.status !== "current"
     && analysisStatus.status !== "rebuild_in_progress"
     && !policyOnlyReceiptStaleness
     && !missingReceiptWithoutMeasurementStaleness;
+  const receiptOnlyRebuild = policyOnlyReceiptStaleness || canonicalReceiptCanBeRebuilt;
   const action: QualityRebuildAction = analysisStatus.status === "rebuild_in_progress"
     ? "rebuild_in_progress"
     : measurementStale || receiptRequiresReprocess
       ? (analysisStatus.capability.mode !== "unavailable" && currentDetectorId !== null ? "reprocess" : "unavailable")
-      : stale.policy
+      : stale.policy || receiptOnlyRebuild
         ? "rebuild_eligibility"
         : "current";
   return {
@@ -336,18 +353,23 @@ export async function rebuildSessionEligibility(sessionId: number): Promise<Qual
     .get();
   if (!session?.recordingQuality) return { ...status, action: "unavailable" };
   const contract = currentAnalysisContract(session.gameId as GameId, session.sourceChannelProfile);
-  const raw = session.rawFile ? await loadRawCaptureIdentity(session.rawFile) : undefined;
+  const raw = session.rawFile ? await inspectRawCaptureIdentity(session.rawFile) : undefined;
+  const canonicalEvidence = raw ? null : await loadVerifiedCanonicalArchiveEvidence(sessionId, session.gameId as GameId);
+  const canonicalArchive = raw ? null : await getSessionCanonicalAvailability(sessionId);
+  const canonicalOutputIdentity = canonicalArchive?.state === "available"
+    ? canonicalArchive.provenance?.outputIdentity ?? null
+    : null;
   const attempt = await beginAnalysisGeneration({
     sessionId,
     artifactSetType: "session_analysis",
-    sourceContentHash: raw?.contentHash ?? null,
+    sourceContentHash: raw?.contentHash ?? canonicalOutputIdentity,
     contractHash: contract.contractHash,
     configurationHash: contract.configurationHash,
   });
   try {
     await db.transaction(async (tx) => {
       await updateSessionQuality(sessionId, session.recordingQuality!, tx);
-      const receipt = await createPersistedSessionAnalysisReceipt(attempt, session.gameId as GameId, tx);
+      const receipt = await createPersistedSessionAnalysisReceipt(attempt, session.gameId as GameId, tx, canonicalEvidence);
       await activateAnalysisGeneration({ generationId: attempt.generationId, receipt }, tx);
     });
   } catch (error) {

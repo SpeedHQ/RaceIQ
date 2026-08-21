@@ -74,8 +74,10 @@ function archive(overrides: Partial<CanonicalArchiveAvailability> = {}): Canonic
     state: "available",
     status: "verified",
     completeness: "complete",
-    semanticIds: FULL_CANONICAL_SEMANTIC_IDS,
-    eventIds: ["canonical:event:1"],
+    archiveId: "archive:v1:session-236",
+    generationId: "generation:v1:session-236",
+    semanticIds: [...FULL_CANONICAL_SEMANTIC_IDS],
+    eventIds: [],
     provenance: {
       archiveIdentity: "archive:v1:session-236",
       schemaIdentity: "quality-schema-v1",
@@ -109,6 +111,7 @@ const cases: readonly {
     name: "raw present with no canonical archive",
     availability: {
       rawCapture: true,
+      rawSourceIdentity: "source:sha256:236",
       canonicalArchive: archive({ state: "unavailable", semanticIds: [], eventIds: [], provenance: null, details: "Canonical archive inventory unavailable" }),
     },
     action: "retain_raw",
@@ -116,8 +119,8 @@ const cases: readonly {
     blockedBy: RAW_REDECODE_POLICIES,
   },
   {
-    name: "raw present with verified full canonical archive",
-    availability: { rawCapture: true, canonicalArchive: archive() },
+    name: "raw present with matching verified full canonical archive",
+    availability: { rawCapture: true, rawSourceIdentity: "source:sha256:236", canonicalArchive: archive() },
     action: "raw_removal_safe",
     canDeleteRaw: true,
     blockedBy: [],
@@ -126,6 +129,7 @@ const cases: readonly {
     name: "raw present with incomplete verified canonical archive",
     availability: {
       rawCapture: true,
+      rawSourceIdentity: "source:sha256:236",
       canonicalArchive: archive({ semanticIds: ["timing.distance-traveled", "motion.speed"], details: "Verified inventory omits trace channels" }),
     },
     action: "retain_raw",
@@ -136,6 +140,7 @@ const cases: readonly {
     name: "raw present with unknown canonical archive state",
     availability: {
       rawCapture: true,
+      rawSourceIdentity: "source:sha256:236",
       canonicalArchive: archive({ state: "unknown", semanticIds: [], eventIds: [], provenance: null, details: "Inventory metadata cannot be verified" }),
     },
     action: "retain_raw",
@@ -147,7 +152,7 @@ const cases: readonly {
 describe("evidence retention evaluator", () => {
   for (const entry of cases) {
     test(entry.name, () => {
-      const assessment = evaluateEvidenceRetention(236, entry.availability, [currentRow()]);
+      const assessment = evaluateEvidenceRetention(236, entry.availability, [currentRow()], true);
 
       expect(assessment).toMatchObject({
         sessionId: 236,
@@ -170,7 +175,7 @@ describe("evidence retention evaluator", () => {
     });
   }
   test("missing eligibility on any lap blocks deletion without omitting lap inventory", () => {
-    const assessment = evaluateEvidenceRetention(236, { rawCapture: true, canonicalArchive: archive() }, [currentRow(1), currentRow(2, null)]);
+    const assessment = evaluateEvidenceRetention(236, { rawCapture: true, rawSourceIdentity: "source:sha256:236", canonicalArchive: archive() }, [currentRow(1), currentRow(2, null)], true);
 
     expect(assessment).toMatchObject({
       action: "quality_unavailable",
@@ -192,7 +197,7 @@ describe("evidence retention evaluator", () => {
 
   test("stale eligibility snapshots block raw deletion with a stale reason", () => {
     const staleRow = { ...currentRow(), qualityStale: true };
-    const assessment = evaluateEvidenceRetention(236, { rawCapture: true, canonicalArchive: archive() }, [staleRow]);
+    const assessment = evaluateEvidenceRetention(236, { rawCapture: true, rawSourceIdentity: "source:sha256:236", canonicalArchive: archive() }, [staleRow], true);
 
     expect(assessment).toMatchObject({
       action: "quality_unavailable",
@@ -209,10 +214,32 @@ describe("evidence retention evaluator", () => {
     const verifiedEmpty = archive({ semanticIds: [], eventIds: [], details: "Verified archive contains no canonical channels" });
     const unavailable = archive({ state: "unavailable", semanticIds: [], eventIds: [], provenance: null, details: "No canonical archive inventory" });
 
-    const verifiedAssessment = evaluateEvidenceRetention(236, { rawCapture: true, canonicalArchive: verifiedEmpty }, [currentRow()]);
-    const unavailableAssessment = evaluateEvidenceRetention(236, { rawCapture: true, canonicalArchive: unavailable }, [currentRow()]);
+    const verifiedAssessment = evaluateEvidenceRetention(236, { rawCapture: true, rawSourceIdentity: "source:sha256:236", canonicalArchive: verifiedEmpty }, [currentRow()], true);
+    const unavailableAssessment = evaluateEvidenceRetention(236, { rawCapture: true, rawSourceIdentity: "source:sha256:236", canonicalArchive: unavailable }, [currentRow()], true);
 
     expect(verifiedAssessment.availability.canonicalArchive).toMatchObject({ state: "available", semanticIds: [], provenance: verifiedEmpty.provenance });
     expect(unavailableAssessment.availability.canonicalArchive).toMatchObject({ state: "unavailable", semanticIds: [], provenance: null });
+  });
+
+  test("retains changed raw bytes even when archive inventory is complete", () => {
+    const assessment = evaluateEvidenceRetention(
+      236,
+      { rawCapture: true, rawSourceIdentity: "source:sha256:changed", canonicalArchive: archive() },
+      [currentRow()],
+      true,
+    );
+
+    expect(assessment).toMatchObject({ action: "retain_raw", canDeleteRaw: false, reasons: ["raw_redecode_required"] });
+  });
+
+  test("retains raw when any current lap lacks a readable archive range", () => {
+    const assessment = evaluateEvidenceRetention(
+      236,
+      { rawCapture: true, rawSourceIdentity: "source:sha256:236", canonicalArchive: archive() },
+      [currentRow()],
+      false,
+    );
+
+    expect(assessment).toMatchObject({ action: "retain_raw", canDeleteRaw: false, reasons: ["raw_redecode_required"] });
   });
 });

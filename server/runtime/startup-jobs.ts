@@ -1,4 +1,5 @@
-import { and, isNotNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { stat } from "node:fs/promises";
 import { startCommunityTunesSync } from "../tunes/community-sync";
 import { startLaptimesSync } from "../sync/laptimes";
 import { countStaleSessions } from "../db/session-queries";
@@ -13,10 +14,10 @@ import { startSessionCompressor } from "../session-capture/compressor";
 import { startUpdateCheckSchedule } from "./update/check";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
-import { getActiveVerifiedCanonicalArchive, enqueueCanonicalArchiveJob, claimCanonicalArchiveJob, heartbeatCanonicalArchiveJob, completeCanonicalArchiveJob, failCanonicalArchiveJob, recoverExpiredCanonicalArchiveJobs, recoverInterruptedCanonicalArchives } from "../db/canonical-archive-queries";
+import { completeCanonicalArchiveJob, claimCanonicalArchiveJob, enqueueCanonicalArchiveJob, failCanonicalArchiveJob, getActiveVerifiedCanonicalArchive, heartbeatCanonicalArchiveJob, recoverExpiredCanonicalArchiveJobs, recoverInterruptedCanonicalArchives } from "../db/canonical-archive-queries";
 import { failInterruptedAnalysisGenerations } from "../db/analysis-receipt-queries";
 import { buildCanonicalArchive } from "../session-capture/canonical-archive";
-import { loadRawCaptureIdentity } from "../session-capture/identity";
+import { inspectRawCaptureIdentity } from "../session-capture/identity";
 import { isSessionActive } from "../telemetry/live-pipeline";
 const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
@@ -68,16 +69,58 @@ export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencie
     console.error("[Server] Failed to check stale race results:", err);
   });
 }
-async function enqueueStableCaptureJobs(): Promise<void> {
+export async function enqueueStableCaptureJobs(): Promise<void> {
   if (isSessionActive()) return;
-  const rows = await db.select({ id: sessions.id, gameId: sessions.gameId, rawFile: sessions.rawFile }).from(sessions).where(and(isNotNull(sessions.rawFile)));
+  const rows = await db.select({
+    id: sessions.id,
+    rawFile: sessions.rawFile,
+    rawCaptureFileSize: sessions.rawCaptureFileSize,
+    rawCaptureFileMtimeMs: sessions.rawCaptureFileMtimeMs,
+    rawCaptureFileCtimeMs: sessions.rawCaptureFileCtimeMs,
+    rawCaptureContentHash: sessions.rawCaptureContentHash,
+  }).from(sessions).where(and(isNotNull(sessions.rawFile))).orderBy(asc(sessions.id));
   for (const row of rows) {
-    if (!row.rawFile) continue;
-    const identity = await loadRawCaptureIdentity(row.rawFile);
-    if (!identity) continue;
-    const archive = await getActiveVerifiedCanonicalArchive(row.id, { verifyOutput: true });
-    if (archive?.sourceContentHash === identity.contentHash) continue;
-    await enqueueCanonicalArchiveJob({ sessionId: row.id, sourceContentHash: identity.contentHash, retryTerminal: true });
+    try {
+      if (!row.rawFile) continue;
+      const before = await stat(row.rawFile).catch(() => null);
+      if (!before) continue;
+      const fileSize = before.size;
+      const fileMtimeMs = Math.trunc(before.mtimeMs);
+      const fileCtimeMs = Math.trunc(before.ctimeMs);
+      let sourceContentHash = row.rawCaptureFileSize === fileSize
+        && row.rawCaptureFileMtimeMs === fileMtimeMs
+        && row.rawCaptureFileCtimeMs === fileCtimeMs
+        ? row.rawCaptureContentHash
+        : null;
+      if (!sourceContentHash) {
+        const identity = await inspectRawCaptureIdentity(row.rawFile);
+        if (!identity) continue;
+        const after = await stat(row.rawFile).catch(() => null);
+        if (
+          !after
+          || after.size !== fileSize
+          || Math.trunc(after.mtimeMs) !== fileMtimeMs
+          || Math.trunc(after.ctimeMs) !== fileCtimeMs
+        ) continue;
+        sourceContentHash = identity.contentHash;
+        await db.update(sessions).set({
+          rawCaptureFileSize: fileSize,
+          rawCaptureFileMtimeMs: fileMtimeMs,
+          rawCaptureFileCtimeMs: fileCtimeMs,
+          rawCaptureContentHash: sourceContentHash,
+        }).where(eq(sessions.id, row.id));
+      }
+      if (!sourceContentHash) continue;
+      const archive = await getActiveVerifiedCanonicalArchive(row.id, { verifyOutput: true });
+      if (archive?.sourceContentHash === sourceContentHash) continue;
+      await enqueueCanonicalArchiveJob({
+        sessionId: row.id,
+        sourceContentHash,
+        rebuildSucceeded: true,
+      });
+    } catch (error) {
+      console.error(`[Server] Canonical archive scheduling failed for session ${row.id}:`, error);
+    }
   }
 }
 
@@ -90,9 +133,11 @@ export async function runCanonicalArchiveJobOnce(): Promise<boolean> {
   await recoverExpiredCanonicalArchiveJobs();
   const job = await claimCanonicalArchiveJob();
   if (!job) return false;
+  if (!job.leaseToken) throw new Error(`Claimed canonical archive job ${job.jobId} without lease token`);
+  const leaseToken = job.leaseToken;
   let leaseLost = false;
   const heartbeat = setInterval(() => {
-    void heartbeatCanonicalArchiveJob(job.jobId).then((renewed) => {
+    void heartbeatCanonicalArchiveJob({ jobId: job.jobId, leaseToken }).then((renewed) => {
       if (!renewed) leaseLost = true;
     }).catch(() => {
       leaseLost = true;
@@ -100,14 +145,26 @@ export async function runCanonicalArchiveJobOnce(): Promise<boolean> {
   }, 20_000);
   heartbeat.unref?.();
   try {
-    const result = await buildCanonicalArchive({ sessionId: job.sessionId, sourceContentHash: job.sourceContentHash });
+    const result = await buildCanonicalArchive({
+      sessionId: job.sessionId,
+      sourceContentHash: job.sourceContentHash,
+      jobId: job.jobId,
+      leaseToken,
+    });
     if (leaseLost) throw new Error("Canonical archive job lease lost during build");
-    await completeCanonicalArchiveJob(job.jobId, result.receipt.generationId);
+    const completed = await completeCanonicalArchiveJob({
+      jobId: job.jobId,
+      leaseToken,
+      generationId: result.receipt.generationId,
+    });
+    if (!completed) throw new Error("Canonical archive job lease lost before completion");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const deterministic = isDeterministicArchiveFailure(error);
-    const retryAt = deterministic ? null : new Date(Date.now() + Math.min(15 * 60_000, 2 ** Math.min(job.attemptCount, 8) * 1_000)).toISOString();
-    await failCanonicalArchiveJob({ jobId: job.jobId, error: message, retryAt, deterministic });
+    const retryAt = deterministic
+      ? null
+      : new Date(Date.now() + Math.min(15 * 60_000, 2 ** Math.min(job.attemptCount, 8) * 1_000)).toISOString();
+    await failCanonicalArchiveJob({ jobId: job.jobId, leaseToken, error: message, retryAt, deterministic });
     console.error(`[Server] Canonical archive job ${job.jobId} failed:`, message);
   } finally {
     clearInterval(heartbeat);

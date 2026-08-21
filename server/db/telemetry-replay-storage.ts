@@ -8,8 +8,13 @@ import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
-import { getActiveVerifiedCanonicalArchive, getCanonicalArchiveRowRanges } from "./canonical-archive-queries";
-import { readCanonicalArchiveSamples } from "./canonical-archive-reader";
+import { getCanonicalArchiveLapReadPlan, getActiveVerifiedCanonicalArchive } from "./canonical-archive-queries";
+import {
+  readCanonicalArchiveLapRanges,
+  readCanonicalArchiveSamples,
+  type CanonicalArchiveLapRange,
+  type CanonicalArchiveSampleRow,
+} from "./canonical-archive-reader";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -164,8 +169,7 @@ async function loadDecompressedRawFile(rawFile: string): Promise<Buffer> {
   return buf;
 }
 
-async function readArchivePackets(path: string, startRow: number, endRow: number): Promise<TelemetryPacket[]> {
-  const rows = await readCanonicalArchiveSamples(path, startRow, endRow);
+function packetsFromArchiveRows(rows: readonly CanonicalArchiveSampleRow[]): TelemetryPacket[] {
   const packets: TelemetryPacket[] = [];
   for (const row of rows) {
     const value: unknown = JSON.parse(row.packetJson);
@@ -177,18 +181,91 @@ async function readArchivePackets(path: string, startRow: number, endRow: number
   return packets;
 }
 
-export async function loadLapTelemetryFromArchive(lapId: number, sessionId: number): Promise<TelemetryPacket[] | null> {
-  const ranges = (await getCanonicalArchiveRowRanges({ sessionId, lapId }))
-    .filter((node) => node.level === "lap" && node.lapId === lapId)
-    .sort((left, right) => left.startRow - right.startRow);
-  if (ranges.length === 0) return null;
-  const archive = await getActiveVerifiedCanonicalArchive(sessionId);
-  if (!archive) return null;
-  const packets: TelemetryPacket[] = [];
-  for (const range of ranges) {
-    packets.push(...await readArchivePackets(archive.archivePath, range.startRow, range.endRow));
+export interface ArchiveLapReadTarget {
+  lapId: number;
+  sessionId: number;
+  lapNumber: number;
+}
+
+function archiveLapRange(
+  range: { startRow: number; endRow: number; participantId: string | null; stableKey: string },
+  lapNumber: number,
+): CanonicalArchiveLapRange | null {
+  const separator = range.stableKey.lastIndexOf(":");
+  const stableLapNumber = Number(range.stableKey.slice(separator + 1));
+  if (
+    separator < 0 ||
+    !Number.isSafeInteger(stableLapNumber) ||
+    stableLapNumber !== lapNumber
+  ) return null;
+  return {
+    startRow: range.startRow,
+    endRow: range.endRow,
+    participantId: range.participantId,
+    lapNumber: stableLapNumber,
+  };
+}
+
+/**
+ * Resolve every archive generation once, then read each archive generation
+ * through one DuckDB connection. Plans carry immutable archive paths; callers
+ * never re-resolve active archive state between plan and Parquet read.
+ */
+export async function loadLapsTelemetryFromArchive(
+  targets: readonly ArchiveLapReadTarget[],
+): Promise<Map<number, TelemetryPacket[]>> {
+  const packetsByLap = new Map<number, TelemetryPacket[]>();
+  const byArchive = new Map<string, {
+    path: string;
+    requests: { lapId: number; range: CanonicalArchiveLapRange }[];
+  }>();
+  for (const target of targets) {
+    const plan = await getCanonicalArchiveLapReadPlan({
+      sessionId: target.sessionId,
+      lapId: target.lapId,
+    });
+    if (!plan || plan.lapId !== target.lapId) continue;
+    const groupKey = `${plan.archiveId}:${plan.generationId}`;
+    let group = byArchive.get(groupKey);
+    if (!group) {
+      group = { path: plan.archivePath, requests: [] };
+      byArchive.set(groupKey, group);
+    }
+    for (const node of plan.ranges) {
+      if (node.level !== "lap") continue;
+      const range = archiveLapRange(node, target.lapNumber);
+      if (range) group.requests.push({ lapId: target.lapId, range });
+    }
   }
-  return packets.length > 0 ? packets : null;
+  for (const group of byArchive.values()) {
+    group.requests.sort((left, right) => left.range.startRow - right.range.startRow);
+    const rowsByRange = await readCanonicalArchiveLapRanges(
+      group.path,
+      group.requests.map((request) => request.range),
+    );
+    for (let index = 0; index < group.requests.length; index += 1) {
+      const rows = rowsByRange[index]!;
+      if (rows.length === 0) continue;
+      const packets = packetsFromArchiveRows(rows);
+      if (packets.length === 0) continue;
+      const lapId = group.requests[index]!.lapId;
+      const targetPackets = packetsByLap.get(lapId);
+      if (targetPackets) {
+        for (const packet of packets) targetPackets.push(packet);
+      } else {
+        packetsByLap.set(lapId, packets);
+      }
+    }
+  }
+  return packetsByLap;
+}
+
+export async function loadLapTelemetryFromArchive(
+  lapId: number,
+  sessionId: number,
+  lapNumber: number,
+): Promise<TelemetryPacket[] | null> {
+  return (await loadLapsTelemetryFromArchive([{ lapId, sessionId, lapNumber }])).get(lapId) ?? null;
 }
 
 
@@ -236,15 +313,9 @@ function appendDelayedFinishPacket(
 async function loadSessionTelemetryFromArchive(sessionId: number): Promise<TelemetryPacket[] | null> {
   const archive = await getActiveVerifiedCanonicalArchive(sessionId);
   if (!archive) return null;
-  const rows = await readCanonicalArchiveSamples(archive.archivePath, 0, archive.sampleCount);
-  const packets: TelemetryPacket[] = [];
-  for (const row of rows) {
-    const value: unknown = JSON.parse(row.packetJson);
-    if (!value || typeof value !== "object" || !("gameId" in value) || typeof value.gameId !== "string") {
-      throw new Error(`Canonical archive row ${row.sampleOrdinal} does not contain a telemetry packet`);
-    }
-    packets.push(value as TelemetryPacket);
-  }
+  const packets = packetsFromArchiveRows(
+    await readCanonicalArchiveSamples(archive.archivePath, 0, archive.sampleCount),
+  );
   return packets.length > 0 ? packets : null;
 }
 

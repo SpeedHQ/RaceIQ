@@ -210,13 +210,32 @@ export class ImportCaptureAdapter implements DbAdapter {
    * stopped before this runs so no process still owns the canonical capture.
    */
   async rollback(): Promise<void> {
+    // Let already-issued lap writes settle before deleting their parent session.
+    // Otherwise a late write can recreate part of a rejected import after its
+    // session graph has been removed.
+    await Promise.allSettled([...this._pendingLapWrites]);
+
+    let cleanupFailure: unknown;
     for (const sessionId of this.sessionIds) {
-      await deleteSession(sessionId);
+      try {
+        await deleteSession(sessionId);
+      } catch (error) {
+        cleanupFailure ??= error;
+      }
     }
     for (const rawFile of this.rawFiles) {
-      if (existsSync(rawFile)) unlinkSync(rawFile);
+      try {
+        if (existsSync(rawFile)) unlinkSync(rawFile);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") cleanupFailure ??= error;
+      }
     }
     this.laps.length = 0;
+    this.sessionIds.clear();
+    this.rawFiles.clear();
+    this._lapIdentity.clear();
+    this._sessionMeta.clear();
+    if (cleanupFailure) throw cleanupFailure;
   }
 }
 

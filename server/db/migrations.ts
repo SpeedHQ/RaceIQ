@@ -2238,4 +2238,21 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        ON canonical_archive_jobs(status, next_attempt_at, lease_expires_at)`,
     ],
   },
+  // v68: Lease capabilities and stable raw-file identity for canonical archive
+  // scheduling. Existing captures hash once after upgrade, then reuse identity
+  // while file metadata remains unchanged.
+  {
+    version: 68,
+    name: "harden canonical archive leases and raw identities",
+    sql: [
+      `ALTER TABLE canonical_archive_jobs ADD COLUMN lease_token TEXT`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_size INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_mtime_ms INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_ctime_ms INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_content_hash TEXT`,
+      `CREATE UNIQUE INDEX uq_canonical_archive_jobs_lease_token
+       ON canonical_archive_jobs(lease_token)
+       WHERE lease_token IS NOT NULL`,
+    ],
+  },
 ];

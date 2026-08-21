@@ -1,7 +1,6 @@
-import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { gunzipSync } from "node:zlib";
 import { Hono } from "hono";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
@@ -28,6 +27,23 @@ import { detectGameIdFromFilename } from "../../session-capture/import-capture";
 import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
 import { OwnershipSchema } from "../laps/support";
 
+import { MAX_RAW_CAPTURE_BUFFERED_BYTES, MAX_RAW_CAPTURE_EXPANDED_BYTES } from "../../session-capture/identity";
+
+class ImportUploadLimitError extends Error {}
+
+function byteLimit(limit: number): TransformStream<Uint8Array, Uint8Array> {
+  let total = 0;
+  return new TransformStream({
+    transform(chunk, controller) {
+      total += chunk.byteLength;
+      if (total > limit) {
+        throw new ImportUploadLimitError(`Import exceeds ${limit} byte processing limit`);
+      }
+      controller.enqueue(chunk);
+    },
+  });
+}
+
 export const importRoutes = new Hono();
 
 importRoutes.post("/api/dev/import-dump", async (c) => {
@@ -49,6 +65,9 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     if (!lowerName.endsWith(".bin") && !lowerName.endsWith(".bin.gz")) {
       return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
     }
+    if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_RAW_CAPTURE_BUFFERED_BYTES) {
+      return c.json({ error: `Upload exceeds the ${MAX_RAW_CAPTURE_BUFFERED_BYTES / 1024 ** 2} MiB limit` }, 413);
+    }
 
     const gameId = detectGameIdFromFilename(uploadName);
     if (!gameId) {
@@ -64,12 +83,11 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       tmpdir(),
       `raceiq-dump-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`
     );
-    const arrayBuf = await file.arrayBuffer();
-    let bytes = Buffer.from(arrayBuf);
-    if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
-      bytes = Buffer.from(gunzipSync(bytes));
-    }
-    writeFileSync(tmpPath, bytes);
+    const header = Buffer.from(await file.slice(0, 2).arrayBuffer());
+    const source = header[0] === 0x1f && header[1] === 0x8b
+      ? file.stream().pipeThrough(new DecompressionStream("gzip")).pipeThrough(byteLimit(MAX_RAW_CAPTURE_EXPANDED_BYTES))
+      : file.stream().pipeThrough(byteLimit(MAX_RAW_CAPTURE_BUFFERED_BYTES));
+    await Bun.write(tmpPath, new Response(source));
 
     let packetCount = 0;
     let carModel: string | null = null;
@@ -218,6 +236,9 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       } catch {
         // Best-effort temp cleanup.
       }
+    }
+    if (e instanceof ImportUploadLimitError) {
+      return c.json({ error: e.message }, 413);
     }
     return c.json({ error: "Import failed", details: String(e) }, 500);
   }

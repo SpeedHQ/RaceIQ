@@ -1,7 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { gzip } from "node:zlib";
-import { promisify } from "node:util";
 import { z } from "zod";
 import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
@@ -59,8 +57,6 @@ export function semanticReplayIds(): readonly string[] {
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : (timestamp.milliseconds ?? 0);
-const gzipAsync = promisify(gzip);
-
 export const resourceRoutes = new Hono()
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
@@ -274,10 +270,8 @@ export const resourceRoutes = new Hono()
 
     const file = Bun.file(row.rawFile);
     if (!(await file.exists())) return c.json({ error: "Raw capture file is missing on disk" }, 410);
-    let bytes = new Uint8Array(await file.arrayBuffer());
-    if (!row.rawFile.endsWith(".gz")) {
-      bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
-    }
+
+    const storedGzip = row.rawFile.toLowerCase().endsWith(".gz");
 
     const trackName = tryGetGame(row.gameId)?.getTrackName?.(row.trackOrdinal ?? -1);
     const slug = (trackName || `track${row.trackOrdinal ?? 0}`)
@@ -289,8 +283,11 @@ export const resourceRoutes = new Hono()
 
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
-    c.header("Content-Length", String(bytes.byteLength));
-    return c.body(bytes);
+    if (storedGzip) {
+      c.header("Content-Length", String(file.size));
+      return c.body(file.stream());
+    }
+    return c.body(Bun.file(row.rawFile).stream().pipeThrough(new CompressionStream("gzip")));
   })
 
   .patch("/api/laps/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {

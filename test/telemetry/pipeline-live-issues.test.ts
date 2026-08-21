@@ -138,7 +138,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     expect(pipeline.lapDetector?.session).toBeNull();
   });
 
-  test("keeps canonical recorder failure separate from original source verification", async () => {
+  test("preserves original source verification until canonical Parquet activation", async () => {
     const db = new CapturingDbAdapter();
     const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), {
       bypassPacketRateFilter: true,
@@ -158,11 +158,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
       state: "verified",
       sourceGeneration: "sha256:original-source",
     });
-    expect(db.sessionQuality.get(1)?.canonicalVerification).toEqual({
-      state: "unavailable",
-      sourceGeneration: null,
-      details: "Recording disabled",
-    });
+    expect(db.sessionQuality.get(1)?.canonicalVerification).toBeUndefined();
   });
 
   test("durably commits delayed lap completion before old-session finalization", async () => {

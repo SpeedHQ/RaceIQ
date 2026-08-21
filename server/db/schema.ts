@@ -124,6 +124,12 @@ export const sessions = sqliteTable("sessions", {
 	sessionType: text("session_type"),
 	notes: text("notes"),
 	rawFile: text("raw_file"),
+	rawCaptureFileSize: integer("raw_capture_file_size"),
+	rawCaptureFileMtimeMs: integer("raw_capture_file_mtime_ms"),
+	rawCaptureFileCtimeMs: integer("raw_capture_file_ctime_ms"),
+	// Uncompressed source identity. Reused while size/timestamps prove on-disk
+	// capture unchanged, avoiding a decompress/hash pass on each scheduler tick.
+	rawCaptureContentHash: text("raw_capture_content_hash"),
 	lapDetectorVersion: text("lap_detector_version"),
 	// Runtime telemetry identity snapshot attached at first persisted capture (migration v53).
 	// Null for rows inserted before that migration.
@@ -372,6 +378,9 @@ export const canonicalArchiveJobs = sqliteTable(
 		status: text("status").$type<CanonicalArchiveJobStatus>().notNull(),
 		attemptCount: integer("attempt_count").notNull().default(0),
 		leaseExpiresAt: text("lease_expires_at"),
+		// Generated for every successful claim. A worker may mutate a running
+		// job only while presenting this exact lease capability.
+		leaseToken: text("lease_token"),
 		nextAttemptAt: text("next_attempt_at").notNull(),
 		generationId: text("generation_id"),
 		lastError: text("last_error"),
@@ -379,6 +388,9 @@ export const canonicalArchiveJobs = sqliteTable(
 		updatedAt: text("updated_at").notNull(),
 	},
 	(table) => [
+		uniqueIndex("uq_canonical_archive_jobs_lease_token")
+			.on(table.leaseToken)
+			.where(sql`${table.leaseToken} IS NOT NULL`),
 		uniqueIndex("uq_canonical_archive_jobs_source").on(table.sessionId, table.sourceContentHash),
 		index("idx_canonical_archive_jobs_claim").on(table.status, table.nextAttemptAt, table.leaseExpiresAt),
 	],

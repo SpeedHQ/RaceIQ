@@ -20,7 +20,7 @@ import type {
   RaceResultOutcomeStatus,
   RaceResultRawInputIdentity,
 } from "../../shared/racing/results/types";
-import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
+import { inspectRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames, getServerGame } from "../games/registry";
 import { reprocessSession } from "../session-capture/reprocess";
 import { RACE_RESULT_PROCESSOR_ID } from "./constants";
@@ -43,7 +43,7 @@ function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPa
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;
   try {
-    const capture = await loadRawCaptureIdentity(rawFile);
+    const capture = await inspectRawCaptureIdentity(rawFile);
     return capture ? { objectId: rawCaptureObjectId(sessionId), contentHash: capture.contentHash } : null;
   } catch {
     return null;

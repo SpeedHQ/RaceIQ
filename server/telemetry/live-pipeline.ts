@@ -80,7 +80,6 @@ interface ClosedRecordingSession {
   qualityAccumulator: RecordingQualityAccumulator | null;
   sourceVerification: ArchiveVerification;
   transportVerification?: ArchiveVerification;
-  canonicalVerification?: ArchiveVerification;
   finalizedQuality?: RecordingQualitySummary;
   finalizedSessionRuns?: readonly SessionRun[];
   closureEvents: RaceEvent[];
@@ -576,9 +575,9 @@ export class LiveTelemetryPipeline {
     this._recordingSession = null;
     this._recordingQuality = null;
 
-    let canonicalVerification: ArchiveVerification;
+    let recorderVerification: ArchiveVerification;
     try {
-      canonicalVerification = await this.recorder.stop();
+      recorderVerification = await this.recorder.stop();
     } catch (error) {
       qualityAccumulator?.noteWriterFailure(error);
       closureEvents.push(
@@ -588,29 +587,27 @@ export class LiveTelemetryPipeline {
           details: error instanceof Error ? error.message : String(error),
         }),
       );
-      canonicalVerification = {
+      recorderVerification = {
         state: "corrupt" as const,
         sourceGeneration: null,
         details: error instanceof Error ? error.message : String(error),
       };
     }
-    if (canonicalVerification.state === "corrupt" || canonicalVerification.state === "truncated") {
+    if (recorderVerification.state === "corrupt" || recorderVerification.state === "truncated") {
       closureEvents.push(
         ...this.raceEvents.noteStorageFailure({
           kind: "failure",
           operation: "verify-session-recorder",
-          details: canonicalVerification.details ?? canonicalVerification.state,
+          details: recorderVerification.details ?? recorderVerification.state,
         }),
       );
     }
-    const hasOriginalSourceVerification = this._sourceArchiveVerification !== undefined;
     return {
       session,
       qualityAccumulator,
       closureEvents,
-      sourceVerification: this._sourceArchiveVerification ?? canonicalVerification,
+      sourceVerification: this._sourceArchiveVerification ?? recorderVerification,
       ...(this._sourceTransportVerification ? { transportVerification: this._sourceTransportVerification } : {}),
-      ...(hasOriginalSourceVerification ? { canonicalVerification } : {}),
     };
   }
 
@@ -627,7 +624,6 @@ export class LiveTelemetryPipeline {
         closed.sourceVerification,
         {
           transportVerification: closed.transportVerification,
-          canonicalVerification: closed.canonicalVerification,
         },
       );
       const finalized = await this.db.updateSessionQuality(closed.session.sessionId, summary);

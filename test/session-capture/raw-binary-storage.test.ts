@@ -283,7 +283,7 @@ describe("reprocessSession", () => {
     expect(second?.recordingQuality?.provenance.outputGeneration).toBe(first?.recordingQuality?.provenance.outputGeneration);
   });
 
-  test("preserves imported source verification and records canonical replay separately", async () => {
+  test("preserves imported source verification until canonical Parquet activation", async () => {
     const binPath = join(tmpDir, "session.bin");
     emptyBin(binPath);
     sessionId = await insertTestSession(binPath, "0.9.0");
@@ -300,17 +300,10 @@ describe("reprocessSession", () => {
     const row = await db.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sessionId)).get();
 
     expect(row?.recordingQuality?.archiveVerification).toEqual(sourceVerification);
-    expect(row?.recordingQuality).toMatchObject({
-      canonicalVerification: {
-        state: "verified",
-      },
-    });
-    const canonicalGeneration = row?.recordingQuality?.canonicalVerification?.sourceGeneration;
-    expect(canonicalGeneration).toBe(sha256ContentHash(Buffer.from(await Bun.file(binPath).arrayBuffer())));
-    expect(canonicalGeneration).not.toBe(sourceVerification.sourceGeneration);
+    expect(row?.recordingQuality?.canonicalVerification).toBeUndefined();
   });
 
-  test("preserves non-local participant identity and refreshes canonical and output generations", async () => {
+  test("preserves non-local participant identity and refreshes quality output", async () => {
     const recording = getRecordingFixture("iracing-road-america-gt3.bin.gz");
     if (!recording) throw new Error("Required recording fixture is missing");
     const capturePath = join(tmpDir, "participant-session.bin");
@@ -352,6 +345,26 @@ describe("reprocessSession", () => {
     ).id;
 
     await reprocessSession(sessionId);
+    const initialLap = await db
+      .select({ id: laps.id })
+      .from(laps)
+      .where(eq(laps.sessionId, sessionId))
+      .get();
+    if (!initialLap) throw new Error("Expected initial reprocessed lap");
+    await db
+      .update(laps)
+      .set({
+        pi: 911,
+        carSetup: JSON.stringify({ brakeBias: 55 }),
+        experimentVersionId: 17,
+        experimentExcluded: 1,
+        experimentExcludedSource: "manual",
+        fuelPerLap: 3.38,
+        tyreWear: 0.12,
+      })
+      .where(eq(laps.id, initialLap.id))
+      .run();
+    await reprocessSession(sessionId);
 
     const reprocessedSession = await db
       .select({
@@ -365,14 +378,23 @@ describe("reprocessSession", () => {
       .select({
         quality: laps.quality,
         qualityGeneration: laps.qualityGeneration,
+        pi: laps.pi,
+        carSetup: laps.carSetup,
+        experimentVersionId: laps.experimentVersionId,
+        experimentExcluded: laps.experimentExcluded,
+        experimentExcludedSource: laps.experimentExcludedSource,
+        fuelPerLap: laps.fuelPerLap,
+        tyreWear: laps.tyreWear,
       })
       .from(laps)
       .where(eq(laps.sessionId, sessionId))
       .all();
-    const expectedCanonicalGeneration = sha256ContentHash(Buffer.from(await Bun.file(capturePath).arrayBuffer()));
-
     expect(reprocessedSession?.recordingQuality?.participant).toEqual(OPPONENT_PARTICIPANT);
-    expect(reprocessedSession?.recordingQuality?.canonicalVerification?.sourceGeneration).toBe(expectedCanonicalGeneration);
+    expect(reprocessedSession?.recordingQuality?.archiveVerification).toEqual({
+      state: "verified",
+      sourceGeneration: "sha256:original-source",
+    });
+    expect(reprocessedSession?.recordingQuality?.canonicalVerification).toBeUndefined();
     expect(reprocessedSession?.qualityGeneration).toBe(reprocessedSession?.recordingQuality?.provenance.outputGeneration);
     expect(reprocessedSession?.qualityGeneration).not.toBe(previous.provenance.outputGeneration);
     expect(reprocessedLaps.length).toBeGreaterThan(0);
@@ -382,6 +404,16 @@ describe("reprocessSession", () => {
       expect(lap.qualityGeneration).toBe(lap.quality.provenance.outputGeneration);
       expect(lap.qualityGeneration).toMatch(/^sha256:/);
     }
+    const preservedLap = reprocessedLaps.find((lap) => lap.fuelPerLap === 3.38);
+    expect(preservedLap).toMatchObject({
+      pi: 911,
+      carSetup: JSON.stringify({ brakeBias: 55 }),
+      experimentVersionId: 17,
+      experimentExcluded: 1,
+      experimentExcludedSource: "manual",
+      fuelPerLap: 3.38,
+      tyreWear: 0.12,
+    });
   });
 
   test("keeps reconnect-only recording quality degraded after reprocessing", async () => {
