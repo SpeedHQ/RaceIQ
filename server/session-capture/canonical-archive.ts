@@ -47,13 +47,38 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 
 const ARCHIVE_DIR = "archives/sessions";
 const SAMPLE_TABLE = "telemetry_samples";
-const DUCKDB_MEMORY_LIMIT = "512MB";
+const DUCKDB_WRITER_MEMORY_LIMIT = "1GB";
+const DUCKDB_VERIFIER_MEMORY_LIMIT = "512MB";
 const DUCKDB_THREADS = 1;
+const DUCKDB_TEMP_DIRECTORY_LIMIT = "1GB";
 const APPENDER_BATCH_SIZE = 4_096;
 const MAX_CANONICAL_ARCHIVE_PACKETS = 500_000;
 const MAX_CANONICAL_PACKET_JSON_BYTES = 256 * 1024;
-const MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES = 512 * 1024 * 1024;
+const MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_CANONICAL_ARCHIVE_BYTES = 512 * 1024 * 1024;
+function addPacketJsonBytes(total: number, bytes: number): number {
+  const next = total + bytes;
+  if (next > MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES) {
+    throw new Error(`Canonical archive exceeds ${MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES} streamed packet JSON byte limit`);
+  }
+  return next;
+}
+
+/** Test-only aggregate guard; production serialization invokes the same check per packet. */
+export function addCanonicalArchivePacketJsonBytesForTest(total: number, bytes: number): number {
+  return addPacketJsonBytes(total, bytes);
+}
+
+/** Test-only visibility for bounded DuckDB archive writer configuration. */
+export function canonicalArchiveDuckDbConfigForTest(): { writerMemoryLimit: string; verifierMemoryLimit: string; tempDirectoryLimit: string; threads: number; preserveInsertionOrder: false } {
+  return {
+    writerMemoryLimit: DUCKDB_WRITER_MEMORY_LIMIT,
+    verifierMemoryLimit: DUCKDB_VERIFIER_MEMORY_LIMIT,
+    tempDirectoryLimit: DUCKDB_TEMP_DIRECTORY_LIMIT,
+    threads: DUCKDB_THREADS,
+    preserveInsertionOrder: false,
+  };
+}
 
 interface SampleRow {
   sampleOrdinal: number;
@@ -64,7 +89,8 @@ interface SampleRow {
   receivedAtMs: number;
   trackDistanceM: number | null;
   trackDistancePct: number | null;
-  packetJson: string;
+  speed: number | null;
+  accel: number | null;
 }
 
 interface ArchiveWriteResult {
@@ -135,18 +161,9 @@ function packetLapNumber(packet: TelemetryPacket): number | null {
   const value = Number(packet.LapNumber);
   return Number.isInteger(value) && value > 0 ? value : null;
 }
-
-function packetNumericField(sample: SampleRow, field: string): number | null {
-  try {
-    const packet: unknown = JSON.parse(sample.packetJson);
-    if (packet && typeof packet === "object" && field in packet) {
-      const value = Number(packet[field as keyof typeof packet]);
-      return Number.isFinite(value) ? value : null;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+function packetNumericValue(packet: TelemetryPacket, field: "Speed" | "Accel"): number | null {
+  const value = Number(packet[field]);
+  return Number.isFinite(value) ? value : null;
 }
 
 function participantForTime(
@@ -268,12 +285,18 @@ function actualSemanticIds(gameId: GameId, packets: readonly TelemetryPacket[], 
 async function writeParquet(
   stagePath: string,
   samples: readonly SampleRow[],
+  packets: readonly TelemetryPacket[],
 ): Promise<void> {
+  const spillDir = `${stagePath}.spill`;
+  await mkdir(spillDir, { recursive: true });
   const instance = await DuckDBInstance.create(":memory:");
   const connection = await instance.connect();
   try {
-    await connection.run(`SET memory_limit = '${DUCKDB_MEMORY_LIMIT}'`);
+    await connection.run(`SET memory_limit = '${DUCKDB_WRITER_MEMORY_LIMIT}'`);
     await connection.run(`SET threads = ${DUCKDB_THREADS}`);
+    await connection.run("SET preserve_insertion_order = false");
+    await connection.run(`SET temp_directory = ${sqlString(spillDir)}`);
+    await connection.run(`SET max_temp_directory_size = '${DUCKDB_TEMP_DIRECTORY_LIMIT}'`);
     await connection.run(`CREATE TABLE ${SAMPLE_TABLE} (
       sample_ordinal BIGINT,
       participant_id VARCHAR,
@@ -285,8 +308,17 @@ async function writeParquet(
       track_distance_pct DOUBLE,
       packet_json VARCHAR
     )`);
+    if (samples.length !== packets.length) throw new Error("Canonical archive sample and packet counts differ");
     const appender = await connection.createAppender(SAMPLE_TABLE);
-    for (const sample of samples) {
+    let packetJsonBytes = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const sample = samples[index]!;
+      const packetJson = JSON.stringify(packets[index]!);
+      const jsonBytes = Buffer.byteLength(packetJson);
+      if (jsonBytes > MAX_CANONICAL_PACKET_JSON_BYTES) {
+        throw new Error(`Canonical archive packet ${index} exceeds ${MAX_CANONICAL_PACKET_JSON_BYTES} JSON byte limit`);
+      }
+      packetJsonBytes = addPacketJsonBytes(packetJsonBytes, jsonBytes);
       appender.appendBigInt(BigInt(sample.sampleOrdinal));
       if (sample.participantId == null) appender.appendNull();
       else appender.appendVarchar(sample.participantId);
@@ -300,23 +332,28 @@ async function writeParquet(
       else appender.appendDouble(sample.trackDistanceM);
       if (sample.trackDistancePct == null) appender.appendNull();
       else appender.appendDouble(sample.trackDistancePct);
-      appender.appendVarchar(sample.packetJson);
+      appender.appendVarchar(packetJson);
       appender.endRow();
       if ((sample.sampleOrdinal + 1) % APPENDER_BATCH_SIZE === 0) appender.flushSync();
     }
     appender.flushSync();
     appender.closeSync();
-    await connection.run(`COPY ${SAMPLE_TABLE} TO ${sqlString(stagePath)} (FORMAT PARQUET, COMPRESSION ZSTD)`);
+    await connection.run(`COPY (
+      SELECT sample_ordinal, participant_id, lap_id, lap_number, source_time_ms, received_at_ms, track_distance_m, track_distance_pct, packet_json
+      FROM ${SAMPLE_TABLE}
+      ORDER BY sample_ordinal
+    ) TO ${sqlString(stagePath)} (FORMAT PARQUET, COMPRESSION ZSTD)`);
   } finally {
     connection.closeSync();
     instance.closeSync();
+    await rm(spillDir, { recursive: true, force: true });
   }
 }
 export async function verifyCanonicalArchiveParquet(path: string, expectedRows: number): Promise<void> {
   const instance = await DuckDBInstance.create(":memory:");
   const connection = await instance.connect();
   try {
-    await connection.run(`SET memory_limit = '${DUCKDB_MEMORY_LIMIT}'`);
+    await connection.run(`SET memory_limit = '${DUCKDB_VERIFIER_MEMORY_LIMIT}'`);
     await connection.run(`SET threads = ${DUCKDB_THREADS}`);
     const file = sqlString(path);
     const reader = await connection.runAndReadAll(`SELECT
@@ -443,18 +480,8 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
   const lapByNumber = new Map<number, typeof persistedLaps[number]>();
   for (const lap of persistedLaps) if (!lapByNumber.has(lap.lapNumber)) lapByNumber.set(lap.lapNumber, lap);
   const samples: SampleRow[] = new Array(packets.length);
-  let packetJsonBytes = 0;
   for (let sampleOrdinal = 0; sampleOrdinal < packets.length; sampleOrdinal += 1) {
     const packet = packets[sampleOrdinal]!;
-    const packetJson = JSON.stringify(packet);
-    const jsonBytes = Buffer.byteLength(packetJson);
-    if (jsonBytes > MAX_CANONICAL_PACKET_JSON_BYTES) {
-      throw new Error(`Canonical archive packet ${sampleOrdinal} exceeds ${MAX_CANONICAL_PACKET_JSON_BYTES} JSON byte limit`);
-    }
-    packetJsonBytes += jsonBytes;
-    if (packetJsonBytes > MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES) {
-      throw new Error(`Canonical archive exceeds ${MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES} packet JSON byte limit`);
-    }
     const lapNumber = packetLapNumber(packet);
     const sourceTimeMs = sourceTime(packet);
     const lap = lapNumber == null ? undefined : lapByNumber.get(lapNumber);
@@ -467,7 +494,8 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
       receivedAtMs: sourceTimeMs,
       trackDistanceM: packetDistance(packet),
       trackDistancePct: null,
-      packetJson,
+      speed: packetNumericValue(packet, "Speed"),
+      accel: packetNumericValue(packet, "Accel"),
     };
   }
   if (samples.length === 0) throw new Error("Canonical archive contains zero readable telemetry samples");
@@ -584,11 +612,11 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
         indexes,
       }));
       const apexIndex = indexes.reduce((best, index) => {
-        const speed = packetNumericField(samples[index]!, "Speed");
-        const bestSpeed = packetNumericField(samples[best]!, "Speed");
+        const speed = samples[index]!.speed;
+        const bestSpeed = samples[best]!.speed;
         return speed != null && (bestSpeed == null || speed < bestSpeed) ? index : best;
       }, indexes[0]!);
-      const throttleIndex = indexes.find((index) => index >= apexIndex && (packetNumericField(samples[index]!, "Accel") ?? 0) >= 0.8) ?? indexes.at(-1)!;
+      const throttleIndex = indexes.find((index) => index >= apexIndex && (samples[index]!.accel ?? 0) >= 0.8) ?? indexes.at(-1)!;
       const phaseRanges = [
         { kind: "entry", indexes: indexes.filter((index) => index <= apexIndex) },
         { kind: "mid", indexes: indexes.filter((index) => index >= apexIndex && index <= throttleIndex) },
@@ -685,7 +713,7 @@ async function writeArchive(input: {
     createdAt,
   });
   try {
-    await writeParquet(stagePath, built.samples);
+    await writeParquet(stagePath, built.samples, input.packets);
     await verifyCanonicalArchiveParquet(stagePath, built.samples.length);
     const output = await sha256ArchiveFile(stagePath);
     await rename(stagePath, finalPath);

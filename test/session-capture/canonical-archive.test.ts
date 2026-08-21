@@ -17,7 +17,7 @@ import { readCanonicalArchiveLapRanges, readCanonicalArchiveSamples } from "../.
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { listCanonicalArchiveJobs, MAX_CANONICAL_ARCHIVE_JOB_ATTEMPTS, completeCanonicalArchiveJob, enqueueCanonicalArchiveJob, failCanonicalArchiveJob, claimCanonicalArchiveJob, heartbeatCanonicalArchiveJob, recoverInterruptedCanonicalArchives } from "../../server/db/canonical-archive-queries";
-import { buildCanonicalArchive, setCanonicalArchiveBuildHookForTest, verifyCanonicalArchiveParquet } from "../../server/session-capture/canonical-archive";
+import { addCanonicalArchivePacketJsonBytesForTest, buildCanonicalArchive, canonicalArchiveDuckDbConfigForTest, setCanonicalArchiveBuildHookForTest, verifyCanonicalArchiveParquet } from "../../server/session-capture/canonical-archive";
 import { inspectRawCaptureIdentity } from "../../server/session-capture/identity";
 import { getSessionCanonicalAvailability } from "../../server/lap-analysis/canonical-archive-availability";
 import { db } from "../../server/db/index";
@@ -105,6 +105,23 @@ describe("canonical archive contracts", () => {
     expect(CANONICAL_ARCHIVE_SCHEMA_VERSION).toBe("canonical-archive-v1");
     expect(node.endRow).toBe(1);
   });
+  test("streams aggregate packet JSON beyond the archive byte ceiling without materializing it", () => {
+    const archiveBytes = 512 * 1024 * 1024;
+    expect(addCanonicalArchivePacketJsonBytesForTest(archiveBytes, 1)).toBe(archiveBytes + 1);
+    expect(() => addCanonicalArchivePacketJsonBytesForTest(2 * 1024 * 1024 * 1024, 1))
+      .toThrow("streamed packet JSON byte limit");
+  });
+  test("uses bounded spill-capable DuckDB writer settings", () => {
+    expect(canonicalArchiveDuckDbConfigForTest()).toEqual({
+      writerMemoryLimit: "1GB",
+      verifierMemoryLimit: "512MB",
+      tempDirectoryLimit: "1GB",
+      threads: 1,
+      preserveInsertionOrder: false,
+    });
+  });
+
+
 
   test("reads compressed Parquet rows through production reader", async () => {
     const dir = mkdtempSync(join(process.cwd(), ".data-archive-test-"));
@@ -246,6 +263,18 @@ describe("canonical archive contracts", () => {
         schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
       }));
       expect(await readCanonicalArchiveSamples(built.archive.archivePath, 0, 1)).toHaveLength(1);
+      const instance = await DuckDBInstance.create(":memory:");
+      const connection = await instance.connect();
+      try {
+        const physicalOrder = await connection.runAndReadAll(`SELECT sample_ordinal FROM read_parquet('${built.archive.archivePath.replaceAll("'", "''")}') LIMIT 3`);
+        await physicalOrder.readAll();
+        expect(physicalOrder.getRowsJS().map((row) => Number(row[0]))).toEqual(
+          Array.from({ length: Math.min(3, built.archive.sampleCount) }, (_, index) => index),
+        );
+      } finally {
+        connection.closeSync();
+        instance.closeSync();
+      }
       const availability = CanonicalArchiveAvailabilitySchema.parse(await getSessionCanonicalAvailability(seeded.sessionId));
       expect(availability).toMatchObject({
         state: "available",
