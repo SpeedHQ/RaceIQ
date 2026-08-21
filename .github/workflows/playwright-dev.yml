@@ -10,35 +10,19 @@ on:
 
 jobs:
   playwright:
-    name: Playwright E2E (${{ matrix.name }})
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        include:
-          - name: fresh
-            server_set: fresh
-            projects: --project=fresh-install
-            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
-          - name: tunes
-            server_set: tunes
-            projects: --project=tunes
-            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
-          - name: tunes-unseeded
-            server_set: tunes-unseeded
-            projects: --project=tunes-unseeded
-            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
-          - name: seeded
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            runs_on: '["whitesmith-windows-x64", "4VCPU", "10G"]'
+    name: Playwright E2E
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      server-set: ${{ matrix.server_set }}
-      projects: ${{ matrix.projects }}
-      runs-on: ${{ matrix.runs_on }}
+      runs-on: '["whitesmith-windows-x64", "4VCPU", "10G"]'
       dist-artifact: raceiq-dist-windows
-      artifact-name: playwright-${{ matrix.name }}
-      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
+      batches: >-
+        [
+          {"name":"fresh","serverSet":"fresh","projects":"--project=fresh-install","workers":1},
+          {"name":"tunes","serverSet":"tunes","projects":"--project=tunes","workers":1},
+          {"name":"tunes-unseeded","serverSet":"tunes-unseeded","projects":"--project=tunes-unseeded","workers":1},
+          {"name":"seeded","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1}
+        ]
+      artifact-name: playwright-results
+      diagnostic-artifact-name: server-diagnostics
       target-ref: ${{ inputs.target-ref }}

@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: all
+      batches:
+        description: "Optional ordered Playwright server-set batches as JSON"
+        required: false
+        type: string
+        default: ""
       dist-artifact:
         description: "Optional prebuilt dist artifact for compiled-server gate"
         required: false
@@ -87,6 +92,7 @@ jobs:
         run: bun run ../scripts/playwright-ci.ts install chromium
 
       - name: Check Playwright project discovery
+        if: inputs.batches == ''
         working-directory: playwright
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
@@ -97,6 +103,7 @@ jobs:
         run: bun run ../scripts/playwright-ci.ts test --list
 
       - name: Run Playwright gate
+        if: inputs.batches == ''
         working-directory: playwright
         env:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
@@ -106,6 +113,16 @@ jobs:
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
         run: bun run ../scripts/playwright-ci.ts test
+
+      - name: Run Playwright batch gate
+        if: inputs.batches != ''
+        working-directory: playwright
+        env:
+          E2E_SERVER_MODE: ${{ inputs.server-mode }}
+          RACEIQ_DISABLE_TRAY: "1"
+          PLAYWRIGHT_BATCHES: ${{ inputs.batches }}
+        shell: cmd
+        run: bun run ../scripts/playwright-batches.ts
 
 
       - name: Upload Playwright artifacts
@@ -127,6 +144,8 @@ jobs:
           path: |
             playwright/test-data*/raceiq.log
             playwright/test-data*/crash.log
+            playwright/test-results/**/raceiq.log
+            playwright/test-results/**/crash.log
             dist/crash.log
             crash.log
           retention-days: 7

@@ -5,7 +5,7 @@ import { createWebServers } from "./config/web-servers";
 
 export default defineConfig({
   testDir: "tests",
-  outputDir: "./test-results",
+  outputDir: process.env.PW_OUTPUT_DIR ?? "./test-results",
   fullyParallel: runtime.parallelScreenshotRun,
   workers: runtime.parallelScreenshotRun ? runtime.screenshotWorkers : runtime.testWorkers,
   retries: process.env.CI ? 1 : 0,
