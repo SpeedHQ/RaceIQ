@@ -57,6 +57,8 @@ playwright/screenshots/
 
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/sessions/*.bin
+# Large local recordings used for manual stress and video correlation
+test/artifacts/local/
 .claude/scheduled_tasks.lock
 .claude/worktrees/
 /.crew
