@@ -50,6 +50,8 @@ export default defineConfig(({ command }) => {
       paraglideVitePlugin({
         project: "./project.inlang",
         outdir: "./src/paraglide",
+        // Skip declaration generation during dev to keep startup fast.
+        // Production builds emit declarations before the TypeScript check.
         emitTsDeclarations: isBuild,
         outputStructure: isBuild ? "message-modules" : "locale-modules",
         // Locale is driven by the server-persisted `language` setting; the client
