@@ -38,6 +38,8 @@ interface TrackFocusViewProps {
    *  review (drives the /line-spread racing-line consistency query). Omit to
    *  hide the line-spread lane + map overlay (e.g. Storybook, non-tuning contexts). */
   experimentId?: number | null;
+  activeTab?: Tab;
+  onActiveTabChange?: (tab: Tab) => void;
 }
 
 const TABS = ["consistency", "tires", "balance", "suspension"] as const;
@@ -47,7 +49,7 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
-export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId }: TrackFocusViewProps) {
+export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId, activeTab, onActiveTabChange }: TrackFocusViewProps) {
   // Invalid laps are excluded from the whole Track Focus view —
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
@@ -125,6 +127,8 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       metaSectors={metaSectors}
       shownLapCount={reviewLaps.length}
       totalLapCount={stintLaps.length}
+      activeTab={activeTab}
+      onActiveTabChange={onActiveTabChange}
     />
   );
 }
@@ -151,6 +155,8 @@ export interface TrackFocusViewInnerProps {
   shownLapCount?: number;
   /** Total eligible laps in the stint (for the "showing N of M" caption). */
   totalLapCount?: number;
+  activeTab?: Tab;
+  onActiveTabChange?: (tab: Tab) => void;
 }
 
 /** Presentational Track Focus view — no data fetching, so it can be driven
@@ -170,10 +176,17 @@ export function TrackFocusViewInner({
   metaSectors,
   shownLapCount,
   totalLapCount,
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
 }: TrackFocusViewInnerProps) {
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("consistency");
+  const [localActiveTab, setLocalActiveTab] = useState<Tab>("consistency");
+  const activeTab = controlledActiveTab ?? localActiveTab;
+  const setActiveTab = (tab: Tab) => {
+    setLocalActiveTab(tab);
+    onActiveTabChange?.(tab);
+  };
   const [zoomActive, setZoomActive] = useState(false);
 
   const resolvedTraces = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
