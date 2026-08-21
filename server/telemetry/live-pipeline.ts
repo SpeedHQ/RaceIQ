@@ -12,10 +12,11 @@ import {
   type EvidenceSourceKind,
   type ParticipantEvidence,
   type SourceChannelProfile,
+  type RecordingQualitySummary,
   type SourceLifecycleEvidence,
 } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
-import { SourceSequenceTracker } from "../../shared/telemetry/source-sequence";
+import { packetSequences, SourceSequenceTracker } from "../../shared/telemetry/source-sequence";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import {
   type DbAdapter,
@@ -70,16 +71,31 @@ interface ClosedRecordingSession {
   sourceVerification: ArchiveVerification;
   transportVerification?: ArchiveVerification;
   canonicalVerification?: ArchiveVerification;
+  finalizedQuality?: RecordingQualitySummary;
+  closureEvents: RaceEvent[];
 }
-
 interface PendingLapIssueEvaluation {
   issues: TuneIssue[] | null;
   eligibility: EligibilityDecision;
 }
 
+
+interface PendingTimelineLapBatch {
+  events: RaceEvent[];
+  prior: Promise<void>;
+  release: () => void;
+  settled: Promise<void>;
+  settle: () => void;
+}
+
+interface PendingSessionFinalization {
+  closed: ClosedRecordingSession;
+  endReason: string;
+}
 interface CaptureFinalizationResult {
   finalization: Promise<void> | null;
 }
+
 
 export class LiveTelemetryPipeline {
   private sectorTracker = new SectorTracker();
@@ -118,15 +134,19 @@ export class LiveTelemetryPipeline {
   private _captureOperationQueue = Promise.resolve();
   private _timelinePersistenceQueue = Promise.resolve();
   private readonly _sessionFinalizations = new Map<number, Promise<void>>();
-  private readonly _sessionFinalizationFailures: unknown[] = [];
+  private readonly _pendingSessionFinalizations = new Map<number, PendingSessionFinalization>();
   private _timelineSourceSequence = new SourceSequenceTracker();
   private _pendingTimelinePreflight: RaceEventPreflightResult | null = null;
   private _timelineEventsStaged = false;
   private readonly _stagedTimelineEvents: RaceEvent[] = [];
   private readonly _stagedTimelineLapLinks: RaceEventLapLink[] = [];
   private readonly _stagedLapSavedActions: Array<() => Promise<void>> = [];
-  private readonly _pendingTimelineLapBatches = new Map<string, RaceEvent[]>();
-  private readonly _deferredSessionFinalizations: ClosedRecordingSession[] = [];
+  private readonly _pendingTimelineLapBatches = new Map<string, PendingTimelineLapBatch>();
+  private _failedTimelineBatch: {
+    events: RaceEvent[];
+    lapLinks: RaceEventLapLink[];
+    afterPersist?: () => Promise<void>;
+  } | null = null;
   private _lastTimelinePacket: TelemetryPacket | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
@@ -216,10 +236,17 @@ export class LiveTelemetryPipeline {
   }
 
   private _enqueueTimelinePersistence<T>(operation: () => Promise<T>): Promise<T> {
-    const previous = this._timelinePersistenceQueue;
+    const previous = this._timelinePersistenceQueue.catch(() => {});
     const { promise, resolve } = Promise.withResolvers<void>();
     this._timelinePersistenceQueue = promise;
     return previous.then(operation).finally(resolve);
+  }
+
+  private _reserveTimelinePosition(): { prior: Promise<void>; release: () => void } {
+    const prior = this._timelinePersistenceQueue.catch(() => {});
+    const { promise, resolve } = Promise.withResolvers<void>();
+    this._timelinePersistenceQueue = promise;
+    return { prior, release: resolve };
   }
 
   private _persistTimelineEvents(events: readonly RaceEvent[], lapLinks: readonly RaceEventLapLink[] = []): Promise<RaceEvent[]> {
@@ -227,27 +254,42 @@ export class LiveTelemetryPipeline {
   }
 
   private async _persistTimelineEventsCore(events: readonly RaceEvent[], lapLinks: readonly RaceEventLapLink[] = []): Promise<RaceEvent[]> {
+    const failed = this._failedTimelineBatch;
+    if (failed) {
+      await this._appendTimelineEvents(failed.events, failed.lapLinks);
+      this._failedTimelineBatch = null;
+      try {
+        await failed.afterPersist?.();
+      } catch (error) {
+        this._failedTimelineBatch = {
+          events: [...events],
+          lapLinks: [...lapLinks],
+        };
+        throw error;
+      }
+    }
+    return this._appendTimelineEvents(events, lapLinks);
+  }
+
+  private async _appendTimelineEvents(events: readonly RaceEvent[], lapLinks: readonly RaceEventLapLink[]): Promise<RaceEvent[]> {
     if (events.length === 0) return [];
-    const ordered = [...events].sort(compareRaceEvents);
+    let ordered = events;
+    for (let index = 1; index < events.length; index++) {
+      if (compareRaceEvents(events[index - 1]!, events[index]!) > 0) {
+        ordered = [...events].sort(compareRaceEvents);
+        break;
+      }
+    }
     let inserted: RaceEvent[];
     try {
-      inserted = lapLinks.length > 0 ? await this.raceEventStore.appendWithLapLinks(ordered, lapLinks) : await this.raceEventStore.append(ordered);
+      inserted = lapLinks.length > 0
+        ? await this.raceEventStore.appendWithLapLinks(ordered, lapLinks)
+        : await this.raceEventStore.append(ordered);
     } catch (error) {
-      const diagnostic = this.raceEvents.noteStorageFailure({
-        kind: "failure",
-        operation: "append-race-events",
-        details: error instanceof Error ? error.message : String(error),
-      });
-      if (diagnostic.length > 0) {
-        try {
-          const persistedDiagnostic = await this.raceEventStore.append(diagnostic);
-          for (const event of persistedDiagnostic) {
-            this.raceEventPublisher.publishAppended(event.sessionId, [event]);
-          }
-        } catch {
-          // Preserve the original persistence failure.
-        }
-      }
+      this._failedTimelineBatch ??= {
+        events: [...ordered],
+        lapLinks: [...lapLinks],
+      };
       throw new Error(`Failed to persist race events: ${ordered.map(({ eventType }) => eventType).join(", ")}`, { cause: error });
     }
     const bySession = new Map<number, RaceEvent[]>();
@@ -310,25 +352,67 @@ export class LiveTelemetryPipeline {
       if (key.startsWith(prefix)) this._pendingLapIssues.delete(key);
     }
   }
-
-  private _clearPendingTimelineLapBatches(sessionId: number): void {
-    const prefix = `${sessionId}:`;
-    for (const key of this._pendingTimelineLapBatches.keys()) {
-      if (key.startsWith(prefix)) this._pendingTimelineLapBatches.delete(key);
+  private _releaseTimelineReservationsForOtherSessions(activeSessionId: number): void {
+    const prefix = `${activeSessionId}:`;
+    for (const [key, pending] of this._pendingTimelineLapBatches) {
+      if (!key.startsWith(prefix)) pending.release();
     }
   }
+
+
+
+  private async _drainPendingTimelineLapBatches(sessionId: number): Promise<void> {
+    const prefix = `${sessionId}:`;
+    const pending = [...this._pendingTimelineLapBatches]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([, batch]) => batch.settled);
+    await Promise.all(pending);
+  }
+  private async _releaseFailedTimelineLapBatches(sessionId: number, error: unknown): Promise<void> {
+    const prefix = `${sessionId}:`;
+    const pending = [...this._pendingTimelineLapBatches]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([, batch]) => batch);
+    for (const [key, batch] of this._pendingTimelineLapBatches) {
+      if (!key.startsWith(prefix)) continue;
+      this._pendingTimelineLapBatches.delete(key);
+      batch.release();
+      batch.settle();
+    }
+    for (const batch of pending) {
+      await this._persistTimelineEvents(batch.events);
+    }
+    if (pending.length > 0) {
+      await this._persistTimelineEvents(
+        this.raceEvents.noteStorageFailure({
+          kind: "failure",
+          operation: "save-lap",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
+
+  private async _waitForPendingLapWrites(session: RecordingSessionState): Promise<void> {
+    try {
+      await session.detector.waitForPendingLapWrites?.(session.sessionId);
+    } catch (error) {
+      await this._releaseFailedTimelineLapBatches(session.sessionId, error);
+      return;
+    }
+  }
+
 
   private _trackSessionFinalization(closed: ClosedRecordingSession, endReason: string): Promise<void> {
     const sessionId = closed.session.sessionId;
     const existing = this._sessionFinalizations.get(sessionId);
     if (existing) return existing;
 
+    this._pendingSessionFinalizations.set(sessionId, { closed, endReason });
     let finalization!: Promise<void>;
     finalization = this._finalizeRecordedSession(closed, endReason)
-      .catch((error) => {
-        console.error(`[Live Telemetry] Session ${sessionId} finalization failed:`, error);
-        this._sessionFinalizationFailures.push(error);
-        throw error;
+      .then(() => {
+        this._pendingSessionFinalizations.delete(sessionId);
       })
       .finally(() => {
         if (this._sessionFinalizations.get(sessionId) === finalization) {
@@ -340,40 +424,36 @@ export class LiveTelemetryPipeline {
     return finalization;
   }
 
+  private _retryPendingSessionFinalizations(): void {
+    for (const { closed, endReason } of this._pendingSessionFinalizations.values()) {
+      this._trackSessionFinalization(closed, endReason);
+    }
+  }
+
   private async _drainSessionFinalizations(): Promise<void> {
-    while (this._sessionFinalizations.size > 0) {
-      await Promise.allSettled([...this._sessionFinalizations.values()]);
-    }
-    const failures = this._sessionFinalizationFailures.splice(0);
-    if (failures.length > 0) {
-      throw new AggregateError(failures, "Session finalization failed");
-    }
+    await Promise.all([...this._sessionFinalizations.values()]);
   }
 
   private async _awaitCaptureFinalization(result: CaptureFinalizationResult): Promise<void> {
-    if (result.finalization) {
-      await Promise.allSettled([result.finalization]);
-    }
+    if (result.finalization) await result.finalization;
     await this._drainSessionFinalizations();
   }
 
-  private _scheduleLapReconciliation(sessionId: number, gameId: GameId): void {
+  private _scheduleLapReconciliation(sessionId: number, gameId: GameId): Promise<void> {
     const reconcile = this._onSessionFinalized;
-    if (!reconcile) return;
+    if (!reconcile) return Promise.resolve();
     const previous = this._lapReconciliations.get(sessionId) ?? Promise.resolve();
     let current: Promise<void>;
     current = previous
       .catch(() => {})
       .then(() => reconcile(sessionId, gameId))
-      .catch((error) => {
-        console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
-      })
       .finally(() => {
         if (this._lapReconciliations.get(sessionId) === current) {
           this._lapReconciliations.delete(sessionId);
         }
       });
     this._lapReconciliations.set(sessionId, current);
+    return current;
   }
 
   private async _drainLapReconciliations(sessionId: number): Promise<void> {
@@ -417,7 +497,7 @@ export class LiveTelemetryPipeline {
     if (this._recordingSession?.sessionId !== session.sessionId) return null;
 
     const qualityAccumulator = this._recordingQuality;
-    await this._persistTimelineEvents(this.raceEvents.noteSourceSequenceFinalized(this._timelineSourceSequence.finalize()));
+    const closureEvents = this.raceEvents.noteSourceSequenceFinalized(this._timelineSourceSequence.finalize());
     this._recordingSession = null;
     this._recordingQuality = null;
 
@@ -426,8 +506,8 @@ export class LiveTelemetryPipeline {
       canonicalVerification = await this.recorder.stop();
     } catch (error) {
       qualityAccumulator?.noteWriterFailure(error);
-      await this._persistTimelineEvents(
-        this.raceEvents.noteStorageFailure({
+      closureEvents.push(
+        ...this.raceEvents.noteStorageFailure({
           kind: "failure",
           operation: "stop-session-recorder",
           details: error instanceof Error ? error.message : String(error),
@@ -440,8 +520,8 @@ export class LiveTelemetryPipeline {
       };
     }
     if (canonicalVerification.state === "corrupt" || canonicalVerification.state === "truncated") {
-      await this._persistTimelineEvents(
-        this.raceEvents.noteStorageFailure({
+      closureEvents.push(
+        ...this.raceEvents.noteStorageFailure({
           kind: "failure",
           operation: "verify-session-recorder",
           details: canonicalVerification.details ?? canonicalVerification.state,
@@ -452,6 +532,7 @@ export class LiveTelemetryPipeline {
     return {
       session,
       qualityAccumulator,
+      closureEvents,
       sourceVerification: this._sourceArchiveVerification ?? canonicalVerification,
       ...(this._sourceTransportVerification ? { transportVerification: this._sourceTransportVerification } : {}),
       ...(hasOriginalSourceVerification ? { canonicalVerification } : {}),
@@ -459,17 +540,20 @@ export class LiveTelemetryPipeline {
   }
 
   private async _finalizeRecordedSession(closed: ClosedRecordingSession, endReason: string): Promise<void> {
-    try {
-      await closed.session.detector.waitForPendingLapWrites?.(closed.session.sessionId);
-    } finally {
-      this._clearPendingLapIssues(closed.session.sessionId);
-      this._clearPendingTimelineLapBatches(closed.session.sessionId);
-    }
+    await this._waitForPendingLapWrites(closed.session);
+    await this._drainPendingTimelineLapBatches(closed.session.sessionId);
+    await this._persistTimelineEvents(closed.closureEvents);
+    await this._persistTimelineEvents([]);
+    this._clearPendingLapIssues(closed.session.sessionId);
     if (closed.qualityAccumulator) {
-      const summary = closed.qualityAccumulator.finalize(endReason, closed.sourceVerification, {
-        transportVerification: closed.transportVerification,
-        canonicalVerification: closed.canonicalVerification,
-      });
+      const summary = closed.finalizedQuality ??= closed.qualityAccumulator.finalize(
+        endReason,
+        closed.sourceVerification,
+        {
+          transportVerification: closed.transportVerification,
+          canonicalVerification: closed.canonicalVerification,
+        },
+      );
       const finalized = await this.db.updateSessionQuality(closed.session.sessionId, summary);
       await this.raceEventStore.refreshQualityLinks(closed.session.sessionId);
       if (!finalized.provenance.sourceGeneration.startsWith("provisional:")) {
@@ -487,7 +571,16 @@ export class LiveTelemetryPipeline {
     await this._reconcileRecordedSession(closed.session);
   }
 
-  private async _finishRecordedSessionCore(session = this._recordingSession, endReason = "session-ended"): Promise<CaptureFinalizationResult> {
+  private async _finishRecordedSessionCore(
+    session = this._recordingSession,
+    endReason: SessionEndReason = "stream-ended",
+  ): Promise<CaptureFinalizationResult> {
+    if (session) {
+      await this._waitForPendingLapWrites(session);
+      await this._drainPendingTimelineLapBatches(session.sessionId);
+      await this._persistTimelineEvents([]);
+      await this._emitTimelineEvents(this.raceEvents.endSession({ reason: endReason, terminalObserved: true }));
+    }
     const closed = await withSessionCaptureMaintenanceLock(async () => {
       if (!session) {
         if (!this._recordingSession) await this.recorder.stop();
@@ -502,7 +595,11 @@ export class LiveTelemetryPipeline {
 
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
+
+
+
       onSessionStart: async (session, context) => {
+        this._releaseTimelineReservationsForOtherSessions(session.sessionId);
         const closedPrevious = await withSessionCaptureMaintenanceLock(async () => {
           const previousSession = this._recordingSession;
           const closed = previousSession ? await this._closeRecordedSession(previousSession) : (await this.recorder.stop(), null);
@@ -521,14 +618,17 @@ export class LiveTelemetryPipeline {
           return closed;
         });
 
+        if (closedPrevious) void this._trackSessionFinalization(closedPrevious, "session-rotated");
+
         if (closedPrevious) {
           this._timelineSourceSequence = new SourceSequenceTracker();
-          this._timelineSourceSequence.observe(context.packet);
+          this._timelineSourceSequence.observe(context.packet, this._pendingTimelinePreflight?.observation.sourceSequences ?? []);
         }
         const observation =
           this._pendingTimelinePreflight?.observation ??
           getServerGame(session.gameId).toRaceEventObservation(context.packet, {
             receivedAtMs: Date.now(),
+            sourceSequences: [],
           });
         this.raceEvents.bindSession(session.sessionId, {
           reason: context.reason,
@@ -546,14 +646,12 @@ export class LiveTelemetryPipeline {
           this._sessionLaps = [];
         }
         this._broadcastSessionLaps();
-
-        if (closedPrevious) {
-          this._deferredSessionFinalizations.push(closedPrevious);
-        }
       },
 
       onSessionEnd: async (_session, context) => {
-        await this._emitTimelineEvents(this.raceEvents.endSession(context));
+        if (context.reason !== "stream-ended") {
+          await this._emitTimelineEvents(this.raceEvents.endSession(context));
+        }
       },
 
       onLapEvaluated: async (event, context) => {
@@ -584,7 +682,7 @@ export class LiveTelemetryPipeline {
             const symptoms = telemetryToSymptoms(event.packets, corners);
             issues = symptomsToIssues(symptoms).map((issue) => ({
               ...issue,
-              eventIds: this.raceEvents.eventIdsForLap(context.session.sessionId, context.lapNumber),
+              eventIds: [],
             }));
           } catch {
             issues = null;
@@ -618,8 +716,7 @@ export class LiveTelemetryPipeline {
           if (!timelineLinked) {
             await this.raceEventStore.attachLap(session.sessionId, context.lapNumber, event.lapId);
           }
-          this._scheduleLapReconciliation(session.sessionId, session.gameId);
-          await this._drainLapReconciliations(session.sessionId);
+          await this._scheduleLapReconciliation(session.sessionId, session.gameId);
           if (this._onSessionFinalized) {
             this._publishRaceResultInvalidation(session.sessionId);
           }
@@ -632,11 +729,10 @@ export class LiveTelemetryPipeline {
 
           this.ws.broadcastNotification({ type: "lap-saved", ...event });
           if (pendingIssues) {
-            const eventIds = this.raceEvents.eventIdsForLap(session.sessionId, context.lapNumber);
             const issues = (pendingIssues.issues ?? []).map((issue) => ({
               ...issue,
               lapNumber: event.lapNumber,
-              eventIds,
+              eventIds: [],
             }));
             this.ws.broadcastNotification({
               type: "lap-issues",
@@ -674,14 +770,20 @@ export class LiveTelemetryPipeline {
         };
 
         if (pendingBatch) {
-          await this._enqueueTimelinePersistence(async () => {
-            try {
-              await this._persistTimelineEventsCore(pendingBatch, [lapLink]);
-            } finally {
-              this._pendingTimelineLapBatches.delete(issueKey);
-            }
+          await pendingBatch.prior;
+          try {
+            await this._persistTimelineEventsCore(pendingBatch.events, [lapLink]);
             await action(true);
-          });
+          } catch (error) {
+            if (this._failedTimelineBatch) {
+              this._failedTimelineBatch.afterPersist ??= () => action(true);
+            }
+            throw error;
+          } finally {
+            this._pendingTimelineLapBatches.delete(issueKey);
+            pendingBatch.release();
+            pendingBatch.settle();
+          }
           return;
         }
         if (staged) {
@@ -693,9 +795,27 @@ export class LiveTelemetryPipeline {
     };
   }
 
-  private _getOrCreateDetector(gameId: GameId): ILapDetector {
-    // Create a fresh detector if none exists, or if the game changed
+  private async _getOrCreateDetector(gameId: GameId): Promise<ILapDetector> {
+    this._retryPendingSessionFinalizations();
     if (this._lapDetector === null || this._lapDetectorGameId !== gameId) {
+      const previousDetector = this._lapDetector;
+      const previousSession = this._recordingSession;
+      if (previousDetector) {
+        const previousSessionId = previousDetector.session?.sessionId;
+        let detectorFailure: unknown;
+        try {
+          await previousDetector.finalizeCurrentSession?.("session-rotated");
+        } catch (error) {
+          detectorFailure = error;
+        }
+        if (previousSession) {
+          const result = await this._finishRecordedSessionCore(previousSession, "session-rotated");
+          void result.finalization?.catch(() => {});
+        } else if (previousSessionId != null) {
+          await previousDetector.waitForPendingLapWrites?.(previousSessionId);
+        }
+        if (detectorFailure) throw detectorFailure;
+      }
       const serverAdapter = getServerGame(gameId);
       this._lapDetector = serverAdapter.createLapDetector({
         db: this.db,
@@ -727,16 +847,28 @@ export class LiveTelemetryPipeline {
 
   /** Finalize detector, durable capture, then authoritative session result. */
   async finalizeCurrentSession(reason: SessionEndReason = "stream-ended"): Promise<void> {
+    this._retryPendingSessionFinalizations();
     const result = await this._enqueueCaptureOperation(async () => {
       const session = this._recordingSession;
-      await this._lapDetector?.finalizeCurrentSession?.(reason);
-      return this._finishRecordedSessionCore(session, reason);
+      let detectorFailure: unknown;
+      try {
+        await this._lapDetector?.finalizeCurrentSession?.(reason);
+      } catch (error) {
+        detectorFailure = error;
+      }
+      const finalization = await this._finishRecordedSessionCore(session, reason);
+      if (detectorFailure) {
+        await this._awaitCaptureFinalization(finalization);
+        throw detectorFailure;
+      }
+      return finalization;
     });
     await this._awaitCaptureFinalization(result);
   }
 
   /** Detect game-specific stale finalization and finish its durable capture. */
   async flushStaleSession(): Promise<void> {
+    this._retryPendingSessionFinalizations();
     const result = await this._enqueueCaptureOperation(async () => {
       const session = this._recordingSession;
       await this._lapDetector?.flushStaleLap?.();
@@ -816,23 +948,26 @@ export class LiveTelemetryPipeline {
 
     // Normalize coordinates and derived channels using the adapter profile.
     normalizeTelemetryPacket(packet, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
+    const detector = await this._getOrCreateDetector(packet.gameId);
 
-    const sequenceEvidence = this._timelineSourceSequence.observe(packet);
-    const observation = adapter.toRaceEventObservation(packet, { receivedAtMs });
+    const sourceSequences = packetSequences(packet);
+    const sequenceEvidence = this._timelineSourceSequence.observe(packet, sourceSequences);
+    const observation = adapter.toRaceEventObservation(packet, { receivedAtMs, sourceSequences });
     const preflight = this.raceEvents.preflight(observation, {
       ...this._timelineSessionBoundary(packet),
       sourceSequenceBoundaries: sequenceEvidence.boundaries,
+      sourceSequenceGapCandidates: sequenceEvidence.gapCandidates,
     });
     this._pendingTimelinePreflight = preflight;
     if (!preflight.accepted) {
-      this._recordingQuality?.observe(packet);
+      this._recordingQuality?.observe(packet, sourceSequences);
       const rejected = this.raceEvents.processPreflight(preflight);
       await this._persistTimelineEvents(rejected.events);
       this._pendingTimelinePreflight = null;
       return;
     }
 
-    const detector = this._getOrCreateDetector(packet.gameId);
+
     this._timelineEventsStaged = true;
     this._stagedTimelineEvents.length = 0;
     this._stagedTimelineLapLinks.length = 0;
@@ -863,7 +998,7 @@ export class LiveTelemetryPipeline {
         recorderWriteFailure = error;
       }
     }
-    this._recordingQuality?.observe(packet);
+    this._recordingQuality?.observe(packet, sourceSequences);
     const processed = this.raceEvents.processPreflight(preflight);
     this._stagedTimelineEvents.push(...processed.events);
     if (processed.rejectedDrafts.length > 0) {
@@ -892,7 +1027,14 @@ export class LiveTelemetryPipeline {
         if (this._pendingTimelineLapBatches.has(key)) {
           throw new Error(`Pending race-event lap batch already exists for ${key}`);
         }
-        this._pendingTimelineLapBatches.set(key, [...this._stagedTimelineEvents]);
+        const reservation = this._reserveTimelinePosition();
+        const completion = Promise.withResolvers<void>();
+        this._pendingTimelineLapBatches.set(key, {
+          events: [...this._stagedTimelineEvents],
+          ...reservation,
+          settled: completion.promise,
+          settle: completion.resolve,
+        });
       } else {
         await this._enqueueTimelinePersistence(async () => {
           await this._persistTimelineEventsCore(this._stagedTimelineEvents, this._stagedTimelineLapLinks);
@@ -907,10 +1049,7 @@ export class LiveTelemetryPipeline {
       this._stagedTimelineLapLinks.length = 0;
     }
     this._lastTimelinePacket = packet;
-    const deferredFinalizations = this._deferredSessionFinalizations.splice(0);
-    for (const closed of deferredFinalizations) {
-      void this._trackSessionFinalization(closed, "session-rotated");
-    }
+
 
     const sectors = this.sectorTracker.feed(packet);
 
@@ -957,6 +1096,7 @@ export class LiveTelemetryPipeline {
   }
 
   async flushSessionRecorder(): Promise<void> {
+    this._retryPendingSessionFinalizations();
     const result = await this._enqueueCaptureOperation(() => this._finishRecordedSessionCore(this._recordingSession, "stream-ended"));
     await this._awaitCaptureFinalization(result);
   }
@@ -984,11 +1124,7 @@ const _defaultWs: WsAdapter = {
 const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
   raceEventStore: new DatabaseRaceEventStore(),
   onSessionFinalized: async (sessionId, gameId) => {
-    try {
-      await reconcileSessionResult(sessionId, gameId);
-    } catch (error) {
-      console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
-    }
+    await reconcileSessionResult(sessionId, gameId);
   },
 });
 

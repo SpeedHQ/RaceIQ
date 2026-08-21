@@ -181,11 +181,24 @@ export class LapDetector implements ILapDetector {
     if (!this.currentSession) return;
     const session = { ...this.currentSession };
     console.log(`[Lap Detector] Finalizing session ${session.sessionId}: ${reason}`);
-    await this.finalizeLapIfNeeded();
-    await this.waitForPendingLapWrites(session.sessionId);
-    await this.onSessionEnd?.(session, { reason, terminalObserved: false });
-    this.currentSession = null;
-    this.lapBuffer = [];
+    let failure: unknown;
+    try {
+      await this.finalizeLapIfNeeded();
+    } catch (error) {
+      failure = error;
+    }
+    try {
+      await this.waitForPendingLapWrites(session.sessionId);
+    } catch (error) {
+      failure ??= error;
+    }
+    try {
+      await this.onSessionEnd?.(session, { reason, terminalObserved: false });
+    } finally {
+      this.currentSession = null;
+      this.lapBuffer = [];
+    }
+    if (failure) throw failure;
   }
 
   /**

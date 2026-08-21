@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { GameIdQuerySchema, IdParamSchema } from "@shared/platform/http/route-schemas";
-import { GameIdSchema } from "../../shared/games/ids";
+import { GameIdSchema, type GameId } from "../../shared/games/ids";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
 import { db } from "../db";
 import { sessions } from "../db/schema";
@@ -29,8 +29,11 @@ import { listSessionRaceEvents, RaceEventCursorError } from "../db/race-event-qu
 
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
+const SessionListQuerySchema = z.object({ gameId: GameIdSchema });
+
 export interface SessionRouteDependencies {
   sessionExists: (sessionId: number) => Promise<boolean>;
+  sessionExistsForGame: (sessionId: number, gameId: GameId) => Promise<boolean>;
   listSessionRaceEvents: typeof listSessionRaceEvents;
   getQualityRebuildStatus: typeof getQualityRebuildStatus;
   getLapsForSession: typeof getLapsForSession;
@@ -45,6 +48,14 @@ export interface SessionRouteDependencies {
 const DEFAULT_SESSION_ROUTE_DEPENDENCIES: SessionRouteDependencies = {
   sessionExists: async (sessionId) => {
     const session = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    return session != null;
+  },
+  sessionExistsForGame: async (sessionId, gameId) => {
+    const session = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId)))
+      .get();
     return session != null;
   },
   listSessionRaceEvents,
@@ -70,7 +81,7 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
   const dependencies = { ...DEFAULT_SESSION_ROUTE_DEPENDENCIES, ...overrides };
 
   return new Hono()
-  .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
+  .get("/api/sessions", zValidator("query", SessionListQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
     return c.json(await getSessions(gameId));
   })
@@ -102,11 +113,12 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
     zValidator("query", RaceEventQuerySchema),
     async (c) => {
       const { id } = c.req.valid("param");
-      if (!(await dependencies.sessionExists(id))) {
+      const { gameId, ...query } = c.req.valid("query");
+      if (!(await dependencies.sessionExistsForGame(id, gameId))) {
         return c.json({ error: "Session not found" }, 404);
       }
       try {
-        return c.json(await dependencies.listSessionRaceEvents(id, c.req.valid("query")));
+        return c.json(await dependencies.listSessionRaceEvents(id, query));
       } catch (error) {
         if (error instanceof RaceEventCursorError) {
           return c.json({ error: error.message }, 400);
@@ -136,9 +148,9 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
     for (let index = 0; index < staleIds.length; index += 1) {
       const sessionId = staleIds[index]!;
       try {
-        const session = (await getSessions()).find((candidate) => candidate.id === sessionId);
-        if (!session?.gameId) throw new Error(`Session ${sessionId} has no game`);
-        const result = await reconcileStaleSessionResult(sessionId, session.gameId);
+        const session = await db.select({ gameId: sessions.gameId }).from(sessions).where(eq(sessions.id, sessionId)).get();
+        if (!session) throw new Error(`Session ${sessionId} has no game`);
+        const result = await reconcileStaleSessionResult(sessionId, GameIdSchema.parse(session.gameId));
         results.push(result);
         if (result.status === "error") failed = true;
         wsManager.broadcastNotification({ type: "race-result-reconciled", sessionId, done: index + 1, total, status: result.status });

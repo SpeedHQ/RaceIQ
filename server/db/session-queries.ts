@@ -365,7 +365,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
  * Get all sessions with lap counts, newest first.
  */
 
-export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
+export async function getSessions(gameId: GameId): Promise<SessionMeta[]> {
   const query = db
     .select({
       id: sessions.id,
@@ -393,7 +393,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     .from(sessions)
     .orderBy(desc(sessions.id));
 
-  const rows = gameId ? await query.where(eq(sessions.gameId, gameId)).all() : await query.all();
+  const rows = await query.where(eq(sessions.gameId, gameId)).all();
 
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];

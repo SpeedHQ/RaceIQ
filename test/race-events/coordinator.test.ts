@@ -1,8 +1,20 @@
 import { describe, expect, test } from "bun:test";
 
+import type { RaceEvent } from "../../shared/racing/events/contracts";
+import type { RaceEventObservation } from "../../server/games/types";
 import { RaceEventCoordinator } from "../../server/race-events/coordinator";
 import { RaceEventConflictError } from "../../server/race-events/ordering";
-import { observation } from "./helpers";
+import type { DetectorEventDraft } from "../../server/race-events/types";
+import { observation, participant } from "./helpers";
+interface CoordinatorMaterializer {
+  materializeDrafts(
+    drafts: readonly DetectorEventDraft[],
+    currentObservation: RaceEventObservation,
+    timelineEpoch: number,
+    sequence: number,
+  ): { events: RaceEvent[]; rejectedDrafts: Array<{ eventType: string; error: string }> };
+}
+
 
 describe("race-event coordinator", () => {
   test("produces stable semantic IDs and suppresses exact duplicate coordinates", () => {
@@ -168,5 +180,214 @@ describe("race-event coordinator", () => {
     expect(f1Clear.events.map(({ eventType }) => eventType)).not.toContain(
       "green_flag",
     );
+  });
+  test("rejects lower native sequence before implicit time rollback reset", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 15 });
+    coordinator.processObservation(15, observation(100, { sourceTimeMs: 10_000 }));
+    const result = coordinator.processObservation(15, observation(99, { sourceTimeMs: 9_000 }));
+
+    expect(result).toMatchObject({
+      accepted: false,
+      reason: "out-of-order",
+      timelineEpoch: 0,
+    });
+  });
+
+  test("F1 green closes caution despite FIA code one", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 16 });
+    coordinator.processObservation(16, observation(1, {
+      gameId: "f1-2025",
+      sessionPhase: "caution",
+      cautionKind: "safety-car",
+      nativeRaceControlCode: 1,
+    }));
+    const green = coordinator.processObservation(16, observation(2, {
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 1,
+    }));
+
+    expect(green.events.map(({ eventType }) => eventType)).toContain("caution_ended");
+  });
+
+  test("rejects invalid receivedAt before high-water or lifecycle mutation", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 17 });
+    coordinator.processObservation(17, observation(1, {
+      gameId: "f1-2025",
+      sessionPhase: "caution",
+      cautionKind: "safety-car",
+      nativeRaceControlCode: 1,
+    }));
+    expect(() => coordinator.processObservation(17, observation(2, {
+      receivedAtMs: Number.NaN,
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 1,
+    }))).toThrow("receivedAtMs");
+    const corrected = coordinator.processObservation(17, observation(2, {
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 1,
+    }));
+
+    expect(corrected.events.map(({ eventType }) => eventType)).toContain("caution_ended");
+  });
+
+  test("finalizes early gap with original timeline anchors after epoch change", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 18 });
+    coordinator.processObservation(18, observation(1, { lapNumber: 1 }));
+    coordinator.processObservation(18, observation(2, { lapNumber: 1 }));
+    coordinator.processObservation(18, observation(5, {
+      lapNumber: 1,
+      trackDistanceM: 50,
+      trackDistancePct: 0.5,
+    }), {
+      sourceSequenceGapCandidates: [{
+        sourceSequenceFamily: "iracing-session-tick",
+        previousSequence: 2,
+        currentSequence: 5,
+        previousSourceTimeMs: 200,
+        currentSourceTimeMs: 500,
+        previousObservationIndex: 1,
+        currentObservationIndex: 2,
+      }],
+    });
+    coordinator.processObservation(18, observation(1, {
+      lapNumber: 2,
+      sourceTimeMs: 1_000,
+    }), { reconnect: true });
+    const events = coordinator.noteSourceSequenceFinalized({
+      summary: {
+        expectedCount: 5,
+        observedCount: 3,
+        totalMissingCount: 2,
+        totalMissingFraction: 0.4,
+        largestContiguousGapMs: 300,
+        countMethod: "native-sequence",
+      },
+      gaps: [{
+        sourceSequenceFamily: "iracing-session-tick",
+        previousSequence: 2,
+        currentSequence: 5,
+        previousSourceTimeMs: 200,
+        currentSourceTimeMs: 500,
+        previousObservationIndex: 1,
+        currentObservationIndex: 2,
+        durationMs: 300,
+        missingCount: 2,
+        countMethod: "native-sequence",
+      }],
+      duplicates: [],
+      outOfOrder: [],
+      inferredIntervalMs: null,
+    });
+
+    expect(events[0]).toMatchObject({
+      timelineEpoch: 0,
+      sequence: 3,
+      lapNumber: 1,
+      trackDistanceM: 50,
+      trackDistancePct: 0.5,
+    });
+  });
+
+  test("rejects invalid lifecycle-closing draft inputs before detector mutation", () => {
+    let validCreatedAt = true;
+    const coordinator = new RaceEventCoordinator({
+      sessionId: 19,
+      createdAt: () => validCreatedAt ? "2025-01-01T00:00:00.000Z" : "not-a-date",
+    });
+    coordinator.processObservation(19, observation(1, {
+      gameId: "f1-2025",
+      sessionPhase: "caution",
+      cautionKind: "safety-car",
+      nativeRaceControlCode: 1,
+    }));
+    validCreatedAt = false;
+    expect(() => coordinator.processObservation(19, observation(2, {
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 1,
+    }))).toThrow("createdAt");
+    validCreatedAt = true;
+    const corrected = coordinator.processObservation(19, observation(2, {
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 1,
+    }));
+
+    expect(corrected.events.map(({ eventType }) => eventType)).toContain("caution_ended");
+  });
+
+
+  test("links same-observation pit stall arrival and service to staged pit entry", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 20 });
+    coordinator.processObservation(20, observation(1));
+
+    const result = coordinator.processObservation(20, observation(2, {
+      participants: [participant({ pitState: "pit-stall", speedMps: 0 })],
+    }));
+    const pitEntry = result.events.find(({ eventType }) => eventType === "pit_entry")!;
+    const arrival = result.events.find(({ eventType }) => eventType === "pit_stall_arrival")!;
+    const service = result.events.find(({ eventType }) => eventType === "pit_service_started")!;
+
+    expect(arrival).toMatchObject({
+      lifecycleId: pitEntry.lifecycleId,
+      linkedEventId: pitEntry.eventId,
+    });
+    expect(service).toMatchObject({
+      lifecycleId: pitEntry.lifecycleId,
+      linkedEventId: pitEntry.eventId,
+    });
+  });
+
+  test("rolls lifecycle and emitted IDs back when any materialized draft is invalid", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 21 });
+    // Private test seam: exercise batch commit without mutating detector state.
+    const internals = coordinator as unknown as CoordinatorMaterializer;
+    const materialize = internals.materializeDrafts.bind(coordinator);
+    const opening = {
+      eventType: "caution_started",
+      payload: { kind: "safety-car", nativeCode: null },
+      detectorId: "test",
+      detectorVersion: "1",
+      priority: 0,
+      boundaryKey: "opening",
+      evidenceKind: "observed",
+      confidence: "high",
+      qualityState: "available",
+    } satisfies DetectorEventDraft<"caution_started">;
+    const invalid = {
+      eventType: "storage_failure",
+      payload: { operation: "", details: null },
+      detectorId: "test",
+      detectorVersion: "1",
+      priority: 10,
+      boundaryKey: "invalid",
+      evidenceKind: "observed",
+      confidence: "high",
+      qualityState: "available",
+    } as DetectorEventDraft;
+    const currentObservation = observation(1);
+
+    const rejected = materialize([opening, invalid], currentObservation, 0, 1);
+    expect(rejected.events).toEqual([]);
+    expect(rejected.rejectedDrafts.map(({ eventType }) => eventType)).toEqual([
+      "storage_failure",
+    ]);
+
+    const opened = materialize([opening], currentObservation, 0, 1).events;
+    const closing = {
+      ...opening,
+      eventType: "caution_ended",
+      boundaryKey: "closing",
+    } satisfies DetectorEventDraft<"caution_ended">;
+    const closed = materialize([closing], currentObservation, 0, 1).events;
+
+    expect(opened).toHaveLength(1);
+    expect(closed[0]).toMatchObject({
+      lifecycleId: opened[0]!.lifecycleId,
+      linkedEventId: opened[0]!.eventId,
+    });
   });
 });

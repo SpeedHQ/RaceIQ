@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react";
+import type { GameId } from "@shared/games/ids";
 import { RaceEventsAppendedMessageSchema, RaceEventsReplacedMessageSchema } from "@shared/racing/events/contracts";
+import { mergeAppendedRaceEvents, mergeRecoveredRaceEventPage, recoverRaceEventTail, type RaceEventInfiniteData } from "../lib/race-event-cache";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
+import { fetchSessionRaceEventPage } from "./session-queries";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
@@ -22,6 +25,57 @@ function fetchVersionInfo(signal: AbortSignal) {
       if (!signal.aborted) useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo);
     })
     .catch(() => {});
+}
+
+function isRaceEventInfiniteData(value: unknown): value is RaceEventInfiniteData {
+  return typeof value === "object" && value != null && "pages" in value && Array.isArray(value.pages);
+}
+
+function raceEventCacheEntries(sessionId?: number): Array<{ queryKey: readonly unknown[]; sessionId: number; gameId: GameId }> {
+  return queryClient
+    .getQueryCache()
+    .findAll({ queryKey: queryKeys.sessionEventTimelines })
+    .flatMap((query) => {
+      const [scope, cachedSessionId, cachedGameId] = query.queryKey;
+      if (scope !== "session-events" || typeof cachedSessionId !== "number" || typeof cachedGameId !== "string") return [];
+      if (sessionId != null && cachedSessionId !== sessionId) return [];
+      return [{ queryKey: query.queryKey, sessionId: cachedSessionId, gameId: cachedGameId as GameId }];
+    });
+}
+export function mergeAppendedRaceEventsIntoCaches(sessionId: number, events: RaceEventInfiniteData["pages"][number]["items"]) {
+  for (const { queryKey } of raceEventCacheEntries(sessionId)) {
+    queryClient.setQueryData(queryKey, (data: unknown) =>
+      isRaceEventInfiniteData(data) ? mergeAppendedRaceEvents(data, events) : data,
+    );
+  }
+}
+
+async function recoverRaceEventTails(sessionId?: number): Promise<void> {
+  await Promise.all(
+    raceEventCacheEntries(sessionId).map(async ({ queryKey, sessionId: cachedSessionId, gameId }) => {
+      const initial = queryClient.getQueryData(queryKey);
+      if (!isRaceEventInfiniteData(initial) || initial.pages.length === 0) return;
+      let recovered = initial;
+      if (recovered.pages.at(-1)?.tailCursor == null) {
+        const firstPage = await fetchSessionRaceEventPage(cachedSessionId, gameId, undefined, 1_000);
+        recovered = mergeRecoveredRaceEventPage(recovered, firstPage);
+      }
+      recovered = await recoverRaceEventTail(recovered, (cursor) =>
+        fetchSessionRaceEventPage(cachedSessionId, gameId, cursor, 1_000),
+      );
+      const recoveredTail = recovered.pages.at(-1);
+      if (!recoveredTail) return;
+
+      queryClient.setQueryData(queryKey, (data: unknown) =>
+        isRaceEventInfiniteData(data) ? mergeRecoveredRaceEventPage(data, recoveredTail) : data,
+      );
+    }),
+  );
+}
+
+export async function resetRaceEventCaches(sessionId: number): Promise<void> {
+  await queryClient.resetQueries({ queryKey: queryKeys.sessionEventsForSession(sessionId) });
+  await recoverRaceEventTails(sessionId);
 }
 
 export function useWebSocket() {
@@ -81,7 +135,7 @@ export function useWebSocket() {
         store.setConnected(true);
         startVersionRequest();
         if (hasOpenedRef.current) {
-          void queryClient.invalidateQueries({ queryKey: queryKeys.sessionEventTimelines, refetchType: "active" });
+          void recoverRaceEventTails().catch((error) => console.error("Race-event tail recovery failed", error));
         }
         hasOpenedRef.current = true;
         if (useDevTelemetryStore.getState().subscriptionWanted) {
@@ -92,13 +146,15 @@ export function useWebSocket() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          const raceEventMessage =
-            data.type === "race-events-appended" ? RaceEventsAppendedMessageSchema.safeParse(data) : data.type === "race-events-replaced" ? RaceEventsReplacedMessageSchema.safeParse(data) : null;
-          if (raceEventMessage) {
+          if (data.type === "race-events-appended") {
+            const raceEventMessage = RaceEventsAppendedMessageSchema.safeParse(data);
             if (raceEventMessage.success) {
-              void queryClient.invalidateQueries({
-                queryKey: queryKeys.sessionEvents(raceEventMessage.data.sessionId),
-              });
+              mergeAppendedRaceEventsIntoCaches(raceEventMessage.data.sessionId, raceEventMessage.data.events);
+            }
+          } else if (data.type === "race-events-replaced") {
+            const raceEventMessage = RaceEventsReplacedMessageSchema.safeParse(data);
+            if (raceEventMessage.success) {
+              void resetRaceEventCaches(raceEventMessage.data.sessionId).catch((error) => console.error("Race-event replacement recovery failed", error));
             }
           } else if (data.type === "status") {
             const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars

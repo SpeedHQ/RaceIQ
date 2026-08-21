@@ -149,7 +149,7 @@ export function SessionMobileList({
                   </div>
                 </div>
               </div>
-              {isExpanded && gameId && <RaceEventTimeline sessionId={session.id} enabled={isExpanded} />}
+              {isExpanded && gameId && <RaceEventTimeline sessionId={session.id} gameId={gameId} enabled={isExpanded} />}
               {isExpanded && sessionLaps.length > 0 && (
                 <div className="border-t border-app-border overflow-x-auto">
                   <SessionLapTable

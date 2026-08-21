@@ -4,7 +4,7 @@ import type { TelemetryGroupId, TelemetryVariableId } from "@shared/telemetry/ca
 import { compileTelemetryResolver } from "@shared/telemetry/resolver/compile";
 import type { CompiledTelemetryResolver, FreshnessState, ResolutionState, ResolvedValue, TelemetryFrameView } from "@shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "@shared/telemetry/types";
-import { SourceSequenceTracker } from "@shared/telemetry/source-sequence";
+import { SourceSequenceTracker, type SourceSequenceObservation } from "@shared/telemetry/source-sequence";
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 import {
   ELIGIBILITY_POLICY_VERSION,
@@ -908,7 +908,7 @@ export class RecordingQualityAccumulator {
     );
   }
 
-  observe(packet: TelemetryPacket): void {
+  observe(packet: TelemetryPacket, sourceSequences?: SourceSequenceObservation[]): void {
     for (const pendingFact of this.pendingFacts) {
       if (pendingFact.timeRange) {
         pendingFact.timeRange.endMs = Math.max(pendingFact.timeRange.startMs, packet.TimestampMS);
@@ -916,7 +916,7 @@ export class RecordingQualityAccumulator {
     }
     this.pendingFacts.length = 0;
     this.startTimestampMs ??= packet.TimestampMS;
-    const observedSequence = this.sourceSequence.observe(packet);
+    const observedSequence = this.sourceSequence.observe(packet, sourceSequences);
     for (const boundary of observedSequence.boundaries) {
       if (boundary.kind === "out-of-order") {
         this.recordOutOfOrder(

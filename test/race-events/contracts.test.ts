@@ -56,7 +56,7 @@ describe("race event contracts", () => {
   test("validates a complete persisted event and its transport DTOs", () => {
     const parsed = RaceEventSchema.parse(event());
     expect(parsed.eventType).toBe("pit_entry");
-    expect(RaceEventPageSchema.parse({ items: [parsed], nextCursor: null }).items)
+    expect(RaceEventPageSchema.parse({ items: [parsed], nextCursor: null, tailCursor: "tail" }).items)
       .toHaveLength(1);
     expect(
       RaceEventsAppendedMessageSchema.parse({
@@ -96,6 +96,7 @@ describe("race event contracts", () => {
 
   test("validates intersecting query filters and cursor limits", () => {
     const query = RaceEventQuerySchema.parse({
+      gameId: "acc",
       participantId: "local-player",
       lapNumber: "4",
       fromSourceTimeMs: "1000",
@@ -109,6 +110,7 @@ describe("race event contracts", () => {
       limit: 1000,
     });
     expect(RaceEventQuerySchema.safeParse({ limit: 1001 }).success).toBe(false);
+    expect(RaceEventQuerySchema.safeParse({ limit: 200 }).success).toBe(false);
     expect(
       RaceEventQuerySchema.safeParse({
         fromSourceTimeMs: 2,

@@ -162,7 +162,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
         damageEntries.push([component, Math.max(0, Math.min(100, value))]);
       }
     }
-    const localDamage = localWear ? Object.fromEntries(damageEntries) : null;
+    const localDamage = damageEntries.length > 0 ? Object.fromEntries(damageEntries) : null;
     const localFuelLitres = normalizedFuelLitres(
       packet,
       f1Adapter.telemetry.fuel.packetUnit,
@@ -194,7 +194,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
         ? `f1-team:${value}`
         : null;
 
-    observation.participants = f1.grid.map((entry) => {
+    observation.participants = (f1.grid ?? []).map((entry) => {
       const player = entry.isPlayer;
       const nativePitCode = Number.isFinite(entry.pitStatus)
         ? entry.pitStatus

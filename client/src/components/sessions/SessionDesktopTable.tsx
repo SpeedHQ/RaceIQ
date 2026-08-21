@@ -187,7 +187,7 @@ export function SessionDesktopTable({
                   {isExpanded && gameId && (
                     <TRow variant="separator">
                       <TD colSpan={colCount}>
-                        <RaceEventTimeline sessionId={session.id} enabled={isExpanded} />
+                        <RaceEventTimeline sessionId={session.id} gameId={gameId} enabled={isExpanded} />
                       </TD>
                     </TRow>
                   )}

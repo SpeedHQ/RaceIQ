@@ -148,4 +148,43 @@ describe("source sequence tracker", () => {
     });
     expect(finalized.gapSummary).toEqual(tracker.finalize().summary);
   });
+
+  test("keeps timestamp high-water after late timestamp-only packets", () => {
+    const tracker = new SourceSequenceTracker();
+    for (const TimestampMS of [0, 10, 5, 6, 7]) {
+      tracker.observe(packet("fm-2023", { TimestampMS }));
+    }
+    expect(tracker.finalize().outOfOrder).toEqual([
+      expect.objectContaining({ previousSourceTimeMs: 10, currentSourceTimeMs: 5 }),
+      expect.objectContaining({ previousSourceTimeMs: 10, currentSourceTimeMs: 6 }),
+      expect.objectContaining({ previousSourceTimeMs: 10, currentSourceTimeMs: 7 }),
+    ]);
+  });
+
+  test("bounds normal native stream state", () => {
+    const tracker = new SourceSequenceTracker();
+    for (let sessionTick = 0; sessionTick < 10_000; sessionTick += 1) {
+      tracker.observe(packet("iracing", {
+        TimestampMS: sessionTick * 10,
+        iracing: { sessionTick } as never,
+      }));
+    }
+    const state = (tracker as unknown as {
+      nativeStates: Map<string, { gapCandidates: unknown[] }>;
+      timestampGapCandidates: unknown[];
+    });
+    expect(state.nativeStates.get("iracing-session-tick")?.gapCandidates).toHaveLength(0);
+    expect(state.timestampGapCandidates).toHaveLength(0);
+  });
+  test("bounds cadence jitter after warmup", () => {
+    const tracker = new SourceSequenceTracker();
+    let timestamp = 0;
+    for (let index = 0; index < 10_000; index += 1) {
+      timestamp += index % 2 === 0 ? 16 : 17;
+      tracker.observe(packet("fm-2023", { TimestampMS: timestamp }));
+    }
+    const state = tracker as unknown as { timestampGapCandidates: unknown[] };
+    expect(state.timestampGapCandidates.length).toBeLessThanOrEqual(1);
+  });
+
 });

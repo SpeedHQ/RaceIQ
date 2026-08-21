@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractRaceSource } from "../../server/race-results/source";
+import { extractRaceSource, RaceSourceAccumulator } from "../../server/race-results/source";
 import { deriveRaceResult } from "../../server/race-results/derive";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
@@ -100,5 +100,37 @@ describe("race result source extraction", () => {
 
   test("does not invent a timeline for Forza", () => {
     expect(extractRaceSource("fm-2023", [packet({ gameId: "fm-2023" })]).evidence.fieldStatus.pitTimeline).toBe("unavailable");
+  });
+
+  test("keeps early authoritative result evidence without retaining telemetry packets", () => {
+    const accumulator = new RaceSourceAccumulator("f1-2025");
+    for (let index = 0; index < 300; index++) {
+      accumulator.observe(packet({
+        gameId: "f1-2025",
+        TimestampMS: index,
+        RacePosition: 10,
+        f1: { sessionType: "race" } as never,
+      }));
+    }
+    accumulator.observe(packet({
+      gameId: "f1-2025",
+      TimestampMS: 301,
+      RacePosition: 2,
+      f1: {
+        sessionType: "race",
+        resultStatus: 3,
+        resultSource: "final-classification",
+        gridPosition: 8,
+      } as never,
+    }));
+    for (let index = 0; index < 300; index++) {
+      accumulator.observe(packet({ gameId: "f1-2025", TimestampMS: 302 + index, RacePosition: 3 }));
+    }
+
+    const result = accumulator.finish();
+    expect(result.packets).toEqual([]);
+    expect(result.classification).toBe("finished");
+    expect(result.finishingPosition).toBe(2);
+    expect(result.qualifyingPosition).toBe(8);
   });
 });

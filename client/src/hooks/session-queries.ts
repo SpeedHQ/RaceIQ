@@ -12,7 +12,11 @@ export function useSessions() {
   const gameId = useGameId();
   return useQuery({
     queryKey: ["sessions", gameId ?? null],
-    queryFn: async () => rpcJson<SessionMeta[]>(await client.api.sessions.$get({ query: { gameId: gameId ?? undefined } })),
+    queryFn: async () => {
+      if (!gameId) throw new Error("useSessions: gameId is required");
+      return rpcJson<SessionMeta[]>(await client.api.sessions.$get({ query: { gameId } }));
+    },
+    enabled: !!gameId,
   });
 }
 
@@ -43,22 +47,27 @@ export function useSessionResult(sessionId: number | null | undefined, gameId: G
   });
 }
 
-export function useSessionRaceEvents(sessionId: number | null | undefined, enabled = true) {
+export async function fetchSessionRaceEventPage(sessionId: number, gameId: GameId, cursor?: string, limit = 200): Promise<RaceEventPage> {
+  const response = await client.api.sessions[":id"].events.$get({
+    param: { id: String(sessionId) },
+    query: {
+      gameId,
+      limit: String(limit),
+      ...(cursor ? { cursor } : {}),
+    },
+  });
+  return rpcJson<RaceEventPage>(response);
+}
+
+export function useSessionRaceEvents(sessionId: number | null | undefined, gameId: GameId | null | undefined, enabled = true) {
   return useInfiniteQuery({
-    queryKey: queryKeys.sessionEvents(sessionId ?? null),
-    queryFn: async ({ pageParam }) => {
-      if (sessionId == null) throw new Error("useSessionRaceEvents: sessionId is required");
-      const response = await client.api.sessions[":id"].events.$get({
-        param: { id: String(sessionId) },
-        query: {
-          limit: "200",
-          ...(pageParam ? { cursor: pageParam } : {}),
-        },
-      });
-      return rpcJson<RaceEventPage>(response);
+    queryKey: queryKeys.sessionEvents(sessionId ?? null, gameId ?? null),
+    queryFn: ({ pageParam }) => {
+      if (sessionId == null || !gameId) throw new Error("useSessionRaceEvents: sessionId and gameId are required");
+      return fetchSessionRaceEventPage(sessionId, gameId, pageParam);
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: enabled && sessionId != null,
+    enabled: enabled && sessionId != null && !!gameId,
   });
 }

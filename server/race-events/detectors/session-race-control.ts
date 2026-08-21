@@ -161,7 +161,7 @@ export class SessionRaceControlDetector {
     const directRed = observation.gameId === "ac-evo" && observation.sessionPhase === "red";
     const directCheckered = provesCheckered(observation);
 
-    if (hadCaution && !directCaution && canEndCaution(observation)) {
+    if (hadCaution && !directCaution && (directGreen || canEndCaution(observation))) {
       events.push(
         draft(context, "caution_ended", {
           kind: this.cautionKind ?? "unknown",

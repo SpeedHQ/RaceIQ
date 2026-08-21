@@ -3,6 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import type { GameId } from "../../shared/games/ids";
+import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import { eligibilityDecisionText } from "../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { getLapById } from "../db/lap-read-queries";
@@ -38,6 +40,30 @@ import { RequestContext } from "@mastra/core/request-context";
 import { getSecret } from "../runtime/platform/keystore";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 
+
+/**
+ * Accept only event links explicitly emitted by issue derivation. Lap
+ * attachment, participant ownership, proximity, and event type alone cannot
+ * prove a telemetry-derived handling symptom.
+ */
+export function raceEventIdsSupportingTuneIssue(
+  issue: TuneIssue,
+  events: readonly RaceEvent[],
+): RaceEventId[] {
+  const { eventIds, lapNumber } = issue;
+  if (eventIds === undefined || eventIds.length === 0 || lapNumber === undefined) return [];
+
+  return events
+    .filter(
+      (event) =>
+        eventIds.includes(event.eventId) &&
+        event.participantKind === "player" &&
+        event.participantId !== null &&
+        event.lapNumber === lapNumber &&
+        event.qualityState === "available",
+    )
+    .map((event) => event.eventId);
+}
 
 const LiveAnalysisSchema = z.object({
   enabled: z.boolean(),
@@ -79,10 +105,12 @@ export const tuneChatRoutes = new Hono()
 
       const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, packets);
       const symptoms = telemetryToSymptoms(packets, corners);
-      const eventIds = (await listRaceEventsForLap(id)).map((event) => event.eventId);
-      const issues = symptomsToIssues(symptoms, lap.lapNumber).map((issue) => ({
+      const derivedIssues = symptomsToIssues(symptoms, lap.lapNumber);
+      const hasExplicitEventEvidence = derivedIssues.some(({ eventIds }) => eventIds !== undefined && eventIds.length > 0);
+      const events = hasExplicitEventEvidence ? await listRaceEventsForLap(id) : [];
+      const issues = derivedIssues.map((issue) => ({
         ...issue,
-        eventIds,
+        eventIds: raceEventIdsSupportingTuneIssue(issue, events),
       }));
       return c.json(issues);
     }

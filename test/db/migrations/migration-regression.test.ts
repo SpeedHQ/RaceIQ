@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import { RaceEventSchema } from "../../../shared/racing/events/contracts";
 import { bootstrap, newClient, runMigrations } from "../../support/db/migrations";
 
 describe("migration regressions", () => {
@@ -84,10 +85,56 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v59 persists final lap classification and converts only legacy pit reasons", async () => {
+  test("v52 preserves race results and defaults new rows to processor v2", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 58);
+    await runMigrations(client, 51);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
+       VALUES (1, 10, 20, 'f1-2025'), (2, 11, 21, 'f1-2025')`,
+    );
+    await client.execute(
+      `INSERT INTO session_results (id, session_id, processor_version, session_type, classification)
+       VALUES (7, 1, 'race-result-v1', 'race', 'finished')`,
+    );
+    await client.execute(
+      `INSERT INTO pit_events (result_id, sequence, event_type, lap_number)
+       VALUES (7, 1, 'pit', 12)`,
+    );
+
+    await runMigrations(client, 52);
+
+    const preserved = (await client.execute(
+      `SELECT session_results.id, session_results.processor_version, pit_events.lap_number
+       FROM session_results
+       JOIN pit_events ON pit_events.result_id = session_results.id
+       WHERE session_results.id = 7`,
+    )).rows[0]!;
+    expect({
+      id: Number(preserved.id),
+      processorVersion: preserved.processor_version,
+      lapNumber: Number(preserved.lap_number),
+    }).toEqual({ id: 7, processorVersion: "race-result-v1", lapNumber: 12 });
+
+    const processorColumn = (await client.execute(
+      "SELECT dflt_value FROM pragma_table_info('session_results') WHERE name = 'processor_version'",
+    )).rows[0]!;
+    expect(processorColumn.dflt_value).toBe("'race-result-v2'");
+    await client.execute(
+      `INSERT INTO session_results (session_id, session_type, classification)
+       VALUES (2, 'race', 'finished')`,
+    );
+    const inserted = (await client.execute(
+      "SELECT processor_version FROM session_results WHERE session_id = 2",
+    )).rows[0]!;
+    expect(inserted.processor_version).toBe("race-result-v2");
+    client.close();
+  });
+
+  test("v58 persists final lap classification and converts only legacy pit reasons", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 57);
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
     );
@@ -100,7 +147,7 @@ describe("migration regressions", () => {
               (1, 5, 104, 0, 'track limits')`,
     );
 
-    await runMigrations(client, 59);
+    await runMigrations(client, 58);
 
     const rows = await client.execute(
       `SELECT lap_number, is_valid, invalid_reason, phase, conditions, pace_eligibility
@@ -167,10 +214,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v60 preserves explicit sources and backfills legacy live provenance", async () => {
+  test("v59 preserves explicit sources and backfills legacy live provenance", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 59);
+    await runMigrations(client, 58);
     await client.execute(
       `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source)
        VALUES (1, 10, 20, 'iracing', 'motec'),
@@ -222,10 +269,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v61 adds nullable source channel profiles without inventing legacy fidelity", async () => {
+  test("v60 adds nullable source channel profiles without inventing legacy fidelity", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 60);
+    await runMigrations(client, 59);
     await client.execute("INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source) VALUES (1, 10, 20, 'ac-evo', 'motec')");
 
     await runMigrations(client);
@@ -251,10 +298,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v62 versions lap metrics without inventing generations for existing rows", async () => {
+  test("v61 versions lap metrics without inventing generations for existing rows", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 61);
+    await runMigrations(client, 60);
     await client.execute("INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'f1-2025')");
     await client.execute("INSERT INTO laps (id, session_id, lap_number, lap_time) VALUES (1, 1, 1, 100)");
     await client.execute(
@@ -298,7 +345,8 @@ describe("migration regressions", () => {
          fuel_added, fuel_before, fuel_after, linkage, source, created_at
        ) VALUES
          (31, 21, 4, 'pit', NULL, NULL, 7, 700.25, 31.5, 'combined', ?, 12.5, 10, 22.5, 'linked', '{}', '2026-01-02 03:04:05'),
-         (32, 21, 5, 'position-change', 8, 5, 8, 800, NULL, 'unknown', NULL, NULL, NULL, NULL, 'linked', '{}', '2026-01-02 03:05:05')`,
+         (32, 21, 5, 'position-change', -8, 5, 8, 800, NULL, 'unknown', NULL, NULL, NULL, NULL, 'linked', '{}', '2026-01-02 03:05:05'),
+         (33, 21, 6, 'pit', NULL, NULL, NULL, -9007199254741.5, 1, 'unknown', NULL, NULL, NULL, NULL, 'linked', '{}', '2026-01-02 03:06:05')`,
       args: [JSON.stringify({ from: "soft", to: "medium" })],
     });
 
@@ -324,9 +372,12 @@ describe("migration regressions", () => {
     }));
     expect(migrated.map((event) => event.event_id)).toEqual([
       "pit-event:31",
+      "pit-event:31:service-completed",
       "pit-event:31:fuel-service",
       "pit-event:31:tire-service",
       "position-event:32",
+      "pit-event:33",
+      "pit-event:33:service-completed",
     ]);
     expect(migrated[0]).toMatchObject({
       event_type: "pit_entry",
@@ -352,12 +403,18 @@ describe("migration regressions", () => {
       created_at: "2026-01-02T03:04:05.000Z",
     });
     expect(migrated[1]).toMatchObject({
+      event_type: "pit_service_completed",
+      event_order: 50,
+      linked_event_id: "pit-event:31",
+      payload: { durationMs: 31_500, observedActions: [], state: "pit-stall" },
+    });
+    expect(migrated[2]).toMatchObject({
       event_type: "fuel_service_observed",
       event_order: 60,
       linked_event_id: "pit-event:31",
       payload: { beforeLitres: 10, afterLitres: 22.5, addedLitres: 12.5 },
     });
-    expect(migrated[2]).toMatchObject({
+    expect(migrated[3]).toMatchObject({
       event_type: "tire_service_observed",
       event_order: 60,
       linked_event_id: "pit-event:31",
@@ -369,11 +426,55 @@ describe("migration regressions", () => {
         afterWear: null,
       },
     });
-    expect(migrated[3]).toMatchObject({
+    expect(
+      RaceEventSchema.safeParse({
+        eventId: migrated[1]!.event_id,
+        eventType: migrated[1]!.event_type,
+        schemaVersion: "race-event-v1",
+        sessionId: migrated[1]!.session_id,
+        participantId: migrated[1]!.participant_id,
+        participantKind: "player",
+        driverId: null,
+        teamId: null,
+        timelineEpoch: migrated[1]!.timeline_epoch,
+        sequence: migrated[1]!.sequence,
+        eventOrder: migrated[1]!.event_order,
+        sourceTimeMs: migrated[1]!.source_time_ms,
+        sourceEndTimeMs: migrated[1]!.source_end_time_ms,
+        sourceSequenceFamily: null,
+        sourceSequence: null,
+        receivedAtMs: 1_767_323_045_000,
+        lapNumber: 7,
+        lapId: 11,
+        trackDistanceM: null,
+        trackDistancePct: null,
+        worldPosition: null,
+        evidenceKind: migrated[1]!.evidence_kind,
+        confidence: migrated[1]!.confidence,
+        qualityState: migrated[1]!.quality_state,
+        sourceKind: migrated[1]!.source_kind,
+        payload: migrated[1]!.payload,
+        lifecycleId: migrated[1]!.lifecycle_id,
+        linkedEventId: migrated[1]!.linked_event_id,
+        detectorId: migrated[1]!.detector_id,
+        detectorVersion: migrated[1]!.detector_version,
+        sourceGeneration: migrated[1]!.source_generation,
+        analysisGenerationId: null,
+        contentHash: migrated[1]!.content_hash,
+        createdAt: migrated[1]!.created_at,
+      }).success,
+    ).toBe(true);
+    expect(migrated[4]).toMatchObject({
       event_type: "position_changed",
       event_order: 20,
       lifecycle_id: null,
-      payload: { previousPosition: 8, position: 5 },
+      payload: { previousPosition: null, position: 5 },
+    });
+    expect(migrated[6]).toMatchObject({
+      event_type: "pit_service_completed",
+      source_time_ms: null,
+      source_end_time_ms: null,
+      payload: { durationMs: 1_000, observedActions: [], state: "pit-stall" },
     });
 
     const resultRow = (
@@ -381,9 +482,12 @@ describe("migration regressions", () => {
     ).rows[0]!;
     expect(JSON.parse(String(resultRow.event_ids))).toEqual([
       "pit-event:31",
+      "pit-event:31:service-completed",
       "pit-event:31:fuel-service",
       "pit-event:31:tire-service",
       "position-event:32",
+      "pit-event:33",
+      "pit-event:33:service-completed",
     ]);
 
     await client.execute("DELETE FROM laps WHERE id = 11");
@@ -404,10 +508,40 @@ describe("migration regressions", () => {
     client.close();
   });
 
+  test("v63 aborts before dropping legacy position evidence when resulting position is null, zero, or negative", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 62);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
+       VALUES (1, 10, 20, 'iracing')`,
+    );
+    await client.execute(
+      `INSERT INTO session_results (
+         id, session_id, session_type, classification, pit_count,
+         processor_version, outcome_status
+       )
+       VALUES (21, 1, 'race', 'finished', 0, 'race-result-v2', 'confirmed')`,
+    );
+    await client.execute(
+      `INSERT INTO pit_events (
+         id, result_id, sequence, event_type, position_before, position_after
+       ) VALUES
+         (31, 21, 1, 'position-change', NULL, NULL),
+         (32, 21, 2, 'position-change', 2, 0),
+         (33, 21, 3, 'position-change', 2, -1)`,
+    );
+
+    await expect(runMigrations(client, 63)).rejects.toThrow();
+    expect(Number((await client.execute("SELECT count(*) AS count FROM pit_events")).rows[0]!.count)).toBe(3);
+    expect((await client.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'race_events'")).rows).toEqual([]);
+    client.close();
+  });
+
   test("v58 normalizes pre-existing null and invalid ownership values", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 57);
+    await runMigrations(client, 56);
     await client.execute("ALTER TABLE sessions ADD COLUMN ownership TEXT");
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, ownership) VALUES (1, 10, 20, 'iracing', NULL), (2, 10, 20, 'iracing', 'legacy')",
@@ -422,10 +556,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v58 backfills old sessions", async () => {
+  test("v57 backfills old sessions", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 57);
+    await runMigrations(client, 56);
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
     );
@@ -435,7 +569,7 @@ describe("migration regressions", () => {
     expect(rows.rows[0]?.ownership).toBe("mine");
     client.close();
   });
-  test("v58 defaults ownership to mine when omitted", async () => {
+  test("v57 defaults ownership to mine when omitted", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client);

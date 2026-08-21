@@ -35,7 +35,20 @@ function boundaryDraft(_context: DetectorContext, boundary: SourceSequenceBounda
   };
 }
 
-function gapDraft(_context: DetectorContext, gap: SourceSequenceGapBoundary): DetectorEventDraft {
+export interface SourceGapTimelineAnchor {
+  timelineEpoch: number;
+  sequence: number;
+  lapNumber: number | null;
+  trackDistanceM: number | null;
+  trackDistancePct: number | null;
+  worldPosition: DetectorEventDraft["worldPosition"];
+}
+
+function gapDraft(
+  _context: DetectorContext,
+  gap: SourceSequenceGapBoundary,
+  anchor: SourceGapTimelineAnchor | undefined,
+): DetectorEventDraft {
   return {
     eventType: "telemetry_gap",
     payload: {
@@ -59,6 +72,12 @@ function gapDraft(_context: DetectorContext, gap: SourceSequenceGapBoundary): De
     sourceEndTimeMs: gap.currentSourceTimeMs,
     sourceSequenceFamily: gap.sourceSequenceFamily,
     sourceSequence: gap.currentSequence,
+    timelineEpoch: anchor?.timelineEpoch,
+    sequence: anchor?.sequence,
+    lapNumber: anchor?.lapNumber ?? null,
+    trackDistanceM: anchor?.trackDistanceM ?? null,
+    trackDistancePct: anchor?.trackDistancePct ?? null,
+    worldPosition: anchor?.worldPosition ?? null,
     evidenceKind: "derived",
     confidence: "high",
     qualityState: "degraded",
@@ -96,8 +115,12 @@ export class SourceQualityDetector {
     return boundaries.map((boundary) => boundaryDraft(context, boundary));
   }
 
-  finalizeGaps(context: DetectorContext, finalized: SourceSequenceFinalized): DetectorEventDraft[] {
-    return finalized.gaps.map((gap) => gapDraft(context, gap));
+  finalizeGaps(
+    context: DetectorContext,
+    finalized: SourceSequenceFinalized,
+    anchorForGap?: (gap: SourceSequenceGapBoundary) => SourceGapTimelineAnchor | undefined,
+  ): DetectorEventDraft[] {
+    return finalized.gaps.map((gap) => gapDraft(context, gap, anchorForGap?.(gap)));
   }
 
   lifecycle(_context: DetectorContext, evidence: SourceLifecycleEvidence): DetectorEventDraft[] {

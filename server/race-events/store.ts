@@ -1,12 +1,15 @@
 import type { RaceEvent } from "../../shared/racing/events/contracts";
 import {
   appendRaceEvents,
+  appendRaceEventsWithLapLinks,
   attachRaceEventsToLap,
   finalizeRaceEventSourceGeneration,
   replaceReplayableRaceEvents,
+  type RaceEventLapLink,
   type ReplaceReplayableRaceEventsInput,
   type ReplaceReplayableRaceEventsResult,
 } from "../db/race-event-queries";
+export type { RaceEventLapLink } from "../db/race-event-queries";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { RaceEventConflictError, compareRaceEvents } from "./ordering";
 export { RaceEventConflictError, compareRaceEvents } from "./ordering";
@@ -28,34 +31,17 @@ export interface RaceEventStore {
   ): Promise<number>;
 }
 
-export interface RaceEventLapLink {
-  sessionId: number;
-  lapNumber: number;
-  lapId: number;
-}
-
 /** Production persistence port. Detectors and the coordinator never import DB. */
 export class DatabaseRaceEventStore implements RaceEventStore {
   append(events: readonly RaceEvent[]): Promise<RaceEvent[]> {
     return appendRaceEvents(events);
   }
 
-  async appendWithLapLinks(
+  appendWithLapLinks(
     events: readonly RaceEvent[],
     links: readonly RaceEventLapLink[],
   ): Promise<RaceEvent[]> {
-    const inserted = await appendRaceEvents(events);
-    const linkedById = new Map<string, RaceEvent>();
-    for (const link of links) {
-      for (const event of await attachRaceEventsToLap(
-        link.sessionId,
-        link.lapNumber,
-        link.lapId,
-      )) {
-        linkedById.set(event.eventId, event);
-      }
-    }
-    return inserted.map((event) => linkedById.get(event.eventId) ?? event);
+    return appendRaceEventsWithLapLinks(events, links);
   }
 
   attachLap(sessionId: number, lapNumber: number, lapId: number): Promise<RaceEvent[]> {

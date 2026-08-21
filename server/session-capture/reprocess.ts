@@ -23,7 +23,6 @@ import {
   updateSessionQuality,
   updateSessionRawFile,
 } from "../db/session-queries";
-import { extractRaceSource } from "../race-results/source";
 import { deriveRaceResult, normalizeSessionType } from "../race-results/derive";
 import { rebuildRaceEventTimeline } from "../race-events/rebuild";
 import { wsManager } from "../runtime/websocket-manager";
@@ -66,11 +65,13 @@ function retainedLifecycleEvidence(
   if (!quality) return [];
   const evidence: SourceLifecycleEvidence[] = [];
   for (const fact of quality.facts) {
-    const kind = fact.code === "source_reconnect"
-      ? "reconnect"
-      : fact.code === "timeline_discontinuity"
-        ? "timeout"
-        : null;
+    const lifecycleEvent = fact.details?.lifecycleEvent;
+    const kind =
+      fact.code === "source_reconnect" && lifecycleEvent === "reconnect"
+        ? "reconnect"
+        : fact.code === "timeline_discontinuity" && lifecycleEvent === "timeout"
+          ? "timeout"
+          : null;
     const timestampMs = fact.timeRange?.startMs;
     if (!kind || timestampMs == null) continue;
     evidence.push({
@@ -124,12 +125,11 @@ function replacementLaps(
 
 function resultProjection(
   sessionId: number,
-  gameId: GameId,
   sessionType: string | null,
   rebuilt: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>,
   rawContentHash: string,
 ): RaceEventResultProjection {
-  const source = extractRaceSource(gameId, rebuilt.packets);
+  const source = rebuilt.raceSource;
   if (sessionType) {
     if (!source.sessionType) {
       source.sessionType = sessionType;
@@ -142,13 +142,11 @@ function resultProjection(
   derived.provenance = {
     ...derived.provenance,
     rawInput: { objectId: rawCaptureObjectId(sessionId), contentHash: rawContentHash },
-    canonicalInput: rebuilt.packets.length === 0 ? null : {
+    canonicalInput: rebuilt.canonicalContentHash == null ? null : {
       sessionId: String(sessionId),
       firstSequence: 0,
-      lastSequence: rebuilt.packets.length - 1,
-      contentHash: sha256ContentHash(
-        Buffer.from(rebuilt.packets.map((packet) => JSON.stringify(packet)).join("\n")),
-      ),
+      lastSequence: rebuilt.packetCount - 1,
+      contentHash: rebuilt.canonicalContentHash,
     },
   };
   return {
@@ -234,7 +232,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     session.recordingQuality,
     rebuilt.recordingQuality,
   );
-  const result = resultProjection(sessionId, gameId, session.sessionType, rebuilt, rawContentHash);
+  const result = resultProjection(sessionId, session.sessionType, rebuilt, rawContentHash);
   let qualityGeneration = mergedQuality.provenance.outputGeneration;
 
   await db.transaction(async (tx) => {

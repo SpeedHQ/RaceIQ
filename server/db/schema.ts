@@ -7,6 +7,7 @@ import {
 	index,
 	unique,
 	primaryKey,
+	check,
 	type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
@@ -103,7 +104,7 @@ export const sessions = sqliteTable("sessions", {
 	notes: text("notes"),
 	rawFile: text("raw_file"),
 	lapDetectorVersion: text("lap_detector_version"),
-	// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
+	// Runtime telemetry identity snapshot attached at first persisted capture (migration v53).
 	// Null for rows inserted before that migration.
 	catalogVersion: text("catalog_version"),
 	catalogHash: text("catalog_hash"),
@@ -112,7 +113,7 @@ export const sessions = sqliteTable("sessions", {
 	resolverVersion: text("resolver_version"),
 	derivationVersion: text("derivation_version"),
 	// How this session's telemetry was obtained (migration v43). Pre-v43 NULL
-	// values are direct live captures and migrate to 'native-live' in v60.
+	// values are direct live captures and migrate to 'native-live' in v59.
 	// 'motec' marks a transcoded MoTeC .ld export, where the racing line is
 	// dead-reckoned rather than logged — see server/motec/.
 	source: text("source"),
@@ -685,6 +686,46 @@ export const raceEvents = sqliteTable(
 			.default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 	},
 	(table) => [
+		check(
+			"race_events_timeline_epoch_safe",
+			sql`typeof(${table.timelineEpoch}) = 'integer' and ${table.timelineEpoch} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_sequence_safe",
+			sql`typeof(${table.sequence}) = 'integer' and ${table.sequence} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_order_safe",
+			sql`typeof(${table.eventOrder}) = 'integer' and ${table.eventOrder} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_source_time_safe",
+			sql`${table.sourceTimeMs} is null or (typeof(${table.sourceTimeMs}) = 'integer' and ${table.sourceTimeMs} between -9007199254740991 and 9007199254740991)`,
+		),
+		check(
+			"race_events_source_end_time_safe",
+			sql`${table.sourceEndTimeMs} is null or (typeof(${table.sourceEndTimeMs}) = 'integer' and ${table.sourceEndTimeMs} between -9007199254740991 and 9007199254740991)`,
+		),
+		check(
+			"race_events_source_sequence_safe",
+			sql`${table.sourceSequence} is null or (typeof(${table.sourceSequence}) = 'integer' and ${table.sourceSequence} between -9007199254740991 and 9007199254740991)`,
+		),
+		check(
+			"race_events_received_at_safe",
+			sql`typeof(${table.receivedAtMs}) = 'integer' and ${table.receivedAtMs} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_lap_number_safe",
+			sql`${table.lapNumber} is null or (typeof(${table.lapNumber}) = 'integer' and ${table.lapNumber} between 0 and 9007199254740991)`,
+		),
+		check(
+			"race_events_source_time_range",
+			sql`(${table.sourceTimeMs} is null and ${table.sourceEndTimeMs} is null) or (${table.sourceTimeMs} is not null and ${table.sourceEndTimeMs} is not null and ${table.sourceEndTimeMs} >= ${table.sourceTimeMs})`,
+		),
+		check(
+			"race_events_track_distance_pct",
+			sql`${table.trackDistancePct} is null or ${table.trackDistancePct} between 0 and 1`,
+		),
 		index("idx_race_events_session_order").on(
 			table.sessionId,
 			table.timelineEpoch,

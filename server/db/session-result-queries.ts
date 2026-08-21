@@ -10,7 +10,7 @@ import type {
 } from "../../shared/racing/results/types";
 import { resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { db } from "./index";
-import { laps, sessionResults, sessions } from "./schema";
+import { laps, raceEvents, sessionResults, sessions } from "./schema";
 
 const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
   fieldStatus: {
@@ -94,10 +94,34 @@ export interface SessionResultInput {
   reasons: string[];
 }
 
+async function assertSessionResultEventOwnership(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  input: Pick<SessionResultInput, "sessionId" | "eventIds">,
+): Promise<void> {
+  const uniqueEventIds = new Set(input.eventIds);
+  if (uniqueEventIds.size !== input.eventIds.length) {
+    throw new Error("Session result contains duplicate event ids");
+  }
+  if (input.eventIds.length === 0) return;
+
+  const events = await tx
+    .select({ eventId: raceEvents.eventId, sessionId: raceEvents.sessionId })
+    .from(raceEvents)
+    .where(inArray(raceEvents.eventId, input.eventIds))
+    .all();
+  if (events.length !== input.eventIds.length) {
+    throw new Error("Session result references missing race events");
+  }
+  if (events.some((event) => event.sessionId !== input.sessionId)) {
+    throw new Error("Session result references race events from another session");
+  }
+}
+
 export async function upsertSessionResult(
   input: SessionResultInput,
 ): Promise<{ id: number; changed: boolean }> {
   return db.transaction(async (tx) => {
+    await assertSessionResultEventOwnership(tx, input);
     const existing = await tx
       .select({ id: sessionResults.id })
       .from(sessionResults)

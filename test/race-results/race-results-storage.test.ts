@@ -125,7 +125,7 @@ describe("persisted race result timeline projections", () => {
     expect((await getRecentSessionResults("f1-2025", 10))[0]?.eventIds).toEqual([pitEntry.eventId]);
   });
 
-  test("aggregates pit duration from completed canonical services", async () => {
+  test("aggregates pit duration from supporting player events in materialized results only", async () => {
     const sessionId = await insertSession(31, 32, "acc", "race");
     const entry = event(sessionId, id("b"), {
       eventType: "pit_entry",
@@ -135,7 +135,20 @@ describe("persisted race result timeline projections", () => {
       eventType: "pit_service_completed",
       payload: { durationMs: 20_000, observedActions: ["fuel"], state: "pit-stall" },
     });
-    await appendRaceEvents([entry, completion]);
+    const opponentCompletion = {
+      ...event(sessionId, id("d"), {
+        eventType: "pit_service_completed",
+        payload: { durationMs: 80_000, observedActions: ["fuel"], state: "pit-stall" },
+      }),
+      participantId: "opponent:1",
+      participantKind: "opponent",
+    } as RaceEvent;
+    const resultlessSessionId = await insertSession(31, 32, "acc", "race");
+    const resultlessCompletion = event(resultlessSessionId, id("e"), {
+      eventType: "pit_service_completed",
+      payload: { durationMs: 60_000, observedActions: ["fuel"], state: "pit-stall" },
+    });
+    await appendRaceEvents([entry, completion, opponentCompletion, resultlessCompletion]);
     await upsertSessionResult({
       sessionId,
       processorVersion: RACE_RESULT_PROCESSOR_ID,
@@ -147,7 +160,7 @@ describe("persisted race result timeline projections", () => {
       isPodium: false,
       isFastestLap: false,
       pitCount: 1,
-      eventIds: [entry.eventId, completion.eventId],
+      eventIds: [entry.eventId, completion.eventId, opponentCompletion.eventId],
       tyreStrategy: null,
       fuelStrategy: { services: [{ addedLitres: 10 }] },
       provenance,
@@ -157,6 +170,44 @@ describe("persisted race result timeline projections", () => {
     const aggregate = await getRaceResultAggregate({ gameId: "acc", carOrdinal: 31, trackOrdinal: 32 });
     expect(aggregate.pitStops).toBe(1);
     expect(aggregate.pitDurationSeconds).toBe(20);
+  });
+
+  test("rejects duplicate, missing, and cross-session result event IDs", async () => {
+    const sessionId = await insertSession(51, 52, "iracing", "race");
+    const otherSessionId = await insertSession(51, 52, "iracing", "race");
+    const localEventId = `race-event:sha256:${"f".repeat(60)}5151` as RaceEventId;
+    const foreignEventId = `race-event:sha256:${"e".repeat(60)}5252` as RaceEventId;
+    const missingEventId = `race-event:sha256:${"d".repeat(60)}5353` as RaceEventId;
+    const local = event(sessionId, localEventId, {
+      eventType: "pit_entry",
+      payload: { previousState: "out", state: "pit-lane" },
+    });
+    const foreign = event(otherSessionId, foreignEventId, {
+      eventType: "pit_entry",
+      payload: { previousState: "out", state: "pit-lane" },
+    });
+    await appendRaceEvents([local, foreign]);
+    const input = {
+      sessionId,
+      processorVersion: RACE_RESULT_PROCESSOR_ID,
+      sessionType: "race",
+      classification: "finished" as const,
+      outcomeStatus: "confirmed" as const,
+      finishingPosition: 1,
+      qualifyingPosition: 1,
+      isPodium: true,
+      isFastestLap: false,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    };
+
+    await expect(upsertSessionResult({ ...input, eventIds: [local.eventId, local.eventId] })).rejects.toThrow("duplicate event ids");
+    await expect(upsertSessionResult({ ...input, eventIds: [missingEventId] })).rejects.toThrow("missing race events");
+    await expect(upsertSessionResult({ ...input, eventIds: [foreign.eventId] })).rejects.toThrow("another session");
   });
 
   test("stale-result queries use the timeline processor version", async () => {

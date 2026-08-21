@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
+import { RaceEventSchema, type RaceEvent, type RaceEventId } from "../../shared/racing/events/contracts";
 import {
   RaceEventConflictError,
   appendRaceEvents,
@@ -117,6 +117,23 @@ describe("race event persistence", () => {
     expect(stored[0]?.lapId).toBe(lapId);
   });
 
+  test("validates every lap link before appending any event", async () => {
+    const lapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 1, lapTime: 90 }).returning({ id: laps.id }).get()).id;
+    const laterLapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 3, lapTime: 90 }).returning({ id: laps.id }).get()).id;
+    const event = raceEvent(2, "position_changed", { previousPosition: 2, position: 1 }, { lapNumber: 1 });
+
+    await expect(
+      new DatabaseRaceEventStore().appendWithLapLinks(
+        [event],
+        [
+          { sessionId: 1, lapNumber: 1, lapId },
+          { sessionId: 1, lapNumber: 2, lapId: laterLapId },
+        ],
+      ),
+    ).rejects.toThrow("not lap 2 in session 1");
+    expect(await db.select().from(raceEvents)).toEqual([]);
+  });
+
   test("reads reject a row whose stored payload violates the event contract", async () => {
     await client.execute(
       `INSERT INTO race_events (
@@ -153,10 +170,11 @@ describe("race event persistence", () => {
 
     const first = await listSessionRaceEvents(1, { limit: 2 });
     expect(first.items.map((event) => event.eventId)).toEqual([sourceConnected.eventId, position.eventId]);
-    expect(first.nextCursor).not.toBeNull();
+    expect(first.nextCursor).toBe(first.tailCursor);
     const second = await listSessionRaceEvents(1, { limit: 2, cursor: first.nextCursor! });
     expect(second.items.map((event) => event.eventId)).toEqual([pitEntry.eventId, opponentPosition.eventId]);
     expect(second.nextCursor).toBeNull();
+    expect(second.tailCursor).not.toBeNull();
 
     const filtered = await listSessionRaceEvents(1, {
       participantId: "local-player",
@@ -169,6 +187,31 @@ describe("race event persistence", () => {
     expect(filtered.items.map((event) => event.eventId)).toEqual([pitEntry.eventId]);
     expect((await listSessionRaceEvents(1, { qualityOnly: true })).items.map((event) => event.eventId)).toEqual([sourceConnected.eventId]);
     await expect(listSessionRaceEvents(1, { cursor: "not-a-cursor" })).rejects.toThrow("Invalid race-event cursor");
+  });
+
+  test("round-trips safe-integer cursor coordinates and rejects unsafe event rows", async () => {
+    const maximum = Number.MAX_SAFE_INTEGER;
+    const first = raceEvent(maximum - 1, "position_changed", { previousPosition: 2, position: 1 }, {
+      sequence: maximum,
+      sourceTimeMs: 0,
+      sourceEndTimeMs: 0,
+      sourceSequence: maximum,
+      receivedAtMs: maximum,
+    });
+    const second = raceEvent(maximum, "position_changed", { previousPosition: 1, position: 2 }, {
+      sequence: maximum,
+      sourceTimeMs: 0,
+      sourceEndTimeMs: 0,
+      sourceSequence: maximum,
+      receivedAtMs: maximum,
+    });
+    expect(RaceEventSchema.safeParse({ ...first, sequence: maximum + 1 }).success).toBe(false);
+
+    await appendRaceEvents([first, second]);
+    const firstPage = await listSessionRaceEvents(1, { limit: 1 });
+    expect(firstPage.nextCursor).not.toBeNull();
+    const secondPage = await listSessionRaceEvents(1, { limit: 1, cursor: firstPage.nextCursor! });
+    expect(secondPage.items.map((event) => event.eventId)).toEqual([second.eventId]);
   });
 
   test("lap, lifecycle, pit-visit, and source-generation helpers return validated rows", async () => {
@@ -351,5 +394,25 @@ describe("race event persistence", () => {
         events: [{ ...changed, contentHash: contentHash(100) }],
       }),
     ).rejects.toBeInstanceOf(RaceEventConflictError);
+  });
+  test("recomputes pit projections when event-only replacement removes pit facts", async () => {
+    const lapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 1, lapTime: 90 }).returning({ id: laps.id }).get()).id;
+    const pitEntry = raceEvent(
+      1,
+      "pit_entry",
+      { previousState: "out", state: "pit-lane" },
+      { lapNumber: 1, lapId, eventOrder: 50 },
+    );
+    await appendRaceEvents([pitEntry]);
+    expect((await db.select({ phase: laps.phase, paceEligibility: laps.paceEligibility }).from(laps).where(eq(laps.id, lapId)).get())).toEqual({
+      phase: "in",
+      paceEligibility: "excluded",
+    });
+
+    await replaceReplayableRaceEvents({ sessionId: 1, events: [] });
+    expect((await db.select({ phase: laps.phase, paceEligibility: laps.paceEligibility }).from(laps).where(eq(laps.id, lapId)).get())).toEqual({
+      phase: "flying",
+      paceEligibility: "eligible",
+    });
   });
 });

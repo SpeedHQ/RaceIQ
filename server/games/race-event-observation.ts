@@ -1,5 +1,4 @@
 import type { PacketUnit } from "../../shared/games/types";
-import { packetSequences } from "../../shared/telemetry/source-sequence";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type {
   FourCornerRaceEventValue,
@@ -73,7 +72,7 @@ export function baseRaceEventObservation(
     sessionUid: packet.sessionUID ?? null,
     receivedAtMs: context.receivedAtMs,
     sourceTimeMs: packet.TimestampMS,
-    sourceSequences: packetSequences(packet),
+    sourceSequences: context.sourceSequences,
     lapNumber:
       Number.isInteger(packet.LapNumber) && packet.LapNumber >= 0
         ? packet.LapNumber

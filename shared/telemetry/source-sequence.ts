@@ -31,10 +31,22 @@ export interface SourceSequenceGapBoundary {
   missingCount: number;
   countMethod: Exclude<SourceSequenceCountMethod, "unavailable">;
 }
+/** A non-normal forward boundary whose timeline anchors must survive finalize. */
+export interface SourceSequenceGapCandidate {
+  sourceSequenceFamily: string | null;
+  previousSequence: number | null;
+  currentSequence: number | null;
+  previousSourceTimeMs: number;
+  currentSourceTimeMs: number;
+  previousObservationIndex: number;
+  currentObservationIndex: number;
+}
+
 
 export interface SourceSequenceObserveResult {
   sourceSequences: SourceSequenceObservation[];
   boundaries: SourceSequenceBoundary[];
+  gapCandidates?: SourceSequenceGapCandidate[];
 }
 
 export interface SourceSequenceSummary {
@@ -67,7 +79,14 @@ interface NativeSequenceState {
   lastSequence: number;
   lastSourceTimeMs: number;
   lastObservationIndex: number;
-  positiveBoundaries: PositiveBoundary[];
+  /**
+   * First positive step establishes normal cadence. Only later deviations retain
+   * anchors; contiguous streams retain high-water plus step frequencies.
+   */
+  gapCandidates: PositiveBoundary[];
+  provisionalBoundary: PositiveBoundary | null;
+  cadenceSamples: number;
+  normalStepMax: number;
   positiveStepCounts: Map<number, number>;
   positiveStepCount: number;
   resetPending: boolean;
@@ -129,9 +148,17 @@ export function weightedMedian(counts: ReadonlyMap<number, number>, count: numbe
  */
 export class SourceSequenceTracker {
   private readonly nativeStates = new Map<string, NativeSequenceState>();
-  private readonly timestampBoundaries: TimestampBoundary[] = [];
+  private readonly timestampGapCandidates: TimestampBoundary[] = [];
+  /**
+   * Timestamp-only mode establishes first positive cadence and retains later
+   * deviations, never one boundary per normal packet. Duplicate/out-of-order
+   * boundaries remain because exact diagnostics require their anchors.
+   */
   private readonly positiveTimestampDeltaCounts = new Map<number, number>();
   private positiveTimestampDeltaCount = 0;
+  private timestampCadenceSamples = 0;
+  private timestampNormalDeltaMax = 0;
+  private timestampProvisionalBoundary: TimestampBoundary | null = null;
   private readonly duplicates: SourceSequenceBoundary[] = [];
   private readonly outOfOrder: SourceSequenceBoundary[] = [];
   private packetCount = 0;
@@ -139,26 +166,76 @@ export class SourceSequenceTracker {
   private lastObservationIndex: number | null = null;
   private timestampResetPending = false;
 
-  observe(packet: TelemetryPacket): SourceSequenceObserveResult {
+  observe(packet: TelemetryPacket, sourceSequences: SourceSequenceObservation[] = packetSequences(packet)): SourceSequenceObserveResult {
     const currentObservationIndex = this.packetCount;
     this.packetCount += 1;
-    const sourceSequences = packetSequences(packet);
+    let gapCandidates: SourceSequenceGapCandidate[] | undefined;
     const boundaries: SourceSequenceBoundary[] = [];
 
     if (this.lastSourceTimeMs != null && this.lastObservationIndex != null) {
       if (this.timestampResetPending) {
         this.timestampResetPending = false;
+        this.lastSourceTimeMs = packet.TimestampMS;
+        this.lastObservationIndex = currentObservationIndex;
       } else {
         const delta = packet.TimestampMS - this.lastSourceTimeMs;
         if (delta > 0) {
-          this.timestampBoundaries.push({
-            previousSourceTimeMs: this.lastSourceTimeMs,
-            currentSourceTimeMs: packet.TimestampMS,
-            previousObservationIndex: this.lastObservationIndex,
-            currentObservationIndex,
-          });
-          this.positiveTimestampDeltaCounts.set(delta, (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1);
-          this.positiveTimestampDeltaCount += 1;
+          if (
+            sourceSequences.length === 0 &&
+            this.timestampCadenceSamples > 0 &&
+            delta > this.timestampNormalDeltaMax * (this.timestampCadenceSamples < 8 ? 1 : 1.5)
+          ) {
+            const candidate = {
+              sourceSequenceFamily: null,
+              previousSequence: null,
+              currentSequence: null,
+              previousSourceTimeMs: this.lastSourceTimeMs,
+              currentSourceTimeMs: packet.TimestampMS,
+              previousObservationIndex: this.lastObservationIndex,
+              currentObservationIndex,
+            };
+            this.timestampGapCandidates.push(candidate);
+            (gapCandidates ??= []).push(candidate);
+          }
+          if (sourceSequences.length === 0 && this.timestampCadenceSamples === 0) {
+            this.timestampProvisionalBoundary = {
+              previousSourceTimeMs: this.lastSourceTimeMs,
+              currentSourceTimeMs: packet.TimestampMS,
+              previousObservationIndex: this.lastObservationIndex,
+              currentObservationIndex,
+            };
+            (gapCandidates ??= []).push({
+              sourceSequenceFamily: null,
+              previousSequence: null,
+              currentSequence: null,
+              ...this.timestampProvisionalBoundary,
+            });
+          } else if (
+            sourceSequences.length === 0 &&
+            this.timestampProvisionalBoundary != null &&
+            this.timestampProvisionalBoundary.currentSourceTimeMs -
+              this.timestampProvisionalBoundary.previousSourceTimeMs >
+              delta
+          ) {
+            this.timestampGapCandidates.push(this.timestampProvisionalBoundary);
+            (gapCandidates ??= []).push({
+              sourceSequenceFamily: null,
+              previousSequence: null,
+              currentSequence: null,
+              ...this.timestampProvisionalBoundary,
+            });
+            this.timestampProvisionalBoundary = null;
+          }
+          if (sourceSequences.length === 0) {
+            this.positiveTimestampDeltaCounts.set(delta, (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1);
+            this.positiveTimestampDeltaCount += 1;
+            if (this.timestampCadenceSamples < 8) {
+              this.timestampNormalDeltaMax = Math.max(this.timestampNormalDeltaMax, delta);
+            }
+            this.timestampCadenceSamples += 1;
+          }
+          this.lastSourceTimeMs = packet.TimestampMS;
+          this.lastObservationIndex = currentObservationIndex;
         } else if (sourceSequences.length === 0) {
           const boundary: SourceSequenceBoundary = {
             kind: delta === 0 ? "duplicate" : "out-of-order",
@@ -174,9 +251,10 @@ export class SourceSequenceTracker {
           (delta === 0 ? this.duplicates : this.outOfOrder).push(boundary);
         }
       }
+    } else {
+      this.lastSourceTimeMs = packet.TimestampMS;
+      this.lastObservationIndex = currentObservationIndex;
     }
-    this.lastSourceTimeMs = packet.TimestampMS;
-    this.lastObservationIndex = currentObservationIndex;
 
     for (const observation of sourceSequences) {
       const previous = this.nativeStates.get(observation.family);
@@ -185,8 +263,11 @@ export class SourceSequenceTracker {
           lastSequence: observation.sequence,
           lastSourceTimeMs: packet.TimestampMS,
           lastObservationIndex: currentObservationIndex,
-          positiveBoundaries: [],
+          gapCandidates: [],
+          cadenceSamples: 0,
+          normalStepMax: 0,
           positiveStepCounts: new Map(),
+          provisionalBoundary: null,
           positiveStepCount: 0,
           resetPending: false,
         });
@@ -215,14 +296,52 @@ export class SourceSequenceTracker {
         (delta === 0 ? this.duplicates : this.outOfOrder).push(boundary);
         continue;
       }
-      previous.positiveBoundaries.push({
-        previousSequence: previous.lastSequence,
-        currentSequence: observation.sequence,
-        previousSourceTimeMs: previous.lastSourceTimeMs,
-        currentSourceTimeMs: packet.TimestampMS,
-        previousObservationIndex: previous.lastObservationIndex,
-        currentObservationIndex,
-      });
+      if (
+        previous.cadenceSamples > 0 &&
+        delta > previous.normalStepMax * (previous.cadenceSamples < 8 ? 1 : 1.5)
+      ) {
+        const candidate = {
+          sourceSequenceFamily: observation.family,
+          previousSequence: previous.lastSequence,
+          currentSequence: observation.sequence,
+          previousSourceTimeMs: previous.lastSourceTimeMs,
+          currentSourceTimeMs: packet.TimestampMS,
+          previousObservationIndex: previous.lastObservationIndex,
+          currentObservationIndex,
+        };
+        previous.gapCandidates.push(candidate);
+        (gapCandidates ??= []).push(candidate);
+      }
+      if (previous.cadenceSamples === 0) {
+        previous.provisionalBoundary = {
+          previousSequence: previous.lastSequence,
+          currentSequence: observation.sequence,
+          previousSourceTimeMs: previous.lastSourceTimeMs,
+          currentSourceTimeMs: packet.TimestampMS,
+          previousObservationIndex: previous.lastObservationIndex,
+          currentObservationIndex,
+        };
+        (gapCandidates ??= []).push({
+          sourceSequenceFamily: observation.family,
+          ...previous.provisionalBoundary,
+        });
+      } else if (
+        previous.provisionalBoundary != null &&
+        previous.provisionalBoundary.currentSequence -
+          previous.provisionalBoundary.previousSequence >
+          delta
+      ) {
+        previous.gapCandidates.push(previous.provisionalBoundary);
+        (gapCandidates ??= []).push({
+          sourceSequenceFamily: observation.family,
+          ...previous.provisionalBoundary,
+        });
+        previous.provisionalBoundary = null;
+      }
+      if (previous.cadenceSamples < 8) {
+        previous.normalStepMax = Math.max(previous.normalStepMax, delta);
+      }
+      previous.cadenceSamples += 1;
       previous.positiveStepCounts.set(delta, (previous.positiveStepCounts.get(delta) ?? 0) + 1);
       previous.positiveStepCount += 1;
       previous.lastSequence = observation.sequence;
@@ -230,7 +349,9 @@ export class SourceSequenceTracker {
       previous.lastObservationIndex = currentObservationIndex;
     }
 
-    return { sourceSequences, boundaries };
+    return gapCandidates == null
+      ? { sourceSequences, boundaries }
+      : { sourceSequences, boundaries, gapCandidates };
   }
 
   /** Reconnect/timebase boundaries seed the next observation in each family. */
@@ -250,7 +371,7 @@ export class SourceSequenceTracker {
       for (const [family, state] of this.nativeStates) {
         if (state.positiveStepCount === 0) continue;
         const expectedStep = weightedMedian(state.positiveStepCounts, state.positiveStepCount, 1);
-        for (const boundary of state.positiveBoundaries) {
+        for (const boundary of state.gapCandidates) {
           const step = boundary.currentSequence - boundary.previousSequence;
           const inferredMissing = Math.max(0, Math.round(step / expectedStep) - 1);
           if (inferredMissing === 0) continue;
@@ -269,7 +390,7 @@ export class SourceSequenceTracker {
     } else if (this.positiveTimestampDeltaCount > 0) {
       countMethod = "timestamp-estimate";
       const expectedIntervalMs = weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1);
-      for (const boundary of this.timestampBoundaries) {
+      for (const boundary of this.timestampGapCandidates) {
         const durationMs = boundary.currentSourceTimeMs - boundary.previousSourceTimeMs;
         const inferredMissing = Math.max(0, Math.round(durationMs / expectedIntervalMs) - 1);
         if (inferredMissing === 0) continue;

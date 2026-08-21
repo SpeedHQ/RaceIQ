@@ -196,7 +196,7 @@ export class PitServiceDetector {
       state = "pit-stall";
     }
 
-    if (visit != null && visitWasOpen) {
+    if (visit != null && (visitWasOpen || visit.enteredObserved)) {
       drafts.push(...this.detectServiceActions(context, participant, existing.last, visit));
     }
 

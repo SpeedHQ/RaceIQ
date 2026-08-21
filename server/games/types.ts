@@ -77,6 +77,8 @@ export interface RaceEventObservation {
 export interface RaceEventObservationContext {
   /** Wall-clock diagnostic receipt time; never used as semantic source time. */
   receivedAtMs: number;
+  /** Packet coordinate projection calculated once by pipeline or rebuild caller. */
+  sourceSequences: SourceSequenceObservation[];
 }
 
 /** Server-only runtime behavior owned by each game implementation. */

@@ -10,9 +10,11 @@ import type {
 } from "@shared/racing/quality/contracts";
 import { resolveEligibilityDecision } from "@shared/racing/quality/policies";
 import type { LapMeta } from "@shared/racing/sessions/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { client } from "../lib/rpc";
+import { errorFromResponse } from "../lib/rpc-error";
 import { qualityUpdatedQueryKeys } from "../hooks/query-keys";
 import { m } from "../paraglide/messages";
 import { Badge } from "./ui/badge";
@@ -209,6 +211,22 @@ function percent(value: number | null): string {
 export interface SessionQualityStatus {
   action: "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
 }
+export async function getSessionQualityStatus(sessionId: number) {
+  const response = await client.api.sessions[":id"].quality.$get({ param: { id: String(sessionId) } });
+  if (!response.ok) throw await errorFromResponse(response);
+  return response.json();
+}
+
+export async function rebuildSessionQuality(sessionId: number) {
+  const response = await client.api.sessions[":id"].quality.rebuild.$post({ param: { id: String(sessionId) } });
+  if (!response.ok) throw await errorFromResponse(response);
+  return response.json();
+}
+
+export async function invalidateSessionQualityQueries(queryClient: Pick<QueryClient, "invalidateQueries">, sessionId: number): Promise<void> {
+  await Promise.all(qualityUpdatedQueryKeys(sessionId).map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+}
+
 
 export interface QualityRebuildStatusProps {
   action: SessionQualityStatus["action"] | undefined;
@@ -313,20 +331,16 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
     enabled: open && sessionId != null,
     queryFn: async () => {
       if (sessionId == null) throw new Error("Missing session");
-      const response = await fetch(`/api/sessions/${sessionId}/quality`);
-      if (!response.ok) throw new Error(response.statusText);
-      return (await response.json()) as SessionQualityStatus;
+      return getSessionQualityStatus(sessionId);
     },
   });
   const rebuild = useMutation({
     mutationFn: async () => {
       if (sessionId == null) throw new Error("Missing session");
-      const response = await fetch(`/api/sessions/${sessionId}/quality/rebuild`, { method: "POST" });
-      if (!response.ok) throw new Error(response.statusText);
-      return response.json();
+      return rebuildSessionQuality(sessionId);
     },
     onSuccess: async () => {
-      await Promise.all(qualityUpdatedQueryKeys(sessionId!).map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+      await invalidateSessionQualityQueries(queryClient, sessionId!);
     },
   });
 

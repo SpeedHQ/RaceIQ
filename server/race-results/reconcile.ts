@@ -1,19 +1,22 @@
+import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { db } from "../db";
 import { getLapsByIds } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { listSessionRaceEvents } from "../db/race-event-queries";
+import { sessions } from "../db/schema";
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
 import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/racing/results/types";
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
-import { getAllServerGames } from "../games/registry";
+import { getAllServerGames, getServerGame } from "../games/registry";
 import { reprocessSession } from "../session-capture/reprocess";
 
 export const RACE_RESULT_PROCESSOR_ID = "race-result-v4";
@@ -66,20 +69,29 @@ export interface BackfillReport {
   results: ReconcileSessionReport[];
 }
 
-const TRANSPORT_TYPES = new Set<RaceEvent["eventType"]>([
-  "source_connected",
-  "source_disconnected",
-  "source_stale",
-  "source_recovered",
-  "storage_drop",
-  "storage_failure",
-]);
 
-async function ensureReplayableTimelineForStaleSession(sessionId: number): Promise<void> {
-  const events = await loadSessionTimeline(sessionId);
-  if (events.some((event) => !TRANSPORT_TYPES.has(event.eventType) && event.detectorVersion !== "legacy" && event.detectorVersion !== "legacy-v1")) {
-    return;
-  }
+async function ensureReplayableTimelineForStaleSession(sessionId: number, gameId: GameId): Promise<void> {
+  const [events, session] = await Promise.all([
+    loadSessionTimeline(sessionId),
+    db
+      .select({
+        lapDetectorVersion: sessions.lapDetectorVersion,
+        recordingQuality: sessions.recordingQuality,
+      })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .get(),
+  ]);
+  const sourceGeneration = session?.recordingQuality?.provenance.sourceGeneration;
+  const complete =
+    session?.lapDetectorVersion === getServerGame(gameId).lapDetectorId &&
+    session?.recordingQuality?.archiveVerification.state === "verified" &&
+    sourceGeneration != null &&
+    /^sha256:[a-f0-9]{64}$/.test(sourceGeneration) &&
+    events.some((event) => event.eventType === "session_started") &&
+    events.some((event) => event.eventType === "session_ended") &&
+    events.every((event) => event.sourceGeneration === sourceGeneration);
+  if (complete) return;
   await reprocessSession(sessionId);
 }
 
@@ -87,7 +99,7 @@ export async function reconcileStaleSessionResult(
   sessionId: number,
   gameId: GameId,
 ): Promise<ReconcileSessionReport> {
-  await ensureReplayableTimelineForStaleSession(sessionId);
+  await ensureReplayableTimelineForStaleSession(sessionId, gameId);
   return reconcileSessionResult(sessionId, gameId);
 }
 
@@ -203,7 +215,7 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
   const results: ReconcileSessionReport[] = [];
   for (const session of sessions) {
     try {
-      if (options.eligibleSessionIds) await ensureReplayableTimelineForStaleSession(session.id);
+      if (options.eligibleSessionIds) await ensureReplayableTimelineForStaleSession(session.id, session.gameId as GameId);
       results.push(await reconcileSessionResult(session.id, options.gameId));
     } catch (error) {
       results.push({ sessionId: session.id, status: "error", eventCount: 0, reasons: [error instanceof Error ? error.message : "unknown-error"] });

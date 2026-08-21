@@ -7,7 +7,7 @@ import { forzaServerAdapter } from "../../server/games/fm-2023";
 import { iracingServerAdapter } from "../../server/games/iracing";
 import { packet } from "../support/telemetry/resolver";
 
-const context = { receivedAtMs: 10_010 };
+const context = { receivedAtMs: 10_010, sourceSequences: [] };
 
 describe("race event source adapters", () => {
   test("keeps unsupported Forza facts unknown", () => {
@@ -89,7 +89,7 @@ describe("race event source adapters", () => {
           lapDistancePct: 0.42,
         } as never,
       }),
-      context,
+      { ...context, sourceSequences: [{ family: "iracing-session-tick", sequence: 500 }] },
     );
 
     expect(observation.worldPosition).toBeNull();
@@ -171,4 +171,22 @@ describe("race event source adapters", () => {
       damage: { "front-left-wing": 15 },
     });
   });
+  test("keeps F1 damage when tire wear packet fields are unavailable", () => {
+    const observation = f1ServerAdapter.toRaceEventObservation(
+      packet("f1-2025", {
+        f1: {
+          packetId: 6,
+          overallFrameIdentifier: 40,
+          playerCarIndex: 0,
+          frontLeftWingDamage: 25,
+        } as never,
+      }),
+      context,
+    );
+
+    expect(observation.participants[0]?.damage).toEqual({
+      "front-left-wing": 25,
+    });
+  });
+
 });

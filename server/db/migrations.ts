@@ -1150,25 +1150,49 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          )`,
     ],
   },
-  // v52: Version normalized race-result derivation for future reconciliation.
+  // v52: Align the persisted race-result processor default with current writes.
   {
     version: 52,
-    name: "version race result processor",
-    sql: [`ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`],
-  },
-  // v53: Persist race timeline event types and position transitions.
-  {
-    version: 53,
-    name: "persist race timeline positions",
+    name: "default new race results to processor v2",
     sql: [
-      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
-      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
-      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
+      `CREATE TABLE session_results_v52 (
+         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+         session_id          INTEGER NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+         processor_version   TEXT NOT NULL DEFAULT 'race-result-v2',
+         session_type        TEXT NOT NULL DEFAULT 'unknown',
+         classification      TEXT NOT NULL DEFAULT 'unknown',
+         finishing_position  INTEGER,
+         qualifying_position INTEGER,
+         is_podium           INTEGER,
+         is_fastest_lap      INTEGER,
+         pit_count           INTEGER NOT NULL DEFAULT 0,
+         tyre_strategy       TEXT,
+         fuel_strategy       TEXT,
+         provenance          TEXT,
+         reasons             TEXT,
+         created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+         updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `INSERT INTO session_results_v52 (
+         id, session_id, processor_version, session_type, classification,
+         finishing_position, qualifying_position, is_podium, is_fastest_lap,
+         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
+         created_at, updated_at
+       )
+       SELECT
+         id, session_id, processor_version, session_type, classification,
+         finishing_position, qualifying_position, is_podium, is_fastest_lap,
+         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
+         created_at, updated_at
+       FROM session_results`,
+      `DROP TABLE session_results`,
+      `ALTER TABLE session_results_v52 RENAME TO session_results`,
+      `CREATE INDEX idx_session_results_session ON session_results(session_id)`,
     ],
   },
-  // v54: Persist telemetry catalog and resolver identity on sessions.
+  // v53: Persist telemetry catalog and resolver identity on sessions.
   {
-    version: 54,
+    version: 53,
     name: "persist telemetry version identity",
     sql: [
       `ALTER TABLE sessions ADD COLUMN catalog_version TEXT`,
@@ -1179,9 +1203,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE sessions ADD COLUMN derivation_version TEXT`,
     ],
   },
-  // v55: Persist telemetry version identity on laps.
+  // v54: Persist telemetry version identity on laps.
   {
-    version: 55,
+    version: 54,
     name: "persist lap telemetry version identity",
     sql: [
       `ALTER TABLE laps ADD COLUMN catalog_version TEXT`,
@@ -1192,21 +1216,21 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps ADD COLUMN derivation_version TEXT`,
     ],
   },
-  // v56: Persist race result outcome status.
+  // v55: Persist race result outcome status.
   {
-    version: 56,
+    version: 55,
     name: "persist race result outcome status",
     sql: [`ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`],
   },
-  // v57: Persist structured race-result evidence.
+  // v56: Persist structured race-result evidence.
   {
-    version: 57,
+    version: 56,
     name: "persist race result evidence",
     sql: [`ALTER TABLE session_results ADD COLUMN evidence TEXT`],
   },
-  // v58: Persist whether a session belongs to the user or another driver.
+  // v57: Persist whether a session belongs to the user or another driver.
   {
-    version: 58,
+    version: 57,
     name: "persist session ownership",
     sql: [
       `ALTER TABLE sessions ADD COLUMN ownership TEXT NOT NULL DEFAULT 'mine'`,
@@ -1215,9 +1239,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
-  // v59: Persist final lap phase and pace classification facts.
+  // v58: Persist final lap phase and pace classification facts.
   {
-    version: 59,
+    version: 58,
     name: "persist lap phase and pace classification",
     sql: [
       `ALTER TABLE laps ADD COLUMN phase TEXT NOT NULL DEFAULT 'flying'`,
@@ -1236,9 +1260,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE invalid_reason IN ('outlap', 'inlap', 'pit lap')`,
     ],
   },
-  // v60: Separate recording quality from policy-specific analysis eligibility.
+  // v59: Separate recording quality from policy-specific analysis eligibility.
   {
-    version: 60,
+    version: 59,
     name: "persist telemetry quality and eligibility",
     sql: [
       `ALTER TABLE sessions ADD COLUMN recording_quality TEXT`,
@@ -1591,15 +1615,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE quality IS NULL`,
     ],
   },
-  // v61: Persist source-authored channel fidelity for transcoded sessions.
+  // v60: Persist source-authored channel fidelity for transcoded sessions.
   {
-    version: 61,
+    version: 60,
     name: "persist source channel profiles",
     sql: [`ALTER TABLE sessions ADD COLUMN source_channel_profile TEXT`],
   },
-  // v62: Tie derived lap metrics to exact quality evidence generation.
+  // v61: Tie derived lap metrics to exact quality evidence generation.
   {
-    version: 62,
+    version: 61,
     name: "version lap metrics by quality generation",
     sql: [`ALTER TABLE lap_metrics ADD COLUMN quality_generation TEXT`],
   },
@@ -1620,15 +1644,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          participant_kind       TEXT,
          driver_id              TEXT,
          team_id                TEXT,
-         timeline_epoch         INTEGER NOT NULL CHECK (timeline_epoch >= 0),
-         sequence               INTEGER NOT NULL CHECK (sequence >= 0),
-         event_order            INTEGER NOT NULL CHECK (event_order >= 0),
-         source_time_ms          INTEGER,
-         source_end_time_ms      INTEGER,
+         timeline_epoch         INTEGER NOT NULL CHECK (typeof(timeline_epoch) = 'integer' AND timeline_epoch >= 0 AND timeline_epoch <= 9007199254740991),
+         sequence               INTEGER NOT NULL CHECK (typeof(sequence) = 'integer' AND sequence >= 0 AND sequence <= 9007199254740991),
+         event_order            INTEGER NOT NULL CHECK (typeof(event_order) = 'integer' AND event_order >= 0 AND event_order <= 9007199254740991),
+         source_time_ms          INTEGER CHECK (source_time_ms IS NULL OR (typeof(source_time_ms) = 'integer' AND source_time_ms >= -9007199254740991 AND source_time_ms <= 9007199254740991)),
+         source_end_time_ms      INTEGER CHECK (source_end_time_ms IS NULL OR (typeof(source_end_time_ms) = 'integer' AND source_end_time_ms >= -9007199254740991 AND source_end_time_ms <= 9007199254740991)),
          source_sequence_family TEXT,
-         source_sequence        INTEGER,
-         received_at_ms         INTEGER NOT NULL,
-         lap_number             INTEGER,
+         source_sequence        INTEGER CHECK (source_sequence IS NULL OR (typeof(source_sequence) = 'integer' AND source_sequence >= -9007199254740991 AND source_sequence <= 9007199254740991)),
+         received_at_ms         INTEGER NOT NULL CHECK (typeof(received_at_ms) = 'integer' AND received_at_ms >= 0 AND received_at_ms <= 9007199254740991),
+         lap_number             INTEGER CHECK (lap_number IS NULL OR (typeof(lap_number) = 'integer' AND lap_number >= 0 AND lap_number <= 9007199254740991)),
          lap_id                 INTEGER REFERENCES laps(id) ON DELETE SET NULL,
          track_distance_m       REAL,
          track_distance_pct     REAL,
@@ -1662,6 +1686,22 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX idx_race_events_lifecycle
        ON race_events(session_id, lifecycle_id, timeline_epoch, sequence, event_order, event_id)`,
       `CREATE INDEX idx_race_events_linked_event ON race_events(linked_event_id)`,
+      `CREATE TABLE migration_v63_position_guard (
+         is_valid INTEGER NOT NULL CHECK (is_valid = 1)
+       )`,
+      `INSERT INTO migration_v63_position_guard (is_valid)
+       SELECT CASE WHEN EXISTS (
+         SELECT 1
+         FROM pit_events
+         WHERE event_type = 'position-change'
+           AND (
+             position_after IS NULL
+             OR typeof(position_after) != 'integer'
+             OR position_after < 1
+             OR position_after > 9007199254740991
+           )
+       ) THEN 0 ELSE 1 END`,
+      `DROP TABLE migration_v63_position_guard`,
       `INSERT INTO race_events (
          event_id, event_type, schema_version, session_id,
          participant_id, participant_kind, timeline_epoch, sequence, event_order,
@@ -1686,8 +1726,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          0,
          pit_events.sequence,
          CASE WHEN pit_events.event_type = 'position-change' THEN 20 ELSE 50 END,
-         CASE WHEN pit_events.elapsed_seconds IS NULL THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
-         CASE WHEN pit_events.elapsed_seconds IS NULL THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
          COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
          pit_events.lap_number,
          (SELECT laps.id
@@ -1705,7 +1751,13 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          ) THEN sessions.source ELSE 'unknown' END,
          CASE WHEN pit_events.event_type = 'position-change'
            THEN json_object(
-             'previousPosition', pit_events.position_before,
+             'previousPosition', CASE
+               WHEN typeof(pit_events.position_before) = 'integer'
+                AND pit_events.position_before >= 1
+                AND pit_events.position_before <= 9007199254740991
+               THEN pit_events.position_before
+               ELSE NULL
+             END,
              'position', pit_events.position_after
            )
            ELSE json_object('previousState', 'unknown', 'state', 'pit-lane')
@@ -1740,8 +1792,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          0,
          pit_events.sequence,
          60,
-         CASE WHEN pit_events.elapsed_seconds IS NULL THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
-         CASE WHEN pit_events.elapsed_seconds IS NULL THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
          COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
          pit_events.lap_number,
          (SELECT laps.id
@@ -1805,8 +1863,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          0,
          pit_events.sequence,
          60,
-         CASE WHEN pit_events.elapsed_seconds IS NULL THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
-         CASE WHEN pit_events.elapsed_seconds IS NULL THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
          COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
          pit_events.lap_number,
          (SELECT laps.id
@@ -1844,18 +1908,86 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          AND pit_events.fuel_added >= 0
          AND pit_events.fuel_before >= 0
          AND pit_events.fuel_after >= 0`,
+      `INSERT INTO race_events (
+         event_id, event_type, schema_version, session_id,
+         participant_id, participant_kind, timeline_epoch, sequence, event_order,
+         source_time_ms, source_end_time_ms, received_at_ms,
+         lap_number, lap_id, evidence_kind, confidence, quality_state, source_kind,
+         payload, lifecycle_id, linked_event_id, detector_id, detector_version,
+         source_generation, content_hash, created_at
+       )
+       SELECT
+         'pit-event:' || pit_events.id || ':service-completed',
+         'pit_service_completed',
+         'race-event-v1',
+         session_results.session_id,
+         'local-player',
+         'player',
+         0,
+         pit_events.sequence,
+         50,
+         CASE
+           WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+             OR pit_events.elapsed_seconds < -9007199254740.991
+             OR pit_events.elapsed_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds < -9007199254740.991
+           THEN NULL
+           ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER)
+         END,
+         CASE
+           WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+             OR pit_events.elapsed_seconds < -9007199254740.991
+             OR pit_events.elapsed_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds < -9007199254740.991
+           THEN NULL
+           ELSE CAST(ROUND((pit_events.elapsed_seconds + pit_events.duration_seconds) * 1000) AS INTEGER)
+         END,
+         COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
+         pit_events.lap_number,
+         (SELECT laps.id
+          FROM laps
+          WHERE laps.session_id = session_results.session_id
+            AND laps.lap_number = pit_events.lap_number
+          ORDER BY laps.id
+          LIMIT 1),
+         'derived',
+         'unknown',
+         'ambiguous',
+         CASE WHEN sessions.source IN (
+           'native-live', 'raceiq-raw', 'raceiq-archive', 'canonical-archive',
+           'iracing-ibt', 'motec', 'remote-collector', 'external-log'
+         ) THEN sessions.source ELSE 'unknown' END,
+         json_object(
+           'durationMs', CAST(ROUND(pit_events.duration_seconds * 1000) AS INTEGER),
+           'observedActions', json_array(),
+           'state', 'pit-stall'
+         ),
+         'legacy:pit-visit:' || pit_events.id,
+         'pit-event:' || pit_events.id,
+         'legacy-race-result',
+         'legacy-v1',
+         'legacy',
+         NULL,
+         COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', pit_events.created_at), '1970-01-01T00:00:00.000Z')
+       FROM pit_events
+       JOIN session_results ON session_results.id = pit_events.result_id
+       JOIN sessions ON sessions.id = session_results.session_id
+       WHERE pit_events.event_type != 'position-change'
+         AND pit_events.duration_seconds IS NOT NULL
+         AND typeof(pit_events.duration_seconds) IN ('integer', 'real')
+         AND pit_events.duration_seconds >= 0
+         AND pit_events.duration_seconds <= 9007199254740.991`,
       `UPDATE session_results
        SET event_ids = COALESCE(
          (SELECT json_group_array(ordered.event_id)
           FROM (
-            SELECT race_events.event_id, race_events.session_id
+            SELECT event_id
             FROM race_events
-            ORDER BY race_events.timeline_epoch,
-                     race_events.sequence,
-                     race_events.event_order,
-                     race_events.event_id
-          ) AS ordered
-          WHERE ordered.session_id = session_results.session_id),
+            WHERE session_id = session_results.session_id
+            ORDER BY timeline_epoch, sequence, event_order, event_id
+          ) AS ordered),
          '[]'
        )`,
       `DROP TABLE pit_events`,

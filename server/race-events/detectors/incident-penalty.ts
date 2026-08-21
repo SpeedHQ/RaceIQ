@@ -73,43 +73,49 @@ export class IncidentPenaltyDetector {
         continue;
       }
 
-      if (previous.participant.incidentCount != null && participant.incidentCount != null && participant.incidentCount > previous.participant.incidentCount) {
+      const current: RaceParticipantObservation = {
+        ...participant,
+        incidentCount: participant.incidentCount ?? previous.participant.incidentCount,
+        damage: participant.damage ?? previous.participant.damage,
+        penaltyValue: participant.penaltyValue ?? previous.participant.penaltyValue,
+      };
+      if (previous.participant.incidentCount != null && current.incidentCount != null && current.incidentCount > previous.participant.incidentCount) {
         drafts.push(
-          draft(context, participant, "incident_observed", {
+          draft(context, current, "incident_observed", {
             previousCount: previous.participant.incidentCount,
-            currentCount: participant.incidentCount,
-            delta: participant.incidentCount - previous.participant.incidentCount,
+            currentCount: current.incidentCount,
+            delta: current.incidentCount - previous.participant.incidentCount,
           }),
         );
       }
 
-      if (previous.participant.damage != null && participant.damage != null) {
-        const changed = changedDamageComponents(previous.participant.damage, participant.damage);
+      if (previous.participant.damage != null && current.damage != null) {
+        const changed = changedDamageComponents(previous.participant.damage, current.damage);
         if (changed.length > 0 && !previous.damageWarningActive) {
           drafts.push(
             draft(
               context,
-              participant,
+              current,
               "damage_warning_started",
               {
                 previousComponents: previous.participant.damage,
-                currentComponents: participant.damage,
+                currentComponents: current.damage,
                 changedComponents: changed,
               },
               { evidenceKind: "derived" },
             ),
           );
           previous.damageWarningActive = true;
-        } else if (previous.damageWarningActive && damageVectorCleared(participant.damage)) {
+        } else if (previous.damageWarningActive && damageVectorCleared(current.damage)) {
           drafts.push(
             draft(
               context,
-              participant,
+              current,
               "damage_warning_cleared",
               {
                 previousComponents: previous.participant.damage,
-                currentComponents: participant.damage,
-                changedComponents: Object.keys(participant.damage).sort(),
+                currentComponents: current.damage,
+                changedComponents: Object.keys(current.damage).sort(),
               },
               { evidenceKind: "derived" },
             ),
@@ -119,10 +125,10 @@ export class IncidentPenaltyDetector {
       }
 
       const previousPenalty = previous.participant.penaltyValue;
-      const currentPenalty = participant.penaltyValue;
+      const currentPenalty = current.penaltyValue;
       if (currentPenalty != null && (previousPenalty == null || currentPenalty > previousPenalty) && currentPenalty > 0) {
         drafts.push(
-          draft(context, participant, "penalty_issued", {
+          draft(context, current, "penalty_issued", {
             previousValue: previousPenalty,
             currentValue: currentPenalty,
             nativeCode: null,
@@ -131,7 +137,7 @@ export class IncidentPenaltyDetector {
         previous.penaltyActive = true;
       } else if (previousPenalty != null && previous.penaltyActive && currentPenalty != null && currentPenalty < previousPenalty) {
         drafts.push(
-          draft(context, participant, "penalty_cleared", {
+          draft(context, current, "penalty_cleared", {
             previousValue: previousPenalty,
             currentValue: currentPenalty,
             nativeCode: null,
@@ -141,16 +147,16 @@ export class IncidentPenaltyDetector {
         previous.penaltyActive = currentPenalty > 0;
       }
 
-      if (!previous.retired && participant.retirementStatus === "retired" && participant.nativeRetirementCode != null) {
+      if (!previous.retired && current.retirementStatus === "retired" && current.nativeRetirementCode != null) {
         drafts.push(
-          draft(context, participant, "retirement_observed", {
-            nativeCode: participant.nativeRetirementCode,
-            status: participant.retirementStatus,
+          draft(context, current, "retirement_observed", {
+            nativeCode: current.nativeRetirementCode,
+            status: current.retirementStatus,
           }),
         );
         previous.retired = true;
       }
-      previous.participant = participant;
+      previous.participant = current;
     }
     return drafts;
   }

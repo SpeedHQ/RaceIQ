@@ -9,6 +9,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { EligibilityDecision, EligibilityDecisionSet, EligibilityPolicyId } from "../../shared/racing/quality/contracts";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
+import { MemoryRaceEventStore } from "../../server/race-events/store";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import { LiveTelemetryPipeline, resolveLapIssueEligibility, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 
@@ -164,7 +165,47 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     });
   });
 
+  test("durably commits delayed lap completion before old-session finalization", async () => {
+    const db = new CapturingDbAdapter();
+    const ws = new CapturingWsAdapter();
+    const store = new MemoryRaceEventStore();
+    const insertLap = db.insertLap.bind(db);
+    let releaseLapWrite!: () => void;
+    let markLapWriteStarted!: () => void;
+    const lapWriteGate = new Promise<void>((resolve) => {
+      releaseLapWrite = resolve;
+    });
+    const lapWriteStarted = new Promise<void>((resolve) => {
+      markLapWriteStarted = resolve;
+    });
+    db.insertLap = async (input) => {
+      markLapWriteStarted();
+      await lapWriteGate;
+      return insertLap(input);
+    };
+    const pipeline = new LiveTelemetryPipeline(db, ws, {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+    });
+
+    await pipeline.processPacket(pkt({ TimestampMS: 1_000, LapNumber: 1, CurrentLap: 30, DistanceTraveled: 2_000 }));
+    await pipeline.processPacket(pkt({ TimestampMS: 2_000, LapNumber: 2, CurrentLap: 0.1, LastLap: 90, DistanceTraveled: 5_000 }));
+    await lapWriteStarted;
+
+    const finalization = pipeline.finalizeCurrentSession();
+    releaseLapWrite();
+    await finalization;
+
+    const completed = store.list().filter(({ sessionId, eventType }) => sessionId === 1 && eventType === "lap_completed");
+    expect(completed).toHaveLength(1);
+    expect(completed[0]?.lapId).toBe(1);
+  });
+
   test("keeps delayed old-session lap ownership out of current live state", async () => {
+
     const db = new CapturingDbAdapter();
     const ws = new CapturingWsAdapter();
     const insertLap = db.insertLap.bind(db);

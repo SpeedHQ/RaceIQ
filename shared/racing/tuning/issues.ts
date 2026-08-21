@@ -21,6 +21,7 @@ export interface TuneIssue {
   detail: string;
   /** Present on per-lap issues; absent on live transients. */
   lapNumber?: number;
-  /** Canonical timeline facts supporting this finding. Optional for legacy JSON. */
+  /** Canonical facts explicitly used to derive this finding. Shared lap,
+   * participant, event family, or proximity alone never establishes support. */
   eventIds?: RaceEventId[];
 }

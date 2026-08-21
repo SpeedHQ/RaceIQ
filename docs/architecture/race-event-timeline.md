@@ -77,7 +77,7 @@ There is no process-local replay cache. A client reconnects or refreshes by quer
 GET /api/sessions/:id/events
 ```
 
-Filters are intersecting: `participantId`, `lapNumber`, `fromSourceTimeMs`, `toSourceTimeMs`, `eventType`, `lifecycleId`, and `qualityOnly`. Time filters use inclusive overlap with the event source-time range. Pages default to 200 events and allow at most 1000. `nextCursor` is an opaque base64url encoding of the final ordering tuple; consumers must not construct or interpret it.
+`gameId` is required and must match the session owner. Remaining filters are intersecting: `participantId`, `lapNumber`, `fromSourceTimeMs`, `toSourceTimeMs`, `eventType`, `lifecycleId`, and `qualityOnly`. Time filters use inclusive overlap with the event source-time range. Pages default to 200 events and allow at most 1000. `nextCursor` continues a non-terminal page; `tailCursor` identifies the final event returned even on a terminal page so reconnecting clients can request only later durable events. Both are opaque base64url encodings of ordering tuples; consumers must not construct or interpret them.
 
 WebSocket messages are hints that committed authority changed:
 

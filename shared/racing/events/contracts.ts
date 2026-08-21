@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { GameIdSchema } from "../../games/ids";
+
 import type { LapCondition, LapPhase } from "../laps/classification";
 import type {
   EvidenceSourceKind,
@@ -111,9 +113,12 @@ export type PitServiceAction = z.infer<typeof PitServiceActionSchema>;
 const NativeCodeSchema = z.union([z.string(), z.number().finite()]).nullable();
 const NullableTextSchema = z.string().nullable();
 const NullableFiniteSchema = z.number().finite().nullable();
+const SafeIntegerSchema = z.number().int().safe();
+const SafeNonNegativeIntegerSchema = SafeIntegerSchema.nonnegative();
+const NullableSafeIntegerSchema = SafeIntegerSchema.nullable();
 const NonNegativeFiniteSchema = z.number().finite().nonnegative();
 const NullableNonNegativeFiniteSchema = NonNegativeFiniteSchema.nullable();
-const PositiveIntegerSchema = z.number().int().positive();
+const PositiveIntegerSchema = SafeIntegerSchema.positive();
 const NullablePositionSchema = PositiveIntegerSchema.nullable();
 const LapPhaseSchema: z.ZodType<LapPhase> = z.enum([
   "flying",
@@ -202,7 +207,7 @@ const PositionPayloadSchema = z
   .strict();
 const LapStartedPayloadSchema = z
   .object({
-    lapNumber: z.number().int().nonnegative(),
+    lapNumber: SafeNonNegativeIntegerSchema,
     phase: LapPhaseSchema,
     conditions: z.array(LapConditionSchema),
   })
@@ -427,15 +432,15 @@ const persistedRaceEventShape = {
   participantKind: ParticipantKindSchema.nullable(),
   driverId: NullableTextSchema,
   teamId: NullableTextSchema,
-  timelineEpoch: z.number().int().nonnegative(),
-  sequence: z.number().int().nonnegative(),
-  eventOrder: z.number().int().nonnegative(),
-  sourceTimeMs: NullableFiniteSchema,
-  sourceEndTimeMs: NullableFiniteSchema,
+  timelineEpoch: SafeNonNegativeIntegerSchema,
+  sequence: SafeNonNegativeIntegerSchema,
+  eventOrder: SafeNonNegativeIntegerSchema,
+  sourceTimeMs: NullableSafeIntegerSchema,
+  sourceEndTimeMs: NullableSafeIntegerSchema,
   sourceSequenceFamily: NullableTextSchema,
-  sourceSequence: NullableFiniteSchema,
-  receivedAtMs: NonNegativeFiniteSchema,
-  lapNumber: z.number().int().nonnegative().nullable(),
+  sourceSequence: NullableSafeIntegerSchema,
+  receivedAtMs: SafeNonNegativeIntegerSchema,
+  lapNumber: SafeNonNegativeIntegerSchema.nullable(),
   lapId: PositiveIntegerSchema.nullable(),
   trackDistanceM: NullableFiniteSchema,
   trackDistancePct: z.number().finite().min(0).max(1).nullable(),
@@ -564,6 +569,7 @@ export const RaceEventDraftSchema = RaceEventDraftObjectSchema
 
 export const RaceEventQuerySchema = z
   .object({
+    gameId: GameIdSchema,
     participantId: z.string().min(1).optional(),
     lapNumber: z.coerce.number().int().nonnegative().optional(),
     fromSourceTimeMs: z.coerce.number().finite().optional(),
@@ -591,6 +597,7 @@ export const RaceEventPageSchema = z
   .object({
     items: z.array(RaceEventSchema),
     nextCursor: z.string().min(1).nullable(),
+    tailCursor: z.string().min(1).nullable(),
   })
   .strict();
 export type RaceEventPage = z.infer<typeof RaceEventPageSchema>;

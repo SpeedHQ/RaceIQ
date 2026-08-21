@@ -232,4 +232,30 @@ describe("incident, damage, penalty, and retirement detector", () => {
 
     expect(unknown.events.filter(({ eventType }) => forbidden.some((type) => type === eventType))).toEqual([]);
   });
+  test("retains known incident, damage, and penalty facts across nulls", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 64 });
+    coordinator.processObservation(64, observation(1, {
+      participants: [participant({ incidentCount: 1, damage: { body: 0 }, penaltyValue: 0 })],
+    }));
+    coordinator.processObservation(64, observation(2, {
+      participants: [participant({ incidentCount: null, damage: null, penaltyValue: null })],
+    }));
+    const raised = coordinator.processObservation(64, observation(3, {
+      participants: [participant({ incidentCount: 2, damage: { body: 2 }, penaltyValue: 5 })],
+    }));
+    coordinator.processObservation(64, observation(4, {
+      participants: [participant({ incidentCount: null, damage: null, penaltyValue: null })],
+    }));
+    const cleared = coordinator.processObservation(64, observation(5, {
+      participants: [participant({ incidentCount: 2, damage: { body: 0 }, penaltyValue: 0 })],
+    }));
+
+    expect(raised.events.map(({ eventType }) => eventType)).toEqual(
+      expect.arrayContaining(["incident_observed", "damage_warning_started", "penalty_issued"]),
+    );
+    expect(cleared.events.map(({ eventType }) => eventType)).toEqual(
+      expect.arrayContaining(["damage_warning_cleared", "penalty_cleared"]),
+    );
+  });
+
 });

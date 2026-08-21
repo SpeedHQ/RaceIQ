@@ -125,4 +125,30 @@ describe("pit service action detector", () => {
     expect(types).not.toContain("repair_service_observed");
     expect(types).not.toContain("driver_service_observed");
   });
+  test("detects service delta on observed pit-entry packet", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 53 });
+    coordinator.processObservation(53, observation(1, {
+      participants: [participant({ damage: { body: 10 } })],
+    }));
+    const entry = coordinator.processObservation(53, observation(2, {
+      participants: [participant({
+        pitState: "pit-lane",
+        fuelLitres: 48,
+        tireWear: { fl: 0.1, fr: 0.1, rl: 0.1, rr: 0.1 },
+        damage: { body: 0 },
+        driverId: "driver:2",
+      })],
+    }));
+
+    expect(entry.events.map(({ eventType }) => eventType)).toEqual(
+      expect.arrayContaining([
+        "pit_entry",
+        "repair_service_observed",
+        "fuel_service_observed",
+        "tire_service_observed",
+        "driver_service_observed",
+      ]),
+    );
+  });
+
 });

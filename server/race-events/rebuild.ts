@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
 import type {
@@ -9,8 +10,8 @@ import type {
   SourceLifecycleEvidence,
 } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
-import { SourceSequenceTracker } from "../../shared/telemetry/source-sequence";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { packetSequences, SourceSequenceTracker, type SourceSequenceObservation } from "../../shared/telemetry/source-sequence";
+import type { RaceSourceObservation } from "../race-results/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
 import type { LapDetectorCallbacks } from "../lap-detection/types";
@@ -19,6 +20,7 @@ import {
   type CapturedLap,
 } from "../telemetry/pipeline-ports";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
+import { RaceSourceAccumulator } from "../race-results/source";
 import { RaceEventCoordinator } from "./coordinator";
 
 export interface RaceEventRebuildFrame {
@@ -44,7 +46,9 @@ export interface RebuiltRaceEventTimeline {
   detectorId: string;
   events: RaceEvent[];
   laps: CapturedLap[];
-  packets: TelemetryPacket[];
+  raceSource: RaceSourceObservation;
+  packetCount: number;
+  canonicalContentHash: string | null;
   recordingQuality: RecordingQualitySummary;
 }
 
@@ -100,6 +104,7 @@ export async function rebuildRaceEventTimeline(
   );
   let lifecycleIndex = 0;
   let sessionStarted = false;
+  let pendingSourceSequences: SourceSequenceObservation[] = [];
   const callbacks: LapDetectorCallbacks = {
     onSessionStart: async (_session, context) => {
       if (sessionStarted) throw new Error("Raw rebuild contains multiple detected session boundaries");
@@ -108,11 +113,12 @@ export async function rebuildRaceEventTimeline(
         reason: context.reason,
         observation: adapter.toRaceEventObservation(context.packet, {
           receivedAtMs: context.packet.TimestampMS,
+          sourceSequences: pendingSourceSequences,
         }),
       });
     },
     onSessionEnd: async (_session, context) => {
-      coordinator.endSession(context);
+      if (context.reason !== "stream-ended") coordinator.endSession(context);
     },
     onLapEvaluated: lapEvaluation(coordinator),
   };
@@ -131,7 +137,9 @@ export async function rebuildRaceEventTimeline(
     sourceChannelProfile: input.sourceChannelProfile,
     versionIdentity: input.versionIdentity,
   });
-  const packets: TelemetryPacket[] = [];
+  const resultSource = new RaceSourceAccumulator(input.gameId);
+  let packetCount = 0;
+  const canonicalHasher = createHash("sha256");
 
   for await (const { frame, rawByteOffset } of input.frames) {
     const packet = adapter.tryParse(frame, parserState);
@@ -147,13 +155,24 @@ export async function rebuildRaceEventTimeline(
       recordingQuality.noteSourceLifecycle(evidence);
       coordinator.noteSourceLifecycle(evidence, input.sessionId);
     }
-    const sequenceEvidence = sourceSequence.observe(packet);
+    const sourceSequences = packetSequences(packet);
+    pendingSourceSequences = sourceSequences;
+    const sequenceEvidence = sourceSequence.observe(packet, sourceSequences);
     const preflight = coordinator.preflight(
-      adapter.toRaceEventObservation(packet, { receivedAtMs: packet.TimestampMS }),
-      { sourceSequenceBoundaries: sequenceEvidence.boundaries },
+      adapter.toRaceEventObservation(packet, {
+        receivedAtMs: packet.TimestampMS,
+        sourceSequences,
+      }),
+      {
+        sourceSequenceBoundaries: sequenceEvidence.boundaries,
+        sourceSequenceGapCandidates: sequenceEvidence.gapCandidates,
+      },
     );
-    recordingQuality.observe(packet);
-    packets.push(packet);
+    recordingQuality.observe(packet, sourceSequences);
+    if (packetCount > 0) canonicalHasher.update("\n");
+    canonicalHasher.update(JSON.stringify(packet));
+    resultSource.observe(packet);
+    packetCount++;
     if (!preflight.accepted) {
       coordinator.processPreflight(preflight);
       continue;
@@ -168,7 +187,12 @@ export async function rebuildRaceEventTimeline(
     recordingQuality.noteSourceLifecycle(evidence);
     coordinator.noteSourceLifecycle(evidence, input.sessionId);
   }
+  const detectedSessionId = detector.session?.sessionId;
   await detector.finalizeCurrentSession?.("stream-ended");
+  if (detectedSessionId != null) {
+    await detector.waitForPendingLapWrites?.(detectedSessionId);
+  }
+  coordinator.endSession({ reason: "stream-ended", terminalObserved: true });
   coordinator.noteSourceSequenceFinalized(sourceSequence.finalize());
   if (db.sessions.length > 1) {
     throw new Error("Raw rebuild contains multiple detected session boundaries");
@@ -177,7 +201,9 @@ export async function rebuildRaceEventTimeline(
     detectorId: detector.detectorId,
     events: coordinator.events(),
     laps: [...db.laps],
-    packets,
+    raceSource: resultSource.finish(),
+    packetCount,
+    canonicalContentHash: packetCount === 0 ? null : `sha256:${canonicalHasher.digest("hex")}`,
     recordingQuality: recordingQuality.finalize("reprocessed", input.sourceVerification, {
       transportVerification: input.transportVerification,
       canonicalVerification: input.canonicalVerification,

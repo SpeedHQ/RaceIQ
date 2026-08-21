@@ -5,7 +5,7 @@ import type {
   RaceEventType,
 } from "../../shared/racing/events/contracts";
 import type { EvidenceSourceKind } from "../../shared/racing/quality/contracts";
-import type { SourceSequenceBoundary } from "../../shared/telemetry/source-sequence";
+import type { SourceSequenceBoundary, SourceSequenceGapCandidate } from "../../shared/telemetry/source-sequence";
 import type {
   RaceEventObservation,
   RaceParticipantObservation,
@@ -34,6 +34,8 @@ export interface DetectorEventDraft<Type extends RaceEventType = RaceEventType> 
   priority: RaceEventOrderPriority;
   /** Epoch-transition/reset drafts use sequence 0. */
   sequence?: number;
+  /** Gap finalization may retain original timeline anchors across later epochs. */
+  timelineEpoch?: number;
   /** Stable detector-owned boundary component, never wall-clock receipt time. */
   boundaryKey: string;
   stableSortKey?: string;
@@ -77,6 +79,7 @@ export interface RaceEventPreflightEvidence {
   sessionBoundaryReason?: SessionBoundaryReason | null;
   resetReason?: string | null;
   sourceSequenceBoundaries?: readonly SourceSequenceBoundary[];
+  sourceSequenceGapCandidates?: readonly SourceSequenceGapCandidate[];
 }
 
 export interface RaceEventPreflightResult {

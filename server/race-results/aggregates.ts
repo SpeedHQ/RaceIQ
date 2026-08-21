@@ -95,9 +95,22 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
     .all();
   const [pit] = await db
     .select({ duration: sql<number | null>`sum(json_extract(${raceEvents.payload}, '$.durationMs')) / 1000.0` })
-    .from(raceEvents)
-    .innerJoin(sessions, eq(raceEvents.sessionId, sessions.id))
-    .where(and(...filters, eq(raceEvents.eventType, "pit_service_completed")))
+    .from(sessionResults)
+    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
+    .innerJoin(
+      raceEvents,
+      and(
+        eq(raceEvents.sessionId, sessionResults.sessionId),
+        eq(raceEvents.eventType, "pit_service_completed"),
+        eq(raceEvents.participantKind, "player"),
+        sql`exists (
+          select 1
+          from json_each(${sessionResults.eventIds}) as supporting_event
+          where supporting_event.value = ${raceEvents.eventId}
+        )`,
+      ),
+    )
+    .where(and(...filters))
     .all();
   const sessionRows = await db
     .select({ id: sessions.id })

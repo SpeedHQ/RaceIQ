@@ -297,7 +297,7 @@ export async function importSessionFrames(
       packetCount++;
     }
 
-    await pipeline.flushIncompleteLap();
+    await pipeline.finalizeCurrentSession("stream-ended");
     await db.waitForPendingLapWrites();
   } catch (error) {
     failure = error;
@@ -307,10 +307,12 @@ export async function importSessionFrames(
     } catch (cause) {
       failure ??= new InvalidImportDataError("Import frame stream could not be closed", { cause });
     }
-    try {
-      await pipeline.flushSessionRecorder();
-    } catch (error) {
-      failure ??= error;
+    if (pipeline.isSessionActive) {
+      try {
+        await pipeline.flushSessionRecorder();
+      } catch (error) {
+        failure ??= error;
+      }
     }
   }
 
