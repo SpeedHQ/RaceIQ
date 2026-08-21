@@ -106,6 +106,7 @@ jobs:
         if: inputs.batches == ''
         working-directory: playwright
         env:
+          DEBUG: pw:browser
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
@@ -118,6 +119,7 @@ jobs:
         if: inputs.batches != ''
         working-directory: playwright
         env:
+          DEBUG: pw:browser
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_BATCHES: ${{ inputs.batches }}

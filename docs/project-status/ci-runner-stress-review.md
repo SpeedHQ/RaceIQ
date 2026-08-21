@@ -241,6 +241,7 @@ This pull request applies a stricter stability baseline than matrix `max-paralle
 - Every current batch keeps `PW_WORKERS="1"`. Per-batch worker configuration permits future increases after stateful tests are isolated and measured.
 - Responsive screenshots wait for PR E2E and use `PW_SCREENSHOT_WORKERS="1"`.
 - Release E2E retains its existing single-set matrix path through the reusable workflow.
+- Both reusable Playwright gate paths emit `pw:browser` process diagnostics, including Chromium stderr and exit codes, so a later `TargetClosedError` preserves its initiating browser failure rather than only the cleanup symptom.
 
 Configured post-build Whitesmith demand for one PR falls from as much as 14 vCPU and 45G across concurrent E2E and responsive screenshot jobs to one E2E allocation of at most 4 vCPU and 10G, followed by the 4-vCPU, 5G screenshot allocation. Cross-PR host admission control and out-of-process telemetry remain unresolved.
 
