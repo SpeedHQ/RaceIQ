@@ -78,14 +78,24 @@ export const sessionRoutes = new Hono()
   })
   .post("/api/sessions/:id/reprocess", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
-    const result = await reprocessSession(id);
-    wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
-    const remaining = await countStaleSessions(
-      ALL_DETECTOR_IDS,
-      getAllServerGames().map((adapter) => adapter.id),
-    );
-    if (remaining === 0) wsManager.setStaleSessionsNotification(null);
-    return c.json(result);
+    try {
+      const result = await reprocessSession(id);
+      wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
+      const remaining = await countStaleSessions(
+        ALL_DETECTOR_IDS,
+        getAllServerGames().map((adapter) => adapter.id),
+      );
+      if (remaining === 0) wsManager.setStaleSessionsNotification(null);
+      return c.json(result);
+    } catch (error) {
+      if (error instanceof SessionRawFileMissingError) {
+        return c.json({ error: error.message }, 410);
+      }
+      if (error instanceof SessionNotFoundError) {
+        return c.json({ error: error.message }, 404);
+      }
+      throw error;
+    }
   })
   .post("/api/sessions/reprocess-stale", async (c) => {
     const staleIds = await getStaleSessions(

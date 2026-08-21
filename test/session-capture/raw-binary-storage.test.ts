@@ -348,14 +348,23 @@ describe("countStaleSessions", () => {
     return id;
   }
 
-  test("counts only raw sessions with stale detector versions", async () => {
+  test("counts only available supported raw sessions with stale detector versions", async () => {
     const beforeCount = await countStaleSessions(detectorId, ["fm-2023"]);
+    const staleOldPath = join(tmpDir, "stale-old.bin");
+    const staleNullPath = join(tmpDir, "stale-null.bin");
+    const currentPath = join(tmpDir, "current.bin");
+    const unsupportedPath = join(tmpDir, "unsupported.bin");
+    writeFileSync(staleOldPath, Buffer.alloc(16));
+    writeFileSync(staleNullPath, Buffer.alloc(16));
+    writeFileSync(currentPath, Buffer.alloc(16));
+    writeFileSync(unsupportedPath, Buffer.alloc(16));
 
-    await insertSession("/some/path-old.bin", "lapdetector_v0");
-    await insertSession("/some/path-null.bin", null);
-    await insertSession("/some/path-current.bin", detectorId);
+    await insertSession(staleOldPath, "lapdetector_v0");
+    await insertSession(staleNullPath, null);
+    await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
+    await insertSession(currentPath, detectorId);
     await insertSession(null, null);
-    await insertSession("/some/path-unsupported.bin", "lapdetector_v0", "lmu");
+    await insertSession(unsupportedPath, "lapdetector_v0", "lmu");
 
     const afterCount = await countStaleSessions(detectorId, ["fm-2023"]);
 
@@ -368,16 +377,18 @@ describe("countStaleSessions", () => {
     const staleOldPath = join(tmpDir, "stale-old.bin");
     const staleNullPath = join(tmpDir, "stale-null.bin");
     const currentPath = join(tmpDir, "current.bin");
+    const unsupportedPath = join(tmpDir, "unsupported.bin");
     writeFileSync(staleOldPath, Buffer.alloc(16));
     writeFileSync(staleNullPath, Buffer.alloc(16));
     writeFileSync(currentPath, Buffer.alloc(16));
+    writeFileSync(unsupportedPath, Buffer.alloc(16));
 
     const staleRawOldVersion = await insertSession(staleOldPath, "lapdetector_v0");
     const staleRawNullVersion = await insertSession(staleNullPath, null);
     const missingRaw = await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
     const currentVersion = await insertSession(currentPath, detectorId);
     const noRaw = await insertSession(null, null);
-    const unsupportedGame = await insertSession("/some/path-unsupported.bin", "lapdetector_v0", "lmu");
+    const unsupportedGame = await insertSession(unsupportedPath, "lapdetector_v0", "lmu");
 
     const allIds = await getStaleSessions(detectorId, ["fm-2023"]);
     const insertedIdsOnly = allIds.filter((id) => !baselineSet.has(id));
