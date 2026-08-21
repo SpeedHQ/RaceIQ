@@ -226,6 +226,7 @@ describe("raw race-event replay parity", () => {
     expect(second.events.map(({ contentHash }) => contentHash)).toEqual(
       first.events.map(({ contentHash }) => contentHash),
     );
+    expect(first.events.every(({ sourceGeneration }) => sourceGeneration === CANONICAL_VERIFICATION.sourceGeneration)).toBe(true);
     expect(first.events.every(({ analysisGenerationId }) => analysisGenerationId === input.analysisGenerationId)).toBe(true);
     expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(
       first.laps.map(({ lapNumber }) => lapNumber),

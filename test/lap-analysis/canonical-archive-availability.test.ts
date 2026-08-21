@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { DuckDBInstance } from "@duckdb/node-api";
+import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { eq } from "drizzle-orm";
 
 import {
@@ -17,9 +21,15 @@ import {
 import { activateCanonicalArchiveReceipt } from "../../server/analysis-provenance/receipt";
 import { analysisConfigurationHash, analysisContractHash } from "../../server/analysis-provenance/hash";
 import { db } from "../../server/db";
-import { analysisReceipts, sessions } from "../../server/db/schema";
+import { analysisReceipts, canonicalArchives, sessions } from "../../server/db/schema";
+import { getActiveAnalysisReceipt } from "../../server/db/analysis-receipt-queries";
 import { getSessionCanonicalAvailability } from "../../server/lap-analysis/canonical-archive-availability";
+import { getQualityRebuildStatus } from "../../server/lap-analysis/quality-rebuild";
+import { reprocessSession } from "../../server/session-capture/reprocess";
+import { initServerGameAdapters } from "../../server/games/init";
+import { initGameAdapters } from "../../shared/games/init";
 import { evaluateEvidenceRetention } from "../../server/lap-analysis/evidence-retention";
+import { qualityPackets } from "../support/lap-analysis/quality-model";
 
 const HASH_A = `sha256:${"a".repeat(64)}`;
 const HASH_C = `sha256:${"c".repeat(64)}`;
@@ -52,7 +62,11 @@ const CANONICAL_CHECK_IDS = [
   "storage_state",
 ] as const satisfies readonly AnalysisVerificationCheck["id"][];
 
+initGameAdapters();
+initServerGameAdapters();
+
 const createdSessionIds: number[] = [];
+const createdDirectories: string[] = [];
 
 afterEach(async () => {
   for (const sessionId of createdSessionIds) {
@@ -60,6 +74,7 @@ afterEach(async () => {
     await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
   }
 
+  for (const directory of createdDirectories.splice(0)) rmSync(directory, { recursive: true, force: true });
   createdSessionIds.length = 0;
 });
 
@@ -79,7 +94,15 @@ function currentEligibility(): EligibilityDecisionSet {
   ) as unknown as EligibilityDecisionSet;
 }
 
-function canonicalReceipt(sessionId: number, generationId: string, artifactSetId: string, generation: number): AnalysisProvenanceReceipt {
+function canonicalReceipt(
+  sessionId: number,
+  generationId: string,
+  artifactSetId: string,
+  generation: number,
+  archiveId = `canonical-archive:${sessionId}`,
+  outputContentHash = HASH_C,
+  sampleCount = 1,
+): AnalysisProvenanceReceipt {
   const completedAt = "2026-08-21T00:00:01.000Z";
   return {
     receiptSchemaVersion: ANALYSIS_RECEIPT_SCHEMA_VERSION,
@@ -91,13 +114,13 @@ function canonicalReceipt(sessionId: number, generationId: string, artifactSetId
     sessionId,
     participantId: null,
     evidence: {
-      kind: "raceiq-raw",
+      kind: "canonical-archive",
       originalSourceKind: "raceiq-raw",
-      objectId: `session:${sessionId}:raw-capture`,
+      objectId: archiveId,
       contentHash: HASH_A,
       byteSize: 12,
-      formatVersion: "raceiq-session-framing-v1",
-      recordCounts: { packets: 1 },
+      formatVersion: "canonical-archive-v1",
+      recordCounts: { telemetry_samples: sampleCount, hierarchy_nodes: 0 },
     },
     telemetryVersion: TELEMETRY_VERSION,
     analysisComponents: ANALYSIS_COMPONENTS,
@@ -115,7 +138,7 @@ function canonicalReceipt(sessionId: number, generationId: string, artifactSetId
       artifactType: "canonical_archive",
       schemaVersion: "canonical-archive-v1",
       count: 1,
-      contentHash: HASH_C,
+      contentHash: outputContentHash,
       timeCoverageMs: { start: 0, end: 1 },
       lapCoverage: null,
       participantCoverage: null,
@@ -124,7 +147,7 @@ function canonicalReceipt(sessionId: number, generationId: string, artifactSetId
     canonicalInventory: {
       semanticIds: ["motion.speed"],
       eventIds: [],
-      rowCounts: { frames: 1 },
+      rowCounts: { frames: sampleCount },
     },
     warnings: [],
     unsupportedFields: [],
@@ -143,30 +166,159 @@ function canonicalReceipt(sessionId: number, generationId: string, artifactSetId
   };
 }
 
+async function writeCanonicalArchive(archivePath: string): Promise<{ bytes: Buffer; sampleCount: number }> {
+  const packets = qualityPackets(3);
+  const instance = await DuckDBInstance.create(":memory:");
+  const connection = await instance.connect();
+  try {
+    await connection.run("CREATE TABLE telemetry_samples (sample_ordinal BIGINT, participant_id VARCHAR, lap_id INTEGER, lap_number INTEGER, source_time_ms BIGINT, received_at_ms BIGINT, track_distance_m DOUBLE, track_distance_pct DOUBLE, packet_json VARCHAR)");
+    const appender = await connection.createAppender("telemetry_samples");
+    for (const [sampleOrdinal, packet] of packets.entries()) {
+      appender.appendBigInt(BigInt(sampleOrdinal));
+      appender.appendNull();
+      appender.appendNull();
+      appender.appendNull();
+      appender.appendBigInt(BigInt(packet.TimestampMS));
+      appender.appendBigInt(BigInt(packet.TimestampMS));
+      appender.appendDouble(packet.DistanceTraveled ?? 0);
+      appender.appendDouble(packet.iracing?.lapDistancePct ?? 0);
+      appender.appendVarchar(JSON.stringify(packet));
+      appender.endRow();
+    }
+    appender.flushSync();
+    appender.closeSync();
+    await connection.run(`COPY telemetry_samples TO '${archivePath.replaceAll("'", "''")}' (FORMAT PARQUET, COMPRESSION ZSTD)`);
+  } finally {
+    connection.closeSync();
+    instance.closeSync();
+  }
+  return { bytes: Buffer.from(await Bun.file(archivePath).arrayBuffer()), sampleCount: packets.length };
+}
+
 describe("canonical archive availability", () => {
-  test("does not make raw cleanup eligible from receipt-only canonical metadata", async () => {
+  test("requires durable canonical file matching active archive output", async () => {
     const session = await db
       .insert(sessions)
       .values({ carOrdinal: 1, trackOrdinal: 1, gameId: "iracing" })
       .returning({ id: sessions.id })
       .get();
     createdSessionIds.push(session.id);
+    const directory = mkdtempSync(join(process.cwd(), ".data-archive-availability-test-"));
+    createdDirectories.push(directory);
+    const archivePath = join(directory, "telemetry.parquet");
+    const { bytes, sampleCount } = await writeCanonicalArchive(archivePath);
+    const outputContentHash = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+    const archiveId = `canonical-archive:${session.id}`;
 
     await activateCanonicalArchiveReceipt({
       sessionId: session.id,
       sourceContentHash: HASH_A,
       contractHash: HASH_D,
       configurationHash: HASH_B,
-      buildReceipt: async (attempt) => canonicalReceipt(session.id, attempt.generationId, attempt.artifactSetId, attempt.generation),
+      buildReceipt: async (attempt) => {
+        await db.insert(canonicalArchives).values({
+          archiveId,
+          sessionId: session.id,
+          generationId: attempt.generationId,
+          status: "verified",
+          archivePath,
+          schemaVersion: "canonical-archive-v1",
+          algorithmVersion: "canonical-archive-builder-v1",
+          sourceContentHash: HASH_A,
+          outputContentHash,
+          byteSize: bytes.byteLength,
+          sampleCount,
+          nodeCount: 0,
+          semanticIds: ["motion.speed"],
+          context: { gameId: "iracing", trackId: null, layoutId: null, trackDefinitionHash: null, cornerDefinitionHash: null, sourceKind: "raceiq-raw", sourcePath: null },
+          manifest: {
+            archiveId,
+            sessionId: session.id,
+            generationId: attempt.generationId,
+            gameId: "iracing",
+            trackId: null,
+            layoutId: null,
+            sourceContentHash: HASH_A,
+            telemetryVersion: TELEMETRY_VERSION,
+            schemaVersion: "canonical-archive-v1",
+            algorithmVersion: "canonical-archive-builder-v1",
+            rowCount: sampleCount,
+            nodeCount: 0,
+            semanticIds: ["motion.speed"],
+            eventIds: [],
+            completeness: "complete",
+            warnings: [],
+            context: { gameId: "iracing", trackId: null, layoutId: null, trackDefinitionHash: null, cornerDefinitionHash: null, sourceKind: "raceiq-raw", sourcePath: null },
+            createdAt: "2026-08-21T00:00:00.000Z",
+          } as typeof canonicalArchives.$inferInsert["manifest"],
+          completeness: "complete",
+          verification: null,
+          createdAt: "2026-08-21T00:00:00.000Z",
+          verifiedAt: "2026-08-21T00:00:01.000Z",
+          failure: null,
+        });
+        return canonicalReceipt(session.id, attempt.generationId, attempt.artifactSetId, attempt.generation, archiveId, outputContentHash, sampleCount);
+      },
     });
 
+    expect(await getSessionCanonicalAvailability(session.id)).toMatchObject({ state: "available" });
+    expect(await getQualityRebuildStatus(session.id)).toMatchObject({
+      action: "reprocess",
+      rawAvailable: false,
+      analysisStatus: {
+        status: "stale_rebuild_available",
+        capability: {
+          mode: "limited",
+          sourceKind: "canonical-archive",
+        },
+      },
+    });
+    const rebuild = await reprocessSession(session.id);
+    expect(rebuild).toMatchObject({ sessionId: session.id });
+    const rebuiltReceipt = await getActiveAnalysisReceipt({ sessionId: session.id, artifactSetType: "session_analysis" });
+    expect(rebuiltReceipt?.receipt).toMatchObject({
+      context: { gameId: "iracing" },
+      evidence: {
+        kind: "canonical-archive",
+        originalSourceKind: "raceiq-raw",
+        objectId: archiveId,
+        contentHash: outputContentHash,
+      },
+      rebuildCapability: {
+        mode: "limited",
+        sourceKind: "canonical-archive",
+      },
+    });
+    const rebuiltSession = await db
+      .select({ rawFile: sessions.rawFile })
+      .from(sessions)
+      .where(eq(sessions.id, session.id))
+      .get();
+    expect(rebuiltSession?.rawFile).toBeNull();
+    writeFileSync(archivePath, Buffer.alloc(bytes.byteLength, 0x5a));
+    await db
+      .update(sessions)
+      .set({ qualityConfigVersion: "stale-config" })
+      .where(eq(sessions.id, session.id))
+      .run();
     const availability = await getSessionCanonicalAvailability(session.id);
     expect(availability).toEqual({
       state: "unavailable",
       semanticIds: [],
       eventIds: [],
       provenance: null,
-      details: "Canonical archive receipt metadata exists, but no storage reader can verify bytes or inventory",
+      details: "Canonical archive row, file, or output hash is unavailable",
+    });
+    await expect(reprocessSession(session.id)).rejects.toThrow("canonical archive unavailable");
+    expect(await getQualityRebuildStatus(session.id)).toMatchObject({
+      action: "unavailable",
+      rawAvailable: false,
+      analysisStatus: {
+        status: "current",
+        capability: {
+          mode: "unavailable",
+        },
+      },
     });
     if (!availability) throw new Error("Expected canonical archive availability");
     const quality = {

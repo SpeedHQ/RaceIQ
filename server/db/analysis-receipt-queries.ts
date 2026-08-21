@@ -175,7 +175,6 @@ export async function bindAnalysisGenerationSource(
   if (transaction) return bindSourceWithClient(transaction, input);
   return db.transaction((tx) => bindSourceWithClient(tx, input));
 }
-
 export interface ActivateAnalysisGenerationInput {
   generationId: string;
   receipt: AnalysisProvenanceReceipt;

@@ -257,7 +257,7 @@ describe("quality diagnostics API", () => {
     expect(stored?.eligibility?.["corner-trace"].policyVersion).toBe(ELIGIBILITY_POLICY_VERSION);
 
     const repeatResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild?gameId=iracing`, { method: "POST" });
-    expect((await repeatResponse.json()).strategy).toBe("none");
+    expect((await repeatResponse.json()).strategy).toBe("current");
   });
 
   test("requires raw reprocessing when measurement configuration is stale", async () => {
@@ -302,9 +302,23 @@ describe("quality diagnostics API", () => {
     expect(body.status).toMatchObject({ action: "unavailable", rawAvailable: false });
   });
 
+  test("requires matching game scope for evidence-retention availability", async () => {
+    const { sessionId } = await seedQualitySession();
+
+    expect(
+      (await sessionRoutes.request(`/api/sessions/${sessionId}/evidence-retention`)).status,
+    ).toBe(400);
+
+    const mismatched = await sessionRoutes.request(
+      `/api/sessions/${sessionId}/evidence-retention?gameId=acc`,
+    );
+    expect(mismatched.status).toBe(404);
+    expect(await mismatched.json()).toEqual({ error: "Session not found" });
+  });
+
   test("reports unavailable canonical metadata without inventing archive provenance", async () => {
     const { sessionId, lapId } = await seedQualitySession();
-    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/evidence-retention`);
+    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/evidence-retention?gameId=iracing`);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toMatchObject({
@@ -333,7 +347,7 @@ describe("quality diagnostics API", () => {
     writeFileSync(rawFile, "raw-evidence");
     await db.update(sessions).set({ rawFile }).where(eq(sessions.id, sessionId)).run();
 
-    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/evidence-retention`);
+    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/evidence-retention?gameId=iracing`);
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       sessionId,
@@ -349,7 +363,7 @@ describe("quality diagnostics API", () => {
   });
 
   test("returns 404 for missing session evidence-retention assessment", async () => {
-    const response = await sessionRoutes.request("/api/sessions/2147483647/evidence-retention");
+    const response = await sessionRoutes.request("/api/sessions/2147483647/evidence-retention?gameId=iracing");
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Session not found" });
   });

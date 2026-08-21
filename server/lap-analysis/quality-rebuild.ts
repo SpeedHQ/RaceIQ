@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { GameId } from "../../shared/games/ids";
-
+import { loadRawCaptureIdentity } from "../session-capture/identity";
 import {
   ELIGIBILITY_POLICY_VERSION,
   QUALITY_CONFIG_VERSION,
@@ -31,7 +31,7 @@ import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { updateSessionQuality } from "../db/session-queries";
 import { tryGetServerGame } from "../games/registry";
-import { loadRawCaptureIdentity } from "../session-capture/identity";
+import { getSessionCanonicalAvailability } from "./canonical-archive-availability";
 
 export type QualityRebuildAction = "current" | "rebuild_eligibility" | "reprocess" | "rebuild_in_progress" | "unavailable";
 
@@ -93,19 +93,28 @@ async function evaluateAnalysisStatus(
   session: SessionStatusRow,
   rawAvailable: boolean,
   sourceContentHash: string | null,
+  canonicalSourceContentHash: string | null,
 ): Promise<AnalysisStatus> {
   const [active, latest] = await Promise.all([
     getActiveAnalysisReceipt({ sessionId, artifactSetType: "session_analysis" }),
     getLatestAnalysisAttempt({ sessionId, artifactSetType: "session_analysis" }),
   ]);
   const sourceExecutorAvailable = tryGetServerGame(session.gameId) != null;
-  const sourceCanRebuild = rawAvailable && sourceExecutorAvailable;
+  const canonicalAvailable = canonicalSourceContentHash != null;
+  const sourceCanRebuild = (rawAvailable || canonicalAvailable) && sourceExecutorAvailable;
   const exactCapability = {
     mode: "exact" as const,
     sourceKind: "raceiq-raw" as const,
     rebuildableArtifacts: ["laps", "race_events", "session_runs", "race_result", "quality"] as const,
     unavailableArtifacts: [] as const,
     limitations: [] as string[],
+  };
+  const canonicalCapability = {
+    mode: "limited" as const,
+    sourceKind: "canonical-archive" as const,
+    rebuildableArtifacts: ["laps", "race_events", "session_runs", "race_result", "quality"] as const,
+    unavailableArtifacts: [] as const,
+    limitations: ["Canonical telemetry cannot exactly re-decode game-native source frames"],
   };
   const unavailableCapability = {
     mode: "unavailable" as const,
@@ -114,9 +123,11 @@ async function evaluateAnalysisStatus(
     unavailableArtifacts: ["laps", "race_events", "session_runs", "race_result", "quality"] as const,
     limitations: [sourceExecutorAvailable ? "Source evidence unavailable" : "No compatible source executor registered"],
   };
-  const capability = sourceCanRebuild
+  const capability = rawAvailable
     ? { ...exactCapability, rebuildableArtifacts: [...exactCapability.rebuildableArtifacts], unavailableArtifacts: [] }
-    : { ...unavailableCapability, rebuildableArtifacts: [], unavailableArtifacts: [...unavailableCapability.unavailableArtifacts] };
+    : canonicalAvailable && sourceExecutorAvailable
+      ? { ...canonicalCapability, rebuildableArtifacts: [...canonicalCapability.rebuildableArtifacts], unavailableArtifacts: [] }
+      : { ...unavailableCapability, rebuildableArtifacts: [], unavailableArtifacts: [...unavailableCapability.unavailableArtifacts] };
 
   let receipt = null;
   let incompatible = false;
@@ -161,10 +172,10 @@ async function evaluateAnalysisStatus(
 
   const contract = currentAnalysisContract(session.gameId as GameId, session.sourceChannelProfile);
   const staleReasons: AnalysisStaleReason[] = [];
-  if (!sourceExecutorAvailable) staleReasons.push("source_unavailable");
-  const contractHashMismatch = receipt.contractHash !== contract.contractHash;
-  if (!sourceContentHash) staleReasons.push("source_unavailable");
-  else if (receipt.evidence.contentHash !== sourceContentHash) staleReasons.push("source_hash_changed");
+  const rebuildSourceContentHash = sourceContentHash ?? canonicalSourceContentHash;
+  if (rebuildSourceContentHash && receipt.evidence.contentHash !== rebuildSourceContentHash) {
+    staleReasons.push("source_hash_changed");
+  }
   if (analysisCanonicalHash(receipt.telemetryVersion) !== analysisCanonicalHash(contract.telemetryVersion)) staleReasons.push("telemetry_contract_changed");
   const currentComponents = new Map(contract.analysisComponents.map((component) => [component.id, component]));
   for (const component of receipt.analysisComponents) {
@@ -178,7 +189,7 @@ async function evaluateAnalysisStatus(
     }
   }
   if (receipt.configuration.hash !== contract.configurationHash) staleReasons.push("configuration_changed");
-  if (contractHashMismatch && staleReasons.length === 0) staleReasons.push("telemetry_contract_changed");
+  if (receipt.contractHash !== contract.contractHash && staleReasons.length === 0) staleReasons.push("telemetry_contract_changed");
   const uniqueReasons = [...new Set(staleReasons)];
   if (uniqueReasons.length > 0) {
     return {
@@ -229,12 +240,21 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     .get();
   if (!session) throw new Error(`Session ${sessionId} not found`);
   const lapRows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-  const source = await sourceState(session);
+  const [source, canonicalArchive] = await Promise.all([
+    sourceState(session),
+    getSessionCanonicalAvailability(sessionId),
+  ]);
+  const canonicalSourceContentHash = canonicalArchive?.state === "available"
+    ? canonicalArchive.provenance?.outputIdentity ?? null
+    : null;
   const canonicalVerification = session.recordingQuality?.canonicalVerification;
   const expectedGeneration = canonicalVerification !== undefined
     ? canonicalVerification.sourceGeneration
     : (session.recordingQuality?.archiveVerification.sourceGeneration ?? null);
-  const sourceStale = session.rawFile !== null && (!source.rawAvailable || source.contentHash !== expectedGeneration);
+  const sourceStale = session.rawFile !== null
+    && (source.rawAvailable
+      ? source.contentHash !== expectedGeneration
+      : canonicalSourceContentHash == null);
   const currentDetectorId = tryGetServerGame(session.gameId)?.lapDetectorId ?? null;
   const stale = {
     detector: currentDetectorId === null || session.detectorVersion === null || session.detectorVersion !== currentDetectorId,
@@ -243,7 +263,13 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     configuration: session.configurationVersion !== QUALITY_CONFIG_VERSION,
     source: sourceStale,
   };
-  const analysisStatus = await evaluateAnalysisStatus(sessionId, session, source.rawAvailable, source.contentHash);
+  const analysisStatus = await evaluateAnalysisStatus(
+    sessionId,
+    session,
+    source.rawAvailable,
+    source.contentHash,
+    canonicalSourceContentHash,
+  );
   const measurementStale = !session.recordingQuality || stale.schema || stale.detector || stale.configuration || stale.source;
   const contract = currentAnalysisContract(session.gameId as GameId, session.sourceChannelProfile);
   const policyOnlyReceiptStaleness = isPolicyOnlyReceiptStaleness(
@@ -252,13 +278,17 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
     measurementStale,
     contract.effectiveConfiguration,
   );
+  const missingReceiptWithoutMeasurementStaleness = analysisStatus.receipt == null
+    && analysisStatus.staleReasons.includes("receipt_missing")
+    && !measurementStale;
   const receiptRequiresReprocess = analysisStatus.status !== "current"
     && analysisStatus.status !== "rebuild_in_progress"
-    && !policyOnlyReceiptStaleness;
+    && !policyOnlyReceiptStaleness
+    && !missingReceiptWithoutMeasurementStaleness;
   const action: QualityRebuildAction = analysisStatus.status === "rebuild_in_progress"
     ? "rebuild_in_progress"
     : measurementStale || receiptRequiresReprocess
-      ? (source.rawAvailable && currentDetectorId !== null ? "reprocess" : "unavailable")
+      ? (analysisStatus.capability.mode !== "unavailable" && currentDetectorId !== null ? "reprocess" : "unavailable")
       : stale.policy
         ? "rebuild_eligibility"
         : "current";
@@ -284,7 +314,7 @@ export async function getAnalysisRebuildPreview(sessionId: number): Promise<Anal
     status: status.analysisStatus,
     selectedSource: status.rawAvailable ? "raceiq-raw" : status.analysisStatus.capability.sourceKind,
     outputsReplaced,
-    sourceAvailable: status.rawAvailable,
+    sourceAvailable: status.analysisStatus.capability.mode !== "unavailable",
     capability: status.analysisStatus.capability,
     limitations: status.analysisStatus.capability.limitations,
   };

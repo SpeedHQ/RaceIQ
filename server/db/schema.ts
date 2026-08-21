@@ -35,6 +35,13 @@ import type {
 	AnalysisReceiptFailure,
 	AnalysisReceiptLifecycle,
 } from "../../shared/racing/provenance/contracts";
+import type {
+	CanonicalArchiveContext,
+	CanonicalArchiveJobStatus,
+	CanonicalArchiveManifest,
+	CanonicalArchiveStatus,
+	CanonicalArchiveVerification,
+} from "../../shared/racing/archives/contracts";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -284,6 +291,96 @@ export const analysisReceipts = sqliteTable(
 			table.artifactSetId,
 			table.generation,
 		),
+	],
+);
+export const canonicalArchives = sqliteTable(
+	"canonical_archives",
+	{
+		archiveId: text("archive_id").primaryKey(),
+		sessionId: integer("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		generationId: text("generation_id").notNull(),
+		status: text("status").$type<CanonicalArchiveStatus>().notNull(),
+		archivePath: text("archive_path").notNull(),
+		schemaVersion: text("schema_version").notNull(),
+		algorithmVersion: text("algorithm_version").notNull(),
+		sourceContentHash: text("source_content_hash").notNull(),
+		outputContentHash: text("output_content_hash"),
+		byteSize: integer("byte_size"),
+		sampleCount: integer("sample_count").notNull().default(0),
+		nodeCount: integer("node_count").notNull().default(0),
+		semanticIds: text("semantic_ids", { mode: "json" }).$type<string[]>().notNull(),
+		context: text("context", { mode: "json" }).$type<CanonicalArchiveContext>().notNull(),
+		manifest: text("manifest", { mode: "json" }).$type<CanonicalArchiveManifest>().notNull(),
+		completeness: text("completeness").notNull(),
+		verification: text("verification", { mode: "json" }).$type<CanonicalArchiveVerification | null>(),
+		createdAt: text("created_at").notNull(),
+		verifiedAt: text("verified_at"),
+		failure: text("failure"),
+	},
+	(table) => [
+		uniqueIndex("uq_canonical_archives_active_identity")
+			.on(table.sessionId, table.sourceContentHash)
+			.where(sql`${table.status} IN ('pending', 'building', 'verified', 'partial')`),
+		index("idx_canonical_archives_session_status").on(table.sessionId, table.status),
+		index("idx_canonical_archives_generation").on(table.sessionId, table.generationId),
+	],
+);
+
+export const canonicalArchiveNodes = sqliteTable(
+	"canonical_archive_nodes",
+	{
+		nodeId: text("node_id").primaryKey(),
+		archiveId: text("archive_id")
+			.notNull()
+			.references(() => canonicalArchives.archiveId, { onDelete: "cascade" }),
+		parentNodeId: text("parent_node_id"),
+		level: text("level").notNull(),
+		semanticKind: text("semantic_kind").notNull(),
+		stableKey: text("stable_key").notNull(),
+		ordinal: integer("ordinal").notNull(),
+		participantId: text("participant_id"),
+		sessionRunId: text("session_run_id"),
+		lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+		startRow: integer("start_row").notNull(),
+		endRow: integer("end_row").notNull(),
+		startSourceTimeMs: integer("start_source_time_ms"),
+		endSourceTimeMs: integer("end_source_time_ms"),
+		startTrackDistanceM: real("start_track_distance_m"),
+		endTrackDistanceM: real("end_track_distance_m"),
+		status: text("status").notNull(),
+		definitionHash: text("definition_hash"),
+		boundaryAlgorithmVersion: text("boundary_algorithm_version").notNull(),
+	},
+	(table) => [
+		index("idx_canonical_archive_nodes_parent").on(table.parentNodeId),
+		index("idx_canonical_archive_nodes_archive_level_order").on(table.archiveId, table.level, table.ordinal),
+		index("idx_canonical_archive_nodes_participant_order").on(table.archiveId, table.participantId, table.level, table.ordinal),
+		index("idx_canonical_archive_nodes_source_ids").on(table.sessionRunId, table.lapId),
+	],
+);
+
+export const canonicalArchiveJobs = sqliteTable(
+	"canonical_archive_jobs",
+	{
+		jobId: text("job_id").primaryKey(),
+		sessionId: integer("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		sourceContentHash: text("source_content_hash").notNull(),
+		status: text("status").$type<CanonicalArchiveJobStatus>().notNull(),
+		attemptCount: integer("attempt_count").notNull().default(0),
+		leaseExpiresAt: text("lease_expires_at"),
+		nextAttemptAt: text("next_attempt_at").notNull(),
+		generationId: text("generation_id"),
+		lastError: text("last_error"),
+		createdAt: text("created_at").notNull(),
+		updatedAt: text("updated_at").notNull(),
+	},
+	(table) => [
+		uniqueIndex("uq_canonical_archive_jobs_source").on(table.sessionId, table.sourceContentHash),
+		index("idx_canonical_archive_jobs_claim").on(table.status, table.nextAttemptAt, table.leaseExpiresAt),
 	],
 );
 

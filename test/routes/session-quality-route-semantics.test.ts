@@ -97,6 +97,18 @@ describe("session quality route semantics", () => {
       canonicalCleanupEligible: false,
     });
   });
+  test("requires gameId before quality reads or rebuilds", async () => {
+    const sessionExistsForGame = mock(async () => true);
+    const app = routes({ sessionExistsForGame });
+
+    const quality = await app.request("/api/sessions/42/quality");
+    const preview = await app.request("/api/sessions/42/quality/rebuild-preview");
+    const rebuild = await app.request("/api/sessions/42/quality/rebuild", { method: "POST" });
+
+    expect([quality.status, preview.status, rebuild.status]).toEqual([400, 400, 400]);
+    expect(sessionExistsForGame).not.toHaveBeenCalled();
+  });
+
   test("maps concurrent quality rebuild to 409", async () => {
     const response = await routes({
       getQualityRebuildStatus: async (sessionId) => status(sessionId, "reprocess"),
@@ -148,7 +160,6 @@ describe("session quality route semantics", () => {
     expect(await response.json()).toMatchObject({ strategy: "current" });
     expect(rebuildSessionEligibility).not.toHaveBeenCalled();
   });
-
   test("returns 404 only when session existence check reports missing", async () => {
     const getQualityRebuildStatus = mock(async (sessionId: number) => status(sessionId, "current"));
     const response = await routes({

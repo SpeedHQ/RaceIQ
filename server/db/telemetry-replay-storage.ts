@@ -8,6 +8,8 @@ import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
+import { getActiveVerifiedCanonicalArchive, getCanonicalArchiveRowRanges } from "./canonical-archive-queries";
+import { readCanonicalArchiveSamples } from "./canonical-archive-reader";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -162,6 +164,33 @@ async function loadDecompressedRawFile(rawFile: string): Promise<Buffer> {
   return buf;
 }
 
+async function readArchivePackets(path: string, startRow: number, endRow: number): Promise<TelemetryPacket[]> {
+  const rows = await readCanonicalArchiveSamples(path, startRow, endRow);
+  const packets: TelemetryPacket[] = [];
+  for (const row of rows) {
+    const value: unknown = JSON.parse(row.packetJson);
+    if (!value || typeof value !== "object" || !("gameId" in value) || typeof value.gameId !== "string") {
+      throw new Error(`Canonical archive row ${row.sampleOrdinal} does not contain a telemetry packet`);
+    }
+    packets.push(value as TelemetryPacket);
+  }
+  return packets;
+}
+
+export async function loadLapTelemetryFromArchive(lapId: number, sessionId: number): Promise<TelemetryPacket[] | null> {
+  const ranges = (await getCanonicalArchiveRowRanges({ sessionId, lapId }))
+    .filter((node) => node.level === "lap" && node.lapId === lapId)
+    .sort((left, right) => left.startRow - right.startRow);
+  if (ranges.length === 0) return null;
+  const archive = await getActiveVerifiedCanonicalArchive(sessionId);
+  if (!archive) return null;
+  const packets: TelemetryPacket[] = [];
+  for (const range of ranges) {
+    packets.push(...await readArchivePackets(archive.archivePath, range.startRow, range.endRow));
+  }
+  return packets.length > 0 ? packets : null;
+}
+
 
 export async function getSessionRawFile(
   sessionId: number,
@@ -204,16 +233,35 @@ function appendDelayedFinishPacket(
   });
 }
 
-/**
- * Re-parse every frame from a completed session capture. Result reconciliation
- * needs the session tail because authoritative finish packets may arrive after
- * the final persisted lap range.
- */
+async function loadSessionTelemetryFromArchive(sessionId: number): Promise<TelemetryPacket[] | null> {
+  const archive = await getActiveVerifiedCanonicalArchive(sessionId);
+  if (!archive) return null;
+  const rows = await readCanonicalArchiveSamples(archive.archivePath, 0, archive.sampleCount);
+  const packets: TelemetryPacket[] = [];
+  for (const row of rows) {
+    const value: unknown = JSON.parse(row.packetJson);
+    if (!value || typeof value !== "object" || !("gameId" in value) || typeof value.gameId !== "string") {
+      throw new Error(`Canonical archive row ${row.sampleOrdinal} does not contain a telemetry packet`);
+    }
+    packets.push(value as TelemetryPacket);
+  }
+  return packets.length > 0 ? packets : null;
+}
 
 export async function getSessionTelemetry(
   sessionId: number,
   gameId: GameId,
+  options: { preferArchive?: boolean } = {},
 ): Promise<TelemetryPacket[]> {
+  let archivePackets: TelemetryPacket[] | null = null;
+  if (options.preferArchive !== false) {
+    try {
+      archivePackets = await loadSessionTelemetryFromArchive(sessionId);
+    } catch (error) {
+      console.warn(`[DB] Canonical archive session read failed; falling back to raw: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (archivePackets) return archivePackets;
   const rawFile = await getSessionRawFile(sessionId, gameId);
   if (!rawFile) return [];
 

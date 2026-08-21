@@ -48,7 +48,6 @@ import {
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
 import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 
-
 export interface CurrentAnalysisContract {
   telemetryVersion: TelemetryVersionIdentity;
   analysisComponents: AnalysisComponentIdentity[];

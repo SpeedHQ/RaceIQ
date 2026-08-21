@@ -4,7 +4,7 @@ RaceIQ persists one versioned receipt for each telemetry-derived artifact set. R
 
 ## Receipt contract
 
-`AnalysisProvenanceReceipt` contains `receiptSchemaVersion`, `generationId`, `artifactSetId`, `artifactSetType`, `generation`, `lifecycle`, `sessionId`, optional `participantId`, `evidence`, `telemetryVersion`, sorted `analysisComponents`, hashed `configuration`, `context`, `sourceFidelity`, `outputs`, optional `canonicalInventory`, warnings, unsupported fields, rebuild capability, verification checks, and lifecycle timestamps.
+`AnalysisProvenanceReceipt` contains `receiptSchemaVersion`, `generationId`, `artifactSetId`, `artifactSetType`, `generation`, `lifecycle`, `sessionId`, nullable `participantId`, `evidence`, `telemetryVersion`, sorted `analysisComponents`, hashed `configuration`, required `context.gameId`, `sourceFidelity`, `outputs`, nullable `canonicalInventory`, warnings, unsupported fields, rebuild capability, verification checks, and lifecycle timestamps.
 
 Artifact-set types are `canonical_archive`, `session_analysis`, `lap_analysis`, `comparison_analysis`, `driver_profile`, and `report`. User statuses are `current`, `stale_rebuild_available`, `stale_source_missing`, `rebuild_in_progress`, `verification_failed`, `incompatible`, and `corrupt`. Stale reasons are `receipt_missing`, `source_hash_changed`, `source_unavailable`, `receipt_schema_changed`, `telemetry_contract_changed`, `detector_changed`, `algorithm_changed`, `configuration_changed`, `output_verification_failed`, and `rebuild_interrupted`.
 
@@ -43,4 +43,10 @@ For `session_analysis`, one generation covers laps, race events, session runs, r
 5. In one SQLite transaction replace replayable artifacts, update quality/source projections, rebuild persisted runs, persist receipt, supersede prior active row, stamp projections, and activate.
 6. Invalidate replay caches and publish notifications only after commit.
 
-Canonical archives use same receipt contract. Availability is true only for a valid active `canonical_archive` receipt with source/output hashes, supported schema, semantic channel inventory, readable partitions, and every applicable canonical verification check passed. This issue does not create Parquet bytes or a reader.
+## Canonical archives
+
+Canonical archives use `artifactSetType: "canonical_archive"` and the same strict receipt contract as other artifact sets. Persisted archive evidence uses `canonical-archive`; `originalSourceKind` retains native source kind. Archive Parquet follows schema `canonical-archive-v1`; builder identity is `canonical-archive-builder-v1`. Receipt output inventory records `telemetry.parquet` as `artifactType: "canonical_archive"` with row count, coverage, and deterministic output hash. `canonicalInventory` records semantic IDs, event IDs, and row counts needed to verify archive contents and advertise rebuild capability.
+
+Builds require `gameId` and a retained source content hash. Builder checks source identity before reading telemetry and again after reading it, aborting if source changes during build. Staged Parquet must be readable with expected row count before rename; receipt verification then covers source hash, supported schema, identities, ordering, coverage, channel inventory, readable partitions, analysis reads, comparison reads, and storage state. Receipt activation occurs only after candidate archive rows and hierarchy nodes are persisted and verified.
+
+Availability requires a matching valid active receipt, source/output hashes, semantic channel inventory, readable Parquet, and every applicable canonical verification check, including supported schema, to pass. Verified or partial canonical evidence can rebuild declared artifacts; capability remains `limited` when exact native-source reprocessing still requires retained raw evidence.

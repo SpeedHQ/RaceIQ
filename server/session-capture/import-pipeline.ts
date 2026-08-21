@@ -26,6 +26,7 @@ import {
   activateSessionAnalysisAttempt,
   beginSessionAnalysisAttempt,
 } from "../analysis-provenance/session-attempt";
+import { enqueueCanonicalArchiveForSession } from "./canonical-archive";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { DatabaseRaceEventStore } from "../race-events/store";
 export class TelemetryImportError extends Error {
@@ -297,6 +298,8 @@ export async function importSessionFrames(
     onSessionAnalysisFinalized: async (attempt, sessionGameId) => {
       await activateSessionAnalysisAttempt(attempt, sessionGameId);
     },
+    onCanonicalArchiveEnqueued: (sessionId, sessionGameId) =>
+      enqueueCanonicalArchiveForSession(sessionId, sessionGameId),
   });
 
   let packetCount = 0;
@@ -349,6 +352,7 @@ export async function importSessionFrames(
   if (options.requireLaps && !db.laps.some((lap) => lap.quality.complete)) {
     return rollbackImport(db, new IncompleteImportError());
   }
+
   return {
     packetCount,
     laps: db.laps,

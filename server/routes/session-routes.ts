@@ -324,19 +324,28 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
   .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) =>
     c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)),
   )
-  .get("/api/sessions/:id/evidence-retention", zValidator("param", IdParamSchema), async (c) => {
-    const { id } = c.req.valid("param");
-    const canonicalArchive = await getSessionCanonicalAvailability(id);
-    if (!canonicalArchive) return c.json({ error: "Session not found" }, 404);
+  .get(
+    "/api/sessions/:id/evidence-retention",
+    zValidator("param", IdParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+      if (!(await dependencies.sessionExistsForGame(id, gameId))) {
+        return c.json({ error: "Session not found" }, 404);
+      }
+      const canonicalArchive = await getSessionCanonicalAvailability(id);
+      if (!canonicalArchive) return c.json({ error: "Session not found" }, 404);
 
-    const status = await getQualityRebuildStatus(id);
-    return c.json(
-      await assessEvidenceRetention(id, {
-        rawCapture: status.rawAvailable,
-        canonicalArchive,
-      }),
-    );
-  })
+      const status = await getQualityRebuildStatus(id);
+      return c.json(
+        await assessEvidenceRetention(id, {
+          rawCapture: status.rawAvailable,
+          canonicalArchive,
+        }),
+      );
+    },
+  )
   .get(
     "/api/sessions/:id/quality",
     zValidator("param", IdParamSchema),

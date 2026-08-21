@@ -1,22 +1,31 @@
 /** Deterministic, atomic raw-session rebuild. */
 import { eq } from "drizzle-orm";
 import type { GameId } from "../../shared/games/ids";
+import { AnalysisProvenanceReceiptSchema, type AnalysisProvenanceReceipt } from "../../shared/racing/provenance/contracts";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import {
   RaceEventsReplacedMessageSchema,
 } from "../../shared/racing/events/contracts";
 import { SessionRunsReplacedMessageSchema } from "../../shared/racing/runs/contracts";
 import {
   LOCAL_PLAYER_EVIDENCE,
+  type ArchiveVerification,
   type EvidenceSourceKind,
+  type ParticipantEvidence,
+  type SourceChannelProfile,
   type SourceLifecycleEvidence,
 } from "../../shared/racing/quality/contracts";
 import {
   activateAnalysisGeneration,
   beginAnalysisGeneration,
   failAnalysisGeneration,
+  getActiveAnalysisReceipt,
   type AnalysisReceiptRow,
 } from "../db/analysis-receipt-queries";
 import { db } from "../db";
+import { getActiveVerifiedCanonicalArchive } from "../db/canonical-archive-queries";
+import { readCanonicalArchiveSamples } from "../db/canonical-archive-reader";
 import { getLapsForSession, type ReprocessingLapRow } from "../db/lap-reprocessing-queries";
 import { rebuildPersistedSessionRuns } from "../db/session-run-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
@@ -32,8 +41,15 @@ import {
   updateSessionRawFile,
 } from "../db/session-queries";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
+
 import { deriveRaceResult, normalizeSessionType } from "../race-results/derive";
-import { rebuildRaceEventTimeline } from "../race-events/rebuild";
+import {
+  buildSessionRunsFromTimeline,
+  rebuildRaceEventTimeline,
+  type RebuiltRaceEventTimeline,
+} from "../race-events/rebuild";
+import { getServerGame } from "../games/registry";
+import type { LapDetectorCallbacks } from "../lap-detection/types";
 import { wsManager } from "../runtime/websocket-manager";
 import {
   gunzipBuffer,
@@ -48,8 +64,13 @@ import {
 import { mergeReprocessedRecordingQuality } from "./reprocess-quality";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { currentAnalysisContract } from "../analysis-provenance/current-contract";
-import { createPersistedSessionAnalysisReceipt } from "../analysis-provenance/receipt";
-import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
+import { createPersistedSessionAnalysisReceipt, validateCanonicalArchiveReceipt } from "../analysis-provenance/receipt";
+import { RaceEventCoordinator } from "../race-events/coordinator";
+import { CanonicalPacketHasher } from "../race-results/canonical-input";
+import { RaceSourceAccumulator } from "../race-results/source";
+import { packetSequences, SourceSequenceTracker, type SourceSequenceObservation } from "../../shared/telemetry/source-sequence";
+import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
+import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 
 interface ReprocessResult {
   sessionId: number;
@@ -70,6 +91,283 @@ export class SessionNotFoundError extends Error {
     super(`Session ${sessionId} not found`);
     this.name = "SessionNotFoundError";
   }
+}
+
+class SessionCanonicalArchiveUnavailableError extends Error {
+  constructor(sessionId: number, details: string) {
+    super(`Session ${sessionId} canonical archive unavailable: ${details}`);
+    this.name = "SessionCanonicalArchiveUnavailableError";
+  }
+}
+
+interface CanonicalArchiveEvidence {
+  archiveId: string;
+  byteSize: number;
+  canonicalInventory: NonNullable<AnalysisProvenanceReceipt["canonicalInventory"]>;
+  originalSourceKind: EvidenceSourceKind;
+  outputContentHash: string;
+  schemaVersion: string;
+}
+
+interface CanonicalRebuildInput {
+  sessionId: number;
+  analysisGenerationId: string;
+  gameId: GameId;
+  packets: readonly TelemetryPacket[];
+  versionIdentity: TelemetryVersionIdentity;
+  participant: ParticipantEvidence;
+  sourceChannelProfile?: SourceChannelProfile;
+  sourceVerification: ArchiveVerification;
+  canonicalVerification: ArchiveVerification;
+  sourceLifecycle: readonly SourceLifecycleEvidence[];
+}
+
+async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Promise<{
+  packets: TelemetryPacket[];
+  sourceContentHash: string;
+  verification: ArchiveVerification;
+  evidence: CanonicalArchiveEvidence;
+}> {
+  const archive = await getActiveVerifiedCanonicalArchive(sessionId, { verifyOutput: true });
+  if (!archive || archive.status !== "verified" || archive.completeness !== "complete" || !archive.outputContentHash || archive.byteSize == null) {
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, "no complete verified archive");
+  }
+  const active = await getActiveAnalysisReceipt({ sessionId, artifactSetType: "canonical_archive" });
+  if (!active?.receipt) throw new SessionCanonicalArchiveUnavailableError(sessionId, "active archive receipt is unavailable");
+  let archiveReceipt;
+  try {
+    archiveReceipt = validateCanonicalArchiveReceipt(active.receipt);
+  } catch {
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, "active archive receipt failed verification");
+  }
+  const archiveOutput = archiveReceipt.outputs.find((entry) => entry.artifactType === "canonical_archive");
+  if (
+    archiveReceipt.evidence.objectId !== archive.archiveId
+    || archiveReceipt.evidence.contentHash !== archive.sourceContentHash
+    || archiveOutput?.contentHash !== archive.outputContentHash
+  ) {
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, "active archive receipt does not match durable archive");
+  }
+  if (archiveReceipt.context.gameId !== gameId || archive.context.gameId !== gameId) {
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, "archive game does not match session game");
+  }
+  let rows;
+  try {
+    rows = await readCanonicalArchiveSamples(archive.archivePath, 0, archive.sampleCount);
+  } catch (error) {
+    throw new SessionCanonicalArchiveUnavailableError(
+      sessionId,
+      `archive read failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (rows.length !== archive.sampleCount) {
+    throw new SessionCanonicalArchiveUnavailableError(
+      sessionId,
+      `archive sample count mismatch: expected ${archive.sampleCount}, got ${rows.length}`,
+    );
+  }
+  const packets: TelemetryPacket[] = [];
+  for (const row of rows) {
+    let value: unknown;
+    try {
+      value = JSON.parse(row.packetJson);
+    } catch {
+      throw new SessionCanonicalArchiveUnavailableError(sessionId, `invalid packet JSON at sample ${row.sampleOrdinal}`);
+    }
+    if (!value || typeof value !== "object" || !("gameId" in value) || value.gameId !== gameId) {
+      throw new SessionCanonicalArchiveUnavailableError(sessionId, `packet game mismatch at sample ${row.sampleOrdinal}`);
+    }
+    packets.push(value as TelemetryPacket);
+  }
+  if (packets.length === 0) {
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, "archive contains zero telemetry samples");
+  }
+  return {
+    packets,
+    sourceContentHash: archive.outputContentHash,
+    verification: {
+      state: "verified",
+      sourceGeneration: archive.outputContentHash,
+      details: "Verified canonical archive replay",
+    },
+    evidence: {
+      archiveId: archive.archiveId,
+      byteSize: archive.byteSize,
+      canonicalInventory: archiveReceipt.canonicalInventory!,
+      originalSourceKind: archiveReceipt.evidence.originalSourceKind,
+      outputContentHash: archive.outputContentHash,
+      schemaVersion: archive.schemaVersion,
+    },
+  };
+}
+
+function canonicalSessionAnalysisReceipt(
+  receipt: AnalysisProvenanceReceipt,
+  evidence: CanonicalArchiveEvidence,
+): AnalysisProvenanceReceipt {
+  return AnalysisProvenanceReceiptSchema.parse({
+    ...receipt,
+    evidence: {
+      kind: "canonical-archive",
+      originalSourceKind: evidence.originalSourceKind,
+      objectId: evidence.archiveId,
+      contentHash: evidence.outputContentHash,
+      byteSize: evidence.byteSize,
+      formatVersion: evidence.schemaVersion,
+      recordCounts: {
+        telemetry_samples: evidence.canonicalInventory.rowCounts.frames ?? 0,
+        hierarchy_nodes: evidence.canonicalInventory.rowCounts.nodes ?? 0,
+      },
+    },
+    canonicalInventory: evidence.canonicalInventory,
+    warnings: [...new Set([...receipt.warnings, "Rebuilt from verified canonical telemetry; native source bytes unavailable"])],
+    rebuildCapability: {
+      mode: "limited",
+      sourceKind: "canonical-archive",
+      rebuildableArtifacts: ["laps", "race_events", "session_runs", "race_result", "quality"],
+      unavailableArtifacts: [],
+      limitations: ["Canonical telemetry cannot exactly re-decode game-native source frames"],
+    },
+    verification: receipt.verification.map((check) =>
+      check.id === "source_hash"
+        ? { id: "source_hash", status: "passed", details: "Verified canonical archive output hash recorded" }
+        : check,
+    ),
+  });
+}
+
+async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): Promise<RebuiltRaceEventTimeline> {
+  const adapter = getServerGame(input.gameId);
+  const db = new CapturingDbAdapter();
+  const coordinator = new RaceEventCoordinator({
+    sessionId: input.sessionId,
+    sourceKind: "canonical-archive",
+    sourceGeneration: input.canonicalVerification.sourceGeneration,
+    analysisGenerationId: input.analysisGenerationId,
+    validationMode: "rebuild",
+  });
+  const recordingQuality = new RecordingQualityAccumulator(
+    "canonical-archive",
+    input.participant,
+    input.versionIdentity,
+  );
+  const sourceSequence = new SourceSequenceTracker();
+  const lifecycle = [...input.sourceLifecycle].sort(
+    (left, right) => left.timestampMs - right.timestampMs || (left.eventId ?? "").localeCompare(right.eventId ?? ""),
+  );
+  let lifecycleIndex = 0;
+  let sessionStarted = false;
+  let pendingSourceSequences: SourceSequenceObservation[] = [];
+  const callbacks: LapDetectorCallbacks = {
+    onSessionStart: async (_session, context) => {
+      if (sessionStarted) throw new Error("Canonical rebuild contains multiple detected session boundaries");
+      sessionStarted = true;
+      coordinator.bindSession(input.sessionId, {
+        reason: context.reason,
+        observation: adapter.toRaceEventObservation(context.packet, {
+          receivedAtMs: context.packet.TimestampMS,
+          sourceSequences: pendingSourceSequences,
+        }),
+      });
+    },
+    onSessionEnd: async (_session, context) => {
+      if (context.reason !== "stream-ended") coordinator.endSession(context);
+    },
+    onLapEvaluated: async (event, context) => {
+      const lastPacket = event.packets.at(-1);
+      coordinator.noteLapEvaluated({
+        lapNumber: context.lapNumber,
+        lapTimeMs: Number.isFinite(event.lapTime) ? event.lapTime * 1_000 : null,
+        isValid: event.isValid,
+        phase: event.phase,
+        conditions: event.conditions,
+        invalidReason: event.quality.invalidReason,
+        sectors: event.sectors,
+        position:
+          lastPacket && Number.isInteger(lastPacket.RacePosition) && lastPacket.RacePosition > 0
+            ? lastPacket.RacePosition
+            : null,
+        rawBoundaryOrdinal: event.packets.length,
+      });
+    },
+  };
+  const detector = adapter.createLapDetector({
+    db,
+    lapTimelineContext: {
+      classificationForLap: (_sessionId, lapNumber) =>
+        coordinator.classificationForLap(input.sessionId, lapNumber),
+      eventIdsForLap: (_sessionId, lapNumber) =>
+        coordinator.eventIdsForLap(input.sessionId, lapNumber),
+    },
+    callbacks,
+    bypassPacketRateFilter: true,
+    sourceKind: "canonical-archive",
+    participant: input.participant,
+    sourceChannelProfile: input.sourceChannelProfile,
+    versionIdentity: input.versionIdentity,
+  });
+  const resultSource = new RaceSourceAccumulator(input.gameId);
+  const canonicalHasher = new CanonicalPacketHasher();
+  const packets: TelemetryPacket[] = [];
+  for (const packet of input.packets) {
+    while (lifecycleIndex < lifecycle.length && lifecycle[lifecycleIndex]!.timestampMs <= packet.TimestampMS) {
+      const evidence = lifecycle[lifecycleIndex++]!;
+      if (evidence.kind === "reconnect") sourceSequence.markDiscontinuity();
+      recordingQuality.noteSourceLifecycle(evidence);
+      coordinator.noteSourceLifecycle(evidence, input.sessionId);
+    }
+    const sourceSequences = packetSequences(packet);
+    pendingSourceSequences = sourceSequences;
+    const sequenceEvidence = sourceSequence.observe(packet, sourceSequences);
+    const preflight = coordinator.preflight(
+      adapter.toRaceEventObservation(packet, {
+        receivedAtMs: packet.TimestampMS,
+        sourceSequences,
+      }),
+      {
+        sourceSequenceBoundaries: sequenceEvidence.boundaries,
+        sourceSequenceGapCandidates: sequenceEvidence.gapCandidates,
+      },
+    );
+    recordingQuality.observe(packet, sourceSequences);
+    packets.push(packet);
+    canonicalHasher.update(packet);
+    resultSource.observe(packet);
+    if (!preflight.accepted) {
+      coordinator.processPreflight(preflight);
+      continue;
+    }
+    await detector.feed(packet);
+    coordinator.processPreflight(preflight);
+  }
+  while (lifecycleIndex < lifecycle.length) {
+    const evidence = lifecycle[lifecycleIndex++]!;
+    if (evidence.kind === "reconnect") sourceSequence.markDiscontinuity();
+    recordingQuality.noteSourceLifecycle(evidence);
+    coordinator.noteSourceLifecycle(evidence, input.sessionId);
+  }
+  const detectedSessionId = detector.session?.sessionId;
+  await detector.finalizeCurrentSession?.("stream-ended");
+  if (detectedSessionId != null) await detector.waitForPendingLapWrites?.(detectedSessionId);
+  coordinator.endSession({ reason: "stream-ended", terminalObserved: false });
+  coordinator.noteSourceSequenceFinalized(sourceSequence.finalize());
+  if (db.sessions.length > 1) throw new Error("Canonical rebuild contains multiple detected session boundaries");
+  const runArtifacts = buildSessionRunsFromTimeline(coordinator.events(), db.laps, { reason: "source-ended" });
+  return {
+    detectorId: detector.detectorId,
+    events: coordinator.events(),
+    laps: [...db.laps],
+    raceSource: resultSource.finish(),
+    packetCount: canonicalHasher.packetCount,
+    canonicalContentHash: canonicalHasher.digest(),
+    runs: runArtifacts.runs,
+    memberships: runArtifacts.memberships,
+    evidence: runArtifacts.evidence,
+    packets,
+    recordingQuality: recordingQuality.finalize("reprocessed", input.sourceVerification, {
+      canonicalVerification: input.canonicalVerification,
+    }),
+  };
 }
 
 function retainedLifecycleEvidence(
@@ -141,8 +439,8 @@ function replacementLaps(
 function resultProjection(
   sessionId: number,
   sessionType: string | null,
-  rebuilt: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>,
-  rawContentHash: string,
+  rebuilt: RebuiltRaceEventTimeline,
+  rawContentHash: string | null,
   analysisGenerationId: string,
 ): RaceEventResultProjection {
   const source = rebuilt.raceSource;
@@ -157,7 +455,10 @@ function resultProjection(
   const derived = deriveRaceResult(source, rebuilt.events);
   derived.provenance = {
     ...derived.provenance,
-    rawInput: { objectId: rawCaptureObjectId(sessionId), contentHash: rawContentHash },
+    rawInput: rawContentHash == null ? null : {
+      objectId: rawCaptureObjectId(sessionId),
+      contentHash: rawContentHash,
+    },
     canonicalInput: rebuilt.canonicalContentHash == null ? null : {
       sessionId: String(sessionId),
       firstSequence: 0,
@@ -207,56 +508,86 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         .where(eq(sessions.id, sessionId))
         .get();
       if (!session) throw new SessionNotFoundError(sessionId);
-      if (!session.rawFile) throw new SessionRawFileMissingError(sessionId);
-
-      const file = Bun.file(session.rawFile);
-      if (!(await file.exists())) throw new SessionRawFileMissingError(sessionId, session.rawFile);
-      const stored = Buffer.from(await file.arrayBuffer());
-      const bytes = session.rawFile.endsWith(".gz") ? await gunzipBuffer(stored) : stored;
-      const frameStreamStart = readFrameStreamStart(bytes);
       const gameId = session.gameId as GameId;
-      const sourceKind = (session.source as EvidenceSourceKind | null) ?? "unknown";
       const versionIdentity = currentTelemetryVersionIdentity(gameId);
-      const rawContentHash = sha256ContentHash(bytes);
       const contract = currentAnalysisContract(gameId, session.sourceChannelProfile ?? null);
-      attempt = await beginAnalysisGeneration({
-        sessionId,
-        artifactSetType: "session_analysis",
-        sourceContentHash: rawContentHash,
-        contractHash: contract.contractHash,
-        configurationHash: contract.configurationHash,
-      });
-      const sourceVerification = session.recordingQuality?.archiveVerification ?? {
-        state: "unknown" as const,
-        sourceGeneration: "legacy",
-        details: "Original source verification is unavailable",
-      };
-      const frames = (function* () {
-        for (const { offset, frame } of iterateSessionFrameRecords(bytes, frameStreamStart, {
-          skipMetaFrames: true,
-          allowEmptyFrames: false,
-          strict: true,
-          validateDeclaredFrameCount: true,
-        })) {
-          yield { frame, rawByteOffset: offset };
+      const participant = session.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE;
+      const sourceLifecycle = retainedLifecycleEvidence(session.recordingQuality);
+      const rawFile = session.rawFile;
+      let rawContentHash: string | null = null;
+      let rebuilt: RebuiltRaceEventTimeline | null = null;
+      let canonicalEvidence: CanonicalArchiveEvidence | null = null;
+      if (rawFile) {
+        const file = Bun.file(rawFile);
+        if (await file.exists()) {
+          const stored = Buffer.from(await file.arrayBuffer());
+          const bytes = rawFile.endsWith(".gz") ? await gunzipBuffer(stored) : stored;
+          const frameStreamStart = readFrameStreamStart(bytes);
+          rawContentHash = sha256ContentHash(bytes);
+          attempt = await beginAnalysisGeneration({
+            sessionId,
+            artifactSetType: "session_analysis",
+            sourceContentHash: rawContentHash,
+            contractHash: contract.contractHash,
+            configurationHash: contract.configurationHash,
+          });
+          const sourceVerification = session.recordingQuality?.archiveVerification ?? {
+            state: "unknown" as const,
+            sourceGeneration: "legacy",
+            details: "Original source verification is unavailable",
+          };
+          const frames = (function* () {
+            for (const { offset, frame } of iterateSessionFrameRecords(bytes, frameStreamStart, {
+              skipMetaFrames: true,
+              allowEmptyFrames: false,
+              strict: true,
+              validateDeclaredFrameCount: true,
+            })) {
+              yield { frame, rawByteOffset: offset };
+            }
+          })();
+          rebuilt = await rebuildRaceEventTimeline({
+            sessionId,
+            analysisGenerationId: attempt.generationId,
+            gameId,
+            frames,
+            sourceKind: (session.source as EvidenceSourceKind | null) ?? "unknown",
+            participant,
+            versionIdentity,
+            ...(session.sourceChannelProfile ? { sourceChannelProfile: session.sourceChannelProfile } : {}),
+            sourceVerification,
+            ...(session.recordingQuality?.transportVerification
+              ? { transportVerification: session.recordingQuality.transportVerification }
+              : {}),
+            canonicalVerification: { state: "verified", sourceGeneration: rawContentHash },
+            sourceLifecycle,
+          });
         }
-      })();
-      const rebuilt = await rebuildRaceEventTimeline({
-        sessionId,
-        analysisGenerationId: attempt.generationId,
-        gameId,
-        frames,
-        sourceKind,
-        participant: session.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE,
-        versionIdentity,
-        ...(session.sourceChannelProfile ? { sourceChannelProfile: session.sourceChannelProfile } : {}),
-        sourceVerification,
-        ...(session.recordingQuality?.transportVerification
-          ? { transportVerification: session.recordingQuality.transportVerification }
-          : {}),
-        canonicalVerification: { state: "verified", sourceGeneration: rawContentHash },
-        sourceLifecycle: retainedLifecycleEvidence(session.recordingQuality),
-      });
+      }
+      if (!rawContentHash) {
+        const canonical = await loadCanonicalRebuildInput(sessionId, gameId);
+        canonicalEvidence = canonical.evidence;
+        attempt = await beginAnalysisGeneration({
+          sessionId,
+          artifactSetType: "session_analysis",
+          sourceContentHash: canonical.sourceContentHash,
+          contractHash: contract.contractHash,
+          configurationHash: contract.configurationHash,
+        });
+        rebuilt = await rebuildCanonicalRaceEventTimeline({
+          sessionId,
+          analysisGenerationId: attempt.generationId,
+          gameId,
+          packets: canonical.packets,
+          participant,
+          versionIdentity,
+          ...(session.sourceChannelProfile ? { sourceChannelProfile: session.sourceChannelProfile } : {}),
+          sourceVerification: canonical.verification,
+          canonicalVerification: canonical.verification,
+          sourceLifecycle,
+        });
+      }
+      if (!attempt || !rebuilt) throw new Error("No source evidence available for analysis rebuild");
       existingLaps = await getLapsForSession(sessionId);
       const laps = replacementLaps(rebuilt.laps, existingLaps, attempt.generationId);
       strategy = rebuilt.laps.length === existingLaps.length ? "in-place" : "replace";
@@ -277,15 +608,27 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
           },
           tx,
         );
-        await updateSessionRawFile(sessionId, session.rawFile!, rebuilt.detectorId, versionIdentity, tx);
+        if (rawFile && rawContentHash) {
+          await updateSessionRawFile(sessionId, rawFile, rebuilt.detectorId, versionIdentity, tx);
+        } else {
+          await tx.update(sessions)
+            .set({ lapDetectorVersion: rebuilt.detectorId, ...versionIdentity })
+            .where(eq(sessions.id, sessionId))
+            .run();
+        }
         qualityGeneration = (await updateSessionQuality(sessionId, mergedQuality, tx)).provenance.outputGeneration;
         await linkSessionQualityEvents(sessionId, tx);
         await rebuildPersistedSessionRuns(sessionId, tx);
-        const latest = await loadRawCaptureIdentity(session.rawFile!);
-        if (!latest || latest.contentHash !== rawContentHash) {
-          throw new Error("Raw source changed during analysis rebuild");
+        if (rawFile && rawContentHash) {
+          const latest = await loadRawCaptureIdentity(rawFile);
+          if (!latest || latest.contentHash !== rawContentHash) {
+            throw new Error("Raw source changed during analysis rebuild");
+          }
         }
-        const receipt = await createPersistedSessionAnalysisReceipt(attempt!, gameId, tx);
+        const persistedReceipt = await createPersistedSessionAnalysisReceipt(attempt!, gameId, tx);
+        const receipt = canonicalEvidence
+          ? canonicalSessionAnalysisReceipt(persistedReceipt, canonicalEvidence)
+          : persistedReceipt;
         await activateAnalysisGeneration({ generationId: attempt!.generationId, receipt }, tx);
       });
       return attempt!;
@@ -315,7 +658,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     if (failedGenerationId) {
       try {
         await failAnalysisGeneration(failedGenerationId, {
-          code: error instanceof SessionRawFileMissingError
+          code: error instanceof SessionRawFileMissingError || error instanceof SessionCanonicalArchiveUnavailableError
             ? "source_unavailable"
             : error instanceof Error && error.message.includes("Raw source changed")
               ? "source_hash_changed"
