@@ -3,6 +3,7 @@
   "id": "knoxville-raceway",
   "name": "Knoxville Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Knoxville, Iowa",
     "country": "USA",
     "latitude": 41.3265101,

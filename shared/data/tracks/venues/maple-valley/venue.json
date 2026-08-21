@@ -1,5 +1,14 @@
 {
   "version": 1,
   "id": "maple-valley",
-  "name": "Maple Valley"
+  "name": "Maple Valley",
+  "metadata": {
+    "venueType": "fictional",
+    "location": "Vermont",
+    "country": "USA",
+    "source": {
+      "gameId": "fm-2023",
+      "trackOrdinal": 70
+    }
+  }
 }

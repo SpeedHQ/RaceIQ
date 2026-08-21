@@ -3,6 +3,7 @@
   "id": "indianapolis-motor-speedway",
   "name": "Indianapolis Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Speedway, Indiana",
     "country": "USA",
     "latitude": 39.7953542,

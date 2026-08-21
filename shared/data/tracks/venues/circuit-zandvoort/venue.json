@@ -3,6 +3,7 @@
   "id": "circuit-zandvoort",
   "name": "Circuit Zandvoort",
   "metadata": {
+    "venueType": "real",
     "location": "Zandvoort, North Holland",
     "country": "Netherlands",
     "latitude": 52.3877081,

@@ -1,5 +1,14 @@
 {
   "version": 1,
   "id": "hakone",
-  "name": "Hakone"
+  "name": "Hakone",
+  "metadata": {
+    "venueType": "fictional",
+    "location": "Hakone",
+    "country": "Japan",
+    "source": {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1643
+    }
+  }
 }

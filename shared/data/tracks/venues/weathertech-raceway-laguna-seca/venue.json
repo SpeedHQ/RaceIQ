@@ -3,6 +3,7 @@
   "id": "weathertech-raceway-laguna-seca",
   "name": "WeatherTech Raceway Laguna Seca",
   "metadata": {
+    "venueType": "real",
     "location": "Monterey, California",
     "country": "USA",
     "latitude": 36.5842902,

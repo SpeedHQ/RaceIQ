@@ -3,6 +3,7 @@
   "id": "sebring-international-raceway",
   "name": "Sebring International Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Sebring, Florida",
     "country": "USA",
     "latitude": 27.4550124,

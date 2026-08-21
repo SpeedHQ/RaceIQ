@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "sepang",
-  "name": "Sepang International Circuit"
+  "name": "Sepang International Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Sepang, Selangor",
+    "country": "Malaysia",
+    "latitude": 2.7602187,
+    "longitude": 101.7368758,
+    "timeZone": "Asia/Kuala_Lumpur",
+    "source": {
+      "name": "Sepang International Circuit",
+      "url": "https://www.sepangcircuit.com/contact-details"
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/144292569"
+    }
+  }
 }

@@ -3,6 +3,7 @@
   "id": "mount-washington-hillclimb",
   "name": "Mount Washington Hillclimb",
   "metadata": {
+    "venueType": "real",
     "location": "Jackson, New Hampshire",
     "country": "USA",
     "latitude": 44.289474,

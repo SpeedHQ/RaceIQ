@@ -3,6 +3,7 @@
   "id": "autodromo-hermanos-rodriguez",
   "name": "Autodromo Hermanos Rodriguez",
   "metadata": {
+    "venueType": "real",
     "location": "Mexico City",
     "country": "Mexico",
     "latitude": 19.406111,

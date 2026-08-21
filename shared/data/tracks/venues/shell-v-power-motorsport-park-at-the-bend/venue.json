@@ -3,6 +3,7 @@
   "id": "shell-v-power-motorsport-park-at-the-bend",
   "name": "Shell V-Power Motorsport Park at The Bend",
   "metadata": {
+    "venueType": "real",
     "location": "Tailem Bend",
     "country": "Australia",
     "latitude": -35.308313,

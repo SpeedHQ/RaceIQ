@@ -3,6 +3,7 @@
   "id": "chicagoland-speedway",
   "name": "Chicagoland Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Joliet, Illinois",
     "country": "USA",
     "latitude": 41.4749519,

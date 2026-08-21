@@ -3,6 +3,7 @@
   "id": "cadwell-park-circuit",
   "name": "Cadwell Park Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Louth, Lincolnshire",
     "country": "England",
     "latitude": 53.310274,

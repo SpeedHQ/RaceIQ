@@ -3,6 +3,7 @@
   "id": "millbridge-speedway",
   "name": "Millbridge Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Salisbury, NC",
     "country": "USA",
     "latitude": 35.6529521,

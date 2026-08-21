@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "lusail-international-circuit",
-  "name": "Lusail International Circuit"
+  "name": "Lusail International Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Lusail",
+    "country": "Qatar",
+    "latitude": 25.4896575,
+    "longitude": 51.4528849,
+    "timeZone": "Asia/Qatar",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 32
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/152483594"
+    }
+  }
 }

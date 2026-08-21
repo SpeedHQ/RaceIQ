@@ -3,6 +3,7 @@
   "id": "homestead-miami-speedway",
   "name": "Homestead-Miami Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Homestead, Florida",
     "country": "USA",
     "latitude": 25.4517775,

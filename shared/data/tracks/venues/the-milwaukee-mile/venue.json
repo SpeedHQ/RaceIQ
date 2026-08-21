@@ -3,6 +3,7 @@
   "id": "the-milwaukee-mile",
   "name": "The Milwaukee Mile",
   "metadata": {
+    "venueType": "real",
     "location": "West Allis, Wisconsin",
     "country": "USA",
     "latitude": 43.0204523,

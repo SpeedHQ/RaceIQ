@@ -3,6 +3,7 @@
   "id": "sonoma-raceway",
   "name": "Sonoma Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Sonoma, California",
     "country": "USA",
     "latitude": 38.1616,

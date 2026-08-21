@@ -90,6 +90,7 @@ function baseSource(): TrackRegistrySource {
           id: "alpha",
           name: "Alpha",
           metadata: {
+            venueType: "real",
             location: "Test City, Test Region",
             country: "Testland",
             latitude: 12.5,

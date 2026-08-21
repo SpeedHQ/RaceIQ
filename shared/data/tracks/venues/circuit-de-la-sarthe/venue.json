@@ -3,6 +3,7 @@
   "id": "circuit-de-la-sarthe",
   "name": "Circuit de la Sarthe",
   "metadata": {
+    "venueType": "real",
     "location": "Le Mans, Pays de la Loire",
     "country": "France",
     "latitude": 47.9560052,

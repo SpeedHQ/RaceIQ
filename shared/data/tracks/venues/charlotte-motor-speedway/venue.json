@@ -3,6 +3,7 @@
   "id": "charlotte-motor-speedway",
   "name": "Charlotte Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Concord, North Carolina",
     "country": "USA",
     "latitude": 35.3511641,

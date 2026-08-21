@@ -3,6 +3,7 @@
   "id": "port-royal-speedway",
   "name": "Port Royal Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Port Royal, Pennsylvania",
     "country": "USA",
     "latitude": 40.5358,

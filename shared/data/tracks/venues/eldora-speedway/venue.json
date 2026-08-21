@@ -3,6 +3,7 @@
   "id": "eldora-speedway",
   "name": "Eldora Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Rossburg, Ohio",
     "country": "USA",
     "latitude": 40.319015,

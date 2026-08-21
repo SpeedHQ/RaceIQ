@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "yas-marina-circuit",
-  "name": "Yas Marina Circuit"
+  "name": "Yas Marina Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Abu Dhabi",
+    "country": "United Arab Emirates",
+    "latitude": 24.471847,
+    "longitude": 54.6058021,
+    "timeZone": "Asia/Dubai",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 14
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/relation/6941673"
+    }
+  }
 }

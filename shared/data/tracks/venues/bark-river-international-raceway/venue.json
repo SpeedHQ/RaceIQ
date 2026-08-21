@@ -3,6 +3,7 @@
   "id": "bark-river-international-raceway",
   "name": "Bark River International Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Bark River, Michigan",
     "country": "USA",
     "latitude": 45.693396,

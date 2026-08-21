@@ -29,6 +29,7 @@ venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
 
 ## Data formats
 
+- Venue metadata requires `venueType`, `location`, `country`, and provenance. Real venues carry a latitude/longitude pair and IANA `timeZone`; fictional venues deliberately carry neither.
 - Centerline/raceline CSV: header `x,z`, one point each row.
 - Boundaries JSON: `leftEdge` and `rightEdge`, plus source metadata such as `centerLine`, `pitLane`, `coordSystem`, `altitude`, `waypoints`, or `aligned`.
 - Detect hints: `{ [turnNumber]: { spans?, optional? } }`.

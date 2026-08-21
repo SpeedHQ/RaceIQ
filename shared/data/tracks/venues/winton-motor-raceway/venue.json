@@ -3,6 +3,7 @@
   "id": "winton-motor-raceway",
   "name": "Winton Motor Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Winton, Victoria",
     "country": "Australia",
     "latitude": -36.51993,

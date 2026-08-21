@@ -3,6 +3,7 @@
   "id": "concord-speedway",
   "name": "Concord Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Concord, North Carolina",
     "country": "USA",
     "latitude": 35.3089728,

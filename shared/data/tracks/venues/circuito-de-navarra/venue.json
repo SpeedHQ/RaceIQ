@@ -3,6 +3,7 @@
   "id": "circuito-de-navarra",
   "name": "Circuito de Navarra",
   "metadata": {
+    "venueType": "real",
     "location": "Navarra",
     "country": "Spain",
     "latitude": 42.559206,

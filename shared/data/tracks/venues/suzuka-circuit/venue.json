@@ -3,6 +3,7 @@
   "id": "suzuka-circuit",
   "name": "Suzuka Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Suzuka, Mie Prefecture",
     "country": "Japan",
     "latitude": 34.8455935,

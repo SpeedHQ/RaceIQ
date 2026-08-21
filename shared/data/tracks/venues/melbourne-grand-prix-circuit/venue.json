@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "melbourne-grand-prix-circuit",
-  "name": "Melbourne Grand Prix Circuit"
+  "name": "Melbourne Grand Prix Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Melbourne",
+    "country": "Australia",
+    "latitude": -37.8452062,
+    "longitude": 144.957105,
+    "timeZone": "Australia/Melbourne",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 0
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/relation/2397461"
+    }
+  }
 }

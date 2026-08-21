@@ -3,6 +3,7 @@
   "id": "wild-west-motorsports-park",
   "name": "Wild West Motorsports Park",
   "metadata": {
+    "venueType": "real",
     "location": "Sparks, Nevada",
     "country": "USA",
     "latitude": 39.510394,

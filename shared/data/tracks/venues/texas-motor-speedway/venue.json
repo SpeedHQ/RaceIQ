@@ -3,6 +3,7 @@
   "id": "texas-motor-speedway",
   "name": "Texas Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Fort Worth, Texas",
     "country": "USA",
     "latitude": 33.0373257,

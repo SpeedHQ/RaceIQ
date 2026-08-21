@@ -3,6 +3,7 @@
   "id": "nashville-fairgrounds-speedway",
   "name": "Nashville Fairgrounds Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Nashville, Tennessee",
     "country": "USA",
     "latitude": 36.130862,

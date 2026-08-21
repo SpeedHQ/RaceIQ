@@ -3,11 +3,9 @@
   "id": "iracing-superspeedway",
   "name": "iRacing Superspeedway",
   "metadata": {
+    "venueType": "fictional",
     "location": "Chelmsford, Massachusetts",
     "country": "USA",
-    "latitude": 42.601541,
-    "longitude": -71.327313,
-    "timeZone": "America/New_York",
     "source": {
       "gameId": "iracing",
       "trackOrdinal": 384

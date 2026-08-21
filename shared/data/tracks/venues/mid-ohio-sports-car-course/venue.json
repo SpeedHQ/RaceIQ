@@ -3,6 +3,7 @@
   "id": "mid-ohio-sports-car-course",
   "name": "Mid-Ohio Sports Car Course",
   "metadata": {
+    "venueType": "real",
     "location": "Lexington, Ohio",
     "country": "USA",
     "latitude": 40.6906568,

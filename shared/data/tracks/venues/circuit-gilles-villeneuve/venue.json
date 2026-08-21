@@ -3,6 +3,7 @@
   "id": "circuit-gilles-villeneuve",
   "name": "Circuit Gilles Villeneuve",
   "metadata": {
+    "venueType": "real",
     "location": "Montreal, Quebec",
     "country": "Canada",
     "latitude": 45.5032189,

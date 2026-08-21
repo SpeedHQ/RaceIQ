@@ -3,6 +3,7 @@
   "id": "firebird-motorsports-park",
   "name": "Firebird Motorsports Park",
   "metadata": {
+    "venueType": "real",
     "location": "Chandler, Arizona",
     "country": "USA",
     "latitude": 33.268889,

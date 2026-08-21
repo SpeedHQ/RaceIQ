@@ -3,6 +3,7 @@
   "id": "daytona-international-speedway",
   "name": "Daytona International Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Daytona Beach, Florida",
     "country": "USA",
     "latitude": 29.185169,

@@ -3,6 +3,7 @@
   "id": "kentucky-speedway",
   "name": "Kentucky Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Sparta, Kentucky",
     "country": "USA",
     "latitude": 38.7117309,

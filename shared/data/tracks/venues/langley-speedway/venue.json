@@ -3,6 +3,7 @@
   "id": "langley-speedway",
   "name": "Langley Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Hampton, Virginia",
     "country": "USA",
     "latitude": 37.0866696,

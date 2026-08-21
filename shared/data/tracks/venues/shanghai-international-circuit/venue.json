@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "shanghai-international-circuit",
-  "name": "Shanghai International Circuit"
+  "name": "Shanghai International Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Shanghai",
+    "country": "China",
+    "latitude": 31.3399793,
+    "longitude": 121.2195976,
+    "timeZone": "Asia/Shanghai",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 2
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/156311798"
+    }
+  }
 }

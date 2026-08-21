@@ -3,6 +3,7 @@
   "id": "snetterton-circuit",
   "name": "Snetterton Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Snetterton, Norfolk",
     "country": "England",
     "latitude": 52.4636482,

@@ -3,6 +3,7 @@
   "id": "lucas-oil-indianapolis-raceway-park",
   "name": "Lucas Oil Indianapolis Raceway Park",
   "metadata": {
+    "venueType": "real",
     "location": "Indianapolis, Indiana",
     "country": "USA",
     "latitude": 39.812512,

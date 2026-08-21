@@ -3,6 +3,7 @@
   "id": "the-bullring",
   "name": "The Bullring",
   "metadata": {
+    "venueType": "real",
     "location": "Las Vegas, Nevada",
     "country": "USA",
     "latitude": 36.2632543,

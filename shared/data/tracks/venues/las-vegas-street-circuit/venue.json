@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "las-vegas-street-circuit",
-  "name": "Las Vegas Street Circuit"
+  "name": "Las Vegas Street Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Las Vegas",
+    "country": "USA",
+    "latitude": 36.1089743,
+    "longitude": -115.1622208,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 31
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/1456078470"
+    }
+  }
 }

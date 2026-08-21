@@ -3,6 +3,7 @@
   "id": "southern-national-motorsports-park",
   "name": "Southern National Motorsports Park",
   "metadata": {
+    "venueType": "real",
     "location": "Lucama, North Carolina",
     "country": "USA",
     "latitude": 35.6112291,

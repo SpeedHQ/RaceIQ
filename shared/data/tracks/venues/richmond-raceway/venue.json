@@ -3,6 +3,7 @@
   "id": "richmond-raceway",
   "name": "Richmond Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Richmond, Virginia",
     "country": "USA",
     "latitude": 37.592392,

@@ -3,6 +3,7 @@
   "id": "autodromo-jose-carlos-pace",
   "name": "Autodromo Jose Carlos Pace",
   "metadata": {
+    "venueType": "real",
     "location": "Interlagos, São Paulo",
     "country": "Brazil",
     "latitude": -23.701185,

@@ -3,6 +3,7 @@
   "id": "fairbury-speedway",
   "name": "Fairbury Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Fairbury, Illinois",
     "country": "USA",
     "latitude": 40.740155,

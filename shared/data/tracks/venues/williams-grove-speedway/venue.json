@@ -3,6 +3,7 @@
   "id": "williams-grove-speedway",
   "name": "Williams Grove Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Mechanicsburg, Pennsylvania",
     "country": "USA",
     "latitude": 40.155193,

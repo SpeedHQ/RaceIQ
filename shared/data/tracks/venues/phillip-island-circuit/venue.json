@@ -3,6 +3,7 @@
   "id": "phillip-island-circuit",
   "name": "Phillip Island Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Phillip Island, Victoria",
     "country": "Australia",
     "latitude": -38.5011396,

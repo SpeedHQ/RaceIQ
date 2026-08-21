@@ -3,6 +3,7 @@
   "id": "huset-s-speedway",
   "name": "Huset's Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Brandon, South Dakota",
     "country": "USA",
     "latitude": 43.570801,

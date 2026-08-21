@@ -3,6 +3,7 @@
   "id": "new-smyrna-speedway",
   "name": "New Smyrna Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "New Smyrna Beach, Florida",
     "country": "USA",
     "latitude": 29.0136715,

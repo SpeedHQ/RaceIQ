@@ -3,6 +3,7 @@
   "id": "oran-park-raceway",
   "name": "Oran Park Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Narellan, New South Wales",
     "country": "Australia",
     "latitude": -34.006111,

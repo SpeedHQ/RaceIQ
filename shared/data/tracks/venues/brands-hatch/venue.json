@@ -3,6 +3,7 @@
   "id": "brands-hatch",
   "name": "Brands Hatch",
   "metadata": {
+    "venueType": "real",
     "location": "Fawkham, Kent",
     "country": "England",
     "latitude": 51.3581048,

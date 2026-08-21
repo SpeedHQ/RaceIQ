@@ -3,6 +3,7 @@
   "id": "st-petersburg-grand-prix",
   "name": "St. Petersburg Grand Prix",
   "metadata": {
+    "venueType": "real",
     "location": "St. Petersburg, Florida",
     "country": "USA",
     "latitude": 27.765,

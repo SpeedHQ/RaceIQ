@@ -3,6 +3,7 @@
   "id": "phoenix-raceway",
   "name": "Phoenix Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Avondale, Arizona",
     "country": "USA",
     "latitude": 33.37487,

@@ -3,6 +3,7 @@
   "id": "slinger-speedway",
   "name": "Slinger Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Slinger, WI",
     "country": "USA",
     "latitude": 43.340579,

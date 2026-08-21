@@ -3,6 +3,7 @@
   "id": "cedar-lake-speedway",
   "name": "Cedar Lake Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "New Richmond, Wisconsin",
     "country": "USA",
     "latitude": 45.190514,

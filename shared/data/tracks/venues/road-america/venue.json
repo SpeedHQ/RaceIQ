@@ -3,6 +3,7 @@
   "id": "road-america",
   "name": "Road America",
   "metadata": {
+    "venueType": "real",
     "location": "Elkhart Lake, Wisconsin",
     "country": "USA",
     "latitude": 43.79751,

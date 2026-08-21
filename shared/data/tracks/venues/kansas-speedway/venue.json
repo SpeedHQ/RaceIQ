@@ -3,6 +3,7 @@
   "id": "kansas-speedway",
   "name": "Kansas Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Kansas City, Kansas",
     "country": "USA",
     "latitude": 39.1154928,

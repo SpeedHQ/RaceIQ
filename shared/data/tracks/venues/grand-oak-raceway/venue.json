@@ -1,5 +1,14 @@
 {
   "version": 1,
   "id": "grand-oak-raceway",
-  "name": "Grand Oak Raceway"
+  "name": "Grand Oak Raceway",
+  "metadata": {
+    "venueType": "fictional",
+    "location": "New Hampshire",
+    "country": "USA",
+    "source": {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1632
+    }
+  }
 }

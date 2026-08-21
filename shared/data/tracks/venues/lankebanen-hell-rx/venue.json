@@ -3,6 +3,7 @@
   "id": "lankebanen-hell-rx",
   "name": "Lånkebanen (Hell RX)",
   "metadata": {
+    "venueType": "real",
     "location": "Hell, Trøndelag",
     "country": "Norway",
     "latitude": 63.405094,

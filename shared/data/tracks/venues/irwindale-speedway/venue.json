@@ -3,6 +3,7 @@
   "id": "irwindale-speedway",
   "name": "Irwindale Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Irwindale, California",
     "country": "USA",
     "latitude": 34.1104491,

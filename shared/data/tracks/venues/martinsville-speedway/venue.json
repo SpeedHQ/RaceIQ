@@ -3,6 +3,7 @@
   "id": "martinsville-speedway",
   "name": "Martinsville Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Ridgeway, Virginia",
     "country": "USA",
     "latitude": 36.6340671,

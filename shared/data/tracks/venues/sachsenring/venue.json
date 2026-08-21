@@ -3,6 +3,7 @@
   "id": "sachsenring",
   "name": "Sachsenring",
   "metadata": {
+    "venueType": "real",
     "location": "Oberlungwitz",
     "country": "Germany",
     "latitude": 50.79177,

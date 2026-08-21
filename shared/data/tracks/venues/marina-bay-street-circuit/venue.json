@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "marina-bay-street-circuit",
-  "name": "Marina Bay Street Circuit"
+  "name": "Marina Bay Street Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Singapore",
+    "country": "Singapore",
+    "latitude": 1.2912718,
+    "longitude": 103.8642605,
+    "timeZone": "Asia/Singapore",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 12
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/686335807"
+    }
+  }
 }

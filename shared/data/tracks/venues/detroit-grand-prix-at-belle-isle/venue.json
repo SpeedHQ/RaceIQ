@@ -3,6 +3,7 @@
   "id": "detroit-grand-prix-at-belle-isle",
   "name": "Detroit Grand Prix at Belle Isle",
   "metadata": {
+    "venueType": "real",
     "location": "Detroit, Michigan",
     "country": "USA",
     "latitude": 42.335007,

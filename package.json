@@ -50,7 +50,7 @@
     "iracing:cars:seed": "bun scripts/iracing/seed-cars.ts",
     "iracing:car-classes:seed": "bun scripts/iracing/seed-car-classes.ts",
     "iracing:tracks:seed": "bun scripts/iracing/seed-tracks.ts",
-    "iracing:venue-metadata:seed": "bun scripts/iracing/seed-venue-metadata.ts",
+    "tracks:venue-metadata:seed": "bun scripts/tracks/seed-venue-metadata.ts",
     "iracing:track-maps:seed": "bun scripts/iracing/seed-track-maps.ts",
     "gzip:recording": "bun scripts/telemetry/recordings/gzip-recording.ts",
     "fixtures:iracing": "bun scripts/iracing/generate-recording-fixture.ts",

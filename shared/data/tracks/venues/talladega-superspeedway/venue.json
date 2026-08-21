@@ -3,6 +3,7 @@
   "id": "talladega-superspeedway",
   "name": "Talladega Superspeedway",
   "metadata": {
+    "venueType": "real",
     "location": "Talladega, Alabama",
     "country": "USA",
     "latitude": 33.5669742,

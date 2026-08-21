@@ -3,6 +3,7 @@
   "id": "circuit-de-barcelona-catalunya",
   "name": "Circuit de Barcelona-Catalunya",
   "metadata": {
+    "venueType": "real",
     "location": "Montmeló, Catalonia",
     "country": "Spain",
     "latitude": 41.568749,

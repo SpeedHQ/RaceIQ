@@ -3,6 +3,7 @@
   "id": "mugello-circuit",
   "name": "Mugello Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Scarperia e San Piero, Tuscany",
     "country": "Italy",
     "latitude": 43.997595,

@@ -3,6 +3,7 @@
   "id": "okayama-international-circuit",
   "name": "Okayama International Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Mimasaka, Okayama Prefecture",
     "country": "Japan",
     "latitude": 34.9125856,

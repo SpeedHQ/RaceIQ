@@ -3,6 +3,7 @@
   "id": "qualcomm-circuit-naval-base-coronado",
   "name": "Qualcomm Circuit (Naval Base Coronado)",
   "metadata": {
+    "venueType": "real",
     "location": "San Diego, California",
     "country": "USA",
     "latitude": 32.703767,

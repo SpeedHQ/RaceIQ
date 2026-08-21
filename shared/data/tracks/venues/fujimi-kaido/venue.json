@@ -1,5 +1,14 @@
 {
   "version": 1,
   "id": "fujimi-kaido",
-  "name": "Fujimi Kaido"
+  "name": "Fujimi Kaido",
+  "metadata": {
+    "venueType": "fictional",
+    "location": "Japan",
+    "country": "Japan",
+    "source": {
+      "gameId": "fm-2023",
+      "trackOrdinal": 83
+    }
+  }
 }

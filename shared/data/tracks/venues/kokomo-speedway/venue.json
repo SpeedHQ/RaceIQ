@@ -3,6 +3,7 @@
   "id": "kokomo-speedway",
   "name": "Kokomo Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Kokomo, Indiana",
     "country": "USA",
     "latitude": 40.5111901,

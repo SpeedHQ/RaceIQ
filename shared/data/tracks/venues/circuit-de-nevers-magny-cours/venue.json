@@ -3,6 +3,7 @@
   "id": "circuit-de-nevers-magny-cours",
   "name": "Circuit de Nevers Magny-Cours",
   "metadata": {
+    "venueType": "real",
     "location": "Magny-Cours, Bourgogne-Franche-Comté",
     "country": "France",
     "latitude": 46.8634579,

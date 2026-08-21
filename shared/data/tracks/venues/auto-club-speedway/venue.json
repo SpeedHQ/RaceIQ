@@ -3,6 +3,7 @@
   "id": "auto-club-speedway",
   "name": "Auto Club Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Fontana, California",
     "country": "USA",
     "latitude": 34.0888203,

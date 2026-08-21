@@ -9,7 +9,6 @@ Domain tooling for inspecting IBT recordings, rebuilding committed fixtures, and
 | `bun scripts/iracing/probe-ibt.ts <recording.ibt>` | Summarize IBT metadata and normalized stream health | Reads IBT; writes JSON to stdout |
 | `bun scripts/iracing/seed-cars.ts` | Seed car catalog and bundled car images | Reads JSON source; writes `shared/games/iracing/cars.csv` and `client/public/iracing-car-images/` |
 | `bun scripts/iracing/seed-tracks.ts` | Seed track layout catalog | Reads track and asset JSON sources; writes `shared/games/iracing/tracks.csv` |
-| `bun scripts/iracing/seed-venue-metadata.ts` | Seed normalized venue location metadata | Reads committed iRacing catalog and registry assignments; updates root `venue.json` files plus generated registry artifacts |
 | `bun scripts/iracing/seed-track-maps.ts` | Seed bundled official track-map layers | Downloads upstream SVG layers; writes `venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/iracing/official/{active,start-finish,turns,pit-road}.svg` |
 | `bun scripts/iracing/generate-recording-fixture.ts` | Rebuild deterministic recorder fixture | Writes `test/artifacts/sessions/iracing-road-america-gt3.bin.gz` |
 | `bun scripts/iracing/generate-seed-fixture.ts <recording.ibt>` | Build compact real-telemetry fixture | Reads IBT; writes `test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz` |
@@ -32,7 +31,6 @@ Domain tooling for inspecting IBT recordings, rebuilding committed fixtures, and
 - `--output <file>`: CSV destination.
 - `--include-retired`: retain retired layouts.
 
-`seed-venue-metadata.ts` selects one normalized location per physical venue from its assigned iRacing layouts. It prefers non-legacy rows, then the most common location, and retains the newest supporting track ID as provenance. Use `--check` to reject stale venue metadata without writing.
 
 `seed-track-maps.ts` reads the committed track catalog and stores source SVG bytes without a normalized combined JSON copy. Options:
 

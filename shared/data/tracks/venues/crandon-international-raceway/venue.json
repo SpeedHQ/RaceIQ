@@ -3,6 +3,7 @@
   "id": "crandon-international-raceway",
   "name": "Crandon International Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Crandon, Wisconsin",
     "country": "USA",
     "latitude": 45.57413,

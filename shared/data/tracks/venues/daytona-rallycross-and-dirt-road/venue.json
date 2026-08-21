@@ -3,6 +3,7 @@
   "id": "daytona-rallycross-and-dirt-road",
   "name": "Daytona Rallycross and Dirt Road",
   "metadata": {
+    "venueType": "real",
     "location": "Daytona Beach, Florida",
     "country": "USA",
     "latitude": 29.185169,

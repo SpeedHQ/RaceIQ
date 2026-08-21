@@ -3,6 +3,7 @@
   "id": "motorsport-arena-oschersleben",
   "name": "Motorsport Arena Oschersleben",
   "metadata": {
+    "venueType": "real",
     "location": "Oschersleben, Saxony-Anhalt",
     "country": "Germany",
     "latitude": 52.0266,

@@ -3,6 +3,7 @@
   "id": "lanier-national-speedway",
   "name": "Lanier National Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Braselton, Georgia",
     "country": "USA",
     "latitude": 34.153424,

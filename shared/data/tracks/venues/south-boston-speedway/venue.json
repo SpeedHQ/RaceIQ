@@ -3,6 +3,7 @@
   "id": "south-boston-speedway",
   "name": "South Boston Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "South Boston, Virginia",
     "country": "USA",
     "latitude": 36.7092845,

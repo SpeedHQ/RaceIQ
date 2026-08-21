@@ -3,6 +3,7 @@
   "id": "darlington-raceway",
   "name": "Darlington Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Darlington, South Carolina",
     "country": "USA",
     "latitude": 34.2973206,

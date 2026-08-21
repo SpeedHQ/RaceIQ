@@ -3,6 +3,7 @@
   "id": "world-wide-technology-raceway-gateway",
   "name": "World Wide Technology Raceway (Gateway)",
   "metadata": {
+    "venueType": "real",
     "location": "Madison, Illinois",
     "country": "USA",
     "latitude": 38.6507543,

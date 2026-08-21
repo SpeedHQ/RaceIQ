@@ -3,6 +3,7 @@
   "id": "rockingham-speedway",
   "name": "Rockingham Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Rockingham, North Carolina",
     "country": "USA",
     "latitude": 34.9758768,

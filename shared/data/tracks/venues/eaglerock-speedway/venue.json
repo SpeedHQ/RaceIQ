@@ -1,5 +1,14 @@
 {
   "version": 1,
   "id": "eaglerock-speedway",
-  "name": "Eaglerock Speedway"
+  "name": "Eaglerock Speedway",
+  "metadata": {
+    "venueType": "fictional",
+    "location": "Iowa",
+    "country": "USA",
+    "source": {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1663
+    }
+  }
 }

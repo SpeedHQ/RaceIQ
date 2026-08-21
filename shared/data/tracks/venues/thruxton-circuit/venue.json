@@ -3,6 +3,7 @@
   "id": "thruxton-circuit",
   "name": "Thruxton Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Hampshire, England",
     "country": "United Kingdom",
     "latitude": 51.20766,

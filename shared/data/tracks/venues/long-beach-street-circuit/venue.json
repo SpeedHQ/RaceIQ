@@ -3,6 +3,7 @@
   "id": "long-beach-street-circuit",
   "name": "Long Beach Street Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Long Beach, California",
     "country": "USA",
     "latitude": 33.7643144,

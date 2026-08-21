@@ -3,6 +3,7 @@
   "id": "autodromo-nazionale-monza",
   "name": "Autodromo Nazionale Monza",
   "metadata": {
+    "venueType": "real",
     "location": "Monza, Lombardy",
     "country": "Italy",
     "latitude": 45.621799,

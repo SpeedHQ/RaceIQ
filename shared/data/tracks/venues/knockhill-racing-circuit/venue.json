@@ -3,6 +3,7 @@
   "id": "knockhill-racing-circuit",
   "name": "Knockhill Racing Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Dunfermline, Fife",
     "country": "Scotland",
     "latitude": 56.131522,

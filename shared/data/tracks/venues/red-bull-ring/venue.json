@@ -3,6 +3,7 @@
   "id": "red-bull-ring",
   "name": "Red Bull Ring",
   "metadata": {
+    "venueType": "real",
     "location": "Spielberg, Styria",
     "country": "Austria",
     "latitude": 47.2203417,

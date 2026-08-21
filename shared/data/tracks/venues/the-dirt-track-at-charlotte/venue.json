@@ -3,6 +3,7 @@
   "id": "the-dirt-track-at-charlotte",
   "name": "The Dirt Track at Charlotte",
   "metadata": {
+    "venueType": "real",
     "location": "Concord, North Carolina",
     "country": "USA",
     "latitude": 35.3580208,

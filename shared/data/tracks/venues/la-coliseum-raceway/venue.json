@@ -3,6 +3,7 @@
   "id": "la-coliseum-raceway",
   "name": "LA Coliseum Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Los Angeles, California",
     "country": "USA",
     "latitude": 34.014257,

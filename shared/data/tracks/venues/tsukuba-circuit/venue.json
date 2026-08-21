@@ -3,6 +3,7 @@
   "id": "tsukuba-circuit",
   "name": "Tsukuba Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Shimotsuma, Ibaraki Prefecture",
     "country": "Japan",
     "latitude": 36.1527975,

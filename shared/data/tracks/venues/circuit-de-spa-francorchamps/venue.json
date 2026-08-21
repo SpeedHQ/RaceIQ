@@ -3,6 +3,7 @@
   "id": "circuit-de-spa-francorchamps",
   "name": "Circuit de Spa-Francorchamps",
   "metadata": {
+    "venueType": "real",
     "location": "Francorchamps, Liège",
     "country": "Belgium",
     "latitude": 50.4369118,

@@ -3,6 +3,7 @@
   "id": "volusia-speedway-park",
   "name": "Volusia Speedway Park",
   "metadata": {
+    "venueType": "real",
     "location": "De Leon Springs, Florida",
     "country": "USA",
     "latitude": 29.2150215,

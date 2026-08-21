@@ -3,6 +3,7 @@
   "id": "michigan-international-speedway",
   "name": "Michigan International Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Brooklyn, Michigan",
     "country": "USA",
     "latitude": 42.0678836,

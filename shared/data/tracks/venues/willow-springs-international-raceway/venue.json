@@ -3,6 +3,7 @@
   "id": "willow-springs-international-raceway",
   "name": "Willow Springs International Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Rosamond, California",
     "country": "USA",
     "latitude": 34.87,

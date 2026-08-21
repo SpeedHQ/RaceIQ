@@ -3,6 +3,7 @@
   "id": "hungaroring",
   "name": "Hungaroring",
   "metadata": {
+    "venueType": "real",
     "location": "Mogyoród, Pest",
     "country": "Hungary",
     "latitude": 47.58186,

@@ -8,6 +8,7 @@ Track curation and coverage commands. Authoring scripts update canonical venue/r
 |---|---|---|
 | `bun run tracks:registry` | Canonicalize registry source and rebuild generated artifacts | `shared/data/tracks/registry.sqlite`, `shared/data/tracks/registry-report.json` |
 | `bun run tracks:registry:check` | Reject non-canonical source or stale generated artifacts | Check result only |
+| `bun run tracks:venue-metadata:seed [--check]` | Seed normalized root venue metadata from game catalogs and official venue sources | Root `venue.json` files plus generated registry artifacts |
 | `bun run tracks:segments --track <slug> [--game <gameId>] [--write]` | Detect and align curated corner segments | Matching canonical layout `metadata.json`, then generated artifacts, with `--write` |
 | `bun run tracks:coverage [--write]` | Render curation ledger; `--verify` records human verification | Layout `metadata.json` verification records and `docs/contributing/track-curation.md` |
 | `bun run scripts/tracks/migrate-variant-corner-names.ts [--write]` | Copy conservative parent-layout corner names to unnamed variants | Matching canonical layout `metadata.json` files, then generated artifacts, with `--write` |
@@ -26,10 +27,13 @@ Track curation and coverage commands. Authoring scripts update canonical venue/r
 - `track-coverage.ts` keeps importable helpers (`parseVerifyTarget`, marker constants, and splice functions) separate from CLI execution.
 - Game-specific extraction remains under game domains. Shared normalization belongs in `shared/`, not ad hoc script aliases.
 
+`seed-venue-metadata.ts` prefers iRacing's geodata, then F1 and Forza location catalogs, and fills remaining real-venue coordinates from cited OpenStreetMap objects. It labels fictional venues explicitly and removes physical coordinates and time zones from them.
+
 ## Focused verification
 
 - Run `bun run tracks:segments --track <slug>` and inspect dry-run alignment output before `--write`.
 - Run `bun run tracks:coverage` and confirm ledger tables render; use `--write` only after review.
 - Run migration commands without `--write` first and inspect proposed changes.
 - Run `bun run tracks:registry:check` after registry source changes.
+- Run `bun run tracks:venue-metadata:seed --check` to reject missing or stale venue metadata.
 - For imported boundaries, compare generated JSON point counts and closure against source CSV metadata.

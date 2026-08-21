@@ -3,6 +3,7 @@
   "id": "road-atlanta",
   "name": "Road Atlanta",
   "metadata": {
+    "venueType": "real",
     "location": "Braselton, Georgia",
     "country": "USA",
     "latitude": 34.15219,

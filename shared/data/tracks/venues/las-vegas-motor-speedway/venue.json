@@ -3,6 +3,7 @@
   "id": "las-vegas-motor-speedway",
   "name": "Las Vegas Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Las Vegas, Nevada",
     "country": "USA",
     "latitude": 36.2722847,

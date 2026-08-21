@@ -3,6 +3,7 @@
   "id": "lincoln-speedway",
   "name": "Lincoln Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Abbottstown, Pennsylvania",
     "country": "USA",
     "latitude": 39.869954,

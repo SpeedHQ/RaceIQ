@@ -3,6 +3,7 @@
   "id": "donington-park",
   "name": "Donington Park",
   "metadata": {
+    "venueType": "real",
     "location": "Castle Donington, Leicestershire",
     "country": "England",
     "latitude": 52.8305468,

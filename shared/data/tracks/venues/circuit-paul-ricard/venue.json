@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "circuit-paul-ricard",
-  "name": "Circuit Paul Ricard"
+  "name": "Circuit Paul Ricard",
+  "metadata": {
+    "venueType": "real",
+    "location": "Le Castellet",
+    "country": "France",
+    "latitude": 43.2524963,
+    "longitude": 5.7943002,
+    "timeZone": "Europe/Paris",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 1
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/242942298"
+    }
+  }
 }

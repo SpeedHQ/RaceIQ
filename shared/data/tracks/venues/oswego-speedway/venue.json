@@ -3,6 +3,7 @@
   "id": "oswego-speedway",
   "name": "Oswego Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Oswego, NY",
     "country": "USA",
     "latitude": 43.45784,

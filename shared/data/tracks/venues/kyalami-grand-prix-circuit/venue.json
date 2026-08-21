@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "kyalami-grand-prix-circuit",
-  "name": "Kyalami Grand Prix Circuit"
+  "name": "Kyalami Grand Prix Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Midrand",
+    "country": "South Africa",
+    "latitude": -25.9972974,
+    "longitude": 28.0666476,
+    "timeZone": "Africa/Johannesburg",
+    "source": {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1590
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/1359379882"
+    }
+  }
 }

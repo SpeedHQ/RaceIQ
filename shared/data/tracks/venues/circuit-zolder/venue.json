@@ -3,6 +3,7 @@
   "id": "circuit-zolder",
   "name": "Circuit Zolder",
   "metadata": {
+    "venueType": "real",
     "location": "Heusden-Zolder, Limburg",
     "country": "Belgium",
     "latitude": 50.9904979,

@@ -3,6 +3,7 @@
   "id": "barber-motorsports-park",
   "name": "Barber Motorsports Park",
   "metadata": {
+    "venueType": "real",
     "location": "Leeds, Alabama",
     "country": "USA",
     "latitude": 33.5318079,

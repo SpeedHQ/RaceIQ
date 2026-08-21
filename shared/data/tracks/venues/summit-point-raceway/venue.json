@@ -3,6 +3,7 @@
   "id": "summit-point-raceway",
   "name": "Summit Point Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Summit Point, West Virginia",
     "country": "USA",
     "latitude": 39.2415229,

@@ -3,6 +3,7 @@
   "id": "new-jersey-motorsports-park",
   "name": "New Jersey Motorsports Park",
   "metadata": {
+    "venueType": "real",
     "location": "Millville, New Jersey",
     "country": "USA",
     "latitude": 39.3589862,

@@ -16,16 +16,40 @@ export const TrackIdentityNodeSchema = z.object({
 });
 
 export const TrackVenueMetadataSchema = z.object({
+  venueType: z.enum(["real", "fictional"]),
   location: z.string().trim().min(1),
   country: z.string().trim().min(1),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  timeZone: z.string().trim().min(1),
-  source: z.object({
-    gameId: GameIdSchema,
-    trackOrdinal: z.number().int().nonnegative(),
-  }).strict(),
-}).strict();
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  timeZone: z.string().trim().min(1).optional(),
+  source: z.union([
+    z.object({
+      gameId: GameIdSchema,
+      trackOrdinal: z.number().int().nonnegative(),
+    }).strict(),
+    z.object({
+      name: z.string().trim().min(1),
+      url: z.url(),
+    }).strict(),
+  ]),
+  coordinatesSource: z.object({
+    name: z.string().trim().min(1),
+    url: z.url(),
+  }).strict().optional(),
+}).strict()
+  .refine(
+    (metadata) => (metadata.latitude === undefined) === (metadata.longitude === undefined),
+    { message: "Latitude and longitude must be provided together", path: ["latitude"] },
+  )
+  .refine(
+    (metadata) => !metadata.coordinatesSource || metadata.latitude !== undefined,
+    { message: "Coordinate provenance requires coordinates", path: ["coordinatesSource"] },
+  )
+  .refine(
+    (metadata) => metadata.venueType === "real"
+      || (metadata.latitude === undefined && metadata.longitude === undefined && metadata.timeZone === undefined),
+    { message: "Fictional venues cannot claim physical coordinates or time zones", path: ["venueType"] },
+  );
 export const CURRENT_TRACK_REVISION = "current";
 
 export interface VenueRevisionPath {

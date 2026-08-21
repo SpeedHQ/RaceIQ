@@ -1,5 +1,14 @@
 {
   "version": 1,
   "id": "centripetal-circuit",
-  "name": "Centripetal Circuit"
+  "name": "Centripetal Circuit",
+  "metadata": {
+    "venueType": "fictional",
+    "location": "Parts Unknown",
+    "country": "Parts Unknown",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 143
+    }
+  }
 }

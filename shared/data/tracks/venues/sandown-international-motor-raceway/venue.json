@@ -3,6 +3,7 @@
   "id": "sandown-international-motor-raceway",
   "name": "Sandown International Motor Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Melbourne, Victoria",
     "country": "Australia",
     "latitude": -37.9508,

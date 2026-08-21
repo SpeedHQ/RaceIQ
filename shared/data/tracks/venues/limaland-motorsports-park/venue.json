@@ -3,6 +3,7 @@
   "id": "limaland-motorsports-park",
   "name": "Limaland Motorsports Park",
   "metadata": {
+    "venueType": "real",
     "location": "Lima, Ohio",
     "country": "USA",
     "latitude": 40.759639,

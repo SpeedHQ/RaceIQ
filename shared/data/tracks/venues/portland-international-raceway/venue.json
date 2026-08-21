@@ -3,6 +3,7 @@
   "id": "portland-international-raceway",
   "name": "Portland International Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Portland, Oregon",
     "country": "USA",
     "latitude": 45.595031,

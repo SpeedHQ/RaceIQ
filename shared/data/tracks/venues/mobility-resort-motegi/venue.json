@@ -3,6 +3,7 @@
   "id": "mobility-resort-motegi",
   "name": "Mobility Resort Motegi",
   "metadata": {
+    "venueType": "real",
     "location": "Motegi, Tochigi Prefecture",
     "country": "Japan",
     "latitude": 36.531954,

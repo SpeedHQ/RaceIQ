@@ -3,6 +3,7 @@
   "id": "pocono-raceway",
   "name": "Pocono Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Long Pond, Pennsylvania",
     "country": "USA",
     "latitude": 41.0543442,

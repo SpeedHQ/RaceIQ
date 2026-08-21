@@ -3,6 +3,7 @@
   "id": "usa-international-speedway",
   "name": "USA International Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Lakeland, Florida",
     "country": "USA",
     "latitude": 28.1515,

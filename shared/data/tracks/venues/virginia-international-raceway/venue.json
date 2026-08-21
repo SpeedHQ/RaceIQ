@@ -3,6 +3,7 @@
   "id": "virginia-international-raceway",
   "name": "Virginia International Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Alton, Virginia",
     "country": "USA",
     "latitude": 36.560008,

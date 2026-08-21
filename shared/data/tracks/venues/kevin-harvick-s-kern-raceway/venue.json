@@ -3,6 +3,7 @@
   "id": "kevin-harvick-s-kern-raceway",
   "name": "Kevin Harvick's Kern Raceway",
   "metadata": {
+    "venueType": "real",
     "location": "Bakersfield, CA",
     "country": "USA",
     "latitude": 35.292757,

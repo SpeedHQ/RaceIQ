@@ -3,6 +3,7 @@
   "id": "circuito-de-jerez-angel-nieto",
   "name": "Circuito de Jerez - Ángel Nieto",
   "metadata": {
+    "venueType": "real",
     "location": "Jerez de la Frontera, Andalusia",
     "country": "Spain",
     "latitude": 36.708333,

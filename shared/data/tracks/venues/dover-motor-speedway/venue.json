@@ -3,6 +3,7 @@
   "id": "dover-motor-speedway",
   "name": "Dover Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Dover, Delaware",
     "country": "USA",
     "latitude": 39.1899138,

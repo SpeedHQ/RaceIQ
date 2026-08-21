@@ -3,6 +3,7 @@
   "id": "nurburgring",
   "name": "Nürburgring",
   "metadata": {
+    "venueType": "real",
     "location": "Nürburg, Rhineland-Palatinate",
     "country": "Germany",
     "latitude": 50.3334443,

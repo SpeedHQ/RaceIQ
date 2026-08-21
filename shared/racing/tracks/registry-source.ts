@@ -736,20 +736,6 @@ function canonicalizeConfirmation(confirmation: TrackConfigurationConfirmation |
   };
 }
 
-function canonicalizeVenueMetadata(metadata: TrackVenueMetadata): TrackVenueMetadata {
-  const parsed = TrackVenueMetadataSchema.parse(metadata);
-  return {
-    location: parsed.location,
-    country: parsed.country,
-    latitude: parsed.latitude,
-    longitude: parsed.longitude,
-    timeZone: parsed.timeZone,
-    source: {
-      gameId: parsed.source.gameId,
-      trackOrdinal: parsed.source.trackOrdinal,
-    },
-  };
-}
 
 function canonicalizeTrackRegistrySource(source: TrackRegistrySource): TrackRegistrySource {
   const configurations = source.configurations;
@@ -761,7 +747,7 @@ function canonicalizeTrackRegistrySource(source: TrackRegistrySource): TrackRegi
     .map((venue) => ({
       id: venue.id,
       name: venue.name,
-      ...(venue.metadata ? { metadata: canonicalizeVenueMetadata(venue.metadata) } : {}),
+      ...(venue.metadata ? { metadata: TrackVenueMetadataSchema.parse(venue.metadata) } : {}),
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
 

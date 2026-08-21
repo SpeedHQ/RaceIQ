@@ -1,6 +1,6 @@
 {
   "sourceVersion": 1,
-  "sourceHash": "1543a2c73346f2a5a8448b47794a80282f274d9331410db6d233b6203aa01665",
+  "sourceHash": "b81a73d53ec36dde63a74d5f2e0241c72199257721298265e115420c4fa97146",
   "recordCounts": {
     "venues": 192,
     "layouts": 495,
@@ -18,6 +18,7 @@
       "id": "adelaide-street-circuit",
       "name": "Adelaide Street Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Adelaide",
         "country": "Australia",
         "latitude": -34.930183,
@@ -33,6 +34,7 @@
       "id": "auto-club-speedway",
       "name": "Auto Club Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Fontana, California",
         "country": "USA",
         "latitude": 34.0888203,
@@ -48,6 +50,7 @@
       "id": "autodromo-hermanos-rodriguez",
       "name": "Autodromo Hermanos Rodriguez",
       "metadata": {
+        "venueType": "real",
         "location": "Mexico City",
         "country": "Mexico",
         "latitude": 19.406111,
@@ -63,6 +66,7 @@
       "id": "autodromo-internacional-do-algarve",
       "name": "Autodromo Internacional do Algarve",
       "metadata": {
+        "venueType": "real",
         "location": "Portimão",
         "country": "Portugal",
         "latitude": 37.2322667,
@@ -78,6 +82,7 @@
       "id": "autodromo-internazionale-enzo-e-dino-ferrari",
       "name": "Autodromo Internazionale Enzo e Dino Ferrari",
       "metadata": {
+        "venueType": "real",
         "location": "Imola, Emilia-Romagna",
         "country": "Italy",
         "latitude": 44.3443574,
@@ -93,6 +98,7 @@
       "id": "autodromo-jose-carlos-pace",
       "name": "Autodromo Jose Carlos Pace",
       "metadata": {
+        "venueType": "real",
         "location": "Interlagos, São Paulo",
         "country": "Brazil",
         "latitude": -23.701185,
@@ -108,6 +114,7 @@
       "id": "autodromo-nazionale-monza",
       "name": "Autodromo Nazionale Monza",
       "metadata": {
+        "venueType": "real",
         "location": "Monza, Lombardy",
         "country": "Italy",
         "latitude": 45.621799,
@@ -122,17 +129,48 @@
     {
       "id": "bahrain-international-circuit",
       "name": "Bahrain International Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Sakhir",
+        "country": "Bahrain",
+        "latitude": 26.0311459,
+        "longitude": 50.5143663,
+        "timeZone": "Asia/Bahrain",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 21
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/156351878"
+        }
+      }
     },
     {
       "id": "baku-city-circuit",
       "name": "Baku City Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Baku",
+        "country": "Azerbaijan",
+        "latitude": 40.372926,
+        "longitude": 49.8529715,
+        "timeZone": "Asia/Baku",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 20
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/822375068"
+        }
+      }
     },
     {
       "id": "barber-motorsports-park",
       "name": "Barber Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Leeds, Alabama",
         "country": "USA",
         "latitude": 33.5318079,
@@ -148,6 +186,7 @@
       "id": "bark-river-international-raceway",
       "name": "Bark River International Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Bark River, Michigan",
         "country": "USA",
         "latitude": 45.693396,
@@ -163,6 +202,7 @@
       "id": "brands-hatch",
       "name": "Brands Hatch",
       "metadata": {
+        "venueType": "real",
         "location": "Fawkham, Kent",
         "country": "England",
         "latitude": 51.3581048,
@@ -178,6 +218,7 @@
       "id": "bristol-motor-speedway",
       "name": "Bristol Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Bristol, Tennessee",
         "country": "USA",
         "latitude": 36.515694,
@@ -193,6 +234,7 @@
       "id": "cadwell-park-circuit",
       "name": "Cadwell Park Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Louth, Lincolnshire",
         "country": "England",
         "latitude": 53.310274,
@@ -208,6 +250,7 @@
       "id": "canadian-tire-motorsports-park",
       "name": "Canadian Tire Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Bowmanville, Ontario",
         "country": "Canada",
         "latitude": 44.0541878,
@@ -223,6 +266,7 @@
       "id": "cedar-lake-speedway",
       "name": "Cedar Lake Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "New Richmond, Wisconsin",
         "country": "USA",
         "latitude": 45.190514,
@@ -237,12 +281,21 @@
     {
       "id": "centripetal-circuit",
       "name": "Centripetal Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "fictional",
+        "location": "Parts Unknown",
+        "country": "Parts Unknown",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 143
+        }
+      }
     },
     {
       "id": "charlotte-motor-speedway",
       "name": "Charlotte Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Concord, North Carolina",
         "country": "USA",
         "latitude": 35.3511641,
@@ -258,6 +311,7 @@
       "id": "chicago-street-course",
       "name": "Chicago Street Course",
       "metadata": {
+        "venueType": "real",
         "location": "Chicago, Illinois",
         "country": "USA",
         "latitude": 41.8733468,
@@ -273,6 +327,7 @@
       "id": "chicagoland-speedway",
       "name": "Chicagoland Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Joliet, Illinois",
         "country": "USA",
         "latitude": 41.4749519,
@@ -288,6 +343,7 @@
       "id": "chili-bowl",
       "name": "Chili Bowl",
       "metadata": {
+        "venueType": "real",
         "location": "Tulsa, Oklahoma",
         "country": "USA",
         "latitude": 36.133274,
@@ -303,6 +359,7 @@
       "id": "circuit-de-barcelona-catalunya",
       "name": "Circuit de Barcelona-Catalunya",
       "metadata": {
+        "venueType": "real",
         "location": "Montmeló, Catalonia",
         "country": "Spain",
         "latitude": 41.568749,
@@ -318,6 +375,7 @@
       "id": "circuit-de-la-sarthe",
       "name": "Circuit de la Sarthe",
       "metadata": {
+        "venueType": "real",
         "location": "Le Mans, Pays de la Loire",
         "country": "France",
         "latitude": 47.9560052,
@@ -333,6 +391,7 @@
       "id": "circuit-de-ledenon",
       "name": "Circuit de Lédenon",
       "metadata": {
+        "venueType": "real",
         "location": "Lédenon, Occitanie",
         "country": "France",
         "latitude": 43.92318,
@@ -347,12 +406,28 @@
     {
       "id": "circuit-de-monaco",
       "name": "Circuit de Monaco",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Monte Carlo",
+        "country": "Monaco",
+        "latitude": 43.7333314,
+        "longitude": 7.422466,
+        "timeZone": "Europe/Monaco",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 5
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/1081401615"
+        }
+      }
     },
     {
       "id": "circuit-de-nevers-magny-cours",
       "name": "Circuit de Nevers Magny-Cours",
       "metadata": {
+        "venueType": "real",
         "location": "Magny-Cours, Bourgogne-Franche-Comté",
         "country": "France",
         "latitude": 46.8634579,
@@ -368,6 +443,7 @@
       "id": "circuit-de-spa-francorchamps",
       "name": "Circuit de Spa-Francorchamps",
       "metadata": {
+        "venueType": "real",
         "location": "Francorchamps, Liège",
         "country": "Belgium",
         "latitude": 50.4369118,
@@ -383,6 +459,7 @@
       "id": "circuit-gilles-villeneuve",
       "name": "Circuit Gilles Villeneuve",
       "metadata": {
+        "venueType": "real",
         "location": "Montreal, Quebec",
         "country": "Canada",
         "latitude": 45.5032189,
@@ -398,6 +475,7 @@
       "id": "circuit-of-the-americas",
       "name": "Circuit of the Americas",
       "metadata": {
+        "venueType": "real",
         "location": "Austin, Texas",
         "country": "USA",
         "latitude": 30.1345808,
@@ -412,17 +490,48 @@
     {
       "id": "circuit-paul-ricard",
       "name": "Circuit Paul Ricard",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Le Castellet",
+        "country": "France",
+        "latitude": 43.2524963,
+        "longitude": 5.7943002,
+        "timeZone": "Europe/Paris",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 1
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/242942298"
+        }
+      }
     },
     {
       "id": "circuit-ricardo-tormo",
       "name": "Circuit Ricardo Tormo",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Cheste, Valencia",
+        "country": "Spain",
+        "latitude": 39.4858132,
+        "longitude": -0.6286386,
+        "timeZone": "Europe/Madrid",
+        "source": {
+          "name": "Circuit Ricardo Tormo",
+          "url": "https://www.circuitricardotormo.com/en/contact/"
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/556951684"
+        }
+      }
     },
     {
       "id": "circuit-zandvoort",
       "name": "Circuit Zandvoort",
       "metadata": {
+        "venueType": "real",
         "location": "Zandvoort, North Holland",
         "country": "Netherlands",
         "latitude": 52.3877081,
@@ -438,6 +547,7 @@
       "id": "circuit-zolder",
       "name": "Circuit Zolder",
       "metadata": {
+        "venueType": "real",
         "location": "Heusden-Zolder, Limburg",
         "country": "Belgium",
         "latitude": 50.9904979,
@@ -453,6 +563,7 @@
       "id": "circuito-de-jerez-angel-nieto",
       "name": "Circuito de Jerez - Ángel Nieto",
       "metadata": {
+        "venueType": "real",
         "location": "Jerez de la Frontera, Andalusia",
         "country": "Spain",
         "latitude": 36.708333,
@@ -468,6 +579,7 @@
       "id": "circuito-de-navarra",
       "name": "Circuito de Navarra",
       "metadata": {
+        "venueType": "real",
         "location": "Navarra",
         "country": "Spain",
         "latitude": 42.559206,
@@ -483,6 +595,7 @@
       "id": "concord-speedway",
       "name": "Concord Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Concord, North Carolina",
         "country": "USA",
         "latitude": 35.3089728,
@@ -498,6 +611,7 @@
       "id": "crandon-international-raceway",
       "name": "Crandon International Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Crandon, Wisconsin",
         "country": "USA",
         "latitude": 45.57413,
@@ -513,6 +627,7 @@
       "id": "darlington-raceway",
       "name": "Darlington Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Darlington, South Carolina",
         "country": "USA",
         "latitude": 34.2973206,
@@ -528,6 +643,7 @@
       "id": "daytona-international-speedway",
       "name": "Daytona International Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Daytona Beach, Florida",
         "country": "USA",
         "latitude": 29.185169,
@@ -543,6 +659,7 @@
       "id": "daytona-rallycross-and-dirt-road",
       "name": "Daytona Rallycross and Dirt Road",
       "metadata": {
+        "venueType": "real",
         "location": "Daytona Beach, Florida",
         "country": "USA",
         "latitude": 29.185169,
@@ -558,6 +675,7 @@
       "id": "detroit-grand-prix-at-belle-isle",
       "name": "Detroit Grand Prix at Belle Isle",
       "metadata": {
+        "venueType": "real",
         "location": "Detroit, Michigan",
         "country": "USA",
         "latitude": 42.335007,
@@ -573,6 +691,7 @@
       "id": "donington-park",
       "name": "Donington Park",
       "metadata": {
+        "venueType": "real",
         "location": "Castle Donington, Leicestershire",
         "country": "England",
         "latitude": 52.8305468,
@@ -588,6 +707,7 @@
       "id": "dover-motor-speedway",
       "name": "Dover Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Dover, Delaware",
         "country": "USA",
         "latitude": 39.1899138,
@@ -602,12 +722,21 @@
     {
       "id": "eaglerock-speedway",
       "name": "Eaglerock Speedway",
-      "metadata": null
+      "metadata": {
+        "venueType": "fictional",
+        "location": "Iowa",
+        "country": "USA",
+        "source": {
+          "gameId": "fm-2023",
+          "trackOrdinal": 1663
+        }
+      }
     },
     {
       "id": "echopark-speedway-atlanta",
       "name": "EchoPark Speedway (Atlanta)",
       "metadata": {
+        "venueType": "real",
         "location": "Hampton, Georgia",
         "country": "USA",
         "latitude": 33.3859794,
@@ -623,6 +752,7 @@
       "id": "eldora-speedway",
       "name": "Eldora Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Rossburg, Ohio",
         "country": "USA",
         "latitude": 40.319015,
@@ -638,6 +768,7 @@
       "id": "fairbury-speedway",
       "name": "Fairbury Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Fairbury, Illinois",
         "country": "USA",
         "latitude": 40.740155,
@@ -653,6 +784,7 @@
       "id": "federated-auto-parts-raceway-at-i-55",
       "name": "Federated Auto Parts Raceway at I-55",
       "metadata": {
+        "venueType": "real",
         "location": "Pevely, Missouri",
         "country": "USA",
         "latitude": 38.26962792575186,
@@ -668,6 +800,7 @@
       "id": "firebird-motorsports-park",
       "name": "Firebird Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Chandler, Arizona",
         "country": "USA",
         "latitude": 33.268889,
@@ -683,6 +816,7 @@
       "id": "five-flags-speedway",
       "name": "Five Flags Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Pensacola, Florida",
         "country": "USA",
         "latitude": 30.503841,
@@ -698,6 +832,7 @@
       "id": "fuji-speedway",
       "name": "Fuji Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Oyama, Shizuoka Prefecture",
         "country": "Japan",
         "latitude": 35.3717,
@@ -712,27 +847,67 @@
     {
       "id": "fujimi-kaido",
       "name": "Fujimi Kaido",
-      "metadata": null
+      "metadata": {
+        "venueType": "fictional",
+        "location": "Japan",
+        "country": "Japan",
+        "source": {
+          "gameId": "fm-2023",
+          "trackOrdinal": 83
+        }
+      }
     },
     {
       "id": "grand-oak-raceway",
       "name": "Grand Oak Raceway",
-      "metadata": null
+      "metadata": {
+        "venueType": "fictional",
+        "location": "New Hampshire",
+        "country": "USA",
+        "source": {
+          "gameId": "fm-2023",
+          "trackOrdinal": 1632
+        }
+      }
     },
     {
       "id": "hakone",
       "name": "Hakone",
-      "metadata": null
+      "metadata": {
+        "venueType": "fictional",
+        "location": "Hakone",
+        "country": "Japan",
+        "source": {
+          "gameId": "fm-2023",
+          "trackOrdinal": 1643
+        }
+      }
     },
     {
       "id": "hanoi-street-circuit",
       "name": "Hanoi Street Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Hanoi",
+        "country": "Vietnam",
+        "latitude": 21.0156892,
+        "longitude": 105.7629208,
+        "timeZone": "Asia/Ho_Chi_Minh",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 25
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/560585104"
+        }
+      }
     },
     {
       "id": "hickory-motor-speedway",
       "name": "Hickory Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Hickory, North Carolina",
         "country": "USA",
         "latitude": 35.69582,
@@ -748,6 +923,7 @@
       "id": "hockenheimring",
       "name": "Hockenheimring",
       "metadata": {
+        "venueType": "real",
         "location": "Hockenheim, Baden-Württemberg",
         "country": "Germany",
         "latitude": 49.330028,
@@ -763,6 +939,7 @@
       "id": "homestead-miami-speedway",
       "name": "Homestead-Miami Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Homestead, Florida",
         "country": "USA",
         "latitude": 25.4517775,
@@ -778,6 +955,7 @@
       "id": "hungaroring",
       "name": "Hungaroring",
       "metadata": {
+        "venueType": "real",
         "location": "Mogyoród, Pest",
         "country": "Hungary",
         "latitude": 47.58186,
@@ -793,6 +971,7 @@
       "id": "huset-s-speedway",
       "name": "Huset's Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Brandon, South Dakota",
         "country": "USA",
         "latitude": 43.570801,
@@ -808,6 +987,7 @@
       "id": "indianapolis-motor-speedway",
       "name": "Indianapolis Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Speedway, Indiana",
         "country": "USA",
         "latitude": 39.7953542,
@@ -823,6 +1003,7 @@
       "id": "iowa-speedway",
       "name": "Iowa Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Newton, Iowa",
         "country": "USA",
         "latitude": 41.674667,
@@ -838,11 +1019,9 @@
       "id": "iracing-superspeedway",
       "name": "iRacing Superspeedway",
       "metadata": {
+        "venueType": "fictional",
         "location": "Chelmsford, Massachusetts",
         "country": "USA",
-        "latitude": 42.601541,
-        "longitude": -71.327313,
-        "timeZone": "America/New_York",
         "source": {
           "gameId": "iracing",
           "trackOrdinal": 384
@@ -853,6 +1032,7 @@
       "id": "irwindale-speedway",
       "name": "Irwindale Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Irwindale, California",
         "country": "USA",
         "latitude": 34.1104491,
@@ -867,12 +1047,28 @@
     {
       "id": "jeddah-corniche-circuit",
       "name": "Jeddah Corniche Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Jeddah",
+        "country": "Saudi Arabia",
+        "latitude": 21.6389166,
+        "longitude": 39.1021111,
+        "timeZone": "Asia/Riyadh",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 29
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/1359884763"
+        }
+      }
     },
     {
       "id": "kansas-speedway",
       "name": "Kansas Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Kansas City, Kansas",
         "country": "USA",
         "latitude": 39.1154928,
@@ -888,6 +1084,7 @@
       "id": "kentucky-speedway",
       "name": "Kentucky Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Sparta, Kentucky",
         "country": "USA",
         "latitude": 38.7117309,
@@ -903,6 +1100,7 @@
       "id": "kevin-harvick-s-kern-raceway",
       "name": "Kevin Harvick's Kern Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Bakersfield, CA",
         "country": "USA",
         "latitude": 35.292757,
@@ -918,6 +1116,7 @@
       "id": "knockhill-racing-circuit",
       "name": "Knockhill Racing Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Dunfermline, Fife",
         "country": "Scotland",
         "latitude": 56.131522,
@@ -933,6 +1132,7 @@
       "id": "knoxville-raceway",
       "name": "Knoxville Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Knoxville, Iowa",
         "country": "USA",
         "latitude": 41.3265101,
@@ -948,6 +1148,7 @@
       "id": "kokomo-speedway",
       "name": "Kokomo Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Kokomo, Indiana",
         "country": "USA",
         "latitude": 40.5111901,
@@ -962,12 +1163,28 @@
     {
       "id": "kyalami-grand-prix-circuit",
       "name": "Kyalami Grand Prix Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Midrand",
+        "country": "South Africa",
+        "latitude": -25.9972974,
+        "longitude": 28.0666476,
+        "timeZone": "Africa/Johannesburg",
+        "source": {
+          "gameId": "fm-2023",
+          "trackOrdinal": 1590
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/1359379882"
+        }
+      }
     },
     {
       "id": "la-coliseum-raceway",
       "name": "LA Coliseum Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Los Angeles, California",
         "country": "USA",
         "latitude": 34.014257,
@@ -983,6 +1200,7 @@
       "id": "langley-speedway",
       "name": "Langley Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Hampton, Virginia",
         "country": "USA",
         "latitude": 37.0866696,
@@ -998,6 +1216,7 @@
       "id": "lanier-national-speedway",
       "name": "Lanier National Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Braselton, Georgia",
         "country": "USA",
         "latitude": 34.153424,
@@ -1013,6 +1232,7 @@
       "id": "lankebanen-hell-rx",
       "name": "Lånkebanen (Hell RX)",
       "metadata": {
+        "venueType": "real",
         "location": "Hell, Trøndelag",
         "country": "Norway",
         "latitude": 63.405094,
@@ -1028,6 +1248,7 @@
       "id": "las-vegas-motor-speedway",
       "name": "Las Vegas Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Las Vegas, Nevada",
         "country": "USA",
         "latitude": 36.2722847,
@@ -1042,12 +1263,28 @@
     {
       "id": "las-vegas-street-circuit",
       "name": "Las Vegas Street Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Las Vegas",
+        "country": "USA",
+        "latitude": 36.1089743,
+        "longitude": -115.1622208,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 31
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/1456078470"
+        }
+      }
     },
     {
       "id": "lernerville-speedway",
       "name": "Lernerville Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Sarver, Pennsylvania",
         "country": "USA",
         "latitude": 40.738633,
@@ -1063,6 +1300,7 @@
       "id": "limaland-motorsports-park",
       "name": "Limaland Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Lima, Ohio",
         "country": "USA",
         "latitude": 40.759639,
@@ -1078,6 +1316,7 @@
       "id": "lime-rock-park",
       "name": "Lime Rock Park",
       "metadata": {
+        "venueType": "real",
         "location": "Lakeville, Connecticut",
         "country": "USA",
         "latitude": 41.9282105,
@@ -1093,6 +1332,7 @@
       "id": "lincoln-speedway",
       "name": "Lincoln Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Abbottstown, Pennsylvania",
         "country": "USA",
         "latitude": 39.869954,
@@ -1108,6 +1348,7 @@
       "id": "long-beach-street-circuit",
       "name": "Long Beach Street Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Long Beach, California",
         "country": "USA",
         "latitude": 33.7643144,
@@ -1123,6 +1364,7 @@
       "id": "lucas-oil-indianapolis-raceway-park",
       "name": "Lucas Oil Indianapolis Raceway Park",
       "metadata": {
+        "venueType": "real",
         "location": "Indianapolis, Indiana",
         "country": "USA",
         "latitude": 39.812512,
@@ -1138,6 +1380,7 @@
       "id": "lucas-oil-speedway",
       "name": "Lucas Oil Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Wheatland, Missouri",
         "country": "USA",
         "latitude": 37.9404,
@@ -1152,22 +1395,61 @@
     {
       "id": "lusail-international-circuit",
       "name": "Lusail International Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Lusail",
+        "country": "Qatar",
+        "latitude": 25.4896575,
+        "longitude": 51.4528849,
+        "timeZone": "Asia/Qatar",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 32
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/152483594"
+        }
+      }
     },
     {
       "id": "maple-valley",
       "name": "Maple Valley",
-      "metadata": null
+      "metadata": {
+        "venueType": "fictional",
+        "location": "Vermont",
+        "country": "USA",
+        "source": {
+          "gameId": "fm-2023",
+          "trackOrdinal": 70
+        }
+      }
     },
     {
       "id": "marina-bay-street-circuit",
       "name": "Marina Bay Street Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Singapore",
+        "country": "Singapore",
+        "latitude": 1.2912718,
+        "longitude": 103.8642605,
+        "timeZone": "Asia/Singapore",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 12
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/686335807"
+        }
+      }
     },
     {
       "id": "martinsville-speedway",
       "name": "Martinsville Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Ridgeway, Virginia",
         "country": "USA",
         "latitude": 36.6340671,
@@ -1182,12 +1464,28 @@
     {
       "id": "melbourne-grand-prix-circuit",
       "name": "Melbourne Grand Prix Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Melbourne",
+        "country": "Australia",
+        "latitude": -37.8452062,
+        "longitude": 144.957105,
+        "timeZone": "Australia/Melbourne",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 0
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/relation/2397461"
+        }
+      }
     },
     {
       "id": "miami-international-autodrome",
       "name": "Miami International Autodrome",
       "metadata": {
+        "venueType": "real",
         "location": "Miami, Florida",
         "country": "USA",
         "latitude": 25.959107,
@@ -1203,6 +1501,7 @@
       "id": "michigan-international-speedway",
       "name": "Michigan International Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Brooklyn, Michigan",
         "country": "USA",
         "latitude": 42.0678836,
@@ -1218,6 +1517,7 @@
       "id": "mid-ohio-sports-car-course",
       "name": "Mid-Ohio Sports Car Course",
       "metadata": {
+        "venueType": "real",
         "location": "Lexington, Ohio",
         "country": "USA",
         "latitude": 40.6906568,
@@ -1233,6 +1533,7 @@
       "id": "millbridge-speedway",
       "name": "Millbridge Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Salisbury, NC",
         "country": "USA",
         "latitude": 35.6529521,
@@ -1248,6 +1549,7 @@
       "id": "misano-world-circuit-marco-simoncelli",
       "name": "Misano World Circuit Marco Simoncelli",
       "metadata": {
+        "venueType": "real",
         "location": "Misano Adriatico, Emilia-Romagna",
         "country": "Italy",
         "latitude": 43.962099,
@@ -1263,6 +1565,7 @@
       "id": "mobility-resort-motegi",
       "name": "Mobility Resort Motegi",
       "metadata": {
+        "venueType": "real",
         "location": "Motegi, Tochigi Prefecture",
         "country": "Japan",
         "latitude": 36.531954,
@@ -1278,6 +1581,7 @@
       "id": "motorland-aragon",
       "name": "MotorLand Aragón",
       "metadata": {
+        "venueType": "real",
         "location": "Alcañiz, Aragón",
         "country": "Spain",
         "latitude": 41.078306,
@@ -1293,6 +1597,7 @@
       "id": "motorsport-arena-oschersleben",
       "name": "Motorsport Arena Oschersleben",
       "metadata": {
+        "venueType": "real",
         "location": "Oschersleben, Saxony-Anhalt",
         "country": "Germany",
         "latitude": 52.0266,
@@ -1308,6 +1613,7 @@
       "id": "mount-panorama-circuit",
       "name": "Mount Panorama Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Bathurst, New South Wales",
         "country": "Australia",
         "latitude": -33.4394191,
@@ -1323,6 +1629,7 @@
       "id": "mount-washington-hillclimb",
       "name": "Mount Washington Hillclimb",
       "metadata": {
+        "venueType": "real",
         "location": "Jackson, New Hampshire",
         "country": "USA",
         "latitude": 44.289474,
@@ -1338,6 +1645,7 @@
       "id": "mugello-circuit",
       "name": "Mugello Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Scarperia e San Piero, Tuscany",
         "country": "Italy",
         "latitude": 43.997595,
@@ -1353,6 +1661,7 @@
       "id": "myrtle-beach-speedway",
       "name": "Myrtle Beach Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Myrtle Beach, South Carolina",
         "country": "USA",
         "latitude": 33.7455794,
@@ -1368,6 +1677,7 @@
       "id": "nashville-fairgrounds-speedway",
       "name": "Nashville Fairgrounds Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Nashville, Tennessee",
         "country": "USA",
         "latitude": 36.130862,
@@ -1383,6 +1693,7 @@
       "id": "nashville-superspeedway",
       "name": "Nashville Superspeedway",
       "metadata": {
+        "venueType": "real",
         "location": "Lebanon, Tennessee",
         "country": "USA",
         "latitude": 36.046652,
@@ -1398,6 +1709,7 @@
       "id": "new-hampshire-motor-speedway",
       "name": "New Hampshire Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Loudon, New Hampshire",
         "country": "USA",
         "latitude": 43.36268,
@@ -1413,6 +1725,7 @@
       "id": "new-jersey-motorsports-park",
       "name": "New Jersey Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Millville, New Jersey",
         "country": "USA",
         "latitude": 39.3589862,
@@ -1428,6 +1741,7 @@
       "id": "new-smyrna-speedway",
       "name": "New Smyrna Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "New Smyrna Beach, Florida",
         "country": "USA",
         "latitude": 29.0136715,
@@ -1443,6 +1757,7 @@
       "id": "north-wilkesboro-speedway",
       "name": "North Wilkesboro Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "North Wilkesboro, North Carolina",
         "country": "USA",
         "latitude": 36.143073,
@@ -1458,6 +1773,7 @@
       "id": "nurburgring",
       "name": "Nürburgring",
       "metadata": {
+        "venueType": "real",
         "location": "Nürburg, Rhineland-Palatinate",
         "country": "Germany",
         "latitude": 50.3334443,
@@ -1473,6 +1789,7 @@
       "id": "okayama-international-circuit",
       "name": "Okayama International Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Mimasaka, Okayama Prefecture",
         "country": "Japan",
         "latitude": 34.9125856,
@@ -1488,6 +1805,7 @@
       "id": "oran-park-raceway",
       "name": "Oran Park Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Narellan, New South Wales",
         "country": "Australia",
         "latitude": -34.006111,
@@ -1503,6 +1821,7 @@
       "id": "oswego-speedway",
       "name": "Oswego Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Oswego, NY",
         "country": "USA",
         "latitude": 43.45784,
@@ -1518,6 +1837,7 @@
       "id": "oulton-park",
       "name": "Oulton Park",
       "metadata": {
+        "venueType": "real",
         "location": "Little Budworth, Cheshire",
         "country": "England",
         "latitude": 53.1751389,
@@ -1533,6 +1853,7 @@
       "id": "oxford-plains-speedway",
       "name": "Oxford Plains Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Oxford, Maine",
         "country": "USA",
         "latitude": 44.1540543,
@@ -1548,6 +1869,7 @@
       "id": "phillip-island-circuit",
       "name": "Phillip Island Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Phillip Island, Victoria",
         "country": "Australia",
         "latitude": -38.5011396,
@@ -1563,6 +1885,7 @@
       "id": "phoenix-raceway",
       "name": "Phoenix Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Avondale, Arizona",
         "country": "USA",
         "latitude": 33.37487,
@@ -1578,6 +1901,7 @@
       "id": "pocono-raceway",
       "name": "Pocono Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Long Pond, Pennsylvania",
         "country": "USA",
         "latitude": 41.0543442,
@@ -1593,6 +1917,7 @@
       "id": "port-royal-speedway",
       "name": "Port Royal Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Port Royal, Pennsylvania",
         "country": "USA",
         "latitude": 40.5358,
@@ -1608,6 +1933,7 @@
       "id": "portland-international-raceway",
       "name": "Portland International Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Portland, Oregon",
         "country": "USA",
         "latitude": 45.595031,
@@ -1623,6 +1949,7 @@
       "id": "qualcomm-circuit-naval-base-coronado",
       "name": "Qualcomm Circuit (Naval Base Coronado)",
       "metadata": {
+        "venueType": "real",
         "location": "San Diego, California",
         "country": "USA",
         "latitude": 32.703767,
@@ -1638,6 +1965,7 @@
       "id": "red-bull-ring",
       "name": "Red Bull Ring",
       "metadata": {
+        "venueType": "real",
         "location": "Spielberg, Styria",
         "country": "Austria",
         "latitude": 47.2203417,
@@ -1653,6 +1981,7 @@
       "id": "richmond-raceway",
       "name": "Richmond Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Richmond, Virginia",
         "country": "USA",
         "latitude": 37.592392,
@@ -1668,6 +1997,7 @@
       "id": "road-america",
       "name": "Road America",
       "metadata": {
+        "venueType": "real",
         "location": "Elkhart Lake, Wisconsin",
         "country": "USA",
         "latitude": 43.79751,
@@ -1683,6 +2013,7 @@
       "id": "road-atlanta",
       "name": "Road Atlanta",
       "metadata": {
+        "venueType": "real",
         "location": "Braselton, Georgia",
         "country": "USA",
         "latitude": 34.15219,
@@ -1698,6 +2029,7 @@
       "id": "rockingham-speedway",
       "name": "Rockingham Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Rockingham, North Carolina",
         "country": "USA",
         "latitude": 34.9758768,
@@ -1713,6 +2045,7 @@
       "id": "rudskogen-motorsenter",
       "name": "Rudskogen Motorsenter",
       "metadata": {
+        "venueType": "real",
         "location": "Rakkestad, Østfold",
         "country": "Norway",
         "latitude": 59.3666,
@@ -1728,6 +2061,7 @@
       "id": "sachsenring",
       "name": "Sachsenring",
       "metadata": {
+        "venueType": "real",
         "location": "Oberlungwitz",
         "country": "Germany",
         "latitude": 50.79177,
@@ -1743,6 +2077,7 @@
       "id": "sandown-international-motor-raceway",
       "name": "Sandown International Motor Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Melbourne, Victoria",
         "country": "Australia",
         "latitude": -37.9508,
@@ -1758,6 +2093,7 @@
       "id": "sebring-international-raceway",
       "name": "Sebring International Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Sebring, Florida",
         "country": "USA",
         "latitude": 27.4550124,
@@ -1772,17 +2108,48 @@
     {
       "id": "sepang",
       "name": "Sepang International Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Sepang, Selangor",
+        "country": "Malaysia",
+        "latitude": 2.7602187,
+        "longitude": 101.7368758,
+        "timeZone": "Asia/Kuala_Lumpur",
+        "source": {
+          "name": "Sepang International Circuit",
+          "url": "https://www.sepangcircuit.com/contact-details"
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/144292569"
+        }
+      }
     },
     {
       "id": "shanghai-international-circuit",
       "name": "Shanghai International Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Shanghai",
+        "country": "China",
+        "latitude": 31.3399793,
+        "longitude": 121.2195976,
+        "timeZone": "Asia/Shanghai",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 2
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/156311798"
+        }
+      }
     },
     {
       "id": "shell-v-power-motorsport-park-at-the-bend",
       "name": "Shell V-Power Motorsport Park at The Bend",
       "metadata": {
+        "venueType": "real",
         "location": "Tailem Bend",
         "country": "Australia",
         "latitude": -35.308313,
@@ -1798,6 +2165,7 @@
       "id": "silverstone-racing-circuit",
       "name": "Silverstone Racing Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Towcester, Northamptonshire",
         "country": "England",
         "latitude": 52.0733006,
@@ -1813,6 +2181,7 @@
       "id": "slinger-speedway",
       "name": "Slinger Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Slinger, WI",
         "country": "USA",
         "latitude": 43.340579,
@@ -1828,6 +2197,7 @@
       "id": "snetterton-circuit",
       "name": "Snetterton Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Snetterton, Norfolk",
         "country": "England",
         "latitude": 52.4636482,
@@ -1842,12 +2212,28 @@
     {
       "id": "sochi-autodrom",
       "name": "Sochi Autodrom",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Sochi",
+        "country": "Russia",
+        "latitude": 43.402979,
+        "longitude": 39.9508718,
+        "timeZone": "Europe/Moscow",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 18
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/way/234329382"
+        }
+      }
     },
     {
       "id": "sonoma-raceway",
       "name": "Sonoma Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Sonoma, California",
         "country": "USA",
         "latitude": 38.1616,
@@ -1863,6 +2249,7 @@
       "id": "south-boston-speedway",
       "name": "South Boston Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "South Boston, Virginia",
         "country": "USA",
         "latitude": 36.7092845,
@@ -1878,6 +2265,7 @@
       "id": "southern-national-motorsports-park",
       "name": "Southern National Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Lucama, North Carolina",
         "country": "USA",
         "latitude": 35.6112291,
@@ -1893,6 +2281,7 @@
       "id": "st-petersburg-grand-prix",
       "name": "St. Petersburg Grand Prix",
       "metadata": {
+        "venueType": "real",
         "location": "St. Petersburg, Florida",
         "country": "USA",
         "latitude": 27.765,
@@ -1908,6 +2297,7 @@
       "id": "stafford-motor-speedway",
       "name": "Stafford Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Stafford Springs, Connecticut",
         "country": "USA",
         "latitude": 41.956733,
@@ -1923,6 +2313,7 @@
       "id": "summit-point-raceway",
       "name": "Summit Point Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Summit Point, West Virginia",
         "country": "USA",
         "latitude": 39.2415229,
@@ -1937,12 +2328,21 @@
     {
       "id": "sunset-peninsula",
       "name": "Sunset Peninsula",
-      "metadata": null
+      "metadata": {
+        "venueType": "fictional",
+        "location": "Florida",
+        "country": "USA",
+        "source": {
+          "gameId": "fm-2023",
+          "trackOrdinal": 1624
+        }
+      }
     },
     {
       "id": "suzuka-circuit",
       "name": "Suzuka Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Suzuka, Mie Prefecture",
         "country": "Japan",
         "latitude": 34.8455935,
@@ -1958,6 +2358,7 @@
       "id": "talladega-superspeedway",
       "name": "Talladega Superspeedway",
       "metadata": {
+        "venueType": "real",
         "location": "Talladega, Alabama",
         "country": "USA",
         "latitude": 33.5669742,
@@ -1973,6 +2374,7 @@
       "id": "texas-motor-speedway",
       "name": "Texas Motor Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Fort Worth, Texas",
         "country": "USA",
         "latitude": 33.0373257,
@@ -1988,6 +2390,7 @@
       "id": "the-bullring",
       "name": "The Bullring",
       "metadata": {
+        "venueType": "real",
         "location": "Las Vegas, Nevada",
         "country": "USA",
         "latitude": 36.2632543,
@@ -2003,6 +2406,7 @@
       "id": "the-dirt-track-at-charlotte",
       "name": "The Dirt Track at Charlotte",
       "metadata": {
+        "venueType": "real",
         "location": "Concord, North Carolina",
         "country": "USA",
         "latitude": 35.3580208,
@@ -2018,6 +2422,7 @@
       "id": "the-milwaukee-mile",
       "name": "The Milwaukee Mile",
       "metadata": {
+        "venueType": "real",
         "location": "West Allis, Wisconsin",
         "country": "USA",
         "latitude": 43.0204523,
@@ -2033,6 +2438,7 @@
       "id": "thompson-speedway-motorsports-park",
       "name": "Thompson Speedway Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Thompson, Connecticut",
         "country": "USA",
         "latitude": 41.981931,
@@ -2048,6 +2454,7 @@
       "id": "thruxton-circuit",
       "name": "Thruxton Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Hampshire, England",
         "country": "United Kingdom",
         "latitude": 51.20766,
@@ -2063,6 +2470,7 @@
       "id": "tsukuba-circuit",
       "name": "Tsukuba Circuit",
       "metadata": {
+        "venueType": "real",
         "location": "Shimotsuma, Ibaraki Prefecture",
         "country": "Japan",
         "latitude": 36.1527975,
@@ -2078,6 +2486,7 @@
       "id": "usa-international-speedway",
       "name": "USA International Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Lakeland, Florida",
         "country": "USA",
         "latitude": 28.1515,
@@ -2093,6 +2502,7 @@
       "id": "virginia-international-raceway",
       "name": "Virginia International Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Alton, Virginia",
         "country": "USA",
         "latitude": 36.560008,
@@ -2108,6 +2518,7 @@
       "id": "volusia-speedway-park",
       "name": "Volusia Speedway Park",
       "metadata": {
+        "venueType": "real",
         "location": "De Leon Springs, Florida",
         "country": "USA",
         "latitude": 29.2150215,
@@ -2123,6 +2534,7 @@
       "id": "watkins-glen-international",
       "name": "Watkins Glen International",
       "metadata": {
+        "venueType": "real",
         "location": "Watkins Glen, New York",
         "country": "USA",
         "latitude": 42.3382811,
@@ -2138,6 +2550,7 @@
       "id": "weathertech-raceway-laguna-seca",
       "name": "WeatherTech Raceway Laguna Seca",
       "metadata": {
+        "venueType": "real",
         "location": "Monterey, California",
         "country": "USA",
         "latitude": 36.5842902,
@@ -2153,6 +2566,7 @@
       "id": "weedsport-speedway",
       "name": "Weedsport Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Weedsport, New York",
         "country": "USA",
         "latitude": 43.059556,
@@ -2168,6 +2582,7 @@
       "id": "wild-west-motorsports-park",
       "name": "Wild West Motorsports Park",
       "metadata": {
+        "venueType": "real",
         "location": "Sparks, Nevada",
         "country": "USA",
         "latitude": 39.510394,
@@ -2183,6 +2598,7 @@
       "id": "williams-grove-speedway",
       "name": "Williams Grove Speedway",
       "metadata": {
+        "venueType": "real",
         "location": "Mechanicsburg, Pennsylvania",
         "country": "USA",
         "latitude": 40.155193,
@@ -2198,6 +2614,7 @@
       "id": "willow-springs-international-raceway",
       "name": "Willow Springs International Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Rosamond, California",
         "country": "USA",
         "latitude": 34.87,
@@ -2213,6 +2630,7 @@
       "id": "winton-motor-raceway",
       "name": "Winton Motor Raceway",
       "metadata": {
+        "venueType": "real",
         "location": "Winton, Victoria",
         "country": "Australia",
         "latitude": -36.51993,
@@ -2228,6 +2646,7 @@
       "id": "world-wide-technology-raceway-gateway",
       "name": "World Wide Technology Raceway (Gateway)",
       "metadata": {
+        "venueType": "real",
         "location": "Madison, Illinois",
         "country": "USA",
         "latitude": 38.6507543,
@@ -2242,7 +2661,22 @@
     {
       "id": "yas-marina-circuit",
       "name": "Yas Marina Circuit",
-      "metadata": null
+      "metadata": {
+        "venueType": "real",
+        "location": "Abu Dhabi",
+        "country": "United Arab Emirates",
+        "latitude": 24.471847,
+        "longitude": 54.6058021,
+        "timeZone": "Asia/Dubai",
+        "source": {
+          "gameId": "f1-2025",
+          "trackOrdinal": 14
+        },
+        "coordinatesSource": {
+          "name": "OpenStreetMap contributors",
+          "url": "https://www.openstreetmap.org/relation/6941673"
+        }
+      }
     }
   ],
   "trackIdentities": [

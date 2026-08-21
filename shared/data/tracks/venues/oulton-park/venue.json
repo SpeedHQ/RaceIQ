@@ -3,6 +3,7 @@
   "id": "oulton-park",
   "name": "Oulton Park",
   "metadata": {
+    "venueType": "real",
     "location": "Little Budworth, Cheshire",
     "country": "England",
     "latitude": 53.1751389,

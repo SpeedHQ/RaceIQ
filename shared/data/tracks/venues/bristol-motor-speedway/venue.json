@@ -3,6 +3,7 @@
   "id": "bristol-motor-speedway",
   "name": "Bristol Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Bristol, Tennessee",
     "country": "USA",
     "latitude": 36.515694,

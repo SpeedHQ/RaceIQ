@@ -3,6 +3,7 @@
   "id": "five-flags-speedway",
   "name": "Five Flags Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Pensacola, Florida",
     "country": "USA",
     "latitude": 30.503841,

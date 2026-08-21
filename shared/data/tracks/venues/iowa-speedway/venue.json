@@ -3,6 +3,7 @@
   "id": "iowa-speedway",
   "name": "Iowa Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Newton, Iowa",
     "country": "USA",
     "latitude": 41.674667,

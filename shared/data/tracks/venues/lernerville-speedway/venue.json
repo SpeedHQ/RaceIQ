@@ -3,6 +3,7 @@
   "id": "lernerville-speedway",
   "name": "Lernerville Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Sarver, Pennsylvania",
     "country": "USA",
     "latitude": 40.738633,

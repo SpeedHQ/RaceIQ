@@ -3,6 +3,7 @@
   "id": "adelaide-street-circuit",
   "name": "Adelaide Street Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Adelaide",
     "country": "Australia",
     "latitude": -34.930183,

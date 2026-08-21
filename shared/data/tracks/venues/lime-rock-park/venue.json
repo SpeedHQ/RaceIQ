@@ -3,6 +3,7 @@
   "id": "lime-rock-park",
   "name": "Lime Rock Park",
   "metadata": {
+    "venueType": "real",
     "location": "Lakeville, Connecticut",
     "country": "USA",
     "latitude": 41.9282105,

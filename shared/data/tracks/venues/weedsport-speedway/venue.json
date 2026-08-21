@@ -3,6 +3,7 @@
   "id": "weedsport-speedway",
   "name": "Weedsport Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Weedsport, New York",
     "country": "USA",
     "latitude": 43.059556,

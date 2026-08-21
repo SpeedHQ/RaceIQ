@@ -3,6 +3,7 @@
   "id": "canadian-tire-motorsports-park",
   "name": "Canadian Tire Motorsports Park",
   "metadata": {
+    "venueType": "real",
     "location": "Bowmanville, Ontario",
     "country": "Canada",
     "latitude": 44.0541878,

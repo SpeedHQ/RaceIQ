@@ -3,6 +3,7 @@
   "id": "mount-panorama-circuit",
   "name": "Mount Panorama Circuit",
   "metadata": {
+    "venueType": "real",
     "location": "Bathurst, New South Wales",
     "country": "Australia",
     "latitude": -33.4394191,

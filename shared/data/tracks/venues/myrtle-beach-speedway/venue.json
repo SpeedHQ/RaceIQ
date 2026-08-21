@@ -3,6 +3,7 @@
   "id": "myrtle-beach-speedway",
   "name": "Myrtle Beach Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Myrtle Beach, South Carolina",
     "country": "USA",
     "latitude": 33.7455794,

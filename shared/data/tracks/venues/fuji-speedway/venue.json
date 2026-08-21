@@ -3,6 +3,7 @@
   "id": "fuji-speedway",
   "name": "Fuji Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Oyama, Shizuoka Prefecture",
     "country": "Japan",
     "latitude": 35.3717,

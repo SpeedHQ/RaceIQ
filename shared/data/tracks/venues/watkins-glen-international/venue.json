@@ -3,6 +3,7 @@
   "id": "watkins-glen-international",
   "name": "Watkins Glen International",
   "metadata": {
+    "venueType": "real",
     "location": "Watkins Glen, New York",
     "country": "USA",
     "latitude": 42.3382811,

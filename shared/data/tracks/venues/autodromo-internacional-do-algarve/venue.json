@@ -3,6 +3,7 @@
   "id": "autodromo-internacional-do-algarve",
   "name": "Autodromo Internacional do Algarve",
   "metadata": {
+    "venueType": "real",
     "location": "Portimão",
     "country": "Portugal",
     "latitude": 37.2322667,

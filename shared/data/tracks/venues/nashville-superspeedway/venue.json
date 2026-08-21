@@ -3,6 +3,7 @@
   "id": "nashville-superspeedway",
   "name": "Nashville Superspeedway",
   "metadata": {
+    "venueType": "real",
     "location": "Lebanon, Tennessee",
     "country": "USA",
     "latitude": 36.046652,

@@ -3,6 +3,7 @@
   "id": "hickory-motor-speedway",
   "name": "Hickory Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Hickory, North Carolina",
     "country": "USA",
     "latitude": 35.69582,

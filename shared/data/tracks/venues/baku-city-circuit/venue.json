@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "baku-city-circuit",
-  "name": "Baku City Circuit"
+  "name": "Baku City Circuit",
+  "metadata": {
+    "venueType": "real",
+    "location": "Baku",
+    "country": "Azerbaijan",
+    "latitude": 40.372926,
+    "longitude": 49.8529715,
+    "timeZone": "Asia/Baku",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 20
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/822375068"
+    }
+  }
 }

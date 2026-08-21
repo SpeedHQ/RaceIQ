@@ -3,6 +3,7 @@
   "id": "motorland-aragon",
   "name": "MotorLand Aragón",
   "metadata": {
+    "venueType": "real",
     "location": "Alcañiz, Aragón",
     "country": "Spain",
     "latitude": 41.078306,

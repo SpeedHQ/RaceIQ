@@ -3,6 +3,7 @@
   "id": "rudskogen-motorsenter",
   "name": "Rudskogen Motorsenter",
   "metadata": {
+    "venueType": "real",
     "location": "Rakkestad, Østfold",
     "country": "Norway",
     "latitude": 59.3666,

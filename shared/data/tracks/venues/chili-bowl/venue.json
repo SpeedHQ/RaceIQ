@@ -3,6 +3,7 @@
   "id": "chili-bowl",
   "name": "Chili Bowl",
   "metadata": {
+    "venueType": "real",
     "location": "Tulsa, Oklahoma",
     "country": "USA",
     "latitude": 36.133274,

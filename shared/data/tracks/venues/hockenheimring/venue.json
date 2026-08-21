@@ -3,6 +3,7 @@
   "id": "hockenheimring",
   "name": "Hockenheimring",
   "metadata": {
+    "venueType": "real",
     "location": "Hockenheim, Baden-Württemberg",
     "country": "Germany",
     "latitude": 49.330028,

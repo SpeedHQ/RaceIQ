@@ -3,6 +3,7 @@
   "id": "stafford-motor-speedway",
   "name": "Stafford Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Stafford Springs, Connecticut",
     "country": "USA",
     "latitude": 41.956733,

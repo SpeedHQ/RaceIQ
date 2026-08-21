@@ -3,6 +3,7 @@
   "id": "lucas-oil-speedway",
   "name": "Lucas Oil Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Wheatland, Missouri",
     "country": "USA",
     "latitude": 37.9404,

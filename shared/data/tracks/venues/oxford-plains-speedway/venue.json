@@ -3,6 +3,7 @@
   "id": "oxford-plains-speedway",
   "name": "Oxford Plains Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Oxford, Maine",
     "country": "USA",
     "latitude": 44.1540543,

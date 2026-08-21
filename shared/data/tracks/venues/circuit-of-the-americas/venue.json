@@ -3,6 +3,7 @@
   "id": "circuit-of-the-americas",
   "name": "Circuit of the Americas",
   "metadata": {
+    "venueType": "real",
     "location": "Austin, Texas",
     "country": "USA",
     "latitude": 30.1345808,

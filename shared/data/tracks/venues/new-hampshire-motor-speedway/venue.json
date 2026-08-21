@@ -3,6 +3,7 @@
   "id": "new-hampshire-motor-speedway",
   "name": "New Hampshire Motor Speedway",
   "metadata": {
+    "venueType": "real",
     "location": "Loudon, New Hampshire",
     "country": "USA",
     "latitude": 43.36268,

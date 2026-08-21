@@ -1,5 +1,21 @@
 {
   "version": 1,
   "id": "sochi-autodrom",
-  "name": "Sochi Autodrom"
+  "name": "Sochi Autodrom",
+  "metadata": {
+    "venueType": "real",
+    "location": "Sochi",
+    "country": "Russia",
+    "latitude": 43.402979,
+    "longitude": 39.9508718,
+    "timeZone": "Europe/Moscow",
+    "source": {
+      "gameId": "f1-2025",
+      "trackOrdinal": 18
+    },
+    "coordinatesSource": {
+      "name": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/way/234329382"
+    }
+  }
 }

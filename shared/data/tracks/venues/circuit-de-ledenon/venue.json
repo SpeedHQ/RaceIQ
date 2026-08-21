@@ -3,6 +3,7 @@
   "id": "circuit-de-ledenon",
   "name": "Circuit de Lédenon",
   "metadata": {
+    "venueType": "real",
     "location": "Lédenon, Occitanie",
     "country": "France",
     "latitude": 43.92318,

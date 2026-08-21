@@ -3,6 +3,7 @@
   "id": "misano-world-circuit-marco-simoncelli",
   "name": "Misano World Circuit Marco Simoncelli",
   "metadata": {
+    "venueType": "real",
     "location": "Misano Adriatico, Emilia-Romagna",
     "country": "Italy",
     "latitude": 43.962099,
