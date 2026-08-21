@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuito-de-navarra",
-  "name": "Circuito de Navarra"
+  "name": "Circuito de Navarra",
+  "metadata": {
+    "location": "Navarra",
+    "country": "Spain",
+    "latitude": 42.559206,
+    "longitude": -2.168074,
+    "timeZone": "Europe/Madrid",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 517
+    }
+  }
 }

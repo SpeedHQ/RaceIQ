@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "okayama-international-circuit",
-  "name": "Okayama International Circuit"
+  "name": "Okayama International Circuit",
+  "metadata": {
+    "location": "Mimasaka, Okayama Prefecture",
+    "country": "Japan",
+    "latitude": 34.9125856,
+    "longitude": 134.2160527,
+    "timeZone": "Asia/Tokyo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 167
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "motorland-aragon",
-  "name": "MotorLand Aragón"
+  "name": "MotorLand Aragón",
+  "metadata": {
+    "location": "Alcañiz, Aragón",
+    "country": "Spain",
+    "latitude": 41.078306,
+    "longitude": -0.197806,
+    "timeZone": "Europe/Madrid",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 482
+    }
+  }
 }

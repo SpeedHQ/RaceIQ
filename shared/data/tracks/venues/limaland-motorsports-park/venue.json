@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "limaland-motorsports-park",
-  "name": "Limaland Motorsports Park"
+  "name": "Limaland Motorsports Park",
+  "metadata": {
+    "location": "Lima, Ohio",
+    "country": "USA",
+    "latitude": 40.759639,
+    "longitude": -84.194174,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 303
+    }
+  }
 }

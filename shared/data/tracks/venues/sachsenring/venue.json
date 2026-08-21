@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "sachsenring",
-  "name": "Sachsenring"
+  "name": "Sachsenring",
+  "metadata": {
+    "location": "Oberlungwitz",
+    "country": "Germany",
+    "latitude": 50.79177,
+    "longitude": 12.688051,
+    "timeZone": "Europe/Berlin",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 521
+    }
+  }
 }

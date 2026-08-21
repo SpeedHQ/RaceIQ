@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "cadwell-park-circuit",
-  "name": "Cadwell Park Circuit"
+  "name": "Cadwell Park Circuit",
+  "metadata": {
+    "location": "Louth, Lincolnshire",
+    "country": "England",
+    "latitude": 53.310274,
+    "longitude": -0.059399,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 530
+    }
+  }
 }

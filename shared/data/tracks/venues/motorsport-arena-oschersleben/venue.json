@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "motorsport-arena-oschersleben",
-  "name": "Motorsport Arena Oschersleben"
+  "name": "Motorsport Arena Oschersleben",
+  "metadata": {
+    "location": "Oschersleben, Saxony-Anhalt",
+    "country": "Germany",
+    "latitude": 52.0266,
+    "longitude": 11.2783,
+    "timeZone": "Europe/Berlin",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 456
+    }
+  }
 }

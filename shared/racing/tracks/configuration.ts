@@ -14,6 +14,18 @@ export const TrackIdentityNodeSchema = z.object({
   id: trackIdentityId,
   name: z.string().trim().min(1),
 });
+
+export const TrackVenueMetadataSchema = z.object({
+  location: z.string().trim().min(1),
+  country: z.string().trim().min(1),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  timeZone: z.string().trim().min(1),
+  source: z.object({
+    gameId: GameIdSchema,
+    trackOrdinal: z.number().int().nonnegative(),
+  }).strict(),
+}).strict();
 export const CURRENT_TRACK_REVISION = "current";
 
 export interface VenueRevisionPath {
@@ -82,6 +94,7 @@ export const TrackConfigurationSchema = z.object({
 export type TrackConfiguration = z.infer<typeof TrackConfigurationSchema>;
 export type TrackConfigurationConfirmation = z.infer<typeof TrackConfigurationConfirmationSchema>;
 export type TrackIdentityNode = z.infer<typeof TrackIdentityNodeSchema>;
+export type TrackVenueMetadata = z.infer<typeof TrackVenueMetadataSchema>;
 
 export function trackConfigurationVenueId(configuration: Pick<TrackConfiguration, "venue" | "subVenues">): string {
   return [configuration.venue.id, ...configuration.subVenues.map((node) => node.id)].join("/");

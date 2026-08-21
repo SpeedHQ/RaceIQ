@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "fuji-speedway",
-  "name": "Fuji Speedway"
+  "name": "Fuji Speedway",
+  "metadata": {
+    "location": "Oyama, Shizuoka Prefecture",
+    "country": "Japan",
+    "latitude": 35.3717,
+    "longitude": 138.9267,
+    "timeZone": "Asia/Tokyo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 445
+    }
+  }
 }

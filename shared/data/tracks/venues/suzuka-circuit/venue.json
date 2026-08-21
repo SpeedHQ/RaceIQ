@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "suzuka-circuit",
-  "name": "Suzuka Circuit"
+  "name": "Suzuka Circuit",
+  "metadata": {
+    "location": "Suzuka, Mie Prefecture",
+    "country": "Japan",
+    "latitude": 34.8455935,
+    "longitude": 136.5367582,
+    "timeZone": "Asia/Tokyo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 176
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuito-de-jerez-angel-nieto",
-  "name": "Circuito de Jerez - Ángel Nieto"
+  "name": "Circuito de Jerez - Ángel Nieto",
+  "metadata": {
+    "location": "Jerez de la Frontera, Andalusia",
+    "country": "Spain",
+    "latitude": 36.708333,
+    "longitude": -6.034167,
+    "timeZone": "Europe/Madrid",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 474
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "thompson-speedway-motorsports-park",
-  "name": "Thompson Speedway Motorsports Park"
+  "name": "Thompson Speedway Motorsports Park",
+  "metadata": {
+    "location": "Thompson, Connecticut",
+    "country": "USA",
+    "latitude": 41.981931,
+    "longitude": -71.825473,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 161
+    }
+  }
 }

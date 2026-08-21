@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "millbridge-speedway",
-  "name": "Millbridge Speedway"
+  "name": "Millbridge Speedway",
+  "metadata": {
+    "location": "Salisbury, NC",
+    "country": "USA",
+    "latitude": 35.6529521,
+    "longitude": -80.6078801,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 513
+    }
+  }
 }

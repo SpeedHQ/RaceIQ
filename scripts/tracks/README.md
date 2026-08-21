@@ -1,6 +1,6 @@
 # Track scripts
 
-Track curation and coverage commands. Authoring scripts update canonical venue/revision/layout metadata before regenerating SQLite and report artifacts; guide JSON and root TUMFTM boundary data remain separate outputs. Game-specific extractors stay under game domains.
+Track curation and coverage commands. Authoring scripts update canonical venue/revision/layout metadata before regenerating SQLite and report artifacts; imported legacy boundary data remains a separate game-owned output. Game-specific extractors stay under game domains.
 
 ## Commands
 
@@ -12,7 +12,7 @@ Track curation and coverage commands. Authoring scripts update canonical venue/r
 | `bun run tracks:coverage [--write]` | Render curation ledger; `--verify` records human verification | Layout `metadata.json` verification records and `docs/contributing/track-curation.md` |
 | `bun run scripts/tracks/migrate-variant-corner-names.ts [--write]` | Copy conservative parent-layout corner names to unnamed variants | Matching canonical layout `metadata.json` files, then generated artifacts, with `--write` |
 | `bun run scripts/tracks/snapshot-track-guides.ts` | Capture guide API golden output | JSON on stdout |
-| `bun run scripts/tracks/import-tumftm-boundaries.ts` | Import centerline and width boundaries | `shared/data/tracks/venues/<root-venue>/geometry/tumftm/<facts-slug>-boundaries.json` |
+| `bun run scripts/tracks/import-tumftm-boundaries.ts` | Import centerline and width boundaries | Owning layout `geometry/<gameId>/legacy-boundaries.json` |
 | `bun run scripts/tracks/verify-unknown-track-fix.ts` | Inspect one local AC Evo unknown-track capture | Diagnostic stdout; reads fixed local download path |
 
 ## Input/output boundaries
@@ -20,7 +20,7 @@ Track curation and coverage commands. Authoring scripts update canonical venue/r
 - Canonical input is `venues/<root>/venue.json`, each `revisions/<revision-path>/revision.json`, and each revision's `tracks/<layout>/metadata.json`.
 - Root-only/current layouts keep ID `<root>/<layout>`; historical IDs use `<root>/<revision-path>/<layout>`, including nested revision paths.
 - Authoring commands resolve source paths through shared configuration helpers, mutate metadata, then refresh projection/report. Generation never stamps verification; only human `--verify` does.
-- Runtime reads generated SQLite and excludes source manifests/report/hints. Revision imagery, layout game geometry/guides, and root shared ACC/TUMFTM geometry ship.
+- Runtime reads generated SQLite and excludes source manifests/report/hints. Revision imagery, layout game geometry/guides, game-owned legacy baselines, and root shared ACC geometry ship.
 - Merge generated-artifact conflicts through source manifests, then regenerate registry.
 - Every game-scoped asset operation requires explicit `gameId`.
 - `track-coverage.ts` keeps importable helpers (`parseVerifyTarget`, marker constants, and splice functions) separate from CLI execution.

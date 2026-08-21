@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "chili-bowl",
-  "name": "Chili Bowl"
+  "name": "Chili Bowl",
+  "metadata": {
+    "location": "Tulsa, Oklahoma",
+    "country": "USA",
+    "latitude": 36.133274,
+    "longitude": -95.943721,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 331
+    }
+  }
 }

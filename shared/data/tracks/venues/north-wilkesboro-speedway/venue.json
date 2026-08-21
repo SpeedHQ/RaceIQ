@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "north-wilkesboro-speedway",
-  "name": "North Wilkesboro Speedway"
+  "name": "North Wilkesboro Speedway",
+  "metadata": {
+    "location": "North Wilkesboro, North Carolina",
+    "country": "USA",
+    "latitude": 36.143073,
+    "longitude": -81.072278,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 562
+    }
+  }
 }

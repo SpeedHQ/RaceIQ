@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "detroit-grand-prix-at-belle-isle",
-  "name": "Detroit Grand Prix at Belle Isle"
+  "name": "Detroit Grand Prix at Belle Isle",
+  "metadata": {
+    "location": "Detroit, Michigan",
+    "country": "USA",
+    "latitude": 42.335007,
+    "longitude": -83.001598,
+    "timeZone": "America/Detroit",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 319
+    }
+  }
 }

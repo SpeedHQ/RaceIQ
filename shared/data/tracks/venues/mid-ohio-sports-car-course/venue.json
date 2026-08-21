@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "mid-ohio-sports-car-course",
-  "name": "Mid-Ohio Sports Car Course"
+  "name": "Mid-Ohio Sports Car Course",
+  "metadata": {
+    "location": "Lexington, Ohio",
+    "country": "USA",
+    "latitude": 40.6906568,
+    "longitude": -82.6397807,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 157
+    }
+  }
 }

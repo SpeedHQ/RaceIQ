@@ -9,4 +9,3 @@ export interface TrackBoundary {
   pitLane: Point[] | null;
 }
 
-export type TrackSource = "tumftm" | "osm" | "recorded";

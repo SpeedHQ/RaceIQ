@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "knockhill-racing-circuit",
-  "name": "Knockhill Racing Circuit"
+  "name": "Knockhill Racing Circuit",
+  "metadata": {
+    "location": "Dunfermline, Fife",
+    "country": "Scotland",
+    "latitude": 56.131522,
+    "longitude": -3.509043,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 436
+    }
+  }
 }

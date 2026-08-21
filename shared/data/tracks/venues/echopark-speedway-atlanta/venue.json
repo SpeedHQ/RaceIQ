@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "echopark-speedway-atlanta",
-  "name": "EchoPark Speedway (Atlanta)"
+  "name": "EchoPark Speedway (Atlanta)",
+  "metadata": {
+    "location": "Hampton, Georgia",
+    "country": "USA",
+    "latitude": 33.3859794,
+    "longitude": -84.3184714,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 447
+    }
+  }
 }

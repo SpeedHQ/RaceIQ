@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "road-atlanta",
-  "name": "Road Atlanta"
+  "name": "Road Atlanta",
+  "metadata": {
+    "location": "Braselton, Georgia",
+    "country": "USA",
+    "latitude": 34.15219,
+    "longitude": -83.81511,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 128
+    }
+  }
 }

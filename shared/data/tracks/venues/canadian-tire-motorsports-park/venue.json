@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "canadian-tire-motorsports-park",
-  "name": "Canadian Tire Motorsports Park"
+  "name": "Canadian Tire Motorsports Park",
+  "metadata": {
+    "location": "Bowmanville, Ontario",
+    "country": "Canada",
+    "latitude": 44.0541878,
+    "longitude": -78.677559,
+    "timeZone": "America/Toronto",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 144
+    }
+  }
 }

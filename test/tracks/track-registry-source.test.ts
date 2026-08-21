@@ -86,7 +86,18 @@ function baseSource(): TrackRegistrySource {
     configurations: {
       version: TRACK_REGISTRY_SOURCE_VERSION,
       venues: [
-        { id: "alpha", name: "Alpha" },
+        {
+          id: "alpha",
+          name: "Alpha",
+          metadata: {
+            location: "Test City, Test Region",
+            country: "Testland",
+            latitude: 12.5,
+            longitude: -45.25,
+            timeZone: "Etc/UTC",
+            source: { gameId: "iracing", trackOrdinal: 1 },
+          },
+        },
         { id: "alpha/2010", name: "2010" },
         { id: "alpha/historical", name: "Historical" },
         { id: "alpha/historical/2011", name: "2011" },
@@ -192,6 +203,8 @@ describe("track registry venue metadata source", () => {
         "alpha/historical",
         "alpha/historical/2011",
       ]);
+      expect(projection.venueNodes[0]?.metadata ?? null).toEqual(source.configurations.venues[0]?.metadata ?? null);
+      expect(projection.venueNodes.slice(1).every((venue) => venue.metadata === null)).toBe(true);
       expect(projection.layouts.map((layout) => layout.canonical_id)).toEqual([
         "alpha/2010/legacy",
         "alpha/historical/2011/nested",
@@ -199,6 +212,12 @@ describe("track registry venue metadata source", () => {
       ]);
       expect(readTrackRegistryProjection(locations.databasePath).corners[0]!.name).toBe("Juncão");
     });
+  });
+
+  test("rejects venue metadata on historical revision nodes", () => {
+    const source = baseSource();
+    source.configurations.venues[1]!.metadata = source.configurations.venues[0]!.metadata;
+    expect(() => renderTrackRegistrySource(source)).toThrow(/metadata belongs on root venue alpha/);
   });
 
   test("canonicalizes file bytes and rejects legacy or noncanonical metadata shards", () => {

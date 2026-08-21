@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "michigan-international-speedway",
-  "name": "Michigan International Speedway"
+  "name": "Michigan International Speedway",
+  "metadata": {
+    "location": "Brooklyn, Michigan",
+    "country": "USA",
+    "latitude": 42.0678836,
+    "longitude": -84.2470556,
+    "timeZone": "America/Detroit",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 276
+    }
+  }
 }

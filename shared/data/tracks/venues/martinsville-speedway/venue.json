@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "martinsville-speedway",
-  "name": "Martinsville Speedway"
+  "name": "Martinsville Speedway",
+  "metadata": {
+    "location": "Ridgeway, Virginia",
+    "country": "USA",
+    "latitude": 36.6340671,
+    "longitude": -79.8538533,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 33
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "lanier-national-speedway",
-  "name": "Lanier National Speedway"
+  "name": "Lanier National Speedway",
+  "metadata": {
+    "location": "Braselton, Georgia",
+    "country": "USA",
+    "latitude": 34.153424,
+    "longitude": -83.8149922,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 288
+    }
+  }
 }

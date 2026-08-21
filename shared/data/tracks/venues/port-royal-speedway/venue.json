@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "port-royal-speedway",
-  "name": "Port Royal Speedway"
+  "name": "Port Royal Speedway",
+  "metadata": {
+    "location": "Port Royal, Pennsylvania",
+    "country": "USA",
+    "latitude": 40.5358,
+    "longitude": -77.3895,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 446
+    }
+  }
 }

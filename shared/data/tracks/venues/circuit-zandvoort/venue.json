@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-zandvoort",
-  "name": "Circuit Zandvoort"
+  "name": "Circuit Zandvoort",
+  "metadata": {
+    "location": "Zandvoort, North Holland",
+    "country": "Netherlands",
+    "latitude": 52.3877081,
+    "longitude": 4.5420188,
+    "timeZone": "Europe/Amsterdam",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 488
+    }
+  }
 }

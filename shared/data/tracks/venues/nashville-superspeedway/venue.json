@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "nashville-superspeedway",
-  "name": "Nashville Superspeedway"
+  "name": "Nashville Superspeedway",
+  "metadata": {
+    "location": "Lebanon, Tennessee",
+    "country": "USA",
+    "latitude": 36.046652,
+    "longitude": -86.412149,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 400
+    }
+  }
 }

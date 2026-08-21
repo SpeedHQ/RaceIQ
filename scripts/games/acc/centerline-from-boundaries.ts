@@ -20,12 +20,7 @@
  *   --all-pending  also report shift stats for not-yet-adopted tracks
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import {
-  bundledGeometryPath,
-  bundledSharedGeometryPath,
-  findTrackAssetIdentities,
-  isSharedAccGeometryAsset,
-} from "../../../shared/racing/tracks/storage/assets";
+import { bundledGeometryPath, bundledSharedAccGeometryPath, findTrackAssetIdentities, isSharedAccGeometryAsset } from "../../../shared/racing/tracks/storage/assets";
 import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 
 type Point = { x: number; z: number };
@@ -48,14 +43,7 @@ function toCsv(points: Point[]): string {
 }
 
 /** Tracks whose curated name list aligns against the true centre (cost < 1). */
-const ADOPTED = [
-  "catalunya",
-  "imola",
-  "mount-panorama",
-  "spa",
-  "spielberg",
-  "watkins-glen",
-];
+const ADOPTED = ["catalunya", "imola", "mount-panorama", "spa", "spielberg", "watkins-glen"];
 
 function main(): void {
   const args = process.argv.slice(2);
@@ -63,11 +51,7 @@ function main(): void {
   const allPending = args.includes("--all-pending");
   const only = args.filter((a) => !a.startsWith("--"));
 
-  const allSlugs = [...new Set(
-    [...getAccTracks().values()]
-      .map((track) => track.commonTrackName)
-      .filter((slug): slug is string => Boolean(slug)),
-  )].sort();
+  const allSlugs = [...new Set([...getAccTracks().values()].map((track) => track.commonTrackName).filter((slug): slug is string => Boolean(slug)))].sort();
 
   const target = only.length > 0 ? only : allPending ? allSlugs : ADOPTED;
 
@@ -78,15 +62,9 @@ function main(): void {
       continue;
     }
     const shared = isSharedAccGeometryAsset(identity);
-    const boundariesPath = shared
-      ? bundledSharedGeometryPath(identity, "acc", slug, "boundaries")
-      : bundledGeometryPath(identity, "boundaries");
-    const centerlinePath = shared
-      ? bundledSharedGeometryPath(identity, "acc", slug, "centerline")
-      : bundledGeometryPath(identity, "centerline");
-    const racelinePath = shared
-      ? bundledSharedGeometryPath(identity, "acc", slug, "raceline")
-      : bundledGeometryPath(identity, "raceline");
+    const boundariesPath = shared ? bundledSharedAccGeometryPath(identity, slug, "boundaries") : bundledGeometryPath(identity, "boundaries");
+    const centerlinePath = shared ? bundledSharedAccGeometryPath(identity, slug, "centerline") : bundledGeometryPath(identity, "centerline");
+    const racelinePath = shared ? bundledSharedAccGeometryPath(identity, slug, "raceline") : bundledGeometryPath(identity, "raceline");
     if (!boundariesPath || !centerlinePath || !racelinePath || !existsSync(boundariesPath)) {
       console.error(`[${slug}] bundled ACC geometry missing — skipped`);
       continue;
@@ -116,9 +94,7 @@ function main(): void {
       z: (l.z + rightEdge[i].z) / 2,
     }));
 
-    const shifts = centre
-      .map((c, i) => Math.hypot(c.x - raceline[i].x, c.z - raceline[i].z))
-      .sort((a, b) => a - b);
+    const shifts = centre.map((c, i) => Math.hypot(c.x - raceline[i].x, c.z - raceline[i].z)).sort((a, b) => a - b);
     const median = shifts[Math.floor(shifts.length / 2)];
     const max = shifts[shifts.length - 1];
 

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "oulton-park",
-  "name": "Oulton Park"
+  "name": "Oulton Park",
+  "metadata": {
+    "location": "Little Budworth, Cheshire",
+    "country": "England",
+    "latitude": 53.1751389,
+    "longitude": -2.62258,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 187
+    }
+  }
 }

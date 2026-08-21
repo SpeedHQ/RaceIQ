@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "phillip-island-circuit",
-  "name": "Phillip Island Circuit"
+  "name": "Phillip Island Circuit",
+  "metadata": {
+    "location": "Phillip Island, Victoria",
+    "country": "Australia",
+    "latitude": -38.5011396,
+    "longitude": 145.2355528,
+    "timeZone": "Australia/Melbourne",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 152
+    }
+  }
 }

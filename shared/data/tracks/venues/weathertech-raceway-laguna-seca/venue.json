@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "weathertech-raceway-laguna-seca",
-  "name": "WeatherTech Raceway Laguna Seca"
+  "name": "WeatherTech Raceway Laguna Seca",
+  "metadata": {
+    "location": "Monterey, California",
+    "country": "USA",
+    "latitude": 36.5842902,
+    "longitude": -121.7556574,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 586
+    }
+  }
 }

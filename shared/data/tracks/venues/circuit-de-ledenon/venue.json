@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-de-ledenon",
-  "name": "Circuit de Lédenon"
+  "name": "Circuit de Lédenon",
+  "metadata": {
+    "location": "Lédenon, Occitanie",
+    "country": "France",
+    "latitude": 43.92318,
+    "longitude": 4.504173,
+    "timeZone": "Europe/Paris",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 489
+    }
+  }
 }

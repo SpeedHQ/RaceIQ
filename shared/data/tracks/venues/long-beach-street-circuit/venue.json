@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "long-beach-street-circuit",
-  "name": "Long Beach Street Circuit"
+  "name": "Long Beach Street Circuit",
+  "metadata": {
+    "location": "Long Beach, California",
+    "country": "USA",
+    "latitude": 33.7643144,
+    "longitude": -118.1917598,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 179
+    }
+  }
 }

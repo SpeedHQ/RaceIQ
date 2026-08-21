@@ -1,6 +1,6 @@
 /**
- * Track calibration: aligns external track outlines (TUMFTM/OSM coordinates)
- * with source coordinate space using Procrustes alignment.
+ * Track calibration: aligns legacy baseline geometry with a game's coordinate
+ * space using Procrustes alignment.
  *
  * When a player drives a lap, we collect source positions and shape-match
  * against the known outline to compute a transform (scale + rotation + translation).
@@ -20,7 +20,7 @@ export interface Transform {
 
 interface CalibrationState {
   transform: Transform | null;
-  sourcePoints: Point[];     // collected during driving
+  sourcePoints: Point[]; // collected during driving
   lastLap: number;
   collecting: boolean;
 }
@@ -28,7 +28,7 @@ interface CalibrationState {
 // One calibration per track — persists for the server lifetime.
 // Re-calibrates each time the player completes a full lap.
 const calibrations = new Map<number, CalibrationState>();
-// Cache for static transforms (TUMFTM center-line → recorded source outline)
+// Cache for static transforms (legacy baseline center-line → recorded source outline)
 const staticTransforms = new Map<number, Transform>();
 // Tracks which ordinals have been curb-refined to avoid re-running
 const curbRefined = new Set<number>();
@@ -107,8 +107,12 @@ function buildAlignmentTransform(sourcePoints: Point[], outline: Point[]): Trans
  * Compute centroid of a set of points.
  */
 function centroid(points: Point[]): Point {
-  let sx = 0, sz = 0;
-  for (const p of points) { sx += p.x; sz += p.z; }
+  let sx = 0,
+    sz = 0;
+  for (const p of points) {
+    sx += p.x;
+    sz += p.z;
+  }
   return { x: sx / points.length, z: sz / points.length };
 }
 
@@ -137,8 +141,10 @@ function procrustes(source: Point[], target: Point[]): Transform {
 
   // Center values inline: avoids allocating two point arrays for every fit.
   // Each accumulator retains the same point order as the expanded formulation.
-  let num = 0, den = 0;
-  let srcNorm = 0, tgtNorm = 0;
+  let num = 0,
+    den = 0;
+  let srcNorm = 0,
+    tgtNorm = 0;
   for (let i = 0; i < n; i++) {
     const srcX = source[i].x - cSrc.x;
     const srcZ = source[i].z - cSrc.z;
@@ -175,7 +181,7 @@ function applyTransform(p: Point, t: Transform): Point {
 
 /**
  * Invert a Procrustes transform (outline space → source space).
- * Used to project boundary/pit lane data from TUMFTM coords into source coords.
+ * Used to project legacy boundary and pit-lane data into source coordinates.
  */
 function invertTransform(t: Transform): Transform {
   const invScale = 1 / t.scale;
@@ -226,15 +232,12 @@ function alignmentErrorAtOffset(
   transform: Transform,
   sampleCount: number,
   fractionOffset: number,
-  sampleLimit: number
+  sampleLimit: number,
 ): number {
   let error = 0;
   const limit = Math.min(sampleCount, sampleLimit);
   for (let i = 0; i < limit; i++) {
-    const mapped = applyTransform(
-      interpolateAtFrac(source, sourceArc, i / sampleCount),
-      transform
-    );
+    const mapped = applyTransform(interpolateAtFrac(source, sourceArc, i / sampleCount), transform);
     const targetPoint = interpolateAtFrac(target, targetArc, i / sampleCount + fractionOffset);
     const dx = mapped.x - targetPoint.x;
     const dz = mapped.z - targetPoint.z;
@@ -246,12 +249,7 @@ function alignmentErrorAtOffset(
 /**
  * Feed a telemetry position. Collects points and auto-calibrates after a lap.
  */
-export function feedCalibrationPosition(
-  trackOrdinal: number,
-  sourcePos: Point,
-  lapNumber: number,
-  outline: Point[]
-): void {
+export function feedCalibrationPosition(trackOrdinal: number, sourcePos: Point, lapNumber: number, outline: Point[]): void {
   let state = calibrations.get(trackOrdinal);
   if (!state) {
     state = { transform: null, sourcePoints: [], lastLap: lapNumber, collecting: true };
@@ -284,22 +282,15 @@ function calibrate(trackOrdinal: number, outline: Point[]): void {
   state.transform = transform;
   state.collecting = false;
 
-  console.log(
-    `[Calibration] Track ${trackOrdinal} calibrated: scale=${transform.scale.toFixed(3)} rot=${(transform.rotation * 180 / Math.PI).toFixed(1)}°`
-  );
+  console.log(`[Calibration] Track ${trackOrdinal} calibrated: scale=${transform.scale.toFixed(3)} rot=${((transform.rotation * 180) / Math.PI).toFixed(1)}°`);
 }
-
 
 /**
  * Calibrate from an array of source positions (e.g. from a stored lap).
  * Applies the same spatial downsampling and Procrustes alignment as live calibration.
  * Returns true if calibration succeeded.
  */
-export function calibrateFromPositions(
-  trackOrdinal: number,
-  positions: Point[],
-  outline: Point[]
-): boolean {
+export function calibrateFromPositions(trackOrdinal: number, positions: Point[], outline: Point[]): boolean {
   const filtered = collectSpatiallyDistinct(positions, MIN_POINT_SEPARATION_SQ);
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
 
@@ -317,11 +308,10 @@ export function calibrateFromPositions(
   state.collecting = false;
 
   console.log(
-    `[Calibration] Track ${trackOrdinal} calibrated from stored lap: scale=${transform.scale.toFixed(3)} rot=${(transform.rotation * 180 / Math.PI).toFixed(1)}° (${filtered.length} points)`
+    `[Calibration] Track ${trackOrdinal} calibrated from stored lap: scale=${transform.scale.toFixed(3)} rot=${((transform.rotation * 180) / Math.PI).toFixed(1)}° (${filtered.length} points)`,
   );
   return true;
 }
-
 
 /**
  * Get calibration state for API.
@@ -340,22 +330,16 @@ export function getCalibrationStatus(trackOrdinal: number): {
 }
 
 /**
- * Transform an array of points from outline/TUMFTM space to source space.
+ * Transform an array of points from legacy baseline space to source space.
  * Uses live calibration if available, otherwise falls back to static alignment
  * computed from known point sets.
  * Returns null if no transform is available.
  */
-export function transformToSourceSpace(
-  trackOrdinal: number,
-  points: Point[]
-): Point[] | null {
+export function transformToSourceSpace(trackOrdinal: number, points: Point[]): Point[] | null {
   const liveTransform = calibrations.get(trackOrdinal)?.transform;
-  const transform = liveTransform
-    ? invertTransform(liveTransform)
-    : staticTransforms.get(trackOrdinal);
+  const transform = liveTransform ? invertTransform(liveTransform) : staticTransforms.get(trackOrdinal);
   return transform ? points.map((point) => applyTransform(point, transform)) : null;
 }
-
 
 /**
  * Compute cumulative arc length for a closed polygon, normalized to [0, 1].
@@ -380,10 +364,12 @@ function interpolateAtFrac(pts: Point[], arcLens: number[], frac: number): Point
   // Wrap fraction to [0, 1)
   const f = ((frac % 1) + 1) % 1;
   // Binary search for the segment
-  let lo = 0, hi = arcLens.length - 1;
+  let lo = 0,
+    hi = arcLens.length - 1;
   while (lo < hi - 1) {
     const mid = (lo + hi) >> 1;
-    if (arcLens[mid] <= f) lo = mid; else hi = mid;
+    if (arcLens[mid] <= f) lo = mid;
+    else hi = mid;
   }
   const segLen = arcLens[hi] - arcLens[lo];
   const t = segLen > 0 ? (f - arcLens[lo]) / segLen : 0;
@@ -394,25 +380,21 @@ function interpolateAtFrac(pts: Point[], arcLens: number[], frac: number): Point
 }
 
 /**
- * Compute and cache a static transform from TUMFTM coords to source coords
+ * Compute and cache a static transform from legacy baseline to source coordinates
  * using arc-length correspondence. Both outlines trace the same closed track,
  * so we match points by their normalized distance around the loop. We also
  * search for the best rotational offset (where on the loop each outline starts).
  */
-export function computeStaticAlignment(
-  trackOrdinal: number,
-  tumftmOutline: Point[],
-  sourceOutline: Point[]
-): void {
+export function computeStaticAlignment(trackOrdinal: number, legacyOutline: Point[], sourceOutline: Point[]): void {
   if (staticTransforms.has(trackOrdinal)) return; // already computed
-  if (tumftmOutline.length < 20 || sourceOutline.length < 20) return;
+  if (legacyOutline.length < 20 || sourceOutline.length < 20) return;
 
-  const srcArc = normalizedArcLengths(tumftmOutline);
+  const srcArc = normalizedArcLengths(legacyOutline);
   const tgtArc = normalizedArcLengths(sourceOutline);
 
-  // Sample N evenly spaced points from the source (TUMFTM)
-  const N = Math.min(tumftmOutline.length, STATIC_ALIGNMENT_SAMPLES);
-  const srcSampled = sampleByArc(tumftmOutline, srcArc, N);
+  // Sample N evenly spaced points from the legacy baseline.
+  const N = Math.min(legacyOutline.length, STATIC_ALIGNMENT_SAMPLES);
+  const srcSampled = sampleByArc(legacyOutline, srcArc, N);
 
   // Try different rotational offsets to find the best start-point alignment.
   // Test fixed rotational offsets and pick the one with lowest error.
@@ -435,7 +417,7 @@ export function computeStaticAlignment(
     staticTransforms.set(trackOrdinal, bestTransform);
     const rmse = Math.sqrt(bestError / N);
     console.log(
-      `[Calibration] Static alignment for track ${trackOrdinal}: scale=${bestTransform.scale.toFixed(3)} rot=${(bestTransform.rotation * 180 / Math.PI).toFixed(1)}° RMSE=${rmse.toFixed(1)}m`
+      `[Calibration] Static alignment for track ${trackOrdinal}: scale=${bestTransform.scale.toFixed(3)} rot=${((bestTransform.rotation * 180) / Math.PI).toFixed(1)}° RMSE=${rmse.toFixed(1)}m`,
     );
   }
 }
@@ -443,33 +425,33 @@ export function computeStaticAlignment(
 /**
  * Refine the static alignment using curb data as boundary anchor points.
  * Curb positions are ground-truth source-space locations of track edges.
- * We match them to the nearest TUMFTM boundary points and re-run Procrustes
+ * We match them to the nearest legacy boundary points and re-run Procrustes
  * with both center-line and boundary correspondences for a more accurate fit.
  */
 export function refineAlignmentWithCurbs(
   trackOrdinal: number,
-  tumftmOutline: Point[],
+  legacyOutline: Point[],
   sourceOutline: Point[],
-  tumftmBoundaries: { leftEdge: Point[]; rightEdge: Point[] },
-  curbSegments: { points: Point[]; side: "left" | "right" | "both" }[]
+  legacyBoundaries: { leftEdge: Point[]; rightEdge: Point[] },
+  curbSegments: { points: Point[]; side: "left" | "right" | "both" }[],
 ): void {
-  if (tumftmOutline.length < 20 || sourceOutline.length < 20) return;
+  if (legacyOutline.length < 20 || sourceOutline.length < 20) return;
   if (curbSegments.length === 0) return;
   if (curbRefined.has(trackOrdinal)) return; // already refined
 
   // Step 1: Get existing static alignment as starting point
   let baseline = staticTransforms.get(trackOrdinal);
   if (!baseline) {
-    computeStaticAlignment(trackOrdinal, tumftmOutline, sourceOutline);
+    computeStaticAlignment(trackOrdinal, legacyOutline, sourceOutline);
     baseline = staticTransforms.get(trackOrdinal);
   }
   if (!baseline) return;
 
-  // Step 2: Collect curb positions in source space and find corresponding TUMFTM boundary points
-  // Use inverse baseline to map source curb positions to approximate TUMFTM space,
-  // then find closest boundary point for each
+  // Step 2: Collect curb positions in source space and find corresponding legacy boundary points.
+  // Use the inverse baseline to map source curb positions to approximate legacy
+  // space, then find the closest boundary point for each.
   const inv = invertTransform(baseline);
-  const srcPoints: Point[] = []; // TUMFTM boundary points
+  const srcPoints: Point[] = []; // Legacy boundary points
   const tgtPoints: Point[] = []; // Source curb positions
 
   for (const seg of curbSegments) {
@@ -478,22 +460,16 @@ export function refineAlignmentWithCurbs(
     for (let i = 0; i < seg.points.length; i += step) {
       const sourcePt = seg.points[i];
 
-      // Map source curb position back to approximate TUMFTM space
-      const approxTumftm = applyTransform(sourcePt, inv);
+      // Map the source curb position back into approximate legacy space.
+      const approxLegacy = applyTransform(sourcePt, inv);
 
       // Match against whichever boundary edge is closer (don't rely on side field)
-      const nearestIdxLeft = closestPointIdx(tumftmBoundaries.leftEdge, approxTumftm);
-      const nearestIdxRight = closestPointIdx(tumftmBoundaries.rightEdge, approxTumftm);
-      const distLeft = Math.sqrt(squaredDistance(
-        tumftmBoundaries.leftEdge[nearestIdxLeft],
-        approxTumftm
-      ));
-      const distRight = Math.sqrt(squaredDistance(
-        tumftmBoundaries.rightEdge[nearestIdxRight],
-        approxTumftm
-      ));
+      const nearestIdxLeft = closestPointIdx(legacyBoundaries.leftEdge, approxLegacy);
+      const nearestIdxRight = closestPointIdx(legacyBoundaries.rightEdge, approxLegacy);
+      const distLeft = Math.sqrt(squaredDistance(legacyBoundaries.leftEdge[nearestIdxLeft], approxLegacy));
+      const distRight = Math.sqrt(squaredDistance(legacyBoundaries.rightEdge[nearestIdxRight], approxLegacy));
       const useLeft = distLeft <= distRight;
-      const boundary = useLeft ? tumftmBoundaries.leftEdge : tumftmBoundaries.rightEdge;
+      const boundary = useLeft ? legacyBoundaries.leftEdge : legacyBoundaries.rightEdge;
       const nearestIdx = useLeft ? nearestIdxLeft : nearestIdxRight;
       const nearestDist = useLeft ? distLeft : distRight;
 
@@ -511,27 +487,18 @@ export function refineAlignmentWithCurbs(
   }
 
   // Step 3: Combine center-line correspondences with curb anchor correspondences
-  const srcArc = normalizedArcLengths(tumftmOutline);
+  const srcArc = normalizedArcLengths(legacyOutline);
   const tgtArc = normalizedArcLengths(sourceOutline);
 
   // Use existing alignment's offset to get the right start-point matching
-  const N = Math.min(tumftmOutline.length, CURB_ALIGNMENT_SAMPLES);
+  const N = Math.min(legacyOutline.length, CURB_ALIGNMENT_SAMPLES);
 
   // Find the offset producing the lowest error with the current transform.
   let bestOffset = 0;
   let bestOffsetError = Infinity;
   for (let oi = 0; oi < CURB_ALIGNMENT_OFFSET_STEPS; oi++) {
     const offset = oi / CURB_ALIGNMENT_OFFSET_STEPS;
-    const error = alignmentErrorAtOffset(
-      tumftmOutline,
-      srcArc,
-      sourceOutline,
-      tgtArc,
-      baseline,
-      N,
-      offset,
-      CURB_OFFSET_CHECK_SAMPLES
-    );
+    const error = alignmentErrorAtOffset(legacyOutline, srcArc, sourceOutline, tgtArc, baseline, N, offset, CURB_OFFSET_CHECK_SAMPLES);
     if (error < bestOffsetError) {
       bestOffsetError = error;
       bestOffset = offset;
@@ -539,7 +506,7 @@ export function refineAlignmentWithCurbs(
   }
 
   // Sample center-line correspondences.
-  const centerSrc = sampleByArc(tumftmOutline, srcArc, N);
+  const centerSrc = sampleByArc(legacyOutline, srcArc, N);
   const centerTgt = sampleByArc(sourceOutline, tgtArc, N, bestOffset);
   const combinedSrc = centerSrc.slice();
   const combinedTgt = centerTgt.slice();
@@ -553,20 +520,16 @@ export function refineAlignmentWithCurbs(
   // Step 4: Run refined Procrustes
   const refinedTransform = procrustes(combinedSrc, combinedTgt);
 
-  const rmse = Math.sqrt(
-    alignmentErrorFromSamples(centerSrc, centerTgt, refinedTransform) / N
-  );
+  const rmse = Math.sqrt(alignmentErrorFromSamples(centerSrc, centerTgt, refinedTransform) / N);
 
   const oldTransform = staticTransforms.get(trackOrdinal);
-  const oldRmse = oldTransform
-    ? Math.sqrt(alignmentErrorFromSamples(centerSrc, centerTgt, oldTransform) / N)
-    : Infinity;
+  const oldRmse = oldTransform ? Math.sqrt(alignmentErrorFromSamples(centerSrc, centerTgt, oldTransform) / N) : Infinity;
 
   console.log(
     `[Calibration] Curb-refined alignment for track ${trackOrdinal}: ` +
-    `${srcPoints.length} curb anchors, ` +
-    `RMSE ${oldRmse.toFixed(1)}m → ${rmse.toFixed(1)}m, ` +
-    `scale=${refinedTransform.scale.toFixed(4)} rot=${(refinedTransform.rotation * 180 / Math.PI).toFixed(2)}°`
+      `${srcPoints.length} curb anchors, ` +
+      `RMSE ${oldRmse.toFixed(1)}m → ${rmse.toFixed(1)}m, ` +
+      `scale=${refinedTransform.scale.toFixed(4)} rot=${((refinedTransform.rotation * 180) / Math.PI).toFixed(2)}°`,
   );
 
   // Always adopt curb-refined since it accounts for lateral offset
@@ -581,4 +544,3 @@ export function clearCurbRefinement(trackOrdinal: number): void {
   curbRefined.delete(trackOrdinal);
   staticTransforms.delete(trackOrdinal);
 }
-

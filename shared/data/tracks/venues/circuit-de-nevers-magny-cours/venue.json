@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-de-nevers-magny-cours",
-  "name": "Circuit de Nevers Magny-Cours"
+  "name": "Circuit de Nevers Magny-Cours",
+  "metadata": {
+    "location": "Magny-Cours, Bourgogne-Franche-Comté",
+    "country": "France",
+    "latitude": 46.8634579,
+    "longitude": 3.163344,
+    "timeZone": "Europe/Paris",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 463
+    }
+  }
 }

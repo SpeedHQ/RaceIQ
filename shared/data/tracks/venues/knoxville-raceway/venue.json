@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "knoxville-raceway",
-  "name": "Knoxville Raceway"
+  "name": "Knoxville Raceway",
+  "metadata": {
+    "location": "Knoxville, Iowa",
+    "country": "USA",
+    "latitude": 41.3265101,
+    "longitude": -93.1140141,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 305
+    }
+  }
 }

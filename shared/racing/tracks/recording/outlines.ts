@@ -2,8 +2,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { computedAverageFileName, loadBundledPointCsv } from "../resolve-name";
 import { filterOutlierPoints } from "../geometry/points";
-import { getBundledOutlineByOrdinal, hasBundledOutlineByOrdinal } from "../geometry/outlines";
-import { loadSharedOutline, loadSharedOutlineByOrdinal } from "../geometry/shared";
+import { loadLegacyOutlineByOrdinal } from "../geometry/legacy";
 import type { Point } from "../geometry/types";
 import { ttlCache } from "../storage/cache";
 import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } from "../storage/files";
@@ -13,7 +12,9 @@ const recordedOutlines = ttlCache<Point[]>();
 const recordedLapCounts = new Map<string, number>();
 const recordedOrdinals = new Set<string>();
 
-function gk(gameId: string, ordinal: number): string { return `${gameId}:${ordinal}`; }
+function gk(gameId: string, ordinal: number): string {
+  return `${gameId}:${ordinal}`;
+}
 
 let _recordedScanned = false;
 // Scan which recorded files exist across user data + bundled dirs
@@ -32,7 +33,9 @@ export function scanRecordedFiles(): void {
     }
   }
 }
-function ensureRecordedScanned() { if (!_recordedScanned) scanRecordedFiles(); }
+function ensureRecordedScanned() {
+  if (!_recordedScanned) scanRecordedFiles();
+}
 
 /** Check if game-extracted centerline exists in canonical bundled geometry. */
 function hasExtractedOutline(ordinal: number, gameId: string): boolean {
@@ -59,14 +62,13 @@ function loadRecordedOutline(ordinal: number, gameId: string): Point[] | null {
       return data;
     }
     return null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /** Load only a telemetry-generated outline, without bundled/shared fallbacks. */
-export function getRecordedOutlineByOrdinal(
-  ordinal: number,
-  gameId: string,
-): Point[] | null {
+export function getRecordedOutlineByOrdinal(ordinal: number, gameId: string): Point[] | null {
   validateGameId(gameId);
   return loadRecordedOutline(ordinal, gameId);
 }
@@ -146,9 +148,15 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
     const sampled = traces.map((t) => downsample(t, target));
     outline = [];
     for (let i = 0; i < target; i++) {
-      let sx = 0, sz = 0, n = 0;
+      let sx = 0,
+        sz = 0,
+        n = 0;
       for (const s of sampled) {
-        if (i < s.length) { sx += s[i].x; sz += s[i].z; n++; }
+        if (i < s.length) {
+          sx += s[i].x;
+          sz += s[i].z;
+          n++;
+        }
       }
       outline.push({ x: sx / n, z: sz / n });
     }
@@ -162,8 +170,12 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   const positions = startLinePositions.get(key);
   if (positions && positions.length > 0) {
     // Average all collected start-line positions
-    let sx = 0, sz = 0;
-    for (const p of positions) { sx += p.x; sz += p.z; }
+    let sx = 0,
+      sz = 0;
+    for (const p of positions) {
+      sx += p.x;
+      sz += p.z;
+    }
     const avgStart = { x: sx / positions.length, z: sz / positions.length };
 
     // Find nearest outline point to averaged start position
@@ -200,18 +212,12 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   }
 }
 
-
 /**
- * Get centerline for a track. Priority: bundled game data → computed average → TUMFTM.
- * sharedName is a registry facts slug for callers resolving cross-game tracks.
+ * Get centerline for a track. Priority: bundled game data → computed average → legacy baseline.
  */
-export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, sharedName?: string): Point[] | null {
+export function getTrackOutlineByOrdinal(ordinal: number, gameId: string): Point[] | null {
   validateGameId(gameId);
-  return loadBundledPointCsv(ordinal, gameId, "centerline") ??
-    loadRecordedOutline(ordinal, gameId) ??
-    loadSharedOutlineByOrdinal(ordinal, gameId) ??
-    (sharedName ? loadSharedOutline(sharedName) : null) ??
-    (gameId === "fm-2023" ? getBundledOutlineByOrdinal(ordinal) : null);
+  return loadBundledPointCsv(ordinal, gameId, "centerline") ?? loadRecordedOutline(ordinal, gameId) ?? loadLegacyOutlineByOrdinal(ordinal, gameId);
 }
 
 /**
@@ -230,8 +236,8 @@ export function getTrackRacelineByOrdinal(ordinal: number, gameId: string): Poin
  * Total track length in metres, derived by summing consecutive point distances
  * along the outline. Returns null when no outline is available (never guess a length).
  */
-export function getTrackLengthMeters(ordinal: number, gameId: string, sharedName?: string): number | null {
-  const outline = getTrackOutlineByOrdinal(ordinal, gameId, sharedName);
+export function getTrackLengthMeters(ordinal: number, gameId: string): number | null {
+  const outline = getTrackOutlineByOrdinal(ordinal, gameId);
   if (!outline || outline.length < 2) return null;
   let length = 0;
   for (let i = 1; i < outline.length; i++) {
@@ -251,9 +257,8 @@ export function hasRecordedOutline(ordinal: number, gameId: string): boolean {
 
 export function hasTrackOutline(ordinal: number, gameId: string): boolean {
   validateGameId(gameId);
-  return hasRecordedOutline(ordinal, gameId) || hasBundledOutlineByOrdinal(ordinal);
+  return getTrackOutlineByOrdinal(ordinal, gameId) !== null;
 }
-
 
 /**
  * Get the averaged start-line Yaw (radians) for a track. Returns null if not yet recorded.
@@ -263,8 +268,12 @@ export function getStartYaw(ordinal: number, gameId: string): number | null {
   const yaws = startLineYaws.get(gk(gameId, ordinal));
   if (!yaws || yaws.length === 0) return null;
   // Average yaw using circular mean (handles wrapping around ±π)
-  let sinSum = 0, cosSum = 0;
-  for (const y of yaws) { sinSum += Math.sin(y); cosSum += Math.cos(y); }
+  let sinSum = 0,
+    cosSum = 0;
+  for (const y of yaws) {
+    sinSum += Math.sin(y);
+    cosSum += Math.cos(y);
+  }
   return Math.atan2(sinSum / yaws.length, cosSum / yaws.length);
 }
 
@@ -285,7 +294,9 @@ export function deleteRecordedOutline(ordinal: number, gameId: string): boolean 
   const caName = computedAverageFileName(gameId, ordinal);
   const filePath = resolve(userGameDir(gameId), `${caName}.csv`);
   if (existsSync(filePath)) {
-    try { unlinkSync(filePath); } catch {}
+    try {
+      unlinkSync(filePath);
+    } catch {}
   }
   if (had) console.log(`[Tracks] Deleted computed average for track ${ordinal}`);
   return had;

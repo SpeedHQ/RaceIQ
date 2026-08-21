@@ -5,7 +5,7 @@ import { getLapSummariesByTrack, getLapById } from "../../db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "../../db/track-queries";
 import { getTrackOutlineByOrdinal, getRecordedOutlineByOrdinal, recordLapTrace } from "../../../shared/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
-import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
+import { loadLegacyOutlineByOrdinal } from "../../../shared/racing/tracks/geometry/legacy";
 import { applyAlignment, computeAlignment } from "../../../shared/racing/tracks/geometry/points";
 import { getIRacingOvalDirection, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
@@ -70,7 +70,7 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
   if (gameId === "iracing") {
     const official = await getIRacingSvgTrackMap(ordinal);
     if (sharedName) {
-      const shared = loadSharedOutline(sharedName);
+      const shared = loadLegacyOutlineByOrdinal(ordinal, "iracing");
       const labelledSegments = loadLabelledSegments(sharedName, "iracing");
       if (shared && labelledSegments.length > 0) {
         const alignment = official ? computeAlignment(official.points, shared) : null;
@@ -109,7 +109,7 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
       };
     }
   } else {
-    const outline = getTrackOutlineByOrdinal(ordinal, gameId, sharedName);
+    const outline = getTrackOutlineByOrdinal(ordinal, gameId);
     if (outline) {
       return {
         points: outline,
@@ -169,10 +169,7 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
  * Curated geometry wins; compatible canonical peers are the only fallback.
  * Automatic detection is an explicit authoring action, never a runtime read.
  */
-export async function resolveTrackSegments(
-  ordinal: number,
-  gameId: string | undefined,
-): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "canonical" | "none" }> {
+export async function resolveTrackSegments(ordinal: number, gameId: string | undefined): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "canonical" | "none" }> {
   const slug = getSharedTrackName(ordinal, gameId);
   const registrySegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
   if (registrySegments.length > 0) {
@@ -192,10 +189,7 @@ export async function resolveTrackSegments(
 }
 
 /** Generate an editable preview from outline assets without persisting it. */
-export async function generateTrackSegments(
-  ordinal: number,
-  gameId: string,
-): Promise<{ segments: NamedSegment[]; totalDist: number; source: "auto" | "none" }> {
+export async function generateTrackSegments(ordinal: number, gameId: string): Promise<{ segments: NamedSegment[]; totalDist: number; source: "auto" | "none" }> {
   const resolved = await resolveTrackOutline(ordinal, gameId);
   const outline = resolved?.points ?? null;
   if (!outline || outline.length < 20) {

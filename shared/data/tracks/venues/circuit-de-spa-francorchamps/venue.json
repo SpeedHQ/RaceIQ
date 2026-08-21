@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-de-spa-francorchamps",
-  "name": "Circuit de Spa-Francorchamps"
+  "name": "Circuit de Spa-Francorchamps",
+  "metadata": {
+    "location": "Francorchamps, Liège",
+    "country": "Belgium",
+    "latitude": 50.4369118,
+    "longitude": 5.969856,
+    "timeZone": "Europe/Brussels",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 526
+    }
+  }
 }

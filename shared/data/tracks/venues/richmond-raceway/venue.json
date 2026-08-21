@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "richmond-raceway",
-  "name": "Richmond Raceway"
+  "name": "Richmond Raceway",
+  "metadata": {
+    "location": "Richmond, Virginia",
+    "country": "USA",
+    "latitude": 37.592392,
+    "longitude": -77.421653,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 561
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "portland-international-raceway",
-  "name": "Portland International Raceway"
+  "name": "Portland International Raceway",
+  "metadata": {
+    "location": "Portland, Oregon",
+    "country": "USA",
+    "latitude": 45.595031,
+    "longitude": -122.694497,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 537
+    }
+  }
 }

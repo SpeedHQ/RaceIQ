@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "mount-washington-hillclimb",
-  "name": "Mount Washington Hillclimb"
+  "name": "Mount Washington Hillclimb",
+  "metadata": {
+    "location": "Jackson, New Hampshire",
+    "country": "USA",
+    "latitude": 44.289474,
+    "longitude": -71.225102,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 399
+    }
+  }
 }

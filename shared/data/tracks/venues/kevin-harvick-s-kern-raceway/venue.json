@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "kevin-harvick-s-kern-raceway",
-  "name": "Kevin Harvick's Kern Raceway"
+  "name": "Kevin Harvick's Kern Raceway",
+  "metadata": {
+    "location": "Bakersfield, CA",
+    "country": "USA",
+    "latitude": 35.292757,
+    "longitude": -119.257161,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 497
+    }
+  }
 }

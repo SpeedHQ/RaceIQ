@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "darlington-raceway",
-  "name": "Darlington Raceway"
+  "name": "Darlington Raceway",
+  "metadata": {
+    "location": "Darlington, South Carolina",
+    "country": "USA",
+    "latitude": 34.2973206,
+    "longitude": -79.9073456,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 115
+    }
+  }
 }

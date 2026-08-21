@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "south-boston-speedway",
-  "name": "South Boston Speedway"
+  "name": "South Boston Speedway",
+  "metadata": {
+    "location": "South Boston, Virginia",
+    "country": "USA",
+    "latitude": 36.7092845,
+    "longitude": -78.8712013,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 14
+    }
+  }
 }

@@ -8,7 +8,7 @@ import { getIRacingSharedTrackName } from "./catalogs/iracing";
 import { GameIdSchema, type GameId } from "../../games/ids";
 import {
   bundledGeometryPath,
-  bundledSharedGeometryPath,
+  bundledSharedAccGeometryPath,
   getTrackAssetIdentity,
   sharedAccGeometrySlug,
   usesAccGeometryFallback,
@@ -54,13 +54,15 @@ function configuredTrackName(ordinal: number, gameId: string | undefined): strin
   const parsedGameId = GameIdSchema.safeParse(gameId);
   if (!parsedGameId.success) return null;
   const database = getTrackRegistry();
-  const row = database.query(`
+  const row = database
+    .query(`
     SELECT l.venue_path AS venuePath, l.name AS layoutName,
            gt.confirmed_at AS confirmedAt, gt.confirmed_by AS confirmedBy
       FROM game_tracks gt
       JOIN layouts l ON l.canonical_id = gt.layout_id
      WHERE gt.game_id = ? AND gt.track_ordinal = ?
-  `).get(parsedGameId.data, ordinal) as ConfiguredNameRow | null;
+  `)
+    .get(parsedGameId.data, ordinal) as ConfiguredNameRow | null;
   if (!row?.confirmedAt || !row.confirmedBy) return null;
   const paths = row.venuePath.split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"));
   const names = paths.map((path) => {
@@ -70,7 +72,6 @@ function configuredTrackName(ordinal: number, gameId: string | undefined): strin
   });
   return [...names, row.layoutName].join(" — ");
 }
-
 
 /** Resolve confirmed canonical identity first, then registered game catalog. */
 export function resolveTrackName(ordinal: number, gameId?: string): string {
@@ -98,41 +99,32 @@ export function computedAverageFileName(gameId: string, ordinal: number): string
   return name ? `${name}-computed-average` : `${ordinal}-computed-average`;
 }
 
-
 const bundledPointCache = new Map<string, TrackPoint[] | null>();
-
 
 function exactAccGeometryPath(identity: TrackAssetIdentity, kind: GeometryAssetKind): string {
   return bundledGeometryPath({ ...identity, gameId: "acc" as GameId }, kind);
 }
 
-function bundledPointContent(
-  identity: TrackAssetIdentity,
-  suffix: "centerline" | "raceline",
-): string | null {
+function bundledPointContent(identity: TrackAssetIdentity, suffix: "centerline" | "raceline"): string | null {
   const exact = readDataFile(bundledGeometryPath(identity, suffix));
   if (exact) return exact;
 
   const accSlug = sharedAccGeometrySlug(identity);
   if (accSlug) {
-    const shared = bundledSharedGeometryPath(identity, "acc", accSlug, suffix);
+    const shared = bundledSharedAccGeometryPath(identity, accSlug, suffix);
     return shared ? readDataFile(shared) : null;
   }
   const fallbackSlug = identity.factsSlug;
   if (fallbackSlug && usesAccGeometryFallback(identity, fallbackSlug)) {
     const accExact = readDataFile(exactAccGeometryPath(identity, suffix));
     if (accExact) return accExact;
-    const shared = bundledSharedGeometryPath(identity, "acc", fallbackSlug, suffix);
+    const shared = bundledSharedAccGeometryPath(identity, fallbackSlug, suffix);
     return shared ? readDataFile(shared) : null;
   }
   return null;
 }
 
-export function loadBundledPointCsv(
-  ordinal: number,
-  gameId: string,
-  suffix: "centerline" | "raceline",
-): TrackPoint[] | null {
+export function loadBundledPointCsv(ordinal: number, gameId: string, suffix: "centerline" | "raceline"): TrackPoint[] | null {
   const key = `${suffix}:${gameId}:${ordinal}`;
   const cached = bundledPointCache.get(key);
   if (cached !== undefined) return cached;

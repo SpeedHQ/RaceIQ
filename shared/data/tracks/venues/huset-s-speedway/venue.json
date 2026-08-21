@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "huset-s-speedway",
-  "name": "Huset's Speedway"
+  "name": "Huset's Speedway",
+  "metadata": {
+    "location": "Brandon, South Dakota",
+    "country": "USA",
+    "latitude": 43.570801,
+    "longitude": -96.583907,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 531
+    }
+  }
 }

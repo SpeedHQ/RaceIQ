@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "williams-grove-speedway",
-  "name": "Williams Grove Speedway"
+  "name": "Williams Grove Speedway",
+  "metadata": {
+    "location": "Mechanicsburg, Pennsylvania",
+    "country": "USA",
+    "latitude": 40.155193,
+    "longitude": -77.035617,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 274
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "oxford-plains-speedway",
-  "name": "Oxford Plains Speedway"
+  "name": "Oxford Plains Speedway",
+  "metadata": {
+    "location": "Oxford, Maine",
+    "country": "USA",
+    "latitude": 44.1540543,
+    "longitude": -70.4865637,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 12
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "miami-international-autodrome",
-  "name": "Miami International Autodrome"
+  "name": "Miami International Autodrome",
+  "metadata": {
+    "location": "Miami, Florida",
+    "country": "USA",
+    "latitude": 25.959107,
+    "longitude": -80.23741,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 539
+    }
+  }
 }

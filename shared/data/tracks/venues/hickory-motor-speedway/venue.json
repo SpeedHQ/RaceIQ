@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "hickory-motor-speedway",
-  "name": "Hickory Motor Speedway"
+  "name": "Hickory Motor Speedway",
+  "metadata": {
+    "location": "Hickory, North Carolina",
+    "country": "USA",
+    "latitude": 35.69582,
+    "longitude": -81.26916,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 414
+    }
+  }
 }

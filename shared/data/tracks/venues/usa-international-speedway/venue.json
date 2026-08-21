@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "usa-international-speedway",
-  "name": "USA International Speedway"
+  "name": "USA International Speedway",
+  "metadata": {
+    "location": "Lakeland, Florida",
+    "country": "USA",
+    "latitude": 28.1515,
+    "longitude": -81.892694,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 275
+    }
+  }
 }

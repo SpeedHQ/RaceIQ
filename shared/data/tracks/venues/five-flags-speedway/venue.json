@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "five-flags-speedway",
-  "name": "Five Flags Speedway"
+  "name": "Five Flags Speedway",
+  "metadata": {
+    "location": "Pensacola, Florida",
+    "country": "USA",
+    "latitude": 30.503841,
+    "longitude": -87.310641,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 248
+    }
+  }
 }

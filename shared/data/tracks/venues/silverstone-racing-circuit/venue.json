@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "silverstone-racing-circuit",
-  "name": "Silverstone Racing Circuit"
+  "name": "Silverstone Racing Circuit",
+  "metadata": {
+    "location": "Towcester, Northamptonshire",
+    "country": "England",
+    "latitude": 52.0733006,
+    "longitude": -1.0168574,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 343
+    }
+  }
 }

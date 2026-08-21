@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "watkins-glen-international",
-  "name": "Watkins Glen International"
+  "name": "Watkins Glen International",
+  "metadata": {
+    "location": "Watkins Glen, New York",
+    "country": "USA",
+    "latitude": 42.3382811,
+    "longitude": -76.9285517,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 435
+    }
+  }
 }

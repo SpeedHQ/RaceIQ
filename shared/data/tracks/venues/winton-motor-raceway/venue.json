@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "winton-motor-raceway",
-  "name": "Winton Motor Raceway"
+  "name": "Winton Motor Raceway",
+  "metadata": {
+    "location": "Winton, Victoria",
+    "country": "Australia",
+    "latitude": -36.51993,
+    "longitude": 146.08764,
+    "timeZone": "Australia/Melbourne",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 582
+    }
+  }
 }

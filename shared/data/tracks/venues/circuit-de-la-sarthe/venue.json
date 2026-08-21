@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-de-la-sarthe",
-  "name": "Circuit de la Sarthe"
+  "name": "Circuit de la Sarthe",
+  "metadata": {
+    "location": "Le Mans, Pays de la Loire",
+    "country": "France",
+    "latitude": 47.9560052,
+    "longitude": 0.2056765,
+    "timeZone": "Europe/Paris",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 269
+    }
+  }
 }

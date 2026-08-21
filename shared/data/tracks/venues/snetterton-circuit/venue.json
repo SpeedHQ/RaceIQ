@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "snetterton-circuit",
-  "name": "Snetterton Circuit"
+  "name": "Snetterton Circuit",
+  "metadata": {
+    "location": "Snetterton, Norfolk",
+    "country": "England",
+    "latitude": 52.4636482,
+    "longitude": 0.943612,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 299
+    }
+  }
 }

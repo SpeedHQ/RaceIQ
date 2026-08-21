@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "the-milwaukee-mile",
-  "name": "The Milwaukee Mile"
+  "name": "The Milwaukee Mile",
+  "metadata": {
+    "location": "West Allis, Wisconsin",
+    "country": "USA",
+    "latitude": 43.0204523,
+    "longitude": -88.0150972,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 94
+    }
+  }
 }

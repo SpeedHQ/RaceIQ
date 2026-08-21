@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "dover-motor-speedway",
-  "name": "Dover Motor Speedway"
+  "name": "Dover Motor Speedway",
+  "metadata": {
+    "location": "Dover, Delaware",
+    "country": "USA",
+    "latitude": 39.1899138,
+    "longitude": -75.5328525,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 162
+    }
+  }
 }

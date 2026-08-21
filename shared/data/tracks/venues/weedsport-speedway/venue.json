@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "weedsport-speedway",
-  "name": "Weedsport Speedway"
+  "name": "Weedsport Speedway",
+  "metadata": {
+    "location": "Weedsport, New York",
+    "country": "USA",
+    "latitude": 43.059556,
+    "longitude": -76.546906,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 373
+    }
+  }
 }

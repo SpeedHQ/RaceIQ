@@ -90,8 +90,12 @@ export function saveTrackConfiguration(configuration: TrackConfiguration): Track
       pathParts.push(node.id);
       const venue = { id: pathParts.join("/"), name: node.name };
       const venueIndex = draft.configurations.venues.findIndex((entry) => entry.id === venue.id);
-      if (venueIndex >= 0) draft.configurations.venues[venueIndex] = venue;
-      else draft.configurations.venues.push(venue);
+      if (venueIndex >= 0) {
+        draft.configurations.venues[venueIndex] = {
+          ...draft.configurations.venues[venueIndex],
+          ...venue,
+        };
+      } else draft.configurations.venues.push(venue);
     }
 
     const canonicalId = trackConfigurationCanonicalId(parsed);

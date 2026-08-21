@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "eldora-speedway",
-  "name": "Eldora Speedway"
+  "name": "Eldora Speedway",
+  "metadata": {
+    "location": "Rossburg, Ohio",
+    "country": "USA",
+    "latitude": 40.319015,
+    "longitude": -84.6363383,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 273
+    }
+  }
 }

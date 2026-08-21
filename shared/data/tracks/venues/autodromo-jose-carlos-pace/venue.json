@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "autodromo-jose-carlos-pace",
-  "name": "Autodromo Jose Carlos Pace"
+  "name": "Autodromo Jose Carlos Pace",
+  "metadata": {
+    "location": "Interlagos, São Paulo",
+    "country": "Brazil",
+    "latitude": -23.701185,
+    "longitude": -46.7001484,
+    "timeZone": "America/Sao_Paulo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 213
+    }
+  }
 }

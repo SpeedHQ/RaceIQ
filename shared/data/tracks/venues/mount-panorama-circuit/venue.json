@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "mount-panorama-circuit",
-  "name": "Mount Panorama Circuit"
+  "name": "Mount Panorama Circuit",
+  "metadata": {
+    "location": "Bathurst, New South Wales",
+    "country": "Australia",
+    "latitude": -33.4394191,
+    "longitude": 149.5557112,
+    "timeZone": "Australia/Sydney",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 219
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "texas-motor-speedway",
-  "name": "Texas Motor Speedway"
+  "name": "Texas Motor Speedway",
+  "metadata": {
+    "location": "Fort Worth, Texas",
+    "country": "USA",
+    "latitude": 33.0373257,
+    "longitude": -97.2843123,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 364
+    }
+  }
 }

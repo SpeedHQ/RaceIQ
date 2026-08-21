@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "new-hampshire-motor-speedway",
-  "name": "New Hampshire Motor Speedway"
+  "name": "New Hampshire Motor Speedway",
+  "metadata": {
+    "location": "Loudon, New Hampshire",
+    "country": "USA",
+    "latitude": 43.36268,
+    "longitude": -71.462767,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 222
+    }
+  }
 }

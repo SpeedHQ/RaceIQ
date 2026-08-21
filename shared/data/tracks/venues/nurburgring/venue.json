@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "nurburgring",
-  "name": "Nürburgring"
+  "name": "Nürburgring",
+  "metadata": {
+    "location": "Nürburg, Rhineland-Palatinate",
+    "country": "Germany",
+    "latitude": 50.3334443,
+    "longitude": 6.9392429,
+    "timeZone": "Europe/Berlin",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 264
+    }
+  }
 }

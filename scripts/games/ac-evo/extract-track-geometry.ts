@@ -18,17 +18,11 @@ import { findContentKspkg, Kspkg, type KspkgEntry } from "../../../server/games/
 import { parseAiSpline, type AiSplinePoint } from "../../../server/games/ac-evo/aispline";
 import { autoTrackSegments } from "../../../shared/racing/tracks/curation/generate";
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
-import {
-  loadTrackFacts,
-  loadTrackGeometryForGame,
-  saveTrackFacts,
-  saveTrackGeometry,
-  saveTrackMetadata,
-} from "../../../shared/racing/tracks/storage/meta";
+import { loadTrackFacts, loadTrackGeometryForGame, saveTrackFacts, saveTrackGeometry, saveTrackMetadata } from "../../../shared/racing/tracks/storage/meta";
 import { GAMES_DIR } from "../../../shared/platform/runtime/data-paths";
 import {
   bundledGeometryPath,
-  bundledSharedGeometryPath,
+  bundledSharedAccGeometryPath,
   findTrackAssetIdentities,
   getTrackAssetIdentity,
   isSharedAccGeometryAsset,
@@ -86,14 +80,15 @@ const CRITICAL_EXPECTED_M: Record<string, number> = {
 function accCenterlinePath(slug: string): string | null {
   const identity = findTrackAssetIdentities(slug, "acc")[0];
   if (!identity) return null;
-  return isSharedAccGeometryAsset(identity)
-    ? bundledSharedGeometryPath(identity, "acc", slug, "centerline")
-    : bundledGeometryPath(identity, "centerline");
+  return isSharedAccGeometryAsset(identity) ? bundledSharedAccGeometryPath(identity, slug, "centerline") : bundledGeometryPath(identity, "centerline");
 }
 
 function readTracksCsv(): TrackRow[] {
   const raw = readFileSync(resolve(GAMES_DIR, "ac-evo", "tracks.csv"), "utf-8");
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   return lines.slice(1).map((l) => {
     const [id, name, variant, commonTrackName, setupFolder] = l.split(",");
     return { id: parseInt(id, 10), name, variant, commonTrackName, setupFolder };
@@ -136,7 +131,10 @@ function findIdealLineEntry(entries: KspkgEntry[], folder: string, layout: strin
 }
 
 /** Perpendicular offset boundary from a centerline, using local tangent/normal. Nominal half-width fallback. */
-function computeBoundaries(centerline: { x: number; z: number }[], halfWidthM = 6): {
+function computeBoundaries(
+  centerline: { x: number; z: number }[],
+  halfWidthM = 6,
+): {
   leftEdge: { x: number; z: number }[];
   rightEdge: { x: number; z: number }[];
 } {
@@ -203,11 +201,7 @@ function writeBoundariesJson(identity: TrackAssetIdentity, centerline: { x: numb
  * `splitSegments` drops those — a generated token is a display convention, not
  * a fact — so a seeded layout starts with unnamed corners waiting on curation.
  */
-function maybeWriteMeta(
-  slug: string,
-  name: string,
-  centerline: { x: number; z: number }[],
-): "written" | "geometry-only" | "skipped-existing" | "skipped-no-corners" {
+function maybeWriteMeta(slug: string, name: string, centerline: { x: number; z: number }[]): "written" | "geometry-only" | "skipped-existing" | "skipped-no-corners" {
   const existingFacts = loadTrackFacts(slug);
   const existingGeometry = loadTrackGeometryForGame(slug, "ac-evo");
   if (existingFacts && existingGeometry) return "skipped-existing";
@@ -242,7 +236,6 @@ function maybeWriteMeta(
 }
 
 export async function extractAcEvoTrackGeometry() {
-
   const kspkgPath = findContentKspkg();
   if (!kspkgPath) {
     console.error("content.kspkg not found — cannot extract AC Evo track geometry.");
@@ -332,9 +325,7 @@ export async function extractAcEvoTrackGeometry() {
   pkg.close();
 
   console.log("\n=== Extraction validation ===");
-  console.log(
-    `${"slug".padEnd(20) + "pts".padStart(6) + "length(m)".padStart(12) + "expected(m)".padStart(13) + "delta%".padStart(9)}  status  metaStatus`
-  );
+  console.log(`${"slug".padEnd(20) + "pts".padStart(6) + "length(m)".padStart(12) + "expected(m)".padStart(13) + "delta%".padStart(9)}  status  metaStatus`);
   for (const r of rows) {
     console.log(
       r.slug.padEnd(20) +
@@ -342,7 +333,7 @@ export async function extractAcEvoTrackGeometry() {
         r.lengthM.toFixed(1).padStart(12) +
         (r.expectedM ? r.expectedM.toFixed(1) : "-").padStart(13) +
         (r.deltaPct !== null ? r.deltaPct.toFixed(2) : "-").padStart(9) +
-        `  ${r.status.padEnd(7)} ${r.metaStatus}`
+        `  ${r.status.padEnd(7)} ${r.metaStatus}`,
     );
   }
 

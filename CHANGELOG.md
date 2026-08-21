@@ -128,6 +128,7 @@
 ### Internal
 
 - Generate bundled track registry from deterministic, reviewable JSON sources and reject stale projections in CI
+- Store imported legacy track baselines under canonical game-owned layout geometry instead of root source directories
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers

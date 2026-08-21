@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "wild-west-motorsports-park",
-  "name": "Wild West Motorsports Park"
+  "name": "Wild West Motorsports Park",
+  "metadata": {
+    "location": "Sparks, Nevada",
+    "country": "USA",
+    "latitude": 39.510394,
+    "longitude": -119.663776,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 332
+    }
+  }
 }

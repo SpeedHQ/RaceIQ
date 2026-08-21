@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "kansas-speedway",
-  "name": "Kansas Speedway"
+  "name": "Kansas Speedway",
+  "metadata": {
+    "location": "Kansas City, Kansas",
+    "country": "USA",
+    "latitude": 39.1154928,
+    "longitude": -94.8328544,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 216
+    }
+  }
 }

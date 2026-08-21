@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "bark-river-international-raceway",
-  "name": "Bark River International Raceway"
+  "name": "Bark River International Raceway",
+  "metadata": {
+    "location": "Bark River, Michigan",
+    "country": "USA",
+    "latitude": 45.693396,
+    "longitude": -87.30658,
+    "timeZone": "America/Detroit",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 396
+    }
+  }
 }

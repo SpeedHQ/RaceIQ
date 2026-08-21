@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "summit-point-raceway",
-  "name": "Summit Point Raceway"
+  "name": "Summit Point Raceway",
+  "metadata": {
+    "location": "Summit Point, West Virginia",
+    "country": "USA",
+    "latitude": 39.2415229,
+    "longitude": -77.9778938,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 159
+    }
+  }
 }

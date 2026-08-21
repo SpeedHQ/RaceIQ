@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "la-coliseum-raceway",
-  "name": "LA Coliseum Raceway"
+  "name": "LA Coliseum Raceway",
+  "metadata": {
+    "location": "Los Angeles, California",
+    "country": "USA",
+    "latitude": 34.014257,
+    "longitude": -118.287875,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 437
+    }
+  }
 }

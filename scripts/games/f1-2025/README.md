@@ -10,7 +10,7 @@ Utilities for extracting F1 25 ERP spline resources and importing fallback track
 | `bun run scripts/games/f1-2025/erp-extract.ts <file.erp> <pattern> [--output <dir>]` | List, decompress, peek, or write matching ERP resources |
 | `bun run scripts/games/f1-2025/erp-reader.ts <file.erp> [--peek [count]]` | Print ERP metadata and optional fragment bytes |
 | `bun run scripts/games/f1-2025/parse-ai-spline.ts [file.erp] [output-dir]` | Decode one `aispline` resource into gate JSON |
-| `bun run scripts/games/f1-2025/import-tracks.ts` | Download and normalize TUMFTM fallback outlines |
+| `bun run scripts/games/f1-2025/import-tracks.ts` | Download and normalize legacy TUMFTM baseline outlines |
 
 ## Inputs and formats
 
@@ -23,7 +23,7 @@ Utilities for extracting F1 25 ERP spline resources and importing fallback track
 ## Outputs
 
 - `shared/data/tracks/venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/f1-2025/{centerline.csv,boundaries.json}`; current source uses revision path `current`.
-- `shared/data/tracks/venues/<root>/geometry/tumftm/<facts-slug>-{centerline,boundaries}.{csv,json}` remains root-owned shared geometry.
+- Imported baselines use the canonical owner's layout path: `geometry/<owner-game>/legacy-{centerline,boundaries}.{csv,json}`.
 - Manual spline inspection defaults to ignored `scripts/track-data/abu_dhabi_aispline.json`.
 
 ## Boundaries

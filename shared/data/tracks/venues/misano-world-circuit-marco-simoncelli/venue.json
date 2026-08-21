@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "misano-world-circuit-marco-simoncelli",
-  "name": "Misano World Circuit Marco Simoncelli"
+  "name": "Misano World Circuit Marco Simoncelli",
+  "metadata": {
+    "location": "Misano Adriatico, Emilia-Romagna",
+    "country": "Italy",
+    "latitude": 43.962099,
+    "longitude": 12.684142,
+    "timeZone": "Europe/Rome",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 505
+    }
+  }
 }

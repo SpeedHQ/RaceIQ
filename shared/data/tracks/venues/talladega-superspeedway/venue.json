@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "talladega-superspeedway",
-  "name": "Talladega Superspeedway"
+  "name": "Talladega Superspeedway",
+  "metadata": {
+    "location": "Talladega, Alabama",
+    "country": "USA",
+    "latitude": 33.5669742,
+    "longitude": -86.0683193,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 116
+    }
+  }
 }

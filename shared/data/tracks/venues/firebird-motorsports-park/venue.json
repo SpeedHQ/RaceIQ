@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "firebird-motorsports-park",
-  "name": "Firebird Motorsports Park"
+  "name": "Firebird Motorsports Park",
+  "metadata": {
+    "location": "Chandler, Arizona",
+    "country": "USA",
+    "latitude": 33.268889,
+    "longitude": -111.966111,
+    "timeZone": "America/Phoenix",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 334
+    }
+  }
 }

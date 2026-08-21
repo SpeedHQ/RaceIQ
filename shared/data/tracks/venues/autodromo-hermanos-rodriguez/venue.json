@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "autodromo-hermanos-rodriguez",
-  "name": "Autodromo Hermanos Rodriguez"
+  "name": "Autodromo Hermanos Rodriguez",
+  "metadata": {
+    "location": "Mexico City",
+    "country": "Mexico",
+    "latitude": 19.406111,
+    "longitude": -99.0925,
+    "timeZone": "America/Mexico_City",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 578
+    }
+  }
 }

@@ -26,6 +26,8 @@ import {
   revisionDirectoryPathComponents,
   type TrackConfigurationConfirmation,
   TrackConfigurationConfirmationSchema,
+  type TrackVenueMetadata,
+  TrackVenueMetadataSchema,
   TrackVenueIdSchema,
 } from "./configuration";
 import {
@@ -63,6 +65,7 @@ const TrackFactIdSchema = z.string().regex(TRACK_FACT_ID, "Use lowercase letters
 const TrackIdentityNodeSchema = z.object({
   id: TrackVenueIdSchema,
   name: z.string().trim().min(1),
+  metadata: TrackVenueMetadataSchema.optional(),
 }).strict();
 
 const TrackLayoutSchema = z.object({
@@ -102,6 +105,7 @@ const VenueMetadataFileSchema = z.object({
   version: z.literal(TRACK_REGISTRY_SOURCE_VERSION),
   id: TrackVenueIdSchema,
   name: z.string().trim().min(1),
+  metadata: TrackVenueMetadataSchema.optional(),
 }).strict();
 
 const TrackMetadataFileSchema = z.object({
@@ -168,6 +172,7 @@ export interface TrackRegistryProjectionSnapshot {
     parent_path: string | null;
     slug: string;
     name: string;
+    metadata: TrackVenueMetadata | null;
     depth: number;
   }>;
   layouts: Array<{
@@ -253,6 +258,11 @@ export interface TrackRegistryReport {
     geometrySegments: number;
     verification: number;
   };
+  venues: Array<{
+    id: string;
+    name: string;
+    metadata: TrackVenueMetadata | null;
+  }>;
   trackIdentities: Array<{
     gameId: GameId;
     trackOrdinal: number;
@@ -599,7 +609,11 @@ function parseSourceDocuments(locations: TrackRegistryLocations): TrackRegistryS
       if (venue.id !== venueMatch[1]) {
         throw new Error(`Venue metadata shard ${filename} must match venue id ${venue.id}`);
       }
-      venues.push({ id: venue.id, name: venue.name });
+      venues.push({
+        id: venue.id,
+        name: venue.name,
+        ...(venue.metadata ? { metadata: venue.metadata } : {}),
+      });
       continue;
     }
 
@@ -722,6 +736,21 @@ function canonicalizeConfirmation(confirmation: TrackConfigurationConfirmation |
   };
 }
 
+function canonicalizeVenueMetadata(metadata: TrackVenueMetadata): TrackVenueMetadata {
+  const parsed = TrackVenueMetadataSchema.parse(metadata);
+  return {
+    location: parsed.location,
+    country: parsed.country,
+    latitude: parsed.latitude,
+    longitude: parsed.longitude,
+    timeZone: parsed.timeZone,
+    source: {
+      gameId: parsed.source.gameId,
+      trackOrdinal: parsed.source.trackOrdinal,
+    },
+  };
+}
+
 function canonicalizeTrackRegistrySource(source: TrackRegistrySource): TrackRegistrySource {
   const configurations = source.configurations;
   const facts = source.facts;
@@ -732,6 +761,7 @@ function canonicalizeTrackRegistrySource(source: TrackRegistrySource): TrackRegi
     .map((venue) => ({
       id: venue.id,
       name: venue.name,
+      ...(venue.metadata ? { metadata: canonicalizeVenueMetadata(venue.metadata) } : {}),
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
 
@@ -835,6 +865,9 @@ function validateTrackConfigurationSource(source: TrackRegistrySource): TrackReg
     const { rootVenuePath, revisionPath } = parseVenueRevisionPath(venue.id);
     if (revisionPath === CURRENT_TRACK_REVISION && venue.id !== rootVenuePath) {
       errors.push(`Current revision must not add venue node ${venue.id}`);
+    }
+    if (revisionPath !== CURRENT_TRACK_REVISION && venue.metadata) {
+      errors.push(`Venue metadata belongs on root venue ${rootVenuePath}, not revision ${venue.id}`);
     }
     const parent = deriveVenueParent(venue.id);
     if (parent && !venueIds.has(parent) && !canonical.configurations.venues.some((candidate) => candidate.id === parent)) {
@@ -1023,6 +1056,7 @@ export function renderTrackRegistrySource(source: TrackRegistrySource): Readonly
         version: TRACK_REGISTRY_SOURCE_VERSION,
         id: venue.id,
         name: venue.name,
+        ...(venue.metadata ? { metadata: venue.metadata } : {}),
       }));
       map.set(`${revisionDirectoryPathComponents(venue.id).join("/")}/${REVISION_FILE}`, jsonBytes({
         version: TRACK_REGISTRY_SOURCE_VERSION,
@@ -1093,7 +1127,7 @@ function insertTrackRegistryProjection(
   source: TrackRegistrySource,
   sourceHash: string,
 ): void {
-  const insertVenue = database.prepare("INSERT INTO venue_nodes (path, parent_path, slug, name, depth) VALUES (?, ?, ?, ?, ?)");
+  const insertVenue = database.prepare("INSERT INTO venue_nodes (path, parent_path, slug, name, metadata_json, depth) VALUES (?, ?, ?, ?, ?, ?)");
   const insertLayout = database.prepare("INSERT INTO layouts (canonical_id, venue_path, slug, name, facts_slug) VALUES (?, ?, ?, ?, ?)");
   const insertAssignment = database.prepare("INSERT INTO game_tracks (game_id, track_ordinal, layout_id, confirmed_at, confirmed_by, commit_id) VALUES (?, ?, ?, ?, ?, ?)");
   const insertFact = database.prepare("INSERT INTO track_facts (slug, track_slug, layout_slug, layout_name, name, source) VALUES (?, ?, ?, ?, ?, ?)");
@@ -1117,12 +1151,13 @@ function insertTrackRegistryProjection(
         parentPath,
         slug: deriveVenueSlug(venue.id),
         name: venue.name,
+        metadataJson: venue.metadata ? JSON.stringify(venue.metadata) : null,
         depth: parentPath ? parentPath.split("/").length : 0,
       };
     })
     .sort((a, b) => a.depth - b.depth || a.path.localeCompare(b.path));
   for (const venue of venues) {
-    insertVenue.run(venue.path, venue.parentPath, venue.slug, venue.name, venue.depth);
+    insertVenue.run(venue.path, venue.parentPath, venue.slug, venue.name, venue.metadataJson, venue.depth);
   }
 
   for (const layout of source.configurations.layouts) {
@@ -1202,6 +1237,7 @@ function compileTrackRegistryProjection(source: TrackRegistrySource, targetDatab
         parent_path TEXT REFERENCES venue_nodes(path) ON UPDATE CASCADE ON DELETE RESTRICT,
         slug TEXT NOT NULL,
         name TEXT NOT NULL,
+        metadata_json TEXT CHECK (metadata_json IS NULL OR json_valid(metadata_json)),
         depth INTEGER NOT NULL CHECK (depth >= 0),
         UNIQUE (parent_path, slug)
       ) WITHOUT ROWID;
@@ -1419,13 +1455,18 @@ export function readTrackRegistryProjection(databasePath: string): TrackRegistry
        ORDER BY type, name
     `).all() as TrackRegistryProjectionSnapshot["schema"];
 
-    const venueNodes = database.query("SELECT path, parent_path, slug, name, depth FROM venue_nodes ORDER BY path").all() as Array<{
+    const venueRows = database.query("SELECT path, parent_path, slug, name, metadata_json, depth FROM venue_nodes ORDER BY path").all() as Array<{
       path: string;
       parent_path: string | null;
       slug: string;
       name: string;
+      metadata_json: string | null;
       depth: number;
     }>;
+    const venueNodes = venueRows.map(({ metadata_json, ...venue }) => ({
+      ...venue,
+      metadata: metadata_json ? TrackVenueMetadataSchema.parse(JSON.parse(metadata_json)) : null,
+    }));
 
     const layouts = database.query("SELECT canonical_id, venue_path, slug, name, facts_slug FROM layouts ORDER BY canonical_id").all() as Array<{
       canonical_id: string;
@@ -1695,7 +1736,7 @@ export function renderTrackRegistryReport(snapshot: TrackRegistryProjectionSnaps
     }
   }
 
-  const report = {
+  const report: TrackRegistryReport = {
     sourceVersion: snapshot.sourceVersion,
     sourceHash: snapshot.sourceHash,
     recordCounts: {
@@ -1710,6 +1751,13 @@ export function renderTrackRegistryReport(snapshot: TrackRegistryProjectionSnaps
       geometrySegments: snapshot.segments.length,
       verification: snapshot.verification.length,
     },
+    venues: snapshot.venueNodes
+      .filter((venue) => venue.depth === 0)
+      .map((venue) => ({
+        id: venue.path,
+        name: venue.name,
+        metadata: venue.metadata,
+      })),
     trackIdentities,
     geometrySectors,
     facts: factWithCoverage,

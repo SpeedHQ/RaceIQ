@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "irwindale-speedway",
-  "name": "Irwindale Speedway"
+  "name": "Irwindale Speedway",
+  "metadata": {
+    "location": "Irwindale, California",
+    "country": "USA",
+    "latitude": 34.1104491,
+    "longitude": -117.9892554,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 388
+    }
+  }
 }

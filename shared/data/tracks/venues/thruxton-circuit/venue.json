@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "thruxton-circuit",
-  "name": "Thruxton Circuit"
+  "name": "Thruxton Circuit",
+  "metadata": {
+    "location": "Hampshire, England",
+    "country": "United Kingdom",
+    "latitude": 51.20766,
+    "longitude": -1.608988,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 532
+    }
+  }
 }

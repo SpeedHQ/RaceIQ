@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "concord-speedway",
-  "name": "Concord Speedway"
+  "name": "Concord Speedway",
+  "metadata": {
+    "location": "Concord, North Carolina",
+    "country": "USA",
+    "latitude": 35.3089728,
+    "longitude": -80.5236159,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 15
+    }
+  }
 }

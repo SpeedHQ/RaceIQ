@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "mugello-circuit",
-  "name": "Mugello Circuit"
+  "name": "Mugello Circuit",
+  "metadata": {
+    "location": "Scarperia e San Piero, Tuscany",
+    "country": "Italy",
+    "latitude": 43.997595,
+    "longitude": 11.371478,
+    "timeZone": "Europe/Rome",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 499
+    }
+  }
 }

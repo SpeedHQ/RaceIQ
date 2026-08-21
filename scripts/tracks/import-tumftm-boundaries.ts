@@ -2,15 +2,15 @@
  * Import TUMFTM racetrack-database boundary data.
  *
  * Downloads CSVs with center-line + track widths, computes left/right edge
- * points by offsetting perpendicular to tangent, and writes shared boundaries
- * at each canonical root venue.
+ * points by offsetting perpendicular to tangent, and writes each legacy
+ * baseline beneath its canonical owning game layout.
  *
  * Usage: bun scripts/tracks/import-tumftm-boundaries.ts
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { bundledSharedGeometryPath, findTrackAssetIdentities } from "../../shared/racing/tracks/storage/assets";
+import { bundledLegacyGeometryPath, legacyGeometryOwnerIdentity } from "../../shared/racing/tracks/storage/assets";
 
 interface Point {
   x: number;
@@ -20,18 +20,17 @@ interface Point {
 // Map our local CSV filenames → TUMFTM repo filenames
 const TUMFTM_TRACKS: Record<string, string> = {
   "brands-hatch": "BrandsHatch",
-  "catalunya": "Catalunya",
-  "spa": "Spa",
-  "hockenheim": "Hockenheim",
-  "indianapolis": "IMS",
-  "nurburgring": "Nuerburgring",
-  "silverstone": "Silverstone",
-  "suzuka": "Suzuka",
+  catalunya: "Catalunya",
+  spa: "Spa",
+  hockenheim: "Hockenheim",
+  indianapolis: "IMS",
+  nurburgring: "Nuerburgring",
+  silverstone: "Silverstone",
+  suzuka: "Suzuka",
   "yas-marina": "YasMarina",
 };
 
-const BASE_URL =
-  "https://raw.githubusercontent.com/TUMFTM/racetrack-database/master/tracks";
+const BASE_URL = "https://raw.githubusercontent.com/TUMFTM/racetrack-database/master/tracks";
 
 interface RawRow {
   x: number;
@@ -101,7 +100,6 @@ function computeEdges(rows: RawRow[]): { leftEdge: Point[]; rightEdge: Point[] }
 }
 
 async function main() {
-
   let success = 0;
   let failed = 0;
 
@@ -113,8 +111,8 @@ async function main() {
 
       const { leftEdge, rightEdge } = computeEdges(rows);
 
-      const identity = findTrackAssetIdentities(localName)[0];
-      const outPath = identity && bundledSharedGeometryPath(identity, "tumftm", localName, "boundaries");
+      const identity = legacyGeometryOwnerIdentity(localName);
+      const outPath = identity && bundledLegacyGeometryPath(identity, "boundaries");
       if (!outPath) {
         console.log(`  No canonical registry assignment for ${localName}, skipping`);
         failed++;

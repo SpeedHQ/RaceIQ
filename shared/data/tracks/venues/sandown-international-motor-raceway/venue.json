@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "sandown-international-motor-raceway",
-  "name": "Sandown International Motor Raceway"
+  "name": "Sandown International Motor Raceway",
+  "metadata": {
+    "location": "Melbourne, Victoria",
+    "country": "Australia",
+    "latitude": -37.9508,
+    "longitude": 145.1672,
+    "timeZone": "Australia/Melbourne",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 443
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "autodromo-internacional-do-algarve",
-  "name": "Autodromo Internacional do Algarve"
+  "name": "Autodromo Internacional do Algarve",
+  "metadata": {
+    "location": "Portimão",
+    "country": "Portugal",
+    "latitude": 37.2322667,
+    "longitude": -8.6300625,
+    "timeZone": "Europe/Lisbon",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 512
+    }
+  }
 }

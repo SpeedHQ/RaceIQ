@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-of-the-americas",
-  "name": "Circuit of the Americas"
+  "name": "Circuit of the Americas",
+  "metadata": {
+    "location": "Austin, Texas",
+    "country": "USA",
+    "latitude": 30.1345808,
+    "longitude": -97.6380451,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 579
+    }
+  }
 }

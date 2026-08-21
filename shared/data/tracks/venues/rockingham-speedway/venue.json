@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "rockingham-speedway",
-  "name": "Rockingham Speedway"
+  "name": "Rockingham Speedway",
+  "metadata": {
+    "location": "Rockingham, North Carolina",
+    "country": "USA",
+    "latitude": 34.9758768,
+    "longitude": -79.6130802,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 583
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "willow-springs-international-raceway",
-  "name": "Willow Springs International Raceway"
+  "name": "Willow Springs International Raceway",
+  "metadata": {
+    "location": "Rosamond, California",
+    "country": "USA",
+    "latitude": 34.87,
+    "longitude": -118.2644,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 481
+    }
+  }
 }

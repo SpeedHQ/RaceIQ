@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "tsukuba-circuit",
-  "name": "Tsukuba Circuit"
+  "name": "Tsukuba Circuit",
+  "metadata": {
+    "location": "Shimotsuma, Ibaraki Prefecture",
+    "country": "Japan",
+    "latitude": 36.1527975,
+    "longitude": 139.9180586,
+    "timeZone": "Asia/Tokyo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 333
+    }
+  }
 }

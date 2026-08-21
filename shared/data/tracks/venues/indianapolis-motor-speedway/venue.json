@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "indianapolis-motor-speedway",
-  "name": "Indianapolis Motor Speedway"
+  "name": "Indianapolis Motor Speedway",
+  "metadata": {
+    "location": "Speedway, Indiana",
+    "country": "USA",
+    "latitude": 39.7953542,
+    "longitude": -86.2374946,
+    "timeZone": "America/Indiana/Indianapolis",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 448
+    }
+  }
 }

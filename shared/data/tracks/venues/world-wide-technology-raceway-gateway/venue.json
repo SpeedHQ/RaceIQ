@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "world-wide-technology-raceway-gateway",
-  "name": "World Wide Technology Raceway (Gateway)"
+  "name": "World Wide Technology Raceway (Gateway)",
+  "metadata": {
+    "location": "Madison, Illinois",
+    "country": "USA",
+    "latitude": 38.6507543,
+    "longitude": -90.1375489,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 560
+    }
+  }
 }

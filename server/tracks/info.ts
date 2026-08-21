@@ -69,10 +69,10 @@ export function resolveTrack(gameId: string | undefined, trackOrdinal: number | 
     segments,
     sectors,
     get outline() {
-      return gameId && ordinal != null ? getTrackOutlineByOrdinal(ordinal, gameId, slug) : null;
+      return gameId && ordinal != null ? getTrackOutlineByOrdinal(ordinal, gameId) : null;
     },
     get lengthMeters() {
-      return gameId && ordinal != null ? getTrackLengthMeters(ordinal, gameId, slug) : null;
+      return gameId && ordinal != null ? getTrackLengthMeters(ordinal, gameId) : null;
     },
   };
 }

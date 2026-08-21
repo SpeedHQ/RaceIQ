@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "bristol-motor-speedway",
-  "name": "Bristol Motor Speedway"
+  "name": "Bristol Motor Speedway",
+  "metadata": {
+    "location": "Bristol, Tennessee",
+    "country": "USA",
+    "latitude": 36.515694,
+    "longitude": -82.2591607,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 442
+    }
+  }
 }

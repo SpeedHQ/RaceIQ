@@ -1,6 +1,6 @@
 {
   "sourceVersion": 1,
-  "sourceHash": "4e7a9fb5d75356584979b9e62facfed548bf4cf64c2cfa8db0e5e91ed21a29aa",
+  "sourceHash": "1543a2c73346f2a5a8448b47794a80282f274d9331410db6d233b6203aa01665",
   "recordCounts": {
     "venues": 192,
     "layouts": 495,
@@ -13,6 +13,2238 @@
     "geometrySegments": 2451,
     "verification": 0
   },
+  "venues": [
+    {
+      "id": "adelaide-street-circuit",
+      "name": "Adelaide Street Circuit",
+      "metadata": {
+        "location": "Adelaide",
+        "country": "Australia",
+        "latitude": -34.930183,
+        "longitude": 138.620315,
+        "timeZone": "Australia/Adelaide",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 580
+        }
+      }
+    },
+    {
+      "id": "auto-club-speedway",
+      "name": "Auto Club Speedway",
+      "metadata": {
+        "location": "Fontana, California",
+        "country": "USA",
+        "latitude": 34.0888203,
+        "longitude": -117.5026942,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 228
+        }
+      }
+    },
+    {
+      "id": "autodromo-hermanos-rodriguez",
+      "name": "Autodromo Hermanos Rodriguez",
+      "metadata": {
+        "location": "Mexico City",
+        "country": "Mexico",
+        "latitude": 19.406111,
+        "longitude": -99.0925,
+        "timeZone": "America/Mexico_City",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 578
+        }
+      }
+    },
+    {
+      "id": "autodromo-internacional-do-algarve",
+      "name": "Autodromo Internacional do Algarve",
+      "metadata": {
+        "location": "Portimão",
+        "country": "Portugal",
+        "latitude": 37.2322667,
+        "longitude": -8.6300625,
+        "timeZone": "Europe/Lisbon",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 512
+        }
+      }
+    },
+    {
+      "id": "autodromo-internazionale-enzo-e-dino-ferrari",
+      "name": "Autodromo Internazionale Enzo e Dino Ferrari",
+      "metadata": {
+        "location": "Imola, Emilia-Romagna",
+        "country": "Italy",
+        "latitude": 44.3443574,
+        "longitude": 11.717198,
+        "timeZone": "Europe/Rome",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 267
+        }
+      }
+    },
+    {
+      "id": "autodromo-jose-carlos-pace",
+      "name": "Autodromo Jose Carlos Pace",
+      "metadata": {
+        "location": "Interlagos, São Paulo",
+        "country": "Brazil",
+        "latitude": -23.701185,
+        "longitude": -46.7001484,
+        "timeZone": "America/Sao_Paulo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 213
+        }
+      }
+    },
+    {
+      "id": "autodromo-nazionale-monza",
+      "name": "Autodromo Nazionale Monza",
+      "metadata": {
+        "location": "Monza, Lombardy",
+        "country": "Italy",
+        "latitude": 45.621799,
+        "longitude": 9.282606,
+        "timeZone": "Europe/Rome",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 247
+        }
+      }
+    },
+    {
+      "id": "bahrain-international-circuit",
+      "name": "Bahrain International Circuit",
+      "metadata": null
+    },
+    {
+      "id": "baku-city-circuit",
+      "name": "Baku City Circuit",
+      "metadata": null
+    },
+    {
+      "id": "barber-motorsports-park",
+      "name": "Barber Motorsports Park",
+      "metadata": {
+        "location": "Leeds, Alabama",
+        "country": "USA",
+        "latitude": 33.5318079,
+        "longitude": -86.6211086,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 585
+        }
+      }
+    },
+    {
+      "id": "bark-river-international-raceway",
+      "name": "Bark River International Raceway",
+      "metadata": {
+        "location": "Bark River, Michigan",
+        "country": "USA",
+        "latitude": 45.693396,
+        "longitude": -87.30658,
+        "timeZone": "America/Detroit",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 396
+        }
+      }
+    },
+    {
+      "id": "brands-hatch",
+      "name": "Brands Hatch",
+      "metadata": {
+        "location": "Fawkham, Kent",
+        "country": "England",
+        "latitude": 51.3581048,
+        "longitude": 0.2536338,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 290
+        }
+      }
+    },
+    {
+      "id": "bristol-motor-speedway",
+      "name": "Bristol Motor Speedway",
+      "metadata": {
+        "location": "Bristol, Tennessee",
+        "country": "USA",
+        "latitude": 36.515694,
+        "longitude": -82.2591607,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 442
+        }
+      }
+    },
+    {
+      "id": "cadwell-park-circuit",
+      "name": "Cadwell Park Circuit",
+      "metadata": {
+        "location": "Louth, Lincolnshire",
+        "country": "England",
+        "latitude": 53.310274,
+        "longitude": -0.059399,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 530
+        }
+      }
+    },
+    {
+      "id": "canadian-tire-motorsports-park",
+      "name": "Canadian Tire Motorsports Park",
+      "metadata": {
+        "location": "Bowmanville, Ontario",
+        "country": "Canada",
+        "latitude": 44.0541878,
+        "longitude": -78.677559,
+        "timeZone": "America/Toronto",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 144
+        }
+      }
+    },
+    {
+      "id": "cedar-lake-speedway",
+      "name": "Cedar Lake Speedway",
+      "metadata": {
+        "location": "New Richmond, Wisconsin",
+        "country": "USA",
+        "latitude": 45.190514,
+        "longitude": -92.589252,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 387
+        }
+      }
+    },
+    {
+      "id": "centripetal-circuit",
+      "name": "Centripetal Circuit",
+      "metadata": null
+    },
+    {
+      "id": "charlotte-motor-speedway",
+      "name": "Charlotte Motor Speedway",
+      "metadata": {
+        "location": "Concord, North Carolina",
+        "country": "USA",
+        "latitude": 35.3511641,
+        "longitude": -80.6912655,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 587
+        }
+      }
+    },
+    {
+      "id": "chicago-street-course",
+      "name": "Chicago Street Course",
+      "metadata": {
+        "location": "Chicago, Illinois",
+        "country": "USA",
+        "latitude": 41.8733468,
+        "longitude": -87.620581,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 483
+        }
+      }
+    },
+    {
+      "id": "chicagoland-speedway",
+      "name": "Chicagoland Speedway",
+      "metadata": {
+        "location": "Joliet, Illinois",
+        "country": "USA",
+        "latitude": 41.4749519,
+        "longitude": -88.0594943,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 123
+        }
+      }
+    },
+    {
+      "id": "chili-bowl",
+      "name": "Chili Bowl",
+      "metadata": {
+        "location": "Tulsa, Oklahoma",
+        "country": "USA",
+        "latitude": 36.133274,
+        "longitude": -95.943721,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 331
+        }
+      }
+    },
+    {
+      "id": "circuit-de-barcelona-catalunya",
+      "name": "Circuit de Barcelona-Catalunya",
+      "metadata": {
+        "location": "Montmeló, Catalonia",
+        "country": "Spain",
+        "latitude": 41.568749,
+        "longitude": 2.257138,
+        "timeZone": "Europe/Madrid",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 386
+        }
+      }
+    },
+    {
+      "id": "circuit-de-la-sarthe",
+      "name": "Circuit de la Sarthe",
+      "metadata": {
+        "location": "Le Mans, Pays de la Loire",
+        "country": "France",
+        "latitude": 47.9560052,
+        "longitude": 0.2056765,
+        "timeZone": "Europe/Paris",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 269
+        }
+      }
+    },
+    {
+      "id": "circuit-de-ledenon",
+      "name": "Circuit de Lédenon",
+      "metadata": {
+        "location": "Lédenon, Occitanie",
+        "country": "France",
+        "latitude": 43.92318,
+        "longitude": 4.504173,
+        "timeZone": "Europe/Paris",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 489
+        }
+      }
+    },
+    {
+      "id": "circuit-de-monaco",
+      "name": "Circuit de Monaco",
+      "metadata": null
+    },
+    {
+      "id": "circuit-de-nevers-magny-cours",
+      "name": "Circuit de Nevers Magny-Cours",
+      "metadata": {
+        "location": "Magny-Cours, Bourgogne-Franche-Comté",
+        "country": "France",
+        "latitude": 46.8634579,
+        "longitude": 3.163344,
+        "timeZone": "Europe/Paris",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 463
+        }
+      }
+    },
+    {
+      "id": "circuit-de-spa-francorchamps",
+      "name": "Circuit de Spa-Francorchamps",
+      "metadata": {
+        "location": "Francorchamps, Liège",
+        "country": "Belgium",
+        "latitude": 50.4369118,
+        "longitude": 5.969856,
+        "timeZone": "Europe/Brussels",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 526
+        }
+      }
+    },
+    {
+      "id": "circuit-gilles-villeneuve",
+      "name": "Circuit Gilles Villeneuve",
+      "metadata": {
+        "location": "Montreal, Quebec",
+        "country": "Canada",
+        "latitude": 45.5032189,
+        "longitude": -73.5288816,
+        "timeZone": "America/Toronto",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 218
+        }
+      }
+    },
+    {
+      "id": "circuit-of-the-americas",
+      "name": "Circuit of the Americas",
+      "metadata": {
+        "location": "Austin, Texas",
+        "country": "USA",
+        "latitude": 30.1345808,
+        "longitude": -97.6380451,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 579
+        }
+      }
+    },
+    {
+      "id": "circuit-paul-ricard",
+      "name": "Circuit Paul Ricard",
+      "metadata": null
+    },
+    {
+      "id": "circuit-ricardo-tormo",
+      "name": "Circuit Ricardo Tormo",
+      "metadata": null
+    },
+    {
+      "id": "circuit-zandvoort",
+      "name": "Circuit Zandvoort",
+      "metadata": {
+        "location": "Zandvoort, North Holland",
+        "country": "Netherlands",
+        "latitude": 52.3877081,
+        "longitude": 4.5420188,
+        "timeZone": "Europe/Amsterdam",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 488
+        }
+      }
+    },
+    {
+      "id": "circuit-zolder",
+      "name": "Circuit Zolder",
+      "metadata": {
+        "location": "Heusden-Zolder, Limburg",
+        "country": "Belgium",
+        "latitude": 50.9904979,
+        "longitude": 5.25579,
+        "timeZone": "Europe/Brussels",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 200
+        }
+      }
+    },
+    {
+      "id": "circuito-de-jerez-angel-nieto",
+      "name": "Circuito de Jerez - Ángel Nieto",
+      "metadata": {
+        "location": "Jerez de la Frontera, Andalusia",
+        "country": "Spain",
+        "latitude": 36.708333,
+        "longitude": -6.034167,
+        "timeZone": "Europe/Madrid",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 474
+        }
+      }
+    },
+    {
+      "id": "circuito-de-navarra",
+      "name": "Circuito de Navarra",
+      "metadata": {
+        "location": "Navarra",
+        "country": "Spain",
+        "latitude": 42.559206,
+        "longitude": -2.168074,
+        "timeZone": "Europe/Madrid",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 517
+        }
+      }
+    },
+    {
+      "id": "concord-speedway",
+      "name": "Concord Speedway",
+      "metadata": {
+        "location": "Concord, North Carolina",
+        "country": "USA",
+        "latitude": 35.3089728,
+        "longitude": -80.5236159,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 15
+        }
+      }
+    },
+    {
+      "id": "crandon-international-raceway",
+      "name": "Crandon International Raceway",
+      "metadata": {
+        "location": "Crandon, Wisconsin",
+        "country": "USA",
+        "latitude": 45.57413,
+        "longitude": -88.93946,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 383
+        }
+      }
+    },
+    {
+      "id": "darlington-raceway",
+      "name": "Darlington Raceway",
+      "metadata": {
+        "location": "Darlington, South Carolina",
+        "country": "USA",
+        "latitude": 34.2973206,
+        "longitude": -79.9073456,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 115
+        }
+      }
+    },
+    {
+      "id": "daytona-international-speedway",
+      "name": "Daytona International Speedway",
+      "metadata": {
+        "location": "Daytona Beach, Florida",
+        "country": "USA",
+        "latitude": 29.185169,
+        "longitude": -81.072722,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 381
+        }
+      }
+    },
+    {
+      "id": "daytona-rallycross-and-dirt-road",
+      "name": "Daytona Rallycross and Dirt Road",
+      "metadata": {
+        "location": "Daytona Beach, Florida",
+        "country": "USA",
+        "latitude": 29.185169,
+        "longitude": -81.072722,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 471
+        }
+      }
+    },
+    {
+      "id": "detroit-grand-prix-at-belle-isle",
+      "name": "Detroit Grand Prix at Belle Isle",
+      "metadata": {
+        "location": "Detroit, Michigan",
+        "country": "USA",
+        "latitude": 42.335007,
+        "longitude": -83.001598,
+        "timeZone": "America/Detroit",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 319
+        }
+      }
+    },
+    {
+      "id": "donington-park",
+      "name": "Donington Park",
+      "metadata": {
+        "location": "Castle Donington, Leicestershire",
+        "country": "England",
+        "latitude": 52.8305468,
+        "longitude": -1.3810343,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 234
+        }
+      }
+    },
+    {
+      "id": "dover-motor-speedway",
+      "name": "Dover Motor Speedway",
+      "metadata": {
+        "location": "Dover, Delaware",
+        "country": "USA",
+        "latitude": 39.1899138,
+        "longitude": -75.5328525,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 162
+        }
+      }
+    },
+    {
+      "id": "eaglerock-speedway",
+      "name": "Eaglerock Speedway",
+      "metadata": null
+    },
+    {
+      "id": "echopark-speedway-atlanta",
+      "name": "EchoPark Speedway (Atlanta)",
+      "metadata": {
+        "location": "Hampton, Georgia",
+        "country": "USA",
+        "latitude": 33.3859794,
+        "longitude": -84.3184714,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 447
+        }
+      }
+    },
+    {
+      "id": "eldora-speedway",
+      "name": "Eldora Speedway",
+      "metadata": {
+        "location": "Rossburg, Ohio",
+        "country": "USA",
+        "latitude": 40.319015,
+        "longitude": -84.6363383,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 273
+        }
+      }
+    },
+    {
+      "id": "fairbury-speedway",
+      "name": "Fairbury Speedway",
+      "metadata": {
+        "location": "Fairbury, Illinois",
+        "country": "USA",
+        "latitude": 40.740155,
+        "longitude": -88.514774,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 344
+        }
+      }
+    },
+    {
+      "id": "federated-auto-parts-raceway-at-i-55",
+      "name": "Federated Auto Parts Raceway at I-55",
+      "metadata": {
+        "location": "Pevely, Missouri",
+        "country": "USA",
+        "latitude": 38.26962792575186,
+        "longitude": -90.40161239958172,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 438
+        }
+      }
+    },
+    {
+      "id": "firebird-motorsports-park",
+      "name": "Firebird Motorsports Park",
+      "metadata": {
+        "location": "Chandler, Arizona",
+        "country": "USA",
+        "latitude": 33.268889,
+        "longitude": -111.966111,
+        "timeZone": "America/Phoenix",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 334
+        }
+      }
+    },
+    {
+      "id": "five-flags-speedway",
+      "name": "Five Flags Speedway",
+      "metadata": {
+        "location": "Pensacola, Florida",
+        "country": "USA",
+        "latitude": 30.503841,
+        "longitude": -87.310641,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 248
+        }
+      }
+    },
+    {
+      "id": "fuji-speedway",
+      "name": "Fuji Speedway",
+      "metadata": {
+        "location": "Oyama, Shizuoka Prefecture",
+        "country": "Japan",
+        "latitude": 35.3717,
+        "longitude": 138.9267,
+        "timeZone": "Asia/Tokyo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 445
+        }
+      }
+    },
+    {
+      "id": "fujimi-kaido",
+      "name": "Fujimi Kaido",
+      "metadata": null
+    },
+    {
+      "id": "grand-oak-raceway",
+      "name": "Grand Oak Raceway",
+      "metadata": null
+    },
+    {
+      "id": "hakone",
+      "name": "Hakone",
+      "metadata": null
+    },
+    {
+      "id": "hanoi-street-circuit",
+      "name": "Hanoi Street Circuit",
+      "metadata": null
+    },
+    {
+      "id": "hickory-motor-speedway",
+      "name": "Hickory Motor Speedway",
+      "metadata": {
+        "location": "Hickory, North Carolina",
+        "country": "USA",
+        "latitude": 35.69582,
+        "longitude": -81.26916,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 414
+        }
+      }
+    },
+    {
+      "id": "hockenheimring",
+      "name": "Hockenheimring",
+      "metadata": {
+        "location": "Hockenheim, Baden-Württemberg",
+        "country": "Germany",
+        "latitude": 49.330028,
+        "longitude": 8.570892,
+        "timeZone": "Europe/Berlin",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 431
+        }
+      }
+    },
+    {
+      "id": "homestead-miami-speedway",
+      "name": "Homestead-Miami Speedway",
+      "metadata": {
+        "location": "Homestead, Florida",
+        "country": "USA",
+        "latitude": 25.4517775,
+        "longitude": -80.4110895,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 362
+        }
+      }
+    },
+    {
+      "id": "hungaroring",
+      "name": "Hungaroring",
+      "metadata": {
+        "location": "Mogyoród, Pest",
+        "country": "Hungary",
+        "latitude": 47.58186,
+        "longitude": 19.25057,
+        "timeZone": "Europe/Budapest",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 413
+        }
+      }
+    },
+    {
+      "id": "huset-s-speedway",
+      "name": "Huset's Speedway",
+      "metadata": {
+        "location": "Brandon, South Dakota",
+        "country": "USA",
+        "latitude": 43.570801,
+        "longitude": -96.583907,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 531
+        }
+      }
+    },
+    {
+      "id": "indianapolis-motor-speedway",
+      "name": "Indianapolis Motor Speedway",
+      "metadata": {
+        "location": "Speedway, Indiana",
+        "country": "USA",
+        "latitude": 39.7953542,
+        "longitude": -86.2374946,
+        "timeZone": "America/Indiana/Indianapolis",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 448
+        }
+      }
+    },
+    {
+      "id": "iowa-speedway",
+      "name": "Iowa Speedway",
+      "metadata": {
+        "location": "Newton, Iowa",
+        "country": "USA",
+        "latitude": 41.674667,
+        "longitude": -93.015162,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 559
+        }
+      }
+    },
+    {
+      "id": "iracing-superspeedway",
+      "name": "iRacing Superspeedway",
+      "metadata": {
+        "location": "Chelmsford, Massachusetts",
+        "country": "USA",
+        "latitude": 42.601541,
+        "longitude": -71.327313,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 384
+        }
+      }
+    },
+    {
+      "id": "irwindale-speedway",
+      "name": "Irwindale Speedway",
+      "metadata": {
+        "location": "Irwindale, California",
+        "country": "USA",
+        "latitude": 34.1104491,
+        "longitude": -117.9892554,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 388
+        }
+      }
+    },
+    {
+      "id": "jeddah-corniche-circuit",
+      "name": "Jeddah Corniche Circuit",
+      "metadata": null
+    },
+    {
+      "id": "kansas-speedway",
+      "name": "Kansas Speedway",
+      "metadata": {
+        "location": "Kansas City, Kansas",
+        "country": "USA",
+        "latitude": 39.1154928,
+        "longitude": -94.8328544,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 216
+        }
+      }
+    },
+    {
+      "id": "kentucky-speedway",
+      "name": "Kentucky Speedway",
+      "metadata": {
+        "location": "Sparta, Kentucky",
+        "country": "USA",
+        "latitude": 38.7117309,
+        "longitude": -84.9128033,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 371
+        }
+      }
+    },
+    {
+      "id": "kevin-harvick-s-kern-raceway",
+      "name": "Kevin Harvick's Kern Raceway",
+      "metadata": {
+        "location": "Bakersfield, CA",
+        "country": "USA",
+        "latitude": 35.292757,
+        "longitude": -119.257161,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 497
+        }
+      }
+    },
+    {
+      "id": "knockhill-racing-circuit",
+      "name": "Knockhill Racing Circuit",
+      "metadata": {
+        "location": "Dunfermline, Fife",
+        "country": "Scotland",
+        "latitude": 56.131522,
+        "longitude": -3.509043,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 436
+        }
+      }
+    },
+    {
+      "id": "knoxville-raceway",
+      "name": "Knoxville Raceway",
+      "metadata": {
+        "location": "Knoxville, Iowa",
+        "country": "USA",
+        "latitude": 41.3265101,
+        "longitude": -93.1140141,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 305
+        }
+      }
+    },
+    {
+      "id": "kokomo-speedway",
+      "name": "Kokomo Speedway",
+      "metadata": {
+        "location": "Kokomo, Indiana",
+        "country": "USA",
+        "latitude": 40.5111901,
+        "longitude": -86.1455678,
+        "timeZone": "America/Indiana/Indianapolis",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 514
+        }
+      }
+    },
+    {
+      "id": "kyalami-grand-prix-circuit",
+      "name": "Kyalami Grand Prix Circuit",
+      "metadata": null
+    },
+    {
+      "id": "la-coliseum-raceway",
+      "name": "LA Coliseum Raceway",
+      "metadata": {
+        "location": "Los Angeles, California",
+        "country": "USA",
+        "latitude": 34.014257,
+        "longitude": -118.287875,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 437
+        }
+      }
+    },
+    {
+      "id": "langley-speedway",
+      "name": "Langley Speedway",
+      "metadata": {
+        "location": "Hampton, Virginia",
+        "country": "USA",
+        "latitude": 37.0866696,
+        "longitude": -76.3888498,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 201
+        }
+      }
+    },
+    {
+      "id": "lanier-national-speedway",
+      "name": "Lanier National Speedway",
+      "metadata": {
+        "location": "Braselton, Georgia",
+        "country": "USA",
+        "latitude": 34.153424,
+        "longitude": -83.8149922,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 288
+        }
+      }
+    },
+    {
+      "id": "lankebanen-hell-rx",
+      "name": "Lånkebanen (Hell RX)",
+      "metadata": {
+        "location": "Hell, Trøndelag",
+        "country": "Norway",
+        "latitude": 63.405094,
+        "longitude": 10.920655,
+        "timeZone": "Europe/Oslo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 363
+        }
+      }
+    },
+    {
+      "id": "las-vegas-motor-speedway",
+      "name": "Las Vegas Motor Speedway",
+      "metadata": {
+        "location": "Las Vegas, Nevada",
+        "country": "USA",
+        "latitude": 36.2722847,
+        "longitude": -115.0124701,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 114
+        }
+      }
+    },
+    {
+      "id": "las-vegas-street-circuit",
+      "name": "Las Vegas Street Circuit",
+      "metadata": null
+    },
+    {
+      "id": "lernerville-speedway",
+      "name": "Lernerville Speedway",
+      "metadata": {
+        "location": "Sarver, Pennsylvania",
+        "country": "USA",
+        "latitude": 40.738633,
+        "longitude": -79.759479,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 351
+        }
+      }
+    },
+    {
+      "id": "limaland-motorsports-park",
+      "name": "Limaland Motorsports Park",
+      "metadata": {
+        "location": "Lima, Ohio",
+        "country": "USA",
+        "latitude": 40.759639,
+        "longitude": -84.194174,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 303
+        }
+      }
+    },
+    {
+      "id": "lime-rock-park",
+      "name": "Lime Rock Park",
+      "metadata": {
+        "location": "Lakeville, Connecticut",
+        "country": "USA",
+        "latitude": 41.9282105,
+        "longitude": -73.3839642,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 508
+        }
+      }
+    },
+    {
+      "id": "lincoln-speedway",
+      "name": "Lincoln Speedway",
+      "metadata": {
+        "location": "Abbottstown, Pennsylvania",
+        "country": "USA",
+        "latitude": 39.869954,
+        "longitude": -76.993998,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 462
+        }
+      }
+    },
+    {
+      "id": "long-beach-street-circuit",
+      "name": "Long Beach Street Circuit",
+      "metadata": {
+        "location": "Long Beach, California",
+        "country": "USA",
+        "latitude": 33.7643144,
+        "longitude": -118.1917598,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 179
+        }
+      }
+    },
+    {
+      "id": "lucas-oil-indianapolis-raceway-park",
+      "name": "Lucas Oil Indianapolis Raceway Park",
+      "metadata": {
+        "location": "Indianapolis, Indiana",
+        "country": "USA",
+        "latitude": 39.812512,
+        "longitude": -86.340527,
+        "timeZone": "America/Indiana/Indianapolis",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 304
+        }
+      }
+    },
+    {
+      "id": "lucas-oil-speedway",
+      "name": "Lucas Oil Speedway",
+      "metadata": {
+        "location": "Wheatland, Missouri",
+        "country": "USA",
+        "latitude": 37.9404,
+        "longitude": -93.3977,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 581
+        }
+      }
+    },
+    {
+      "id": "lusail-international-circuit",
+      "name": "Lusail International Circuit",
+      "metadata": null
+    },
+    {
+      "id": "maple-valley",
+      "name": "Maple Valley",
+      "metadata": null
+    },
+    {
+      "id": "marina-bay-street-circuit",
+      "name": "Marina Bay Street Circuit",
+      "metadata": null
+    },
+    {
+      "id": "martinsville-speedway",
+      "name": "Martinsville Speedway",
+      "metadata": {
+        "location": "Ridgeway, Virginia",
+        "country": "USA",
+        "latitude": 36.6340671,
+        "longitude": -79.8538533,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 33
+        }
+      }
+    },
+    {
+      "id": "melbourne-grand-prix-circuit",
+      "name": "Melbourne Grand Prix Circuit",
+      "metadata": null
+    },
+    {
+      "id": "miami-international-autodrome",
+      "name": "Miami International Autodrome",
+      "metadata": {
+        "location": "Miami, Florida",
+        "country": "USA",
+        "latitude": 25.959107,
+        "longitude": -80.23741,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 539
+        }
+      }
+    },
+    {
+      "id": "michigan-international-speedway",
+      "name": "Michigan International Speedway",
+      "metadata": {
+        "location": "Brooklyn, Michigan",
+        "country": "USA",
+        "latitude": 42.0678836,
+        "longitude": -84.2470556,
+        "timeZone": "America/Detroit",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 276
+        }
+      }
+    },
+    {
+      "id": "mid-ohio-sports-car-course",
+      "name": "Mid-Ohio Sports Car Course",
+      "metadata": {
+        "location": "Lexington, Ohio",
+        "country": "USA",
+        "latitude": 40.6906568,
+        "longitude": -82.6397807,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 157
+        }
+      }
+    },
+    {
+      "id": "millbridge-speedway",
+      "name": "Millbridge Speedway",
+      "metadata": {
+        "location": "Salisbury, NC",
+        "country": "USA",
+        "latitude": 35.6529521,
+        "longitude": -80.6078801,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 513
+        }
+      }
+    },
+    {
+      "id": "misano-world-circuit-marco-simoncelli",
+      "name": "Misano World Circuit Marco Simoncelli",
+      "metadata": {
+        "location": "Misano Adriatico, Emilia-Romagna",
+        "country": "Italy",
+        "latitude": 43.962099,
+        "longitude": 12.684142,
+        "timeZone": "Europe/Rome",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 505
+        }
+      }
+    },
+    {
+      "id": "mobility-resort-motegi",
+      "name": "Mobility Resort Motegi",
+      "metadata": {
+        "location": "Motegi, Tochigi Prefecture",
+        "country": "Japan",
+        "latitude": 36.531954,
+        "longitude": 140.2232026,
+        "timeZone": "Asia/Tokyo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 198
+        }
+      }
+    },
+    {
+      "id": "motorland-aragon",
+      "name": "MotorLand Aragón",
+      "metadata": {
+        "location": "Alcañiz, Aragón",
+        "country": "Spain",
+        "latitude": 41.078306,
+        "longitude": -0.197806,
+        "timeZone": "Europe/Madrid",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 482
+        }
+      }
+    },
+    {
+      "id": "motorsport-arena-oschersleben",
+      "name": "Motorsport Arena Oschersleben",
+      "metadata": {
+        "location": "Oschersleben, Saxony-Anhalt",
+        "country": "Germany",
+        "latitude": 52.0266,
+        "longitude": 11.2783,
+        "timeZone": "Europe/Berlin",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 456
+        }
+      }
+    },
+    {
+      "id": "mount-panorama-circuit",
+      "name": "Mount Panorama Circuit",
+      "metadata": {
+        "location": "Bathurst, New South Wales",
+        "country": "Australia",
+        "latitude": -33.4394191,
+        "longitude": 149.5557112,
+        "timeZone": "Australia/Sydney",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 219
+        }
+      }
+    },
+    {
+      "id": "mount-washington-hillclimb",
+      "name": "Mount Washington Hillclimb",
+      "metadata": {
+        "location": "Jackson, New Hampshire",
+        "country": "USA",
+        "latitude": 44.289474,
+        "longitude": -71.225102,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 399
+        }
+      }
+    },
+    {
+      "id": "mugello-circuit",
+      "name": "Mugello Circuit",
+      "metadata": {
+        "location": "Scarperia e San Piero, Tuscany",
+        "country": "Italy",
+        "latitude": 43.997595,
+        "longitude": 11.371478,
+        "timeZone": "Europe/Rome",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 499
+        }
+      }
+    },
+    {
+      "id": "myrtle-beach-speedway",
+      "name": "Myrtle Beach Speedway",
+      "metadata": {
+        "location": "Myrtle Beach, South Carolina",
+        "country": "USA",
+        "latitude": 33.7455794,
+        "longitude": -78.9546613,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 286
+        }
+      }
+    },
+    {
+      "id": "nashville-fairgrounds-speedway",
+      "name": "Nashville Fairgrounds Speedway",
+      "metadata": {
+        "location": "Nashville, Tennessee",
+        "country": "USA",
+        "latitude": 36.130862,
+        "longitude": -86.763039,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 380
+        }
+      }
+    },
+    {
+      "id": "nashville-superspeedway",
+      "name": "Nashville Superspeedway",
+      "metadata": {
+        "location": "Lebanon, Tennessee",
+        "country": "USA",
+        "latitude": 36.046652,
+        "longitude": -86.412149,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 400
+        }
+      }
+    },
+    {
+      "id": "new-hampshire-motor-speedway",
+      "name": "New Hampshire Motor Speedway",
+      "metadata": {
+        "location": "Loudon, New Hampshire",
+        "country": "USA",
+        "latitude": 43.36268,
+        "longitude": -71.462767,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 222
+        }
+      }
+    },
+    {
+      "id": "new-jersey-motorsports-park",
+      "name": "New Jersey Motorsports Park",
+      "metadata": {
+        "location": "Millville, New Jersey",
+        "country": "USA",
+        "latitude": 39.3589862,
+        "longitude": -75.0638076,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 224
+        }
+      }
+    },
+    {
+      "id": "new-smyrna-speedway",
+      "name": "New Smyrna Speedway",
+      "metadata": {
+        "location": "New Smyrna Beach, Florida",
+        "country": "USA",
+        "latitude": 29.0136715,
+        "longitude": -81.072015,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 190
+        }
+      }
+    },
+    {
+      "id": "north-wilkesboro-speedway",
+      "name": "North Wilkesboro Speedway",
+      "metadata": {
+        "location": "North Wilkesboro, North Carolina",
+        "country": "USA",
+        "latitude": 36.143073,
+        "longitude": -81.072278,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 562
+        }
+      }
+    },
+    {
+      "id": "nurburgring",
+      "name": "Nürburgring",
+      "metadata": {
+        "location": "Nürburg, Rhineland-Palatinate",
+        "country": "Germany",
+        "latitude": 50.3334443,
+        "longitude": 6.9392429,
+        "timeZone": "Europe/Berlin",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 264
+        }
+      }
+    },
+    {
+      "id": "okayama-international-circuit",
+      "name": "Okayama International Circuit",
+      "metadata": {
+        "location": "Mimasaka, Okayama Prefecture",
+        "country": "Japan",
+        "latitude": 34.9125856,
+        "longitude": 134.2160527,
+        "timeZone": "Asia/Tokyo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 167
+        }
+      }
+    },
+    {
+      "id": "oran-park-raceway",
+      "name": "Oran Park Raceway",
+      "metadata": {
+        "location": "Narellan, New South Wales",
+        "country": "Australia",
+        "latitude": -34.006111,
+        "longitude": 150.733889,
+        "timeZone": "Australia/Sydney",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 211
+        }
+      }
+    },
+    {
+      "id": "oswego-speedway",
+      "name": "Oswego Speedway",
+      "metadata": {
+        "location": "Oswego, NY",
+        "country": "USA",
+        "latitude": 43.45784,
+        "longitude": -76.481946,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 520
+        }
+      }
+    },
+    {
+      "id": "oulton-park",
+      "name": "Oulton Park",
+      "metadata": {
+        "location": "Little Budworth, Cheshire",
+        "country": "England",
+        "latitude": 53.1751389,
+        "longitude": -2.62258,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 187
+        }
+      }
+    },
+    {
+      "id": "oxford-plains-speedway",
+      "name": "Oxford Plains Speedway",
+      "metadata": {
+        "location": "Oxford, Maine",
+        "country": "USA",
+        "latitude": 44.1540543,
+        "longitude": -70.4865637,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 12
+        }
+      }
+    },
+    {
+      "id": "phillip-island-circuit",
+      "name": "Phillip Island Circuit",
+      "metadata": {
+        "location": "Phillip Island, Victoria",
+        "country": "Australia",
+        "latitude": -38.5011396,
+        "longitude": 145.2355528,
+        "timeZone": "Australia/Melbourne",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 152
+        }
+      }
+    },
+    {
+      "id": "phoenix-raceway",
+      "name": "Phoenix Raceway",
+      "metadata": {
+        "location": "Avondale, Arizona",
+        "country": "USA",
+        "latitude": 33.37487,
+        "longitude": -112.313415,
+        "timeZone": "America/Phoenix",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 419
+        }
+      }
+    },
+    {
+      "id": "pocono-raceway",
+      "name": "Pocono Raceway",
+      "metadata": {
+        "location": "Long Pond, Pennsylvania",
+        "country": "USA",
+        "latitude": 41.0543442,
+        "longitude": -75.513473,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 277
+        }
+      }
+    },
+    {
+      "id": "port-royal-speedway",
+      "name": "Port Royal Speedway",
+      "metadata": {
+        "location": "Port Royal, Pennsylvania",
+        "country": "USA",
+        "latitude": 40.5358,
+        "longitude": -77.3895,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 446
+        }
+      }
+    },
+    {
+      "id": "portland-international-raceway",
+      "name": "Portland International Raceway",
+      "metadata": {
+        "location": "Portland, Oregon",
+        "country": "USA",
+        "latitude": 45.595031,
+        "longitude": -122.694497,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 537
+        }
+      }
+    },
+    {
+      "id": "qualcomm-circuit-naval-base-coronado",
+      "name": "Qualcomm Circuit (Naval Base Coronado)",
+      "metadata": {
+        "location": "San Diego, California",
+        "country": "USA",
+        "latitude": 32.703767,
+        "longitude": -117.192979,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 589
+        }
+      }
+    },
+    {
+      "id": "red-bull-ring",
+      "name": "Red Bull Ring",
+      "metadata": {
+        "location": "Spielberg, Styria",
+        "country": "Austria",
+        "latitude": 47.2203417,
+        "longitude": 14.7654865,
+        "timeZone": "Europe/Vienna",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 407
+        }
+      }
+    },
+    {
+      "id": "richmond-raceway",
+      "name": "Richmond Raceway",
+      "metadata": {
+        "location": "Richmond, Virginia",
+        "country": "USA",
+        "latitude": 37.592392,
+        "longitude": -77.421653,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 561
+        }
+      }
+    },
+    {
+      "id": "road-america",
+      "name": "Road America",
+      "metadata": {
+        "location": "Elkhart Lake, Wisconsin",
+        "country": "USA",
+        "latitude": 43.79751,
+        "longitude": -87.992157,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 50
+        }
+      }
+    },
+    {
+      "id": "road-atlanta",
+      "name": "Road Atlanta",
+      "metadata": {
+        "location": "Braselton, Georgia",
+        "country": "USA",
+        "latitude": 34.15219,
+        "longitude": -83.81511,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 128
+        }
+      }
+    },
+    {
+      "id": "rockingham-speedway",
+      "name": "Rockingham Speedway",
+      "metadata": {
+        "location": "Rockingham, North Carolina",
+        "country": "USA",
+        "latitude": 34.9758768,
+        "longitude": -79.6130802,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 583
+        }
+      }
+    },
+    {
+      "id": "rudskogen-motorsenter",
+      "name": "Rudskogen Motorsenter",
+      "metadata": {
+        "location": "Rakkestad, Østfold",
+        "country": "Norway",
+        "latitude": 59.3666,
+        "longitude": 11.2616,
+        "timeZone": "Europe/Oslo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 451
+        }
+      }
+    },
+    {
+      "id": "sachsenring",
+      "name": "Sachsenring",
+      "metadata": {
+        "location": "Oberlungwitz",
+        "country": "Germany",
+        "latitude": 50.79177,
+        "longitude": 12.688051,
+        "timeZone": "Europe/Berlin",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 521
+        }
+      }
+    },
+    {
+      "id": "sandown-international-motor-raceway",
+      "name": "Sandown International Motor Raceway",
+      "metadata": {
+        "location": "Melbourne, Victoria",
+        "country": "Australia",
+        "latitude": -37.9508,
+        "longitude": 145.1672,
+        "timeZone": "Australia/Melbourne",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 443
+        }
+      }
+    },
+    {
+      "id": "sebring-international-raceway",
+      "name": "Sebring International Raceway",
+      "metadata": {
+        "location": "Sebring, Florida",
+        "country": "USA",
+        "latitude": 27.4550124,
+        "longitude": -81.3518741,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 97
+        }
+      }
+    },
+    {
+      "id": "sepang",
+      "name": "Sepang International Circuit",
+      "metadata": null
+    },
+    {
+      "id": "shanghai-international-circuit",
+      "name": "Shanghai International Circuit",
+      "metadata": null
+    },
+    {
+      "id": "shell-v-power-motorsport-park-at-the-bend",
+      "name": "Shell V-Power Motorsport Park at The Bend",
+      "metadata": {
+        "location": "Tailem Bend",
+        "country": "Australia",
+        "latitude": -35.308313,
+        "longitude": 139.511143,
+        "timeZone": "Australia/Adelaide",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 546
+        }
+      }
+    },
+    {
+      "id": "silverstone-racing-circuit",
+      "name": "Silverstone Racing Circuit",
+      "metadata": {
+        "location": "Towcester, Northamptonshire",
+        "country": "England",
+        "latitude": 52.0733006,
+        "longitude": -1.0168574,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 343
+        }
+      }
+    },
+    {
+      "id": "slinger-speedway",
+      "name": "Slinger Speedway",
+      "metadata": {
+        "location": "Slinger, WI",
+        "country": "USA",
+        "latitude": 43.340579,
+        "longitude": -88.277329,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 506
+        }
+      }
+    },
+    {
+      "id": "snetterton-circuit",
+      "name": "Snetterton Circuit",
+      "metadata": {
+        "location": "Snetterton, Norfolk",
+        "country": "England",
+        "latitude": 52.4636482,
+        "longitude": 0.943612,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 299
+        }
+      }
+    },
+    {
+      "id": "sochi-autodrom",
+      "name": "Sochi Autodrom",
+      "metadata": null
+    },
+    {
+      "id": "sonoma-raceway",
+      "name": "Sonoma Raceway",
+      "metadata": {
+        "location": "Sonoma, California",
+        "country": "USA",
+        "latitude": 38.1616,
+        "longitude": -122.4548,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 571
+        }
+      }
+    },
+    {
+      "id": "south-boston-speedway",
+      "name": "South Boston Speedway",
+      "metadata": {
+        "location": "South Boston, Virginia",
+        "country": "USA",
+        "latitude": 36.7092845,
+        "longitude": -78.8712013,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 14
+        }
+      }
+    },
+    {
+      "id": "southern-national-motorsports-park",
+      "name": "Southern National Motorsports Park",
+      "metadata": {
+        "location": "Lucama, North Carolina",
+        "country": "USA",
+        "latitude": 35.6112291,
+        "longitude": -78.0630003,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 256
+        }
+      }
+    },
+    {
+      "id": "st-petersburg-grand-prix",
+      "name": "St. Petersburg Grand Prix",
+      "metadata": {
+        "location": "St. Petersburg, Florida",
+        "country": "USA",
+        "latitude": 27.765,
+        "longitude": -82.626944,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 584
+        }
+      }
+    },
+    {
+      "id": "stafford-motor-speedway",
+      "name": "Stafford Motor Speedway",
+      "metadata": {
+        "location": "Stafford Springs, Connecticut",
+        "country": "USA",
+        "latitude": 41.956733,
+        "longitude": -72.322947,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 11
+        }
+      }
+    },
+    {
+      "id": "summit-point-raceway",
+      "name": "Summit Point Raceway",
+      "metadata": {
+        "location": "Summit Point, West Virginia",
+        "country": "USA",
+        "latitude": 39.2415229,
+        "longitude": -77.9778938,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 159
+        }
+      }
+    },
+    {
+      "id": "sunset-peninsula",
+      "name": "Sunset Peninsula",
+      "metadata": null
+    },
+    {
+      "id": "suzuka-circuit",
+      "name": "Suzuka Circuit",
+      "metadata": {
+        "location": "Suzuka, Mie Prefecture",
+        "country": "Japan",
+        "latitude": 34.8455935,
+        "longitude": 136.5367582,
+        "timeZone": "Asia/Tokyo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 176
+        }
+      }
+    },
+    {
+      "id": "talladega-superspeedway",
+      "name": "Talladega Superspeedway",
+      "metadata": {
+        "location": "Talladega, Alabama",
+        "country": "USA",
+        "latitude": 33.5669742,
+        "longitude": -86.0683193,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 116
+        }
+      }
+    },
+    {
+      "id": "texas-motor-speedway",
+      "name": "Texas Motor Speedway",
+      "metadata": {
+        "location": "Fort Worth, Texas",
+        "country": "USA",
+        "latitude": 33.0373257,
+        "longitude": -97.2843123,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 364
+        }
+      }
+    },
+    {
+      "id": "the-bullring",
+      "name": "The Bullring",
+      "metadata": {
+        "location": "Las Vegas, Nevada",
+        "country": "USA",
+        "latitude": 36.2632543,
+        "longitude": -115.02155,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 271
+        }
+      }
+    },
+    {
+      "id": "the-dirt-track-at-charlotte",
+      "name": "The Dirt Track at Charlotte",
+      "metadata": {
+        "location": "Concord, North Carolina",
+        "country": "USA",
+        "latitude": 35.3580208,
+        "longitude": -80.6874523,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 314
+        }
+      }
+    },
+    {
+      "id": "the-milwaukee-mile",
+      "name": "The Milwaukee Mile",
+      "metadata": {
+        "location": "West Allis, Wisconsin",
+        "country": "USA",
+        "latitude": 43.0204523,
+        "longitude": -88.0150972,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 94
+        }
+      }
+    },
+    {
+      "id": "thompson-speedway-motorsports-park",
+      "name": "Thompson Speedway Motorsports Park",
+      "metadata": {
+        "location": "Thompson, Connecticut",
+        "country": "USA",
+        "latitude": 41.981931,
+        "longitude": -71.825473,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 161
+        }
+      }
+    },
+    {
+      "id": "thruxton-circuit",
+      "name": "Thruxton Circuit",
+      "metadata": {
+        "location": "Hampshire, England",
+        "country": "United Kingdom",
+        "latitude": 51.20766,
+        "longitude": -1.608988,
+        "timeZone": "Europe/London",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 532
+        }
+      }
+    },
+    {
+      "id": "tsukuba-circuit",
+      "name": "Tsukuba Circuit",
+      "metadata": {
+        "location": "Shimotsuma, Ibaraki Prefecture",
+        "country": "Japan",
+        "latitude": 36.1527975,
+        "longitude": 139.9180586,
+        "timeZone": "Asia/Tokyo",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 333
+        }
+      }
+    },
+    {
+      "id": "usa-international-speedway",
+      "name": "USA International Speedway",
+      "metadata": {
+        "location": "Lakeland, Florida",
+        "country": "USA",
+        "latitude": 28.1515,
+        "longitude": -81.892694,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 275
+        }
+      }
+    },
+    {
+      "id": "virginia-international-raceway",
+      "name": "Virginia International Raceway",
+      "metadata": {
+        "location": "Alton, Virginia",
+        "country": "USA",
+        "latitude": 36.560008,
+        "longitude": -79.2048,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 469
+        }
+      }
+    },
+    {
+      "id": "volusia-speedway-park",
+      "name": "Volusia Speedway Park",
+      "metadata": {
+        "location": "De Leon Springs, Florida",
+        "country": "USA",
+        "latitude": 29.2150215,
+        "longitude": -81.3475005,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 279
+        }
+      }
+    },
+    {
+      "id": "watkins-glen-international",
+      "name": "Watkins Glen International",
+      "metadata": {
+        "location": "Watkins Glen, New York",
+        "country": "USA",
+        "latitude": 42.3382811,
+        "longitude": -76.9285517,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 435
+        }
+      }
+    },
+    {
+      "id": "weathertech-raceway-laguna-seca",
+      "name": "WeatherTech Raceway Laguna Seca",
+      "metadata": {
+        "location": "Monterey, California",
+        "country": "USA",
+        "latitude": 36.5842902,
+        "longitude": -121.7556574,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 586
+        }
+      }
+    },
+    {
+      "id": "weedsport-speedway",
+      "name": "Weedsport Speedway",
+      "metadata": {
+        "location": "Weedsport, New York",
+        "country": "USA",
+        "latitude": 43.059556,
+        "longitude": -76.546906,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 373
+        }
+      }
+    },
+    {
+      "id": "wild-west-motorsports-park",
+      "name": "Wild West Motorsports Park",
+      "metadata": {
+        "location": "Sparks, Nevada",
+        "country": "USA",
+        "latitude": 39.510394,
+        "longitude": -119.663776,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 332
+        }
+      }
+    },
+    {
+      "id": "williams-grove-speedway",
+      "name": "Williams Grove Speedway",
+      "metadata": {
+        "location": "Mechanicsburg, Pennsylvania",
+        "country": "USA",
+        "latitude": 40.155193,
+        "longitude": -77.035617,
+        "timeZone": "America/New_York",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 274
+        }
+      }
+    },
+    {
+      "id": "willow-springs-international-raceway",
+      "name": "Willow Springs International Raceway",
+      "metadata": {
+        "location": "Rosamond, California",
+        "country": "USA",
+        "latitude": 34.87,
+        "longitude": -118.2644,
+        "timeZone": "America/Los_Angeles",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 481
+        }
+      }
+    },
+    {
+      "id": "winton-motor-raceway",
+      "name": "Winton Motor Raceway",
+      "metadata": {
+        "location": "Winton, Victoria",
+        "country": "Australia",
+        "latitude": -36.51993,
+        "longitude": 146.08764,
+        "timeZone": "Australia/Melbourne",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 582
+        }
+      }
+    },
+    {
+      "id": "world-wide-technology-raceway-gateway",
+      "name": "World Wide Technology Raceway (Gateway)",
+      "metadata": {
+        "location": "Madison, Illinois",
+        "country": "USA",
+        "latitude": 38.6507543,
+        "longitude": -90.1375489,
+        "timeZone": "America/Chicago",
+        "source": {
+          "gameId": "iracing",
+          "trackOrdinal": 560
+        }
+      }
+    },
+    {
+      "id": "yas-marina-circuit",
+      "name": "Yas Marina Circuit",
+      "metadata": null
+    }
+  ],
   "trackIdentities": [
     {
       "gameId": "fm-2023",

@@ -1,16 +1,9 @@
 import { resolve } from "node:path";
 import { computedAverageFileName, loadBundledPointCsv } from "../resolve-name";
-import {
-  bundledGeometryPath,
-  bundledSharedGeometryPath,
-  getTrackAssetIdentity,
-  sharedAccGeometrySlug,
-  usesAccGeometryFallback,
-  type TrackAssetIdentity,
-} from "../storage/assets";
+import { bundledGeometryPath, bundledSharedAccGeometryPath, getTrackAssetIdentity, sharedAccGeometrySlug, usesAccGeometryFallback, type TrackAssetIdentity } from "../storage/assets";
 import { readDataFile, userGameDir } from "../storage/files";
 import { applyAlignment, computeAlignment } from "./points";
-import { getForzaSharedOutline, hasBundledBoundaryByOrdinal, loadBoundaryByName } from "./outlines";
+import { hasBundledBoundaryByOrdinal, loadBoundaryByOrdinal } from "./outlines";
 import type { Point, TrackBoundary } from "./types";
 
 export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): TrackBoundary | null {
@@ -22,11 +15,8 @@ export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): Tr
   // which has calibration transforms. F1/ACC use their own coordinate spaces.
   if (gameId !== "fm-2023") return null;
 
-  if (!hasBundledBoundaryByOrdinal(ordinal)) return null;
-  const factsSlug = getForzaSharedOutline(ordinal);
-  return factsSlug ? loadBoundaryByName(factsSlug) : null;
+  return hasBundledBoundaryByOrdinal(ordinal) ? loadBoundaryByOrdinal(ordinal) : null;
 }
-
 
 /** Load extracted boundary data, aligned to telemetry coordinate space if possible. */
 export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary | null {
@@ -38,7 +28,7 @@ export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBou
   }
   const accSlug = identity ? sharedAccGeometrySlug(identity) : null;
   if (!content && identity && accSlug) {
-    const sharedPath = bundledSharedGeometryPath(identity, "acc", accSlug, "boundaries");
+    const sharedPath = bundledSharedAccGeometryPath(identity, accSlug, "boundaries");
     content = sharedPath ? readDataFile(sharedPath) : null;
   }
   const fallbackSlug = identity?.factsSlug ?? null;
@@ -46,7 +36,7 @@ export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBou
     const accIdentity: TrackAssetIdentity = { ...identity, gameId: "acc" };
     content = readDataFile(bundledGeometryPath(accIdentity, "boundaries"));
     if (!content) {
-      const sharedPath = bundledSharedGeometryPath(identity, "acc", fallbackSlug, "boundaries");
+      const sharedPath = bundledSharedAccGeometryPath(identity, fallbackSlug, "boundaries");
       content = sharedPath ? readDataFile(sharedPath) : null;
     }
   }
@@ -64,10 +54,15 @@ export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBou
     // so it must NOT be marked pre-aligned — it needs Procrustes alignment.
     const isPreAligned = data.aligned || gameId === "acc";
     if (!isPreAligned) {
-      const parseCsv = (csv: string) => csv.split("\n").filter(Boolean).slice(1).map((line) => {
-        const [x, z] = line.split(",").map(Number);
-        return { x, z };
-      });
+      const parseCsv = (csv: string) =>
+        csv
+          .split("\n")
+          .filter(Boolean)
+          .slice(1)
+          .map((line) => {
+            const [x, z] = line.split(",").map(Number);
+            return { x, z };
+          });
       const recorded = readDataFile(resolve(userGameDir(gameId), "extracted", `recorded-${ordinal}.csv`));
       const extCenter = recorded ? parseCsv(recorded) : loadBundledPointCsv(ordinal, gameId, "centerline");
       const caName = computedAverageFileName(gameId, ordinal);
@@ -76,26 +71,28 @@ export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBou
       if (extCenter && telCenter) {
         const align = computeAlignment(extCenter, telCenter);
         if (align) {
-          left = left.map(p => applyAlignment(p, align));
-          right = right.map(p => applyAlignment(p, align));
-          if (pit) pit = pit.map(p => applyAlignment(p, align));
+          left = left.map((p) => applyAlignment(p, align));
+          right = right.map((p) => applyAlignment(p, align));
+          if (pit) pit = pit.map((p) => applyAlignment(p, align));
         }
       }
     }
 
     return { leftEdge: left, rightEdge: right, pitLane: pit };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
-
 
 /** Load altitude (elevation) array for a track from extracted game data. */
 export function getTrackAltitudeByOrdinal(ordinal: number): number[] | null {
   const identity = getTrackAssetIdentity("fm-2023", ordinal);
-  const content = readDataFile(resolve(userGameDir("fm-2023"), "extracted", `boundaries-${ordinal}.json`))
-    ?? (identity ? readDataFile(bundledGeometryPath(identity, "boundaries")) : null);
+  const content = readDataFile(resolve(userGameDir("fm-2023"), "extracted", `boundaries-${ordinal}.json`)) ?? (identity ? readDataFile(bundledGeometryPath(identity, "boundaries")) : null);
   if (!content) return null;
   try {
     const data = JSON.parse(content);
     return data.altitude && data.altitude.length > 0 ? data.altitude : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }

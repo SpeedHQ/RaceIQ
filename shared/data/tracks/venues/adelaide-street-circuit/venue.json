@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "adelaide-street-circuit",
-  "name": "Adelaide Street Circuit"
+  "name": "Adelaide Street Circuit",
+  "metadata": {
+    "location": "Adelaide",
+    "country": "Australia",
+    "latitude": -34.930183,
+    "longitude": 138.620315,
+    "timeZone": "Australia/Adelaide",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 580
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "shell-v-power-motorsport-park-at-the-bend",
-  "name": "Shell V-Power Motorsport Park at The Bend"
+  "name": "Shell V-Power Motorsport Park at The Bend",
+  "metadata": {
+    "location": "Tailem Bend",
+    "country": "Australia",
+    "latitude": -35.308313,
+    "longitude": 139.511143,
+    "timeZone": "Australia/Adelaide",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 546
+    }
+  }
 }

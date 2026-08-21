@@ -10,12 +10,7 @@ import { basename } from "node:path";
 import { detectCornerRegions, type CornerRegion } from "./segment-align-detect";
 import { alignSegments, type AlignedCorner } from "./segment-align-match";
 import { validateFacts } from "./segment-align-validate";
-import {
-  listTrackFactSlugs,
-  loadTrackFacts,
-  loadTrackGeometryForGame,
-  saveTrackMetadata,
-} from "../storage/meta";
+import { listTrackFactSlugs, loadTrackFacts, loadTrackGeometryForGame, saveTrackMetadata } from "../storage/meta";
 import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";
 import { splitSegments } from "./join";
@@ -23,13 +18,7 @@ import { cornerKey } from "../keys";
 import { loadDetectHints } from "../detect-hints";
 import type { NamedSegment } from "../named-segments";
 import type { GameId } from "@shared/games/ids";
-import {
-  bundledGeometryPath,
-  bundledSharedGeometryPath,
-  findTrackAssetIdentities,
-  sharedAccGeometrySlug,
-  listTrackAssetIdentities,
-} from "../storage/assets";
+import { bundledGeometryPath, bundledSharedAccGeometryPath, findTrackAssetIdentities, sharedAccGeometrySlug, listTrackAssetIdentities } from "../storage/assets";
 
 /** List every track-facts slug in bundled registry, curated or not. */
 export function listMetaSlugs(): string[] {
@@ -74,7 +63,7 @@ export function findCenterlines(slug: string, gameFilter?: string): { gameId: Ga
     let file = bundledGeometryPath(identity, "centerline");
     const sharedSlug = sharedAccGeometrySlug(identity);
     if (!existsSync(file) && sharedSlug) {
-      file = bundledSharedGeometryPath(identity, "acc", sharedSlug, "centerline") ?? file;
+      file = bundledSharedAccGeometryPath(identity, sharedSlug, "centerline") ?? file;
     }
     if (existsSync(file)) found.push({ gameId: identity.gameId, file });
   }
@@ -108,11 +97,7 @@ export interface GenerationResult {
  * Run detection + alignment for one track across all (or one) game
  * centerlines. Pure computation — nothing is written.
  */
-export function generateTrackSegments(
-  slug: string,
-  facts: TrackFacts,
-  gameFilter?: string,
-): GenerationResult {
+export function generateTrackSegments(slug: string, facts: TrackFacts, gameFilter?: string): GenerationResult {
   const outcomes: TrackOutcome[] = [];
   const aligned: GameAlignment[] = [];
 
@@ -123,7 +108,11 @@ export function generateTrackSegments(
   const listIssues = validateFacts(facts, hints);
   if (listIssues.length > 0) {
     outcomes.push({
-      slug, gameId: "-", ok: false, cost: Infinity, wrote: false,
+      slug,
+      gameId: "-",
+      ok: false,
+      cost: Infinity,
+      wrote: false,
       detail: `invalid facts: ${listIssues.map((i) => i.message).join("; ")}`,
     });
     return { outcomes, aligned };
@@ -150,7 +139,11 @@ export function generateTrackSegments(
 
     if (!result.ok) {
       outcomes.push({
-        slug, gameId, ok: false, cost: result.cost, wrote: false,
+        slug,
+        gameId,
+        ok: false,
+        cost: result.cost,
+        wrote: false,
         detail: result.issues.map((i) => i.message).join("; "),
       });
       continue;
@@ -160,9 +153,12 @@ export function generateTrackSegments(
     aligned.push({ gameId, file, segments: result.segments, corners: result.corners, cost: result.cost });
     const warnings = result.issues.filter((i) => i.severity === "warning").map((i) => i.message);
     outcomes.push({
-      slug, gameId, ok: true, cost: result.cost, wrote: false,
-      detail: `${result.segments.length} segments, ${result.corners.length} corners`
-        + (warnings.length ? ` — ${warnings.join("; ")}` : ""),
+      slug,
+      gameId,
+      ok: true,
+      cost: result.cost,
+      wrote: false,
+      detail: `${result.segments.length} segments, ${result.corners.length} corners` + (warnings.length ? ` — ${warnings.join("; ")}` : ""),
     });
   }
 
@@ -190,12 +186,7 @@ export interface GeneratedMeta {
  * neighbour — are carried through, so the fact set stays the union across games
  * instead of shrinking to whatever aligned today.
  */
-export function buildUpdatedMeta(
-  slug: string,
-  existingFacts: TrackFacts | null,
-  existingGeometry: Record<string, TrackGeometry>,
-  writable: GameAlignment[],
-): GeneratedMeta {
+export function buildUpdatedMeta(slug: string, existingFacts: TrackFacts | null, existingGeometry: Record<string, TrackGeometry>, writable: GameAlignment[]): GeneratedMeta {
   const corners = new Map<string, CornerFact>();
   const straights = new Map<number, StraightFact>();
   for (const c of existingFacts?.corners ?? []) corners.set(cornerKey(cornerNumbers(c)), c);
@@ -237,22 +228,39 @@ export function buildUpdatedMeta(
     const known = existingFacts !== null && committed !== undefined;
     const direction = known
       ? committed.direction
-      : agreed(votes.map((v) => v.direction), committed?.direction);
-    const group = agreed(votes.map((v) => v.group), committed?.group);
+      : agreed(
+          votes.map((v) => v.direction),
+          committed?.direction,
+        );
+    const group = agreed(
+      votes.map((v) => v.group),
+      committed?.group,
+    );
     corners.set(key, {
       number: numbers[0],
       ...(numbers.length > 1 ? { covers: numbers.slice(1) } : {}),
-      name: agreed(votes.map((v) => v.name), committed?.name) ?? "",
+      name:
+        agreed(
+          votes.map((v) => v.name),
+          committed?.name,
+        ) ?? "",
       ...(direction ? { direction } : {}),
       ...(group ? { group } : {}),
     });
   }
   for (const [after, votes] of straightVotes) {
     const committed = straights.get(after);
-    const group = agreed(votes.map((v) => v.group), committed?.group);
+    const group = agreed(
+      votes.map((v) => v.group),
+      committed?.group,
+    );
     straights.set(after, {
       after,
-      name: agreed(votes.map((v) => v.name), committed?.name) ?? "",
+      name:
+        agreed(
+          votes.map((v) => v.name),
+          committed?.name,
+        ) ?? "",
       ...(group ? { group } : {}),
     });
   }
@@ -318,16 +326,10 @@ export function autoTrackSegments(
   // curated corner name can promote one into a section.
   const raw = detectCornerRegions(outline);
   const strongCorners = raw.corners.filter((corner) => !corner.weak);
-  const detectedDirections = new Set(
-    strongCorners.map((corner) => corner.direction),
-  );
+  const detectedDirections = new Set(strongCorners.map((corner) => corner.direction));
   if (options.fourTurnOval && detectedDirections.size <= 1) {
     return {
-      segments: fourTurnOvalSegments(
-        strongCorners,
-        options.fourTurnOval.direction,
-        options.fourTurnOval.turnAnchors,
-      ),
+      segments: fourTurnOvalSegments(strongCorners, options.fourTurnOval.direction, options.fourTurnOval.turnAnchors),
       cornerCount: 4,
       totalDist: raw.totalDist,
     };
@@ -337,7 +339,11 @@ export function autoTrackSegments(
     return { segments: [], cornerCount: 0, totalDist: detection.totalDist };
   }
   const synthetic: TrackFacts = {
-    slug: "auto", track: "auto", layout: "full", layoutName: "Full", name: "auto",
+    slug: "auto",
+    track: "auto",
+    layout: "full",
+    layoutName: "Full",
+    name: "auto",
     corners: detection.corners.map((c, i) => ({ number: i + 1, name: "", direction: c.direction })),
   };
   const result = alignSegments(detection.corners, synthetic, detection.totalDist);
@@ -358,19 +364,10 @@ export function autoTrackSegments(
 function groupAutoStartFinishStraight(segments: NamedSegment[]): void {
   const first = segments[0];
   const last = segments.at(-1);
-  if (
-    !first ||
-    !last ||
-    first === last ||
-    first.type !== "straight" ||
-    last.type !== "straight"
-  ) {
+  if (!first || !last || first === last || first.type !== "straight" || last.type !== "straight") {
     return;
   }
-  const name =
-    first.name ||
-    last.name ||
-    "Start/Finish Straight";
+  const name = first.name || last.name || "Start/Finish Straight";
   first.name = name;
   last.name = name;
   first.group = name;
@@ -385,17 +382,9 @@ function groupAutoStartFinishStraight(segments: NamedSegment[]): void {
  * detection and conservative defaults apply only when a complete anchor pair
  * is unavailable.
  */
-function fourTurnOvalSegments(
-  detected: CornerRegion[],
-  direction: "left" | "right",
-  turnAnchors: readonly { number: number; fraction: number }[] = [],
-): NamedSegment[] {
-  const firstEnd =
-    officialOvalEndBounds(turnAnchors, 1, 2, 0, 0.5) ??
-    ovalEndBounds(detected, 0, 0.5, 0.1, 0.4);
-  const secondEnd =
-    officialOvalEndBounds(turnAnchors, 3, 4, 0.5, 1) ??
-    ovalEndBounds(detected, 0.5, 1, 0.6, 0.9);
+function fourTurnOvalSegments(detected: CornerRegion[], direction: "left" | "right", turnAnchors: readonly { number: number; fraction: number }[] = []): NamedSegment[] {
+  const firstEnd = officialOvalEndBounds(turnAnchors, 1, 2, 0, 0.5) ?? ovalEndBounds(detected, 0, 0.5, 0.1, 0.4);
+  const secondEnd = officialOvalEndBounds(turnAnchors, 3, 4, 0.5, 1) ?? ovalEndBounds(detected, 0.5, 1, 0.6, 0.9);
   const firstMiddle = ovalTurnSplit(turnAnchors, 1, 2, firstEnd);
   const secondMiddle = ovalTurnSplit(turnAnchors, 3, 4, secondEnd);
 
@@ -464,13 +453,7 @@ function officialOvalEndBounds(
 ): { start: number; end: number } | null {
   const first = anchors.find((anchor) => anchor.number === firstTurn);
   const second = anchors.find((anchor) => anchor.number === secondTurn);
-  if (
-    !first ||
-    !second ||
-    first.fraction < halfStart ||
-    second.fraction > halfEnd ||
-    first.fraction >= second.fraction
-  ) {
+  if (!first || !second || first.fraction < halfStart || second.fraction > halfEnd || first.fraction >= second.fraction) {
     return null;
   }
   const halfSpacing = (second.fraction - first.fraction) / 2;
@@ -479,12 +462,7 @@ function officialOvalEndBounds(
   return start > halfStart && end < halfEnd ? { start, end } : null;
 }
 
-function ovalTurnSplit(
-  anchors: readonly { number: number; fraction: number }[],
-  firstTurn: number,
-  secondTurn: number,
-  bounds: { start: number; end: number },
-): number {
+function ovalTurnSplit(anchors: readonly { number: number; fraction: number }[], firstTurn: number, secondTurn: number, bounds: { start: number; end: number }): number {
   const first = anchors.find((anchor) => anchor.number === firstTurn);
   const second = anchors.find((anchor) => anchor.number === secondTurn);
   if (first && second) {
@@ -496,18 +474,8 @@ function ovalTurnSplit(
   return (bounds.start + bounds.end) / 2;
 }
 
-function ovalEndBounds(
-  detected: CornerRegion[],
-  halfStart: number,
-  halfEnd: number,
-  fallbackStart: number,
-  fallbackEnd: number,
-): { start: number; end: number } {
-  const regions = detected.filter(
-    (corner) =>
-      corner.apexFrac >= halfStart &&
-      corner.apexFrac < halfEnd,
-  );
+function ovalEndBounds(detected: CornerRegion[], halfStart: number, halfEnd: number, fallbackStart: number, fallbackEnd: number): { start: number; end: number } {
+  const regions = detected.filter((corner) => corner.apexFrac >= halfStart && corner.apexFrac < halfEnd);
   if (regions.length === 0) {
     return { start: fallbackStart, end: fallbackEnd };
   }
@@ -517,25 +485,13 @@ function ovalEndBounds(
   const halfPadding = 0.04;
   const minimumSpan = 0.2;
   const minimumStraight = 0.05;
-  let start = Math.max(
-    halfStart + minimumStraight,
-    rawStart - halfPadding,
-  );
-  let end = Math.min(
-    halfEnd - minimumStraight,
-    rawEnd + halfPadding,
-  );
+  let start = Math.max(halfStart + minimumStraight, rawStart - halfPadding);
+  let end = Math.min(halfEnd - minimumStraight, rawEnd + halfPadding);
 
   if (end - start < minimumSpan) {
     const middle = (start + end) / 2;
-    start = Math.max(
-      halfStart + minimumStraight,
-      middle - minimumSpan / 2,
-    );
-    end = Math.min(
-      halfEnd - minimumStraight,
-      middle + minimumSpan / 2,
-    );
+    start = Math.max(halfStart + minimumStraight, middle - minimumSpan / 2);
+    end = Math.min(halfEnd - minimumStraight, middle + minimumSpan / 2);
   }
   return { start, end };
 }
@@ -549,7 +505,7 @@ export function listAllCenterlines(): { gameId: GameId; slug: string; file: stri
     const slug = identity.factsSlug ?? sharedSlug ?? `${identity.gameId}-${identity.ordinal}`;
     let file = bundledGeometryPath(identity, "centerline");
     if (!existsSync(file) && sharedSlug) {
-      file = bundledSharedGeometryPath(identity, "acc", sharedSlug, "centerline") ?? file;
+      file = bundledSharedAccGeometryPath(identity, sharedSlug, "centerline") ?? file;
     }
     const key = `${identity.gameId}:${file}`;
     if (!existsSync(file) || seen.has(key)) continue;
@@ -560,12 +516,7 @@ export function listAllCenterlines(): { gameId: GameId; slug: string; file: stri
 }
 
 /** Persist writable alignments into the track's facts + geometry. Returns written gameIds. */
-export function writeTrackMeta(
-  slug: string,
-  facts: TrackFacts,
-  aligned: GameAlignment[],
-  allowFuzzy = false,
-): string[] {
+export function writeTrackMeta(slug: string, facts: TrackFacts, aligned: GameAlignment[], allowFuzzy = false): string[] {
   const writable = writableAlignments(aligned, allowFuzzy);
   if (writable.length === 0) return [];
   const existingGeometry: Record<string, TrackGeometry> = {};

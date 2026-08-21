@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "lernerville-speedway",
-  "name": "Lernerville Speedway"
+  "name": "Lernerville Speedway",
+  "metadata": {
+    "location": "Sarver, Pennsylvania",
+    "country": "USA",
+    "latitude": 40.738633,
+    "longitude": -79.759479,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 351
+    }
+  }
 }

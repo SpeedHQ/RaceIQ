@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "oswego-speedway",
-  "name": "Oswego Speedway"
+  "name": "Oswego Speedway",
+  "metadata": {
+    "location": "Oswego, NY",
+    "country": "USA",
+    "latitude": 43.45784,
+    "longitude": -76.481946,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 520
+    }
+  }
 }

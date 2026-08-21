@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "kokomo-speedway",
-  "name": "Kokomo Speedway"
+  "name": "Kokomo Speedway",
+  "metadata": {
+    "location": "Kokomo, Indiana",
+    "country": "USA",
+    "latitude": 40.5111901,
+    "longitude": -86.1455678,
+    "timeZone": "America/Indiana/Indianapolis",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 514
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "red-bull-ring",
-  "name": "Red Bull Ring"
+  "name": "Red Bull Ring",
+  "metadata": {
+    "location": "Spielberg, Styria",
+    "country": "Austria",
+    "latitude": 47.2203417,
+    "longitude": 14.7654865,
+    "timeZone": "Europe/Vienna",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 407
+    }
+  }
 }

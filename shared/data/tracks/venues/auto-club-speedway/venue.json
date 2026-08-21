@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "auto-club-speedway",
-  "name": "Auto Club Speedway"
+  "name": "Auto Club Speedway",
+  "metadata": {
+    "location": "Fontana, California",
+    "country": "USA",
+    "latitude": 34.0888203,
+    "longitude": -117.5026942,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 228
+    }
+  }
 }

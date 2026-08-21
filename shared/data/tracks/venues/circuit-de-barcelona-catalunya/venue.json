@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-de-barcelona-catalunya",
-  "name": "Circuit de Barcelona-Catalunya"
+  "name": "Circuit de Barcelona-Catalunya",
+  "metadata": {
+    "location": "Montmeló, Catalonia",
+    "country": "Spain",
+    "latitude": 41.568749,
+    "longitude": 2.257138,
+    "timeZone": "Europe/Madrid",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 386
+    }
+  }
 }

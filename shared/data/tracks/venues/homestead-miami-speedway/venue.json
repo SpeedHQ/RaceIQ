@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "homestead-miami-speedway",
-  "name": "Homestead-Miami Speedway"
+  "name": "Homestead-Miami Speedway",
+  "metadata": {
+    "location": "Homestead, Florida",
+    "country": "USA",
+    "latitude": 25.4517775,
+    "longitude": -80.4110895,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 362
+    }
+  }
 }

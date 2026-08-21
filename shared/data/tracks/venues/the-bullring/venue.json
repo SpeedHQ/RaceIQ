@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "the-bullring",
-  "name": "The Bullring"
+  "name": "The Bullring",
+  "metadata": {
+    "location": "Las Vegas, Nevada",
+    "country": "USA",
+    "latitude": 36.2632543,
+    "longitude": -115.02155,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 271
+    }
+  }
 }

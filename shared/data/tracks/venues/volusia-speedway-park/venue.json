@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "volusia-speedway-park",
-  "name": "Volusia Speedway Park"
+  "name": "Volusia Speedway Park",
+  "metadata": {
+    "location": "De Leon Springs, Florida",
+    "country": "USA",
+    "latitude": 29.2150215,
+    "longitude": -81.3475005,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 279
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "fairbury-speedway",
-  "name": "Fairbury Speedway"
+  "name": "Fairbury Speedway",
+  "metadata": {
+    "location": "Fairbury, Illinois",
+    "country": "USA",
+    "latitude": 40.740155,
+    "longitude": -88.514774,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 344
+    }
+  }
 }

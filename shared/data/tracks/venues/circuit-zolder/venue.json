@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-zolder",
-  "name": "Circuit Zolder"
+  "name": "Circuit Zolder",
+  "metadata": {
+    "location": "Heusden-Zolder, Limburg",
+    "country": "Belgium",
+    "latitude": 50.9904979,
+    "longitude": 5.25579,
+    "timeZone": "Europe/Brussels",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 200
+    }
+  }
 }

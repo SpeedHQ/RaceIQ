@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "slinger-speedway",
-  "name": "Slinger Speedway"
+  "name": "Slinger Speedway",
+  "metadata": {
+    "location": "Slinger, WI",
+    "country": "USA",
+    "latitude": 43.340579,
+    "longitude": -88.277329,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 506
+    }
+  }
 }

@@ -31,6 +31,7 @@ venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
 `historical/2011`. Never put layout before revision or add `current` to ID.
 Historical revision documents recreate existing nested venue nodes; current does
 not project revision venue node.
+Root `venue.json` may also carry normalized general metadata and explicit source provenance; generated SQLite projects it for runtime consumers.
 
 Editors and curation commands update source manifests first, then regenerate
 `registry.sqlite` and `registry-report.json`. Never edit generated SQLite rows or
@@ -367,7 +368,7 @@ If a track looks wrong in the app: fix that track's curated data.
 | Layout identity, game assignments, facts, per-game geometry, and verification | `shared/data/tracks/venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json` |
 | Shippable revision imagery | sibling `imagery/` beneath revision directory |
 | Layout geometry, authored guide, and source-only detector hints | sibling `geometry/<gameId>/`, `guide.json`, and `detect-hints.json` beneath layout directory |
-| Shared ACC/TUMFTM geometry | `shared/data/tracks/venues/<root-venue>/geometry/` |
+| Shared ACC geometry | `shared/data/tracks/venues/<root-venue>/geometry/acc/` |
 | Generated runtime projection and audit | `shared/data/tracks/registry.sqlite`, `shared/data/tracks/registry-report.json` |
 | Runtime registry access | `shared/racing/tracks/registry.ts`, `shared/racing/tracks/storage/meta.ts` |
 | Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |

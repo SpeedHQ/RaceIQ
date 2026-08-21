@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { IS_COMPILED } from "@shared/platform/runtime/data-paths";
 import { readTrackRegistrySourceFiles, resolveTrackRegistryLocations } from "./registry-source";
 
-export const TRACK_REGISTRY_VERSION = 2 as const;
+export const TRACK_REGISTRY_VERSION = 3 as const;
 export const TRACK_REGISTRY_PATH = resolveTrackRegistryLocations().databasePath;
 
 let registry: Database | null = null;

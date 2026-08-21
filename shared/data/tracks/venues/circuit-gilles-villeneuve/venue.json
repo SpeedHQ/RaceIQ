@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "circuit-gilles-villeneuve",
-  "name": "Circuit Gilles Villeneuve"
+  "name": "Circuit Gilles Villeneuve",
+  "metadata": {
+    "location": "Montreal, Quebec",
+    "country": "Canada",
+    "latitude": 45.5032189,
+    "longitude": -73.5288816,
+    "timeZone": "America/Toronto",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 218
+    }
+  }
 }

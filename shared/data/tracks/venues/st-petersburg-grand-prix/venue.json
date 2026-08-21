@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "st-petersburg-grand-prix",
-  "name": "St. Petersburg Grand Prix"
+  "name": "St. Petersburg Grand Prix",
+  "metadata": {
+    "location": "St. Petersburg, Florida",
+    "country": "USA",
+    "latitude": 27.765,
+    "longitude": -82.626944,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 584
+    }
+  }
 }

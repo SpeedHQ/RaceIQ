@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "rudskogen-motorsenter",
-  "name": "Rudskogen Motorsenter"
+  "name": "Rudskogen Motorsenter",
+  "metadata": {
+    "location": "Rakkestad, Østfold",
+    "country": "Norway",
+    "latitude": 59.3666,
+    "longitude": 11.2616,
+    "timeZone": "Europe/Oslo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 451
+    }
+  }
 }

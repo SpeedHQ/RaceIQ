@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "lincoln-speedway",
-  "name": "Lincoln Speedway"
+  "name": "Lincoln Speedway",
+  "metadata": {
+    "location": "Abbottstown, Pennsylvania",
+    "country": "USA",
+    "latitude": 39.869954,
+    "longitude": -76.993998,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 462
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "autodromo-internazionale-enzo-e-dino-ferrari",
-  "name": "Autodromo Internazionale Enzo e Dino Ferrari"
+  "name": "Autodromo Internazionale Enzo e Dino Ferrari",
+  "metadata": {
+    "location": "Imola, Emilia-Romagna",
+    "country": "Italy",
+    "latitude": 44.3443574,
+    "longitude": 11.717198,
+    "timeZone": "Europe/Rome",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 267
+    }
+  }
 }

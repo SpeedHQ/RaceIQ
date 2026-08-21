@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "chicago-street-course",
-  "name": "Chicago Street Course"
+  "name": "Chicago Street Course",
+  "metadata": {
+    "location": "Chicago, Illinois",
+    "country": "USA",
+    "latitude": 41.8733468,
+    "longitude": -87.620581,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 483
+    }
+  }
 }

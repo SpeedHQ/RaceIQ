@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "mobility-resort-motegi",
-  "name": "Mobility Resort Motegi"
+  "name": "Mobility Resort Motegi",
+  "metadata": {
+    "location": "Motegi, Tochigi Prefecture",
+    "country": "Japan",
+    "latitude": 36.531954,
+    "longitude": 140.2232026,
+    "timeZone": "Asia/Tokyo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 198
+    }
+  }
 }

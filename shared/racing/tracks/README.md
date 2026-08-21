@@ -16,7 +16,7 @@ shared/data/tracks/venues/<root-venue>/revisions/<revision-path>/tracks/<layout>
 - Canonical order is venue, historical revision when present, layout. Never layout/revision.
 - Use browser-safe helpers in `configuration.ts` to parse venue paths and build revision/layout asset components. Never hand-split or hand-assemble hierarchy paths.
 - Revision imagery belongs beside `revision.json`; layout geometry, guide, and hints belong beside `metadata.json`.
-- Shared ACC/TUMFTM geometry remains at root venue `geometry/`.
+- Shared ACC geometry remains at root venue `geometry/`; imported legacy baselines live under their owning layout's `geometry/<gameId>/`.
 
 ## Key modules
 
@@ -28,10 +28,10 @@ shared/data/tracks/venues/<root-venue>/revisions/<revision-path>/tracks/<layout>
 
 ## Data split and projection
 
-- `venue.json` owns stable venue root.
+- `venue.json` owns the stable venue root and optional normalized general metadata with source provenance.
 - `revision.json` owns source revision identity `{ version: 1, id, name }`. `current` is source-only, not projected venue node; historical revisions reconstruct nested venue nodes.
 - Layout `metadata.json` owns layout identity and assignments, optional facts, `geometryByGame`, and verification.
-- SQLite `venue_nodes`, `layouts`, `game_tracks`, facts, geometry, and verification rows project these manifests without changing public layout IDs or query semantics.
+- SQLite `venue_nodes`, `layouts`, `game_tracks`, facts, geometry, and verification rows project these manifests, including root venue metadata, without changing public layout IDs or query semantics.
 - `joinSegments` combines shared facts with one game's geometry; `splitSegments` supports editors.
 - Every game asset/API path requires `gameId`; never default one.
 
@@ -40,7 +40,7 @@ shared/data/tracks/venues/<root-venue>/revisions/<revision-path>/tracks/<layout>
 - Runtime reads generated `registry.sqlite`, not source manifests or report.
 - Runtime includes revision imagery, layout geometry, and `guide.json`.
 - Runtime excludes `venue.json`, `revision.json`, `metadata.json`, `detect-hints.json`, registry source, and registry report.
-- Root shared ACC/TUMFTM geometry still ships.
+- Root shared ACC geometry and game-owned legacy baselines still ship.
 - Resolve generated-artifact conflicts through source manifests, then regenerate.
 
 ## Browser vs Node boundary

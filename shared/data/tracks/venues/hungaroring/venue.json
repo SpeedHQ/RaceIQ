@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "hungaroring",
-  "name": "Hungaroring"
+  "name": "Hungaroring",
+  "metadata": {
+    "location": "Mogyoród, Pest",
+    "country": "Hungary",
+    "latitude": 47.58186,
+    "longitude": 19.25057,
+    "timeZone": "Europe/Budapest",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 413
+    }
+  }
 }

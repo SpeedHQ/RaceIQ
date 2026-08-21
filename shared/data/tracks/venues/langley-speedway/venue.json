@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "langley-speedway",
-  "name": "Langley Speedway"
+  "name": "Langley Speedway",
+  "metadata": {
+    "location": "Hampton, Virginia",
+    "country": "USA",
+    "latitude": 37.0866696,
+    "longitude": -76.3888498,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 201
+    }
+  }
 }

@@ -10,7 +10,7 @@ venues/<root-venue>/revisions/<revision-path>/revision.json
 venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
 ```
 
-- `venue.json` identifies stable physical venue root.
+- `venue.json` identifies the stable physical venue root and may include normalized general metadata with source provenance.
 - `revision.json` has `{ version: 1, id: <revision-path>, name }`.
 - `current` is source-only default revision. Current layout ID is `<root-venue>/<layout>`; do not add `/current/`.
 - Historical layout ID includes its revision: `<root-venue>/<revision-path>/<layout>`. Example: `monza/2010/grand-prix`; nested revision example: `monza/historical/2011/grand-prix`.
@@ -24,8 +24,8 @@ venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
 - Layout-local assets: `tracks/<layout>/geometry/<gameId>/`, `guide.json`, and optional `detect-hints.json`.
   - Every game-scoped asset needs explicit `gameId`; never infer/default one.
   - iRacing source layers live at `geometry/iracing/official/{active,start-finish,turns,pit-road}.svg`.
-- Shared root geometry is exceptional: `venues/<root-venue>/geometry/acc/` and `venues/<root-venue>/geometry/tumftm/`. Do not move it into a revision or layout.
-- `registry.sqlite` projects source for runtime; `registry-report.json` is generated audit output.
+- Shared root geometry is exceptional and ACC-only: `venues/<root-venue>/geometry/acc/`. Do not move it into a revision or layout.
+- `registry.sqlite` projects source, including root venue metadata, for runtime; `registry-report.json` is the generated audit output.
 
 ## Data formats
 
@@ -41,8 +41,9 @@ venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
 - Never edit generated artifacts or export SQLite into source.
 - Runtime ships `registry.sqlite` plus revision imagery, layout geometry, and guides. It excludes `venue.json`, `revision.json`, `metadata.json`, `detect-hints.json`, and registry report/source files.
 - Merge generated-artifact conflicts through source manifests, then run `bun run tracks:registry`.
-- `<gameId>/*-centerline.csv`, `*-raceline.csv`, and `*-boundaries.json` are extractor snapshots. Installed-game data is authoritative when refreshing them.
-- Root `geometry/tumftm/` is imported baseline data; retain source identity.
+- `<gameId>/{centerline,raceline,boundaries}.*` files are extractor snapshots. Installed-game data is authoritative when refreshing them.
+- `<gameId>/legacy-{centerline,boundaries}.*` files are imported baselines stored under one canonical owning game layout; FM 2023 owns shared layouts when available, otherwise F1 2025.
+- Sepang has no current game assignment; its legacy baseline is staged under `geometry/fm-2023/` and remains unreachable until the registry assigns that layout.
 
 ## Regeneration
 

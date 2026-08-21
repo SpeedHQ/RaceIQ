@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "hockenheimring",
-  "name": "Hockenheimring"
+  "name": "Hockenheimring",
+  "metadata": {
+    "location": "Hockenheim, Baden-Württemberg",
+    "country": "Germany",
+    "latitude": 49.330028,
+    "longitude": 8.570892,
+    "timeZone": "Europe/Berlin",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 431
+    }
+  }
 }

@@ -1,6 +1,6 @@
 import { filterOutlierPoints } from "./points";
-import { loadSharedBoundary, loadSharedBoundaryByOrdinal, loadSharedOutline, loadSharedOutlineByOrdinal } from "./shared";
-import type { Point, TrackBoundary, TrackSource } from "./types";
+import { loadLegacyBoundaryByOrdinal, loadLegacyOutlineByOrdinal } from "./legacy";
+import type { Point, TrackBoundary } from "./types";
 import { getTrackAssetIdentity } from "../storage/assets";
 import { ttlCache } from "../storage/cache";
 
@@ -17,7 +17,7 @@ function projectGpsToMeters(points: Point[]): Point[] {
   }
   refLon /= points.length;
   refLat /= points.length;
-  const latitudeRadians = refLat * Math.PI / 180;
+  const latitudeRadians = (refLat * Math.PI) / 180;
   const metersPerDegreeLatitude = 111320;
   const metersPerDegreeLongitude = 111320 * Math.cos(latitudeRadians);
   return points.map((point) => ({
@@ -26,7 +26,7 @@ function projectGpsToMeters(points: Point[]): Point[] {
   }));
 }
 
-function normalizeSharedOutline(factsSlug: string, data: Point[]): Point[] {
+function normalizeLegacyOutline(factsSlug: string, data: Point[]): Point[] {
   if (outlineCache.has(factsSlug)) return outlineCache.get(factsSlug)!;
   let outline = data;
   const sample = outline.slice(0, 5);
@@ -39,33 +39,24 @@ function normalizeSharedOutline(factsSlug: string, data: Point[]): Point[] {
   return outline;
 }
 
-/** Load TUMFTM outline by registry facts slug, not display name. */
-export function getTrackOutline(factsSlug: string): Point[] | null {
-  const raw = loadSharedOutline(factsSlug);
-  return raw ? normalizeSharedOutline(factsSlug, raw) : null;
-}
-
-/** Get bundled TUMFTM outline assigned to a Forza track ordinal. */
+/** Get the legacy baseline outline assigned to a Forza track ordinal. */
 export function getBundledOutlineByOrdinal(ordinal: number): Point[] | null {
   const identity = getTrackAssetIdentity("fm-2023", ordinal);
   if (!identity?.factsSlug) return null;
-  const raw = loadSharedOutlineByOrdinal(ordinal, "fm-2023");
-  return raw ? normalizeSharedOutline(identity.factsSlug, raw) : null;
-}
-
-export function getTrackSource(factsSlug: string): TrackSource | null {
-  return loadSharedOutline(factsSlug) ? "tumftm" : null;
+  const raw = loadLegacyOutlineByOrdinal(ordinal, "fm-2023");
+  return raw ? normalizeLegacyOutline(identity.factsSlug, raw) : null;
 }
 
 /** Get registry facts slug for a Forza track ordinal. */
 export function getForzaSharedOutline(ordinal: number): string | undefined {
   return getTrackAssetIdentity("fm-2023", ordinal)?.factsSlug ?? undefined;
 }
-
-
-export function loadBoundaryByName(factsSlug: string): TrackBoundary | null {
+export function loadBoundaryByOrdinal(ordinal: number): TrackBoundary | null {
+  const identity = getTrackAssetIdentity("fm-2023", ordinal);
+  const factsSlug = identity?.factsSlug;
+  if (!factsSlug) return null;
   if (boundaryCache.has(factsSlug)) return boundaryCache.get(factsSlug)!;
-  const data = loadSharedBoundary(factsSlug);
+  const data = loadLegacyBoundaryByOrdinal(ordinal, "fm-2023");
   if (!data?.leftEdge || !data.rightEdge) return null;
   const boundary: TrackBoundary = {
     ...data,
@@ -83,5 +74,5 @@ export function hasBundledOutlineByOrdinal(ordinal: number): boolean {
 
 export function hasBundledBoundaryByOrdinal(ordinal: number): boolean {
   const identity = getTrackAssetIdentity("fm-2023", ordinal);
-  return Boolean(identity?.factsSlug && loadSharedBoundaryByOrdinal(ordinal, "fm-2023"));
+  return Boolean(identity?.factsSlug && loadLegacyBoundaryByOrdinal(ordinal, "fm-2023"));
 }

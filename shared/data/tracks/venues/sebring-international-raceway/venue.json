@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "sebring-international-raceway",
-  "name": "Sebring International Raceway"
+  "name": "Sebring International Raceway",
+  "metadata": {
+    "location": "Sebring, Florida",
+    "country": "USA",
+    "latitude": 27.4550124,
+    "longitude": -81.3518741,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 97
+    }
+  }
 }

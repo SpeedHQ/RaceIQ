@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "sonoma-raceway",
-  "name": "Sonoma Raceway"
+  "name": "Sonoma Raceway",
+  "metadata": {
+    "location": "Sonoma, California",
+    "country": "USA",
+    "latitude": 38.1616,
+    "longitude": -122.4548,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 571
+    }
+  }
 }

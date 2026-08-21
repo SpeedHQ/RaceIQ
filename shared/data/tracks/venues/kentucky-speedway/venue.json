@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "kentucky-speedway",
-  "name": "Kentucky Speedway"
+  "name": "Kentucky Speedway",
+  "metadata": {
+    "location": "Sparta, Kentucky",
+    "country": "USA",
+    "latitude": 38.7117309,
+    "longitude": -84.9128033,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 371
+    }
+  }
 }

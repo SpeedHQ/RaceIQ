@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "new-smyrna-speedway",
-  "name": "New Smyrna Speedway"
+  "name": "New Smyrna Speedway",
+  "metadata": {
+    "location": "New Smyrna Beach, Florida",
+    "country": "USA",
+    "latitude": 29.0136715,
+    "longitude": -81.072015,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 190
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "charlotte-motor-speedway",
-  "name": "Charlotte Motor Speedway"
+  "name": "Charlotte Motor Speedway",
+  "metadata": {
+    "location": "Concord, North Carolina",
+    "country": "USA",
+    "latitude": 35.3511641,
+    "longitude": -80.6912655,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 587
+    }
+  }
 }

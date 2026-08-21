@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "daytona-rallycross-and-dirt-road",
-  "name": "Daytona Rallycross and Dirt Road"
+  "name": "Daytona Rallycross and Dirt Road",
+  "metadata": {
+    "location": "Daytona Beach, Florida",
+    "country": "USA",
+    "latitude": 29.185169,
+    "longitude": -81.072722,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 471
+    }
+  }
 }

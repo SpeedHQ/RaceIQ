@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "new-jersey-motorsports-park",
-  "name": "New Jersey Motorsports Park"
+  "name": "New Jersey Motorsports Park",
+  "metadata": {
+    "location": "Millville, New Jersey",
+    "country": "USA",
+    "latitude": 39.3589862,
+    "longitude": -75.0638076,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 224
+    }
+  }
 }

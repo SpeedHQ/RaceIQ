@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "lucas-oil-speedway",
-  "name": "Lucas Oil Speedway"
+  "name": "Lucas Oil Speedway",
+  "metadata": {
+    "location": "Wheatland, Missouri",
+    "country": "USA",
+    "latitude": 37.9404,
+    "longitude": -93.3977,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 581
+    }
+  }
 }

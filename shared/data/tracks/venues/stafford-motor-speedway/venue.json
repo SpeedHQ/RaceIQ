@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "stafford-motor-speedway",
-  "name": "Stafford Motor Speedway"
+  "name": "Stafford Motor Speedway",
+  "metadata": {
+    "location": "Stafford Springs, Connecticut",
+    "country": "USA",
+    "latitude": 41.956733,
+    "longitude": -72.322947,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 11
+    }
+  }
 }

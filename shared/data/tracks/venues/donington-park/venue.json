@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "donington-park",
-  "name": "Donington Park"
+  "name": "Donington Park",
+  "metadata": {
+    "location": "Castle Donington, Leicestershire",
+    "country": "England",
+    "latitude": 52.8305468,
+    "longitude": -1.3810343,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 234
+    }
+  }
 }

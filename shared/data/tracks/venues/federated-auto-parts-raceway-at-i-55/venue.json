@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "federated-auto-parts-raceway-at-i-55",
-  "name": "Federated Auto Parts Raceway at I-55"
+  "name": "Federated Auto Parts Raceway at I-55",
+  "metadata": {
+    "location": "Pevely, Missouri",
+    "country": "USA",
+    "latitude": 38.26962792575186,
+    "longitude": -90.40161239958172,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 438
+    }
+  }
 }

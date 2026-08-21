@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "crandon-international-raceway",
-  "name": "Crandon International Raceway"
+  "name": "Crandon International Raceway",
+  "metadata": {
+    "location": "Crandon, Wisconsin",
+    "country": "USA",
+    "latitude": 45.57413,
+    "longitude": -88.93946,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 383
+    }
+  }
 }

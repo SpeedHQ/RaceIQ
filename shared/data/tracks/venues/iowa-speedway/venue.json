@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "iowa-speedway",
-  "name": "Iowa Speedway"
+  "name": "Iowa Speedway",
+  "metadata": {
+    "location": "Newton, Iowa",
+    "country": "USA",
+    "latitude": 41.674667,
+    "longitude": -93.015162,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 559
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "las-vegas-motor-speedway",
-  "name": "Las Vegas Motor Speedway"
+  "name": "Las Vegas Motor Speedway",
+  "metadata": {
+    "location": "Las Vegas, Nevada",
+    "country": "USA",
+    "latitude": 36.2722847,
+    "longitude": -115.0124701,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 114
+    }
+  }
 }

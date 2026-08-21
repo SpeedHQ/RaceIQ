@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "pocono-raceway",
-  "name": "Pocono Raceway"
+  "name": "Pocono Raceway",
+  "metadata": {
+    "location": "Long Pond, Pennsylvania",
+    "country": "USA",
+    "latitude": 41.0543442,
+    "longitude": -75.513473,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 277
+    }
+  }
 }

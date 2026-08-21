@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "cedar-lake-speedway",
-  "name": "Cedar Lake Speedway"
+  "name": "Cedar Lake Speedway",
+  "metadata": {
+    "location": "New Richmond, Wisconsin",
+    "country": "USA",
+    "latitude": 45.190514,
+    "longitude": -92.589252,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 387
+    }
+  }
 }

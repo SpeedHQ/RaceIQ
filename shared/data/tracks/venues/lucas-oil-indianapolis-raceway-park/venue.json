@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "lucas-oil-indianapolis-raceway-park",
-  "name": "Lucas Oil Indianapolis Raceway Park"
+  "name": "Lucas Oil Indianapolis Raceway Park",
+  "metadata": {
+    "location": "Indianapolis, Indiana",
+    "country": "USA",
+    "latitude": 39.812512,
+    "longitude": -86.340527,
+    "timeZone": "America/Indiana/Indianapolis",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 304
+    }
+  }
 }

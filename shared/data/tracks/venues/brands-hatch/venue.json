@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "brands-hatch",
-  "name": "Brands Hatch"
+  "name": "Brands Hatch",
+  "metadata": {
+    "location": "Fawkham, Kent",
+    "country": "England",
+    "latitude": 51.3581048,
+    "longitude": 0.2536338,
+    "timeZone": "Europe/London",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 290
+    }
+  }
 }

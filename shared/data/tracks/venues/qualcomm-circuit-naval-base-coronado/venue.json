@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "qualcomm-circuit-naval-base-coronado",
-  "name": "Qualcomm Circuit (Naval Base Coronado)"
+  "name": "Qualcomm Circuit (Naval Base Coronado)",
+  "metadata": {
+    "location": "San Diego, California",
+    "country": "USA",
+    "latitude": 32.703767,
+    "longitude": -117.192979,
+    "timeZone": "America/Los_Angeles",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 589
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "southern-national-motorsports-park",
-  "name": "Southern National Motorsports Park"
+  "name": "Southern National Motorsports Park",
+  "metadata": {
+    "location": "Lucama, North Carolina",
+    "country": "USA",
+    "latitude": 35.6112291,
+    "longitude": -78.0630003,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 256
+    }
+  }
 }

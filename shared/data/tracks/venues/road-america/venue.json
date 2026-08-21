@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "road-america",
-  "name": "Road America"
+  "name": "Road America",
+  "metadata": {
+    "location": "Elkhart Lake, Wisconsin",
+    "country": "USA",
+    "latitude": 43.79751,
+    "longitude": -87.992157,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 50
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "lankebanen-hell-rx",
-  "name": "Lånkebanen (Hell RX)"
+  "name": "Lånkebanen (Hell RX)",
+  "metadata": {
+    "location": "Hell, Trøndelag",
+    "country": "Norway",
+    "latitude": 63.405094,
+    "longitude": 10.920655,
+    "timeZone": "Europe/Oslo",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 363
+    }
+  }
 }

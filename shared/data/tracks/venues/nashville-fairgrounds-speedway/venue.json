@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "nashville-fairgrounds-speedway",
-  "name": "Nashville Fairgrounds Speedway"
+  "name": "Nashville Fairgrounds Speedway",
+  "metadata": {
+    "location": "Nashville, Tennessee",
+    "country": "USA",
+    "latitude": 36.130862,
+    "longitude": -86.763039,
+    "timeZone": "America/Chicago",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 380
+    }
+  }
 }

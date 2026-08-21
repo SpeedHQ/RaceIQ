@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "oran-park-raceway",
-  "name": "Oran Park Raceway"
+  "name": "Oran Park Raceway",
+  "metadata": {
+    "location": "Narellan, New South Wales",
+    "country": "Australia",
+    "latitude": -34.006111,
+    "longitude": 150.733889,
+    "timeZone": "Australia/Sydney",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 211
+    }
+  }
 }

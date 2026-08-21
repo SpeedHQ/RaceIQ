@@ -1,5 +1,16 @@
 {
   "version": 1,
   "id": "virginia-international-raceway",
-  "name": "Virginia International Raceway"
+  "name": "Virginia International Raceway",
+  "metadata": {
+    "location": "Alton, Virginia",
+    "country": "USA",
+    "latitude": 36.560008,
+    "longitude": -79.2048,
+    "timeZone": "America/New_York",
+    "source": {
+      "gameId": "iracing",
+      "trackOrdinal": 469
+    }
+  }
 }
