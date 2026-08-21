@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kevin-harvick-s-kern-raceway/dirt-mini-oval",
+  "name": "Dirt Mini Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 497,
+      "confirmation": null
+    }
+  ]
+}

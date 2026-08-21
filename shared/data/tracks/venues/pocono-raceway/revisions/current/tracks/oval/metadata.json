@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "pocono-raceway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 277,
+      "confirmation": null
+    }
+  ]
+}

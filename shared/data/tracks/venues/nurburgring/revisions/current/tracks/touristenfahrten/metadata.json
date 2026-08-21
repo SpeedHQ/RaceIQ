@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/touristenfahrten",
+  "name": "Touristenfahrten",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 253,
+      "confirmation": null
+    }
+  ]
+}

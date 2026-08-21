@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-hermanos-rodriguez/grand-prix-historic",
+  "name": "Grand Prix Historic",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 573,
+      "confirmation": null
+    }
+  ]
+}

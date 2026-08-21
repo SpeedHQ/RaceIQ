@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-hermanos-rodriguez/national-historic",
+  "name": "National Historic",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 575,
+      "confirmation": null
+    }
+  ]
+}

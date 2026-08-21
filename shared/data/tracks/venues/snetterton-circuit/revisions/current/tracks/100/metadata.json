@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "snetterton-circuit/100",
+  "name": "100",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 299,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-zandvoort/oostelijk",
+  "name": "Oostelijk",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 488,
+      "confirmation": null
+    }
+  ]
+}

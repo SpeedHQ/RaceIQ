@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "id": "las-vegas-street-circuit/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 31,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "las-vegas",
+    "track": "las-vegas",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Las Vegas Street Circuit",
+    "source": "Official F1 track map (6.201 km street circuit, turns unnamed); directions verified against F1 2025 centerline geometry",
+    "corners": [
+      {
+        "number": 1,
+        "covers": [
+          2
+        ],
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "covers": [
+          4
+        ],
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 15,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 16,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 17,
+        "name": "",
+        "direction": "left"
+      }
+    ],
+    "straights": [
+      {
+        "after": 13,
+        "name": "Las Vegas Strip"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.318,
+        "s2End": 0.664
+      },
+      "segments": [
+        {
+          "key": "s17",
+          "startFrac": 0,
+          "endFrac": 0.0234
+        },
+        {
+          "key": "t1-2",
+          "startFrac": 0.0234,
+          "endFrac": 0.0701
+        },
+        {
+          "key": "t3-4",
+          "startFrac": 0.0701,
+          "endFrac": 0.1302
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.1302,
+          "endFrac": 0.228
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.228,
+          "endFrac": 0.2713
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2713,
+          "endFrac": 0.3069
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3069,
+          "endFrac": 0.3349
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3349,
+          "endFrac": 0.353
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.353,
+          "endFrac": 0.3791
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.3791,
+          "endFrac": 0.4124
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.4124,
+          "endFrac": 0.4673
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.4673,
+          "endFrac": 0.5154
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.5154,
+          "endFrac": 0.5258
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.5258,
+          "endFrac": 0.544
+        },
+        {
+          "key": "s13",
+          "startFrac": 0.544,
+          "endFrac": 0.8139
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8139,
+          "endFrac": 0.8433
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.8433,
+          "endFrac": 0.852
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.852,
+          "endFrac": 0.8734
+        },
+        {
+          "key": "s16",
+          "startFrac": 0.8734,
+          "endFrac": 0.9494
+        },
+        {
+          "key": "t17",
+          "startFrac": 0.9494,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

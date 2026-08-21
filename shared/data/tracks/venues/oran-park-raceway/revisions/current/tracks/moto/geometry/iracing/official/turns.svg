@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Moto_Turns" data-name="Moto Turns" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1, .cls-2, .cls-3, .cls-4 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        isolation: isolate;
+      }
+
+      .cls-1, .cls-3 {
+        font-size: 36px;
+      }
+
+      .cls-2 {
+        letter-spacing: 0em;
+      }
+
+      .cls-2, .cls-4 {
+        font-size: 25px;
+      }
+
+      .cls-3 {
+        letter-spacing: 0em;
+      }
+    </style>
+  </defs>
+  <text class="cls-4" transform="translate(1651.3 858.4)"><tspan x="0" y="0">The Sweeper</tspan></text>
+  <text class="cls-4" transform="translate(1663.9 629.3)"><tspan x="0" y="0">Coca-Cola</tspan></text>
+  <text class="cls-4" transform="translate(1681.8 658.5)"><tspan x="0" y="0">Corner</tspan></text>
+  <text class="cls-2" transform="translate(1645.3 480.9)"><tspan x="0" y="0">Yokohama</tspan></text>
+  <text class="cls-4" transform="translate(1645.3 510)"><tspan x="0" y="0">Bridge</tspan></text>
+  <text class="cls-4" transform="translate(1481.4 122)"><tspan x="0" y="0">Champion</tspan></text>
+  <text class="cls-4" transform="translate(1505 151.2)"><tspan x="0" y="0">Curve</tspan></text>
+  <text class="cls-4" transform="translate(1144.2 336.5)"><tspan x="0" y="0">Shell</tspan></text>
+  <text class="cls-4" transform="translate(1133.7 365.6)"><tspan x="0" y="0">Corner</tspan></text>
+  <text class="cls-4" transform="translate(814 117.8)"><tspan x="0" y="0">Momo</tspan></text>
+  <text class="cls-4" transform="translate(810.4 147)"><tspan x="0" y="0">Corner</tspan></text>
+  <text class="cls-4" transform="translate(983.8 566.7)"><tspan x="0" y="0">Foster’s</tspan></text>
+  <text class="cls-4" transform="translate(155.1 764.4)"><tspan x="0" y="0">Recaro Corner</tspan></text>
+  <text class="cls-4" transform="translate(1009.7 595.8)"><tspan x="0" y="0">Dip</tspan></text>
+  <text class="cls-1" transform="translate(1587.9 818.3)"><tspan x="0" y="0">1</tspan></text>
+  <text class="cls-1" transform="translate(1784.1 652)"><tspan x="0" y="0">2</tspan></text>
+  <text class="cls-1" transform="translate(1249.7 429.4)"><tspan x="0" y="0">3</tspan></text>
+  <text class="cls-1" transform="translate(1404 285.5)"><tspan x="0" y="0">4</tspan></text>
+  <text class="cls-1" transform="translate(1523.6 221)"><tspan x="0" y="0">5</tspan></text>
+  <text class="cls-1" transform="translate(1548.4 584.7)"><tspan x="0" y="0">6</tspan></text>
+  <text class="cls-1" transform="translate(1138.2 541.1)"><tspan x="0" y="0">7</tspan></text>
+  <text class="cls-1" transform="translate(1041.8 408.3)"><tspan x="0" y="0">8</tspan></text>
+  <text class="cls-1" transform="translate(832.1 226)"><tspan x="0" y="0">9</tspan></text>
+  <text class="cls-1" transform="translate(444.3 420.4)"><tspan x="0" y="0">10</tspan></text>
+  <text class="cls-3" transform="translate(337.2 511.7)"><tspan x="0" y="0">11</tspan></text>
+  <text class="cls-1" transform="translate(79.3 767.5)"><tspan x="0" y="0">12</tspan></text>
+  <text class="cls-4" transform="translate(407.1 502)"><tspan x="0" y="0">O’Brien Aluminium</tspan></text>
+  <text class="cls-4" transform="translate(470.3 530.1)"><tspan x="0" y="0">Dogleg</tspan></text>
+</svg>

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "cadwell-park-circuit/woodlands",
+  "name": "Woodlands",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 530,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "charlotte-motor-speedway/infield-road-course-long",
+  "name": "Infield Road Course Long",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 551,
+      "confirmation": null
+    }
+  ]
+}

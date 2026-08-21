@@ -1,0 +1,312 @@
+{
+  "version": 1,
+  "id": "yas-marina-circuit/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 510,
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 14,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "yas-marina",
+    "track": "yas-marina",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Yas Marina Circuit",
+    "source": "Official F1 track map (2021 layout, 16 turns)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "covers": [
+          4
+        ],
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "Hairpin",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left",
+        "group": "T6-7 Chicane"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right",
+        "group": "T6-7 Chicane"
+      },
+      {
+        "number": 8,
+        "covers": [
+          9
+        ],
+        "name": "Banked Hairpin",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "Marina Bend",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "covers": [
+          16
+        ],
+        "name": "",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 5,
+        "name": "Back Straight"
+      },
+      {
+        "after": 7,
+        "name": "Second Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.2761,
+        "s2End": 0.6888,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.0249
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0249,
+          "endFrac": 0.0784
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0784,
+          "endFrac": 0.1151
+        },
+        {
+          "key": "t3-4",
+          "startFrac": 0.1151,
+          "endFrac": 0.1728
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.1728,
+          "endFrac": 0.2165
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2165,
+          "endFrac": 0.2761
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2761,
+          "endFrac": 0.4504
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4504,
+          "endFrac": 0.4869
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4869,
+          "endFrac": 0.5097
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5097,
+          "endFrac": 0.6375
+        },
+        {
+          "key": "t8-9",
+          "startFrac": 0.6375,
+          "endFrac": 0.6888
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.6888,
+          "endFrac": 0.7238
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7238,
+          "endFrac": 0.769
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.769,
+          "endFrac": 0.7971
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.7971,
+          "endFrac": 0.818
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.818,
+          "endFrac": 0.8797
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8797,
+          "endFrac": 0.9299
+        },
+        {
+          "key": "t15-16",
+          "startFrac": 0.9299,
+          "endFrac": 0.9732
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.9732,
+          "endFrac": 1
+        }
+      ]
+    },
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.331,
+        "s2End": 0.651
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.0447
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0447,
+          "endFrac": 0.1006
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1006,
+          "endFrac": 0.137
+        },
+        {
+          "key": "t3-4",
+          "startFrac": 0.137,
+          "endFrac": 0.1948
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.1948,
+          "endFrac": 0.2395
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2395,
+          "endFrac": 0.2983
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2983,
+          "endFrac": 0.4754
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4754,
+          "endFrac": 0.5115
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5115,
+          "endFrac": 0.5342
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5342,
+          "endFrac": 0.6641
+        },
+        {
+          "key": "t8-9",
+          "startFrac": 0.6641,
+          "endFrac": 0.7579
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7579,
+          "endFrac": 0.7922
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7922,
+          "endFrac": 0.8196
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.8196,
+          "endFrac": 0.8402
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8402,
+          "endFrac": 0.9018
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.9018,
+          "endFrac": 0.9475
+        },
+        {
+          "key": "t15-16",
+          "startFrac": 0.9475,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

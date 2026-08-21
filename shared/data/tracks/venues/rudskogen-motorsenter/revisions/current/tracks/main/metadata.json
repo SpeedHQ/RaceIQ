@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "rudskogen-motorsenter/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 451,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-hermanos-rodriguez/national",
+  "name": "National",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 574,
+      "confirmation": null
+    }
+  ]
+}

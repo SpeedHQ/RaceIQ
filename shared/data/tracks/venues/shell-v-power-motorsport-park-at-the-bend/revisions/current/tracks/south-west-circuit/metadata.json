@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "shell-v-power-motorsport-park-at-the-bend/south-west-circuit",
+  "name": "South West Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 546,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "silverstone-racing-circuit/2008/southern",
+  "name": "Southern",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 45,
+      "confirmation": null
+    }
+  ]
+}

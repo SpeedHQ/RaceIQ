@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "summit-point-raceway/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 24,
+      "confirmation": null
+    }
+  ]
+}

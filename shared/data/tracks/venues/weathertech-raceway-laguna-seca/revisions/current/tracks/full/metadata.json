@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "id": "weathertech-raceway-laguna-seca/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 0,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 25,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 9,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 586,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "laguna-seca",
+    "track": "laguna-seca",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "WeatherTech Raceway Laguna Seca",
+    "source": "Official circuit map (11 turns); Corkscrew T8",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "Andretti Hairpin",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "Corkscrew",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "Rainey Curve",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "left"
+      }
+    ],
+    "straights": [
+      {
+        "after": 6,
+        "name": "Rahal Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3194,
+        "s2End": 0.728,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "t1",
+          "startFrac": 0,
+          "endFrac": 0.0889
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0889,
+          "endFrac": 0.1577
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1577,
+          "endFrac": 0.2508
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2508,
+          "endFrac": 0.3194
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.3194,
+          "endFrac": 0.3694
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3694,
+          "endFrac": 0.455
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.455,
+          "endFrac": 0.491
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.491,
+          "endFrac": 0.561
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.561,
+          "endFrac": 0.6339
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6339,
+          "endFrac": 0.6853
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6853,
+          "endFrac": 0.728
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.728,
+          "endFrac": 0.7922
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7922,
+          "endFrac": 0.8692
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8692,
+          "endFrac": 0.9339
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9339,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.3318,
+        "s2End": 0.7205,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.0309
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0309,
+          "endFrac": 0.1019
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1019,
+          "endFrac": 0.1778
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1778,
+          "endFrac": 0.253
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.253,
+          "endFrac": 0.3318
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.3318,
+          "endFrac": 0.3768
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3768,
+          "endFrac": 0.464
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.464,
+          "endFrac": 0.4948
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4948,
+          "endFrac": 0.568
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.568,
+          "endFrac": 0.6379
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6379,
+          "endFrac": 0.6906
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6906,
+          "endFrac": 0.7205
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7205,
+          "endFrac": 0.7997
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7997,
+          "endFrac": 0.8777
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8777,
+          "endFrac": 0.9409
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9409,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.3325,
+        "s2End": 0.7159,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.0811
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0811,
+          "endFrac": 0.1759
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1759,
+          "endFrac": 0.2495
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2495,
+          "endFrac": 0.3325
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.3325,
+          "endFrac": 0.3707
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3707,
+          "endFrac": 0.4882
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4882,
+          "endFrac": 0.5757
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.5757,
+          "endFrac": 0.635
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.635,
+          "endFrac": 0.6905
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6905,
+          "endFrac": 0.7159
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7159,
+          "endFrac": 0.7982
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7982,
+          "endFrac": 0.8762
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8762,
+          "endFrac": 0.9384
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9384,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

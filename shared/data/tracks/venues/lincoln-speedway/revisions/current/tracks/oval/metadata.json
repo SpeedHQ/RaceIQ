@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lincoln-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 462,
+      "confirmation": null
+    }
+  ]
+}

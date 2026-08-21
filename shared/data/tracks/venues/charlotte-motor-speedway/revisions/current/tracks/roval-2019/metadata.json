@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "charlotte-motor-speedway/roval-2019",
+  "name": "Roval 2019",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 553,
+      "confirmation": null
+    }
+  ]
+}

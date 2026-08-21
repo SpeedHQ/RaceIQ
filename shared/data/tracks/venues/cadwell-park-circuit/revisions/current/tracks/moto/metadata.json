@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "cadwell-park-circuit/moto",
+  "name": "Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 529,
+      "confirmation": null
+    }
+  ]
+}

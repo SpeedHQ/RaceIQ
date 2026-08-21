@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "okayama-international-circuit/full-course",
+  "name": "Full Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 166,
+      "confirmation": null
+    }
+  ]
+}

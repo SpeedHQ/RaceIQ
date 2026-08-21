@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "bristol-motor-speedway/dual-pit-roads",
+  "name": "Dual Pit Roads",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 101,
+      "confirmation": null
+    }
+  ]
+}

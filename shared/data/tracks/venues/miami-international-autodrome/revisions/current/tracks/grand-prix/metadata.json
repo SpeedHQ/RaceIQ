@@ -1,0 +1,233 @@
+{
+  "version": 1,
+  "id": "miami-international-autodrome/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 30,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 539,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "miami",
+    "track": "miami",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Miami International Autodrome",
+    "source": "Official F1 track guides (5.412 km, turns unnamed); directions verified against F1 2025 centerline geometry",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "covers": [
+          7,
+          8
+        ],
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right",
+        "group": "T14-15 chicane"
+      },
+      {
+        "number": 15,
+        "name": "",
+        "direction": "right",
+        "group": "T14-15 chicane"
+      },
+      {
+        "number": 16,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 17,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 18,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 19,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.329,
+        "s2End": 0.652
+      },
+      "segments": [
+        {
+          "key": "s19",
+          "startFrac": 0,
+          "endFrac": 0.044
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.044,
+          "endFrac": 0.0842
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0842,
+          "endFrac": 0.1
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1,
+          "endFrac": 0.1349
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.1349,
+          "endFrac": 0.1775
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1775,
+          "endFrac": 0.2287
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2287,
+          "endFrac": 0.2552
+        },
+        {
+          "key": "t6-7-8",
+          "startFrac": 0.2552,
+          "endFrac": 0.316
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.316,
+          "endFrac": 0.3391
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.3391,
+          "endFrac": 0.3735
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.3735,
+          "endFrac": 0.5513
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.5513,
+          "endFrac": 0.5892
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.5892,
+          "endFrac": 0.6188
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.6188,
+          "endFrac": 0.6451
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.6451,
+          "endFrac": 0.6477
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.6477,
+          "endFrac": 0.656
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.656,
+          "endFrac": 0.6811
+        },
+        {
+          "key": "s16",
+          "startFrac": 0.6811,
+          "endFrac": 0.8787
+        },
+        {
+          "key": "t17",
+          "startFrac": 0.8787,
+          "endFrac": 0.9216
+        },
+        {
+          "key": "t18",
+          "startFrac": 0.9216,
+          "endFrac": 0.9521
+        },
+        {
+          "key": "t19",
+          "startFrac": 0.9521,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

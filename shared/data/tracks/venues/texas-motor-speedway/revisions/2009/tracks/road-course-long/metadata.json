@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "texas-motor-speedway/2009/road-course-long",
+  "name": "Road Course Long",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 117,
+      "confirmation": null
+    }
+  ]
+}

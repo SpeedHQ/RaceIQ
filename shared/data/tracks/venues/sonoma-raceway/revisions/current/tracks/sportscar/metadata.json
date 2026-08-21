@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sonoma-raceway/sportscar",
+  "name": "Sportscar",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 570,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "mobility-resort-motegi/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 198,
+      "confirmation": null
+    }
+  ]
+}

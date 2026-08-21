@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "shell-v-power-motorsport-park-at-the-bend/east-circuit",
+  "name": "East Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 542,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <g id="Woodlands">
+    <text class="cls-1" transform="translate(1316.15 712.76)"><tspan x="0" y="0">5</tspan></text>
+    <text class="cls-1" transform="translate(1450.41 693.69)"><tspan x="0" y="0">7</tspan></text>
+    <text class="cls-1" transform="translate(1388.49 617.64)"><tspan x="0" y="0">6</tspan></text>
+    <text class="cls-1" transform="translate(1552.65 603.35)"><tspan x="0" y="0">8</tspan></text>
+    <text class="cls-1" transform="translate(1559.19 801.35)"><tspan x="0" y="0">9</tspan></text>
+    <text class="cls-1" transform="translate(1243.93 684.62)"><tspan x="0" y="0">4</tspan></text>
+    <text class="cls-1" transform="translate(1026.03 668.38)"><tspan x="0" y="0">3</tspan></text>
+    <text class="cls-1" transform="translate(1041.39 761.95)"><tspan x="0" y="0">2</tspan></text>
+    <text class="cls-1" transform="translate(861.46 847.11)"><tspan x="0" y="0">1</tspan></text>
+  </g>
+</svg>

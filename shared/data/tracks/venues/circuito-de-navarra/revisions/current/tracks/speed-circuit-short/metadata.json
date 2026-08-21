@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuito-de-navarra/speed-circuit-short",
+  "name": "Speed Circuit - Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 517,
+      "confirmation": null
+    }
+  ]
+}

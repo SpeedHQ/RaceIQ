@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "daytona-international-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 841,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 191,
+      "confirmation": null
+    }
+  ]
+}

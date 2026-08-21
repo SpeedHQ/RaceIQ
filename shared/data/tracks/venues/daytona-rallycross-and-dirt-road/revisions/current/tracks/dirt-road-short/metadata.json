@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "daytona-rallycross-and-dirt-road/dirt-road-short",
+  "name": "Dirt Road Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 471,
+      "confirmation": null
+    }
+  ]
+}

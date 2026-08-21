@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "brands-hatch/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 13,
+      "confirmation": null
+    }
+  ]
+}

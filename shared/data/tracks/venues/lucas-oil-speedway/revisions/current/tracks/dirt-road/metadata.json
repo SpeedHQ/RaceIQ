@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lucas-oil-speedway/dirt-road",
+  "name": "Dirt Road",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 581,
+      "confirmation": null
+    }
+  ]
+}

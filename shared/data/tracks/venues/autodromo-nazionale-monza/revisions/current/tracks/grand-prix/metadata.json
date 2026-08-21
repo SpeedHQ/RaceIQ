@@ -1,0 +1,397 @@
+{
+  "version": 1,
+  "id": "autodromo-nazionale-monza/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 11,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 0,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 0,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 239,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "monza",
+    "track": "monza",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Autodromo Nazionale Monza",
+    "source": "Official circuit map / FIA F1 track guide (5.793 km GP layout)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Variante del Rettifilo",
+        "direction": "right",
+        "group": "Variante del Rettifilo"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left",
+        "group": "Variante del Rettifilo"
+      },
+      {
+        "number": 3,
+        "name": "Curva Grande",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "Variante della Roggia",
+        "direction": "left",
+        "group": "Variante della Roggia"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right",
+        "group": "Variante della Roggia"
+      },
+      {
+        "number": 6,
+        "name": "Lesmo 1",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "Lesmo 2",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Variante Ascari",
+        "direction": "left",
+        "group": "Variante Ascari"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right",
+        "group": "Variante Ascari"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left",
+        "group": "Variante Ascari"
+      },
+      {
+        "number": 11,
+        "name": "Parabolica",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 2,
+        "name": "Curva Grande approach"
+      },
+      {
+        "after": 7,
+        "name": "Serraglio"
+      },
+      {
+        "after": 11,
+        "name": "Start/Finish",
+        "group": "Start/Finish"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.311,
+        "s2End": 0.642
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.1337
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1337,
+          "endFrac": 0.1644
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1644,
+          "endFrac": 0.1829
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.1829,
+          "endFrac": 0.1993
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1993,
+          "endFrac": 0.2459
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2459,
+          "endFrac": 0.3442
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3442,
+          "endFrac": 0.3745
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3745,
+          "endFrac": 0.4049
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4049,
+          "endFrac": 0.4745
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4745,
+          "endFrac": 0.5142
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5142,
+          "endFrac": 0.6557
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6557,
+          "endFrac": 0.6874
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6874,
+          "endFrac": 0.7124
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7124,
+          "endFrac": 0.7358
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.7358,
+          "endFrac": 0.8589
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8589,
+          "endFrac": 0.9243
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9243,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.3371,
+        "s2End": 0.7385,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.1346
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1346,
+          "endFrac": 0.1642
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1642,
+          "endFrac": 0.1833
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.1833,
+          "endFrac": 0.1987
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1987,
+          "endFrac": 0.2763
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2763,
+          "endFrac": 0.3405
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3405,
+          "endFrac": 0.374
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.374,
+          "endFrac": 0.4053
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4053,
+          "endFrac": 0.4722
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4722,
+          "endFrac": 0.5187
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5187,
+          "endFrac": 0.6515
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6515,
+          "endFrac": 0.6911
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6911,
+          "endFrac": 0.7081
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7081,
+          "endFrac": 0.7385
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.7385,
+          "endFrac": 0.8609
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8609,
+          "endFrac": 0.9305
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9305,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.3387,
+        "s2End": 0.7349,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.1326
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1326,
+          "endFrac": 0.1645
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1645,
+          "endFrac": 0.1838
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.1838,
+          "endFrac": 0.2024
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2024,
+          "endFrac": 0.2778
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2778,
+          "endFrac": 0.3401
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3401,
+          "endFrac": 0.3733
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3733,
+          "endFrac": 0.405
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.405,
+          "endFrac": 0.4721
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4721,
+          "endFrac": 0.5168
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5168,
+          "endFrac": 0.6508
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6508,
+          "endFrac": 0.6893
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6893,
+          "endFrac": 0.7087
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7087,
+          "endFrac": 0.7349
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.7349,
+          "endFrac": 0.8565
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8565,
+          "endFrac": 0.94
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.94,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

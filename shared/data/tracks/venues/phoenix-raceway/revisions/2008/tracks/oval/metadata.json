@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "phoenix-raceway/2008/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 104,
+      "confirmation": null
+    }
+  ]
+}

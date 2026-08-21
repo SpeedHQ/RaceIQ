@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "id": "lusail-international-circuit/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 32,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "lusail",
+    "track": "lusail",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Lusail International Circuit",
+    "source": "Official F1 track map (5.419 km, turns unnamed); directions verified against F1 2025 centerline geometry",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "covers": [
+          8
+        ],
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right",
+        "group": "Triple Right"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right",
+        "group": "Triple Right"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right",
+        "group": "Triple Right"
+      },
+      {
+        "number": 15,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 16,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.312,
+        "s2End": 0.624
+      },
+      "segments": [
+        {
+          "key": "s16",
+          "startFrac": 0,
+          "endFrac": 0.107
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.107,
+          "endFrac": 0.1783
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1783,
+          "endFrac": 0.2286
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2286,
+          "endFrac": 0.2678
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2678,
+          "endFrac": 0.2874
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2874,
+          "endFrac": 0.3388
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3388,
+          "endFrac": 0.3824
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3824,
+          "endFrac": 0.4438
+        },
+        {
+          "key": "t7-8",
+          "startFrac": 0.4438,
+          "endFrac": 0.5207
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.5207,
+          "endFrac": 0.5673
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.5673,
+          "endFrac": 0.6109
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.6109,
+          "endFrac": 0.6675
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.6675,
+          "endFrac": 0.7249
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.7249,
+          "endFrac": 0.7596
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.7596,
+          "endFrac": 0.8084
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.8084,
+          "endFrac": 0.8595
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.8595,
+          "endFrac": 0.8865
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.8865,
+          "endFrac": 0.9512
+        },
+        {
+          "key": "s16",
+          "startFrac": 0.9512,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

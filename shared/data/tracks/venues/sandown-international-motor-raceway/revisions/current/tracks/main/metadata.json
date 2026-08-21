@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sandown-international-motor-raceway/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 443,
+      "confirmation": null
+    }
+  ]
+}

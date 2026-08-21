@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "portland-international-raceway/full-circuit",
+  "name": "Full Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 536,
+      "confirmation": null
+    }
+  ]
+}

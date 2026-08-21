@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="North_A_Turns" data-name="North A Turns" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        font-size: 36px;
+      }
+
+      .cls-1, .cls-2, .cls-3 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        isolation: isolate;
+      }
+
+      .cls-2 {
+        letter-spacing: 0em;
+      }
+
+      .cls-2, .cls-3 {
+        font-size: 25px;
+      }
+    </style>
+  </defs>
+  <text class="cls-3" transform="translate(1663.9 629.3)"><tspan x="0" y="0">Coca-Cola</tspan></text>
+  <text class="cls-3" transform="translate(1681.8 658.5)"><tspan x="0" y="0">Corner</tspan></text>
+  <text class="cls-2" transform="translate(1645.3 480.9)"><tspan x="0" y="0">Yokohama</tspan></text>
+  <text class="cls-3" transform="translate(1645.3 510)"><tspan x="0" y="0">Bridge</tspan></text>
+  <text class="cls-3" transform="translate(1481.4 122)"><tspan x="0" y="0">Champion</tspan></text>
+  <text class="cls-3" transform="translate(1505 151.2)"><tspan x="0" y="0">Curve</tspan></text>
+  <text class="cls-3" transform="translate(1144.2 336.5)"><tspan x="0" y="0">Shell</tspan></text>
+  <text class="cls-3" transform="translate(1133.7 365.6)"><tspan x="0" y="0">Corner</tspan></text>
+  <text class="cls-1" transform="translate(1524.5 222.8)"><tspan x="0" y="0">1</tspan></text>
+  <text class="cls-1" transform="translate(1602.9 264.8)"><tspan x="0" y="0">2</tspan></text>
+  <text class="cls-1" transform="translate(1654.2 376.2)"><tspan x="0" y="0">3</tspan></text>
+  <text class="cls-1" transform="translate(1697.6 738.5)"><tspan x="0" y="0">4</tspan></text>
+  <text class="cls-1" transform="translate(1788.3 658.2)"><tspan x="0" y="0">5</tspan></text>
+  <text class="cls-1" transform="translate(1472.8 495.2)"><tspan x="0" y="0">6</tspan></text>
+  <text class="cls-1" transform="translate(1522 330)"><tspan x="0" y="0">7</tspan></text>
+  <text class="cls-1" transform="translate(1390.9 405.7)"><tspan x="0" y="0">8</tspan></text>
+  <text class="cls-1" transform="translate(1355.8 462)"><tspan x="0" y="0">9</tspan></text>
+  <text class="cls-1" transform="translate(1244.6 430)"><tspan x="0" y="0">10</tspan></text>
+</svg>

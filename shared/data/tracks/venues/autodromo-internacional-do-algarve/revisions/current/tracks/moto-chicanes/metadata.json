@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-internacional-do-algarve/moto-chicanes",
+  "name": "Moto - Chicanes",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 512,
+      "confirmation": null
+    }
+  ]
+}

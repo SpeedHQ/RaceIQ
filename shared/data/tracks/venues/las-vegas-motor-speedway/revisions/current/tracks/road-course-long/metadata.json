@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "las-vegas-motor-speedway/road-course-long",
+  "name": "Road Course Long",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 111,
+      "confirmation": null
+    }
+  ]
+}

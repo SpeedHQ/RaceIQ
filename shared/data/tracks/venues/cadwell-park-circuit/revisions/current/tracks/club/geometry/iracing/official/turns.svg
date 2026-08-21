@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <g id="Club_Circuit">
+    <text class="cls-1" transform="translate(986.58 825.74)"><tspan x="0" y="0">1</tspan></text>
+    <text class="cls-1" transform="translate(661.71 770.99)"><tspan x="0" y="0">10</tspan></text>
+    <text class="cls-1" transform="translate(529.65 740.53)"><tspan x="0" y="0">9</tspan></text>
+    <text class="cls-1" transform="translate(630.6 439.76)"><tspan x="0" y="0">8</tspan></text>
+    <text class="cls-1" transform="translate(753.67 468.57)"><tspan x="0" y="0">7</tspan></text>
+    <text class="cls-1" transform="translate(852.71 121.03)"><tspan x="0" y="0">6</tspan></text>
+    <text class="cls-1" transform="translate(603.36 74.86)"><tspan x="0" y="0">5</tspan></text>
+    <text class="cls-1" transform="translate(411.36 1007.37)"><tspan x="0" y="0">4</tspan></text>
+    <text class="cls-1" transform="translate(658.06 1038.14)"><tspan x="0" y="0">3</tspan></text>
+    <text class="cls-1" transform="translate(812.52 868.44)"><tspan x="0" y="0">2</tspan></text>
+  </g>
+</svg>

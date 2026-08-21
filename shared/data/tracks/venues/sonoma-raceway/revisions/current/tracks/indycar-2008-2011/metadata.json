@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sonoma-raceway/indycar-2008-2011",
+  "name": "Indycar 2008-2011",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 564,
+      "confirmation": null
+    }
+  ]
+}

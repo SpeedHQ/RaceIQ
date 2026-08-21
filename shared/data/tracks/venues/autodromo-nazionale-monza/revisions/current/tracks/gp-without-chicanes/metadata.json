@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-nazionale-monza/gp-without-chicanes",
+  "name": "GP without chicanes",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 242,
+      "confirmation": null
+    }
+  ]
+}

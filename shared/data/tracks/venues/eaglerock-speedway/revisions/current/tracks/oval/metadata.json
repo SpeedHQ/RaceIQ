@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "eaglerock-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1660,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "eaglerock-oval",
+    "track": "eaglerock",
+    "layout": "oval",
+    "layoutName": "Oval",
+    "name": "Eaglerock Speedway",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "covers": [
+          2
+        ],
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "covers": [
+          4
+        ],
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "t1-2",
+          "startFrac": 0,
+          "endFrac": 0.5085
+        },
+        {
+          "key": "t3-4",
+          "startFrac": 0.5085,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}
