@@ -14,6 +14,7 @@
 - Classify flying, out, in, pit, and grid-start phases independently from caution, slow-zone, and formation conditions so overlapping lap states stay visible and out of pace analysis
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Show telemetry quality, evidence limits, and analysis suitability per lap, with safe rebuild actions when source recordings remain available
+- Persist simulator-independent participant runs, tire and driver stints, pace segments, lap membership, evidence, and summaries for live and reprocessed sessions, with typed APIs for filtering and comparison
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 

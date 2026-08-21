@@ -203,7 +203,7 @@ describe("live race-event timeline integration", () => {
     await pipeline.finalizeCurrentSession();
   });
 
-  test("retains every released lap reservation when fallback persistence also fails", async () => {
+  test("retains queued timeline batches when retry persistence fails", async () => {
     const store = new FailSeveralRaceEventStore(0);
     const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
       bypassPacketRateFilter: true,
@@ -214,44 +214,22 @@ describe("live race-event timeline integration", () => {
     });
     await pipeline.processPacket(packet());
     await pipeline.noteSourceLifecycle(
-      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:reservations" },
+      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:queued-batches" },
       { kind: "udp", gameId: "fm-2023", sessionId: 1 },
     );
 
     const [first, later] = store.list();
     if (!first || !later) throw new Error("Expected initial timeline events");
-    let released = 0;
     const internals = pipeline as unknown as {
-      _pendingTimelineLapBatches: Map<string, {
-        events: RaceEvent[];
-        release: () => void;
-        settle: () => void;
-      }>;
-      _releaseFailedTimelineLapBatches(sessionId: number, error: unknown): Promise<void>;
       _persistTimelineEventsCore(events: readonly RaceEvent[]): Promise<RaceEvent[]>;
     };
-    internals._pendingTimelineLapBatches.set("1:1", {
-      events: [first],
-      release: () => {
-        released += 1;
-      },
-      settle: () => {},
-    });
-    internals._pendingTimelineLapBatches.set("1:2", {
-      events: [later],
-      release: () => {
-        released += 1;
-      },
-      settle: () => {},
-    });
     store.failNext(1);
 
-    await expect(internals._releaseFailedTimelineLapBatches(1, new Error("lap write failure"))).rejects.toThrow(
+    await expect(internals._persistTimelineEventsCore([first])).rejects.toThrow(
       "Failed to persist race events",
     );
-    await internals._persistTimelineEventsCore([]);
+    await internals._persistTimelineEventsCore([later]);
 
-    expect(released).toBe(2);
     expect(store.batches.slice(-3).flat()).toEqual([
       first.eventId,
       ...[first, later].sort(compareRaceEvents).map(({ eventId }) => eventId),

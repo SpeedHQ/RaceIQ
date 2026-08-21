@@ -4,7 +4,10 @@ import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contract
 import { LOCAL_PLAYER_EVIDENCE } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
 import { db } from "../../server/db";
-import { appendRaceEvents, replaceReplayableRaceEvents } from "../../server/db/race-event-queries";
+import {
+  appendRaceEvents,
+  replaceReplayableSessionArtifacts,
+} from "../../server/db/race-event-queries";
 import { linkSessionQualityEvents } from "../../server/db/quality-event-queries";
 import { updateSessionQuality } from "../../server/db/session-queries";
 import { laps, sessions } from "../../server/db/schema";
@@ -122,7 +125,13 @@ describe("canonical quality event linkage", () => {
     await linkSessionQualityEvents(sessionId);
     expect((await db.select({ quality: laps.quality }).from(laps).where(eq(laps.id, lapId)).get())?.quality?.facts.some((candidate) => candidate.eventIds.includes(eventId))).toBe(true);
 
-    await replaceReplayableRaceEvents({ sessionId, events: [] });
+    await replaceReplayableSessionArtifacts({
+      sessionId,
+      events: [],
+      runs: [],
+      memberships: [],
+      evidence: [],
+    });
 
     expect((await db.select({ quality: laps.quality }).from(laps).where(eq(laps.id, lapId)).get())?.quality?.facts.flatMap(({ eventIds }) => eventIds)).not.toContain(eventId);
   });

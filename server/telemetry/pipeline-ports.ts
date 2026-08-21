@@ -13,6 +13,11 @@ import {
   RaceEventsReplacedMessageSchema,
   type RaceEvent,
 } from "../../shared/racing/events/contracts";
+import {
+  SessionRunsCompletedMessageSchema,
+  SessionRunsReplacedMessageSchema,
+  type SessionRun,
+} from "../../shared/racing/runs/contracts";
 import type { LiveProjection } from "./live-projector";
 import {
   TELEMETRY_CATALOG_HASH,
@@ -173,6 +178,45 @@ export class WsRaceEventPublisher implements RaceEventPublisher {
 
 export class NullRaceEventPublisher implements RaceEventPublisher {
   publishAppended(_sessionId: number, _events: readonly RaceEvent[]): void {}
+  publishReplaced(_sessionId: number): void {}
+}
+
+export interface SessionRunPublisher {
+  publishCompleted(sessionId: number, runs: readonly SessionRun[]): void;
+  publishReplaced(sessionId: number): void;
+}
+
+/** Validates browser-safe run messages at publication edge. */
+export class WsSessionRunPublisher implements SessionRunPublisher {
+  private readonly ws: WsAdapter;
+
+  constructor(ws: WsAdapter) {
+    this.ws = ws;
+  }
+
+  publishCompleted(sessionId: number, runs: readonly SessionRun[]): void {
+    if (runs.length === 0) return;
+    this.ws.broadcastNotification(
+      SessionRunsCompletedMessageSchema.parse({
+        type: "session-runs-completed",
+        sessionId,
+        runs: [...runs],
+      }),
+    );
+  }
+
+  publishReplaced(sessionId: number): void {
+    this.ws.broadcastNotification(
+      SessionRunsReplacedMessageSchema.parse({
+        type: "session-runs-replaced",
+        sessionId,
+      }),
+    );
+  }
+}
+
+export class NullSessionRunPublisher implements SessionRunPublisher {
+  publishCompleted(_sessionId: number, _runs: readonly SessionRun[]): void {}
   publishReplaced(_sessionId: number): void {}
 }
 

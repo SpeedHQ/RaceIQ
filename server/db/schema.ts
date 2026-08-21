@@ -6,6 +6,7 @@ import {
 	blob,
 	index,
 	unique,
+	uniqueIndex,
 	primaryKey,
 	check,
 	type AnySQLiteColumn,
@@ -13,6 +14,13 @@ import {
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
 import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
+import type {
+	SessionRun,
+	SessionRunEvidenceRole,
+	SessionRunId,
+	SessionRunKind,
+	SessionRunStatus,
+} from "../../shared/racing/runs/contracts";
 import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type {
 	EligibilityDecisionSet,
@@ -758,5 +766,157 @@ export const raceEvents = sqliteTable(
 			table.eventId,
 		),
 		index("idx_race_events_linked_event").on(table.linkedEventId),
+	],
+);
+
+export const sessionRuns = sqliteTable(
+	"session_runs",
+	{
+		runId: text("run_id").$type<SessionRunId>().primaryKey(),
+		schemaVersion: text("schema_version").$type<SessionRun["schemaVersion"]>().notNull(),
+		algorithmVersion: text("algorithm_version").$type<SessionRun["algorithmVersion"]>().notNull(),
+		sessionId: integer("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		participantId: text("participant_id"),
+		participantKind: text("participant_kind").$type<SessionRun["participantKind"]>(),
+		driverId: text("driver_id"),
+		teamId: text("team_id"),
+		classId: text("class_id"),
+		runKind: text("run_kind").$type<SessionRunKind>().notNull(),
+		status: text("status").$type<SessionRunStatus>().notNull(),
+		openingPhase: text("opening_phase").$type<SessionRun["openingPhase"]>().notNull(),
+		observedPhases: text("observed_phases", { mode: "json" }).$type<SessionRun["observedPhases"]>().notNull(),
+		timelineEpoch: integer("timeline_epoch").notNull(),
+		openingSequence: integer("opening_sequence").notNull(),
+		openingEventOrder: integer("opening_event_order").notNull(),
+		openingReason: text("opening_reason").$type<SessionRun["openingBoundary"]["reason"]>().notNull(),
+		openingEventId: text("opening_event_id")
+			.$type<RaceEventId>()
+			.notNull()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+		openingConfidence: text("opening_confidence").$type<SessionRun["openingBoundary"]["confidence"]>().notNull(),
+		openingEvidenceKind: text("opening_evidence_kind").$type<SessionRun["openingBoundary"]["evidenceKind"]>().notNull(),
+		closingReason: text("closing_reason").$type<SessionRun["closingBoundary"]["reason"]>().notNull(),
+		closingEventId: text("closing_event_id")
+			.$type<RaceEventId>()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+		closingConfidence: text("closing_confidence").$type<SessionRun["closingBoundary"]["confidence"]>().notNull(),
+		closingEvidenceKind: text("closing_evidence_kind").$type<SessionRun["closingBoundary"]["evidenceKind"]>().notNull(),
+		startLapEventId: text("start_lap_event_id")
+			.$type<RaceEventId>()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+		endLapEventId: text("end_lap_event_id")
+			.$type<RaceEventId>()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+		startLapId: integer("start_lap_id").references(() => laps.id, { onDelete: "set null" }),
+		endLapId: integer("end_lap_id").references(() => laps.id, { onDelete: "set null" }),
+		startSourceTimeMs: integer("start_source_time_ms"),
+		endSourceTimeMs: integer("end_source_time_ms"),
+		startTrackDistanceM: real("start_track_distance_m"),
+		endTrackDistanceM: real("end_track_distance_m"),
+		startTrackDistancePct: real("start_track_distance_pct"),
+		endTrackDistancePct: real("end_track_distance_pct"),
+		tireCompound: text("tire_compound"),
+		tireSetId: text("tire_set_id"),
+		sourceGeneration: text("source_generation"),
+		analysisGenerationId: text("analysis_generation_id"),
+		qualityFlags: text("quality_flags", { mode: "json" }).$type<SessionRun["qualityFlags"]>().notNull(),
+		summary: text("summary", { mode: "json" }).$type<SessionRun["summary"]>().notNull(),
+		contentHash: text("content_hash").$type<SessionRun["contentHash"]>().notNull(),
+		createdAt: text("created_at").notNull(),
+	},
+	(table) => [
+		uniqueIndex("uq_session_runs_known_participant_coordinate")
+			.on(
+				table.sessionId,
+				table.participantId,
+				table.runKind,
+				table.timelineEpoch,
+				table.openingEventId,
+			)
+			.where(sql`${table.participantId} IS NOT NULL`),
+		uniqueIndex("uq_session_runs_unknown_participant_coordinate")
+			.on(
+				table.sessionId,
+				table.runKind,
+				table.timelineEpoch,
+				table.openingEventId,
+			)
+			.where(sql`${table.participantId} IS NULL`),
+		index("idx_session_runs_session_kind_order").on(
+			table.sessionId,
+			table.runKind,
+			table.timelineEpoch,
+			table.openingSequence,
+			table.openingEventOrder,
+			table.runId,
+		),
+		index("idx_session_runs_participant_kind_order").on(
+			table.sessionId,
+			table.participantId,
+			table.runKind,
+			table.timelineEpoch,
+			table.openingSequence,
+			table.openingEventOrder,
+			table.runId,
+		),
+		index("idx_session_runs_driver_order").on(
+			table.driverId,
+			table.timelineEpoch,
+			table.openingSequence,
+			table.openingEventOrder,
+			table.runId,
+		),
+		index("idx_session_runs_opening_event").on(table.openingEventId),
+		index("idx_session_runs_closing_event").on(table.closingEventId),
+	],
+);
+
+export const sessionRunLaps = sqliteTable(
+	"session_run_laps",
+	{
+		runId: text("run_id")
+			.$type<SessionRunId>()
+			.notNull()
+			.references(() => sessionRuns.runId, { onDelete: "cascade" }),
+		lapEventId: text("lap_event_id")
+			.$type<RaceEventId>()
+			.notNull()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+		lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+		lapNumber: integer("lap_number").notNull(),
+		ordinal: integer("ordinal").notNull(),
+		entryEventId: text("entry_event_id")
+			.$type<RaceEventId>()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+		exitEventId: text("exit_event_id")
+			.$type<RaceEventId>()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+	},
+	(table) => [
+		primaryKey({ columns: [table.runId, table.lapEventId] }),
+		index("idx_session_run_laps_run_order").on(table.runId, table.ordinal, table.lapEventId),
+		index("idx_session_run_laps_lap_lookup").on(table.lapEventId, table.runId),
+		index("idx_session_run_laps_numeric_lap").on(table.lapId, table.runId),
+	],
+);
+
+export const sessionRunEvidence = sqliteTable(
+	"session_run_evidence",
+	{
+		runId: text("run_id")
+			.$type<SessionRunId>()
+			.notNull()
+			.references(() => sessionRuns.runId, { onDelete: "cascade" }),
+		eventId: text("event_id")
+			.$type<RaceEventId>()
+			.notNull()
+			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
+		role: text("role").$type<SessionRunEvidenceRole>().notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.runId, table.eventId, table.role] }),
+		index("idx_session_run_evidence_event").on(table.eventId, table.runId, table.role),
 	],
 );

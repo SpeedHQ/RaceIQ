@@ -3,6 +3,8 @@ import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
+import type { OpenSessionRun } from "../../shared/racing/runs/contracts";
+import type { CompletedSessionRunLap } from "../../shared/racing/runs/summary";
 import { isEligibilityUsable } from "../../shared/racing/quality/policies";
 import {
   LOCAL_PLAYER_EVIDENCE,
@@ -21,12 +23,14 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import {
   type DbAdapter,
   type RaceEventPublisher,
+  type SessionRunPublisher,
   type WsAdapter,
   type SessionRecorderAdapter,
   currentTelemetryVersionIdentity,
   RealDbAdapter,
   RealSessionRecorderAdapter,
   WsRaceEventPublisher,
+  WsSessionRunPublisher,
 } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
 import type { ILapDetector, LapDetectorCallbacks, SessionEndReason } from "../lap-detection/types";
@@ -47,6 +51,7 @@ import { RaceEventCoordinator } from "../race-events/coordinator";
 import type { RaceEventPreflightResult } from "../race-events/types";
 import { compareRaceEvents, DatabaseRaceEventStore, MemoryRaceEventStore, type RaceEventLapLink, type RaceEventStore } from "../race-events/store";
 import type { SessionBoundaryReason } from "../lap-detection/boundaries";
+import { SessionRunBuilder } from "../session-runs/builder";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 export function resolveLapIssueEligibility(eligibility: EligibilityDecisionSet): EligibilityDecision {
@@ -79,22 +84,23 @@ interface PendingLapIssueEvaluation {
   eligibility: EligibilityDecision;
 }
 
-interface PendingTimelineLapBatch {
-  events: RaceEvent[];
-  prior: Promise<void>;
-  release: () => void;
-  settled: Promise<void>;
-  settle: () => void;
-}
+type StagedCompletedSessionRunLap = Omit<
+  CompletedSessionRunLap,
+  "lapEventId"
+>;
 
-interface FailedTimelineBatch {
+interface PendingTimelineBatch {
   events: RaceEvent[];
   lapLinks: RaceEventLapLink[];
+  lapsByCompletionEventId: Map<
+    RaceEvent["eventId"],
+    CompletedSessionRunLap
+  >;
   afterPersist?: () => Promise<void>;
   persisted: boolean;
 }
 
-interface PendingSessionFinalization {
+interface PendingClosedRunFinalization {
   closed: ClosedRecordingSession;
   endReason: string;
 }
@@ -115,6 +121,8 @@ export class LiveTelemetryPipeline {
   private readonly raceEvents: RaceEventCoordinator;
   private readonly raceEventStore: RaceEventStore;
   private readonly raceEventPublisher: RaceEventPublisher;
+  private readonly sessionRunBuilder: SessionRunBuilder;
+  private readonly sessionRunPublisher: SessionRunPublisher;
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
@@ -140,15 +148,26 @@ export class LiveTelemetryPipeline {
   private _captureOperationQueue = Promise.resolve();
   private _timelinePersistenceQueue = Promise.resolve();
   private readonly _sessionFinalizations = new Map<number, Promise<void>>();
-  private readonly _pendingSessionFinalizations = new Map<number, PendingSessionFinalization>();
+  private readonly _sessionFinalizationFailures: Array<{
+    sessionId: number;
+    error: unknown;
+  }> = [];
   private _timelineSourceSequence = new SourceSequenceTracker();
   private _pendingTimelinePreflight: RaceEventPreflightResult | null = null;
   private _timelineEventsStaged = false;
   private readonly _stagedTimelineEvents: RaceEvent[] = [];
   private readonly _stagedTimelineLapLinks: RaceEventLapLink[] = [];
   private readonly _stagedLapSavedActions: Array<() => Promise<void>> = [];
-  private readonly _pendingTimelineLapBatches = new Map<string, PendingTimelineLapBatch>();
-  private readonly _failedTimelineBatches: FailedTimelineBatch[] = [];
+  private readonly _stagedCompletedRunLaps = new Map<
+    string,
+    StagedCompletedSessionRunLap
+  >();
+  private readonly _deferredSessionFinalizations: ClosedRecordingSession[] = [];
+  private readonly _pendingTimelineBatches: PendingTimelineBatch[] = [];
+  private readonly _pendingClosedRunFinalizations = new Map<
+    number,
+    PendingClosedRunFinalization
+  >();
   private _lastTimelinePacket: TelemetryPacket | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
@@ -186,6 +205,10 @@ export class LiveTelemetryPipeline {
     return this._sessionLaps;
   }
 
+  get openSessionRuns(): readonly OpenSessionRun[] {
+    return this.sessionRunBuilder.openRuns();
+  }
+
   constructor(
     db: DbAdapter,
     ws: WsAdapter,
@@ -204,6 +227,8 @@ export class LiveTelemetryPipeline {
       raceEventCoordinator?: RaceEventCoordinator;
       raceEventStore?: RaceEventStore;
       raceEventPublisher?: RaceEventPublisher;
+      sessionRunBuilder?: SessionRunBuilder;
+      sessionRunPublisher?: SessionRunPublisher;
     },
   ) {
     this.db = db;
@@ -226,6 +251,9 @@ export class LiveTelemetryPipeline {
       });
     this.raceEventStore = options?.raceEventStore ?? new MemoryRaceEventStore();
     this.raceEventPublisher = options?.raceEventPublisher ?? new WsRaceEventPublisher(ws);
+    this.sessionRunBuilder = options?.sessionRunBuilder ?? new SessionRunBuilder();
+    this.sessionRunPublisher =
+      options?.sessionRunPublisher ?? new WsSessionRunPublisher(ws);
   }
 
   private _enqueueCaptureOperation<T>(operation: () => Promise<T>): Promise<T> {
@@ -244,62 +272,28 @@ export class LiveTelemetryPipeline {
     return previous.then(operation).finally(resolve);
   }
 
-  private _reserveTimelinePosition(): { prior: Promise<void>; release: () => void } {
-    const prior = this._timelinePersistenceQueue.catch(() => {});
-    const { promise, resolve } = Promise.withResolvers<void>();
-    this._timelinePersistenceQueue = promise;
-    return { prior, release: resolve };
-  }
 
-  private _persistTimelineEvents(events: readonly RaceEvent[], lapLinks: readonly RaceEventLapLink[] = []): Promise<RaceEvent[]> {
-    return this._enqueueTimelinePersistence(() => this._persistTimelineEventsCore(events, lapLinks));
-  }
-
-  private _queueFailedTimelineBatch(
+  private _persistTimelineEvents(
     events: readonly RaceEvent[],
-    lapLinks: readonly RaceEventLapLink[],
-    afterPersist: (() => Promise<void>) | undefined,
-    persisted: boolean,
-  ): void {
-    const queuedEvents = [...events];
-    for (let index = 1; index < queuedEvents.length; index++) {
-      if (compareRaceEvents(queuedEvents[index - 1]!, queuedEvents[index]!) > 0) {
-        queuedEvents.sort(compareRaceEvents);
-        break;
-      }
-    }
-    const batch: FailedTimelineBatch = {
-      events: queuedEvents,
-      lapLinks: [...lapLinks],
-      ...(afterPersist ? { afterPersist } : {}),
-      persisted,
-    };
-    const first = queuedEvents[0];
-    if (!first) {
-      this._failedTimelineBatches.push(batch);
-      return;
-    }
-    let insertionIndex = this._failedTimelineBatches.length;
-    while (insertionIndex > 0) {
-      const previous = this._failedTimelineBatches[insertionIndex - 1]!.events[0];
-      if (!previous || compareRaceEvents(previous, first) <= 0) break;
+    lapLinks: readonly RaceEventLapLink[] = [],
+    afterPersist?: () => Promise<void>,
+  ): Promise<RaceEvent[]> {
+    return this._enqueueTimelinePersistence(() =>
+      this._persistTimelineEventsCore(events, lapLinks, afterPersist),
+    );
+  }
+
+  private _queueTimelineBatch(batch: PendingTimelineBatch): void {
+    const firstEvent = batch.events[0]!;
+    const minimumIndex = this._pendingTimelineBatches[0]?.persisted ? 1 : 0;
+    let insertionIndex = this._pendingTimelineBatches.length;
+    while (insertionIndex > minimumIndex) {
+      const previous =
+        this._pendingTimelineBatches[insertionIndex - 1]!.events[0]!;
+      if (compareRaceEvents(previous, firstEvent) <= 0) break;
       insertionIndex -= 1;
     }
-    this._failedTimelineBatches.splice(insertionIndex, 0, batch);
-  }
-
-  private async _drainFailedTimelineBatches(): Promise<RaceEvent[]> {
-    const inserted: RaceEvent[] = [];
-    while (this._failedTimelineBatches.length > 0) {
-      const batch = this._failedTimelineBatches[0]!;
-      if (!batch.persisted) {
-        inserted.push(...await this._appendTimelineEvents(batch.events, batch.lapLinks));
-        batch.persisted = true;
-      }
-      await batch.afterPersist?.();
-      this._failedTimelineBatches.shift();
-    }
-    return inserted;
+    this._pendingTimelineBatches.splice(insertionIndex, 0, batch);
   }
 
   private async _persistTimelineEventsCore(
@@ -307,56 +301,97 @@ export class LiveTelemetryPipeline {
     lapLinks: readonly RaceEventLapLink[] = [],
     afterPersist?: () => Promise<void>,
   ): Promise<RaceEvent[]> {
-    if (this._failedTimelineBatches.length > 0) {
-      if (events.length > 0 || lapLinks.length > 0 || afterPersist) {
-        this._queueFailedTimelineBatch(events, lapLinks, afterPersist, false);
+    if (events.length > 0) {
+      const ordered = [...events].sort(compareRaceEvents);
+      const lapsByCompletionEventId = new Map<
+        RaceEvent["eventId"],
+        CompletedSessionRunLap
+      >();
+      for (const event of ordered) {
+        if (event.eventType !== "lap_completed") continue;
+        const metadata = this._stagedCompletedRunLaps.get(
+          `${event.sessionId}:${event.payload.lapNumber}`,
+        );
+        if (metadata) {
+          lapsByCompletionEventId.set(event.eventId, {
+            ...metadata,
+            lapEventId: event.eventId,
+          });
+        }
       }
-      return this._drainFailedTimelineBatches();
+      this._queueTimelineBatch({
+        events: ordered,
+        lapLinks: [...lapLinks],
+        lapsByCompletionEventId,
+        afterPersist,
+        persisted: false,
+      });
     }
 
-    let inserted: RaceEvent[];
-    try {
-      inserted = await this._appendTimelineEvents(events, lapLinks);
-    } catch (error) {
-      this._queueFailedTimelineBatch(events, lapLinks, afterPersist, false);
-      throw error;
-    }
-    try {
-      await afterPersist?.();
-    } catch (error) {
-      this._queueFailedTimelineBatch(events, lapLinks, afterPersist, true);
-      throw error;
-    }
-    return inserted;
-  }
+    const insertedEvents: RaceEvent[] = [];
+    while (this._pendingTimelineBatches.length > 0) {
+      const batch = this._pendingTimelineBatches[0]!;
+      if (!batch.persisted) {
+        const preparedUpdate = this.sessionRunBuilder.consume({
+          events: batch.events,
+          lapsByCompletionEventId: batch.lapsByCompletionEventId,
+        });
+        let appended;
+        try {
+          appended = await this.raceEventStore.appendWithSessionRunUpdate(
+            batch.events,
+            batch.lapLinks,
+            preparedUpdate,
+          );
+        } catch (error) {
+          throw new Error(
+            `Failed to persist race events: ${batch.events
+              .map(({ eventType }) => eventType)
+              .join(", ")}`,
+            { cause: error },
+          );
+        }
+        preparedUpdate.commit();
+        batch.persisted = true;
+        insertedEvents.push(...appended.events);
 
-  private async _appendTimelineEvents(events: readonly RaceEvent[], lapLinks: readonly RaceEventLapLink[]): Promise<RaceEvent[]> {
-    if (events.length === 0) return [];
-    let ordered = events;
-    for (let index = 1; index < events.length; index++) {
-      if (compareRaceEvents(events[index - 1]!, events[index]!) > 0) {
-        ordered = [...events].sort(compareRaceEvents);
-        break;
+        const eventsBySession = new Map<number, RaceEvent[]>();
+        for (const event of appended.events) {
+          const values = eventsBySession.get(event.sessionId);
+          if (values) values.push(event);
+          else eventsBySession.set(event.sessionId, [event]);
+        }
+        for (const [sessionId, values] of eventsBySession) {
+          try {
+            this.raceEventPublisher.publishAppended(sessionId, values);
+          } catch (error) {
+            console.error(
+              `[Live Telemetry] Race-event publication failed for session ${sessionId}:`,
+              error,
+            );
+          }
+        }
+        const runsBySession = new Map<number, typeof appended.runs>();
+        for (const run of appended.runs) {
+          const values = runsBySession.get(run.sessionId);
+          if (values) values.push(run);
+          else runsBySession.set(run.sessionId, [run]);
+        }
+        for (const [sessionId, values] of runsBySession) {
+          try {
+            this.sessionRunPublisher.publishCompleted(sessionId, values);
+          } catch (error) {
+            console.error(
+              `[Live Telemetry] Session-run publication failed for session ${sessionId}:`,
+              error,
+            );
+          }
+        }
       }
+      await batch.afterPersist?.();
+      this._pendingTimelineBatches.shift();
     }
-    let inserted: RaceEvent[];
-    try {
-      inserted = lapLinks.length > 0
-        ? await this.raceEventStore.appendWithLapLinks(ordered, lapLinks)
-        : await this.raceEventStore.append(ordered);
-    } catch (error) {
-      throw new Error(`Failed to persist race events: ${ordered.map(({ eventType }) => eventType).join(", ")}`, { cause: error });
-    }
-    const bySession = new Map<number, RaceEvent[]>();
-    for (const event of inserted) {
-      const values = bySession.get(event.sessionId);
-      if (values) values.push(event);
-      else bySession.set(event.sessionId, [event]);
-    }
-    for (const [sessionId, values] of bySession) {
-      this.raceEventPublisher.publishAppended(sessionId, values);
-    }
-    return inserted;
+    return insertedEvents;
   }
 
   private async _emitTimelineEvents(events: readonly RaceEvent[]): Promise<void> {
@@ -407,56 +442,6 @@ export class LiveTelemetryPipeline {
       if (key.startsWith(prefix)) this._pendingLapIssues.delete(key);
     }
   }
-  private _releaseTimelineReservationsForOtherSessions(activeSessionId: number): void {
-    const prefix = `${activeSessionId}:`;
-    for (const [key, pending] of this._pendingTimelineLapBatches) {
-      if (!key.startsWith(prefix)) pending.release();
-    }
-  }
-
-
-
-  private async _drainPendingTimelineLapBatches(sessionId: number): Promise<void> {
-    const prefix = `${sessionId}:`;
-    const pending = [...this._pendingTimelineLapBatches]
-      .filter(([key]) => key.startsWith(prefix))
-      .map(([, batch]) => batch.settled);
-    await Promise.all(pending);
-  }
-  private async _releaseFailedTimelineLapBatches(sessionId: number, error: unknown): Promise<void> {
-    const prefix = `${sessionId}:`;
-    const pending = [...this._pendingTimelineLapBatches]
-      .filter(([key]) => key.startsWith(prefix))
-      .map(([, batch]) => batch);
-    for (const [key, batch] of this._pendingTimelineLapBatches) {
-      if (!key.startsWith(prefix)) continue;
-      this._pendingTimelineLapBatches.delete(key);
-      batch.release();
-      batch.settle();
-    }
-    for (const batch of pending) {
-      this._queueFailedTimelineBatch(batch.events, [], undefined, false);
-    }
-    await this._persistTimelineEvents([]);
-    if (pending.length > 0) {
-      await this._persistTimelineEvents(
-        this.raceEvents.noteStorageFailure({
-          kind: "failure",
-          operation: "save-lap",
-          details: error instanceof Error ? error.message : String(error),
-        }),
-      );
-    }
-  }
-
-  private async _waitForPendingLapWrites(session: RecordingSessionState): Promise<void> {
-    try {
-      await session.detector.waitForPendingLapWrites?.(session.sessionId);
-    } catch (error) {
-      await this._releaseFailedTimelineLapBatches(session.sessionId, error);
-      return;
-    }
-  }
 
 
   private _trackSessionFinalization(closed: ClosedRecordingSession, endReason: string): Promise<void> {
@@ -464,11 +449,12 @@ export class LiveTelemetryPipeline {
     const existing = this._sessionFinalizations.get(sessionId);
     if (existing) return existing;
 
-    this._pendingSessionFinalizations.set(sessionId, { closed, endReason });
     let finalization!: Promise<void>;
     finalization = this._finalizeRecordedSession(closed, endReason)
-      .then(() => {
-        this._pendingSessionFinalizations.delete(sessionId);
+      .catch((error) => {
+        console.error(`[Live Telemetry] Session ${sessionId} finalization failed:`, error);
+        this._sessionFinalizationFailures.push({ sessionId, error });
+        throw error;
       })
       .finally(() => {
         if (this._sessionFinalizations.get(sessionId) === finalization) {
@@ -480,14 +466,18 @@ export class LiveTelemetryPipeline {
     return finalization;
   }
 
-  private _retryPendingSessionFinalizations(): void {
-    for (const { closed, endReason } of this._pendingSessionFinalizations.values()) {
-      this._trackSessionFinalization(closed, endReason);
-    }
-  }
 
   private async _drainSessionFinalizations(): Promise<void> {
-    await Promise.all([...this._sessionFinalizations.values()]);
+    while (this._sessionFinalizations.size > 0) {
+      await Promise.allSettled([...this._sessionFinalizations.values()]);
+    }
+    const failures = this._sessionFinalizationFailures.splice(0);
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures.map(({ error }) => error),
+        "Session finalization failed",
+      );
+    }
   }
 
   private async _awaitCaptureFinalization(result: CaptureFinalizationResult): Promise<void> {
@@ -596,8 +586,9 @@ export class LiveTelemetryPipeline {
   }
 
   private async _finalizeRecordedSession(closed: ClosedRecordingSession, endReason: string): Promise<void> {
-    await this._waitForPendingLapWrites(closed.session);
-    await this._drainPendingTimelineLapBatches(closed.session.sessionId);
+    await closed.session.detector.waitForPendingLapWrites?.(
+      closed.session.sessionId,
+    );
     await this._persistTimelineEvents(closed.closureEvents);
     await this._persistTimelineEvents([]);
     this._clearPendingLapIssues(closed.session.sessionId);
@@ -615,8 +606,27 @@ export class LiveTelemetryPipeline {
       if (!finalized.provenance.sourceGeneration.startsWith("provisional:")) {
         await this.raceEventStore.finalizeSourceGeneration(closed.session.sessionId, finalized.provenance.sourceGeneration);
       }
-      this.raceEventPublisher.publishReplaced(closed.session.sessionId);
-      await this._refreshFinalizedSessionLaps(closed.session.sessionId, closed.session.gameId);
+      try {
+        this.raceEventPublisher.publishReplaced(closed.session.sessionId);
+      } catch (error) {
+        console.error(
+          `[Live Telemetry] Race-event replacement publication failed for session ${closed.session.sessionId}:`,
+          error,
+        );
+      }
+      await this.raceEventStore.refreshSessionRuns(closed.session.sessionId);
+      try {
+        this.sessionRunPublisher.publishReplaced(closed.session.sessionId);
+      } catch (error) {
+        console.error(
+          `[Live Telemetry] Session-run replacement publication failed for session ${closed.session.sessionId}:`,
+          error,
+        );
+      }
+      await this._refreshFinalizedSessionLaps(
+        closed.session.sessionId,
+        closed.session.gameId,
+      );
       await this._reconcileRecordedSession(closed.session);
       this.ws.broadcastNotification({
         type: "quality-updated",
@@ -628,15 +638,73 @@ export class LiveTelemetryPipeline {
     await this._reconcileRecordedSession(closed.session);
   }
 
+  private async _finalizeSessionRuns(sessionId: number): Promise<void> {
+    const preparedUpdate = this.sessionRunBuilder.finalize({ sessionId });
+    const inserted = await this.raceEventStore.appendSessionRunUpdate(
+      preparedUpdate,
+    );
+    preparedUpdate.commit();
+    if (inserted.length > 0) {
+      try {
+        this.sessionRunPublisher.publishCompleted(sessionId, inserted);
+      } catch (error) {
+        console.error(
+          `[Live Telemetry] Session-run publication failed for session ${sessionId}:`,
+          error,
+        );
+      }
+    }
+  }
+
+  private async _finalizeClosedSession(
+    closed: ClosedRecordingSession,
+    endReason: string,
+  ): Promise<CaptureFinalizationResult> {
+    const sessionId = closed.session.sessionId;
+    this._pendingClosedRunFinalizations.set(sessionId, { closed, endReason });
+    await this._finalizeSessionRuns(sessionId);
+    const finalization = this._trackSessionFinalization(closed, endReason);
+    void finalization
+      .then(() => {
+        for (
+          let index = this._sessionFinalizationFailures.length - 1;
+          index >= 0;
+          index -= 1
+        ) {
+          if (
+            this._sessionFinalizationFailures[index]!.sessionId === sessionId
+          ) {
+            this._sessionFinalizationFailures.splice(index, 1);
+          }
+        }
+        this._pendingClosedRunFinalizations.delete(sessionId);
+      })
+      .catch(() => {});
+    return { finalization };
+  }
+
+  private async _retryPendingClosedSessionFinalizations(): Promise<void> {
+    for (const { closed, endReason } of [
+      ...this._pendingClosedRunFinalizations.values(),
+    ]) {
+      await this._finalizeClosedSession(closed, endReason);
+    }
+  }
+
   private async _finishRecordedSessionCore(
     session = this._recordingSession,
     endReason: SessionEndReason = "stream-ended",
   ): Promise<CaptureFinalizationResult> {
+    if (!session && this._pendingClosedRunFinalizations.size > 0) {
+      await this._retryPendingClosedSessionFinalizations();
+      return { finalization: null };
+    }
     if (session) {
-      await this._waitForPendingLapWrites(session);
-      await this._drainPendingTimelineLapBatches(session.sessionId);
+      await session.detector.waitForPendingLapWrites?.(session.sessionId);
       await this._persistTimelineEvents([]);
-      await this._emitTimelineEvents(this.raceEvents.endSession({ reason: endReason, terminalObserved: false }));
+      await this._emitTimelineEvents(
+        this.raceEvents.endSession({ reason: endReason, terminalObserved: false }),
+      );
     }
     const closed = await withSessionCaptureMaintenanceLock(async () => {
       if (!session) {
@@ -645,9 +713,10 @@ export class LiveTelemetryPipeline {
       }
       return this._closeRecordedSession(session);
     });
-    return {
-      finalization: closed ? this._trackSessionFinalization(closed, endReason) : null,
-    };
+    if (closed) {
+      return this._finalizeClosedSession(closed, endReason);
+    }
+    return { finalization: null };
   }
 
   private _buildCallbacks(): LapDetectorCallbacks {
@@ -656,7 +725,6 @@ export class LiveTelemetryPipeline {
 
 
       onSessionStart: async (session, context) => {
-        this._releaseTimelineReservationsForOtherSessions(session.sessionId);
         const closedPrevious = await withSessionCaptureMaintenanceLock(async () => {
           const previousSession = this._recordingSession;
           const closed = previousSession ? await this._closeRecordedSession(previousSession) : (await this.recorder.stop(), null);
@@ -675,7 +743,9 @@ export class LiveTelemetryPipeline {
           return closed;
         });
 
-        if (closedPrevious) void this._trackSessionFinalization(closedPrevious, "session-rotated");
+        if (closedPrevious) {
+          this._deferredSessionFinalizations.push(closedPrevious);
+        }
 
         if (closedPrevious) {
           this._timelineSourceSequence = new SourceSequenceTracker();
@@ -756,31 +826,62 @@ export class LiveTelemetryPipeline {
       onLapSaved: async (event, context) => {
         const session = context.session;
         const issueKey = this._lapIssueKey(session.sessionId, context.lapNumber);
-        const pendingBatch = this._pendingTimelineLapBatches.get(issueKey);
-        const staged = pendingBatch == null && this._timelineEventsStaged;
+        const staged = this._timelineEventsStaged;
         const lapLink = {
           sessionId: session.sessionId,
           lapNumber: context.lapNumber,
           lapId: event.lapId,
         };
         this.raceEvents.noteLapSaved(context.lapNumber, event.lapId);
-        if (staged) this._stagedTimelineLapLinks.push(lapLink);
+        if (staged) {
+          this._stagedTimelineLapLinks.push(lapLink);
+          this._stagedCompletedRunLaps.set(
+            `${session.sessionId}:${context.lapNumber}`,
+            {
+              lapId: event.lapId,
+              lapNumber: event.lapNumber,
+              lapTimeMs: Number.isFinite(event.lapTime)
+                ? event.lapTime * 1_000
+                : null,
+              isValid: event.isValid,
+              phase: event.phase,
+              conditions: event.conditions,
+              quality: event.quality,
+              eligibility: event.eligibility,
+              qualityGeneration: event.quality.provenance.outputGeneration,
+              qualityStale:
+                event.quality.provenance.outputGeneration === "legacy",
+              qualitySchemaVersion: event.quality.provenance.schemaVersion,
+              qualityPolicyVersion: event.quality.provenance.policyVersion,
+              qualityConfigVersion:
+                event.quality.provenance.configurationVersion,
+            },
+          );
+        }
 
         let attached = false;
         let published = false;
         const action = async (timelineLinked: boolean) => {
           if (!timelineLinked && !attached) {
-            await this.raceEventStore.attachLap(session.sessionId, context.lapNumber, event.lapId);
+            await this.raceEventStore.attachLap(
+              session.sessionId,
+              context.lapNumber,
+              event.lapId,
+            );
             attached = true;
           }
           if (published) return;
 
           const pendingIssues = this._pendingLapIssues.get(issueKey);
           this._pendingLapIssues.delete(issueKey);
-
-          const isActiveSession = this._recordingSession?.sessionId === session.sessionId && this._recordingSession.gameId === session.gameId;
-          if (!isActiveSession) return;
-
+          const activeSession = this._recordingSession;
+          if (
+            activeSession &&
+            (activeSession.sessionId !== session.sessionId ||
+              activeSession.gameId !== session.gameId)
+          ) {
+            return;
+          }
           this._sessionLaps.push({
             id: event.lapId,
             sessionId: session.sessionId,
@@ -799,62 +900,59 @@ export class LiveTelemetryPipeline {
             quality: event.quality,
             eligibility: event.eligibility,
             qualityGeneration: event.quality.provenance.outputGeneration,
-            qualityStale: event.quality.provenance.outputGeneration === "legacy",
+            qualityStale:
+              event.quality.provenance.outputGeneration === "legacy",
           });
           if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
-            this._sessionLaps.splice(0, this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
+            this._sessionLaps.splice(
+              0,
+              this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT,
+            );
           }
           published = true;
           this.ws.broadcastNotification({ type: "lap-saved", ...event });
           if (pendingIssues) {
-            const issues = pendingIssues.issues ?? [];
             this.ws.broadcastNotification({
               type: "lap-issues",
               lapId: event.lapId,
               lapNumber: event.lapNumber,
-              issues,
+              issues: pendingIssues.issues ?? [],
               eligibility: pendingIssues.eligibility,
             });
           }
           this._broadcastSessionLaps();
         };
-
-        const reconcile = async () => {
-          await this._scheduleLapReconciliation(session.sessionId, session.gameId);
-          if (this._onSessionFinalized) {
-            this._publishRaceResultInvalidation(session.sessionId);
-          }
+        const reconcile = () => {
+          const pending = this._scheduleLapReconciliation(
+            session.sessionId,
+            session.gameId,
+          );
+          void pending
+            .then(() => {
+              if (this._onSessionFinalized) {
+                this._publishRaceResultInvalidation(session.sessionId);
+              }
+            })
+            .catch(() => {});
         };
 
-        if (pendingBatch) {
-          await pendingBatch.prior;
-          try {
-            await this._persistTimelineEventsCore(pendingBatch.events, [lapLink], () => action(true));
-          } finally {
-            this._pendingTimelineLapBatches.delete(issueKey);
-            pendingBatch.release();
-            pendingBatch.settle();
-          }
-          await reconcile();
-          return;
-        }
         if (staged) {
           this._stagedLapSavedActions.push(async () => {
             await action(true);
-            await reconcile();
+            reconcile();
           });
           return;
         }
         await this._enqueueTimelinePersistence(async () => {
           await action(false);
-          await reconcile();
+          reconcile();
         });
       },
     };
   }
 
   private async _getOrCreateDetector(gameId: GameId): Promise<ILapDetector> {
-    this._retryPendingSessionFinalizations();
+    await this._retryPendingClosedSessionFinalizations();
     if (this._lapDetector === null || this._lapDetectorGameId !== gameId) {
       const previousDetector = this._lapDetector;
       const previousSession = this._recordingSession;
@@ -905,8 +1003,8 @@ export class LiveTelemetryPipeline {
 
   /** Finalize detector, durable capture, then authoritative session result. */
   async finalizeCurrentSession(reason: SessionEndReason = "stream-ended"): Promise<void> {
-    this._retryPendingSessionFinalizations();
     const result = await this._enqueueCaptureOperation(async () => {
+      await this._retryPendingClosedSessionFinalizations();
       const session = this._recordingSession;
       let detectorFailure: unknown;
       try {
@@ -926,8 +1024,8 @@ export class LiveTelemetryPipeline {
 
   /** Detect game-specific stale finalization and finish its durable capture. */
   async flushStaleSession(): Promise<void> {
-    this._retryPendingSessionFinalizations();
     const result = await this._enqueueCaptureOperation(async () => {
+      await this._retryPendingClosedSessionFinalizations();
       const session = this._recordingSession;
       await this._lapDetector?.flushStaleLap?.();
       return session && !this._lapDetector?.session ? this._finishRecordedSessionCore(session) : { finalization: null };
@@ -980,6 +1078,7 @@ export class LiveTelemetryPipeline {
   }
 
   private async _processPacketCore(packet: TelemetryPacket, sourceFrame?: Buffer): Promise<void> {
+    await this._retryPendingClosedSessionFinalizations();
     this._totalProcessed++;
     const receivedAtMs = Date.now();
     let recorderWriteFailure: unknown = null;
@@ -1082,37 +1181,36 @@ export class LiveTelemetryPipeline {
         }),
       );
     }
+    const timelineSessionId =
+      detector.session?.sessionId ?? this._recordingSession?.sessionId;
+    if (timelineSessionId != null && this._stagedTimelineEvents.length > 0) {
+      await detector.waitForPendingLapWrites?.(timelineSessionId);
+    }
+    const lapSavedActions = this._stagedLapSavedActions.splice(0);
+    const afterPersist =
+      lapSavedActions.length === 0
+        ? undefined
+        : async () => {
+            for (const action of lapSavedActions) await action();
+          };
     try {
-      const pendingLapEvent = this._stagedTimelineEvents.find((event) => event.eventType === "lap_completed" && event.lapNumber != null);
-      const pendingLapLinked = pendingLapEvent != null && this._stagedTimelineLapLinks.some((link) => link.sessionId === pendingLapEvent.sessionId && link.lapNumber === pendingLapEvent.lapNumber);
-      if (pendingLapEvent && !pendingLapLinked) {
-        const key = this._lapIssueKey(pendingLapEvent.sessionId, pendingLapEvent.lapNumber!);
-        if (this._pendingTimelineLapBatches.has(key)) {
-          throw new Error(`Pending race-event lap batch already exists for ${key}`);
-        }
-        const reservation = this._reserveTimelinePosition();
-        const completion = Promise.withResolvers<void>();
-        this._pendingTimelineLapBatches.set(key, {
-          events: [...this._stagedTimelineEvents],
-          ...reservation,
-          settled: completion.promise,
-          settle: completion.resolve,
-        });
-      } else {
-        await this._enqueueTimelinePersistence(async () => {
-          await this._persistTimelineEventsCore(this._stagedTimelineEvents, this._stagedTimelineLapLinks);
-          const lapSavedActions = this._stagedLapSavedActions.splice(0);
-          for (const action of lapSavedActions) await action();
-        });
-      }
+      await this._persistTimelineEvents(
+        this._stagedTimelineEvents,
+        this._stagedTimelineLapLinks,
+        afterPersist,
+      );
     } finally {
       this._timelineEventsStaged = false;
       this._pendingTimelinePreflight = null;
       this._stagedTimelineEvents.length = 0;
       this._stagedTimelineLapLinks.length = 0;
+      this._stagedCompletedRunLaps.clear();
     }
     this._lastTimelinePacket = packet;
-
+    const deferredFinalizations = this._deferredSessionFinalizations.splice(0);
+    for (const closed of deferredFinalizations) {
+      await this._finalizeClosedSession(closed, "session-rotated");
+    }
 
     const sectors = this.sectorTracker.feed(packet);
 
@@ -1159,8 +1257,13 @@ export class LiveTelemetryPipeline {
   }
 
   async flushSessionRecorder(): Promise<void> {
-    this._retryPendingSessionFinalizations();
-    const result = await this._enqueueCaptureOperation(() => this._finishRecordedSessionCore(this._recordingSession, "stream-ended"));
+    const result = await this._enqueueCaptureOperation(async () => {
+      await this._retryPendingClosedSessionFinalizations();
+      return this._finishRecordedSessionCore(
+        this._recordingSession,
+        "stream-ended",
+      );
+    });
     await this._awaitCaptureFinalization(result);
   }
 
