@@ -50,32 +50,97 @@ export function mergeAppendedRaceEventsIntoCaches(sessionId: number, events: Rac
   }
 }
 
-async function recoverRaceEventTails(sessionId?: number): Promise<void> {
+interface RaceEventRecovery {
+  sessionId: number;
+  generation: number;
+  controller: AbortController;
+}
+
+const raceEventRecoveries = new Map<string, RaceEventRecovery>();
+const raceEventRecoveryGenerations = new Map<string, number>();
+
+function raceEventRecoveryKey(sessionId: number, gameId: GameId): string {
+  return `${sessionId}:${gameId}`;
+}
+
+function startRaceEventRecovery(sessionId: number, gameId: GameId): RaceEventRecovery {
+  const key = raceEventRecoveryKey(sessionId, gameId);
+  const previous = raceEventRecoveries.get(key);
+  previous?.controller.abort();
+  const recovery = {
+    sessionId,
+    generation: (raceEventRecoveryGenerations.get(key) ?? 0) + 1,
+    controller: new AbortController(),
+  };
+  raceEventRecoveryGenerations.set(key, recovery.generation);
+  raceEventRecoveries.set(key, recovery);
+  return recovery;
+}
+
+function isCurrentRaceEventRecovery(sessionId: number, gameId: GameId, recovery: RaceEventRecovery): boolean {
+  return raceEventRecoveries.get(raceEventRecoveryKey(sessionId, gameId)) === recovery && !recovery.controller.signal.aborted;
+}
+
+function cancelRaceEventRecoveries(sessionId?: number): void {
+  for (const [key, recovery] of raceEventRecoveries) {
+    if (sessionId != null && recovery.sessionId !== sessionId) continue;
+    recovery.controller.abort();
+    raceEventRecoveries.delete(key);
+  }
+}
+
+async function resetRaceEventCache(queryKey: readonly unknown[]): Promise<void> {
+  await queryClient.resetQueries({ queryKey, exact: true });
+  await queryClient.invalidateQueries({ queryKey, exact: true, refetchType: "active" });
+}
+
+export async function recoverRaceEventTails(sessionId?: number): Promise<void> {
   await Promise.all(
     raceEventCacheEntries(sessionId).map(async ({ queryKey, sessionId: cachedSessionId, gameId }) => {
-      const initial = queryClient.getQueryData(queryKey);
-      if (!isRaceEventInfiniteData(initial) || initial.pages.length === 0) return;
-      let recovered = initial;
-      if (recovered.pages.at(-1)?.tailCursor == null) {
-        const firstPage = await fetchSessionRaceEventPage(cachedSessionId, gameId, undefined, 1_000);
-        recovered = mergeRecoveredRaceEventPage(recovered, firstPage);
+      const recovery = startRaceEventRecovery(cachedSessionId, gameId);
+      try {
+        const initial = queryClient.getQueryData(queryKey);
+        if (!isRaceEventInfiniteData(initial) || initial.pages.length === 0) return;
+        const initialPageCount = initial.pages.length;
+        let recovered = initial;
+        if (recovered.pages.at(-1)?.tailCursor == null) {
+          const firstPage = await fetchSessionRaceEventPage(cachedSessionId, gameId, undefined, 1_000, recovery.controller.signal);
+          if (!isCurrentRaceEventRecovery(cachedSessionId, gameId, recovery)) return;
+          recovered = mergeRecoveredRaceEventPage(recovered, firstPage);
+        }
+        recovered = await recoverRaceEventTail(
+          recovered,
+          (cursor, signal) => fetchSessionRaceEventPage(cachedSessionId, gameId, cursor, 1_000, signal),
+          recovery.controller.signal,
+        );
+        if (!isCurrentRaceEventRecovery(cachedSessionId, gameId, recovery)) return;
+        const recoveredPages =
+          recovered.pages.length === initialPageCount ? [recovered.pages[recovered.pages.length - 1]!] : recovered.pages.slice(initialPageCount);
+        queryClient.setQueryData(queryKey, (data: unknown) => {
+          if (!isRaceEventInfiniteData(data)) return data;
+          return recoveredPages.reduce(mergeRecoveredRaceEventPage, data);
+        });
+      } catch {
+        if (isCurrentRaceEventRecovery(cachedSessionId, gameId, recovery)) {
+          await resetRaceEventCache(queryKey);
+        }
+      } finally {
+        if (raceEventRecoveries.get(raceEventRecoveryKey(cachedSessionId, gameId)) === recovery) {
+          raceEventRecoveries.delete(raceEventRecoveryKey(cachedSessionId, gameId));
+        }
       }
-      recovered = await recoverRaceEventTail(recovered, (cursor) =>
-        fetchSessionRaceEventPage(cachedSessionId, gameId, cursor, 1_000),
-      );
-      const recoveredTail = recovered.pages.at(-1);
-      if (!recoveredTail) return;
-
-      queryClient.setQueryData(queryKey, (data: unknown) =>
-        isRaceEventInfiniteData(data) ? mergeRecoveredRaceEventPage(data, recoveredTail) : data,
-      );
     }),
   );
 }
 
 export async function resetRaceEventCaches(sessionId: number): Promise<void> {
+  cancelRaceEventRecoveries(sessionId);
   await queryClient.resetQueries({ queryKey: queryKeys.sessionEventsForSession(sessionId) });
-  await recoverRaceEventTails(sessionId);
+  await queryClient.invalidateQueries({ queryKey: queryKeys.sessionEventsForSession(sessionId), refetchType: "active" });
+}
+
+export function handleRaceEventsReplaced(sessionId: number): Promise<void> {
+  return resetRaceEventCaches(sessionId);
 }
 
 export function useWebSocket() {
@@ -154,7 +219,7 @@ export function useWebSocket() {
           } else if (data.type === "race-events-replaced") {
             const raceEventMessage = RaceEventsReplacedMessageSchema.safeParse(data);
             if (raceEventMessage.success) {
-              void resetRaceEventCaches(raceEventMessage.data.sessionId).catch((error) => console.error("Race-event replacement recovery failed", error));
+              void handleRaceEventsReplaced(raceEventMessage.data.sessionId).catch((error) => console.error("Race-event replacement recovery failed", error));
             }
           } else if (data.type === "status") {
             const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -263,6 +328,7 @@ export function useWebSocket() {
       clearInterval(interval);
       clearTimeout(reconnectTimeoutRef.current);
       abortVersionRequest();
+      cancelRaceEventRecoveries();
       useDevTelemetryStore.getState().clear();
       if (wsRef.current) {
         wsRef.current.onclose = null;

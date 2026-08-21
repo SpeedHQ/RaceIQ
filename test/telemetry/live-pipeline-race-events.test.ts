@@ -7,7 +7,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import type { RecordingQualitySummary } from "../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { initServerGameAdapters } from "../../server/games/init";
-import { MemoryRaceEventStore } from "../../server/race-events/store";
+import { compareRaceEvents, MemoryRaceEventStore } from "../../server/race-events/store";
 import {
   CapturingDbAdapter,
   CapturingWsAdapter,
@@ -50,6 +50,27 @@ class FailOnceRaceEventStore extends MemoryRaceEventStore {
     this.batches.push(events.map(({ eventId }) => eventId));
     if (!this.failed) {
       this.failed = true;
+      throw new Error("transient append failure");
+    }
+    return super.append(events);
+  }
+}
+
+class FailSeveralRaceEventStore extends MemoryRaceEventStore {
+  readonly batches: string[][] = [];
+
+  constructor(private failures: number) {
+    super();
+  }
+
+  failNext(count: number): void {
+    this.failures = count;
+  }
+
+  override async append(events: readonly RaceEvent[]) {
+    this.batches.push(events.map(({ eventId }) => eventId));
+    if (this.failures > 0) {
+      this.failures -= 1;
       throw new Error("transient append failure");
     }
     return super.append(events);
@@ -140,6 +161,255 @@ describe("live race-event timeline integration", () => {
     expect(ws.broadcastedNotifications.some(({ type }) => type === "race-events-appended")).toBe(true);
 
     await pipeline.finalizeCurrentSession();
+  });
+
+  test("retries post-persist work before appending later timeline batches", async () => {
+    const store = new FailSeveralRaceEventStore(0);
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+    });
+    await pipeline.processPacket(packet());
+    await pipeline.noteSourceLifecycle(
+      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:post-persist" },
+      { kind: "udp", gameId: "fm-2023", sessionId: 1 },
+    );
+
+    const [first, later] = store.list();
+    if (!first || !later) throw new Error("Expected initial timeline events");
+    const internals = pipeline as unknown as {
+      _persistTimelineEventsCore(
+        events: readonly RaceEvent[],
+        lapLinks?: readonly [],
+        afterPersist?: () => Promise<void>,
+      ): Promise<RaceEvent[]>;
+    };
+    let attempts = 0;
+
+    await expect(
+      internals._persistTimelineEventsCore([first], [], async () => {
+        attempts += 1;
+        if (attempts === 1) throw new Error("post-persist failure");
+      }),
+    ).rejects.toThrow("post-persist failure");
+    await internals._persistTimelineEventsCore([later]);
+
+    expect(attempts).toBe(2);
+    expect(store.batches.slice(-2).flat()).toEqual([first, later].sort(compareRaceEvents).map(({ eventId }) => eventId));
+
+    await pipeline.finalizeCurrentSession();
+  });
+
+  test("retains every released lap reservation when fallback persistence also fails", async () => {
+    const store = new FailSeveralRaceEventStore(0);
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+    });
+    await pipeline.processPacket(packet());
+    await pipeline.noteSourceLifecycle(
+      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:reservations" },
+      { kind: "udp", gameId: "fm-2023", sessionId: 1 },
+    );
+
+    const [first, later] = store.list();
+    if (!first || !later) throw new Error("Expected initial timeline events");
+    let released = 0;
+    const internals = pipeline as unknown as {
+      _pendingTimelineLapBatches: Map<string, {
+        events: RaceEvent[];
+        release: () => void;
+        settle: () => void;
+      }>;
+      _releaseFailedTimelineLapBatches(sessionId: number, error: unknown): Promise<void>;
+      _persistTimelineEventsCore(events: readonly RaceEvent[]): Promise<RaceEvent[]>;
+    };
+    internals._pendingTimelineLapBatches.set("1:1", {
+      events: [first],
+      release: () => {
+        released += 1;
+      },
+      settle: () => {},
+    });
+    internals._pendingTimelineLapBatches.set("1:2", {
+      events: [later],
+      release: () => {
+        released += 1;
+      },
+      settle: () => {},
+    });
+    store.failNext(1);
+
+    await expect(internals._releaseFailedTimelineLapBatches(1, new Error("lap write failure"))).rejects.toThrow(
+      "Failed to persist race events",
+    );
+    await internals._persistTimelineEventsCore([]);
+
+    expect(released).toBe(2);
+    expect(store.batches.slice(-3).flat()).toEqual([
+      first.eventId,
+      ...[first, later].sort(compareRaceEvents).map(({ eventId }) => eventId),
+    ]);
+
+    await pipeline.finalizeCurrentSession();
+  });
+
+  test("retains every later timeline batch across repeated persistence outages", async () => {
+    const store = new FailSeveralRaceEventStore(3);
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+    });
+
+    await expect(pipeline.processPacket(packet())).rejects.toThrow("Failed to persist race events");
+    await expect(
+      pipeline.noteSourceLifecycle(
+        { kind: "timeout", timestampMs: 1_100, eventId: "source-timeout:A" },
+        { kind: "udp", gameId: "fm-2023", sessionId: 1 },
+      ),
+    ).rejects.toThrow("Failed to persist race events");
+    await expect(
+      pipeline.noteSourceLifecycle(
+        { kind: "reconnect", timestampMs: 1_200, eventId: "source-reconnect:B" },
+        { kind: "udp", gameId: "fm-2023", sessionId: 1 },
+      ),
+    ).rejects.toThrow("Failed to persist race events");
+
+    await pipeline.processPacket(packet({ TimestampMS: 1_300, CurrentLap: 30.3, DistanceTraveled: 2_030 }));
+
+    expect(store.batches).toHaveLength(6);
+    expect(store.batches.slice(3).flat()).toEqual(store.list().map(({ eventId }) => eventId));
+
+    await pipeline.finalizeCurrentSession();
+  });
+
+  test("aborts coordinator and source preflight when detector feed fails, then accepts identical reset packet", async () => {
+    const cleanStore = new MemoryRaceEventStore();
+    const clean = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: cleanStore,
+    });
+    const failingStore = new MemoryRaceEventStore();
+    const failing = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: failingStore,
+    });
+    const first = packet({ LapNumber: 2, TimestampMS: 1_000, CurrentLap: 60, DistanceTraveled: 5_000 });
+    const reset = packet({ LapNumber: 1, TimestampMS: 1_100, CurrentLap: 0.1, DistanceTraveled: 20 });
+
+    await clean.processPacket(first);
+    await clean.processPacket(reset);
+    await failing.processPacket(first);
+
+    const detector = failing.lapDetector!;
+    const feed = detector.feed.bind(detector);
+    let shouldFail = true;
+    detector.feed = async (telemetry, rawByteOffset) => {
+      if (shouldFail) {
+        shouldFail = false;
+        throw new Error("detector reset failure");
+      }
+      await feed(telemetry, rawByteOffset);
+    };
+
+    await expect(failing.processPacket(reset)).rejects.toThrow("detector reset failure");
+    await failing.processPacket(reset);
+
+    expect(failingStore.list().map(({ eventType, sequence, timelineEpoch }) => ({ eventType, sequence, timelineEpoch }))).toEqual(
+      cleanStore.list().map(({ eventType, sequence, timelineEpoch }) => ({ eventType, sequence, timelineEpoch })),
+    );
+
+    await clean.finalizeCurrentSession();
+    await failing.finalizeCurrentSession();
+  });
+
+  test("keeps EOF nonterminal and emits replacement hint after finalized event metadata commits", async () => {
+    const ws = new CapturingWsAdapter();
+    const store = new MemoryRaceEventStore();
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), ws, {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+    });
+
+    await pipeline.processPacket(packet());
+    await pipeline.finalizeCurrentSession("stream-ended");
+
+    expect(store.list().some(({ eventType }) => eventType === "session_ended")).toBe(false);
+    expect(ws.broadcastedNotifications).toContainEqual({
+      type: "race-events-replaced",
+      sessionId: 1,
+    });
+  });
+
+  test("marks a stale rotation end as nonterminal without advancing the race phase", async () => {
+    const store = new MemoryRaceEventStore();
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+    });
+
+    await pipeline.processPacket(packet());
+    await pipeline.finalizeCurrentSession("silence-timeout");
+
+    const ended = store.list().find(({ eventType }) => eventType === "session_ended");
+    if (!ended || ended.eventType !== "session_ended") {
+      throw new Error("Expected stale rotation to close the current timeline");
+    }
+    expect(ended.payload.terminalObserved).toBe(false);
+    if (ended.payload.previousPhase == null) throw new Error("Expected stale rotation to preserve prior phase");
+    expect(ended.payload.phase).toBe(ended.payload.previousPhase);
+    expect(ended.payload.phase).not.toBe("finished");
+  });
+
+  test("publishes durable lap updates before queued result reconciliation fails", async () => {
+    const ws = new CapturingWsAdapter();
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), ws, {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: new MemoryRaceEventStore(),
+      onSessionFinalized: async () => {
+        throw new Error("result reconciliation failed");
+      },
+    });
+
+    await pipeline.processPacket(packet());
+    await pipeline.processPacket(
+      packet({
+        TimestampMS: 2_000,
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 5_000,
+      }),
+    );
+    await expect(pipeline.finalizeCurrentSession()).rejects.toThrow("result reconciliation failed");
+
+    expect(pipeline.sessionLaps).toHaveLength(1);
+    expect(ws.broadcastedNotifications.some(({ type }) => type === "lap-saved")).toBe(true);
+    expect(ws.broadcastedNotifications.some(({ type }) => type === "lap-issues")).toBe(true);
   });
 
   test("retains closed session finalization after durable failure and retries it", async () => {

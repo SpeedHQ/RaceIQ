@@ -83,6 +83,44 @@ describe("race-event coordinator", () => {
       .toBe(false);
   });
 
+  test("aborts accepted preflight before retrying detector work", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 19 });
+    coordinator.processObservation(19, observation(1, {
+      gameId: "f1-2025",
+      sessionPhase: "caution",
+      cautionKind: "safety-car",
+      nativeRaceControlCode: 1,
+    }));
+
+    const failed = coordinator.preflight(observation(1, {
+      gameId: "f1-2025",
+      sourceTimeMs: 200,
+    }), {
+      reconnect: true,
+      resetReason: "source-reconnect",
+    });
+    expect(failed).toMatchObject({ accepted: true, timelineEpoch: 1, sequence: 1, reset: true });
+    coordinator.abortPreflight(failed);
+
+    const retried = coordinator.preflight(observation(2, {
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 1,
+    }));
+    expect(retried).toMatchObject({ accepted: true, timelineEpoch: 0, sequence: 2, reset: false });
+    expect(coordinator.processPreflight(retried).events).toEqual(
+      expect.arrayContaining([expect.objectContaining({ eventType: "caution_ended" })]),
+    );
+    expect(coordinator.processObservation(19, observation(3, {
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 1,
+    }))).toMatchObject({
+      accepted: true,
+      sequence: 3,
+    });
+  });
+
   test("rejects a true unchanged-session lower sequence", () => {
     const coordinator = new RaceEventCoordinator({ sessionId: 10 });
     coordinator.processObservation(10, observation(100));
@@ -339,6 +377,33 @@ describe("race-event coordinator", () => {
       lifecycleId: pitEntry.lifecycleId,
       linkedEventId: pitEntry.eventId,
     });
+  });
+
+  test("orders same-observation pit service start, actions, then completion", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 22 });
+    const materialize = (coordinator as unknown as CoordinatorMaterializer).materializeDrafts.bind(coordinator);
+    const base = {
+      detectorId: "pit-service",
+      detectorVersion: "test",
+      boundaryKey: "same-observation-service",
+      participant: participant(),
+      evidenceKind: "derived",
+      confidence: "high",
+      qualityState: "available",
+    };
+    const events = materialize([
+      { ...base, eventType: "repair_service_observed", payload: { previousComponents: {}, currentComponents: {}, repairedComponents: [] }, priority: 60 },
+      { ...base, eventType: "pit_service_completed", payload: { durationMs: 1, observedActions: ["repair"], state: "pit-stall" }, priority: 50 },
+      { ...base, eventType: "pit_service_started", payload: { trigger: "service-observation" }, priority: 60 },
+      { ...base, eventType: "fuel_service_observed", payload: { beforeLitres: 1, afterLitres: 2, addedLitres: 1 }, priority: 60 },
+    ] as DetectorEventDraft[], observation(1), 0, 1).events;
+
+    expect(events.map(({ eventType }) => eventType)).toEqual([
+      "pit_service_started",
+      "fuel_service_observed",
+      "repair_service_observed",
+      "pit_service_completed",
+    ]);
   });
 
   test("rolls lifecycle and emitted IDs back when any materialized draft is invalid", () => {

@@ -3,10 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RACE_EVENT_SCHEMA_VERSION, RaceEventSchema, RaceEventTypeSchema, type RaceEvent } from "../../shared/racing/events/contracts";
-import { RaceEventTimeline, RACE_EVENT_LABELS, flattenRaceEventPages, formatRaceEventDetails, raceEventBadges } from "../src/components/race-events/RaceEventTimeline";
-import { mergeAppendedRaceEvents, recoverRaceEventTail } from "../src/lib/race-event-cache";
+import { RaceEventLoadMoreFailure, RaceEventTimeline, RACE_EVENT_LABELS, flattenRaceEventPages, formatRaceEventDetails, raceEventBadges, raceEventPageWindow } from "../src/components/race-events/RaceEventTimeline";
+import { mergeAppendedRaceEvents, mergeRecoveredRaceEventPage, recoverRaceEventTail } from "../src/lib/race-event-cache";
 import { queryClient } from "../src/lib/queryClient";
-import { mergeAppendedRaceEventsIntoCaches, resetRaceEventCaches } from "../src/hooks/useWebSocket";
+import { handleRaceEventsReplaced, mergeAppendedRaceEventsIntoCaches, recoverRaceEventTails, resetRaceEventCaches } from "../src/hooks/useWebSocket";
 import { queryKeys } from "../src/hooks/query-keys";
 import { getLocale, overwriteGetLocale, type Locale } from "../src/paraglide/runtime";
 
@@ -121,6 +121,12 @@ describe("race event timeline", () => {
     expect(raceEventBadges(event({ qualityState: "unavailable" }))).toEqual({ evidence: "Observed", quality: "Unavailable" });
   });
 
+  test("announces load-more failures to screen readers", () => {
+    const markup = renderToStaticMarkup(createElement(RaceEventLoadMoreFailure));
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain('aria-live="assertive"');
+  });
+
   test("omits null payload fields", () => {
     const details = formatRaceEventDetails(
       event({
@@ -212,11 +218,88 @@ describe("race event timeline", () => {
 
     expect(cursors).toEqual(["tail-200"]);
     expect(flattenRaceEventPages(recovered.pages)).toHaveLength(201);
-    expect(recovered.pages[0]?.tailCursor).toBe("tail-201");
+    expect(recovered.pages.at(-1)?.tailCursor).toBe("tail-201");
 
     await expect(
       recoverRaceEventTail(initial, async () => ({ items: [], nextCursor: "stalled", tailCursor: "tail-200" })),
     ).rejects.toThrow("Race-event tail catch-up cursor did not advance");
+  });
+
+  test("keeps more than 5,000 recovered events paged", () => {
+    let recovered = {
+      pages: [{ items: [event({ sequence: 1 })], nextCursor: null, tailCursor: "tail-1" }],
+      pageParams: [undefined],
+    };
+
+    for (let pageIndex = 0; pageIndex < 51; pageIndex += 1) {
+      const firstSequence = pageIndex * 100 + 2;
+      recovered = mergeRecoveredRaceEventPage(
+        recovered,
+        {
+          items: Array.from({ length: 100 }, (_, offset) =>
+            event({
+              eventId: `race-event:sha256:${(firstSequence + offset).toString(16).padStart(64, "0")}`,
+              sequence: firstSequence + offset,
+            }),
+          ),
+          nextCursor: null,
+          tailCursor: `tail-${firstSequence + 99}`,
+        },
+      );
+    }
+
+    expect(recovered.pages).toHaveLength(52);
+    expect(recovered.pages.slice(1).every((page) => page.items.length === 100)).toBeTrue();
+    expect(raceEventPageWindow(recovered.pages, 100)).toHaveLength(100);
+    expect(raceEventPageWindow(recovered.pages, 200)).toHaveLength(200);
+    expect(flattenRaceEventPages(recovered.pages)).toHaveLength(5_101);
+  });
+
+  test("replacement aborts in-flight recovery before stale events can write cache", async () => {
+    const key = queryKeys.sessionEvents(12, "acc");
+    const initial = {
+      pages: [{ items: [event({ sequence: 1 })], nextCursor: null, tailCursor: "tail-1" }],
+      pageParams: [undefined],
+    };
+    queryClient.setQueryData(key, initial);
+    const originalFetch = globalThis.fetch;
+    let resolveFetch: ((response: Response) => void) | undefined;
+    globalThis.fetch = (() => new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    })) as typeof fetch;
+
+    try {
+      const recovery = recoverRaceEventTails(12);
+      await Promise.resolve();
+      expect(resolveFetch).toBeDefined();
+      await handleRaceEventsReplaced(12);
+      resolveFetch?.(Response.json({ items: [event({ sequence: 2 })], nextCursor: null, tailCursor: "tail-2" }));
+      await recovery;
+      expect(queryClient.getQueryData(key)).toBeUndefined();
+    } finally {
+      globalThis.fetch = originalFetch;
+      queryClient.clear();
+    }
+  });
+
+  test("resets timeline cache for authoritative refetch after catch-up failure", async () => {
+    const key = queryKeys.sessionEvents(12, "acc");
+    queryClient.setQueryData(key, {
+      pages: [{ items: [event({ sequence: 1 })], nextCursor: null, tailCursor: "tail-1" }],
+      pageParams: [undefined],
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error("network unavailable");
+    }) as typeof fetch;
+
+    try {
+      await recoverRaceEventTails(12);
+      expect(queryClient.getQueryData(key)).toBeUndefined();
+    } finally {
+      globalThis.fetch = originalFetch;
+      queryClient.clear();
+    }
   });
 
   test("resets every game-scoped timeline cache when events are replaced", async () => {

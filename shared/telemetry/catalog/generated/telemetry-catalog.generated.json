@@ -12,13 +12,13 @@
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8d8fed19d02edaddd5bf0d9ba77aa7b2a82b3a8934b97ba3af87351f3d06930b",
       "server/games/acc/parser.ts": "bd288509bf6f4e02f0dfab01f56e47f117aec6c21ae90444d1c921dc9b008477",
-      "server/games/f1-2025/f1-state.ts": "ca87bf10504e48da74e33b8d896c19e9f0622fc18acea5200f4666d26d09e4b1",
+      "server/games/f1-2025/f1-state.ts": "640390605fd59991e5ab1ecb27884a2320fb54b8f7d2bad5b568354c3d1297e9",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "f3ec06893e301c12d607fea08902ef75f71c7f34e83775424fbfcde25a23faaf",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "5feefb3453038d5afff1091e3c9d9992d24df784feda7b4689bd2cf327cedc9a"
+    "contentHash": "c7b89de7b91efffd89f137d62c80cedb66a512dd42a80625831b67e832e6e98c"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -108,6 +108,7 @@
         "damage.car-damage-left",
         "damage.car-damage-rear",
         "damage.car-damage-right",
+        "damage.damage-available",
         "damage.diffuser-damage",
         "damage.drs-fault",
         "damage.engine-ce-wear",
@@ -2435,6 +2436,58 @@
       "range": {
         "min": 0,
         "max": 100
+      },
+      "limitations": []
+    },
+    {
+      "id": "damage.damage-available",
+      "label": "Damage Available",
+      "description": "True only after first native CarDamage packet for current F1 session.",
+      "parentId": "damage",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.damageAvailable"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -55060,6 +55113,18 @@
         "retention": "exact"
       },
       {
+        "path": "f1.damageAvailable",
+        "label": "Damage Available",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "True only after first native CarDamage packet for current F1 session.",
+        "semanticId": "damage.damage-available",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.diffuserDamage",
         "label": "Diffuser Damage",
         "unit": "%",
@@ -75288,7 +75353,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 740,
+    "semanticVariables": 741,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -75300,13 +75365,13 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 294,
+        "total": 295,
         "packet": 119,
-        "extension": 175,
+        "extension": 176,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 294
+        "recorded": 295
       },
       "acc": {
         "total": 202,

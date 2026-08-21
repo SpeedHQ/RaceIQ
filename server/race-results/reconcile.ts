@@ -70,6 +70,16 @@ export interface BackfillReport {
 }
 
 
+function hasActivatedReplayGeneration(
+  quality: (typeof sessions.$inferSelect)["recordingQuality"] | undefined,
+): quality is NonNullable<(typeof sessions.$inferSelect)["recordingQuality"]> {
+  return (
+    quality?.archiveVerification.state === "verified" &&
+    /^sha256:[a-f0-9]{64}$/.test(quality.provenance.sourceGeneration) &&
+    /^sha256:[a-f0-9]{64}$/.test(quality.provenance.outputGeneration)
+  );
+}
+
 async function ensureReplayableTimelineForStaleSession(sessionId: number, gameId: GameId): Promise<void> {
   const [events, session] = await Promise.all([
     loadSessionTimeline(sessionId),
@@ -82,15 +92,12 @@ async function ensureReplayableTimelineForStaleSession(sessionId: number, gameId
       .where(eq(sessions.id, sessionId))
       .get(),
   ]);
-  const sourceGeneration = session?.recordingQuality?.provenance.sourceGeneration;
+  const quality = session?.recordingQuality;
   const complete =
     session?.lapDetectorVersion === getServerGame(gameId).lapDetectorId &&
-    session?.recordingQuality?.archiveVerification.state === "verified" &&
-    sourceGeneration != null &&
-    /^sha256:[a-f0-9]{64}$/.test(sourceGeneration) &&
+    hasActivatedReplayGeneration(quality) &&
     events.some((event) => event.eventType === "session_started") &&
-    events.some((event) => event.eventType === "session_ended") &&
-    events.every((event) => event.sourceGeneration === sourceGeneration);
+    events.every((event) => event.sourceGeneration === quality.provenance.sourceGeneration);
   if (complete) return;
   await reprocessSession(sessionId);
 }

@@ -8,14 +8,14 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
 - Generator source SHA-256: `a92bfd3414573aec80219d95588463fb0aab51e74dea45a7423c9f20aeb3dba8`
-- Content SHA-256: `5feefb3453038d5afff1091e3c9d9992d24df784feda7b4689bd2cf327cedc9a`
+- Content SHA-256: `c7b89de7b91efffd89f137d62c80cedb66a512dd42a80625831b67e832e6e98c`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 294 | 294 | 119 | 175 | 0 | 0 | 0 |
+| f1-2025 | 295 | 295 | 119 | 176 | 0 | 0 | 0 |
 | acc | 202 | 169 | 124 | 45 | 0 | 0 | 33 |
 | ac-evo | 257 | 221 | 124 | 97 | 0 | 0 | 36 |
 | iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
@@ -42,6 +42,7 @@
 | `damage.car-damage-left` | Car Damage left | number | dimensionless | % | scalar |  |  |  |
 | `damage.car-damage-rear` | Car Damage rear | number | dimensionless | % | scalar |  |  |  |
 | `damage.car-damage-right` | Car Damage right | number | dimensionless | % | scalar |  |  |  |
+| `damage.damage-available` | Damage Available | boolean | dimensionless | boolean | scalar |  |  |  |
 | `damage.diffuser-damage` | Diffuser Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.drs-fault` | DRS Fault | number | dimensionless | count | scalar |  |  |  |
 | `damage.engine-ce-wear` | Engine CE Wear | number | dimensionless | % | scalar |  |  |  |

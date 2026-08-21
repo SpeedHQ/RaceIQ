@@ -4,7 +4,7 @@ import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contract
 import { LOCAL_PLAYER_EVIDENCE } from "../../shared/racing/quality/contracts";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
 import { db } from "../../server/db";
-import { appendRaceEvents } from "../../server/db/race-event-queries";
+import { appendRaceEvents, replaceReplayableRaceEvents } from "../../server/db/race-event-queries";
 import { linkSessionQualityEvents } from "../../server/db/quality-event-queries";
 import { updateSessionQuality } from "../../server/db/session-queries";
 import { laps, sessions } from "../../server/db/schema";
@@ -87,5 +87,43 @@ describe("canonical quality event linkage", () => {
     const stored = await db.select({ quality: laps.quality }).from(laps).where(eq(laps.id, lapId)).get();
     expect(stored?.quality?.facts.some((candidate) => candidate.eventIds.includes(eventId))).toBe(true);
     expect(stored?.quality?.facts.flatMap(({ eventIds }) => eventIds)).not.toContain("pit:ephemeral");
+  });
+  test("event-only replacement removes non-pit evidence from affected quality facts", async () => {
+    const packets = qualityPackets(100, [20]);
+    const recording = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
+    for (const packet of packets) recording.observe(packet);
+    const sessionId = (
+      await db.insert(sessions).values({ carOrdinal: 1, trackOrdinal: 2, gameId: "iracing" }).returning({ id: sessions.id }).get()
+    ).id;
+    const finalizedRecording = await updateSessionQuality(
+      sessionId,
+      recording.finalize("complete", { state: "verified", sourceGeneration: `sha256:${"e".repeat(64)}` }),
+    );
+    const generated = finalizeLapQualityGeneration(
+      summarize(packets),
+      finalizedRecording.provenance.sourceGeneration,
+      { lapNumber: 1, rawByteOffset: null, rawFrameCount: packets.length },
+    );
+    const lapId = (
+      await db.insert(laps).values({
+        sessionId,
+        lapNumber: 1,
+        lapTime: 90,
+        isValid: true,
+        rawFrameCount: packets.length,
+        quality: generated.quality,
+        eligibility: generated.eligibility,
+        qualityGeneration: generated.quality.provenance.outputGeneration,
+      }).returning({ id: laps.id }).get()
+    ).id;
+    const fact = generated.quality.facts.find(({ timeRange }) => timeRange != null)!;
+    const eventId = `race-event:sha256:${"a".repeat(64)}` as RaceEventId;
+    await appendRaceEvents([incidentEvent(sessionId, eventId, fact.timeRange!.startMs)]);
+    await linkSessionQualityEvents(sessionId);
+    expect((await db.select({ quality: laps.quality }).from(laps).where(eq(laps.id, lapId)).get())?.quality?.facts.some((candidate) => candidate.eventIds.includes(eventId))).toBe(true);
+
+    await replaceReplayableRaceEvents({ sessionId, events: [] });
+
+    expect((await db.select({ quality: laps.quality }).from(laps).where(eq(laps.id, lapId)).get())?.quality?.facts.flatMap(({ eventIds }) => eventIds)).not.toContain(eventId);
   });
 });

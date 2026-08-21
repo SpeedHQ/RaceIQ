@@ -23,7 +23,7 @@ function status(sessionId: number, action: QualityRebuildAction): QualityRebuild
 
 function routes(overrides: Partial<SessionRouteDependencies> = {}) {
   return createSessionRoutes({
-    sessionExists: async () => true,
+    sessionExistsForGame: async () => true,
     getQualityRebuildStatus: async (sessionId) => status(sessionId, "current"),
     getLapsForSession: async () => [],
     reprocessSession: async (sessionId) => ({
@@ -45,9 +45,9 @@ describe("session quality route semantics", () => {
   test("returns 404 only when session existence check reports missing", async () => {
     const getQualityRebuildStatus = mock(async (sessionId: number) => status(sessionId, "current"));
     const response = await routes({
-      sessionExists: async () => false,
+      sessionExistsForGame: async () => false,
       getQualityRebuildStatus,
-    }).request("/api/sessions/42/quality");
+    }).request("/api/sessions/42/quality?gameId=iracing");
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Session not found" });
@@ -59,7 +59,7 @@ describe("session quality route semantics", () => {
       getQualityRebuildStatus: async () => {
         throw new Error("database unavailable");
       },
-    }).request("/api/sessions/42/quality");
+    }).request("/api/sessions/42/quality?gameId=iracing");
 
     expect(response.status).toBe(500);
   });

@@ -1,5 +1,3 @@
-import type { RaceEventId } from "../events/contracts";
-
 export type TuneIssueKind =
   | "understeer"
   | "oversteer"
@@ -21,7 +19,4 @@ export interface TuneIssue {
   detail: string;
   /** Present on per-lap issues; absent on live transients. */
   lapNumber?: number;
-  /** Canonical facts explicitly used to derive this finding. Shared lap,
-   * participant, event family, or proximity alone never establishes support. */
-  eventIds?: RaceEventId[];
 }

@@ -62,6 +62,16 @@ interface PitLifecycleOpening {
 }
 
 
+interface NativeSequenceRollback {
+  family: string;
+  sequence: number | null;
+}
+
+interface GapAnchorRollback {
+  key: string;
+  anchor: SourceGapTimelineAnchor | undefined;
+}
+
 export interface RaceEventCoordinatorOptions {
   sessionId?: number;
   sourceKind?: EvidenceSourceKind;
@@ -71,6 +81,44 @@ export interface RaceEventCoordinatorOptions {
   validationMode?: "live" | "rebuild";
 }
 
+
+function pitServiceSubOrder(eventType: RaceEventType): number | null {
+  if (eventType === "pit_service_started") return 0;
+  if (
+    eventType === "fuel_service_observed" ||
+    eventType === "tire_service_observed" ||
+    eventType === "repair_service_observed" ||
+    eventType === "driver_service_observed"
+  ) {
+    return 1;
+  }
+  return eventType === "pit_service_completed" ? 2 : null;
+}
+
+function eventOrderPriority(draft: DetectorEventDraft): number {
+  switch (draft.eventType) {
+    case "pit_entry":
+    case "pit_stall_arrival":
+      return 50;
+    case "pit_service_started":
+      return 55;
+    case "fuel_service_observed":
+    case "tire_service_observed":
+    case "repair_service_observed":
+    case "driver_service_observed":
+      return 56;
+    case "pit_service_completed":
+    case "drive_through_observed":
+    case "pit_visit_incomplete":
+      return 57;
+    case "pit_stall_departure":
+      return 58;
+    case "pit_exit":
+      return 59;
+    default:
+      return draft.priority;
+  }
+}
 export interface RaceEventSessionEndInput {
   reason: SessionEndReason;
   terminalObserved: boolean;
@@ -114,6 +162,21 @@ export class RaceEventCoordinator {
   private readonly pitLifecycleOpenings = new Map<string, PitLifecycleOpening>();
   /** Only tracker-marked gap candidates retain cross-epoch projection anchors. */
   private readonly gapAnchors = new Map<string, SourceGapTimelineAnchor>();
+  private rollbackPreflight: RaceEventPreflightResult | null = null;
+  private rollbackTimelineEpoch = 0;
+  private rollbackSequence = 0;
+  private rollbackSeedNextObservation = false;
+  private rollbackReconnectEpochPending = false;
+  private rollbackLastSourceTimeMs: number | null = null;
+  private rollbackLastGameId: RaceEventObservation["gameId"] | null = null;
+  private rollbackLastSessionUid: string | null = null;
+  private rollbackLastCoordinateKey: string | null = null;
+  private rollbackLastAccepted: RaceEventPreflightResult | null = null;
+  private rollbackLastObservation: RaceEventObservation | null = null;
+  private readonly rollbackNativeSequences: NativeSequenceRollback[] = [];
+  private rollbackNativeSequenceCount = 0;
+  private readonly rollbackGapAnchors: GapAnchorRollback[] = [];
+  private rollbackGapAnchorCount = 0;
 
   private readonly sourceQuality = new SourceQualityDetector();
   private readonly raceControl = new SessionRaceControlDetector();
@@ -182,11 +245,13 @@ export class RaceEventCoordinator {
       assertValidCreatedAt(this.createdAt(observation.receivedAtMs));
     }
 
+    this.beginPreflightRollback();
     const resetReason = this.resetReason(observation, evidence);
     const reset = resetReason != null;
+    if (reset) this.captureAllNativeSequenceRollback();
     const resetDrafts: DetectorEventDraft[] = [];
     if (reset) {
-      this.beginEpoch(resetReason, observation);
+      this.beginEpoch(resetReason, observation, false);
       if (this.sessionId != null) {
         resetDrafts.push(...this.resetDrafts(observation, resetReason));
       }
@@ -259,7 +324,9 @@ export class RaceEventCoordinator {
         worldPosition: observation.worldPosition,
       };
       for (const candidate of evidence.sourceSequenceGapCandidates) {
-        this.gapAnchors.set(sourceGapAnchorKey(candidate), anchor);
+        const key = sourceGapAnchorKey(candidate);
+        this.captureGapAnchorRollback(key);
+        this.gapAnchors.set(key, anchor);
       }
     }
 
@@ -267,6 +334,7 @@ export class RaceEventCoordinator {
     const boundaryKey = observationBoundaryKey(observation, this.sequence);
     this.lastCoordinateKey = coordinateKey;
     for (const source of observation.sourceSequences) {
+      this.captureNativeSequenceRollback(source.family);
       this.lastNativeSequence.set(source.family, source.sequence);
     }
     this.lastSourceTimeMs = observation.sourceTimeMs;
@@ -287,7 +355,81 @@ export class RaceEventCoordinator {
     this.reconnectEpochPending = false;
     this.seedNextObservation = false;
     this.lastAccepted = result;
+    this.rollbackPreflight = result;
     return result;
+  }
+
+  /** Abandon an accepted preflight when upstream detector work fails. */
+  abortPreflight(preflight: RaceEventPreflightResult): void {
+    if (preflight !== this.rollbackPreflight) {
+      throw new Error("Race-event preflight is no longer abortable");
+    }
+    this.timelineEpoch = this.rollbackTimelineEpoch;
+    this.sequence = this.rollbackSequence;
+    this.seedNextObservation = this.rollbackSeedNextObservation;
+    this.reconnectEpochPending = this.rollbackReconnectEpochPending;
+    this.lastSourceTimeMs = this.rollbackLastSourceTimeMs;
+    this.lastGameId = this.rollbackLastGameId;
+    this.lastSessionUid = this.rollbackLastSessionUid;
+    this.lastCoordinateKey = this.rollbackLastCoordinateKey;
+    this.lastAccepted = this.rollbackLastAccepted;
+    this.lastObservation = this.rollbackLastObservation;
+    for (let index = this.rollbackNativeSequenceCount - 1; index >= 0; index -= 1) {
+      const rollback = this.rollbackNativeSequences[index]!;
+      if (rollback.sequence == null) this.lastNativeSequence.delete(rollback.family);
+      else this.lastNativeSequence.set(rollback.family, rollback.sequence);
+    }
+    for (let index = this.rollbackGapAnchorCount - 1; index >= 0; index -= 1) {
+      const rollback = this.rollbackGapAnchors[index]!;
+      if (rollback.anchor == null) this.gapAnchors.delete(rollback.key);
+      else this.gapAnchors.set(rollback.key, rollback.anchor);
+    }
+    this.rollbackPreflight = null;
+  }
+
+  private beginPreflightRollback(): void {
+    this.rollbackPreflight = null;
+    this.rollbackTimelineEpoch = this.timelineEpoch;
+    this.rollbackSequence = this.sequence;
+    this.rollbackSeedNextObservation = this.seedNextObservation;
+    this.rollbackReconnectEpochPending = this.reconnectEpochPending;
+    this.rollbackLastSourceTimeMs = this.lastSourceTimeMs;
+    this.rollbackLastGameId = this.lastGameId;
+    this.rollbackLastSessionUid = this.lastSessionUid;
+    this.rollbackLastCoordinateKey = this.lastCoordinateKey;
+    this.rollbackLastAccepted = this.lastAccepted;
+    this.rollbackLastObservation = this.lastObservation;
+    this.rollbackNativeSequenceCount = 0;
+    this.rollbackGapAnchorCount = 0;
+  }
+
+  private captureAllNativeSequenceRollback(): void {
+    for (const [family, sequence] of this.lastNativeSequence) {
+      this.captureNativeSequenceRollback(family, sequence);
+    }
+  }
+
+  private captureNativeSequenceRollback(family: string, sequence = this.lastNativeSequence.get(family) ?? null): void {
+    for (let index = 0; index < this.rollbackNativeSequenceCount; index += 1) {
+      if (this.rollbackNativeSequences[index]!.family === family) return;
+    }
+    const rollback = this.rollbackNativeSequences[this.rollbackNativeSequenceCount++] ?? { family, sequence };
+    rollback.family = family;
+    rollback.sequence = sequence;
+    this.rollbackNativeSequences[this.rollbackNativeSequenceCount - 1] = rollback;
+  }
+
+  private captureGapAnchorRollback(key: string): void {
+    for (let index = 0; index < this.rollbackGapAnchorCount; index += 1) {
+      if (this.rollbackGapAnchors[index]!.key === key) return;
+    }
+    const rollback = this.rollbackGapAnchors[this.rollbackGapAnchorCount++] ?? {
+      key,
+      anchor: this.gapAnchors.get(key),
+    };
+    rollback.key = key;
+    rollback.anchor = this.gapAnchors.get(key);
+    this.rollbackGapAnchors[this.rollbackGapAnchorCount - 1] = rollback;
   }
 
   processObservation(sessionId: number, observation: RaceEventObservation, evidence: RaceEventPreflightEvidence = {}): RaceEventProcessingResult {
@@ -296,8 +438,11 @@ export class RaceEventCoordinator {
   }
 
   processPreflight(preflight: RaceEventPreflightResult): RaceEventProcessingResult {
+    if (preflight.accepted && preflight.reset) {
+      this.resetEpochDetectors();
+    }
     if (this.sessionId == null) {
-      return {
+      const result = {
         accepted: preflight.accepted,
         events: [],
         rejectedDrafts: [],
@@ -305,6 +450,8 @@ export class RaceEventCoordinator {
         sequence: preflight.sequence,
         reason: preflight.reason,
       };
+      if (preflight === this.rollbackPreflight) this.rollbackPreflight = null;
+      return result;
     }
 
     const context = this.context(preflight);
@@ -332,7 +479,9 @@ export class RaceEventCoordinator {
       this.projectPitDrafts(pitDrafts);
       drafts.push(...this.incidents.observe(context));
     }
-    return this.materializeResult(preflight, drafts);
+    const result = this.materializeResult(preflight, drafts);
+    if (preflight === this.rollbackPreflight) this.rollbackPreflight = null;
+    return result;
   }
 
   noteLapEvaluated(input: RaceEventLapEvaluation): RaceEvent[] {
@@ -494,13 +643,21 @@ export class RaceEventCoordinator {
     return null;
   }
 
-  private beginEpoch(reason: string, observation: RaceEventObservation): void {
+  private beginEpoch(reason: string, observation: RaceEventObservation, resetDetectors = true): void {
     if (this.sequence > 0 || this.lastObservation != null) this.timelineEpoch += 1;
     this.sequence = 0;
     this.seedNextObservation = true;
     this.reconnectEpochPending = false;
     this.lastNativeSequence.clear();
     this.lastCoordinateKey = null;
+    if (resetDetectors) this.resetEpochDetectors();
+    this.lastSourceTimeMs = null;
+    this.lastGameId = observation.gameId;
+    this.lastSessionUid = observation.sessionUid;
+    void reason;
+  }
+
+  private resetEpochDetectors(): void {
     this.raceControl.reset();
     this.participants.reset(true);
     this.laps.reset();
@@ -508,10 +665,6 @@ export class RaceEventCoordinator {
     this.incidents.reset();
     this.activeLifecycles.clear();
     this.pitLifecycleOpenings.clear();
-    this.lastSourceTimeMs = null;
-    this.lastGameId = observation.gameId;
-    this.lastSessionUid = observation.sessionUid;
-    void reason;
   }
 
   private resetDrafts(observation: RaceEventObservation, reason: string): DetectorEventDraft[] {
@@ -734,14 +887,22 @@ export class RaceEventCoordinator {
       });
       return { draft, base, participantId, draftTimelineEpoch, sortId };
     });
-    prepared.sort(
-      (left, right) =>
-        left.draft.priority - right.draft.priority ||
+    prepared.sort((left, right) => {
+      const leftServiceOrder = pitServiceSubOrder(left.draft.eventType);
+      const rightServiceOrder = pitServiceSubOrder(right.draft.eventType);
+      const serviceOrder =
+        leftServiceOrder != null && rightServiceOrder != null
+          ? leftServiceOrder - rightServiceOrder
+          : 0;
+      return (
+        serviceOrder ||
+        eventOrderPriority(left.draft) - eventOrderPriority(right.draft) ||
         lifecycleClosureOrder(left.draft.eventType) - lifecycleClosureOrder(right.draft.eventType) ||
         left.draft.eventType.localeCompare(right.draft.eventType) ||
         (left.base.participantId ?? "").localeCompare(right.base.participantId ?? "") ||
-        (left.draft.stableSortKey ?? left.sortId).localeCompare(right.draft.stableSortKey ?? right.sortId),
-    );
+        (left.draft.stableSortKey ?? left.sortId).localeCompare(right.draft.stableSortKey ?? right.sortId)
+      );
+    });
 
     const stagedActiveLifecycles = new Map(this.activeLifecycles);
     const stagedPitLifecycleOpenings = new Map(this.pitLifecycleOpenings);
@@ -750,8 +911,9 @@ export class RaceEventCoordinator {
     const stagedEmittedById = new Map<RaceEventId, RaceEvent>();
     const withinPriority = new Map<number, number>();
     for (const item of prepared) {
-      const index = withinPriority.get(item.draft.priority) ?? 0;
-      withinPriority.set(item.draft.priority, index + 1);
+      const priority = eventOrderPriority(item.draft);
+      const index = withinPriority.get(priority) ?? 0;
+      withinPriority.set(priority, index + 1);
       const lifecycle = this.lifecycleFieldsForDraft(
         item.draft,
         item.participantId,
@@ -762,7 +924,7 @@ export class RaceEventCoordinator {
       const candidate = {
         ...item.base,
         ...lifecycle,
-        eventOrder: item.draft.priority * 1_000 + index,
+        eventOrder: priority * 1_000 + index,
       } as RaceEventDraft;
       const parsedDraft = RaceEventDraftSchema.safeParse(candidate);
       if (!parsedDraft.success) {

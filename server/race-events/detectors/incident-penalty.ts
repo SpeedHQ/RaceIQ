@@ -73,12 +73,21 @@ export class IncidentPenaltyDetector {
         continue;
       }
 
-      const current: RaceParticipantObservation = {
-        ...participant,
-        incidentCount: participant.incidentCount ?? previous.participant.incidentCount,
-        damage: participant.damage ?? previous.participant.damage,
-        penaltyValue: participant.penaltyValue ?? previous.participant.penaltyValue,
-      };
+      const carriesIncidentCount =
+        participant.incidentCount == null && previous.participant.incidentCount != null;
+      const carriesDamage =
+        participant.damage == null && previous.participant.damage != null;
+      const carriesPenalty =
+        participant.penaltyValue == null && previous.participant.penaltyValue != null;
+      const current: RaceParticipantObservation =
+        carriesIncidentCount || carriesDamage || carriesPenalty
+          ? {
+              ...participant,
+              incidentCount: participant.incidentCount ?? previous.participant.incidentCount,
+              damage: participant.damage ?? previous.participant.damage,
+              penaltyValue: participant.penaltyValue ?? previous.participant.penaltyValue,
+            }
+          : participant;
       if (previous.participant.incidentCount != null && current.incidentCount != null && current.incidentCount > previous.participant.incidentCount) {
         drafts.push(
           draft(context, current, "incident_observed", {

@@ -79,13 +79,19 @@ interface PendingLapIssueEvaluation {
   eligibility: EligibilityDecision;
 }
 
-
 interface PendingTimelineLapBatch {
   events: RaceEvent[];
   prior: Promise<void>;
   release: () => void;
   settled: Promise<void>;
   settle: () => void;
+}
+
+interface FailedTimelineBatch {
+  events: RaceEvent[];
+  lapLinks: RaceEventLapLink[];
+  afterPersist?: () => Promise<void>;
+  persisted: boolean;
 }
 
 interface PendingSessionFinalization {
@@ -142,11 +148,7 @@ export class LiveTelemetryPipeline {
   private readonly _stagedTimelineLapLinks: RaceEventLapLink[] = [];
   private readonly _stagedLapSavedActions: Array<() => Promise<void>> = [];
   private readonly _pendingTimelineLapBatches = new Map<string, PendingTimelineLapBatch>();
-  private _failedTimelineBatch: {
-    events: RaceEvent[];
-    lapLinks: RaceEventLapLink[];
-    afterPersist?: () => Promise<void>;
-  } | null = null;
+  private readonly _failedTimelineBatches: FailedTimelineBatch[] = [];
   private _lastTimelinePacket: TelemetryPacket | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
@@ -253,22 +255,79 @@ export class LiveTelemetryPipeline {
     return this._enqueueTimelinePersistence(() => this._persistTimelineEventsCore(events, lapLinks));
   }
 
-  private async _persistTimelineEventsCore(events: readonly RaceEvent[], lapLinks: readonly RaceEventLapLink[] = []): Promise<RaceEvent[]> {
-    const failed = this._failedTimelineBatch;
-    if (failed) {
-      await this._appendTimelineEvents(failed.events, failed.lapLinks);
-      this._failedTimelineBatch = null;
-      try {
-        await failed.afterPersist?.();
-      } catch (error) {
-        this._failedTimelineBatch = {
-          events: [...events],
-          lapLinks: [...lapLinks],
-        };
-        throw error;
+  private _queueFailedTimelineBatch(
+    events: readonly RaceEvent[],
+    lapLinks: readonly RaceEventLapLink[],
+    afterPersist: (() => Promise<void>) | undefined,
+    persisted: boolean,
+  ): void {
+    const queuedEvents = [...events];
+    for (let index = 1; index < queuedEvents.length; index++) {
+      if (compareRaceEvents(queuedEvents[index - 1]!, queuedEvents[index]!) > 0) {
+        queuedEvents.sort(compareRaceEvents);
+        break;
       }
     }
-    return this._appendTimelineEvents(events, lapLinks);
+    const batch: FailedTimelineBatch = {
+      events: queuedEvents,
+      lapLinks: [...lapLinks],
+      ...(afterPersist ? { afterPersist } : {}),
+      persisted,
+    };
+    const first = queuedEvents[0];
+    if (!first) {
+      this._failedTimelineBatches.push(batch);
+      return;
+    }
+    let insertionIndex = this._failedTimelineBatches.length;
+    while (insertionIndex > 0) {
+      const previous = this._failedTimelineBatches[insertionIndex - 1]!.events[0];
+      if (!previous || compareRaceEvents(previous, first) <= 0) break;
+      insertionIndex -= 1;
+    }
+    this._failedTimelineBatches.splice(insertionIndex, 0, batch);
+  }
+
+  private async _drainFailedTimelineBatches(): Promise<RaceEvent[]> {
+    const inserted: RaceEvent[] = [];
+    while (this._failedTimelineBatches.length > 0) {
+      const batch = this._failedTimelineBatches[0]!;
+      if (!batch.persisted) {
+        inserted.push(...await this._appendTimelineEvents(batch.events, batch.lapLinks));
+        batch.persisted = true;
+      }
+      await batch.afterPersist?.();
+      this._failedTimelineBatches.shift();
+    }
+    return inserted;
+  }
+
+  private async _persistTimelineEventsCore(
+    events: readonly RaceEvent[],
+    lapLinks: readonly RaceEventLapLink[] = [],
+    afterPersist?: () => Promise<void>,
+  ): Promise<RaceEvent[]> {
+    if (this._failedTimelineBatches.length > 0) {
+      if (events.length > 0 || lapLinks.length > 0 || afterPersist) {
+        this._queueFailedTimelineBatch(events, lapLinks, afterPersist, false);
+      }
+      return this._drainFailedTimelineBatches();
+    }
+
+    let inserted: RaceEvent[];
+    try {
+      inserted = await this._appendTimelineEvents(events, lapLinks);
+    } catch (error) {
+      this._queueFailedTimelineBatch(events, lapLinks, afterPersist, false);
+      throw error;
+    }
+    try {
+      await afterPersist?.();
+    } catch (error) {
+      this._queueFailedTimelineBatch(events, lapLinks, afterPersist, true);
+      throw error;
+    }
+    return inserted;
   }
 
   private async _appendTimelineEvents(events: readonly RaceEvent[], lapLinks: readonly RaceEventLapLink[]): Promise<RaceEvent[]> {
@@ -286,10 +345,6 @@ export class LiveTelemetryPipeline {
         ? await this.raceEventStore.appendWithLapLinks(ordered, lapLinks)
         : await this.raceEventStore.append(ordered);
     } catch (error) {
-      this._failedTimelineBatch ??= {
-        events: [...ordered],
-        lapLinks: [...lapLinks],
-      };
       throw new Error(`Failed to persist race events: ${ordered.map(({ eventType }) => eventType).join(", ")}`, { cause: error });
     }
     const bySession = new Map<number, RaceEvent[]>();
@@ -380,8 +435,9 @@ export class LiveTelemetryPipeline {
       batch.settle();
     }
     for (const batch of pending) {
-      await this._persistTimelineEvents(batch.events);
+      this._queueFailedTimelineBatch(batch.events, [], undefined, false);
     }
+    await this._persistTimelineEvents([]);
     if (pending.length > 0) {
       await this._persistTimelineEvents(
         this.raceEvents.noteStorageFailure({
@@ -559,6 +615,7 @@ export class LiveTelemetryPipeline {
       if (!finalized.provenance.sourceGeneration.startsWith("provisional:")) {
         await this.raceEventStore.finalizeSourceGeneration(closed.session.sessionId, finalized.provenance.sourceGeneration);
       }
+      this.raceEventPublisher.publishReplaced(closed.session.sessionId);
       await this._refreshFinalizedSessionLaps(closed.session.sessionId, closed.session.gameId);
       await this._reconcileRecordedSession(closed.session);
       this.ws.broadcastNotification({
@@ -579,7 +636,7 @@ export class LiveTelemetryPipeline {
       await this._waitForPendingLapWrites(session);
       await this._drainPendingTimelineLapBatches(session.sessionId);
       await this._persistTimelineEvents([]);
-      await this._emitTimelineEvents(this.raceEvents.endSession({ reason: endReason, terminalObserved: true }));
+      await this._emitTimelineEvents(this.raceEvents.endSession({ reason: endReason, terminalObserved: false }));
     }
     const closed = await withSessionCaptureMaintenanceLock(async () => {
       if (!session) {
@@ -680,10 +737,7 @@ export class LiveTelemetryPipeline {
           try {
             const corners = detectCorners(event.packets);
             const symptoms = telemetryToSymptoms(event.packets, corners);
-            issues = symptomsToIssues(symptoms).map((issue) => ({
-              ...issue,
-              eventIds: [],
-            }));
+            issues = symptomsToIssues(symptoms, context.lapNumber);
           } catch {
             issues = null;
           }
@@ -712,36 +766,20 @@ export class LiveTelemetryPipeline {
         this.raceEvents.noteLapSaved(context.lapNumber, event.lapId);
         if (staged) this._stagedTimelineLapLinks.push(lapLink);
 
+        let attached = false;
+        let published = false;
         const action = async (timelineLinked: boolean) => {
-          if (!timelineLinked) {
+          if (!timelineLinked && !attached) {
             await this.raceEventStore.attachLap(session.sessionId, context.lapNumber, event.lapId);
+            attached = true;
           }
-          await this._scheduleLapReconciliation(session.sessionId, session.gameId);
-          if (this._onSessionFinalized) {
-            this._publishRaceResultInvalidation(session.sessionId);
-          }
+          if (published) return;
 
           const pendingIssues = this._pendingLapIssues.get(issueKey);
           this._pendingLapIssues.delete(issueKey);
 
           const isActiveSession = this._recordingSession?.sessionId === session.sessionId && this._recordingSession.gameId === session.gameId;
           if (!isActiveSession) return;
-
-          this.ws.broadcastNotification({ type: "lap-saved", ...event });
-          if (pendingIssues) {
-            const issues = (pendingIssues.issues ?? []).map((issue) => ({
-              ...issue,
-              lapNumber: event.lapNumber,
-              eventIds: [],
-            }));
-            this.ws.broadcastNotification({
-              type: "lap-issues",
-              lapId: event.lapId,
-              lapNumber: event.lapNumber,
-              issues,
-              eligibility: pendingIssues.eligibility,
-            });
-          }
 
           this._sessionLaps.push({
             id: event.lapId,
@@ -766,31 +804,51 @@ export class LiveTelemetryPipeline {
           if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
             this._sessionLaps.splice(0, this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
           }
+          published = true;
+          this.ws.broadcastNotification({ type: "lap-saved", ...event });
+          if (pendingIssues) {
+            const issues = pendingIssues.issues ?? [];
+            this.ws.broadcastNotification({
+              type: "lap-issues",
+              lapId: event.lapId,
+              lapNumber: event.lapNumber,
+              issues,
+              eligibility: pendingIssues.eligibility,
+            });
+          }
           this._broadcastSessionLaps();
+        };
+
+        const reconcile = async () => {
+          await this._scheduleLapReconciliation(session.sessionId, session.gameId);
+          if (this._onSessionFinalized) {
+            this._publishRaceResultInvalidation(session.sessionId);
+          }
         };
 
         if (pendingBatch) {
           await pendingBatch.prior;
           try {
-            await this._persistTimelineEventsCore(pendingBatch.events, [lapLink]);
-            await action(true);
-          } catch (error) {
-            if (this._failedTimelineBatch) {
-              this._failedTimelineBatch.afterPersist ??= () => action(true);
-            }
-            throw error;
+            await this._persistTimelineEventsCore(pendingBatch.events, [lapLink], () => action(true));
           } finally {
             this._pendingTimelineLapBatches.delete(issueKey);
             pendingBatch.release();
             pendingBatch.settle();
           }
+          await reconcile();
           return;
         }
         if (staged) {
-          this._stagedLapSavedActions.push(() => action(true));
+          this._stagedLapSavedActions.push(async () => {
+            await action(true);
+            await reconcile();
+          });
           return;
         }
-        await this._enqueueTimelinePersistence(() => action(false));
+        await this._enqueueTimelinePersistence(async () => {
+          await action(false);
+          await reconcile();
+        });
       },
     };
   }
@@ -951,7 +1009,9 @@ export class LiveTelemetryPipeline {
     const detector = await this._getOrCreateDetector(packet.gameId);
 
     const sourceSequences = packetSequences(packet);
-    const sequenceEvidence = this._timelineSourceSequence.observe(packet, sourceSequences);
+    const sourceSequenceTracker = this._timelineSourceSequence;
+    const sourceSequenceCheckpoint = sourceSequenceTracker.checkpoint();
+    const sequenceEvidence = sourceSequenceTracker.observe(packet, sourceSequences);
     const observation = adapter.toRaceEventObservation(packet, { receivedAtMs, sourceSequences });
     const preflight = this.raceEvents.preflight(observation, {
       ...this._timelineSessionBoundary(packet),
@@ -962,11 +1022,11 @@ export class LiveTelemetryPipeline {
     if (!preflight.accepted) {
       this._recordingQuality?.observe(packet, sourceSequences);
       const rejected = this.raceEvents.processPreflight(preflight);
+      sourceSequenceTracker.commit(sourceSequenceCheckpoint);
       await this._persistTimelineEvents(rejected.events);
       this._pendingTimelinePreflight = null;
       return;
     }
-
 
     this._timelineEventsStaged = true;
     this._stagedTimelineEvents.length = 0;
@@ -975,6 +1035,8 @@ export class LiveTelemetryPipeline {
     try {
       await detector.feed(packet, rawByteOffset);
     } catch (error) {
+      this.raceEvents.abortPreflight(preflight);
+      sourceSequenceTracker.rollback(sourceSequenceCheckpoint);
       this._timelineEventsStaged = false;
       this._pendingTimelinePreflight = null;
       this._stagedTimelineEvents.length = 0;
@@ -1000,6 +1062,7 @@ export class LiveTelemetryPipeline {
     }
     this._recordingQuality?.observe(packet, sourceSequences);
     const processed = this.raceEvents.processPreflight(preflight);
+    sourceSequenceTracker.commit(sourceSequenceCheckpoint);
     this._stagedTimelineEvents.push(...processed.events);
     if (processed.rejectedDrafts.length > 0) {
       this._stagedTimelineEvents.push(

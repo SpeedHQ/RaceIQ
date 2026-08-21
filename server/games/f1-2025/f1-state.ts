@@ -250,6 +250,7 @@ export class F1StateAccumulator {
       floorDamage: cd?.floorDamage ?? 0,
       diffuserDamage: cd?.diffuserDamage ?? 0,
       sidepodDamage: cd?.sidepodDamage ?? 0,
+      damageAvailable: cd != null,
       // Extended CarStatus fields
       tractionControl: cs?.tractionControl,
       antiLockBrakes: cs?.antiLockBrakes,

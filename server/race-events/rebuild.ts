@@ -192,7 +192,7 @@ export async function rebuildRaceEventTimeline(
   if (detectedSessionId != null) {
     await detector.waitForPendingLapWrites?.(detectedSessionId);
   }
-  coordinator.endSession({ reason: "stream-ended", terminalObserved: true });
+  coordinator.endSession({ reason: "stream-ended", terminalObserved: false });
   coordinator.noteSourceSequenceFinalized(sourceSequence.finalize());
   if (db.sessions.length > 1) {
     throw new Error("Raw rebuild contains multiple detected session boundaries");

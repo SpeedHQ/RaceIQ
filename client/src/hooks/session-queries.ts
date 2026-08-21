@@ -47,15 +47,24 @@ export function useSessionResult(sessionId: number | null | undefined, gameId: G
   });
 }
 
-export async function fetchSessionRaceEventPage(sessionId: number, gameId: GameId, cursor?: string, limit = 200): Promise<RaceEventPage> {
-  const response = await client.api.sessions[":id"].events.$get({
-    param: { id: String(sessionId) },
-    query: {
-      gameId,
-      limit: String(limit),
-      ...(cursor ? { cursor } : {}),
+export async function fetchSessionRaceEventPage(
+  sessionId: number,
+  gameId: GameId,
+  cursor?: string,
+  limit = 200,
+  signal?: AbortSignal,
+): Promise<RaceEventPage> {
+  const response = await client.api.sessions[":id"].events.$get(
+    {
+      param: { id: String(sessionId) },
+      query: {
+        gameId,
+        limit: String(limit),
+        ...(cursor ? { cursor } : {}),
+      },
     },
-  });
+    { init: { signal } },
+  );
   return rpcJson<RaceEventPage>(response);
 }
 

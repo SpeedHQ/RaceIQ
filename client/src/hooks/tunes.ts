@@ -113,14 +113,16 @@ export function useDuplicateTune() {
 }
 
 export function useLapIssues(lapId: number | null) {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: ["lap-issues", lapId],
+    queryKey: queryKeys.lapIssuesForLap(lapId, gameId),
     queryFn: async () => {
-      const res = await client.api.laps[":id"].issues.$get({ param: { id: String(lapId!) } });
+      if (lapId == null || gameId == null) throw new Error("useLapIssues: lapId and gameId are required");
+      const res = await client.api.laps[":id"].issues.$get({ param: { id: String(lapId) }, query: { gameId } });
       if (!res.ok) throw await errorFromResponse(res);
       return rpcJson<TuneIssue[]>(res);
     },
-    enabled: lapId != null,
+    enabled: lapId != null && gameId != null,
     staleTime: 30_000,
   });
 }

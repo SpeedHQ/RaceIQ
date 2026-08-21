@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { EligibilityDecision, EligibilityPolicyId, EligibilityReason } from "../../shared/racing/quality/contracts";
 import { resolveEligibilityDecision } from "../../shared/racing/quality/policies";
-import { diagnosticReasons, mergeQualityDialogDecisions } from "../src/components/LapQualityBadge";
+import { diagnosticReasons, formatReasonRange, mergeQualityDialogDecisions } from "../src/components/LapQualityBadge";
+import { getLocale, overwriteGetLocale, type Locale } from "../src/paraglide/runtime";
 
 function decision(policyId: EligibilityPolicyId, reasons: EligibilityReason[] = []): EligibilityDecision {
   return {
@@ -45,5 +46,23 @@ describe("lap quality dialog decisions", () => {
     expect(first).toHaveLength(2);
     expect(new Set(first.map((item) => item.key)).size).toBe(2);
     expect(first.map((item) => item.key)).toEqual(second.map((item) => item.key));
+  });
+
+  test("formats German diagnostic time and distance ranges with Intl", () => {
+    const previousLocale = getLocale();
+    overwriteGetLocale(() => "de" as Locale);
+    try {
+      expect(formatReasonRange({ ...reason(1_250, 2_500), key: "time", eventIds: [] })).toContain("1,25–2,5 s");
+      expect(
+        formatReasonRange({
+          ...reason(0, 0),
+          key: "distance",
+          eventIds: [],
+          distanceRange: { startFraction: 0.125, endFraction: 0.5 },
+        }),
+      ).toContain("12,5 %–50 %");
+    } finally {
+      overwriteGetLocale(() => previousLocale);
+    }
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { RaceEventCoordinator } from "../../server/race-events/coordinator";
+import { IncidentPenaltyDetector } from "../../server/race-events/detectors/incident-penalty";
 import { observation, participant } from "./helpers";
 
 const incidentEventTypes = ["incident_observed", "damage_warning_started", "damage_warning_cleared", "penalty_issued", "penalty_cleared", "retirement_observed"] as const;
@@ -258,4 +259,31 @@ describe("incident, damage, penalty, and retirement detector", () => {
     );
   });
 
+  test("reuses fully known packet participant snapshot", () => {
+    const detector = new IncidentPenaltyDetector();
+    const first = participant();
+    const known = participant({ incidentCount: 1, damage: { body: 2 }, penaltyValue: 3 });
+    const firstContext = {
+      sessionId: 64,
+      timelineEpoch: 0,
+      sequence: 1,
+      sourceKind: "native-live",
+      observation: observation(1, { participants: [first] }),
+      boundaryKey: "first",
+      seed: true,
+    } as const;
+    detector.observe(firstContext);
+    detector.observe({
+      ...firstContext,
+      sequence: 2,
+      observation: observation(2, { participants: [known] }),
+      boundaryKey: "known",
+      seed: false,
+    });
+
+    const state = detector as unknown as {
+      participants: Map<string, { participant: typeof known }>;
+    };
+    expect(state.participants.get("local-player")?.participant).toBe(known);
+  });
 });

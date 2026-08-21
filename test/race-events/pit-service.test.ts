@@ -120,12 +120,25 @@ describe("pit and service detector", () => {
       }),
     );
     const types = exit.events.map(({ eventType }) => eventType);
-    expect(types).toContain("pit_service_completed");
-    expect(types).toContain("pit_stall_departure");
-    expect(types).toContain("pit_exit");
-    expect(types.indexOf("pit_service_completed")).toBeLessThan(
-      types.indexOf("pit_stall_departure"),
-    );
+    expect(types).toEqual([
+      "pit_service_completed",
+      "pit_stall_departure",
+      "pit_exit",
+    ]);
+    expect(
+      coordinator
+        .events()
+        .filter(({ eventType }) => eventType.startsWith("pit_") || eventType.endsWith("service_observed"))
+        .map(({ eventType }) => eventType),
+    ).toEqual([
+      "pit_entry",
+      "pit_stall_arrival",
+      "pit_service_started",
+      "fuel_service_observed",
+      "pit_service_completed",
+      "pit_stall_departure",
+      "pit_exit",
+    ]);
     expect(
       new Set(
         coordinator

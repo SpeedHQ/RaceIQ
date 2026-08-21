@@ -5,15 +5,16 @@
  * layer.
  */
 import { describe, test, expect, afterEach } from "bun:test";
-import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
+import { evaluateAllEligibility } from "../../shared/racing/quality/policies";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { raceEventIdsSupportingTuneIssue } from "../../server/routes/tune-chat-routes";
+import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
 import { tuneRoutes } from "../../server/routes/tune-routes";
+import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -21,7 +22,7 @@ initServerGameAdapters();
 const TRACK_ORDINAL = 434343;
 
 async function insertSession(rawFile: string | null): Promise<number> {
-  const row = await db.insert(sessions).values({ carOrdinal: 1, trackOrdinal: TRACK_ORDINAL, gameId: "fm-2023", rawFile }).returning({ id: sessions.id }).get();
+  const row = await db.insert(sessions).values({ carOrdinal: 1, trackOrdinal: TRACK_ORDINAL, gameId: "iracing", rawFile }).returning({ id: sessions.id }).get();
   return row!.id;
 }
 
@@ -41,64 +42,17 @@ async function insertLap(sessionId: number, lapNumber: number): Promise<number> 
   return row!.id;
 }
 
-function eventId(value: number): RaceEventId {
-  return `race-event:sha256:${value.toString(16).padStart(64, "0")}` as RaceEventId;
-}
-
-function canonicalEvent(
-  value: number,
-  eventType: RaceEvent["eventType"],
-  payload: unknown,
-  overrides: Partial<RaceEvent> = {},
-): RaceEvent {
-  return {
-    eventId: eventId(value),
-    eventType,
-    schemaVersion: "race-event-v1",
-    sessionId: 1,
-    participantId: "local-player",
-    participantKind: "player",
-    driverId: null,
-    teamId: null,
-    timelineEpoch: 0,
-    sequence: value,
-    eventOrder: 70,
-    sourceTimeMs: value * 1_000,
-    sourceEndTimeMs: value * 1_000,
-    sourceSequenceFamily: null,
-    sourceSequence: null,
-    receivedAtMs: value * 1_000,
-    lapNumber: 7,
-    lapId: 1,
-    trackDistanceM: 2_000,
-    trackDistancePct: 0.4,
-    worldPosition: null,
-    evidenceKind: "observed",
-    confidence: "high",
-    qualityState: "available",
-    sourceKind: "native-live",
-    payload,
-    lifecycleId: null,
-    linkedEventId: null,
-    detectorId: "test",
-    detectorVersion: "1",
-    sourceGeneration: null,
-    analysisGenerationId: null,
-    contentHash: `sha256:${value.toString(16).padStart(64, "0")}`,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    ...overrides,
-  } as RaceEvent;
-}
-
-
 describe("GET /api/laps/:id/issues", () => {
   const sessionIds: number[] = [];
+  const cachedLapIds: number[] = [];
 
   afterEach(async () => {
     for (const sid of sessionIds) {
       await db.delete(laps).where(eq(laps.sessionId, sid)).run();
       await db.delete(sessions).where(eq(sessions.id, sid)).run();
     }
+    for (const lapId of cachedLapIds) cacheDelete(lapId);
+    cachedLapIds.length = 0;
     sessionIds.length = 0;
   });
 
@@ -106,8 +60,7 @@ describe("GET /api/laps/:id/issues", () => {
     const sid = await insertSession(null); // no rawFile → legacy, telemetry === []
     sessionIds.push(sid);
     const lapId = await insertLap(sid, 1);
-
-    const res = await tuneRoutes.request(`/api/laps/${lapId}/issues`);
+    const res = await tuneRoutes.request(`/api/laps/${lapId}/issues?gameId=iracing`);
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       decision: { status: string; reasons: { code: string }[] };
@@ -116,149 +69,65 @@ describe("GET /api/laps/:id/issues", () => {
     expect(body.decision.reasons.map(({ code }) => code)).toEqual(["quality_not_rebuilt"]);
   });
 
-  test("does not infer support from lap, participant, family, or proximity", () => {
-    const issue: TuneIssue = {
-      kind: "brake-lockup",
-      severity: "critical",
-      corner: "T6",
-      distanceFrac: 0.4,
-      detail: "Wheel lockup under braking",
-      lapNumber: 7,
+  test("returns telemetry-derived issues without false race-event evidence", async () => {
+    const sid = await insertSession(null);
+    sessionIds.push(sid);
+    const lapId = await insertLap(sid, 7);
+    const packets = qualityPackets(100).map((packet) => ({
+      ...packet,
+      TirePressureFrontLeft: 24,
+      TirePressureFrontRight: 24,
+      TirePressureRearLeft: 24,
+      TirePressureRearRight: 24,
+    }));
+    const generation = `sha256:${"1".repeat(64)}`;
+    const draftQuality = summarize(packets);
+    const quality = {
+      ...draftQuality,
+      provenance: {
+        ...draftQuality.provenance,
+        sourceGeneration: `sha256:${"2".repeat(64)}`,
+        outputGeneration: generation,
+      },
     };
-    const opponentPit = canonicalEvent(
-      1,
-      "pit_entry",
-      { previousState: "out", state: "pit-lane" },
-      { participantId: "opponent:4", participantKind: "opponent" },
-    );
-    const participantFact = canonicalEvent(2, "participant_joined", {
-      sourceId: "player:1",
-      identityState: "stable",
-      displayName: null,
-      vehicleId: null,
-    });
-    const raceControlFact = canonicalEvent(
-      3,
-      "caution_started",
-      { kind: "local-yellow", nativeCode: null },
-      { participantId: null, participantKind: null },
-    );
-    const unrelatedPlayerPit = canonicalEvent(4, "pit_entry", {
-      previousState: "out",
-      state: "pit-lane",
-    });
-    const distantPlayerIncident = canonicalEvent(
-      5,
-      "incident_observed",
-      { previousCount: 0, currentCount: 1, delta: 1 },
-      { trackDistanceM: 3_500, trackDistancePct: 0.7 },
-    );
-    const opponentIncident = canonicalEvent(
-      6,
-      "incident_observed",
-      { previousCount: 0, currentCount: 1, delta: 1 },
-      { participantId: "opponent:4", participantKind: "opponent" },
-    );
-    const unavailableIncident = canonicalEvent(
-      7,
-      "incident_observed",
-      { previousCount: 0, currentCount: 1, delta: 1 },
-      { qualityState: "unavailable" },
-    );
-    const nearbyPlayerIncident = canonicalEvent(
-      8,
-      "incident_observed",
-      { previousCount: 0, currentCount: 1, delta: 1 },
-      { trackDistanceM: 2_050, trackDistancePct: 0.41 },
-    );
-
-    expect(
-      raceEventIdsSupportingTuneIssue(issue, [
-        opponentPit,
-        participantFact,
-        raceControlFact,
-        unrelatedPlayerPit,
-        distantPlayerIncident,
-        opponentIncident,
-        unavailableIncident,
-        nearbyPlayerIncident,
-      ]),
-    ).toEqual([]);
-  });
-
-  test("keeps explicitly derived canonical support after ownership validation", () => {
-    const explicitlyLinkedPlayerIncident = canonicalEvent(
-      10,
-      "incident_observed",
-      { previousCount: 0, currentCount: 1, delta: 1 },
-      { trackDistanceM: 2_050, trackDistancePct: 0.41 },
-    );
-    const unrelatedPlayerEvent = canonicalEvent(11, "pit_entry", {
-      previousState: "out",
-      state: "pit-lane",
-    });
-    const explicitlyLinkedOpponentPit = canonicalEvent(
-      12,
-      "pit_entry",
-      { previousState: "out", state: "pit-lane" },
-      { participantId: "opponent:4", participantKind: "opponent" },
-    );
-    const explicitlyLinkedWrongLapIncident = canonicalEvent(
-      13,
-      "incident_observed",
-      { previousCount: 0, currentCount: 1, delta: 1 },
-      { lapNumber: 8 },
-    );
-    const explicitlyLinkedUnavailableIncident = canonicalEvent(
-      14,
-      "incident_observed",
-      { previousCount: 0, currentCount: 1, delta: 1 },
-      { qualityState: "unavailable" },
-    );
-    const issue: TuneIssue = {
-      kind: "brake-lockup",
-      severity: "critical",
-      corner: "T6",
-      distanceFrac: 0.4,
-      detail: "Wheel lockup under braking",
-      lapNumber: 7,
-      eventIds: [
-        explicitlyLinkedOpponentPit.eventId,
-        explicitlyLinkedWrongLapIncident.eventId,
-        explicitlyLinkedUnavailableIncident.eventId,
-        explicitlyLinkedPlayerIncident.eventId,
-      ],
+    const eligibility = evaluateAllEligibility(quality);
+    eligibility["setup-analysis"] = {
+      ...eligibility["normal-pace"],
+      policyId: "setup-analysis",
     };
+    await db
+      .update(laps)
+      .set({
+        quality,
+        eligibility,
+        qualityGeneration: generation,
+        qualitySchemaVersion: QUALITY_SCHEMA_VERSION,
+        qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
+        qualityConfigVersion: QUALITY_CONFIG_VERSION,
+      })
+      .where(eq(laps.id, lapId))
+      .run();
+    cacheSet(lapId, packets);
+    cachedLapIds.push(lapId);
 
-    expect(
-      raceEventIdsSupportingTuneIssue(issue, [
-        explicitlyLinkedOpponentPit,
-        explicitlyLinkedWrongLapIncident,
-        explicitlyLinkedUnavailableIncident,
-        unrelatedPlayerEvent,
-        explicitlyLinkedPlayerIncident,
-      ]),
-    ).toEqual([explicitlyLinkedPlayerIncident.eventId]);
-  });
+    const res = await tuneRoutes.request(`/api/laps/${lapId}/issues?gameId=iracing`);
 
-  test("does not fabricate canonical support for aggregate findings", () => {
-    const aggregateIssue: TuneIssue = {
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>[];
+    expect(body).toHaveLength(4);
+    expect(body).toContainEqual({
       kind: "tyre-pressure",
-      severity: "warn",
-      detail: "FL pressure +2.0 psi vs target",
+      severity: "critical",
+      detail: "FL pressure -3.5 psi vs target",
       lapNumber: 7,
-    };
-    const playerIncident = canonicalEvent(9, "incident_observed", {
-      previousCount: 0,
-      currentCount: 1,
-      delta: 1,
     });
-
-    expect(raceEventIdsSupportingTuneIssue(aggregateIssue, [playerIncident])).toEqual([]);
+    expect(body.every((issue) => !("eventIds" in issue))).toBe(true);
+    const crossGame = await tuneRoutes.request(`/api/laps/${lapId}/issues?gameId=fm-2023`);
+    expect(crossGame.status).toBe(404);
   });
 
   test("unknown lap id returns 404", async () => {
-    const res = await tuneRoutes.request("/api/laps/999999999/issues");
+    const res = await tuneRoutes.request("/api/laps/999999999/issues?gameId=iracing");
     expect(res.status).toBe(404);
   });
 });

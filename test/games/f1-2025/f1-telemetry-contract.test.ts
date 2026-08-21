@@ -72,6 +72,22 @@ describe("F1 telemetry contract", () => {
     expect(packet!.TireCarcassTempFL).toBe(88);
   });
 
+  test("marks damage unavailable until native CarDamage packet arrives", () => {
+    const accumulator = new F1StateAccumulator();
+
+    accumulator.feed(header(0), frame(Buffer.alloc(60)));
+    accumulator.feed(header(1), frame(Buffer.alloc(9)));
+    accumulator.feed(header(2), frame(Buffer.alloc(57)));
+    const beforeDamage = accumulator.feed(header(6), frame(Buffer.alloc(60)));
+    expect(beforeDamage?.f1?.damageAvailable).toBe(false);
+
+    const damage = Buffer.alloc(46);
+    damage.writeUInt8(25, 28);
+    const afterDamage = accumulator.feed(header(10), frame(damage));
+    expect(afterDamage?.f1?.damageAvailable).toBe(true);
+    expect(afterDamage?.f1?.frontLeftWingDamage).toBe(25);
+  });
+
   test("preserves player car identity and local native pit status", () => {
     const accumulator = new F1StateAccumulator();
     const playerCarIndex = 2;

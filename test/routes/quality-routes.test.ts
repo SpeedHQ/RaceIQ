@@ -222,12 +222,18 @@ describe("quality diagnostics API", () => {
 
   test("returns session recording evidence, rebuild state, and lap generations", async () => {
     const { sessionId, lapId } = await seedQualitySession();
-    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/quality`);
+    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/quality?gameId=iracing`);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.action).toBe("current");
     expect(body.recordingQuality.provenance.schemaVersion).toBe(QUALITY_SCHEMA_VERSION);
     expect(body.laps).toEqual([expect.objectContaining({ id: lapId, qualityGeneration: expect.any(String) })]);
+  });
+
+  test("rejects session quality access outside session game", async () => {
+    const { sessionId } = await seedQualitySession();
+    expect((await sessionRoutes.request(`/api/sessions/${sessionId}/quality?gameId=acc`)).status).toBe(404);
+    expect((await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild?gameId=acc`, { method: "POST" })).status).toBe(404);
   });
 
   test("rebuilds stale policy decisions once without changing measured quality generation", async () => {
@@ -236,10 +242,10 @@ describe("quality diagnostics API", () => {
     await db.update(sessions).set({ qualityPolicyVersion: "stale-policy" }).where(eq(sessions.id, sessionId)).run();
     await db.update(laps).set({ qualityPolicyVersion: "stale-policy" }).where(eq(laps.id, lapId)).run();
 
-    const staleResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality`);
+    const staleResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality?gameId=iracing`);
     expect((await staleResponse.json()).action).toBe("rebuild_eligibility");
 
-    const rebuildResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild`, { method: "POST" });
+    const rebuildResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild?gameId=iracing`, { method: "POST" });
     expect(rebuildResponse.status).toBe(200);
     const rebuilt = await rebuildResponse.json();
     expect(rebuilt.strategy).toBe("eligibility");
@@ -250,7 +256,7 @@ describe("quality diagnostics API", () => {
     expect(stored?.policyVersion).toBe(ELIGIBILITY_POLICY_VERSION);
     expect(stored?.eligibility?.["corner-trace"].policyVersion).toBe(ELIGIBILITY_POLICY_VERSION);
 
-    const repeatResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild`, { method: "POST" });
+    const repeatResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild?gameId=iracing`, { method: "POST" });
     expect((await repeatResponse.json()).strategy).toBe("none");
   });
 
@@ -259,7 +265,7 @@ describe("quality diagnostics API", () => {
     await db.update(sessions).set({ qualityConfigVersion: "stale-config" }).where(eq(sessions.id, sessionId)).run();
     await db.update(laps).set({ qualityConfigVersion: "stale-config" }).where(eq(laps.id, lapId)).run();
 
-    const unavailableResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild`, { method: "POST" });
+    const unavailableResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild?gameId=iracing`, { method: "POST" });
     expect(unavailableResponse.status).toBe(409);
     expect(await unavailableResponse.json()).toMatchObject({
       status: { action: "unavailable", stale: { configuration: true } },
@@ -272,7 +278,7 @@ describe("quality diagnostics API", () => {
     writeFileSync(rawFile, new Uint8Array([0]));
     await db.update(sessions).set({ rawFile }).where(eq(sessions.id, sessionId)).run();
 
-    const reprocessResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality`);
+    const reprocessResponse = await sessionRoutes.request(`/api/sessions/${sessionId}/quality?gameId=iracing`);
     expect(await reprocessResponse.json()).toMatchObject({
       action: "reprocess",
       rawAvailable: true,
@@ -281,7 +287,7 @@ describe("quality diagnostics API", () => {
   });
 
   test("returns 404 when rebuilding quality for a missing session", async () => {
-    const response = await sessionRoutes.request("/api/sessions/2147483647/quality/rebuild", { method: "POST" });
+    const response = await sessionRoutes.request("/api/sessions/2147483647/quality/rebuild?gameId=iracing", { method: "POST" });
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Session not found" });
   });
@@ -290,7 +296,7 @@ describe("quality diagnostics API", () => {
     const { sessionId } = await seedQualitySession();
     await db.update(sessions).set({ qualitySchemaVersion: "stale-schema" }).where(eq(sessions.id, sessionId)).run();
 
-    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild`, { method: "POST" });
+    const response = await sessionRoutes.request(`/api/sessions/${sessionId}/quality/rebuild?gameId=iracing`, { method: "POST" });
     expect(response.status).toBe(409);
     const body = await response.json();
     expect(body.status).toMatchObject({ action: "unavailable", rawAvailable: false });
@@ -390,7 +396,7 @@ describe("quality diagnostics API", () => {
     const { lapId } = await seedUnsafeRecordedLap();
 
     await expectQualityBlocked(await lapRoutes.request(`/api/laps/${lapId}/export`), "corner-trace");
-    await expectQualityBlocked(await tuneRoutes.request(`/api/laps/${lapId}/issues`), "setup-analysis");
+    await expectQualityBlocked(await tuneRoutes.request(`/api/laps/${lapId}/issues?gameId=iracing`), "setup-analysis");
     await expectQualityBlocked(
       await tuneRoutes.request("/api/tunes/auto", {
         method: "POST",

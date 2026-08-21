@@ -5,6 +5,7 @@ export const queryKeys = {
   lapSemanticTelemetry: ["lap-semantic-telemetry"] as const,
   stintTraces: ["stint-traces"] as const,
   lapIssues: ["lap-issues"] as const,
+  lapIssuesForLap: (lapId: number | null, gameId: GameId | null) => ["lap-issues", lapId, gameId] as const,
   settings: ["settings"] as const,
   trackName: (ord: number) => ["track-name", ord] as const,
   trackSectors: (ord: number) => ["track-sectors", ord] as const,
@@ -14,6 +15,7 @@ export const queryKeys = {
   sessionEventTimelines: ["session-events"] as const,
   sessionEventsForSession: (sessionId: number) => ["session-events", sessionId] as const,
   sessionEvents: (sessionId: number | null, gameId: GameId | null) => ["session-events", sessionId, gameId] as const,
+  sessionQuality: (sessionId: number | null, gameId: GameId | null) => ["session-quality", sessionId, gameId] as const,
   tracks: ["tracks"] as const,
   carName: (ord: number) => ["car-name", ord] as const,
   userTunes: ["user-tunes"] as const,
@@ -28,7 +30,7 @@ export const queryKeys = {
   raceResultRecent: (gameId: GameId | null) => ["race-result-recent", gameId] as const,
 };
 
-export function qualityUpdatedQueryKeys(sessionId: number) {
+export function qualityUpdatedQueryKeys(sessionId: number, gameId?: GameId) {
   return [
     queryKeys.laps,
     queryKeys.sessions,
@@ -40,7 +42,7 @@ export function qualityUpdatedQueryKeys(sessionId: number) {
     queryKeys.raceResultRecents,
     ["track-laps"] as const,
     ["session-recap", sessionId] as const,
-    ["session-quality", sessionId] as const,
+    gameId == null ? (["session-quality", sessionId] as const) : queryKeys.sessionQuality(sessionId, gameId),
     ["experiment-tests"] as const,
     ["experiment-arm-comparison"] as const,
     ["experiment-line-spread"] as const,

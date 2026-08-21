@@ -99,6 +99,25 @@ interface TimestampBoundary {
   currentObservationIndex: number;
 }
 
+
+interface NativeSequenceRollback {
+  family: string;
+  state: NativeSequenceState | null;
+  lastSequence: number;
+  lastSourceTimeMs: number;
+  lastObservationIndex: number;
+  gapCandidateLength: number;
+  provisionalBoundary: PositiveBoundary | null;
+  cadenceSamples: number;
+  normalStepMax: number;
+  positiveStepCount: number;
+  resetPending: boolean;
+  positiveStep: number | null;
+  positiveStepOccurrences: number | undefined;
+}
+
+/** Opaque token for reverting one uncommitted observation. */
+export type SourceSequenceCheckpoint = number;
 /** Native packet coordinate(s) used consistently by quality and event code. */
 export function packetSequences(packet: TelemetryPacket): SourceSequenceObservation[] {
   if (packet.iracing && Number.isFinite(packet.iracing.sessionTick)) {
@@ -165,6 +184,143 @@ export class SourceSequenceTracker {
   private lastSourceTimeMs: number | null = null;
   private lastObservationIndex: number | null = null;
   private timestampResetPending = false;
+  private rollbackToken = 0;
+  private rollbackActiveToken = 0;
+  private rollbackPacketCount = 0;
+  private rollbackLastSourceTimeMs: number | null = null;
+  private rollbackLastObservationIndex: number | null = null;
+  private rollbackTimestampResetPending = false;
+  private rollbackTimestampCadenceSamples = 0;
+  private rollbackTimestampNormalDeltaMax = 0;
+  private rollbackPositiveTimestampDeltaCount = 0;
+  private rollbackTimestampProvisionalBoundary: TimestampBoundary | null = null;
+  private rollbackTimestampGapCandidateLength = 0;
+  private rollbackDuplicateLength = 0;
+  private rollbackOutOfOrderLength = 0;
+  private rollbackTimestampPositiveDelta: number | null = null;
+  private rollbackTimestampPositiveDeltaOccurrences: number | undefined;
+  private readonly rollbackNativeStates: NativeSequenceRollback[] = [];
+  private rollbackNativeStateCount = 0;
+
+  /**
+   * Opens one allocation-free rollback window. Call `rollback` only if its
+   * observation cannot be committed; a later checkpoint supersedes this token.
+   */
+  checkpoint(): SourceSequenceCheckpoint {
+    const token = ++this.rollbackToken;
+    this.rollbackActiveToken = token;
+    this.rollbackPacketCount = this.packetCount;
+    this.rollbackLastSourceTimeMs = this.lastSourceTimeMs;
+    this.rollbackLastObservationIndex = this.lastObservationIndex;
+    this.rollbackTimestampResetPending = this.timestampResetPending;
+    this.rollbackTimestampCadenceSamples = this.timestampCadenceSamples;
+    this.rollbackTimestampNormalDeltaMax = this.timestampNormalDeltaMax;
+    this.rollbackPositiveTimestampDeltaCount = this.positiveTimestampDeltaCount;
+    this.rollbackTimestampProvisionalBoundary = this.timestampProvisionalBoundary;
+    this.rollbackTimestampGapCandidateLength = this.timestampGapCandidates.length;
+    this.rollbackDuplicateLength = this.duplicates.length;
+    this.rollbackOutOfOrderLength = this.outOfOrder.length;
+    this.rollbackTimestampPositiveDelta = null;
+    this.rollbackTimestampPositiveDeltaOccurrences = undefined;
+    this.rollbackNativeStateCount = 0;
+    return token;
+  }
+
+  /** Seal an observation after every downstream consumer accepts it. */
+  commit(checkpoint: SourceSequenceCheckpoint): void {
+    if (checkpoint !== this.rollbackActiveToken) {
+      throw new Error("Source-sequence checkpoint is no longer active");
+    }
+    this.rollbackActiveToken = 0;
+  }
+
+  /** Restore all sequence evidence and high-water state from `checkpoint`. */
+  rollback(checkpoint: SourceSequenceCheckpoint): void {
+    if (checkpoint !== this.rollbackActiveToken) {
+      throw new Error("Source-sequence checkpoint is no longer active");
+    }
+    this.packetCount = this.rollbackPacketCount;
+    this.lastSourceTimeMs = this.rollbackLastSourceTimeMs;
+    this.lastObservationIndex = this.rollbackLastObservationIndex;
+    this.timestampResetPending = this.rollbackTimestampResetPending;
+    this.timestampCadenceSamples = this.rollbackTimestampCadenceSamples;
+    this.timestampNormalDeltaMax = this.rollbackTimestampNormalDeltaMax;
+    this.positiveTimestampDeltaCount = this.rollbackPositiveTimestampDeltaCount;
+    this.timestampProvisionalBoundary = this.rollbackTimestampProvisionalBoundary;
+    this.timestampGapCandidates.length = this.rollbackTimestampGapCandidateLength;
+    this.duplicates.length = this.rollbackDuplicateLength;
+    this.outOfOrder.length = this.rollbackOutOfOrderLength;
+    if (this.rollbackTimestampPositiveDelta != null) {
+      if (this.rollbackTimestampPositiveDeltaOccurrences == null) {
+        this.positiveTimestampDeltaCounts.delete(this.rollbackTimestampPositiveDelta);
+      } else {
+        this.positiveTimestampDeltaCounts.set(this.rollbackTimestampPositiveDelta, this.rollbackTimestampPositiveDeltaOccurrences);
+      }
+    }
+    for (let index = this.rollbackNativeStateCount - 1; index >= 0; index -= 1) {
+      const rollback = this.rollbackNativeStates[index]!;
+      if (rollback.state == null) {
+        this.nativeStates.delete(rollback.family);
+        continue;
+      }
+      const state = rollback.state;
+      state.lastSequence = rollback.lastSequence;
+      state.lastSourceTimeMs = rollback.lastSourceTimeMs;
+      state.lastObservationIndex = rollback.lastObservationIndex;
+      state.gapCandidates.length = rollback.gapCandidateLength;
+      state.provisionalBoundary = rollback.provisionalBoundary;
+      state.cadenceSamples = rollback.cadenceSamples;
+      state.normalStepMax = rollback.normalStepMax;
+      state.positiveStepCount = rollback.positiveStepCount;
+      state.resetPending = rollback.resetPending;
+      if (rollback.positiveStep != null) {
+        if (rollback.positiveStepOccurrences == null) {
+          state.positiveStepCounts.delete(rollback.positiveStep);
+        } else {
+          state.positiveStepCounts.set(rollback.positiveStep, rollback.positiveStepOccurrences);
+        }
+      }
+    }
+    this.rollbackActiveToken = 0;
+  }
+
+  private checkpointNativeState(family: string, state: NativeSequenceState | undefined): NativeSequenceRollback | null {
+    if (this.rollbackActiveToken === 0) return null;
+    for (let index = 0; index < this.rollbackNativeStateCount; index += 1) {
+      const rollback = this.rollbackNativeStates[index]!;
+      if (rollback.family === family) return rollback;
+    }
+    const rollback = this.rollbackNativeStates[this.rollbackNativeStateCount++] ?? {
+      family,
+      state: null,
+      lastSequence: 0,
+      lastSourceTimeMs: 0,
+      lastObservationIndex: 0,
+      gapCandidateLength: 0,
+      provisionalBoundary: null,
+      cadenceSamples: 0,
+      normalStepMax: 0,
+      positiveStepCount: 0,
+      resetPending: false,
+      positiveStep: null,
+      positiveStepOccurrences: undefined,
+    };
+    rollback.family = family;
+    rollback.state = state ?? null;
+    rollback.lastSequence = state?.lastSequence ?? 0;
+    rollback.lastSourceTimeMs = state?.lastSourceTimeMs ?? 0;
+    rollback.lastObservationIndex = state?.lastObservationIndex ?? 0;
+    rollback.gapCandidateLength = state?.gapCandidates.length ?? 0;
+    rollback.provisionalBoundary = state?.provisionalBoundary ?? null;
+    rollback.cadenceSamples = state?.cadenceSamples ?? 0;
+    rollback.normalStepMax = state?.normalStepMax ?? 0;
+    rollback.positiveStepCount = state?.positiveStepCount ?? 0;
+    rollback.resetPending = state?.resetPending ?? false;
+    rollback.positiveStep = null;
+    rollback.positiveStepOccurrences = undefined;
+    this.rollbackNativeStates[this.rollbackNativeStateCount - 1] = rollback;
+    return rollback;
+  }
 
   observe(packet: TelemetryPacket, sourceSequences: SourceSequenceObservation[] = packetSequences(packet)): SourceSequenceObserveResult {
     const currentObservationIndex = this.packetCount;
@@ -183,7 +339,7 @@ export class SourceSequenceTracker {
           if (
             sourceSequences.length === 0 &&
             this.timestampCadenceSamples > 0 &&
-            delta > this.timestampNormalDeltaMax * (this.timestampCadenceSamples < 8 ? 1 : 1.5)
+            delta > this.timestampNormalDeltaMax * 1.5
           ) {
             const candidate = {
               sourceSequenceFamily: null,
@@ -227,11 +383,14 @@ export class SourceSequenceTracker {
             this.timestampProvisionalBoundary = null;
           }
           if (sourceSequences.length === 0) {
-            this.positiveTimestampDeltaCounts.set(delta, (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1);
+            this.rollbackTimestampPositiveDelta = delta;
+            this.rollbackTimestampPositiveDeltaOccurrences = this.positiveTimestampDeltaCounts.get(delta);
+            this.positiveTimestampDeltaCounts.set(delta, (this.rollbackTimestampPositiveDeltaOccurrences ?? 0) + 1);
             this.positiveTimestampDeltaCount += 1;
-            if (this.timestampCadenceSamples < 8) {
-              this.timestampNormalDeltaMax = Math.max(this.timestampNormalDeltaMax, delta);
-            }
+            this.timestampNormalDeltaMax =
+              this.timestampCadenceSamples === 0
+                ? delta
+                : Math.min(this.timestampNormalDeltaMax, delta);
             this.timestampCadenceSamples += 1;
           }
           this.lastSourceTimeMs = packet.TimestampMS;
@@ -258,6 +417,7 @@ export class SourceSequenceTracker {
 
     for (const observation of sourceSequences) {
       const previous = this.nativeStates.get(observation.family);
+      const rollback = this.checkpointNativeState(observation.family, previous);
       if (!previous) {
         this.nativeStates.set(observation.family, {
           lastSequence: observation.sequence,
@@ -298,7 +458,7 @@ export class SourceSequenceTracker {
       }
       if (
         previous.cadenceSamples > 0 &&
-        delta > previous.normalStepMax * (previous.cadenceSamples < 8 ? 1 : 1.5)
+        delta > previous.normalStepMax * 1.5
       ) {
         const candidate = {
           sourceSequenceFamily: observation.family,
@@ -338,11 +498,16 @@ export class SourceSequenceTracker {
         });
         previous.provisionalBoundary = null;
       }
-      if (previous.cadenceSamples < 8) {
-        previous.normalStepMax = Math.max(previous.normalStepMax, delta);
-      }
+      previous.normalStepMax =
+        previous.cadenceSamples === 0
+          ? delta
+          : Math.min(previous.normalStepMax, delta);
       previous.cadenceSamples += 1;
-      previous.positiveStepCounts.set(delta, (previous.positiveStepCounts.get(delta) ?? 0) + 1);
+      if (rollback != null) {
+        rollback.positiveStep = delta;
+        rollback.positiveStepOccurrences = previous.positiveStepCounts.get(delta);
+      }
+      previous.positiveStepCounts.set(delta, (rollback?.positiveStepOccurrences ?? previous.positiveStepCounts.get(delta) ?? 0) + 1);
       previous.positiveStepCount += 1;
       previous.lastSequence = observation.sequence;
       previous.lastSourceTimeMs = packet.TimestampMS;

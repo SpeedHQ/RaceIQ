@@ -1150,49 +1150,25 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          )`,
     ],
   },
-  // v52: Align the persisted race-result processor default with current writes.
+  // v52: Version normalized race-result derivation for future reconciliation.
   {
     version: 52,
-    name: "default new race results to processor v2",
-    sql: [
-      `CREATE TABLE session_results_v52 (
-         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-         session_id          INTEGER NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
-         processor_version   TEXT NOT NULL DEFAULT 'race-result-v2',
-         session_type        TEXT NOT NULL DEFAULT 'unknown',
-         classification      TEXT NOT NULL DEFAULT 'unknown',
-         finishing_position  INTEGER,
-         qualifying_position INTEGER,
-         is_podium           INTEGER,
-         is_fastest_lap      INTEGER,
-         pit_count           INTEGER NOT NULL DEFAULT 0,
-         tyre_strategy       TEXT,
-         fuel_strategy       TEXT,
-         provenance          TEXT,
-         reasons             TEXT,
-         created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-         updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
-       )`,
-      `INSERT INTO session_results_v52 (
-         id, session_id, processor_version, session_type, classification,
-         finishing_position, qualifying_position, is_podium, is_fastest_lap,
-         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
-         created_at, updated_at
-       )
-       SELECT
-         id, session_id, processor_version, session_type, classification,
-         finishing_position, qualifying_position, is_podium, is_fastest_lap,
-         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
-         created_at, updated_at
-       FROM session_results`,
-      `DROP TABLE session_results`,
-      `ALTER TABLE session_results_v52 RENAME TO session_results`,
-      `CREATE INDEX idx_session_results_session ON session_results(session_id)`,
-    ],
+    name: "version race result processor",
+    sql: [`ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`],
   },
-  // v53: Persist telemetry catalog and resolver identity on sessions.
+  // v53: Persist race timeline event types and position transitions.
   {
     version: 53,
+    name: "persist race timeline positions",
+    sql: [
+      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
+      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
+      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
+    ],
+  },
+  // v54: Persist telemetry catalog and resolver identity on sessions.
+  {
+    version: 54,
     name: "persist telemetry version identity",
     sql: [
       `ALTER TABLE sessions ADD COLUMN catalog_version TEXT`,
@@ -1203,9 +1179,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE sessions ADD COLUMN derivation_version TEXT`,
     ],
   },
-  // v54: Persist telemetry version identity on laps.
+  // v55: Persist telemetry version identity on laps.
   {
-    version: 54,
+    version: 55,
     name: "persist lap telemetry version identity",
     sql: [
       `ALTER TABLE laps ADD COLUMN catalog_version TEXT`,
@@ -1216,21 +1192,21 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps ADD COLUMN derivation_version TEXT`,
     ],
   },
-  // v55: Persist race result outcome status.
+  // v56: Persist race result outcome status.
   {
-    version: 55,
+    version: 56,
     name: "persist race result outcome status",
     sql: [`ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`],
   },
-  // v56: Persist structured race-result evidence.
+  // v57: Persist structured race-result evidence.
   {
-    version: 56,
+    version: 57,
     name: "persist race result evidence",
     sql: [`ALTER TABLE session_results ADD COLUMN evidence TEXT`],
   },
-  // v57: Persist whether a session belongs to the user or another driver.
+  // v58: Persist whether a session belongs to the user or another driver.
   {
-    version: 57,
+    version: 58,
     name: "persist session ownership",
     sql: [
       `ALTER TABLE sessions ADD COLUMN ownership TEXT NOT NULL DEFAULT 'mine'`,
@@ -1239,9 +1215,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
-  // v58: Persist final lap phase and pace classification facts.
+  // v59: Persist final lap phase and pace classification facts.
   {
-    version: 58,
+    version: 59,
     name: "persist lap phase and pace classification",
     sql: [
       `ALTER TABLE laps ADD COLUMN phase TEXT NOT NULL DEFAULT 'flying'`,
@@ -1260,9 +1236,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE invalid_reason IN ('outlap', 'inlap', 'pit lap')`,
     ],
   },
-  // v59: Separate recording quality from policy-specific analysis eligibility.
+  // v60: Separate recording quality from policy-specific analysis eligibility.
   {
-    version: 59,
+    version: 60,
     name: "persist telemetry quality and eligibility",
     sql: [
       `ALTER TABLE sessions ADD COLUMN recording_quality TEXT`,
@@ -1615,15 +1591,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE quality IS NULL`,
     ],
   },
-  // v60: Persist source-authored channel fidelity for transcoded sessions.
+  // v61: Persist source-authored channel fidelity for transcoded sessions.
   {
-    version: 60,
+    version: 61,
     name: "persist source channel profiles",
     sql: [`ALTER TABLE sessions ADD COLUMN source_channel_profile TEXT`],
   },
-  // v61: Tie derived lap metrics to exact quality evidence generation.
+  // v62: Tie derived lap metrics to exact quality evidence generation.
   {
-    version: 61,
+    version: 62,
     name: "version lap metrics by quality generation",
     sql: [`ALTER TABLE lap_metrics ADD COLUMN quality_generation TEXT`],
   },
@@ -1991,6 +1967,50 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          '[]'
        )`,
       `DROP TABLE pit_events`,
+    ],
+  },
+  // v64: Align new result rows with the current processor contract without
+  // repurposing v52, whose default has already shipped.
+  {
+    version: 64,
+    name: "default new race results to processor v2",
+    sql: [
+      `CREATE TABLE session_results_v64 (
+         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+         session_id          INTEGER NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+         processor_version   TEXT NOT NULL DEFAULT 'race-result-v2',
+         session_type        TEXT NOT NULL DEFAULT 'unknown',
+         classification      TEXT NOT NULL DEFAULT 'unknown',
+         finishing_position  INTEGER,
+         qualifying_position INTEGER,
+         is_podium           INTEGER,
+         is_fastest_lap      INTEGER,
+         pit_count           INTEGER NOT NULL DEFAULT 0,
+         tyre_strategy       TEXT,
+         fuel_strategy       TEXT,
+         provenance          TEXT,
+         reasons             TEXT,
+         created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+         updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
+         outcome_status      TEXT NOT NULL DEFAULT 'unavailable',
+         evidence            TEXT,
+         event_ids           TEXT NOT NULL DEFAULT '[]'
+       )`,
+      `INSERT INTO session_results_v64 (
+         id, session_id, processor_version, session_type, classification,
+         finishing_position, qualifying_position, is_podium, is_fastest_lap,
+         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
+         created_at, updated_at, outcome_status, evidence, event_ids
+       )
+       SELECT
+         id, session_id, processor_version, session_type, classification,
+         finishing_position, qualifying_position, is_podium, is_fastest_lap,
+         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
+         created_at, updated_at, outcome_status, evidence, event_ids
+       FROM session_results`,
+      `DROP TABLE session_results`,
+      `ALTER TABLE session_results_v64 RENAME TO session_results`,
+      `CREATE INDEX idx_session_results_session ON session_results(session_id)`,
     ],
   },
 ];

@@ -1,14 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "@shared/platform/http/route-schemas";
+import { IdParamSchema, RequiredGameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import type { GameId } from "../../shared/games/ids";
-import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import { eligibilityDecisionText } from "../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { getLapById } from "../db/lap-read-queries";
-import { listRaceEventsForLap } from "../db/race-event-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { resolveLapCorners } from "../tracks/corner-resolution";
@@ -41,30 +38,6 @@ import { getSecret } from "../runtime/platform/keystore";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 
 
-/**
- * Accept only event links explicitly emitted by issue derivation. Lap
- * attachment, participant ownership, proximity, and event type alone cannot
- * prove a telemetry-derived handling symptom.
- */
-export function raceEventIdsSupportingTuneIssue(
-  issue: TuneIssue,
-  events: readonly RaceEvent[],
-): RaceEventId[] {
-  const { eventIds, lapNumber } = issue;
-  if (eventIds === undefined || eventIds.length === 0 || lapNumber === undefined) return [];
-
-  return events
-    .filter(
-      (event) =>
-        eventIds.includes(event.eventId) &&
-        event.participantKind === "player" &&
-        event.participantId !== null &&
-        event.lapNumber === lapNumber &&
-        event.qualityState === "available",
-    )
-    .map((event) => event.eventId);
-}
-
 const LiveAnalysisSchema = z.object({
   enabled: z.boolean(),
 });
@@ -91,10 +64,12 @@ const TuneChatBodySchema = z.object({
 export const tuneChatRoutes = new Hono()
   .get("/api/laps/:id/issues",
     zValidator("param", IdParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
     async (c) => {
       const { id } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
       const lap = await getLapById(id);
-      if (!lap) return c.json({ error: "Lap not found" }, 404);
+      if (!lap || lap.gameId !== gameId) return c.json({ error: "Lap not found" }, 404);
       const decision = resolveEligibilityDecision(lap, "setup-analysis");
       if (!isEligibilityUsable(decision)) {
         return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
@@ -105,14 +80,7 @@ export const tuneChatRoutes = new Hono()
 
       const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, packets);
       const symptoms = telemetryToSymptoms(packets, corners);
-      const derivedIssues = symptomsToIssues(symptoms, lap.lapNumber);
-      const hasExplicitEventEvidence = derivedIssues.some(({ eventIds }) => eventIds !== undefined && eventIds.length > 0);
-      const events = hasExplicitEventEvidence ? await listRaceEventsForLap(id) : [];
-      const issues = derivedIssues.map((issue) => ({
-        ...issue,
-        eventIds: raceEventIdsSupportingTuneIssue(issue, events),
-      }));
-      return c.json(issues);
+      return c.json(symptomsToIssues(symptoms, lap.lapNumber));
     }
   )
 

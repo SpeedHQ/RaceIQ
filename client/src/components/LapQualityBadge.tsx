@@ -8,6 +8,7 @@ import type {
   QualityFact,
   QualityReasonCode,
 } from "@shared/racing/quality/contracts";
+import type { GameId } from "@shared/games/ids";
 import { resolveEligibilityDecision } from "@shared/racing/quality/policies";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -15,8 +16,10 @@ import { ChevronDown } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
-import { qualityUpdatedQueryKeys } from "../hooks/query-keys";
+import { qualityUpdatedQueryKeys, queryKeys } from "../hooks/query-keys";
+import { useGameId } from "../stores/game";
 import { m } from "../paraglide/messages";
+import { getLocale } from "../paraglide/runtime";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
@@ -194,37 +197,47 @@ export function mergeQualityDialogDecisions(
   return [...persistedDecisions.filter((item) => item.policyId !== policyId), ...(selectedDecision ? [selectedDecision] : [])];
 }
 
-function formatReasonRange(reason: DiagnosticReason): string | null {
+export function formatReasonRange(reason: DiagnosticReason): string | null {
   if (reason.distanceRange) {
-    return `${m.quality_range_lap()} ${(reason.distanceRange.startFraction * 100).toFixed(1)}–${(reason.distanceRange.endFraction * 100).toFixed(1)}%`;
+    const percent = new Intl.NumberFormat(getLocale(), { style: "percent", maximumFractionDigits: 1 });
+    return `${m.quality_range_lap()} ${percent.format(reason.distanceRange.startFraction)}–${percent.format(reason.distanceRange.endFraction)}`;
   }
   if (reason.timeRange) {
-    return `${m.quality_range_time()} ${(reason.timeRange.startMs / 1_000).toFixed(2)}–${(reason.timeRange.endMs / 1_000).toFixed(2)} s`;
+    const seconds = new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 2 });
+    return `${m.quality_range_time()} ${seconds.format(reason.timeRange.startMs / 1_000)}–${seconds.format(reason.timeRange.endMs / 1_000)} s`;
   }
   return null;
 }
 
 function percent(value: number | null): string {
-  return value == null ? m.quality_not_available() : `${(value * 100).toFixed(1)}%`;
+  return value == null ? m.quality_not_available() : new Intl.NumberFormat(getLocale(), { style: "percent", maximumFractionDigits: 1 }).format(value);
+}
+
+function formatCount(value: number | null): string {
+  return value == null ? m.quality_not_available() : new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatMilliseconds(value: number): string {
+  return `${formatCount(value)} ms`;
 }
 
 export interface SessionQualityStatus {
   action: "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
 }
-export async function getSessionQualityStatus(sessionId: number) {
-  const response = await client.api.sessions[":id"].quality.$get({ param: { id: String(sessionId) } });
+export async function getSessionQualityStatus(sessionId: number, gameId: GameId) {
+  const response = await client.api.sessions[":id"].quality.$get({ param: { id: String(sessionId) }, query: { gameId } });
   if (!response.ok) throw await errorFromResponse(response);
   return response.json();
 }
 
-export async function rebuildSessionQuality(sessionId: number) {
-  const response = await client.api.sessions[":id"].quality.rebuild.$post({ param: { id: String(sessionId) } });
+export async function rebuildSessionQuality(sessionId: number, gameId: GameId) {
+  const response = await client.api.sessions[":id"].quality.rebuild.$post({ param: { id: String(sessionId) }, query: { gameId } });
   if (!response.ok) throw await errorFromResponse(response);
   return response.json();
 }
 
-export async function invalidateSessionQualityQueries(queryClient: Pick<QueryClient, "invalidateQueries">, sessionId: number): Promise<void> {
-  await Promise.all(qualityUpdatedQueryKeys(sessionId).map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+export async function invalidateSessionQualityQueries(queryClient: Pick<QueryClient, "invalidateQueries">, sessionId: number, gameId: GameId): Promise<void> {
+  await Promise.all(qualityUpdatedQueryKeys(sessionId, gameId).map((queryKey) => queryClient.invalidateQueries({ queryKey })));
 }
 
 
@@ -321,26 +334,27 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
   const [open, setOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const queryClient = useQueryClient();
+  const gameId = useGameId();
   const decision = decisionOverride === undefined ? resolveEligibilityDecision(lap, policyId) : decisionOverride;
   const level = resolveLapQualityLevel(lap.quality, decision);
   const presentation = LEVEL_PRESENTATION[level];
   const recording = lifecyclePresentation(lap.quality);
   const sessionId = lap.sessionId ?? null;
   const statusQuery = useQuery({
-    queryKey: ["session-quality", sessionId],
-    enabled: open && sessionId != null,
+    queryKey: queryKeys.sessionQuality(sessionId, gameId),
+    enabled: open && sessionId != null && gameId != null,
     queryFn: async () => {
-      if (sessionId == null) throw new Error("Missing session");
-      return getSessionQualityStatus(sessionId);
+      if (sessionId == null || gameId == null) throw new Error("Missing session game");
+      return getSessionQualityStatus(sessionId, gameId);
     },
   });
   const rebuild = useMutation({
     mutationFn: async () => {
-      if (sessionId == null) throw new Error("Missing session");
-      return rebuildSessionQuality(sessionId);
+      if (sessionId == null || gameId == null) throw new Error("Missing session game");
+      return rebuildSessionQuality(sessionId, gameId);
     },
     onSuccess: async () => {
-      await invalidateSessionQualityQueries(queryClient, sessionId!);
+      if (sessionId != null && gameId != null) await invalidateSessionQualityQueries(queryClient, sessionId, gameId);
     },
   });
 
@@ -464,13 +478,13 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
                 {identity?.derivationVersion ?? m.quality_not_available()}
               </dd>
               <dt className="text-app-text-muted">{m.quality_frames_observed()}</dt>
-              <dd className="font-mono">{gaps?.observedCount ?? m.quality_not_available()}</dd>
+              <dd className="font-mono">{gaps ? formatCount(gaps.observedCount) : m.quality_not_available()}</dd>
               <dt className="text-app-text-muted">{m.quality_frames_expected()}</dt>
-              <dd className="font-mono">{gaps?.expectedCount ?? m.quality_not_available()}</dd>
+              <dd className="font-mono">{gaps ? formatCount(gaps.expectedCount) : m.quality_not_available()}</dd>
               <dt className="text-app-text-muted">{m.quality_frames_missing()}</dt>
-              <dd className="font-mono">{gaps?.totalMissingCount ?? m.quality_not_available()}</dd>
+              <dd className="font-mono">{gaps ? formatCount(gaps.totalMissingCount) : m.quality_not_available()}</dd>
               <dt className="text-app-text-muted">{m.quality_largest_gap()}</dt>
-              <dd className="font-mono">{gaps ? `${gaps.largestContiguousGapMs.toFixed(0)} ms` : m.quality_not_available()}</dd>
+              <dd className="font-mono">{gaps ? formatMilliseconds(gaps.largestContiguousGapMs) : m.quality_not_available()}</dd>
               <dt className="text-app-text-muted">{m.quality_source_generation()}</dt>
               <dd className="truncate font-mono text-app-micro" title={provenance?.sourceGeneration}>
                 {provenance?.sourceGeneration ?? m.quality_not_available()}
@@ -496,7 +510,7 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
                         </span>
                       </div>
                       <div className="text-app-text-muted">
-                        {m.quality_freshness()}: {channel.freshnessCounts.fresh} / {channel.freshnessCounts.stale} / {channel.freshnessCounts.unknown}
+                        {m.quality_freshness()}: {formatCount(channel.freshnessCounts.fresh)} / {formatCount(channel.freshnessCounts.stale)} / {formatCount(channel.freshnessCounts.unknown)}
                       </div>
                       {channel.limitations.length > 0 && (
                         <div className="text-app-text-muted">

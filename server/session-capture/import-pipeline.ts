@@ -319,7 +319,7 @@ export async function importSessionFrames(
   if (failure) {
     return rollbackImport(db, failure);
   }
-  if (options.requireLaps && db.laps.length === 0) {
+  if (options.requireLaps && !db.laps.some((lap) => lap.quality.complete)) {
     return rollbackImport(db, new IncompleteImportError());
   }
 

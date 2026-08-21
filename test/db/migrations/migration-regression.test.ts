@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { RaceEventSchema } from "../../../shared/racing/events/contracts";
-import { bootstrap, newClient, runMigrations } from "../../support/db/migrations";
+import { bootstrap, getAppliedVersions, newClient, runMigrations } from "../../support/db/migrations";
 
 describe("migration regressions", () => {
   test("v45 keeps native car ordinals unique without treating names as identity", async () => {
@@ -85,37 +85,28 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v52 preserves race results and defaults new rows to processor v2", async () => {
+  test("v64 upgrades parent migration history and defaults new results to processor v2", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 51);
+    await runMigrations(client, 63);
+    const parentVersions = await getAppliedVersions(client);
+    expect(parentVersions.at(-1)).toBe(63);
     await client.execute(
       `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
        VALUES (1, 10, 20, 'f1-2025'), (2, 11, 21, 'f1-2025')`,
     );
     await client.execute(
       `INSERT INTO session_results (id, session_id, processor_version, session_type, classification)
-       VALUES (7, 1, 'race-result-v1', 'race', 'finished')`,
-    );
-    await client.execute(
-      `INSERT INTO pit_events (result_id, sequence, event_type, lap_number)
-       VALUES (7, 1, 'pit', 12)`,
+       VALUES (7, 1, 'legacy-race-result-v0', 'race', 'finished')`,
     );
 
-    await runMigrations(client, 52);
+    expect(await runMigrations(client)).toBe(1);
+    expect(await getAppliedVersions(client)).toEqual([...parentVersions, 64]);
 
     const preserved = (await client.execute(
-      `SELECT session_results.id, session_results.processor_version, pit_events.lap_number
-       FROM session_results
-       JOIN pit_events ON pit_events.result_id = session_results.id
-       WHERE session_results.id = 7`,
+      "SELECT processor_version FROM session_results WHERE id = 7",
     )).rows[0]!;
-    expect({
-      id: Number(preserved.id),
-      processorVersion: preserved.processor_version,
-      lapNumber: Number(preserved.lap_number),
-    }).toEqual({ id: 7, processorVersion: "race-result-v1", lapNumber: 12 });
-
+    expect(preserved.processor_version).toBe("legacy-race-result-v0");
     const processorColumn = (await client.execute(
       "SELECT dflt_value FROM pragma_table_info('session_results') WHERE name = 'processor_version'",
     )).rows[0]!;
@@ -131,10 +122,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v58 persists final lap classification and converts only legacy pit reasons", async () => {
+  test("v59 persists final lap classification and converts only legacy pit reasons", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 57);
+    await runMigrations(client, 58);
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
     );
@@ -147,7 +138,7 @@ describe("migration regressions", () => {
               (1, 5, 104, 0, 'track limits')`,
     );
 
-    await runMigrations(client, 58);
+    await runMigrations(client, 59);
 
     const rows = await client.execute(
       `SELECT lap_number, is_valid, invalid_reason, phase, conditions, pace_eligibility
@@ -214,10 +205,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v59 preserves explicit sources and backfills legacy live provenance", async () => {
+  test("v60 preserves explicit sources and backfills legacy live provenance", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 58);
+    await runMigrations(client, 59);
     await client.execute(
       `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source)
        VALUES (1, 10, 20, 'iracing', 'motec'),
@@ -230,7 +221,7 @@ describe("migration regressions", () => {
               (2, 1, 90, 1, 'flying', '[]', 'eligible')`,
     );
 
-    await runMigrations(client);
+    await runMigrations(client, 60);
 
     const sessionRows = await client.execute(
       "SELECT id, source, recording_quality, quality_generation FROM sessions ORDER BY id",
@@ -269,13 +260,13 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v60 adds nullable source channel profiles without inventing legacy fidelity", async () => {
+  test("v61 adds nullable source channel profiles without inventing legacy fidelity", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 59);
+    await runMigrations(client, 60);
     await client.execute("INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source) VALUES (1, 10, 20, 'ac-evo', 'motec')");
 
-    await runMigrations(client);
+    await runMigrations(client, 61);
 
     const row = (await client.execute("SELECT source_channel_profile FROM sessions WHERE id = 1")).rows[0]!;
     expect(row.source_channel_profile).toBeNull();
@@ -298,10 +289,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v61 versions lap metrics without inventing generations for existing rows", async () => {
+  test("v62 versions lap metrics without inventing generations for existing rows", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 60);
+    await runMigrations(client, 61);
     await client.execute("INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'f1-2025')");
     await client.execute("INSERT INTO laps (id, session_id, lap_number, lap_time) VALUES (1, 1, 1, 100)");
     await client.execute(
@@ -309,7 +300,7 @@ describe("migration regressions", () => {
        VALUES (1, 2, '[]', '[]', '2026-01-01T00:00:00.000Z')`,
     );
 
-    await runMigrations(client);
+    await runMigrations(client, 62);
 
     const columns = await client.execute("PRAGMA table_info(lap_metrics)");
     expect(columns.rows.map((row) => String(row.name))).toContain("quality_generation");
@@ -541,12 +532,12 @@ describe("migration regressions", () => {
   test("v58 normalizes pre-existing null and invalid ownership values", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 56);
+    await runMigrations(client, 57);
     await client.execute("ALTER TABLE sessions ADD COLUMN ownership TEXT");
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, ownership) VALUES (1, 10, 20, 'iracing', NULL), (2, 10, 20, 'iracing', 'legacy')",
     );
-    await runMigrations(client);
+    await runMigrations(client, 58);
 
     const rows = await client.execute("SELECT id, ownership FROM sessions ORDER BY id");
     expect(rows.rows.map((row) => ({ id: Number(row.id), ownership: row.ownership }))).toEqual([
@@ -556,20 +547,20 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v57 backfills old sessions", async () => {
+  test("v58 backfills old sessions", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 56);
+    await runMigrations(client, 57);
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
     );
-    await runMigrations(client);
+    await runMigrations(client, 58);
 
     const rows = await client.execute("SELECT ownership FROM sessions WHERE id = 1");
     expect(rows.rows[0]?.ownership).toBe("mine");
     client.close();
   });
-  test("v57 defaults ownership to mine when omitted", async () => {
+  test("v58 defaults ownership to mine when omitted", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client);

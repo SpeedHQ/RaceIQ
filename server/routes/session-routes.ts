@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
-import { GameIdQuerySchema, IdParamSchema } from "@shared/platform/http/route-schemas";
+import { GameIdQuerySchema, IdParamSchema, RequiredGameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../shared/games/ids";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
 import { db } from "../db";
@@ -32,7 +32,6 @@ const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_
 const SessionListQuerySchema = z.object({ gameId: GameIdSchema });
 
 export interface SessionRouteDependencies {
-  sessionExists: (sessionId: number) => Promise<boolean>;
   sessionExistsForGame: (sessionId: number, gameId: GameId) => Promise<boolean>;
   listSessionRaceEvents: typeof listSessionRaceEvents;
   getQualityRebuildStatus: typeof getQualityRebuildStatus;
@@ -46,10 +45,6 @@ export interface SessionRouteDependencies {
 }
 
 const DEFAULT_SESSION_ROUTE_DEPENDENCIES: SessionRouteDependencies = {
-  sessionExists: async (sessionId) => {
-    const session = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, sessionId)).get();
-    return session != null;
-  },
   sessionExistsForGame: async (sessionId, gameId) => {
     const session = await db
       .select({ id: sessions.id })
@@ -184,40 +179,52 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       }),
     );
   })
-  .get("/api/sessions/:id/quality", zValidator("param", IdParamSchema), async (c) => {
-    const { id } = c.req.valid("param");
-    if (!(await dependencies.sessionExists(id))) return c.json({ error: "Session not found" }, 404);
+  .get(
+    "/api/sessions/:id/quality",
+    zValidator("param", IdParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+      if (!(await dependencies.sessionExistsForGame(id, gameId))) return c.json({ error: "Session not found" }, 404);
 
-    const status = await dependencies.getQualityRebuildStatus(id);
-    const laps = await dependencies.getLapsForSession(id);
-    return c.json({
-      ...status,
-      laps: laps.map((lap) => ({
-        id: lap.id,
-        lapNumber: lap.lapNumber,
-        quality: lap.quality,
-        eligibility: lap.eligibility,
-        qualityGeneration: lap.qualityGeneration,
-      })),
-    });
-  })
-  .post("/api/sessions/:id/quality/rebuild", zValidator("param", IdParamSchema), async (c) => {
-    const { id } = c.req.valid("param");
-    if (!(await dependencies.sessionExists(id))) return c.json({ error: "Session not found" }, 404);
+      const status = await dependencies.getQualityRebuildStatus(id);
+      const laps = await dependencies.getLapsForSession(id);
+      return c.json({
+        ...status,
+        laps: laps.map((lap) => ({
+          id: lap.id,
+          lapNumber: lap.lapNumber,
+          quality: lap.quality,
+          eligibility: lap.eligibility,
+          qualityGeneration: lap.qualityGeneration,
+        })),
+      });
+    },
+  )
+  .post(
+    "/api/sessions/:id/quality/rebuild",
+    zValidator("param", IdParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+      if (!(await dependencies.sessionExistsForGame(id, gameId))) return c.json({ error: "Session not found" }, 404);
 
-    const status = await dependencies.getQualityRebuildStatus(id);
-    if (status.action === "unavailable") {
-      return c.json({ error: "Source recording unavailable", status }, 409);
-    }
-    if (status.action === "reprocess") {
-      const result = await dependencies.reprocessSession(id);
+      const status = await dependencies.getQualityRebuildStatus(id);
+      if (status.action === "unavailable") {
+        return c.json({ error: "Source recording unavailable", status }, 409);
+      }
+      if (status.action === "reprocess") {
+        const result = await dependencies.reprocessSession(id);
+        dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
+        return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
+      }
+      const rebuilt = await dependencies.rebuildSessionEligibility(id);
       dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
-      return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
-    }
-    const rebuilt = await dependencies.rebuildSessionEligibility(id);
-    dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
-    return c.json({ strategy: status.action === "current" ? ("none" as const) : ("eligibility" as const), status: rebuilt });
-  })
+      return c.json({ strategy: status.action === "current" ? ("none" as const) : ("eligibility" as const), status: rebuilt });
+    },
+  )
   .patch("/api/sessions/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
     const { id } = c.req.valid("param");
     await updateSession(id, { notes: c.req.valid("json").notes });

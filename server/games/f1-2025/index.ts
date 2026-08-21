@@ -97,6 +97,9 @@ export const f1ServerAdapter: ServerGameAdapter = {
     const observation = baseRaceEventObservation(packet, context);
     const f1 = packet.f1;
     if (!f1) return observation;
+    // Native F1 reports signed pre-grid distance; shared event coordinates are
+    // non-negative, while grid detection below still uses signed magnitude.
+    if (packet.DistanceTraveled < 0) observation.trackDistanceM = null;
 
     observation.gridStart =
       packet.LapNumber === 1 &&
@@ -162,7 +165,8 @@ export const f1ServerAdapter: ServerGameAdapter = {
         damageEntries.push([component, Math.max(0, Math.min(100, value))]);
       }
     }
-    const localDamage = damageEntries.length > 0 ? Object.fromEntries(damageEntries) : null;
+    const localDamage =
+      f1.damageAvailable !== false && damageEntries.length > 0 ? Object.fromEntries(damageEntries) : null;
     const localFuelLitres = normalizedFuelLitres(
       packet,
       f1Adapter.telemetry.fuel.packetUnit,

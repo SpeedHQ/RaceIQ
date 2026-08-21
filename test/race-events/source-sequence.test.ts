@@ -97,6 +97,67 @@ describe("source sequence tracker", () => {
     });
   });
 
+  test("does not let an early anomalous native step hide later gaps", () => {
+    const tracker = new SourceSequenceTracker();
+    for (const sessionTick of [0, 100, 101, 102, 103, 104, 105, 106, 107, 117]) {
+      tracker.observe(
+        packet("iracing", {
+          TimestampMS: sessionTick,
+          iracing: { sessionTick } as never,
+        }),
+      );
+    }
+
+    expect(tracker.finalize().gaps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ previousSequence: 0, currentSequence: 100, missingCount: 99 }),
+        expect.objectContaining({ previousSequence: 107, currentSequence: 117, missingCount: 9 }),
+      ]),
+    );
+  });
+
+  test("retains multiple early gaps against bounded native cadence", () => {
+    const tracker = new SourceSequenceTracker();
+    for (const sessionTick of [0, 1, 5, 7, 8, 9, 10]) {
+      tracker.observe(
+        packet("iracing", {
+          TimestampMS: sessionTick,
+          iracing: { sessionTick } as never,
+        }),
+      );
+    }
+
+    expect(tracker.finalize().gaps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ previousSequence: 1, currentSequence: 5, missingCount: 3 }),
+        expect.objectContaining({ previousSequence: 5, currentSequence: 7, missingCount: 1 }),
+      ]),
+    );
+  });
+
+  test("rolls back uncommitted sequence evidence and high water", () => {
+    const tracker = new SourceSequenceTracker();
+    tracker.observe(packet("iracing", {
+      TimestampMS: 10,
+      iracing: { sessionTick: 1 } as never,
+    }));
+    const checkpoint = tracker.checkpoint();
+    tracker.observe(packet("iracing", {
+      TimestampMS: 30,
+      iracing: { sessionTick: 3 } as never,
+    }));
+    tracker.rollback(checkpoint);
+    tracker.observe(packet("iracing", {
+      TimestampMS: 20,
+      iracing: { sessionTick: 2 } as never,
+    }));
+
+    expect(tracker.finalize().summary).toMatchObject({
+      observedCount: 2,
+      totalMissingCount: 0,
+    });
+  });
+
   test("seeds the next coordinate after a discontinuity", () => {
     const tracker = new SourceSequenceTracker();
     tracker.observe(

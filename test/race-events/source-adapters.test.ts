@@ -189,4 +189,41 @@ describe("race event source adapters", () => {
     });
   });
 
+  test("normalizes signed F1 pre-grid distance before shared validation", () => {
+    const observation = f1ServerAdapter.toRaceEventObservation(
+      packet("f1-2025", {
+        DistanceTraveled: -42,
+        LapNumber: 1,
+        RacePosition: 1,
+        CurrentRaceTime: 1,
+        f1: {
+          packetId: 2,
+          overallFrameIdentifier: 5,
+          gridPosition: 1,
+          trackLength: 5_000,
+        } as never,
+      }),
+      context,
+    );
+
+    expect(observation.trackDistanceM).toBeNull();
+    expect(observation.gridStart).toBe(true);
+  });
+
+  test("keeps F1 damage unknown before native CarDamage arrives", () => {
+    const observation = f1ServerAdapter.toRaceEventObservation(
+      packet("f1-2025", {
+        f1: {
+          packetId: 6,
+          overallFrameIdentifier: 40,
+          playerCarIndex: 0,
+          frontLeftWingDamage: 0,
+          damageAvailable: false,
+        } as never,
+      }),
+      context,
+    );
+
+    expect(observation.participants[0]?.damage).toBeNull();
+  });
 });

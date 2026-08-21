@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { GameId } from "@shared/games/ids";
 import type { RaceEvent, RaceEventPage, RaceEventType } from "@shared/racing/events/contracts";
 
@@ -265,9 +266,30 @@ export function formatRaceEventDetails(event: RaceEvent): string[] {
     return formatted == null ? [] : [`${label}: ${formatted}`];
   });
 }
+const flattenedRaceEventPages = new WeakMap<readonly RaceEventPage[], RaceEvent[]>();
 
 export function flattenRaceEventPages(pages: readonly RaceEventPage[]): RaceEvent[] {
-  return canonicalRaceEvents(pages.flatMap((page) => page.items));
+  const cached = flattenedRaceEventPages.get(pages);
+  if (cached) return cached;
+  const events = canonicalRaceEvents(pages.flatMap((page) => page.items));
+  flattenedRaceEventPages.set(pages, events);
+  return events;
+}
+
+const TIMELINE_RENDER_WINDOW_SIZE = 100;
+
+export function raceEventPageWindow(pages: readonly RaceEventPage[], eventCount: number): RaceEvent[] {
+  const window: RaceEvent[] = [];
+  const seen = new Set<string>();
+  for (const page of pages) {
+    for (const event of page.items) {
+      if (seen.has(event.eventId)) continue;
+      seen.add(event.eventId);
+      window.push(event);
+      if (window.length === eventCount) return window;
+    }
+  }
+  return window;
 }
 
 export function raceEventBadges(event: RaceEvent): { evidence: string; quality: string | null } {
@@ -276,6 +298,7 @@ export function raceEventBadges(event: RaceEvent): { evidence: string; quality: 
     quality: event.qualityState === "available" ? null : QUALITY_BADGES[event.qualityState].label(),
   };
 }
+
 
 function sourceTimeValue(event: RaceEvent): string | null {
   if (event.sourceTimeMs == null) return null;
@@ -364,8 +387,21 @@ function TimelineEvent({ event }: { event: RaceEvent }) {
   );
 }
 
+
+export function RaceEventLoadMoreFailure() {
+  return (
+    <div role="alert" aria-live="assertive" className="text-app-detail text-status-danger">
+      {m.race_event_load_more_error()}
+    </div>
+  );
+}
 export function RaceEventTimeline({ sessionId, gameId, enabled }: { sessionId: number; gameId: GameId; enabled: boolean }) {
   const timelineQuery = useSessionRaceEvents(sessionId, gameId, enabled);
+  const [visibleEventCount, setVisibleEventCount] = useState(TIMELINE_RENDER_WINDOW_SIZE);
+  const pages = timelineQuery.data?.pages ?? [];
+  const windowEvents = useMemo(() => raceEventPageWindow(pages, visibleEventCount + 1), [pages, visibleEventCount]);
+  const hasHiddenEvents = windowEvents.length > visibleEventCount;
+  const visibleEvents = hasHiddenEvents ? windowEvents.slice(0, visibleEventCount) : windowEvents;
 
   if (timelineQuery.isLoading) {
     return <div className="border-b border-app-border px-4 py-3 text-app-detail text-app-text-muted">{m.race_event_loading()}</div>;
@@ -373,26 +409,32 @@ export function RaceEventTimeline({ sessionId, gameId, enabled }: { sessionId: n
   if (timelineQuery.isError) {
     return <div className="border-b border-app-border px-4 py-3 text-app-detail text-app-text-muted">{m.race_event_error()}</div>;
   }
-
-  const events = flattenRaceEventPages(timelineQuery.data?.pages ?? []);
-  if (events.length === 0) {
+  if (visibleEvents.length === 0) {
     return <div className="border-b border-app-border px-4 py-3 text-app-detail text-app-text-muted">{m.race_event_empty()}</div>;
   }
+
+  const loadMore = () => {
+    if (hasHiddenEvents) {
+      setVisibleEventCount((count) => count + TIMELINE_RENDER_WINDOW_SIZE);
+      return;
+    }
+    void timelineQuery.fetchNextPage();
+  };
 
   return (
     <section aria-label={m.race_event_aria_timeline()} className="border-b border-app-border bg-app-surface-alt px-4 py-4">
       <div className="mb-3 text-app-caption font-semibold uppercase tracking-app-label text-app-text-muted">{m.race_event_title()}</div>
       <div className="flex flex-col gap-2">
-        {events.map((event) => (
+        {visibleEvents.map((event) => (
           <TimelineEvent key={event.eventId} event={event} />
         ))}
       </div>
-      {timelineQuery.hasNextPage && (
+      {(hasHiddenEvents || timelineQuery.hasNextPage) && (
         <div className="mt-3 flex flex-col items-center gap-2">
-          <Button variant="app-outline" size="app-sm" disabled={timelineQuery.isFetchingNextPage} onClick={() => void timelineQuery.fetchNextPage()}>
+          <Button variant="app-outline" size="app-sm" disabled={timelineQuery.isFetchingNextPage} onClick={loadMore}>
             {timelineQuery.isFetchingNextPage ? m.race_event_loading_more() : m.race_event_load_more()}
           </Button>
-          {timelineQuery.isFetchNextPageError && <div className="text-app-detail text-status-danger">{m.race_event_load_more_error()}</div>}
+          {timelineQuery.isFetchNextPageError && <RaceEventLoadMoreFailure />}
         </div>
       )}
     </section>

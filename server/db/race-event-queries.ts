@@ -1,5 +1,6 @@
-import { and, asc, eq, gt, gte, inArray, isNull, like, lte, notInArray, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, like, lte, notInArray, or, type SQL } from "drizzle-orm";
 import { RaceEventIdSchema, RaceEventSchema, type RaceEvent, type RaceEventId, type RaceEventPage, type RaceEventQuery, type RaceEventType } from "../../shared/racing/events/contracts";
+import { classifyLap } from "../../shared/racing/laps/classification";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { db } from "./index";
 import { compareAnalyses, lapAnalyses, laps, raceEvents, sessionResults, sessions } from "./schema";
@@ -81,7 +82,7 @@ export interface ReplaceReplayableRaceEventsInput {
   events: readonly RaceEvent[];
   /** Undefined preserves laps; an empty array deliberately removes them all. */
   laps?: readonly ReplayableLapReplacement[];
-  /** Undefined preserves the materialized result. */
+  /** Undefined preserves result fields while removing IDs for deleted events. */
   result?: RaceEventResultProjection;
 }
 
@@ -257,24 +258,65 @@ async function applyPitPhaseProjection(
 
   const affectedLapIds: number[] = [];
   for (const { sessionId, lapNumber } of bySessionAndLap.values()) {
-    const pitTransitions = await tx
-      .select({ eventType: raceEvents.eventType })
-      .from(raceEvents)
-      .where(and(eq(raceEvents.sessionId, sessionId), eq(raceEvents.lapNumber, lapNumber), inArray(raceEvents.eventType, ["pit_entry", "pit_exit"])))
-      .all();
+    const [pitTransitions, targetLaps, baselineRow] = await Promise.all([
+      tx
+        .select({ eventType: raceEvents.eventType })
+        .from(raceEvents)
+        .where(and(eq(raceEvents.sessionId, sessionId), eq(raceEvents.lapNumber, lapNumber), inArray(raceEvents.eventType, ["pit_entry", "pit_exit"])))
+        .all(),
+      tx
+        .select({
+          id: laps.id,
+          phase: laps.phase,
+          conditions: laps.conditions,
+          paceEligibility: laps.paceEligibility,
+        })
+        .from(laps)
+        .where(and(eq(laps.sessionId, sessionId), eq(laps.lapNumber, lapNumber)))
+        .all(),
+      tx
+        .select()
+        .from(raceEvents)
+        .where(
+          and(
+            eq(raceEvents.sessionId, sessionId),
+            eq(raceEvents.lapNumber, lapNumber),
+            inArray(raceEvents.eventType, ["lap_completed", "lap_started"]),
+          ),
+        )
+        .orderBy(desc(raceEvents.timelineEpoch), desc(raceEvents.sequence), desc(raceEvents.eventOrder), desc(raceEvents.eventId))
+        .get(),
+    ]);
     const hasEntry = pitTransitions.some(({ eventType }) => eventType === "pit_entry");
     const hasExit = pitTransitions.some(({ eventType }) => eventType === "pit_exit");
-    const phase = hasEntry && hasExit ? "pit" : hasEntry ? "in" : hasExit ? "out" : "flying";
-    const updated = await tx
-      .update(laps)
-      .set({
-        phase,
-        paceEligibility: phase === "flying" ? "eligible" : "excluded",
-      })
-      .where(and(eq(laps.sessionId, sessionId), eq(laps.lapNumber, lapNumber)))
-      .returning({ id: laps.id })
-      .all();
-    affectedLapIds.push(...updated.map(({ id }) => id));
+    const pitPhase = hasEntry && hasExit ? "pit" : hasEntry ? "in" : hasExit ? "out" : null;
+    const baseline = baselineRow == null ? null : parseRaceEventRow(baselineRow);
+    let baselineClassification = null;
+    if (baseline && (baseline.eventType === "lap_completed" || baseline.eventType === "lap_started")) {
+      const { phase, conditions } = baseline.payload;
+      baselineClassification = classifyLap({
+        pitPhase: phase === "in" || phase === "out" || phase === "pit" ? phase : null,
+        conditions,
+        gridStart: phase === "grid_start",
+      });
+    }
+    for (const lap of targetLaps) {
+      const classification =
+        pitPhase == null
+          ? baselineClassification
+          : classifyLap({
+              pitPhase,
+              conditions: lap.conditions,
+              gridStart: false,
+            });
+      if (classification == null) continue;
+      await tx
+        .update(laps)
+        .set(classification)
+        .where(eq(laps.id, lap.id))
+        .run();
+      affectedLapIds.push(lap.id);
+    }
   }
   if (affectedLapIds.length === 0) return;
 
@@ -456,7 +498,7 @@ async function appendRaceEventsWithLapLinksInTransaction(
 ): Promise<RaceEvent[]> {
   await assertRaceEventLapLinks(tx, links);
   const inserted = await appendRaceEventsInTransaction(tx, events);
-  if (inserted.length === 0 || links.length === 0) return inserted;
+  if (links.length === 0) return inserted;
 
   const linkedById = new Map<RaceEventId, RaceEvent>();
   for (const link of links) {
@@ -519,6 +561,11 @@ function assertProjectedResult(result: RaceEventResultProjection | undefined, re
 async function replaceReplayableRaceEventsInTransaction(tx: DbTransaction, input: ReplaceReplayableRaceEventsInput, events: readonly RaceEvent[]): Promise<ReplaceReplayableRaceEventsResult> {
   const session = await tx.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, input.sessionId)).get();
   if (!session) throw new Error(`Session ${input.sessionId} does not exist`);
+  const existingResult = await tx
+    .select({ id: sessionResults.id, eventIds: sessionResults.eventIds })
+    .from(sessionResults)
+    .where(eq(sessionResults.sessionId, input.sessionId))
+    .get();
 
   const existingRows = await tx
     .select()
@@ -571,6 +618,7 @@ async function replaceReplayableRaceEventsInTransaction(tx: DbTransaction, input
   }
   const resultingEventIds = new Set<RaceEventId>([...retained.map((event) => event.eventId), ...events.map((event) => event.eventId)]);
   assertProjectedResult(input.result, resultingEventIds);
+  const repairedResultEventIds = existingResult?.eventIds.filter((eventId) => resultingEventIds.has(eventId)) ?? [];
   const eventsToInsert = events.filter((event) => !retainedById.has(event.eventId));
 
   const replacedPitTargets = existing
@@ -631,17 +679,26 @@ async function replaceReplayableRaceEventsInTransaction(tx: DbTransaction, input
   await assertSessionOwnership(tx, remappedEvents);
   if (remappedEvents.length > 0) await insertRaceEventRows(tx, remappedEvents);
   await applyPitPhaseProjection(tx, remappedEvents, replacedPitTargets);
-  if (replacedPitTargets.length > 0) await linkSessionQualityEvents(input.sessionId, tx);
+  await linkSessionQualityEvents(input.sessionId, tx);
 
+  const now = new Date().toISOString();
   if (input.result) {
-    const now = new Date().toISOString();
-    const existingResult = await tx.select({ id: sessionResults.id }).from(sessionResults).where(eq(sessionResults.sessionId, input.sessionId)).get();
     const values = { ...input.result, sessionId: input.sessionId, updatedAt: now };
     if (existingResult) {
       await tx.update(sessionResults).set(values).where(eq(sessionResults.id, existingResult.id)).run();
     } else {
       await tx.insert(sessionResults).values(values).run();
     }
+  } else if (
+    existingResult &&
+    (repairedResultEventIds.length !== existingResult.eventIds.length ||
+      repairedResultEventIds.some((eventId, index) => eventId !== existingResult.eventIds[index]))
+  ) {
+    await tx
+      .update(sessionResults)
+      .set({ eventIds: repairedResultEventIds, updatedAt: now })
+      .where(eq(sessionResults.id, existingResult.id))
+      .run();
   }
 
   const persistedRows =

@@ -10,7 +10,7 @@ import { getServerGame } from "../../server/games/registry";
 import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { rebuildRaceEventTimeline, type RebuildRaceEventTimelineInput } from "../../server/race-events/rebuild";
 import { DatabaseRaceEventStore } from "../../server/race-events/store";
-import { ImportCaptureAdapter, importSessionFrames } from "../../server/session-capture/import-pipeline";
+import { ImportCaptureAdapter, IncompleteImportError, importSessionFrames } from "../../server/session-capture/import-pipeline";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { currentTelemetryVersionIdentity, NullSessionRecorderAdapter, NullWsAdapter, RealDbAdapter } from "../../server/telemetry/pipeline-ports";
 
@@ -223,6 +223,21 @@ describe("raw race-event replay parity", () => {
     expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(first.laps.map(({ lapNumber }) => lapNumber));
   });
 
+  test("does not fabricate a terminal session event from raw replay EOF", async () => {
+    const rebuilt = await rebuildRaceEventTimeline({
+      sessionId: 7_002,
+      gameId: "iracing",
+      frames: fixtureFrames(),
+      sourceKind: "raceiq-raw",
+      participant: LOCAL_PLAYER_EVIDENCE,
+      versionIdentity: VERSION_IDENTITY,
+      sourceVerification: SOURCE_VERIFICATION,
+      canonicalVerification: CANONICAL_VERIFICATION,
+    });
+
+    expect(rebuilt.events.some(({ eventType }) => eventType === "session_ended")).toBe(false);
+  });
+
   test(
     "keeps live, import, and raw replay semantics aligned for one fixed session",
     async () => {
@@ -255,4 +270,28 @@ describe("raw race-event replay parity", () => {
     },
     { timeout: 120_000 },
   );
+
+  test("rolls back a partial replay longer than ten seconds when complete laps are required", async () => {
+    const game = getServerGame("iracing");
+    const parserState = game.createParserState?.() ?? null;
+    const partial: Buffer[] = [];
+    let startTimestamp: number | null = null;
+    for (const { frame } of fixtureFrames()) {
+      const telemetry = game.tryParse(frame, parserState);
+      if (!telemetry) continue;
+      startTimestamp ??= telemetry.TimestampMS;
+      partial.push(frame);
+      if (telemetry.TimestampMS - startTimestamp > 10_000) break;
+    }
+
+    await expect(
+      importSessionFrames(partial, "iracing", {
+        requireLaps: true,
+        sourceKind: "raceiq-raw",
+        participant: LOCAL_PLAYER_EVIDENCE,
+        versionIdentity: VERSION_IDENTITY,
+        sourceArchiveVerification: SOURCE_VERIFICATION,
+      }),
+    ).rejects.toBeInstanceOf(IncompleteImportError);
+  });
 });

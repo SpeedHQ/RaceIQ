@@ -116,6 +116,15 @@ describe("race event persistence", () => {
     expect(stored).toHaveLength(1);
     expect(stored[0]?.lapId).toBe(lapId);
   });
+  test("idempotent append applies validated links to existing events", async () => {
+    const lapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 1, lapTime: 90 }).returning({ id: laps.id }).get()).id;
+    const event = raceEvent(1, "position_changed", { previousPosition: 2, position: 1 }, { lapNumber: 1 });
+    const store = new DatabaseRaceEventStore();
+    await store.append([event]);
+
+    expect(await store.appendWithLapLinks([event], [{ sessionId: 1, lapNumber: 1, lapId }])).toEqual([]);
+    expect((await db.select({ lapId: raceEvents.lapId }).from(raceEvents).where(eq(raceEvents.eventId, event.eventId)).get())?.lapId).toBe(lapId);
+  });
 
   test("validates every lap link before appending any event", async () => {
     const lapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 1, lapTime: 90 }).returning({ id: laps.id }).get()).id;
@@ -323,6 +332,20 @@ describe("race event persistence", () => {
     expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([transport.eventId, replacement.eventId]);
     expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([replacement.eventId]);
   });
+  test("event-only replacement repairs materialized result event IDs", async () => {
+    const event = raceEvent(1, "position_changed", { previousPosition: 2, position: 1 });
+    await appendRaceEvents([event]);
+    await db.insert(sessionResults).values({
+      sessionId: 1,
+      sessionType: "race",
+      classification: "finished",
+      eventIds: [event.eventId],
+    });
+
+    await replaceReplayableRaceEvents({ sessionId: 1, events: [] });
+
+    expect((await db.select({ eventIds: sessionResults.eventIds }).from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([]);
+  });
 
   test("replaces retained pre-lifecycle source facts instead of duplicating them", async () => {
     const legacyConnected = raceEvent(
@@ -395,24 +418,38 @@ describe("race event persistence", () => {
       }),
     ).rejects.toBeInstanceOf(RaceEventConflictError);
   });
-  test("recomputes pit projections when event-only replacement removes pit facts", async () => {
-    const lapId = (await db.insert(laps).values({ sessionId: 1, lapNumber: 1, lapTime: 90 }).returning({ id: laps.id }).get()).id;
-    const pitEntry = raceEvent(
+  test("recomputes pit projections from baseline lap classification after event-only replacement", async () => {
+    const lapId = (await db.insert(laps).values({
+      sessionId: 1,
+      lapNumber: 1,
+      lapTime: 90,
+      phase: "grid_start",
+      conditions: ["formation"],
+      paceEligibility: "excluded",
+    }).returning({ id: laps.id }).get()).id;
+    const lapCompleted = raceEvent(
       1,
+      "lap_completed",
+      { lapNumber: 1, lapTimeMs: 90_000, isValid: true, phase: "grid_start", conditions: ["formation"] },
+      { lapNumber: 1, lapId, eventOrder: 20 },
+    );
+    const pitEntry = raceEvent(
+      2,
       "pit_entry",
       { previousState: "out", state: "pit-lane" },
       { lapNumber: 1, lapId, eventOrder: 50 },
     );
-    await appendRaceEvents([pitEntry]);
+    await appendRaceEvents([lapCompleted, pitEntry]);
     expect((await db.select({ phase: laps.phase, paceEligibility: laps.paceEligibility }).from(laps).where(eq(laps.id, lapId)).get())).toEqual({
       phase: "in",
       paceEligibility: "excluded",
     });
 
-    await replaceReplayableRaceEvents({ sessionId: 1, events: [] });
-    expect((await db.select({ phase: laps.phase, paceEligibility: laps.paceEligibility }).from(laps).where(eq(laps.id, lapId)).get())).toEqual({
-      phase: "flying",
-      paceEligibility: "eligible",
+    await replaceReplayableRaceEvents({ sessionId: 1, events: [lapCompleted] });
+    expect((await db.select({ phase: laps.phase, conditions: laps.conditions, paceEligibility: laps.paceEligibility }).from(laps).where(eq(laps.id, lapId)).get())).toEqual({
+      phase: "grid_start",
+      conditions: ["formation"],
+      paceEligibility: "excluded",
     });
   });
 });

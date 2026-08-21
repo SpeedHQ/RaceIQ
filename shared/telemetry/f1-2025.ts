@@ -82,6 +82,8 @@ export interface F1ExtendedData {
   floorDamage: number;
   diffuserDamage: number;
   sidepodDamage: number;
+  /** True only after first native CarDamage packet for current F1 session. */
+  damageAvailable?: boolean;
   // Extended CarStatus fields
   tractionControl?: number;
   antiLockBrakes?: number;
