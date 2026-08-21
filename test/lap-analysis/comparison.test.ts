@@ -129,4 +129,38 @@ describe("compare lap course alignment", () => {
     expect(result.distances).toHaveLength(101);
     expect(result.timeDelta.at(-1)).toBeCloseTo(-0.5, 3);
   });
+
+  test("carries exact aligned and source bounds for corners with different spans", () => {
+    const lapA = lineLap().map((sample) => packet({ ...sample, PositionX: 0, PositionZ: 0 }));
+    const lapB = lineLap({ timeOffset: 500 }).map((sample) => packet({ ...sample, PositionX: 0, PositionZ: 0 }));
+    const result = compareLaps(lapA, lapB, [
+      { index: 0, label: "T1", distanceStart: 10, distanceEnd: 20 },
+      { index: 1, label: "T2", distanceStart: 40, distanceEnd: 70 },
+    ]);
+
+    expect(result.cornerDeltas).toEqual([
+      expect.objectContaining({
+        label: "T1",
+        distanceStart: 10,
+        distanceEnd: 20,
+        alignedStartIndex: 10,
+        alignedEndIndex: 20,
+        sourceStartIndexA: 2,
+        sourceEndIndexA: 4,
+        sourceStartIndexB: 2,
+        sourceEndIndexB: 4,
+      }),
+      expect.objectContaining({
+        label: "T2",
+        distanceStart: 40,
+        distanceEnd: 70,
+        alignedStartIndex: 40,
+        alignedEndIndex: 70,
+        sourceStartIndexA: 8,
+        sourceEndIndexA: 14,
+        sourceStartIndexB: 8,
+        sourceEndIndexB: 14,
+      }),
+    ]);
+  });
 });

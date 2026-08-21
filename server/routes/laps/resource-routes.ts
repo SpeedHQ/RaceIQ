@@ -22,6 +22,7 @@ import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
+import { buildDeterministicLapFindings } from "../../findings/lap-findings";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 export function semanticReplayIds(): readonly string[] {
@@ -58,6 +59,7 @@ const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: numbe
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
 const gzipAsync = promisify(gzip);
 
+
 export const resourceRoutes = new Hono()
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
@@ -73,12 +75,18 @@ export const resourceRoutes = new Hono()
       const lap = await getLapById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       if (lap.parseError) {
+        const findingBundle = buildDeterministicLapFindings(
+          lap,
+          [],
+          assessLapRecording(lap.telemetry, lap.lapTime),
+        );
         return c.json({
           lapId: id,
           requestedSemanticIds: [],
           sectorTimes: lap.sectorTimes ?? null,
           sectorStarts: null,
           insights: [],
+          ...findingBundle,
           parseError: lap.parseError,
           envelopes: [],
         });
@@ -86,12 +94,19 @@ export const resourceRoutes = new Hono()
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const insights = analyzeLap(lap.telemetry, lap.gameId);
+      const findingBundle = buildDeterministicLapFindings(
+        lap,
+        insights,
+        assessLapRecording(lap.telemetry, lap.lapTime),
+      );
       return c.json({
         lapId: replay.lapId,
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
         sectorStarts: nativeLayout?.starts ?? null,
-        insights: analyzeLap(lap.telemetry, lap.gameId),
+        insights,
+        ...findingBundle,
         parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
@@ -219,8 +234,13 @@ export const resourceRoutes = new Hono()
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
     const insights = analyzeLap(packets, gameId);
+    const findingBundle = buildDeterministicLapFindings(
+      lap,
+      insights,
+      assessLapRecording(packets, lap.lapTime),
+    );
 
-    return c.json({ ...lap, sectorTimes, insights });
+    return c.json({ ...lap, sectorTimes, insights, ...findingBundle });
   })
 
   .get("/api/laps/:id/export", zValidator("param", IdParamSchema), async (c) => {
@@ -229,7 +249,13 @@ export const resourceRoutes = new Hono()
     if (!lap) return c.json({ error: "Lap not found" }, 404);
     const packets = lap.telemetry;
     if (packets.length === 0) return c.json({ error: "No telemetry data" }, 400);
-    const exportText = generateExport(lap, packets);
+    const insights = analyzeLap(packets, lap.gameId ?? packets[0]!.gameId);
+    const findingBundle = buildDeterministicLapFindings(
+      lap,
+      insights,
+      assessLapRecording(packets, lap.lapTime),
+    );
+    const exportText = generateExport(lap, packets, "metric", undefined, findingBundle.findings);
     return c.text(exportText);
   })
 

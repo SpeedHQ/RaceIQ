@@ -1,4 +1,5 @@
 import type { ComparisonData, SemanticTelemetrySample } from "@shared/racing/comparison/types";
+import { FindingPanel } from "@/components/FindingPanel";
 import { TelemetryChart } from "@/components/TelemetryChart";
 import { TimeDelta } from "@/components/TimeDelta";
 import { COLOR_A, COLOR_B } from "@/lib/comparison-utils";
@@ -21,14 +22,26 @@ const interpolateSeries = (samples: SemanticTelemetrySample[], id: keyof Semanti
 }
 const hasValues = (series: number[]) => series.some(Number.isFinite);
 
+export function ComparisonFindings({
+  comparison,
+  onJumpToFrame,
+}: {
+  comparison: Pick<ComparisonData, "findings">;
+  onJumpToFrame: (frameIndex: number) => void;
+}) {
+  return <FindingPanel findings={comparison.findings} onJumpToFrame={onJumpToFrame} />;
+}
+
 export function ComparisonCharts({
   comparison,
   units,
   onCursorMove,
+  onFindingJumpToFrame,
 }: {
   comparison: ComparisonData;
   units: { fromMph: (value: number) => number; speedLabel: string };
   onCursorMove: (distance: number | null) => void;
+  onFindingJumpToFrame: (frameIndex: number) => void;
 }) {
   const distance = numericSeries(comparison.telemetryA, "timing.distance-traveled").filter(Number.isFinite);
   const speedA = interpolateSeries(comparison.telemetryA, "motion.speed", distance);
@@ -109,6 +122,10 @@ export function ComparisonCharts({
               />
             </div>
           )}
+          <section aria-labelledby="comparison-findings-title" className="rounded-lg border border-app-border bg-app-surface p-3">
+            <h2 id="comparison-findings-title" className="mb-3 text-app-subtext font-semibold text-app-text">Comparison findings</h2>
+            <ComparisonFindings comparison={comparison} onJumpToFrame={onFindingJumpToFrame} />
+          </section>
         </div>
       </div>
     </div>

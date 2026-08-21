@@ -1251,5 +1251,53 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Persist deterministic structured findings separately from AI prose.
+  {
+    version: 59,
+    name: "persist structured findings generations",
+    sql: [
+      `CREATE TABLE finding_generations (
+        id TEXT PRIMARY KEY NOT NULL,
+        scope_key TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        rule TEXT NOT NULL,
+        config TEXT NOT NULL,
+        schema_version TEXT NOT NULL,
+        status TEXT NOT NULL,
+        finding_count INTEGER NOT NULL DEFAULT 0,
+        available_count INTEGER NOT NULL DEFAULT 0,
+        unavailable_count INTEGER NOT NULL DEFAULT 0,
+        indeterminate_count INTEGER NOT NULL DEFAULT 0,
+        content_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        verified_at TEXT,
+        activated_at TEXT,
+        stale_at TEXT,
+        failure_reason TEXT
+      )`,
+      `CREATE INDEX finding_generations_scope_status_idx
+        ON finding_generations (scope_key, status)`,
+      `CREATE INDEX finding_generations_scope_created_idx
+        ON finding_generations (scope_key, created_at, id)`,
+      `CREATE UNIQUE INDEX finding_generations_one_current_idx
+        ON finding_generations (scope_key)
+        WHERE status IN ('current', 'stale-rebuild-available', 'stale-source-missing')`,
+      `CREATE TABLE finding_records (
+        generation_id TEXT NOT NULL REFERENCES finding_generations(id) ON DELETE CASCADE,
+        finding_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        structured TEXT NOT NULL,
+        structured_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (generation_id, finding_id)
+      )`,
+      `CREATE INDEX finding_records_finding_idx
+        ON finding_records (finding_id)`,
+      `CREATE INDEX finding_records_generation_idx
+        ON finding_records (generation_id)`,
+    ],
+  },
 ];
 

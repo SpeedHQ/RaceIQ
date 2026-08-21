@@ -7,6 +7,9 @@ import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { adaptLapInsightsToFindingBundle } from "../findings/lap-adapter";
+import { assessLapRecording } from "../lap-analysis/quality";
+import { buildFindingsContext } from "./findings-context";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { resolveTrack } from "../tracks/info";
@@ -137,6 +140,7 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
 export function buildAnalystPrompt(
   lap: {
     id?: number;
+    sessionId?: string | number;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -166,23 +170,28 @@ export function buildAnalystPrompt(
     : generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
-  // Run precomputed insight analysis
+  // Existing detectors remain authoritative; adapter only gives their output
+  // stable finding identity and evidence references.
   const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
-  let insightsText = "";
-  if (insights.length > 0) {
-    insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
-    insightsText += "These are automated detections that may contain false positives. Use them as hints, not facts.\n\n";
-    for (const insight of insights) {
-      // Convert frame index to approximate lap timestamp
-      const frameIdx = insight.frameIndices[0];
-      const pkt = packets[frameIdx];
-      const timestamp = pkt ? `${(pkt.DistanceTraveled).toFixed(0)}m` : "?";
-      const count = insight.frameIndices.length;
-      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label}`;
-      insightsText += ` (at ${timestamp}${count > 1 ? `, ${count} occurrences` : ""})\n`;
-      insightsText += `  ${insight.detail}\n`;
-    }
-  }
+  const quality = assessLapRecording(packets, lap.lapTime);
+  const insightBundle = lap.id !== undefined && lap.sessionId !== undefined
+    ? adaptLapInsightsToFindingBundle({
+        sessionId: lap.sessionId,
+        lapId: lap.id,
+        insights,
+        quality,
+      })
+    : undefined;
+  const findingsContext = insightBundle
+    ? buildFindingsContext(insightBundle.findings, {
+        narratives: insightBundle.narratives,
+        recommendations: insightBundle.recommendations,
+      })
+    : "";
+  const qualityAbstention = quality.valid
+    ? ""
+    : `[ABSTENTION] Lap recording quality rejected: ${quality.reason ?? "unknown reason"}; do not make lap-performance claims from this telemetry.`;
+  const findingsText = [qualityAbstention, findingsContext].filter(Boolean).join("\n");
 
   let tuneText = "";
   if (tune) {
@@ -288,7 +297,7 @@ Track: ${trackName}
 ${conditionsText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
-${insightsText}`;
+${findingsText ? `\n${findingsText}` : ""}`;
 
   const systemPrompt = getSystemPrompt(gameId, unit, temperatureUnit, language);
 

@@ -241,8 +241,9 @@ export abstract class KunosLapDetector implements ILapDetector {
       this.currentSession!.bestLapTime = lapTime;
     }
 
+    const completedSession = this.currentSession!;
     const lapId = await this.db.insertLap(
-      this.currentSession!.sessionId,
+      completedSession.sessionId,
       lapNum,
       lapTime,
       isValid,
@@ -259,6 +260,26 @@ export abstract class KunosLapDetector implements ILapDetector {
     // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
     // scope.
     await reconcileAutoExclusionsForLap(this.db, lapId);
+    if (forcedInvalidReason === null && this.db.persistCompletedLapFindings) {
+      try {
+        await this.db.persistCompletedLapFindings({
+          lapId,
+          sessionId: completedSession.sessionId,
+          lapNumber: lapNum,
+          lapTime,
+          isValid,
+          invalidReason,
+          gameId: completedSession.gameId,
+          carOrdinal: completedSession.carOrdinal,
+          trackOrdinal: completedSession.trackOrdinal,
+          sectorTimes: sectors,
+          telemetry: packets,
+          quality,
+        });
+      } catch (error) {
+        console.error(`${this.loggerLabel} persistCompletedLapFindings failed:`, error);
+      }
+    }
     if (!opts?.silent) {
       this.onLapSaved?.({
         type: "lap-saved",

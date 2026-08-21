@@ -1,5 +1,7 @@
+import type { GameId } from "../../games/ids";
 import type { TelemetryVariableId } from "../../telemetry/catalog/generated/telemetry-catalog.types";
 import type { LapMeta } from "../sessions/types";
+import type { FindingRecord } from "../findings/types";
 
 export interface AlignedTrace {
   distance: number[];
@@ -22,6 +24,16 @@ export interface CornerDelta {
   deltaSeconds: number;
   timeA: number;
   timeB: number;
+  /** Exact aligned-grid bounds used to calculate this corner delta. */
+  distanceStart: number;
+  distanceEnd: number;
+  alignedStartIndex: number | null;
+  alignedEndIndex: number | null;
+  /** Exact source-frame bounds corresponding to aligned-grid bounds. */
+  sourceStartIndexA: number | null;
+  sourceEndIndexA: number | null;
+  sourceStartIndexB: number | null;
+  sourceEndIndexB: number | null;
 }
 
 /** Canonical semantic values consumed by comparison/map UI. */
@@ -31,12 +43,16 @@ export interface SemanticTelemetrySample {
   observedAtMs: number;
 }
 
+export type ComparisonLap = Pick<LapMeta, "id" | "lapNumber" | "lapTime" | "isValid" | "trackOrdinal" | "carOrdinal">;
+
 export interface ComparisonData {
-  lapA: LapMeta;
-  lapB: LapMeta;
+  lapA: ComparisonLap;
+  lapB: ComparisonLap;
   traces: AlignedTrace;
   timeDelta: number[];
   corners: CornerDelta[];
   telemetryA: SemanticTelemetrySample[];
   telemetryB: SemanticTelemetrySample[];
+  findings: FindingRecord[];
+  gameId: GameId | undefined;
 }

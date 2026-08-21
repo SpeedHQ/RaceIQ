@@ -103,6 +103,11 @@ export class ImportCaptureAdapter implements DbAdapter {
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);
   }
+  persistCompletedLapFindings(
+    input: Parameters<RealDbAdapter["persistCompletedLapFindings"]>[0],
+  ): ReturnType<RealDbAdapter["persistCompletedLapFindings"]> {
+    return this._inner.persistCompletedLapFindings(input);
+  }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return this._inner.getLaps(gameId, limit);
   }

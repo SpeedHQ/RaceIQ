@@ -12,6 +12,7 @@ import type { Point } from "@/lib/comparison-utils";
 import { formatLapTime } from "@/lib/format";
 import type { CompareSearch } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
+import { rpcJson } from "@/lib/rpc-json";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import type { CompareAiPanelHandle } from "./CompareAiPanel";
@@ -131,6 +132,16 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     },
     [comparison],
   );
+  const handleJumpToFindingFrame = useCallback((frameIndex: number) => {
+    if (!comparison) return;
+    const sample = comparison.telemetryA[frameIndex] ?? comparison.telemetryB[frameIndex];
+    if (!sample) return;
+    const distance = semanticNumber(sample, "timing.distance-traveled");
+    if (distance == null || !Number.isFinite(distance)) return;
+    hoveredDistanceRef.current = distance;
+    mapRedrawRef.current?.();
+  }, [comparison]);
+
 
   // Set cursor from URL param once comparison data loads
   const appliedInitialCursor = useRef(false);
@@ -273,7 +284,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         setComparison(null);
         return;
       }
-      setComparison((await res.json()) as unknown as ComparisonData);
+      const comparisonData = await rpcJson<ComparisonData>(res);
+      setComparison(comparisonData);
     } catch {
       setError(m.compare_load_failed());
       setComparison(null);
@@ -432,7 +444,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             }}
           />
 
-          <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} />
+          <ComparisonCharts
+            comparison={comparison}
+            units={units}
+            onCursorMove={handleCursorMove}
+            onFindingJumpToFrame={handleJumpToFindingFrame}
+          />
 
           {/* AI compare sidebar */}
           {aiPanelOpen && (

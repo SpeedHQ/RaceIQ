@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { buildCompareChatContext, buildCompareChatSystemPrompt } from "../../../server/ai/compare-chat-prompt";
+import type { ComparisonResult } from "../../../server/lap-analysis/comparison";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -80,4 +81,25 @@ describe("compare chat initialization prompt", () => {
     expect(context).toContain("-1.000");
     expect(context).toContain("+1.000");
   });
+  test("includes structured findings handoff on legacy cached-analysis path", () => {
+    const findings = "--- Lap A DETERMINISTIC FINDINGS ---\n[FINDING finding-a] status=available";
+    // Prompt reads summary fields only; full aligned traces are irrelevant here.
+    const comparison = { timeDelta: [0, 0.004], distances: [0, 2178], cornerDeltas: [] } as unknown as ComparisonResult;
+    const prompt = buildCompareChatSystemPrompt(
+      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true },
+      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: true },
+      comparison,
+      null,
+      null,
+      "metric",
+      "C",
+      "en",
+      findings,
+    );
+
+    expect(prompt).toContain(findings);
+    expect(prompt).toContain("Keep unavailable or indeterminate records as abstentions");
+    expect(prompt).toContain("never invent IDs");
+  });
+
 });

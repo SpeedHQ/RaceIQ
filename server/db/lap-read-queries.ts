@@ -265,6 +265,8 @@ export async function getLapById(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -335,6 +337,8 @@ type LapResultRow = {
   ownership: string | null;
   resolverVersion: string | null;
   derivationVersion: string | null;
+  fuelPerLap: number | null;
+  tyreWear: number | null;
   rawFile?: string | null;
 };
 
@@ -363,6 +367,8 @@ function buildLapResult(
     parserVersion: row.parserVersion ?? undefined,
     resolverVersion: row.resolverVersion ?? undefined,
     derivationVersion: row.derivationVersion ?? undefined,
+    fuelPerLap: row.fuelPerLap,
+    tyreWear: row.tyreWear,
     telemetry,
   };
 }
@@ -407,6 +413,8 @@ export async function getLapsByIds(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))

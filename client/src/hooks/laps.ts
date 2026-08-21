@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { FindingNarrative, FindingRecommendation, FindingRecord } from "../../../shared/racing/findings/types";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
@@ -33,7 +34,9 @@ export interface SemanticLapTelemetry {
   requestedSemanticIds: string[];
   sectorTimes?: number[] | null;
   sectorStarts?: number[] | null;
-  insights?: unknown[];
+  findings: FindingRecord[];
+  narratives: FindingNarrative[];
+  recommendations: FindingRecommendation[];
   parseError?: string | null;
   envelopes: SemanticReplayFrame[];
 }

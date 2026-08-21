@@ -26,6 +26,11 @@ import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
 import { SessionRecorder } from "../session-capture/recorder";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import {
+  persistCompletedLapFindings,
+  type CompletedLapFindingInput,
+  type CompletedLapFindingResult,
+} from "../findings/completed-lap";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
   return {
@@ -89,6 +94,10 @@ export interface DbAdapter {
    *  Called right after insertLap so /lap-metrics is a pure column read and
    *  never has to decode telemetry on first open. */
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
+  /** Build and activate deterministic findings after durable lap persistence. */
+  persistCompletedLapFindings?(
+    input: CompletedLapFindingInput,
+  ): Promise<CompletedLapFindingResult>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void>;
@@ -172,6 +181,9 @@ export class RealDbAdapter implements DbAdapter {
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return setLapMetrics(lapId, fuelPerLap, tyreWear);
+  }
+  persistCompletedLapFindings(input: CompletedLapFindingInput): Promise<CompletedLapFindingResult> {
+    return persistCompletedLapFindings(input);
   }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return getLaps(gameId, limit);

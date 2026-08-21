@@ -426,8 +426,9 @@ export class LapDetector implements ILapDetector {
       // Capture the frame buffer before resetLapState reassigns it — the insert
       // below is fire-and-forget, so persistLapMetrics runs after the reset.
       const lapPackets = this.lapBuffer;
+      const completedSession = this.currentSession;
       this.db.insertLap(
-        this.currentSession.sessionId,
+        completedSession.sessionId,
         lapNum,
         lapTime,
         valid,
@@ -441,6 +442,26 @@ export class LapDetector implements ILapDetector {
         // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
         // never decodes on first open.
         await this.persistLapFollowups(lapId, lapPackets);
+        if (this.db.persistCompletedLapFindings) {
+          try {
+            await this.db.persistCompletedLapFindings({
+              lapId,
+              sessionId: completedSession.sessionId,
+              lapNumber: lapNum,
+              lapTime,
+              isValid: valid,
+              invalidReason,
+              gameId: completedSession.gameId,
+              carOrdinal: completedSession.carOrdinal,
+              trackOrdinal: completedSession.trackOrdinal,
+              sectorTimes: sectors,
+              telemetry: lapPackets,
+              quality,
+            });
+          } catch (error) {
+            console.error("[Lap] persistCompletedLapFindings failed:", error);
+          }
+        }
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
@@ -450,7 +471,7 @@ export class LapDetector implements ILapDetector {
           lapTime,
           isValid: valid,
           sectors,
-          estimatedBestLapTime: this.currentSession!.bestLapTime,
+          estimatedBestLapTime: completedSession.bestLapTime,
         });
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
@@ -547,19 +568,41 @@ export class LapDetector implements ILapDetector {
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
       const lapPackets = this.lapBuffer;
+      const completedSession = this.currentSession;
+      const completedLapValid = isComplete && this.lapIsValid;
+      const completedLapInvalidReason = isComplete ? this.invalidReason : "incomplete";
       this.db.insertLap(
-        this.currentSession.sessionId,
+        completedSession.sessionId,
         lapNum,
         lapTime,
-        isComplete && this.lapIsValid,
+        completedLapValid,
         this._lapByteOffset,
         this._lapFrameCount,
         null,
         tuneAssignment?.tuneId ?? null,
-        isComplete ? this.invalidReason : "incomplete",
+        completedLapInvalidReason,
         null
       ).then(async (lapId) => {
         await this.persistLapFollowups(lapId, lapPackets);
+        if (isComplete && this.db.persistCompletedLapFindings) {
+          try {
+            await this.db.persistCompletedLapFindings({
+              lapId,
+              sessionId: completedSession.sessionId,
+              lapNumber: lapNum,
+              lapTime,
+              isValid: completedLapValid,
+              invalidReason: completedLapInvalidReason,
+              gameId: completedSession.gameId,
+              carOrdinal: completedSession.carOrdinal,
+              trackOrdinal: completedSession.trackOrdinal,
+              telemetry: lapPackets,
+              quality: assessLapRecording(lapPackets, lapTime),
+            });
+          } catch (error) {
+            console.error("[Lap] persistCompletedLapFindings failed:", error);
+          }
+        }
         console.log(
           `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
         );

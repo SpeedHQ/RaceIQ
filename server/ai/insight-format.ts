@@ -1,21 +1,42 @@
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { adaptLapInsightsToFindingBundle } from "../findings/lap-adapter";
+import { assessLapRecording } from "../lap-analysis/quality";
+import { buildFindingsContext } from "./findings-context";
 
-/**
- * Format one lap's precomputed insights as a prompt block for the compare
- * flows. Mirrors the analyst prompt's insight section: severity, category,
- * label, approximate lap distance, and detail per line.
- */
-export function buildCompareInsightsBlock(label: string, packets: TelemetryPacket[], gameId: GameId | undefined): string {
-  if (!gameId || packets.length === 0) return "";
-  const insights = analyzeLap(packets, gameId);
-  if (insights.length === 0) return "";
-  let out = `\n--- ${label} Precomputed Insights (unverified — automated detections, may contain false positives; use as hints) ---\n`;
-  for (const insight of insights) {
-    const pkt = packets[insight.frameIndices[0]];
-    const at = pkt ? `${pkt.DistanceTraveled.toFixed(0)}m` : "?";
-    out += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label} (at ${at}) — ${insight.detail}\n`;
-  }
-  return out;
+export interface CompareInsightsIdentity {
+  sessionId: string | number;
+  lapId: string | number;
+  lapTime: number;
+}
+
+/** Adapt authoritative LapInsight output into deterministic compare context. */
+export function buildCompareInsightsBlock(
+  label: string,
+  packets: TelemetryPacket[],
+  gameId: GameId | undefined,
+  identity?: CompareInsightsIdentity,
+): string {
+  if (!identity) return "";
+  const quality = assessLapRecording(packets, identity.lapTime);
+  const qualityAbstention = quality.valid
+    ? ""
+    : `[ABSTENTION] ${label} recording quality rejected: ${quality.reason ?? "unknown reason"}; do not make lap-performance claims from this telemetry.`;
+  if (!gameId || packets.length === 0) return qualityAbstention ? `\n${qualityAbstention}\n` : "";
+  const bundle = adaptLapInsightsToFindingBundle({
+    sessionId: identity.sessionId,
+    lapId: identity.lapId,
+    insights: analyzeLap(packets, gameId),
+    quality,
+  });
+  const context = [
+    qualityAbstention,
+    buildFindingsContext(bundle.findings, {
+      label,
+      narratives: bundle.narratives,
+      recommendations: bundle.recommendations,
+    }),
+  ].filter(Boolean).join("\n");
+  return context ? `\n${context}\n` : "";
 }

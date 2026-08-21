@@ -3,10 +3,12 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "../../../shared/games/ids";
+import type { ComparisonData } from "../../../shared/racing/comparison/types";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { getLapById } from "../../db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
 import { compareLaps } from "../../lap-analysis/comparison";
+import { adaptComparisonToFindings } from "../../findings/comparison-adapter";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
@@ -48,6 +50,19 @@ export const comparisonRoutes = new Hono()
       saveDetected: true,
     });
     const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+    const findings = adaptComparisonToFindings({
+      sessionId: lapA.sessionId,
+      sessionAId: lapA.sessionId,
+      sessionBId: lapB.sessionId,
+      lapAId: lapA.id,
+      lapBId: lapB.id,
+      result,
+      referenceId: `lap:${lapB.id}`,
+      referenceKind: "lap",
+      referenceSelectionReason: "explicit route lap B reference for A-minus-B comparison",
+      analysisGenerationId: `comparison:${lapA.id}:${lapB.id}:${lapA.derivationVersion ?? "legacy"}:${lapB.derivationVersion ?? "legacy"}`,
+      ruleVersion: `${lapA.derivationVersion ?? "1"}:${lapB.derivationVersion ?? "1"}`,
+    });
     const semanticIds = [
       "motion.position-x",
       "motion.position-z",
@@ -74,8 +89,9 @@ export const comparisonRoutes = new Hono()
         values: Object.fromEntries(envelope.values.filter((entry) => entry.state === "ok").map((entry) => [entry.semanticId, entry.value])),
       }));
 
-    return c.json({
+    const response: ComparisonData = {
       lapA: {
+        id: lapA.id,
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
         isValid: lapA.isValid,
@@ -83,6 +99,7 @@ export const comparisonRoutes = new Hono()
         carOrdinal: lapA.carOrdinal,
       },
       lapB: {
+        id: lapB.id,
         lapNumber: lapB.lapNumber,
         lapTime: lapB.lapTime,
         isValid: lapB.isValid,
@@ -106,10 +123,12 @@ export const comparisonRoutes = new Hono()
       },
       timeDelta: result.timeDelta,
       corners: result.cornerDeltas,
+      findings,
       telemetryA: toSamples(replayA),
       telemetryB: toSamples(replayB),
       gameId: lapA.gameId,
-    });
+    };
+    return c.json(response);
   })
 
   .get("/api/laps/:id1/compare/:id2/inputs-analyse/status", zValidator("param", CompareParamsSchema), (c) => {
@@ -191,8 +210,16 @@ export const comparisonRoutes = new Hono()
       comparison,
       segments,
       undefined,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined, {
+        sessionId: lapA.sessionId,
+        lapId: lapA.id,
+        lapTime: lapA.lapTime,
+      }) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined, {
+          sessionId: lapB.sessionId,
+          lapId: lapB.id,
+          lapTime: lapB.lapTime,
+        }),
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
@@ -370,8 +397,16 @@ export const comparisonRoutes = new Hono()
       settings.unit,
       settings.temperatureUnit,
       settings.language,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined, {
+        sessionId: lapA.sessionId,
+        lapId: lapA.id,
+        lapTime: lapA.lapTime,
+      }) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined, {
+          sessionId: lapB.sessionId,
+          lapId: lapB.id,
+          lapTime: lapB.lapTime,
+        }),
     );
 
     const chatProvider = settings.chatProvider;

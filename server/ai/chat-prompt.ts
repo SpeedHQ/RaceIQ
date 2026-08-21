@@ -11,6 +11,10 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { adaptLapInsightsToFindingBundle } from "../findings/lap-adapter";
+import { assessLapRecording } from "../lap-analysis/quality";
+import { buildFindingsContext } from "./findings-context";
+import { AnalystOutputSchema } from "./schemas";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
@@ -37,6 +41,7 @@ export function formatLapChatIdentity(lap: { id?: number; lapNumber: number; lap
 export function buildChatSystemPrompt(
   lap: {
     id?: number;
+    sessionId?: string | number;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -64,19 +69,26 @@ export function buildChatSystemPrompt(
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
-  // Precomputed insights
   const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
-  let insightsText = "";
-  if (insights.length > 0) {
-    insightsText = "\n--- Precomputed Insights ---\n";
-    for (const insight of insights) {
-      const frameIdx = insight.frameIndices[0];
-      const pkt = packets[frameIdx];
-      const timestamp = pkt ? `${pkt.DistanceTraveled.toFixed(0)}m` : "?";
-      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label} (at ${timestamp})\n`;
-      insightsText += `  ${insight.detail}\n`;
-    }
-  }
+  const quality = assessLapRecording(packets, lap.lapTime);
+  const insightBundle = lap.id !== undefined && lap.sessionId !== undefined
+    ? adaptLapInsightsToFindingBundle({
+        sessionId: lap.sessionId,
+        lapId: lap.id,
+        insights,
+        quality,
+      })
+    : undefined;
+  const findingsContext = insightBundle
+    ? buildFindingsContext(insightBundle.findings, {
+        narratives: insightBundle.narratives,
+        recommendations: insightBundle.recommendations,
+      })
+    : "";
+  const qualityAbstention = quality.valid
+    ? ""
+    : `[ABSTENTION] Lap recording quality rejected: ${quality.reason ?? "unknown reason"}; do not make lap-performance claims from this telemetry.`;
+  const findingsText = [qualityAbstention, findingsContext].filter(Boolean).join("\n");
 
   let tuneText = "";
   if (tune) {
@@ -94,20 +106,21 @@ export function buildChatSystemPrompt(
   let analysisContext = "";
   if (analysisJson) {
     try {
-      const parsed = JSON.parse(analysisJson);
-      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict}\n`;
-      if (parsed.corners?.length) {
-        analysisContext += `Problem corners: ${parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ")}\n`;
-      }
-      if (parsed.technique?.length) {
-        analysisContext += `Technique tips: ${parsed.technique.map((t: any) => t.tip).join("; ")}\n`;
-      }
-      if (parsed.setup?.length) {
-        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.change}: ${s.fix}`).join("; ")}\n`;
+      const parsed = AnalystOutputSchema.safeParse(JSON.parse(analysisJson));
+      if (parsed.success) {
+        analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver; narrative only, not finding evidence) ---\nVerdict: ${parsed.data.verdict}\n`;
+        if (parsed.data.corners.length) {
+          analysisContext += `Problem corners: ${parsed.data.corners.map((corner) => `${corner.name} (${corner.severity}): ${corner.issue}`).join("; ")}\n`;
+        }
+        if (parsed.data.technique.length) {
+          analysisContext += `Technique tips: ${parsed.data.technique.map((tip) => tip.tip).join("; ")}\n`;
+        }
+        if (parsed.data.setup?.length) {
+          analysisContext += `Setup changes: ${parsed.data.setup.map((item) => `${item.component}: ${item.fix}`).join("; ")}\n`;
+        }
       }
     } catch {
-      // If analysis JSON is invalid, include raw
-      analysisContext = `\n--- PREVIOUS ANALYSIS ---\n${analysisJson}\n`;
+      // Malformed cached prose is not structured context and cannot be evidence.
     }
   }
 
@@ -139,5 +152,5 @@ ${tuneText}${analysisContext}
 --- TELEMETRY DATA ---
 ${exportText}
 ${cornerData}
-${insightsText}${extendedContext}`;
+${findingsText ? `\n${findingsText}\n` : ""}${extendedContext}`;
 }
