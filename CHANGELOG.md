@@ -10,6 +10,7 @@
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
+- Show FM23 live gearing with power and torque curves, shift points, and mph/kmh gear-ratio charts
 ### Fixes
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
@@ -71,6 +72,7 @@
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
+- Show FM23 unit-aware top speed and gear ratios in tune forms and stamp cloned community tunes as imperial
 
 ### Internal
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
