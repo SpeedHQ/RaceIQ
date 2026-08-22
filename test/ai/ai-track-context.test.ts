@@ -1,10 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { GameId } from "../../shared/games/ids";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { tryGetServerGame } from "../../server/games/registry";
-import { resolveTrack } from "../../server/tracks/info"
+import { resolveTrack } from "../../server/tracks/info";
 import { buildAnalystPrompt } from "../../server/ai/analyst-prompt";
 
 initGameAdapters();
@@ -26,31 +26,29 @@ function ordinalFor(gameId: GameId, slug: string): number | undefined {
   return undefined;
 }
 
-function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
+function sample(index: number, values: SemanticTelemetrySample["values"]): SemanticTelemetrySample {
   return {
-    gameId: "f1-2025",
-    IsRaceOn: 1,
-    TimestampMS: 0,
-    DistanceTraveled: 0,
-    CurrentLap: 0,
-    LastLap: 0,
-    BestLap: 0,
-    LapNumber: 1,
-    PositionX: 0,
-    PositionZ: 0,
-    Speed: 50,
-    Fuel: 1.0,
-    TireWearFL: 0,
-    TireWearFR: 0,
-    TireWearRL: 0,
-    TireWearRR: 0,
-    ...overrides,
-  } as TelemetryPacket;
+    sequence: String(index),
+    observedAtMs: index * 500,
+    values: {
+      "motion.position-x": 0,
+      "motion.position-z": 0,
+      "motion.speed": 50,
+      "fuel.fuel": 1,
+      "tire.temperature.average": [0, 0, 0, 0],
+      "tires.tire-wear": [0, 0, 0, 0],
+      ...values,
+    },
+  };
 }
 
-const lapPackets = (gameId: GameId) =>
-  Array.from({ length: 120 }, (_, i) =>
-    pkt({ gameId, TimestampMS: i * 500, DistanceTraveled: i * 58, CurrentLap: i * 0.5, Speed: 60 }),
+const lapSamples = () =>
+  Array.from({ length: 120 }, (_, index) =>
+    sample(index, {
+      "timing.distance-traveled": index * 58,
+      "timing.current-lap": index * 0.5,
+      "motion.speed": 60,
+    }),
   );
 
 describe("resolveTrack", () => {
@@ -104,7 +102,7 @@ describe("analyst prompt carries the curated track data", () => {
   const track = resolveTrack("f1-2025", ord);
   const prompt = buildAnalystPrompt(
     { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
-    lapPackets("f1-2025"),
+    lapSamples(),
     [],
     "metric",
     "C",
@@ -148,7 +146,7 @@ describe("analyst prompt carries the curated track data", () => {
   test("omitting sectors omits the block rather than emitting an empty one", () => {
     const noSectors = buildAnalystPrompt(
       { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
-      lapPackets("f1-2025"),
+      lapSamples(),
       [],
       "metric",
       "C",
@@ -167,7 +165,7 @@ test("analyst prompt preserves arbitrary native sector times and boundaries", ()
   const track = resolveTrack("f1-2025", ord);
   const prompt = buildAnalystPrompt(
     { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
-    lapPackets("f1-2025"),
+    lapSamples(),
     [],
     "metric",
     "C",

@@ -61,7 +61,6 @@ interface PitLifecycleOpening {
   participantId: string | null;
 }
 
-
 interface NativeSequenceRollback {
   family: string;
   sequence: number | null;
@@ -81,15 +80,9 @@ export interface RaceEventCoordinatorOptions {
   validationMode?: "live" | "rebuild";
 }
 
-
 function pitServiceSubOrder(eventType: RaceEventType): number | null {
   if (eventType === "pit_service_started") return 0;
-  if (
-    eventType === "fuel_service_observed" ||
-    eventType === "tire_service_observed" ||
-    eventType === "repair_service_observed" ||
-    eventType === "driver_service_observed"
-  ) {
+  if (eventType === "fuel_service_observed" || eventType === "tire_service_observed" || eventType === "repair_service_observed" || eventType === "driver_service_observed") {
     return 1;
   }
   return eventType === "pit_service_completed" ? 2 : null;
@@ -126,8 +119,7 @@ export interface RaceEventSessionEndInput {
 
 const SESSION_ROTATION_REASONS = new Set<SessionEndReason>(["session-uid-changed", "lap-number-reset", "distance-reset", "car-changed", "track-changed", "silence-timeout", "session-rotated"]);
 
-const defaultCreatedAt = (receivedAtMs: number): string =>
-  new Date(receivedAtMs).toISOString();
+const defaultCreatedAt = (receivedAtMs: number): string => new Date(receivedAtMs).toISOString();
 const TIRE_CORNERS = ["fl", "fr", "rl", "rr"] as const;
 
 /**
@@ -490,11 +482,7 @@ export class RaceEventCoordinator {
   }
 
   noteLapEvaluated(input: RaceEventLapEvaluation): RaceEvent[] {
-    if (
-      !Number.isSafeInteger(input.lapNumber) ||
-      input.lapNumber < 0 ||
-      (input.lapTimeMs != null && (!Number.isFinite(input.lapTimeMs) || input.lapTimeMs < 0))
-    ) {
+    if (!Number.isSafeInteger(input.lapNumber) || input.lapNumber < 0 || (input.lapTimeMs != null && (!Number.isFinite(input.lapTimeMs) || input.lapTimeMs < 0))) {
       throw new RangeError("Race-event lap evaluation is out of range");
     }
     const preflight = this.requireAcceptedObservation();
@@ -525,6 +513,7 @@ export class RaceEventCoordinator {
     }
     if (scopedSessionId != null && scopedSessionId !== this.sessionId) return [];
     const context = this.syntheticContext(evidence.timestampMs, evidence.eventId);
+    if (!context) return [];
     const drafts: DetectorEventDraft[] = [];
     if (evidence.kind === "reconnect") {
       const incomplete = this.materializeDrafts(this.pits.finalize(context), context.observation, context.timelineEpoch, context.sequence).events;
@@ -535,6 +524,7 @@ export class RaceEventCoordinator {
       if (connectionLifecycle) this.activeLifecycles.set(lifecycleKey("source-connection", null), connectionLifecycle);
       this.reconnectEpochPending = true;
       const resetContext = this.syntheticContext(evidence.timestampMs, evidence.eventId);
+      if (!resetContext) return incomplete;
       drafts.push(...this.resetDrafts(resetContext.observation, "source-reconnect"));
       drafts.push(...this.sourceQuality.lifecycle(resetContext, evidence).map((draft) => ({ ...draft, sequence: 0 })));
       const epochEvents = this.materializeDrafts(drafts, resetContext.observation, resetContext.timelineEpoch, 0).events;
@@ -546,20 +536,19 @@ export class RaceEventCoordinator {
     drafts.push(...this.sourceQuality.lifecycle(context, evidence));
     return this.materializeDrafts(drafts, context.observation, context.timelineEpoch, context.sequence).events;
   }
-
   noteStorageFailure(input: { kind: "drop" | "failure"; operation: string; details: string | null; boundaryKey?: string }): RaceEvent[] {
     if (this.sessionId == null) return [];
     const context = this.syntheticContext(this.lastObservation?.sourceTimeMs ?? 0, input.boundaryKey);
+    if (!context) return [];
     return this.materializeDrafts([this.sourceQuality.storage(context, input)], context.observation, context.timelineEpoch, context.sequence).events;
   }
 
   noteSourceSequenceFinalized(finalized: SourceSequenceFinalized): RaceEvent[] {
     if (this.sessionId == null) return [];
     const context = this.syntheticContext(this.lastObservation?.sourceTimeMs ?? 0);
+    if (!context) return [];
     const events = this.materializeDrafts(
-      this.sourceQuality.finalizeGaps(context, finalized, (gap) =>
-        this.gapAnchors.get(sourceGapAnchorKey(gap)),
-      ),
+      this.sourceQuality.finalizeGaps(context, finalized, (gap) => this.gapAnchors.get(sourceGapAnchorKey(gap))),
       context.observation,
       context.timelineEpoch,
       context.sequence,
@@ -571,6 +560,7 @@ export class RaceEventCoordinator {
   endSession(input: RaceEventSessionEndInput): RaceEvent[] {
     if (this.sessionId == null || !this.sessionStarted) return [];
     const context = this.syntheticContext(this.lastObservation?.sourceTimeMs ?? 0);
+    if (!context) return [];
     const drafts = this.pits.finalize(context);
     if (input.terminalObserved || SESSION_ROTATION_REASONS.has(input.reason)) {
       drafts.push(...this.raceControl.endSession(context, input));
@@ -638,11 +628,7 @@ export class RaceEventCoordinator {
     if (this.lastSessionUid != null && observation.sessionUid != null && observation.sessionUid !== this.lastSessionUid) {
       return "session-uid-changed";
     }
-    if (
-      this.lastSourceTimeMs != null &&
-      observation.sourceSequences.length === 0 &&
-      observation.sourceTimeMs < this.lastSourceTimeMs
-    ) {
+    if (this.lastSourceTimeMs != null && observation.sourceSequences.length === 0 && observation.sourceTimeMs < this.lastSourceTimeMs) {
       return "source-time-moved-backwards";
     }
     return null;
@@ -777,36 +763,14 @@ export class RaceEventCoordinator {
     };
   }
 
-  private syntheticContext(sourceTimeMs: number, boundaryKey?: string): DetectorContext {
-    if (this.sessionId == null) throw new Error("Race-event session is not bound");
-    const observation =
-      this.lastObservation ??
-      ({
-        gameId: "fm-2023",
-        sessionUid: null,
-        receivedAtMs: sourceTimeMs,
-        sourceTimeMs,
-        sourceSequences: [],
-        lapNumber: null,
-        currentLapTimeMs: null,
-        lastLapTimeMs: null,
-        trackDistanceM: null,
-        trackDistancePct: null,
-        worldPosition: null,
-        sessionPhase: "unknown",
-        nativeRaceControlCode: null,
-        cautionKind: "unknown",
-        gridStart: null,
-        terminalObserved: null,
-        participants: [],
-        rosterAuthoritative: false,
-      } satisfies RaceEventObservation);
+  private syntheticContext(sourceTimeMs: number, boundaryKey?: string): DetectorContext | null {
+    if (this.sessionId == null || this.lastObservation == null) return null;
     return {
       sessionId: this.sessionId,
       timelineEpoch: this.timelineEpoch,
       sequence: this.sequence,
       sourceKind: this.sourceKind,
-      observation: { ...observation, sourceTimeMs },
+      observation: { ...this.lastObservation, sourceTimeMs },
       boundaryKey: boundaryKey ?? `synthetic:${this.timelineEpoch}:${this.sequence}:${sourceTimeMs}`,
       seed: false,
     };
@@ -895,10 +859,7 @@ export class RaceEventCoordinator {
     prepared.sort((left, right) => {
       const leftServiceOrder = pitServiceSubOrder(left.draft.eventType);
       const rightServiceOrder = pitServiceSubOrder(right.draft.eventType);
-      const serviceOrder =
-        leftServiceOrder != null && rightServiceOrder != null
-          ? leftServiceOrder - rightServiceOrder
-          : 0;
+      const serviceOrder = leftServiceOrder != null && rightServiceOrder != null ? leftServiceOrder - rightServiceOrder : 0;
       return (
         serviceOrder ||
         eventOrderPriority(left.draft) - eventOrderPriority(right.draft) ||
@@ -919,13 +880,7 @@ export class RaceEventCoordinator {
       const priority = eventOrderPriority(item.draft);
       const index = withinPriority.get(priority) ?? 0;
       withinPriority.set(priority, index + 1);
-      const lifecycle = this.lifecycleFieldsForDraft(
-        item.draft,
-        item.participantId,
-        item.draftTimelineEpoch,
-        stagedActiveLifecycles,
-        stagedPitLifecycleOpenings,
-      );
+      const lifecycle = this.lifecycleFieldsForDraft(item.draft, item.participantId, item.draftTimelineEpoch, stagedActiveLifecycles, stagedPitLifecycleOpenings);
       const candidate = {
         ...item.base,
         ...lifecycle,
@@ -976,11 +931,7 @@ export class RaceEventCoordinator {
     }
     return { events: pendingEvents.sort(compareRaceEvents), rejectedDrafts };
   }
-  private stageLifecycleEvent(
-    event: RaceEvent,
-    activeLifecycles: Map<string, ActiveLifecycle>,
-    pitLifecycleOpenings: Map<string, PitLifecycleOpening>,
-  ): void {
+  private stageLifecycleEvent(event: RaceEvent, activeLifecycles: Map<string, ActiveLifecycle>, pitLifecycleOpenings: Map<string, PitLifecycleOpening>): void {
     const assignment = lifecycleAssignment(event.eventType, event.participantId);
     if (assignment && event.lifecycleId != null) {
       if (assignment.role === "open") {
@@ -989,10 +940,7 @@ export class RaceEventCoordinator {
           openingEventId: event.eventId,
           participantId: event.participantId,
         });
-      } else if (
-        event.eventType !== "penalty_cleared" ||
-        (event.payload as RaceEventPayloadMap["penalty_cleared"]).currentValue === 0
-      ) {
+      } else if (event.eventType !== "penalty_cleared" || (event.payload as RaceEventPayloadMap["penalty_cleared"]).currentValue === 0) {
         activeLifecycles.delete(assignment.key);
       }
       return;
@@ -1007,7 +955,6 @@ export class RaceEventCoordinator {
       });
     }
   }
-
 
   private lifecycleFieldsForDraft(
     draft: DetectorEventDraft,
@@ -1064,7 +1011,6 @@ export class RaceEventCoordinator {
     }
     return { lifecycleId, linkedEventId: draft.linkedEventId ?? null };
   }
-
 
   private noteObservationLapContext(context: DetectorContext): void {
     const lapNumber = context.observation.lapNumber;
@@ -1137,7 +1083,6 @@ export class RaceEventCoordinator {
     }
   }
 
-
   private assertValidObservation(observation: RaceEventObservation): void {
     if (!Number.isSafeInteger(observation.receivedAtMs) || observation.receivedAtMs < 0) {
       throw new RangeError("Race-event receivedAtMs must be a non-negative safe integer");
@@ -1145,10 +1090,7 @@ export class RaceEventCoordinator {
     if (!Number.isSafeInteger(observation.sourceTimeMs)) {
       throw new RangeError("Race-event sourceTimeMs must be a safe integer");
     }
-    if (
-      observation.lapNumber != null &&
-      (!Number.isSafeInteger(observation.lapNumber) || observation.lapNumber < 0)
-    ) {
+    if (observation.lapNumber != null && (!Number.isSafeInteger(observation.lapNumber) || observation.lapNumber < 0)) {
       throw new RangeError("Race-event lapNumber must be a non-negative safe integer or null");
     }
     for (const source of observation.sourceSequences) {
@@ -1312,13 +1254,7 @@ function isPitLifecycleEvent(eventType: RaceEventType): boolean {
 function sourceGapAnchorKey(
   gap: Pick<
     SourceSequenceGapBoundary,
-    | "sourceSequenceFamily"
-    | "previousSequence"
-    | "currentSequence"
-    | "previousSourceTimeMs"
-    | "currentSourceTimeMs"
-    | "previousObservationIndex"
-    | "currentObservationIndex"
+    "sourceSequenceFamily" | "previousSequence" | "currentSequence" | "previousSourceTimeMs" | "currentSourceTimeMs" | "previousObservationIndex" | "currentObservationIndex"
   >,
 ): string {
   return [

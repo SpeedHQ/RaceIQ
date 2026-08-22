@@ -40,23 +40,17 @@
  * drop, and cannot do anything about a lap the store never kept frames for. Both
  * counts appear in the one-liner; neither is ever a silent filter.
  *
- * This module is pure: frames arrive through an injected `LapFrameLoader`, so it
- * has no DB dependency and is testable against synthetic laps.
- * `arm-comparison-load.ts` wires SQLite into it.
+ * This module is pure: semantic samples arrive through an injected loader, so
+ * it has no DB dependency and is testable against synthetic laps.
+ * `load.ts` wires resolver replay into it.
  */
 
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { Corner } from "../../lap-analysis/corners";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 import type { PreparedArm } from "./compare";
-import {
-  curateLaps,
-  MIN_TELEMETRY_FRAMES,
-  type MetricSample,
-  type PairwiseFramesOutcomeMetric,
-  referenceLapPreference,
-} from "./metrics";
+import { curateLaps, MIN_TELEMETRY_FRAMES, type MetricSample, type PairwiseFramesOutcomeMetric, referenceLapPreference } from "./metrics";
 
 /**
  * Latency budget for one arm, in frames.
@@ -67,11 +61,10 @@ import {
  *
  * 300,000 frames at the 60 Hz these games sample at is ~83 minutes of driving:
  * ~50 laps of a 100-second circuit, or ~7 laps of Nordschleife. At the observed
- * ~100ms per ~6k-frame lap that is ~5s of decode per arm worst case, and far
- * less in practice because `getLapById` serves repeat comparisons from the LRU
- * telemetry cache. It is set to be generous — above any realistic stint on a
- * short circuit, so the common case never trims at all — while still refusing to
- * spend a minute decoding an entire Nordschleife test day inside one request.
+ * ~100ms per ~6k-frame lap that is ~5s of replay per arm worst case. It is set
+ * to be generous — above any realistic stint on a short circuit, so the common
+ * case never trims at all — while still refusing to spend a minute replaying an
+ * entire Nordschleife test day inside one request.
  */
 export const FRAME_BUDGET_PER_ARM = 300_000;
 
@@ -86,22 +79,20 @@ export interface FrameLapMeta extends EvaluableLap {
   rawFrameCount?: number | null;
 }
 
-/** Decode one lap's frames. Null when the lap has no usable telemetry. */
-export type LapFrameLoader = (lapId: number) => Promise<TelemetryPacket[] | null>;
+/** Replay one lap's semantic samples. Null when no usable telemetry exists. */
+export type SemanticSampleLoader = (lapId: number) => Promise<SemanticTelemetrySample[] | null>;
 
 interface StreamArmArgs {
   label: string | null;
   /** The arm's RAW lap pool — curation is the metric's job, done here. */
   metas: FrameLapMeta[];
   metric: PairwiseFramesOutcomeMetric;
-  loadFrames: LapFrameLoader;
+  loadSamples: SemanticSampleLoader;
   /**
-   * Corners for the fold, resolved once per arm. Receives the reference lap's
-   * decoded frames so a `detectCorners` fallback has something real to work
-   * from — with streaming there is no longer an arbitrary "some lap" lying
-   * around to detect on, and the reference is the honest choice.
+   * Corners for the fold, resolved once per arm from reference semantic samples.
+   * Semantic resolution never falls back to raw packets or detection.
    */
-  resolveCorners: (referenceTelemetry: TelemetryPacket[]) => Promise<Corner[]>;
+  resolveCorners: (referenceSamples: readonly SemanticTelemetrySample[]) => Promise<Corner[]>;
   frameBudget?: number;
   /**
    * Blunder threshold shared with the other arm (`pooledBlunderFence`). Must be
@@ -164,7 +155,6 @@ export function selectWithinFrameBudget(candidates: FrameLapMeta[], budget: numb
   };
 }
 
-
 /**
  * Sample one arm on a pairwise-frames metric, holding at most 2 laps of
  * telemetry live at any moment.
@@ -173,7 +163,7 @@ export function selectWithinFrameBudget(candidates: FrameLapMeta[], budget: numb
  * the same laps, in the same order — pinned by test/arm-stream.test.ts.
  */
 export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm> {
-  const { label, metas, metric, loadFrames, resolveCorners } = args;
+  const { label, metas, metric, loadSamples, resolveCorners } = args;
   const budget = args.frameBudget ?? FRAME_BUDGET_PER_ARM;
 
   // Curate over the WHOLE pool first: it is metadata-only, so it is free, and
@@ -208,38 +198,36 @@ export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm
   if (budgeted.selected.length < 2) return empty(null);
 
   // ── one lap live: the reference ──────────────────────────────────────────
-  let reference: { id: number; telemetry: TelemetryPacket[] } | null = null;
+  let reference: { id: number; samples: SemanticTelemetrySample[] } | null = null;
   let framesDecoded = 0;
   for (const candidate of referenceLapPreference(budgeted.selected)) {
-    const telemetry = await loadFrames(candidate.id);
-    if (telemetry && telemetry.length >= MIN_TELEMETRY_FRAMES) {
-      // A direct JS reference, so correctness never depends on the telemetry
-      // cache still holding this lap by the time the fold ends.
-      reference = { id: candidate.id, telemetry };
-      framesDecoded += telemetry.length;
+    const samples = await loadSamples(candidate.id);
+    if (samples && samples.length >= MIN_TELEMETRY_FRAMES) {
+      reference = { id: candidate.id, samples };
+      framesDecoded += samples.length;
       break;
     }
   }
   if (!reference) return empty(null);
 
-  const corners = await resolveCorners(reference.telemetry);
+  const corners = await resolveCorners(reference.samples);
   if (corners.length < 1) return empty(framesDecoded);
 
   // ── two laps live: the reference plus the lap in hand ────────────────────
   const samples: MetricSample[] = [];
   for (const meta of budgeted.selected) {
     if (meta.id === reference.id) continue;
-    const telemetry = await loadFrames(meta.id);
-    if (!telemetry || telemetry.length < MIN_TELEMETRY_FRAMES) {
-      // The row's `raw_frame_count` promised frames the store could not
+    const lapSamples = await loadSamples(meta.id);
+    if (!lapSamples || lapSamples.length < MIN_TELEMETRY_FRAMES) {
+      // The row's `raw_frame_count` promised frames the replay could not
       // produce. Same class of gap as a lap with no telemetry at all.
       droppedNoTelemetry++;
       continue;
     }
-    framesDecoded += telemetry.length;
-    const value = metric.reduce({ lap: meta, telemetry, referenceTelemetry: reference.telemetry, corners });
-    if (value != null) samples.push({ lapId: meta.id, value });
-    // `telemetry` goes out of scope here — nothing accumulates frames.
+    framesDecoded += lapSamples.length;
+    const value = metric.reduce({ lap: meta, samples: lapSamples, referenceSamples: reference.samples, corners });
+    if (value != null && Number.isFinite(value)) samples.push({ lapId: meta.id, value });
+    // `lapSamples` goes out of scope here — nothing accumulates samples.
   }
 
   return {

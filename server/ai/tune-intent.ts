@@ -12,11 +12,7 @@ import type { GameId } from "../../shared/games/ids";
 import { loadSettings } from "../runtime/config/settings";
 import { getSecret } from "../runtime/platform/keystore";
 import { runGemini, runOpenAi } from "./providers";
-import {
-  getTuneIntentJsonSchema,
-  parseTuneIntents,
-  type TuneIntents,
-} from "./schemas";
+import { getTuneIntentJsonSchema, parseTuneIntents, type TuneIntents } from "./schemas";
 import { knownComponents, renderKnobLimitsBlock } from "../setups/rules/catalog";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
@@ -28,16 +24,8 @@ function renderSymptomReport(symptoms: TuneSymptoms): string {
   const agg = symptoms.aggregate;
   const cornerLines = symptoms.corners
     .map((c) => {
-      const phases = c.phases
-        .map(
-          (p) =>
-            `${p.phase}: ${p.balance}` +
-            (p.brakeLockup ? " +lockup" : "") +
-            (p.bottoming ? " +bottoming" : ""),
-        )
-        .join("; ");
-      const lltd =
-        c.load?.lltdFront != null ? ` [LLTD ${(c.load.lltdFront * 100).toFixed(0)}% front]` : "";
+      const phases = c.phases.map((p) => `${p.phase}: ${p.balance ?? "unavailable"}` + (p.brakeLockup ? " +lockup" : "") + (p.bottoming ? " +bottoming" : "")).join("; ");
+      const lltd = c.load?.lltdFront != null ? ` [LLTD ${(c.load.lltdFront * 100).toFixed(0)}% front]` : "";
       return `  ${c.label} — ${phases}${lltd}`;
     })
     .join("\n");
@@ -61,12 +49,7 @@ ${cornerLines || "  (no corners detected)"}`;
 }
 
 /** Build the structured prompt embedding the symptom report + allowed knobs. */
-export function buildTunePrompt(
-  gameId: GameId,
-  symptoms: TuneSymptoms,
-  trackName?: string,
-  carModel?: string,
-): string {
+export function buildTunePrompt(gameId: GameId, symptoms: TuneSymptoms, trackName?: string, carModel?: string): string {
   const components = knownComponents(gameId, carModel);
 
   return `You are a race engineer tuning a car in ${gameId.toUpperCase()}${trackName ? ` at ${trackName}` : ""}.
@@ -108,12 +91,8 @@ export function buildTuneChatIntentPrompt(
 ): string {
   const components = knownComponents(gameId, opts.carModel);
 
-  const setupBlock = opts.currentSetupSummary
-    ? `\n=== CURRENT SETUP VALUES (evidence only — do NOT echo these back as targets) ===\n${opts.currentSetupSummary}\n`
-    : "";
-  const symptomBlock = opts.symptoms
-    ? `\n=== TELEMETRY SYMPTOM REPORT (from a driven lap) ===\n${renderSymptomReport(opts.symptoms)}\n`
-    : "";
+  const setupBlock = opts.currentSetupSummary ? `\n=== CURRENT SETUP VALUES (evidence only — do NOT echo these back as targets) ===\n${opts.currentSetupSummary}\n` : "";
+  const symptomBlock = opts.symptoms ? `\n=== TELEMETRY SYMPTOM REPORT (from a driven lap) ===\n${renderSymptomReport(opts.symptoms)}\n` : "";
 
   return `You are a GT3 / endurance race engineer tuning a car in ${gameId.toUpperCase()}${opts.trackName ? ` at ${opts.trackName}` : ""}.
 
@@ -144,10 +123,7 @@ Respond with JSON matching the schema: { "summary": string, "intents": [ { "comp
  * Dispatch a single grammar-constrained intent turn to the configured auto-tune
  * provider. Returns the raw model text + resolved model id.
  */
-async function runTuneIntentProvider(
-  prompt: string,
-  schema: object,
-): Promise<{ raw: string; model: string }> {
+async function runTuneIntentProvider(prompt: string, schema: object): Promise<{ raw: string; model: string }> {
   const settings = loadSettings();
 
   // Auto-tune has its own provider/model so the user can point it at a
@@ -182,12 +158,7 @@ async function runTuneIntentProvider(
  * Throws (with a user-facing message) when the provider fails or the model
  * returns unparseable output.
  */
-export async function requestTuneIntents(
-  gameId: GameId,
-  symptoms: TuneSymptoms,
-  trackName?: string,
-  carModel?: string,
-): Promise<{ intents: TuneIntents; model: string }> {
+export async function requestTuneIntents(gameId: GameId, symptoms: TuneSymptoms, trackName?: string, carModel?: string): Promise<{ intents: TuneIntents; model: string }> {
   const prompt = buildTunePrompt(gameId, symptoms, trackName, carModel);
   const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
 
@@ -199,12 +170,7 @@ export async function requestTuneIntents(
 }
 
 /** OpenAI-compatible call against a local endpoint (no API key required). */
-async function runOpenAiLocal(
-  prompt: string,
-  baseUrl: string,
-  model: string,
-  schema: object,
-): ReturnType<typeof runOpenAi> {
+async function runOpenAiLocal(prompt: string, baseUrl: string, model: string, schema: object): ReturnType<typeof runOpenAi> {
   // runOpenAi hard-codes the OpenAI host, so hit the local endpoint inline.
   const start = performance.now();
   const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {

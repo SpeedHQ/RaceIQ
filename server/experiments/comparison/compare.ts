@@ -171,10 +171,7 @@ export function sampleVariance(xs: number[]): number {
 
 /** Lanczos log-gamma. */
 function logGamma(x: number): number {
-  const g = [
-    76.18009172947146, -86.50532032941678, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2,
-    -0.5395239384953e-5,
-  ];
+  const g = [76.18009172947146, -86.50532032941678, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
   let y = x;
   const tmp = x + 5.5;
   let ser = 1.000000000190015;
@@ -292,11 +289,7 @@ function resampleMean(xs: number[], rand: () => number): number {
  * matters: the absolute-deviation samples a variance metric produces are
  * half-normal, not normal.
  */
-export function bootstrapMeanDiffCI(
-  a: number[],
-  b: number[],
-  opts?: { alpha?: number; samples?: number; seed?: number },
-): [number, number] | null {
+export function bootstrapMeanDiffCI(a: number[], b: number[], opts?: { alpha?: number; samples?: number; seed?: number }): [number, number] | null {
   if (a.length < 2 || b.length < 2) return null;
   const alpha = opts?.alpha ?? DEFAULT_ALPHA;
   const samples = opts?.samples ?? DEFAULT_BOOTSTRAP;
@@ -372,10 +365,8 @@ export function prepareArm(arm: ArmInput, metric: OutcomeMetric, opts?: { fence?
   const laps = arm.laps.filter((e) => kept.has(e.lap.id));
   // Counted on this path too, so an in-memory comparison discloses the same
   // shortfall a streamed one does (`server/experiments/comparison/stream.ts`). Zero for a
-  // metadata metric, which reads no frames.
-  const droppedNoTelemetry = metricNeedsTelemetry(metric)
-    ? laps.filter((e) => !e.telemetry || e.telemetry.length < MIN_TELEMETRY_FRAMES).length
-    : 0;
+  // metadata metric, which reads no samples.
+  const droppedNoTelemetry = metricNeedsTelemetry(metric) ? laps.filter((entry) => !entry.semanticSamples || entry.semanticSamples.length < MIN_TELEMETRY_FRAMES).length : 0;
   return {
     label: arm.label ?? null,
     rawLapCount: arm.laps.length,
@@ -398,21 +389,11 @@ export function compareArms(a: ArmInput, b: ArmInput, metric: OutcomeMetric, opt
     a.laps.map((e) => e.lap.lapTime),
     b.laps.map((e) => e.lap.lapTime),
   );
-  return compareArmSamples(
-    prepareArm(a, metric, { fence: fenceA }),
-    prepareArm(b, metric, { fence: fenceB }),
-    metric,
-    opts,
-  );
+  return compareArmSamples(prepareArm(a, metric, { fence: fenceA }), prepareArm(b, metric, { fence: fenceB }), metric, opts);
 }
 
 /** The statistics, over two already-sampled arms. */
-export function compareArmSamples(
-  a: PreparedArm,
-  b: PreparedArm,
-  metric: OutcomeMetric,
-  opts?: CompareArmsOptions,
-): ArmComparison {
+export function compareArmSamples(a: PreparedArm, b: PreparedArm, metric: OutcomeMetric, opts?: CompareArmsOptions): ArmComparison {
   const alpha = opts?.alpha ?? DEFAULT_ALPHA;
 
   const summaryA = summarize(a, metric.curation.mode);
@@ -445,9 +426,7 @@ export function compareArmSamples(
       significance: "inconclusive",
       underpowered: true,
       favours: null,
-      reason:
-        `Need at least ${MIN_LAPS_PER_ARM} laps per arm to separate a change from noise; got ${shortfall}. ` +
-        `Drive more laps on ${valuesA.length < MIN_LAPS_PER_ARM ? "arm A" : "arm B"}.`,
+      reason: `Need at least ${MIN_LAPS_PER_ARM} laps per arm to separate a change from noise; got ${shortfall}. ` + `Drive more laps on ${valuesA.length < MIN_LAPS_PER_ARM ? "arm A" : "arm B"}.`,
     };
   }
 
@@ -546,10 +525,7 @@ export function holmAdjust(comparisons: ArmComparison[], alpha = DEFAULT_ALPHA):
       pValueAdjusted: p,
       significance: cmp.significance === "significant" && !stillSignificant ? "not-significant" : cmp.significance,
       favours: stillSignificant ? cmp.favours : null,
-      reason:
-        cmp.significance === "significant" && !stillSignificant
-          ? `Distinguishable on its own, but not after correcting for the ${m} metrics tested on this pair.`
-          : cmp.reason,
+      reason: cmp.significance === "significant" && !stillSignificant ? `Distinguishable on its own, but not after correcting for the ${m} metrics tested on this pair.` : cmp.reason,
     };
   });
 }

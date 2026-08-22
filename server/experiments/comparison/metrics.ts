@@ -53,7 +53,7 @@
  * distinguishable, and a human writes `experiment_versions.verdict`.
  */
 
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { EligibilityPolicyId } from "../../../shared/racing/quality/contracts";
 import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
@@ -66,6 +66,9 @@ import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
 type MetricDirection = "lower-better" | "higher-better";
 
 export const OUTCOME_METRIC_IDS = ["lapTimeSec", "consistencySpreadSec", "inputVarianceBrake", "inputVarianceThrottle", "lineSpreadScore"] as const;
+
+/** Exact resolver values frame-based experiment metrics consume. */
+export const EXPERIMENT_COMPARISON_SEMANTIC_IDS = ["motion.position-x", "motion.position-z", "inputs.accel", "inputs.brake", "timing.distance-traveled"] as const;
 
 export type OutcomeMetricId = (typeof OUTCOME_METRIC_IDS)[number];
 
@@ -236,15 +239,13 @@ export function curateLaps<T extends EvaluableLap>(laps: T[], curation: Curation
   };
 }
 
-/** One lap of an arm: its metadata, plus decoded telemetry when the metric
- *  needs frames. `telemetry` is left null for the lap-time-only metrics so
- *  callers don't pay a decode they don't need. */
+/** One lap of an arm: metadata plus resolver-backed semantic samples when needed. */
 export interface ArmLap {
   lap: EvaluableLap;
-  telemetry?: TelemetryPacket[] | null;
+  semanticSamples?: readonly SemanticTelemetrySample[] | null;
 }
 
-/** An arm's curated laps plus the track geometry frame-based metrics need. */
+/** An arm's curated laps plus track geometry frame-based metrics need. */
 export interface MetricInput {
   laps: ArmLap[];
   corners?: Corner[];
@@ -276,9 +277,9 @@ export interface MetadataOutcomeMetric extends OutcomeMetricBase {
 /** One lap measured against the arm's reference lap. */
 export interface PairwiseReduceInput {
   lap: EvaluableLap;
-  telemetry: TelemetryPacket[];
-  /** The arm's reference lap's frames (its median-lap-time lap). */
-  referenceTelemetry: TelemetryPacket[];
+  samples: readonly SemanticTelemetrySample[];
+  /** The arm's reference lap samples (its median-lap-time lap). */
+  referenceSamples: readonly SemanticTelemetrySample[];
   corners: Corner[];
 }
 
@@ -300,7 +301,7 @@ export interface PairwiseFramesOutcomeMetric extends OutcomeMetricBase {
 
 export type OutcomeMetric = MetadataOutcomeMetric | PairwiseFramesOutcomeMetric;
 
-/** True when sampling this metric requires decoding frames (and corners). */
+/** True when sampling this metric requires resolver-backed semantic samples. */
 export function metricNeedsTelemetry(metric: OutcomeMetric): boolean {
   return metric.sampling === "pairwise-frames";
 }
@@ -312,14 +313,44 @@ export function comparisonFences(metric: OutcomeMetric, aLapTimes: number[], bLa
 /** Public comparison alias for the domain-wide analysable-lap threshold. */
 export { MIN_TELEMETRY_FRAMES };
 
-function withTelemetry(input: MetricInput): { lap: EvaluableLap; telemetry: TelemetryPacket[] }[] {
-  const out: { lap: EvaluableLap; telemetry: TelemetryPacket[] }[] = [];
+function withSemanticSamples(input: MetricInput): { lap: EvaluableLap; samples: readonly SemanticTelemetrySample[] }[] {
+  const out: { lap: EvaluableLap; samples: readonly SemanticTelemetrySample[] }[] = [];
   for (const entry of input.laps) {
-    if (entry.telemetry && entry.telemetry.length >= MIN_TELEMETRY_FRAMES) {
-      out.push({ lap: entry.lap, telemetry: entry.telemetry });
+    if (entry.semanticSamples && entry.semanticSamples.length >= MIN_TELEMETRY_FRAMES) {
+      out.push({ lap: entry.lap, samples: entry.semanticSamples });
     }
   }
   return out;
+}
+/**
+ * Drop incomplete semantic frames before resampling. Resolver replay preserves
+ * unavailable values as absent; no metric may turn them into synthetic zeroes.
+ */
+function completeSemanticSamples(samples: readonly SemanticTelemetrySample[]) {
+  const complete: SemanticTelemetrySample[] = [];
+  for (const sample of samples) {
+    const values = sample.values;
+    const x = values["motion.position-x"];
+    const z = values["motion.position-z"];
+    const accel = values["inputs.accel"];
+    const brake = values["inputs.brake"];
+    const distance = values["timing.distance-traveled"];
+    if (
+      typeof x === "number" &&
+      Number.isFinite(x) &&
+      typeof z === "number" &&
+      Number.isFinite(z) &&
+      typeof accel === "number" &&
+      Number.isFinite(accel) &&
+      typeof brake === "number" &&
+      Number.isFinite(brake) &&
+      typeof distance === "number" &&
+      Number.isFinite(distance)
+    ) {
+      complete.push(sample);
+    }
+  }
+  return complete;
 }
 
 type ReferenceCandidate = EvaluableLap | { lap: EvaluableLap };
@@ -376,9 +407,8 @@ export function extractSamples(metric: OutcomeMetric, input: MetricInput): Metri
   if (metric.sampling === "metadata") return metric.extract(input);
 
   const corners = input.corners ?? [];
-  const usable = withTelemetry(input);
-  // `computeLapConsistencyDelta` returns an all-zero delta without corners, and
-  // a pairwise sample needs something to be paired against.
+  const usable = withSemanticSamples(input);
+  // A pairwise sample needs resolved corners and another usable semantic lap.
   if (corners.length < 1 || usable.length < 2) return [];
 
   const reference = pickReferenceLap(usable);
@@ -389,11 +419,11 @@ export function extractSamples(metric: OutcomeMetric, input: MetricInput): Metri
     if (entry.lap.id === reference.lap.id) continue;
     const value = metric.reduce({
       lap: entry.lap,
-      telemetry: entry.telemetry,
-      referenceTelemetry: reference.telemetry,
+      samples: entry.samples,
+      referenceSamples: reference.samples,
       corners,
     });
-    if (value != null) samples.push({ lapId: entry.lap.id, value });
+    if (value != null && Number.isFinite(value)) samples.push({ lapId: entry.lap.id, value });
   }
   return samples;
 }
@@ -408,8 +438,11 @@ export function extractSamples(metric: OutcomeMetric, input: MetricInput): Metri
  * figure, and the samples themselves carry the distribution a significance test
  * needs.
  */
-function pairwiseDelta(input: PairwiseReduceInput): ReturnType<typeof computeLapConsistencyDelta> {
-  return computeLapConsistencyDelta([input.telemetry, input.referenceTelemetry], input.corners);
+function pairwiseDelta(input: PairwiseReduceInput) {
+  const samples = completeSemanticSamples(input.samples);
+  const referenceSamples = completeSemanticSamples(input.referenceSamples);
+  if (samples.length < MIN_TELEMETRY_FRAMES || referenceSamples.length < MIN_TELEMETRY_FRAMES) return null;
+  return computeLapConsistencyDelta([samples, referenceSamples], input.corners);
 }
 
 /**
@@ -486,8 +519,9 @@ function inputVarianceMetric(channel: InputChannel): PairwiseFramesOutcomeMetric
     curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TRACE_ELIGIBILITY_POLICY_IDS },
     sampling: "pairwise-frames",
     reduce: (input) => {
-      const d = pairwiseDelta(input);
-      return channel === "brake" ? d.overall.brakeVar : d.overall.throttleVar;
+      const delta = pairwiseDelta(input);
+      if (!delta) return null;
+      return channel === "brake" ? delta.overall.brakeVar : delta.overall.throttleVar;
     },
   };
 }
@@ -506,7 +540,9 @@ const lineSpreadScore: PairwiseFramesOutcomeMetric = {
   curation: { mode: "all-valid", outlierRule: "blunder-fence", requiredPolicyIds: TRACE_ELIGIBILITY_POLICY_IDS },
   sampling: "pairwise-frames",
   reduce: (input) => {
-    const spread = pairwiseDelta(input).overall.lateralSpreadM;
+    const delta = pairwiseDelta(input);
+    if (!delta) return null;
+    const spread = delta.overall.lateralSpreadM;
     const frac = Math.min(1, Math.max(0, spread / LINE_SPREAD_FULL_SCALE_M));
     return 100 * (1 - frac);
   },

@@ -2,27 +2,20 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { compareFindingGenerationCacheKey, getAnalysis, lapFindingGenerationCacheKey } from "../../server/db/analysis-queries";
-import { getLapById } from "../../server/db/lap-read-queries";
+import { getLapMetaById } from "../../server/db/lap-read-queries";
 import { getCurrentFindingGeneration } from "../../server/findings/store";
 import { AnalystOutputSchema } from "../../server/ai/schemas";
 import { getFindingReceiptFence } from "../../server/ai/chat-message-context";
-import type {
-  AnalysisUsage,
-  LapAnalysisResult,
-} from "../../server/ai/generate-lap-analysis";
+import type { AnalysisUsage, LapAnalysisResult } from "../../server/ai/generate-lap-analysis";
 
-export type ParsedLapAnalysis =
-  { analysis: unknown; readable: string } | { error: string; readable: string };
-export function parseCachedLapAnalysis(row: {
-  analysis: string;
-}): ParsedLapAnalysis {
+export type ParsedLapAnalysis = { analysis: unknown; readable: string } | { error: string; readable: string };
+export function parseCachedLapAnalysis(row: { analysis: string }): ParsedLapAnalysis {
   try {
     const parsed = AnalystOutputSchema.safeParse(JSON.parse(row.analysis));
     if (!parsed.success) {
       return {
         error: "Cached analysis failed schema validation",
-        readable:
-          "Cached analysis has an invalid structure and cannot be used safely.",
+        readable: "Cached analysis has an invalid structure and cannot be used safely.",
       };
     }
     return {
@@ -50,16 +43,12 @@ const LapAnalysisOutput = z.object({
   error: z.string().optional(),
 });
 
-
 export interface LapAnalysisToolDeps {
-  getLapById?: typeof getLapById;
+  getLapMetaById?: typeof getLapMetaById;
   getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
 }
 /** Read-only access to cached analysis. Never invents or regenerates results. */
-export function getLapAnalysisToolFor(
-  readAnalysis: typeof getAnalysis = getAnalysis,
-  deps: LapAnalysisToolDeps = {},
-) {
+export function getLapAnalysisToolFor(readAnalysis: typeof getAnalysis = getAnalysis, deps: LapAnalysisToolDeps = {}) {
   return createTool({
     id: "get_lap_analysis",
     description:
@@ -69,7 +58,7 @@ export function getLapAnalysisToolFor(
     outputSchema: LapAnalysisOutput,
     execute: async ({ lapId }, execCtx) => {
       try {
-        const lap = await (deps.getLapById ?? getLapById)(lapId);
+        const lap = await (deps.getLapMetaById ?? getLapMetaById)(lapId);
         if (!lap?.gameId) {
           return {
             available: false,
@@ -83,13 +72,14 @@ export function getLapAnalysisToolFor(
         if (fence) {
           const matchingLap = fence.laps.find((entry) => entry.lapId === lapId);
           const lapKey = matchingLap ? lapFindingGenerationCacheKey(matchingLap) : null;
-          const fenceKeyIsValid = fence.kind === "lap"
-            ? fence.laps.length === 1 && lapKey === fence.cacheKey
-            : fence.laps.length === 2 &&
-              compareFindingGenerationCacheKey([
-                { lapId: fence.laps[0]!.lapId, receipt: fence.laps[0]! },
-                { lapId: fence.laps[1]!.lapId, receipt: fence.laps[1]! },
-              ]) === fence.cacheKey;
+          const fenceKeyIsValid =
+            fence.kind === "lap"
+              ? fence.laps.length === 1 && lapKey === fence.cacheKey
+              : fence.laps.length === 2 &&
+                compareFindingGenerationCacheKey([
+                  { lapId: fence.laps[0]!.lapId, receipt: fence.laps[0]! },
+                  { lapId: fence.laps[1]!.lapId, receipt: fence.laps[1]! },
+                ]) === fence.cacheKey;
           if (fence.gameId !== lap.gameId || !matchingLap || !fenceKeyIsValid) {
             return {
               available: false,
@@ -191,27 +181,15 @@ const GenerateLapAnalysisOutput = z.object({
   error: z.string().optional(),
 });
 
-async function defaultGenerateLapAnalysis(
-  lapId: number,
-  options?: { regenerate?: boolean },
-): Promise<LapAnalysisResult> {
+async function defaultGenerateLapAnalysis(lapId: number, options?: { regenerate?: boolean }): Promise<LapAnalysisResult> {
   // Keep service loading lazy to avoid the Mastra agent/tool import cycle.
-  const { generateLapAnalysis } =
-    await import("../../server/ai/generate-lap-analysis");
+  const { generateLapAnalysis } = await import("../../server/ai/generate-lap-analysis");
   return generateLapAnalysis(lapId, options);
 }
 
-type GenerateLapAnalysis = (
-  lapId: number,
-  options?: { regenerate?: boolean },
-) => Promise<LapAnalysisResult>;
+type GenerateLapAnalysis = (lapId: number, options?: { regenerate?: boolean }) => Promise<LapAnalysisResult>;
 
-function unavailableLapAnalysis(
-  lapId: number,
-  cached: boolean,
-  error: string,
-  usage?: AnalysisUsage,
-) {
+function unavailableLapAnalysis(lapId: number, cached: boolean, error: string, usage?: AnalysisUsage) {
   return {
     available: false,
     lapId,
@@ -223,40 +201,22 @@ function unavailableLapAnalysis(
 }
 
 /** Generate or retrieve structured analysis when the read-only cache lookup is unavailable. */
-export function getGenerateLapAnalysisTool(
-  generate: GenerateLapAnalysis = defaultGenerateLapAnalysis,
-) {
+export function getGenerateLapAnalysisTool(generate: GenerateLapAnalysis = defaultGenerateLapAnalysis) {
   return createTool({
     id: "generate_lap_analysis",
-    description:
-      "Generate structured analysis for one lap when get_lap_analysis reports unavailable. " +
-      "If this also reports unavailable, do not make lap-specific claims.",
+    description: "Generate structured analysis for one lap when get_lap_analysis reports unavailable. " + "If this also reports unavailable, do not make lap-specific claims.",
     inputSchema: GenerateLapAnalysisInput,
     outputSchema: GenerateLapAnalysisOutput,
     execute: async ({ lapId, regenerate }) => {
       try {
         const result = await generate(lapId, { regenerate });
         if (!result.analysis) {
-          return unavailableLapAnalysis(
-            lapId,
-            result.cached,
-            result.error ?? "No analysis was produced.",
-            result.usage,
-          );
+          return unavailableLapAnalysis(lapId, result.cached, result.error ?? "No analysis was produced.", result.usage);
         }
 
         const parsed = parseCachedLapAnalysis({ analysis: result.analysis });
-        if (
-          "error" in parsed ||
-          parsed.analysis === null ||
-          parsed.analysis === undefined
-        ) {
-          return unavailableLapAnalysis(
-            lapId,
-            result.cached,
-            "Generated analysis is invalid and cannot be used safely.",
-            result.usage,
-          );
+        if ("error" in parsed || parsed.analysis === null || parsed.analysis === undefined) {
+          return unavailableLapAnalysis(lapId, result.cached, "Generated analysis is invalid and cannot be used safely.", result.usage);
         }
 
         return {
@@ -268,11 +228,7 @@ export function getGenerateLapAnalysisTool(
           ...(result.usage ? { usage: result.usage } : {}),
         };
       } catch (error) {
-        return unavailableLapAnalysis(
-          lapId,
-          false,
-          error instanceof Error ? error.message : String(error),
-        );
+        return unavailableLapAnalysis(lapId, false, error instanceof Error ? error.message : String(error));
       }
     },
   });

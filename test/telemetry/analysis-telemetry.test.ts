@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import {
-  hasTireHealthData,
-  hasTireTemperatureData,
-  resolveAnalysisTelemetry,
-} from "../../shared/racing/analysis/telemetry-capabilities";
+import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 import { initGameAdapters } from "../../shared/games/init";
 import { getGame } from "../../shared/games/registry";
+import { semanticLapFrame } from "../../shared/racing/analysis/laps/semantic-frame";
 import { suspensionCompression } from "../../shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
 
 initGameAdapters();
 
@@ -52,35 +49,14 @@ describe("analysis telemetry capabilities", () => {
     });
   });
 
-  test("requires iRacing pit snapshot availability instead of treating normalized zeros as data", () => {
+  test("requires semantic pit snapshots instead of treating missing values as data", () => {
     const analysis = resolveAnalysisTelemetry(getGame("iracing"));
-    const beforeSnapshot = {
-      TireCarcassTempFL: 0,
-      TireCarcassTempFR: 0,
-      TireCarcassTempRL: 0,
-      TireCarcassTempRR: 0,
-      TireWearFL: 0,
-      TireWearFR: 0,
-      TireWearRL: 0,
-      TireWearRR: 0,
-      iracing: {
-        pitTireTemperatureAvailable: false,
-        pitTireWearAvailable: false,
-      },
-    } as TelemetryPacket;
 
-    expect(hasTireTemperatureData(beforeSnapshot, analysis.tireTemperature)).toBe(false);
-    expect(hasTireHealthData(beforeSnapshot, analysis.tireHealth)).toBe(false);
+    expect(hasTireTemperatureData(undefined, analysis.tireTemperature)).toBe(false);
+    expect(hasTireHealthData(undefined, analysis.tireHealth)).toBe(false);
 
-    const newTireSnapshot = {
-      ...beforeSnapshot,
-      iracing: {
-        pitTireTemperatureAvailable: true,
-        pitTireWearAvailable: true,
-      },
-    } as TelemetryPacket;
-    expect(hasTireTemperatureData(newTireSnapshot, analysis.tireTemperature)).toBe(true);
-    expect(hasTireHealthData(newTireSnapshot, analysis.tireHealth)).toBe(true);
+    expect(hasTireTemperatureData([85, 86, 87, 88], analysis.tireTemperature)).toBe(true);
+    expect(hasTireHealthData([0.12, 0.11, 0.1, 0.09], analysis.tireHealth)).toBe(true);
   });
 
   test("other adapters override only their real source differences", () => {
@@ -112,10 +88,52 @@ describe("analysis telemetry capabilities", () => {
 
   test("advertises every catalog-backed Analyse Data metric", () => {
     const supported = {
-      "fm-2023": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "surface", "slipRatio", "lateralSlip", "wheelRotation", "tireHealth", "tireWearRate", "suspensionTravel", "suspensionCompressionBias"],
+      "fm-2023": [
+        "balance",
+        "gForce",
+        "gripDemand",
+        "traction",
+        "tireTemperature",
+        "surface",
+        "slipRatio",
+        "lateralSlip",
+        "wheelRotation",
+        "tireHealth",
+        "tireWearRate",
+        "suspensionTravel",
+        "suspensionCompressionBias",
+      ],
       "f1-2025": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel"],
-      acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
-      "ac-evo": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
+      acc: [
+        "balance",
+        "gForce",
+        "gripDemand",
+        "traction",
+        "tireTemperature",
+        "slipRatio",
+        "slipAngle",
+        "wheelRotation",
+        "tireHealth",
+        "tireWearRate",
+        "tirePressure",
+        "suspensionTravel",
+        "suspensionCompressionBias",
+      ],
+      "ac-evo": [
+        "balance",
+        "gForce",
+        "gripDemand",
+        "traction",
+        "tireTemperature",
+        "slipRatio",
+        "slipAngle",
+        "wheelRotation",
+        "tireHealth",
+        "tireWearRate",
+        "tirePressure",
+        "suspensionTravel",
+        "suspensionCompressionBias",
+      ],
       iracing: ["balance", "gForce", "tireTemperature", "surface", "tireHealth", "tirePressure", "suspensionTravel"],
     } as const;
 
@@ -130,14 +148,17 @@ describe("analysis telemetry capabilities", () => {
 
 describe("suspension compression distribution", () => {
   test("normalizes all four corners instead of presenting averages as load", () => {
-    const packet = {
-      NormSuspensionTravelFL: 0.39,
-      NormSuspensionTravelFR: 0.59,
-      NormSuspensionTravelRL: 0.18,
-      NormSuspensionTravelRR: 0.46,
-    } as TelemetryPacket;
+    const sample: SemanticTelemetrySample = {
+      sequence: "1",
+      observedAtMs: 1_000,
+      values: {
+        "suspension.norm-suspension-travel": [0.39, 0.59, 0.18, 0.46],
+      },
+    };
+    const compression = suspensionCompression(semanticLapFrame(sample));
 
-    const compression = suspensionCompression(packet);
+    expect(compression).not.toBeNull();
+    if (compression === null) throw new Error("Expected complete suspension travel");
 
     expect(compression.frontBias).toBeCloseTo(0.98 / 1.62);
     expect(compression.leftBias).toBeCloseTo(0.57 / 1.62);

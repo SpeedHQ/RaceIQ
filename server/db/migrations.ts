@@ -2347,4 +2347,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
         ON compare_analyses (request_lap_a_id, request_lap_b_id, kind)`,
     ],
   },
+  // v71: Keep stale finding generations queryable alongside current generation.
+  {
+    version: 71,
+    name: "allow stale finding generation history",
+    sql: [
+      `DROP INDEX IF EXISTS finding_generations_one_current_idx`,
+      `CREATE UNIQUE INDEX finding_generations_one_current_idx
+        ON finding_generations (scope_key)
+        WHERE status = 'current'`,
+    ],
+  },
 ];

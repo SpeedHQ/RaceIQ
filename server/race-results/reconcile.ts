@@ -12,14 +12,10 @@ import { sessions } from "../db/schema";
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { getActiveAnalysisReceipt } from "../db/analysis-receipt-queries";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
-import { extractRaceSource } from "./source";
+import { RaceSourceAccumulator } from "./source";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
 import type { RaceEventId } from "../../shared/racing/events/contracts";
-import type {
-  RaceResultCanonicalInputIdentity,
-  RaceResultOutcomeStatus,
-  RaceResultRawInputIdentity,
-} from "../../shared/racing/results/types";
+import type { RaceResultCanonicalInputIdentity, RaceResultOutcomeStatus, RaceResultRawInputIdentity } from "../../shared/racing/results/types";
 import { inspectRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames, getServerGame } from "../games/registry";
 import { reprocessSession } from "../session-capture/reprocess";
@@ -78,15 +74,8 @@ export interface BackfillReport {
   results: ReconcileSessionReport[];
 }
 
-
-function hasActivatedReplayGeneration(
-  quality: (typeof sessions.$inferSelect)["recordingQuality"] | undefined,
-): quality is NonNullable<(typeof sessions.$inferSelect)["recordingQuality"]> {
-  return (
-    quality?.archiveVerification.state === "verified" &&
-    /^sha256:[a-f0-9]{64}$/.test(quality.provenance.sourceGeneration) &&
-    /^sha256:[a-f0-9]{64}$/.test(quality.provenance.outputGeneration)
-  );
+function hasActivatedReplayGeneration(quality: (typeof sessions.$inferSelect)["recordingQuality"] | undefined): quality is NonNullable<(typeof sessions.$inferSelect)["recordingQuality"]> {
+  return quality?.archiveVerification.state === "verified" && /^sha256:[a-f0-9]{64}$/.test(quality.provenance.sourceGeneration) && /^sha256:[a-f0-9]{64}$/.test(quality.provenance.outputGeneration);
 }
 
 interface PersistedResultReportSource {
@@ -95,10 +84,7 @@ interface PersistedResultReportSource {
   reasons: readonly string[];
 }
 
-function persistedResultReport(
-  sessionId: number,
-  result: PersistedResultReportSource,
-): ReconcileSessionReport {
+function persistedResultReport(sessionId: number, result: PersistedResultReportSource): ReconcileSessionReport {
   return {
     sessionId,
     status: result.outcomeStatus === "confirmed" ? "enriched" : "ambiguous",
@@ -107,20 +93,14 @@ function persistedResultReport(
   };
 }
 
-async function reprocessSessionGeneration(
-  sessionId: number,
-  gameId: GameId,
-): Promise<ReconcileSessionReport> {
+async function reprocessSessionGeneration(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
   await reprocessSession(sessionId);
   const result = await getSessionResult(sessionId, gameId);
   if (!result) throw new Error(`Session ${sessionId} reprocess did not persist race result`);
   return persistedResultReport(sessionId, result);
 }
 
-async function ensureReplayableTimelineForStaleSession(
-  sessionId: number,
-  gameId: GameId,
-): Promise<ReconcileSessionReport | null> {
+async function ensureReplayableTimelineForStaleSession(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport | null> {
   const [events, session] = await Promise.all([
     loadSessionTimeline(sessionId),
     db
@@ -141,44 +121,39 @@ async function ensureReplayableTimelineForStaleSession(
   return complete ? null : reprocessSessionGeneration(sessionId, gameId);
 }
 
-export async function reconcileStaleSessionResult(
-  sessionId: number,
-  gameId: GameId,
-): Promise<ReconcileSessionReport> {
+export async function reconcileStaleSessionResult(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
   const rebuilt = await ensureReplayableTimelineForStaleSession(sessionId, gameId);
   return rebuilt ?? reconcileSessionResult(sessionId, gameId);
 }
 
-export async function reconcileSessionResult(
-  sessionId: number,
-  gameId: GameId,
-  analysisGenerationId?: string,
-): Promise<ReconcileSessionReport> {
+export async function reconcileSessionResult(sessionId: number, gameId: GameId, analysisGenerationId?: string): Promise<ReconcileSessionReport> {
   const sessions = await getSessions(gameId);
   const session = sessions.find((candidate) => candidate.id === sessionId);
   if (!session) return { sessionId, status: "skipped", eventCount: 0, reasons: ["session-not-found"] };
 
   const readReasons: string[] = [];
-  let packets: TelemetryPacket[] = [];
+  let canonicalPackets: TelemetryPacket[] = [];
   try {
-    packets = await getSessionTelemetry(sessionId, gameId);
+    canonicalPackets = await getSessionTelemetry(sessionId, gameId);
   } catch {
     readReasons.push("session-raw-parse-error");
   }
-  if (packets.length === 0) {
+  if (canonicalPackets.length === 0) {
     const lapRefs = await getLapsForSession(sessionId);
     const laps = await getLapsByIds(lapRefs.map((lap) => lap.id));
     for (const lap of laps) {
       if (lap.parseError) readReasons.push(`lap-${lap.id}-parse-error`);
-      packets.push(...lap.telemetry);
+      canonicalPackets.push(...lap.telemetry);
     }
     if (laps.length !== lapRefs.length) {
       const loadedIds = new Set(laps.map((lap) => lap.id));
       for (const lap of lapRefs) if (!loadedIds.has(lap.id)) readReasons.push(`lap-${lap.id}-missing`);
     }
   }
-
-  const source = extractRaceSource(gameId, packets);
+  const timeline = await loadSessionTimeline(sessionId);
+  const accumulator = new RaceSourceAccumulator(gameId);
+  for (const event of timeline) accumulator.observeEvent(event);
+  const source = accumulator.finish();
   if (session.sessionType) {
     if (!source.sessionType) {
       source.sessionType = session.sessionType;
@@ -186,23 +161,16 @@ export async function reconcileSessionResult(
       const fields = source.provenance.fields as Record<string, unknown> | undefined;
       if (fields) fields.sessionType = "sessions.session_type";
     } else if (normalizeSessionType(session.sessionType) !== normalizeSessionType(source.sessionType)) {
-      source.evidence.conflicts.push(`session-type:session-row=${session.sessionType}|telemetry=${source.sessionType}`);
+      source.evidence.conflicts.push(`session-type:session-row=${session.sessionType}|race-source=${source.sessionType}`);
     }
   }
-  const timeline = await loadSessionTimeline(sessionId);
-  const derived = deriveRaceResult(
-    { ...source, reasons: [...source.reasons, ...readReasons] },
-    timeline,
-  );
+  const derived = deriveRaceResult({ ...source, reasons: [...source.reasons, ...readReasons] }, timeline);
   derived.provenance = {
     ...derived.provenance,
     rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
-    canonicalInput: canonicalInputIdentity(sessionId, packets),
+    canonicalInput: canonicalInputIdentity(sessionId, canonicalPackets),
   };
-  const [existing, activeReceipt] = await Promise.all([
-    getSessionResult(sessionId, gameId),
-    getActiveAnalysisReceipt({ sessionId, artifactSetType: "session_analysis" }),
-  ]);
+  const [existing, activeReceipt] = await Promise.all([getSessionResult(sessionId, gameId), getActiveAnalysisReceipt({ sessionId, artifactSetType: "session_analysis" })]);
   const unchanged =
     existing != null &&
     existing.processorVersion === RACE_RESULT_PROCESSOR_ID &&
@@ -220,39 +188,31 @@ export async function reconcileSessionResult(
     JSON.stringify(existing.provenance) === JSON.stringify(derived.provenance) &&
     JSON.stringify(existing.evidence) === JSON.stringify(derived.evidence) &&
     JSON.stringify(existing.reasons) === JSON.stringify(derived.reasons);
-  const generationWriteRequired =
-    analysisGenerationId != null &&
-    existing?.analysisGenerationId !== analysisGenerationId;
-  if (
-    activeReceipt &&
-    analysisGenerationId == null &&
-    (!unchanged || existing?.analysisGenerationId !== activeReceipt.generationId)
-  ) {
+  const generationWriteRequired = analysisGenerationId != null && existing?.analysisGenerationId !== analysisGenerationId;
+  if (activeReceipt && analysisGenerationId == null && (!unchanged || existing?.analysisGenerationId !== activeReceipt.generationId)) {
     return reprocessSessionGeneration(sessionId, gameId);
   }
   if (!activeReceipt || analysisGenerationId != null) {
     if (!unchanged || generationWriteRequired) {
-      await upsertSessionResult(
-        {
-          sessionId,
-          processorVersion: RACE_RESULT_PROCESSOR_ID,
-          ...(analysisGenerationId != null ? { analysisGenerationId } : {}),
-          sessionType: derived.sessionType,
-          classification: derived.classification,
-          outcomeStatus: derived.outcomeStatus,
-          finishingPosition: derived.finishingPosition,
-          qualifyingPosition: derived.qualifyingPosition,
-          isPodium: derived.isPodium,
-          isFastestLap: derived.isFastestLap,
-          pitCount: derived.pitCount,
-          eventIds: derived.eventIds,
-          tyreStrategy: derived.tyreStrategy,
-          fuelStrategy: derived.fuelStrategy,
-          provenance: derived.provenance,
-          evidence: derived.evidence,
-          reasons: derived.reasons,
-        },
-      );
+      await upsertSessionResult({
+        sessionId,
+        processorVersion: RACE_RESULT_PROCESSOR_ID,
+        ...(analysisGenerationId != null ? { analysisGenerationId } : {}),
+        sessionType: derived.sessionType,
+        classification: derived.classification,
+        outcomeStatus: derived.outcomeStatus,
+        finishingPosition: derived.finishingPosition,
+        qualifyingPosition: derived.qualifyingPosition,
+        isPodium: derived.isPodium,
+        isFastestLap: derived.isFastestLap,
+        pitCount: derived.pitCount,
+        eventIds: derived.eventIds,
+        tyreStrategy: derived.tyreStrategy,
+        fuelStrategy: derived.fuelStrategy,
+        provenance: derived.provenance,
+        evidence: derived.evidence,
+        reasons: derived.reasons,
+      });
     }
     await linkSessionQualityEvents(sessionId);
   }
@@ -281,10 +241,8 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
   const results: ReconcileSessionReport[] = [];
   for (const session of sessions) {
     try {
-      const rebuilt = options.eligibleSessionIds
-        ? await ensureReplayableTimelineForStaleSession(session.id, session.gameId as GameId)
-        : null;
-      results.push(rebuilt ?? await reconcileSessionResult(session.id, options.gameId));
+      const rebuilt = options.eligibleSessionIds ? await ensureReplayableTimelineForStaleSession(session.id, session.gameId as GameId) : null;
+      results.push(rebuilt ?? (await reconcileSessionResult(session.id, options.gameId)));
     } catch (error) {
       results.push({ sessionId: session.id, status: "error", eventCount: 0, reasons: [error instanceof Error ? error.message : "unknown-error"] });
     }

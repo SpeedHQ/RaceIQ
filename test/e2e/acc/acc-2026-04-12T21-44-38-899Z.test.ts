@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { parseDump } from "../../support/recordings/parse-dump";
-import { currentTelemetryVersionIdentity } from "../../../server/telemetry/pipeline-ports";
+import { currentTelemetryVersionIdentity } from "../../../server/telemetry/version-identity";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 import { assertValidLapHasSectors } from "../../support/laps/assertions";
 

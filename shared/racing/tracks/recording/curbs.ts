@@ -1,9 +1,13 @@
+import type { SemanticTelemetrySample } from "../../../telemetry/replay/contracts";
+
 import { existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Point } from "../geometry/types";
 import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } from "../storage/files";
 
-function gk(gameId: string, ordinal: number): string { return `${gameId}:${ordinal}`; }
+function gk(gameId: string, ordinal: number): string {
+  return `${gameId}:${ordinal}`;
+}
 
 // ── Curb/Kerb Detection ─────────────────────────────────────────────────────
 // Curbs are detected from WheelOnRumbleStrip telemetry fields. When any wheel
@@ -28,12 +32,17 @@ function scanCurbFiles(): void {
     const dir = resolve(userDir, gid);
     if (!existsSync(dir)) continue;
     for (const filePath of listDataFiles(dir, (f) => f.startsWith("curbs-") && f.endsWith(".json"))) {
-      const match = filePath.split("/").pop()!.match(/curbs-(\d+)\.json/);
+      const match = filePath
+        .split("/")
+        .pop()!
+        .match(/curbs-(\d+)\.json/);
       if (match) curbOrdinals.add(gk(gid, parseInt(match[1], 10)));
     }
   }
 }
-function ensureCurbsScanned() { if (!_curbsScanned) scanCurbFiles(); }
+function ensureCurbsScanned() {
+  if (!_curbsScanned) scanCurbFiles();
+}
 
 function loadCurbs(ordinal: number, gameId: string): CurbSegment[] | null {
   ensureCurbsScanned();
@@ -50,7 +59,9 @@ function loadCurbs(ordinal: number, gameId: string): CurbSegment[] | null {
       return data;
     }
     return null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -58,7 +69,9 @@ function loadCurbs(ordinal: number, gameId: string): CurbSegment[] | null {
  * Groups consecutive rumble-strip positions into polyline segments,
  * with a gap tolerance of 5 packets (~83ms at 60Hz) to bridge brief bounces.
  */
-export function extractCurbSegments(packets: { PositionX: number; PositionZ: number; WheelOnRumbleStripFL: number; WheelOnRumbleStripFR: number; WheelOnRumbleStripRL: number; WheelOnRumbleStripRR: number }[]): CurbSegment[] {
+export function extractCurbSegments(
+  packets: { PositionX: number; PositionZ: number; WheelOnRumbleStripFL: number; WheelOnRumbleStripFR: number; WheelOnRumbleStripRL: number; WheelOnRumbleStripRR: number }[],
+): CurbSegment[] {
   const segments: CurbSegment[] = [];
   let currentPoints: Point[] = [];
   let currentSide: "left" | "right" | "both" = "both";
@@ -104,6 +117,40 @@ export function extractCurbSegments(packets: { PositionX: number; PositionZ: num
   return segments;
 }
 
+/** Extract curb segments from resolver-backed semantic telemetry only. */
+export function extractCurbSegmentsFromSemanticSamples(samples: readonly SemanticTelemetrySample[]): CurbSegment[] {
+  const segments: CurbSegment[] = [];
+  let currentPoints: Point[] = [];
+  let gapCount = 0;
+  for (const sample of samples) {
+    const x = sample.values["motion.position-x"];
+    const z = sample.values["motion.position-z"];
+    const rumble = sample.values["tires.wheel-on-rumble-strip"];
+    if (
+      typeof x !== "number" ||
+      !Number.isFinite(x) ||
+      typeof z !== "number" ||
+      !Number.isFinite(z) ||
+      !Array.isArray(rumble) ||
+      rumble.length !== 4 ||
+      !rumble.every((value) => typeof value === "boolean")
+    ) {
+      continue;
+    }
+    if (x === 0 && z === 0) continue;
+    if (rumble[0] || rumble[1] || rumble[2] || rumble[3]) {
+      currentPoints.push({ x, z });
+      gapCount = 0;
+    } else if (currentPoints.length > 0 && ++gapCount > 5) {
+      if (currentPoints.length >= 3) segments.push({ points: currentPoints, side: "both" });
+      currentPoints = [];
+      gapCount = 0;
+    }
+  }
+  if (currentPoints.length >= 3) segments.push({ points: currentPoints, side: "both" });
+  return segments;
+}
+
 /**
  * Record curb data from a completed lap. Merges with existing curb data
  * for the track, deduplicating overlapping segments.
@@ -119,7 +166,7 @@ export function recordCurbData(ordinal: number, newSegments: CurbSegment[], game
   const existing = curbsByOrdinal.get(key) ?? [];
 
   // Downsample segment points (curbs at 60Hz produce too many points)
-  const downsampled = newSegments.map(seg => ({
+  const downsampled = newSegments.map((seg) => ({
     ...seg,
     points: downsamplePoints(seg.points, 3), // keep every ~3m
   }));
@@ -135,7 +182,8 @@ export function recordCurbData(ordinal: number, newSegments: CurbSegment[], game
       const eMid = merged[i].points[Math.floor(merged[i].points.length / 2)];
       const dx = mid.x - eMid.x;
       const dz = mid.z - eMid.z;
-      if (dx * dx + dz * dz < 100) { // within 10m = same curb
+      if (dx * dx + dz * dz < 100) {
+        // within 10m = same curb
         // Average the points for a smoother result
         if (merged[i].points.length === newSeg.points.length) {
           for (let j = 0; j < merged[i].points.length; j++) {

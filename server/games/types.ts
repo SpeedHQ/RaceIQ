@@ -1,20 +1,13 @@
 import type { GameAdapter } from "../../shared/games/types";
 import type { GameId } from "../../shared/games/ids";
-import type {
-  CautionKind,
-  PitObservationState,
-  RaceSessionPhase,
-} from "../../shared/racing/events/contracts";
-import type {
-  ParticipantKind,
-  ParticipantEvidence,
-} from "../../shared/racing/quality/contracts";
+import type { CautionKind, PitObservationState, RaceSessionPhase } from "../../shared/racing/events/contracts";
+import type { ParticipantKind, ParticipantEvidence } from "../../shared/racing/quality/contracts";
 import type { SourceSequenceObservation } from "../../shared/telemetry/source-sequence";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryDerivation } from "../../shared/telemetry/derivations/contracts";
 import type { LapDetectorFactory } from "../lap-detection/types";
 import type { RaceEventSemanticFrame } from "../race-events/semantic-projector";
-
+import type { RaceResultSourceEvidence } from "../race-results/types";
 
 export interface FourCornerRaceEventValue {
   fl: number;
@@ -23,12 +16,7 @@ export interface FourCornerRaceEventValue {
   rr: number;
 }
 
-export type ParticipantRetirementStatus =
-  | "unknown"
-  | "active"
-  | "finished"
-  | "retired"
-  | "disqualified";
+export type ParticipantRetirementStatus = "unknown" | "active" | "finished" | "retired" | "disqualified";
 
 export interface RaceParticipantObservation {
   participantId: string;
@@ -83,6 +71,8 @@ export interface RaceEventObservation {
   gridStart: boolean | null;
   terminalObserved: boolean | null;
   participants: RaceParticipantObservation[];
+  /** Adapter-owned result facts. Shared result authority never reads packets. */
+  raceResult?: RaceResultSourceEvidence;
   /** True only when absence from this snapshot is meaningful. */
   rosterAuthoritative: boolean;
 }
@@ -124,7 +114,7 @@ export interface ServerGameRuntimePolicy {
   };
 }
 
-/** Server-only extensions for game adapters — parsing, AI prompts. */
+/** Server-only extensions for game adapters — parsing and race-event projection. */
 export interface ServerGameAdapter extends GameAdapter {
   /** Runtime policy knobs for server-side packet processors. */
   runtime: ServerGameRuntimePolicy;
@@ -149,16 +139,7 @@ export interface ServerGameAdapter extends GameAdapter {
   createParserState(): unknown;
 
   /** Normalize game-owned facts for the shared deterministic event detectors. */
-  toRaceEventObservation(
-    packet: TelemetryPacket,
-    context: RaceEventObservationContext,
-  ): RaceEventObservation;
-
-  /** AI analyst system prompt for this game */
-  aiSystemPrompt: string;
-
-  /** Build game-specific context for AI prompt (e.g. F1 DRS/ERS data) */
-  buildAiContext?(packets: TelemetryPacket[]): string;
+  toRaceEventObservation(packet: TelemetryPacket, context: RaceEventObservationContext): RaceEventObservation;
 
   /** Process names to check if this game is running (e.g. ["acc.exe"]) */
   processNames?: string[];

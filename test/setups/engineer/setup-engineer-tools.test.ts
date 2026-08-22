@@ -270,7 +270,7 @@ describe("Setup Engineer explicit lap scope", () => {
     expect(await db.select({ id: experimentActions.id }).from(experimentActions).where(eq(experimentActions.experimentId, experimentId)).all()).toHaveLength(0);
   });
 
-  test("enforces detail policies and both comparison inputs within same track", async () => {
+  test("enforces detail policies, comparison scope, and missing semantic replay handling", async () => {
     const experimentId = await insertScopeExperiment("iracing", 9_302_011);
     const sessionId = await insertScopeSession("iracing", 9_302_011);
     const wrongTrackSessionId = await insertScopeSession("iracing", 9_302_012);
@@ -278,6 +278,7 @@ describe("Setup Engineer explicit lap scope", () => {
     const tireRejectedId = await insertScopeLap(sessionId, experimentId, 2, scopeEligibility("tire-analysis"));
     const compareEligibleId = await insertScopeLap(sessionId, experimentId, 3, scopeEligibility());
     const compareRejectedId = await insertScopeLap(sessionId, experimentId, 4, scopeEligibility("lap-comparison"));
+    const noReplayId = await insertScopeLap(sessionId, experimentId, 6, scopeEligibility());
     const wrongTrackId = await insertScopeLap(wrongTrackSessionId, experimentId, 5, scopeEligibility());
     const requestContext = toolContext("iracing", experimentId);
 
@@ -291,6 +292,10 @@ describe("Setup Engineer explicit lap scope", () => {
     const rejectedB = await setupEngineerTools.compareLapsTool.execute!({ lapId1: compareEligibleId, lapId2: compareRejectedId }, toolExecutionContext(requestContext));
     expect(rejectedB).toMatchObject({ ok: false, eligibilityStatus: "ineligible", reasonCodes: ["traffic_context"] });
     expect(await setupEngineerTools.compareLapsTool.execute!({ lapId1: compareEligibleId, lapId2: wrongTrackId }, toolExecutionContext(requestContext))).toMatchObject({ ok: false });
+    const noReplay = await setupEngineerTools.compareLapsTool.execute!({ lapId1: compareEligibleId, lapId2: noReplayId }, toolExecutionContext(requestContext));
+    expect(noReplay).toEqual({ ok: false, error: "One or both laps have no semantic telemetry data." });
+    const noReplayDetail = await setupEngineerTools.getLapDetailTool.execute!({ lapId: noReplayId }, toolExecutionContext(requestContext));
+    expect(noReplayDetail).toMatchObject({ ok: false, error: `Lap ${noReplayId} unavailable: no semantic telemetry data.` });
   });
 
   test("rejects an explicit unsafe lap before generating handling issues", async () => {

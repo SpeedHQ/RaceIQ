@@ -1,13 +1,12 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { currentTelemetryVersionIdentity, type DbAdapter } from "../../telemetry/pipeline-ports";
+import { currentTelemetryVersionIdentity } from "../../telemetry/version-identity";
+import type { DbAdapter } from "../../telemetry/pipeline-ports";
 import { LOCAL_PLAYER_EVIDENCE, type EvidenceSourceKind, type ParticipantEvidence, type SourceChannelProfile } from "../../../shared/racing/quality/contracts";
 import { summarizeLapQuality } from "../../../shared/racing/quality/measure";
 import { evaluateAllEligibility, isEligibilityUsable } from "../../../shared/racing/quality/policies";
 import type { TelemetryVersionIdentity } from "../../../shared/telemetry/version";
-import { persistLapMetrics } from "../../lap-analysis/metrics-store";
 import { assessLapRecording } from "../../lap-analysis/quality";
 import { reconcileAutoExclusionsForLap } from "../../experiments/auto-exclude";
-import { computeLapSectors } from "../../lap-analysis/sectors";
 import type { ILapDetector, LapDetectorCallbacks, LapDetectorOptions, SessionEndReason, SessionState } from "../../lap-detection/types";
 import { kunosFirstPacketIsMidLap } from "./lap-rules";
 import { classifyLap } from "../../../shared/racing/laps/classification";
@@ -140,11 +139,7 @@ export abstract class KunosLapDetector implements ILapDetector {
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
-        const isPitOnly =
-          this.lapTimelineContext.classificationForLap(
-            this.currentSession.sessionId,
-            this.currentLapNumber,
-          ).pitPhase === "pit";
+        const isPitOnly = this.lapTimelineContext.classificationForLap(this.currentSession.sessionId, this.currentLapNumber).pitPhase === "pit";
         if (bufDist < 100 || isPitOnly) {
           this.lapBuffer = [];
           this.peakCurrentLap = 0;
@@ -225,9 +220,7 @@ export abstract class KunosLapDetector implements ILapDetector {
     this._lapFrameCount = 0;
 
     const recordingAssessment = assessLapRecording(packets, lapTime);
-    const classification = classifyLap(
-      this.lapTimelineContext.classificationForLap(session.sessionId, lapNum),
-    );
+    const classification = classifyLap(this.lapTimelineContext.classificationForLap(session.sessionId, lapNum));
     const complete = forcedInvalidReason === null;
     let isValid = complete && recordingAssessment.valid;
     let invalidReason = forcedInvalidReason ?? recordingAssessment.reason;
@@ -253,11 +246,7 @@ export abstract class KunosLapDetector implements ILapDetector {
       sourceChannelProfile: this.sourceChannelProfile,
     });
     const eligibility = evaluateAllEligibility(quality);
-    const normalPaceEligible =
-      isValid &&
-      classification.paceEligibility === "eligible" &&
-      isEligibilityUsable(eligibility["normal-pace"]);
-    const sectors = await computeLapSectors(session.trackOrdinal, session.gameId, packets, lapTime, undefined);
+    const normalPaceEligible = isValid && classification.paceEligibility === "eligible" && isEligibilityUsable(eligibility["normal-pace"]);
 
     if (normalPaceEligible && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) {
       session.bestLapTime = lapTime;
@@ -269,7 +258,7 @@ export abstract class KunosLapDetector implements ILapDetector {
       lapTime,
       isValid,
       ...classification,
-      sectors,
+      sectors: null,
       quality,
       eligibility,
     };
@@ -292,15 +281,12 @@ export abstract class KunosLapDetector implements ILapDetector {
       profileId: null,
       tuneId: null,
       invalidReason,
-      sectors,
+      sectors: event.sectors,
       classification,
       quality,
       eligibility,
       versionIdentity,
     });
-    // Precompute fuel/tyre metrics now (frames already in memory) so
-    // /lap-metrics never decodes on first open.
-    await persistLapMetrics(this.db, lapId, packets);
     // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
     // scope.
     await reconcileAutoExclusionsForLap(this.db, lapId);
@@ -316,7 +302,7 @@ export abstract class KunosLapDetector implements ILapDetector {
           lapTime,
           isValid,
           ...classification,
-          sectors,
+          sectors: event.sectors,
           estimatedBestLapTime: context.session.bestLapTime,
           quality,
           eligibility,

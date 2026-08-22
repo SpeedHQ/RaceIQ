@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { lapCornersFromSegments } from "../../server/tracks/corner-resolution";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import { lapCornersFromSemanticSamples } from "../../server/tracks/corner-resolution";
 
-const packet = (distance: number): TelemetryPacket => ({ DistanceTraveled: distance }) as TelemetryPacket;
+const sample = (distance: number): SemanticTelemetrySample => ({
+  values: { "timing.distance-traveled": distance },
+  sequence: String(distance),
+  observedAtMs: distance,
+});
 
-describe("lapCornersFromSegments", () => {
+describe("lapCornersFromSemanticSamples", () => {
   test("keeps separate official iRacing turn labels and scales fractions to lap metres", () => {
     const segments: NamedSegment[] = [
       { type: "straight", name: "S1", startFrac: 0, endFrac: 0.2 },
@@ -16,7 +20,7 @@ describe("lapCornersFromSegments", () => {
       { type: "corner", name: "T4", number: 4, startFrac: 0.75, endFrac: 0.9 },
     ];
 
-    expect(lapCornersFromSegments(segments, [packet(2_000), packet(3_000)])).toEqual([
+    expect(lapCornersFromSemanticSamples(segments, [sample(2_000), sample(3_000)])).toEqual([
       { index: 0, label: "T1", distanceStart: 200, distanceEnd: 300 },
       { index: 1, label: "T2", distanceStart: 300, distanceEnd: 500 },
       { index: 2, label: "T3", distanceStart: 600, distanceEnd: 750 },
@@ -30,14 +34,12 @@ describe("lapCornersFromSegments", () => {
       { type: "corner", name: "Esses", startFrac: 0.4, endFrac: 0.6 },
     ];
 
-    expect(lapCornersFromSegments(segments, [packet(0), packet(500)]).map((corner) => corner.label)).toEqual(["T1", "T2"]);
+    expect(lapCornersFromSemanticSamples(segments, [sample(0), sample(500)]).map((corner) => corner.label)).toEqual(["T1", "T2"]);
   });
 
   test("returns no segment corners without a usable lap distance", () => {
-    const segments: NamedSegment[] = [
-      { type: "corner", name: "T1", number: 1, startFrac: 0.1, endFrac: 0.2 },
-    ];
+    const segments: NamedSegment[] = [{ type: "corner", name: "T1", number: 1, startFrac: 0.1, endFrac: 0.2 }];
 
-    expect(lapCornersFromSegments(segments, [packet(100), packet(100)])).toEqual([]);
+    expect(lapCornersFromSemanticSamples(segments, [sample(100), sample(100)])).toEqual([]);
   });
 });

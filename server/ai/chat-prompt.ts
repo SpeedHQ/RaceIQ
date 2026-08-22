@@ -7,7 +7,7 @@ import type { FindingRecord } from "../../shared/racing/findings/types";
  */
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import { buildQualityPromptContext } from "./quality-context";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report";
@@ -15,12 +15,12 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { assessSemanticAnalysisInput } from "./insight-format";
 import { adaptLapInsightsToFindingBundle } from "../findings/lap-adapter";
-import { assessLapRecording } from "../lap-analysis/quality";
 import { buildFindingsContext } from "./findings-context";
 import { AnalystOutputSchema } from "./schemas";
 import { formatTuneForPrompt } from "./format-tune";
-import { tryGetServerGame } from "../games/registry";
+import { getGame } from "../../shared/games/registry";
 import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 interface CornerDef {
@@ -56,7 +56,7 @@ export function buildChatSystemPrompt(
     eligibility?: EligibilityDecisionSet | null;
     qualityGeneration?: string | null;
   },
-  packets: TelemetryPacket[],
+  samples: readonly SemanticTelemetrySample[],
   corners: CornerDef[],
   unit: UnitSystem = "metric",
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
@@ -67,28 +67,34 @@ export function buildChatSystemPrompt(
   /** Persisted deterministic records for this lap's current generation. */
   storedFindings?: readonly FindingRecord[],
 ): string {
-  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
-  const serverAdapter = tryGetServerGame(gameId);
-  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const trackOrdinal = lap.trackOrdinal ?? packets[0]?.TrackOrdinal ?? 0;
-  const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
-  const carName = resolveCarName(carOrdinal, gameId);
-  const trackName = resolveTrackName(trackOrdinal, gameId);
+  if (!lap.gameId) throw new Error("Lap gameId is required for chat prompt");
+  const gameId: GameId = lap.gameId;
+  const gameName = getGame(gameId).displayName;
+  const carName = lap.carOrdinal == null ? "Unavailable" : resolveCarName(lap.carOrdinal, gameId);
+  const trackName = lap.trackOrdinal == null ? "Unavailable" : resolveTrackName(lap.trackOrdinal, gameId);
+  const carId = lap.carOrdinal == null ? "unavailable" : String(lap.carOrdinal);
+  const trackId = lap.trackOrdinal == null ? "unavailable" : String(lap.trackOrdinal);
 
-  const exportText = generateExport(lap, packets, unit, temperatureUnit);
-  const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
+  const exportText = generateExport(lap, samples, unit, temperatureUnit);
+  const cornerData = buildCornerData(samples, corners, unit === "metric" ? "kmh" : "mph");
 
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId, lap.quality);
-  const quality = assessLapRecording(packets, lap.lapTime);
-  const insightBundle = lap.id !== undefined && lap.sessionId !== undefined && lap.gameId !== undefined
-    ? adaptLapInsightsToFindingBundle({
-        gameId: lap.gameId,
-        sessionId: lap.sessionId,
-        lapId: lap.id,
-        insights,
-        quality,
-      })
-    : undefined;
+  const insights = analyzeLap(samples, gameId, lap.quality);
+  const semanticQuality = assessSemanticAnalysisInput(samples, gameId, lap.lapTime);
+  const persistedQualityValid = lap.quality?.complete === true && lap.quality.structurallyValid;
+  const quality = {
+    valid: persistedQualityValid && semanticQuality.valid,
+    reason: semanticQuality.reason ?? lap.quality?.invalidReason ?? (lap.quality ? "recording incomplete" : "quality evidence unavailable"),
+  };
+  const insightBundle =
+    lap.id !== undefined && lap.sessionId !== undefined && lap.gameId !== undefined
+      ? adaptLapInsightsToFindingBundle({
+          gameId: lap.gameId,
+          sessionId: lap.sessionId,
+          lapId: lap.id,
+          insights,
+          quality,
+        })
+      : undefined;
   const findingsContext = storedFindings
     ? buildFindingsContext(storedFindings)
     : insightBundle
@@ -97,9 +103,7 @@ export function buildChatSystemPrompt(
           recommendations: insightBundle.recommendations,
         })
       : "";
-  const qualityAbstention = quality.valid
-    ? ""
-    : `[ABSTENTION] Lap recording quality rejected: ${quality.reason ?? "unknown reason"}; do not make lap-performance claims from this telemetry.`;
+  const qualityAbstention = quality.valid ? "" : `[ABSTENTION] Lap recording quality rejected: ${quality.reason ?? "unknown reason"}; do not make lap-performance claims from this telemetry.`;
   const findingsText = [qualityAbstention, findingsContext].filter(Boolean).join("\n");
 
   let tuneText = "";
@@ -136,25 +140,18 @@ export function buildChatSystemPrompt(
     }
   }
 
-  // Game-specific extended context
-  let extendedContext = "";
-  if (serverAdapter?.buildAiContext && packets.length > 0) {
-    extendedContext = serverAdapter.buildAiContext(packets);
-  }
+  const extendedContext = "";
 
-  // Game-specific system prompt override (use chat version, not analysis JSON version)
-  const gameSystemNote = serverAdapter?.aiSystemPrompt ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n` : "";
   const qualityContext = buildQualityPromptContext(lap, ["corner-trace", "transient-event", "fuel-burn", "tire-analysis"]);
 
   return `${chatSystemPrompt(unit, temperatureUnit, language)}
-${gameSystemNote}
 --- SESSION IDENTITY ---
 Game: ${gameName}
-Game ID: ${gameId ?? "unknown"}
+Game ID: ${gameId}
 Car: ${carName}
-Car ID: ${carOrdinal}
+Car ID: ${carId}
 Track: ${trackName}
-Track ID: ${trackOrdinal}
+Track ID: ${trackId}
 ${formatLapChatIdentity(lap)}
 --- LAP CONTEXT ---
 Car: ${carName}

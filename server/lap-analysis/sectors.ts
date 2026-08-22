@@ -1,4 +1,5 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { semanticLapFrames, type SemanticLapFrame } from "../../shared/racing/analysis/laps/semantic-frame";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { GameId } from "../../shared/games/ids";
 import { getGame } from "../../shared/games/registry";
 import { resolveTrack } from "../tracks/info";
@@ -10,80 +11,192 @@ export interface NativeSectorTimeline {
   sectorStarts: number[];
 }
 
-type IRacingSectorTimeline = NativeSectorTimeline;
+type SectorStarts = readonly [number, ...number[]];
 
-function computeDistanceSectorTimes(
-  packets: TelemetryPacket[],
-  lapTime: number,
-  s1End: number,
-  s2End: number,
-): number[] | null {
-  const startDist = packets[0].DistanceTraveled;
-  const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
+function finiteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function sectorStarts(value: unknown): SectorStarts | null {
+  if (!Array.isArray(value) || value.length < 2) return null;
+  const starts: number[] = [];
+  for (const entry of value) {
+    if (!finiteNumber(entry)) return null;
+    starts.push(entry);
+  }
+  const [first, ...rest] = starts;
+  return first === undefined ? null : [first, ...rest];
+}
+
+function validSectorTimes(value: unknown, lapTime: number): number[] | null {
+  if (!finiteNumber(lapTime) || lapTime <= 0 || !Array.isArray(value) || value.length < 2) return null;
+  const times: number[] = [];
+  for (const entry of value) {
+    if (!finiteNumber(entry) || entry <= 0) return null;
+    times.push(entry);
+  }
+  const total = times.reduce((sum, time) => sum + time, 0);
+  return Math.abs(total - lapTime) <= Math.max(0.25, lapTime * 0.02) ? times : null;
+}
+
+function latestStructuredTime(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : undefined;
+  if (Array.isArray(value)) {
+    for (let index = value.length - 1; index >= 0; index--) {
+      const time = latestStructuredTime(value[index]);
+      if (time !== undefined) return time;
+    }
+    return undefined;
+  }
+  if (value != null && typeof value === "object") {
+    const direct = "value" in value ? latestStructuredTime(value.value) : undefined;
+    if (direct !== undefined) return direct;
+    const entries = Object.entries(value).sort(([left], [right]) => Number(right) - Number(left));
+    for (const [, entry] of entries) {
+      const time = latestStructuredTime(entry);
+      if (time !== undefined) return time;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Game-owned sector evidence comes before layout/distance inference. Last-lap
+ * and history values describe a completed lap; current-lap values are accepted
+ * only once their finite sum agrees with its authoritative lap time.
+ */
+function authoritativeSectorTimes(samples: readonly SemanticTelemetrySample[], lapTime: number): number[] | null {
+  for (let index = samples.length - 1; index >= 0; index--) {
+    const values = samples[index].values;
+    const lastLap = validSectorTimes(values["timing.sector.last-lap.times"], lapTime);
+    if (lastLap) return lastLap;
+    const currentLap = validSectorTimes(values["timing.sector.current-lap.times"], lapTime);
+    if (currentLap) return currentLap;
+    const scalarS1 = values["timing.sector.last-lap.s1"];
+    const scalarS2 = values["timing.sector.last-lap.s2"];
+    const scalarS3 = values["timing.sector.last-lap.s3"];
+    if (finiteNumber(scalarS1) && scalarS1 > 0 && finiteNumber(scalarS2) && scalarS2 > 0) {
+      const resolvedS3 = finiteNumber(scalarS3) && scalarS3 > 0 ? scalarS3 : lapTime - scalarS1 - scalarS2;
+      const scalarLastLap = validSectorTimes([scalarS1, scalarS2, resolvedS3], lapTime);
+      if (scalarLastLap) return scalarLastLap;
+    }
+
+    const s1 = latestStructuredTime(values["timing.sector.lap-history.s1"]);
+    const s2 = latestStructuredTime(values["timing.sector.lap-history.s2"]);
+    const s3 = latestStructuredTime(values["timing.sector.lap-history.s3"]);
+    const history = validSectorTimes([s1, s2, s3], lapTime);
+    if (history) return history;
+  }
+  const completed: number[] = [];
+  for (const sample of samples) {
+    const sectorIndex = sample.values["timing.sector.current-index"];
+    const lastCompleted = sample.values["timing.sector.last-completed-time"];
+    const currentTime = sample.values["timing.sector.current-time"];
+    if (
+      typeof sectorIndex !== "number" ||
+      !Number.isSafeInteger(sectorIndex) ||
+      sectorIndex <= 0 ||
+      !finiteNumber(lastCompleted) ||
+      lastCompleted <= 0 ||
+      !finiteNumber(currentTime) ||
+      currentTime < 0
+    ) {
+      continue;
+    }
+    // `current-index` is zero-based native authority. Reading current-time
+    // confirms source is in an active sector, never a distance-derived guess.
+    completed[sectorIndex - 1] = lastCompleted;
+  }
+  const completedTimes = validSectorTimes(completed, lapTime);
+  if (completedTimes) return completedTimes;
+  return null;
+}
+
+function computeDistanceSectorTimes(packets: readonly SemanticLapFrame[], lapTime: number, s1End: number, s2End: number): number[] | null {
+  const first = packets[0];
+  const last = packets[packets.length - 1];
+  if (
+    !first ||
+    !last ||
+    typeof first.distanceM !== "number" ||
+    !Number.isFinite(first.distanceM) ||
+    typeof last.distanceM !== "number" ||
+    !Number.isFinite(last.distanceM) ||
+    typeof first.lapElapsedSeconds !== "number" ||
+    !Number.isFinite(first.lapElapsedSeconds)
+  ) {
+    return null;
+  }
+  const startDist = first.distanceM;
+  const lapDist = last.distanceM - startDist;
   if (lapDist < 100) return null;
 
   let sector = 0;
-  let sectorStart = packets[0].CurrentLap;
-  let s1 = 0;
-  let s2 = 0;
+  let sectorStart = first.lapElapsedSeconds;
+  let s1: number | undefined;
+  let s2: number | undefined;
   for (const packet of packets) {
-    const fraction = (packet.DistanceTraveled - startDist) / lapDist;
+    if (typeof packet.distanceM !== "number" || !Number.isFinite(packet.distanceM) || typeof packet.lapElapsedSeconds !== "number" || !Number.isFinite(packet.lapElapsedSeconds)) {
+      return null;
+    }
+    const fraction = (packet.distanceM - startDist) / lapDist;
     const expected = fraction < s1End ? 0 : fraction < s2End ? 1 : 2;
     if (expected <= sector) continue;
 
-    const elapsed = packet.CurrentLap - sectorStart;
+    const elapsed = packet.lapElapsedSeconds - sectorStart;
     if (sector === 0) s1 = elapsed;
     else if (sector === 1) s2 = elapsed;
-    sectorStart = packet.CurrentLap;
+    sectorStart = packet.lapElapsedSeconds;
     sector = expected;
   }
 
+  if (s1 === undefined || s2 === undefined) return null;
   const s3 = lapTime - s1 - s2;
   return s1 > 0 && s2 > 0 && s3 > 0 ? [s1, s2, s3] : null;
 }
 
-export function computeNativeSectorTimeline(
-  packets: TelemetryPacket[],
-  lapTime: number,
-  getLayout: (packet: TelemetryPacket) => {
-    starts: number[];
-    lapFraction?: number;
-  } | undefined,
-): NativeSectorTimeline | null {
-  const layouts = packets.map(getLayout);
-  const starts = layouts.find((layout) => layout?.starts.length)?.starts;
-  if (
-    !starts ||
-    starts.length < 2 ||
-    !Number.isFinite(starts[0]) ||
-    starts[0] < 0 ||
-    starts[0] >= 1e-6 ||
-    starts.some(
-      (value, index) =>
-        !Number.isFinite(value) ||
-        value < 0 ||
-        value >= 1 ||
-        (index > 0 && value <= starts[index - 1]),
-    )
-  ) {
-    return null;
+function computeSectorTimeline(packets: readonly SemanticLapFrame[], lapTime: number, starts: SectorStarts, lapFractionAt: (index: number) => number | undefined): NativeSectorTimeline | null {
+  if (!finiteNumber(lapTime) || lapTime <= 0 || starts[0] < 0 || starts[0] >= 1e-6) return null;
+  for (let index = 1; index < starts.length; index++) {
+    const start = starts[index];
+    const previous = starts[index - 1];
+    if (!finiteNumber(start) || !finiteNumber(previous) || start <= previous || start >= 1) return null;
   }
 
-  const boundaryIndices = starts.slice(1).map((boundary) =>
-    layouts.findIndex((layout) => (layout?.lapFraction ?? -1) >= boundary),
-  );
-  if (boundaryIndices.some((index) => index <= 0)) return null;
+  const boundaryIndices: number[] = [];
+  for (let sector = 1; sector < starts.length; sector++) {
+    const sectorStart = starts[sector];
+    if (!finiteNumber(sectorStart)) return null;
+    let boundaryIndex = -1;
+    for (let index = 1; index < packets.length; index++) {
+      const lapFraction = lapFractionAt(index);
+      if (finiteNumber(lapFraction) && lapFraction >= sectorStart) {
+        boundaryIndex = index;
+        break;
+      }
+    }
+    if (boundaryIndex <= 0) return null;
+    boundaryIndices.push(boundaryIndex);
+  }
 
-  const startTime = packets[0].CurrentLap;
+  const first = packets[0];
+  if (!first || typeof first.lapElapsedSeconds !== "number" || !Number.isFinite(first.lapElapsedSeconds)) {
+    return null;
+  }
+  const startTime = first.lapElapsedSeconds;
   const times: number[] = [];
   let previousBoundaryTime = 0;
   for (const boundaryIndex of boundaryIndices) {
-    const boundaryTime = packets[boundaryIndex].CurrentLap - startTime;
+    const packet = packets[boundaryIndex];
+    if (!packet || typeof packet.lapElapsedSeconds !== "number" || !Number.isFinite(packet.lapElapsedSeconds)) {
+      return null;
+    }
+    const boundaryTime = packet.lapElapsedSeconds - startTime;
     times.push(boundaryTime - previousBoundaryTime);
     previousBoundaryTime = boundaryTime;
   }
   times.push(lapTime - previousBoundaryTime);
-  if (times.some((time) => time <= 0)) return null;
+  if (times.some((time) => !Number.isFinite(time) || time <= 0)) return null;
 
   return {
     sectorCount: starts.length,
@@ -94,26 +207,79 @@ export function computeNativeSectorTimeline(
 }
 
 /**
- * Resolve iRacing sectors exclusively from SplitTimeInfo carried in the native
- * source frames. A missing or malformed SDK layout deliberately returns null.
+ * Resolve source-owned sector metadata already projected onto semantic frames.
+ * Native metadata is supplied by its game adapter; no central code reads packet
+ * fields.
  */
-export function computeIRacingSectorTimeline(
-  packets: TelemetryPacket[],
+export function computeNativeSectorTimeline(
+  packets: readonly SemanticLapFrame[],
   lapTime: number,
-): IRacingSectorTimeline | null {
-  return computeNativeSectorTimeline(packets, lapTime, (packet) => {
-    const starts = packet.iracing?.sectorStarts;
-    if (!starts?.length) return undefined;
-    return { starts, lapFraction: packet.iracing?.lapDistancePct };
+  getLayout: (packet: SemanticLapFrame) =>
+    | {
+        starts: number[];
+        lapFraction?: number;
+      }
+    | undefined,
+): NativeSectorTimeline | null {
+  let starts: SectorStarts | null = null;
+  for (const packet of packets) {
+    const layout = getLayout(packet);
+    const candidate = sectorStarts(layout?.starts);
+    if (candidate) {
+      starts = candidate;
+      break;
+    }
+  }
+  if (!starts) return null;
+  return computeSectorTimeline(packets, lapTime, starts, (index) => {
+    const packet = packets[index];
+    const lapFraction = packet ? getLayout(packet)?.lapFraction : undefined;
+    return finiteNumber(lapFraction) ? lapFraction : undefined;
   });
 }
 
+function semanticNativeSectorTimeline(samples: readonly SemanticTelemetrySample[], packets: readonly SemanticLapFrame[], lapTime: number): NativeSectorTimeline | null {
+  let starts: SectorStarts | null = null;
+  for (const sample of samples) {
+    const candidate = sectorStarts(sample.values["timing.sector.layout.start-fractions"]);
+    if (candidate) {
+      starts = candidate;
+      break;
+    }
+  }
+  const first = packets[0];
+  const last = packets[packets.length - 1];
+  if (!starts || !first || !last || !finiteNumber(first.distanceM) || !finiteNumber(last.distanceM)) {
+    return null;
+  }
+  const firstDistance = first.distanceM;
+  const lapDistance = last.distanceM - firstDistance;
+  if (lapDistance <= 0) return null;
+  return computeSectorTimeline(packets, lapTime, starts, (index) => {
+    const packet = packets[index];
+    if (!packet || !finiteNumber(packet.distanceM)) return undefined;
+    const fraction = (packet.distanceM - firstDistance) / lapDistance;
+    return finiteNumber(fraction) ? fraction : undefined;
+  });
+}
+
+/** Resolve any game-owned sector layout from semantic replay values. */
+export function computeSemanticSectorTimeline(samples: readonly SemanticTelemetrySample[], lapTime: number): NativeSectorTimeline | null {
+  return semanticNativeSectorTimeline(samples, semanticLapFrames(samples), lapTime);
+}
+
+/** Resolve iRacing sector timing from semantic sector layout and lap distance. */
+export function computeIRacingSectorTimeline(samples: readonly SemanticTelemetrySample[], lapTime: number): NativeSectorTimeline | null {
+  return computeSemanticSectorTimeline(samples, lapTime);
+}
+
 /**
- * Pure function that computes the source-defined sector times from a lap's telemetry buffer.
+ * Pure function that computes source-defined sector times from semantic lap
+ * samples.
  *
  * @param trackOrdinal Track ordinal from the session
  * @param gameId       Game identifier
- * @param packets      All telemetry packets for the completed lap
+ * @param samples      Semantic samples for the completed lap
  * @param lapTime      Authoritative lap time (seconds)
  * @param accLiveSectors Optional ACC live-tracked sector times (captured during the lap).
  *                       Pass undefined for non-ACC games or when not yet tracked.
@@ -121,112 +287,28 @@ export function computeIRacingSectorTimeline(
 export async function computeLapSectors(
   trackOrdinal: number,
   gameId: GameId,
-  packets: TelemetryPacket[],
+  samples: readonly SemanticTelemetrySample[],
   lapTime: number,
   accLiveSectors?: { s1: number; s2: number },
 ): Promise<number[] | null> {
+  if (!Number.isFinite(lapTime) || lapTime <= 0) return null;
+  const packets = semanticLapFrames(samples);
   if (packets.length < 50) return null;
 
   const game = getGame(gameId);
-  if (game.nativeSectors) {
-    if (!game.getNativeSectorLayout) return null;
-    const timeline = computeNativeSectorTimeline(
-      packets,
-      lapTime,
-      game.getNativeSectorLayout,
-    );
-    if (!timeline) return null;
-    return timeline.times;
+  if (gameId === "f1-2025" || gameId === "acc") {
+    const canonicalTimes = authoritativeSectorTimes(samples, lapTime);
+    if (canonicalTimes) return canonicalTimes;
+    if (gameId === "acc" && accLiveSectors && Number.isFinite(accLiveSectors.s1) && Number.isFinite(accLiveSectors.s2) && accLiveSectors.s1 > 0 && accLiveSectors.s2 > 0) {
+      const s3 = lapTime - accLiveSectors.s1 - accLiveSectors.s2;
+      return Number.isFinite(s3) && s3 > 0 ? [accLiveSectors.s1, accLiveSectors.s2, s3] : null;
+    }
+    // F1 owns its splits; do not invent them from track distance. ACC may
+    // lack live timing on legacy captures and can still use track geometry.
+    if (gameId === "f1-2025") return null;
   }
+  if (game.nativeSectors) return semanticNativeSectorTimeline(samples, packets, lapTime)?.times ?? null;
 
-  // Sector boundaries: this game's curated pair, else bundled, else thirds.
   const { s1End, s2End } = resolveTrack(gameId, trackOrdinal).sectors;
-
-  // F1: sector times must come from the game's own packets (SessionHistory or
-  // LapData). We never fall back to distance-fraction for F1 — the game is
-  // the authority on its own split points and sync, and guessing from
-  // position can produce wildly wrong sectors, especially on tracks where the
-  // three sectors aren't 1/3 : 1/3 : 1/3 of the lap distance.
-  let s1 = 0, s2 = 0;
-  if (gameId === "f1-2025") {
-    // The F1 2025 LapData packet exposes LapNumber for every packet in the
-    // lap buffer. Every packet also carries a snapshot of the
-    // SessionHistory → lapSectors map (completed-lap sector times indexed by
-    // lap number). Look up the entry for THIS lap by scanning the buffer for
-    // the largest LapNumber we saw (the lap we're about to emit) and
-    // reading its SessionHistory entry from the final packet.
-    let completedLapNum = 0;
-    for (const packet of packets) {
-      completedLapNum = Math.max(completedLapNum, packet.LapNumber ?? 0);
-    }
-    if (completedLapNum > 0) {
-      // Walk packets from the end — later packets have more up-to-date
-      // SessionHistory because the game finalises the lap entry on the
-      // first history broadcast after finish.
-      for (let i = packets.length - 1; i >= 0; i--) {
-        const entry = packets[i].f1?.lapSectors?.[completedLapNum];
-        if (entry && entry.s1 > 0 && entry.s2 > 0 && entry.s3 > 0) {
-          s1 = entry.s1;
-          s2 = entry.s2;
-          break;
-        }
-      }
-    }
-    // Fall back to live LapData packet 2 sector1Time/sector2Time — still from
-    // the game, just less definitive. Pick the final non-zero value that was
-    // recorded while we were still in this lap (last packets may have moved
-    // into the NEXT lap, resetting these to 0).
-    if (s1 === 0 || s2 === 0) {
-      for (const p of packets) {
-        if (p.LapNumber !== completedLapNum) continue;
-        if ((p.f1?.sector1Time ?? 0) > 0) s1 = p.f1!.sector1Time;
-        if ((p.f1?.sector2Time ?? 0) > 0) s2 = p.f1!.sector2Time;
-      }
-    }
-    // If F1 packets didn't supply both splits, give up rather than guessing.
-    if (s1 === 0 || s2 === 0) return null;
-    const s3 = lapTime - s1 - s2;
-    if (s3 <= 0) return null;
-    return [s1, s2, s3];
-  }
-
-  // ACC: use native sector times tracked live during the lap
-  if (s1 === 0 && s2 === 0 && gameId === "acc" && accLiveSectors && accLiveSectors.s1 > 0 && accLiveSectors.s2 > 0) {
-    s1 = accLiveSectors.s1;
-    s2 = accLiveSectors.s2;
-  }
-
-  // ACC: derive sector times from currentSectorIndex transitions in the packet stream.
-  // Works for all laps including outlaps — sector index is track-position-based, not
-  // distance-from-start-based, so it correctly fires at S1/S2/S3 boundaries regardless
-  // of where the lap began (pit exit, mid-lap join, etc).
-  if (s1 === 0 && s2 === 0 && gameId === "acc") {
-    let prevIdx = packets[0].acc?.currentSectorIndex ?? -1;
-    let sectorStart = packets[0].CurrentLap;
-    for (const p of packets) {
-      const idx = p.acc?.currentSectorIndex ?? prevIdx;
-      if (idx !== prevIdx) {
-        const elapsed = p.CurrentLap - sectorStart;
-        if (prevIdx === 0) s1 = elapsed;
-        else if (prevIdx === 1) s2 = elapsed;
-        sectorStart = p.CurrentLap;
-        prevIdx = idx;
-      }
-    }
-  }
-
-  // Fall back to distance fractions when native/live splits are incomplete.
-  // A lap captured more than 10 seconds after its start has no trustworthy
-  // remaining-distance fraction, so incomplete native data cannot be repaired.
-  if (s1 === 0 || s2 === 0) {
-    if (packets[0].CurrentLap > 10) return null;
-    return computeDistanceSectorTimes(packets, lapTime, s1End, s2End);
-  }
-
-  const s3 = lapTime - s1 - s2;
-  if (s3 > 0) return [s1, s2, s3];
-
-  // Complete but internally inconsistent native/live splits may still be
-  // replaced by a valid distance-derived timeline, matching the legacy retry.
   return computeDistanceSectorTimes(packets, lapTime, s1End, s2End);
 }

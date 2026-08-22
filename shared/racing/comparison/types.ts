@@ -1,5 +1,5 @@
 import type { GameId } from "../../games/ids";
-import type { TelemetryVariableId } from "../../telemetry/catalog/generated/telemetry-catalog.types";
+import type { SemanticTelemetrySample } from "../../telemetry/replay/contracts";
 import type { LapMeta } from "../sessions/types";
 import type { FindingGenerationReceipt, FindingRecord } from "../findings/types";
 
@@ -34,13 +34,6 @@ export interface CornerDelta {
   sourceEndIndexA: number | null;
   sourceStartIndexB: number | null;
   sourceEndIndexB: number | null;
-}
-
-/** Canonical semantic values consumed by comparison/map UI. */
-export interface SemanticTelemetrySample {
-  values: Partial<Readonly<Record<TelemetryVariableId, number | boolean | string | null | readonly unknown[]>>>;
-  sequence: string;
-  observedAtMs: number;
 }
 
 export type ComparisonLap = Pick<LapMeta, "id" | "sessionId" | "lapNumber" | "lapTime" | "isValid" | "trackOrdinal" | "carOrdinal">;

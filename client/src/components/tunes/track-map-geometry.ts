@@ -1,5 +1,6 @@
 import { makeTrackProjection } from "@shared/racing/tracks/projection";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { semanticNumber } from "../analyse/track-map/types";
 
 export interface Pt {
   x: number;
@@ -82,12 +83,17 @@ export function extractEdges(bounds: any): { left: Pt[]; right: Pt[] } | null {
  * Downsamples the driven line to ~TARGET_POINTS while keeping each point's
  * original telemetry index so hover/lookup can find the real frame.
  */
-export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorTimesLite | null, edges: { left: Pt[]; right: Pt[] } | null): Geometry | null {
+export function buildGeometry(telemetry: SemanticAnalysisFrame[], sectorTimes: SectorTimesLite | null, edges: { left: Pt[]; right: Pt[] } | null): Geometry | null {
   if (telemetry.length < 10) return null;
 
   const step = Math.max(1, Math.floor(telemetry.length / TARGET_POINTS));
   const line: { p: Pt; idx: number }[] = [];
-  for (let i = 0; i < telemetry.length; i += step) line.push({ p: { x: telemetry[i].PositionX, z: telemetry[i].PositionZ }, idx: i });
+  for (let i = 0; i < telemetry.length; i += step) {
+    const x = semanticNumber(telemetry[i], "motion.position-x");
+    const z = semanticNumber(telemetry[i], "motion.position-z");
+    if (x != null && z != null) line.push({ p: { x, z }, idx: i });
+  }
+  if (line.length < 2) return null;
 
   // Orientation lives in @shared/racing/tracks/projection so the e2e segment renderer
   // draws the same track the same way up. Do not reintroduce local axis math.
@@ -135,9 +141,15 @@ export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorT
  *  given the min/max bounds computed from the same telemetry+edges inputs.
  *  Used by consumers that need to place markers (corners, issues) at an
  *  arbitrary point not already in the downsampled line. */
-export function projectPoint(p: Pt, telemetry: TelemetryPacket[], edges: { left: Pt[]; right: Pt[] } | null): { x: number; y: number } | null {
+export function projectPoint(p: Pt, telemetry: SemanticAnalysisFrame[], edges: { left: Pt[]; right: Pt[] } | null): { x: number; y: number } | null {
   if (telemetry.length === 0) return null;
-  const boundsPts: Pt[] = telemetry.map((t) => ({ x: t.PositionX, z: t.PositionZ }));
+  const boundsPts: Pt[] = [];
+  for (const frame of telemetry) {
+    const x = semanticNumber(frame, "motion.position-x");
+    const z = semanticNumber(frame, "motion.position-z");
+    if (x != null && z != null) boundsPts.push({ x, z });
+  }
+  if (boundsPts.length === 0) return null;
   if (edges) {
     for (const e of edges.left) boundsPts.push(e);
     for (const e of edges.right) boundsPts.push(e);

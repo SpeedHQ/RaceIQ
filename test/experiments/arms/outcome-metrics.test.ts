@@ -12,7 +12,7 @@ import {
 } from "../../../server/experiments/comparison/metrics";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
 import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
-import { policyEvidence } from "../../support/experiments/arms";
+import { policyEvidence, SYNTHETIC_CORNERS, telemetryArm } from "../../support/experiments/arms";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
  *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */
@@ -212,13 +212,13 @@ describe("blunder fence (the only outlier rule a variance pool gets)", () => {
 
 describe("consistencySpreadSec extraction", () => {
   test("samples are absolute deviations from the arm's median lap time", () => {
-    const laps = stint([89.0, 90.0, 91.0]).map((l) => ({ lap: l, telemetry: null }));
+    const laps = stint([89.0, 90.0, 91.0]).map((lap) => ({ lap, semanticSamples: null }));
     const samples = extractSamples(OUTCOME_METRICS.consistencySpreadSec, { laps });
     expect(samples.map((s) => s.value)).toEqual([1, 0, 1]);
   });
 
   test("lapTimeSec samples are the raw lap times", () => {
-    const laps = stint([89.0, 90.0]).map((l) => ({ lap: l, telemetry: null }));
+    const laps = stint([89.0, 90.0]).map((lap) => ({ lap, semanticSamples: null }));
     const samples = extractSamples(OUTCOME_METRICS.lapTimeSec, { laps });
     expect(samples).toEqual([
       { lapId: 1, value: 89.0 },
@@ -226,9 +226,24 @@ describe("consistencySpreadSec extraction", () => {
     ]);
   });
 
-  test("frame-based metrics yield nothing without telemetry or corners", () => {
-    const laps = stint([89.0, 90.0, 91.0]).map((l) => ({ lap: l, telemetry: null }));
+  test("frame-based metrics yield nothing without semantic samples or corners", () => {
+    const laps = stint([89.0, 90.0, 91.0]).map((lap) => ({ lap, semanticSamples: null }));
     expect(extractSamples(OUTCOME_METRICS.inputVarianceBrake, { laps })).toEqual([]);
     expect(extractSamples(OUTCOME_METRICS.lineSpreadScore, { laps, corners: [] })).toEqual([]);
+  });
+
+  test("unavailable semantic input is excluded instead of treated as zero", () => {
+    const arm = telemetryArm([
+      { lateral: 0, brakeShift: 0 },
+      { lateral: 1, brakeShift: 4 },
+    ]);
+    const entry = arm.laps[1];
+    const semanticSamples = entry.semanticSamples!.map((sample) => ({
+      ...sample,
+      values: { ...sample.values, "inputs.brake": null },
+    }));
+
+    arm.laps[1] = { ...entry, semanticSamples };
+    expect(extractSamples(OUTCOME_METRICS.inputVarianceBrake, { laps: arm.laps, corners: SYNTHETIC_CORNERS })).toEqual([]);
   });
 });

@@ -2,24 +2,11 @@ import type { GameId } from "../../shared/games/ids";
 import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
 import { isEligibilityUsable } from "../../shared/racing/quality/policies";
 
-import {
-  INPUT_VAR_THRESHOLD,
-  LINE_SPREAD_THRESHOLD_M,
-  type LapConsistencyDelta,
-  type LineSpreadTrace,
-} from "../lap-analysis/consistency";
+import { INPUT_VAR_THRESHOLD, LINE_SPREAD_THRESHOLD_M, type LapConsistencyDelta, type LineSpreadTrace } from "../lap-analysis/consistency";
 import type { SegmentStat } from "../lap-analysis/metrics";
 import type { LapQualityResult } from "../lap-analysis/quality";
 import { createLapQualityEvidence } from "./lap-adapter";
-import type {
-  CanonicalJson,
-  FindingConfidence,
-  FindingEvidenceRef,
-  FindingLimitation,
-  FindingMeasurement,
-  FindingRecord,
-  FindingStatus,
-} from "../../shared/racing/findings/types";
+import type { CanonicalJson, FindingConfidence, FindingEvidenceRef, FindingLimitation, FindingMeasurement, FindingRecord, FindingStatus } from "../../shared/racing/findings/types";
 import { FINDING_SCHEMA_VERSION } from "../../shared/racing/findings/types";
 import { createFindingId } from "../../shared/racing/findings/identity";
 
@@ -53,27 +40,21 @@ function lapEvidence(sessionId: string, lapIds: readonly string[]): FindingEvide
   return lapIds.map((lapId) => ({ kind: "lap", id: `lap:${lapId}`, lapId, sessionId }));
 }
 
-
-function reasonLimitations(
-  prefix: "fallback-source" | "low-trust",
-  reasons: readonly string[],
-): FindingLimitation[] {
+function reasonLimitations(prefix: "fallback-source" | "low-trust", reasons: readonly string[]): FindingLimitation[] {
   const byCode = new Map<string, FindingLimitation>();
   for (const detail of [...new Set(reasons)].sort((left, right) => left.localeCompare(right))) {
-    const suffix = detail.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "unspecified";
+    const suffix =
+      detail
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "unspecified";
     byCode.set(`${prefix}:${suffix}`, { code: `${prefix}:${suffix}`, detail });
   }
   return [...byCode.values()];
 }
 
-function limitationsFor(
-  fallbackReasons: readonly string[],
-  lowTrustReasons: readonly string[],
-): FindingLimitation[] {
-  return [
-    ...reasonLimitations("fallback-source", fallbackReasons),
-    ...reasonLimitations("low-trust", lowTrustReasons),
-  ];
+function limitationsFor(fallbackReasons: readonly string[], lowTrustReasons: readonly string[]): FindingLimitation[] {
+  return [...reasonLimitations("fallback-source", fallbackReasons), ...reasonLimitations("low-trust", lowTrustReasons)];
 }
 
 function finishRecord(record: Omit<FindingRecord, "id">): FindingRecord {
@@ -126,29 +107,28 @@ function metricRecord(
         decision: policyDecision!.status,
       }
     : undefined;
-  const qualityRefs = [
-    ...(context.legacyQualityRef ? [context.legacyQualityRef] : []),
-    ...(policyQualityRef ? [policyQualityRef] : []),
-  ];
+  const qualityRefs = [...(context.legacyQualityRef ? [context.legacyQualityRef] : []), ...(policyQualityRef ? [policyQualityRef] : [])];
   const restricted = legacyRejected || policyRejected;
   const status: FindingStatus = !available ? "unavailable" : restricted ? "indeterminate" : "available";
-  const unavailableReason = metric.type === "fuel-per-lap"
-    ? "fuel-per-lap-source-unavailable"
-    : "tyre-wear-source-unavailable";
+  const unavailableReason = metric.type === "fuel-per-lap" ? "fuel-per-lap-source-unavailable" : "tyre-wear-source-unavailable";
   const limitations = [
     ...(legacyRejected
-      ? [{
-          code: "quality-rejected",
-          detail: context.quality?.reason ?? "lap recording quality rejected",
-          evidenceRefs: qualityRefs,
-        }]
+      ? [
+          {
+            code: "quality-rejected",
+            detail: context.quality?.reason ?? "lap recording quality rejected",
+            evidenceRefs: qualityRefs,
+          },
+        ]
       : []),
     ...(policyRejected
-      ? [{
-          code: `quality-policy-${policyDecision!.policyId}-${policyDecision!.status}`,
-          detail: `finalized ${policyDecision!.policyId} policy is ${policyDecision!.status}`,
-          evidenceRefs: qualityRefs,
-        }]
+      ? [
+          {
+            code: `quality-policy-${policyDecision!.policyId}-${policyDecision!.status}`,
+            detail: `finalized ${policyDecision!.policyId} policy is ${policyDecision!.status}`,
+            evidenceRefs: qualityRefs,
+          },
+        ]
       : []),
     ...(available ? [] : [{ code: unavailableReason, detail: "source aggregate was undefined" }]),
     ...context.limitations,
@@ -156,7 +136,7 @@ function metricRecord(
   const measurement: FindingMeasurement = {
     id: `${metric.type}:${context.lapId}`,
     type: metric.type,
-    value: available ? metric.value as number : null,
+    value: available ? (metric.value as number) : null,
     unit: metric.unit,
     sampleCount: available ? 1 : 0,
     confidence: confidenceFor(status, context.lowTrust),
@@ -230,9 +210,7 @@ export function adaptMetricsToFindings(context: MetricsFindingContext): FindingR
   const lowTrust = lowTrustReasons.length > 0;
   const generation = context.analysisGenerationId ?? DEFAULT_GENERATION;
   const ruleVersion = String(context.ruleVersion ?? context.segmentAlgorithmVersion ?? "1");
-  const legacyQualityRef = !context.quality.valid
-    ? createLapQualityEvidence(sessionId, lapId, context.quality)
-    : undefined;
+  const legacyQualityRef = !context.quality.valid ? createLapQualityEvidence(sessionId, lapId, context.quality) : undefined;
   const common = {
     gameId: context.gameId,
     sessionId,
@@ -252,7 +230,7 @@ export function adaptMetricsToFindings(context: MetricsFindingContext): FindingR
       category: "fuel",
       value: context.fuelPerLap,
       unit: "L",
-      semanticIds: ["fuel.fuel-level"],
+      semanticIds: ["fuel.fuel"],
       title: "Fuel used per lap",
     }),
     metricRecord(common, {
@@ -283,22 +261,24 @@ export function adaptMetricsToFindings(context: MetricsFindingContext): FindingR
     };
     if (segment.number != null) inputs.segmentNumber = segment.number;
     if (segment.covers) inputs.coveredCorners = segment.covers;
-    output.push(finishRecord({
-      schemaVersion: FINDING_SCHEMA_VERSION,
-      type: "segment-performance",
-      category: "driving",
-      scope: { kind: "segment", gameId: context.gameId, sessionId, lapId, segmentId },
-      status: "available",
-      severity: "informational",
-      confidence: confidenceFor("available", lowTrust),
-      measurements: segmentMeasurements(segment, ruleVersion, segmentId),
-      evidenceRefs: segmentEvidenceRefs,
-      qualityRefs: [],
-      limitations: sharedLimitations,
-      rule: { id: RULE_ID, version: ruleVersion, inputs },
-      analysisGenerationId: generation,
-      title: `${segment.name} segment metrics`,
-    }));
+    output.push(
+      finishRecord({
+        schemaVersion: FINDING_SCHEMA_VERSION,
+        type: "segment-performance",
+        category: "driving",
+        scope: { kind: "segment", gameId: context.gameId, sessionId, lapId, segmentId },
+        status: "available",
+        severity: "informational",
+        confidence: confidenceFor("available", lowTrust),
+        measurements: segmentMeasurements(segment, ruleVersion, segmentId),
+        evidenceRefs: segmentEvidenceRefs,
+        qualityRefs: [],
+        limitations: sharedLimitations,
+        rule: { id: RULE_ID, version: ruleVersion, inputs },
+        analysisGenerationId: generation,
+        title: `${segment.name} segment metrics`,
+      }),
+    );
   }
 
   if (context.consistency) {
@@ -320,9 +300,7 @@ export function adaptMetricsToFindings(context: MetricsFindingContext): FindingR
           brakeVar: trace.overall.brakeVar,
           throttleVar: trace.overall.throttleVar,
         };
-    const consistencyLimitations = aggregate.lowTrust
-      ? [{ code: "low-trust-consistency", detail: "source consistency aggregate marked low trust" }, ...sharedLimitations]
-      : sharedLimitations;
+    const consistencyLimitations = aggregate.lowTrust ? [{ code: "low-trust-consistency", detail: "source consistency aggregate marked low trust" }, ...sharedLimitations] : sharedLimitations;
     const consistencyEvidence: FindingEvidenceRef = {
       kind: "measurement",
       id: `consistency:${selectedLapIds.join(",")}`,
@@ -330,71 +308,78 @@ export function adaptMetricsToFindings(context: MetricsFindingContext): FindingR
       sessionId,
     };
     const consistencyEvidenceRefs = [...evidenceRefs, consistencyEvidence];
-    const measurements: FindingMeasurement[] = [{
-      id: `consistency:${lapId}:lateral-spread`,
-      type: "lateral-line-spread",
-      value: aggregate.lateralSpreadM,
-      unit: "m",
-      sampleCount: aggregate.sampleCount,
-      confidence: aggregate.lowTrust ? "low" : "high",
-      semanticIds: ["motion.position-x", "motion.position-z"],
-      derivation: { id: RULE_ID, version: ruleVersion },
-    }];
-    if (aggregate.consistencyScore != null) measurements.push({
-      id: `consistency:${lapId}:score`,
-      type: "line-consistency-score",
-      value: aggregate.consistencyScore,
-      unit: "score-0-100",
-      sampleCount: aggregate.sampleCount,
-      confidence: aggregate.lowTrust ? "low" : "high",
-      semanticIds: ["motion.position-x", "motion.position-z"],
-      derivation: { id: RULE_ID, version: ruleVersion },
-    });
-    if (aggregate.brakeVar != null) measurements.push({
-      id: `consistency:${lapId}:brake-variance`,
-      type: "brake-variance",
-      value: aggregate.brakeVar,
-      unit: "variance",
-      sampleCount: aggregate.sampleCount,
-      confidence: aggregate.lowTrust ? "low" : "high",
-      semanticIds: ["inputs.brake"],
-      derivation: { id: RULE_ID, version: ruleVersion },
-    });
-    if (aggregate.throttleVar != null) measurements.push({
-      id: `consistency:${lapId}:throttle-variance`,
-      type: "throttle-variance",
-      value: aggregate.throttleVar,
-      unit: "variance",
-      sampleCount: aggregate.sampleCount,
-      confidence: aggregate.lowTrust ? "low" : "high",
-      semanticIds: ["inputs.accel"],
-      derivation: { id: RULE_ID, version: ruleVersion },
-    });
-    output.push(finishRecord({
-      schemaVersion: FINDING_SCHEMA_VERSION,
-      type: "lap-consistency",
-      category: "consistency",
-      scope: { kind: "lap", gameId: context.gameId, sessionId, lapId },
-      status: "available",
-      severity: aggregate.lowTrust ? "low" : "informational",
-      confidence: aggregate.lowTrust ? "low" : "high",
-      measurements,
-      evidenceRefs: consistencyEvidenceRefs,
-      qualityRefs: [],
-      limitations: consistencyLimitations,
-      rule: {
-        id: RULE_ID,
-        version: ruleVersion,
-        inputs: {
-          source: isLineSpreadTrace(trace) ? "LineSpreadTrace" : "LapConsistencyDelta",
-          selectedLapIds,
-          lineSpreadThresholdM: LINE_SPREAD_THRESHOLD_M,
-          inputVarianceThreshold: INPUT_VAR_THRESHOLD,
-        },
+    const measurements: FindingMeasurement[] = [
+      {
+        id: `consistency:${lapId}:lateral-spread`,
+        type: "lateral-line-spread",
+        value: aggregate.lateralSpreadM,
+        unit: "m",
+        sampleCount: aggregate.sampleCount,
+        confidence: aggregate.lowTrust ? "low" : "high",
+        semanticIds: ["motion.position-x", "motion.position-z"],
+        derivation: { id: RULE_ID, version: ruleVersion },
       },
-      analysisGenerationId: generation,
-      title: "Lap consistency",
-    }));
+    ];
+    if (aggregate.consistencyScore != null)
+      measurements.push({
+        id: `consistency:${lapId}:score`,
+        type: "line-consistency-score",
+        value: aggregate.consistencyScore,
+        unit: "score-0-100",
+        sampleCount: aggregate.sampleCount,
+        confidence: aggregate.lowTrust ? "low" : "high",
+        semanticIds: ["motion.position-x", "motion.position-z"],
+        derivation: { id: RULE_ID, version: ruleVersion },
+      });
+    if (aggregate.brakeVar != null)
+      measurements.push({
+        id: `consistency:${lapId}:brake-variance`,
+        type: "brake-variance",
+        value: aggregate.brakeVar,
+        unit: "variance",
+        sampleCount: aggregate.sampleCount,
+        confidence: aggregate.lowTrust ? "low" : "high",
+        semanticIds: ["inputs.brake"],
+        derivation: { id: RULE_ID, version: ruleVersion },
+      });
+    if (aggregate.throttleVar != null)
+      measurements.push({
+        id: `consistency:${lapId}:throttle-variance`,
+        type: "throttle-variance",
+        value: aggregate.throttleVar,
+        unit: "variance",
+        sampleCount: aggregate.sampleCount,
+        confidence: aggregate.lowTrust ? "low" : "high",
+        semanticIds: ["inputs.accel"],
+        derivation: { id: RULE_ID, version: ruleVersion },
+      });
+    output.push(
+      finishRecord({
+        schemaVersion: FINDING_SCHEMA_VERSION,
+        type: "lap-consistency",
+        category: "consistency",
+        scope: { kind: "lap", gameId: context.gameId, sessionId, lapId },
+        status: "available",
+        severity: aggregate.lowTrust ? "low" : "informational",
+        confidence: aggregate.lowTrust ? "low" : "high",
+        measurements,
+        evidenceRefs: consistencyEvidenceRefs,
+        qualityRefs: [],
+        limitations: consistencyLimitations,
+        rule: {
+          id: RULE_ID,
+          version: ruleVersion,
+          inputs: {
+            source: isLineSpreadTrace(trace) ? "LineSpreadTrace" : "LapConsistencyDelta",
+            selectedLapIds,
+            lineSpreadThresholdM: LINE_SPREAD_THRESHOLD_M,
+            inputVarianceThreshold: INPUT_VAR_THRESHOLD,
+          },
+        },
+        analysisGenerationId: generation,
+        title: "Lap consistency",
+      }),
+    );
   }
 
   return output;

@@ -5,21 +5,17 @@ import type { GameId } from "../../shared/games/ids";
 import { evaluateGroupEligibility, isEligibilitySnapshotCurrent, isEligibilityUsable, selectDriverProfileEligibleLaps } from "../../shared/racing/quality/policies";
 import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
 import type { LapMeta } from "../../shared/racing/sessions/types";
-import { getLapMetaForProfileScope, getLapsByIds } from "../db/lap-read-queries";
+import { getLapMetaForProfileScope } from "../db/lap-read-queries";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
+import { queryLapTelemetryBySemanticId } from "../telemetry/replay";
+import { semanticSamplesFromReplay } from "../telemetry/semantic-samples";
 import { buildDriverFingerprint, emptyFingerprint, type DriverFingerprint, type ProfileScope } from "./fingerprint";
 import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "./trend";
 
 /** Minimum decoded frames for a lap to be worth running detectors over. */
 const MIN_TELEMETRY_FRAMES = 30;
-export function selectCurrentDriverProfileEvidence(
-  pool: readonly LapMeta[],
-  gameId: GameId,
-): { currentPool: LapMeta[]; decision: EligibilityDecision; candidates: LapMeta[] } {
-  const currentPool = pool.filter(
-    (lap) =>
-      isEligibilitySnapshotCurrent(lap, ["normal-pace", "lap-comparison"]) &&
-      !(lap.experimentExcluded && lap.experimentExcludedSource === "manual"),
-  );
+export function selectCurrentDriverProfileEvidence(pool: readonly LapMeta[], gameId: GameId): { currentPool: LapMeta[]; decision: EligibilityDecision; candidates: LapMeta[] } {
+  const currentPool = pool.filter((lap) => isEligibilitySnapshotCurrent(lap, ["normal-pace", "lap-comparison"]) && !(lap.experimentExcluded && lap.experimentExcludedSource === "manual"));
   const groupPool = currentPool.flatMap((lap) =>
     lap.quality && lap.eligibility
       ? [
@@ -55,23 +51,29 @@ export async function loadDriverProfile(opts: { gameId: GameId }): Promise<Drive
   }
 
   const selected = candidates.slice(0, DRIVER_TREND_WINDOW_LAPS);
-  const loaded = await getLapsByIds(selected.map((lap) => lap.id));
   const metaById = new Map(selected.map((lap) => [lap.id, lap]));
+  const replays = await Promise.all(
+    selected.map(async (lap) => ({
+      lap,
+      replay: await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS),
+    })),
+  );
   const laps: LapMeta[] = [];
   const perLapInsights: LapInsight[][] = [];
   const perLapStyle: LapStyleSummary[] = [];
-  let droppedNoTelemetry = selected.length - loaded.length;
+  let droppedNoTelemetry = selected.length - replays.length;
 
-  for (const lap of loaded) {
-    const meta = metaById.get(lap.id);
-    if (!meta || lap.parseError || lap.telemetry.length < MIN_TELEMETRY_FRAMES) {
+  for (const { lap: selectedLap, replay } of replays) {
+    const meta = metaById.get(selectedLap.id);
+    if (!meta || !replay || replay.envelopes.length < MIN_TELEMETRY_FRAMES) {
       droppedNoTelemetry++;
       continue;
     }
+    const samples = semanticSamplesFromReplay(replay);
     const lapGame = meta.gameId ?? opts.gameId;
     laps.push(meta);
-    perLapInsights.push(analyzeLap(lap.telemetry, lapGame, meta.quality));
-    perLapStyle.push(summariseLapStyle(lap.telemetry, lapGame));
+    perLapInsights.push(analyzeLap(samples, lapGame, meta.quality));
+    perLapStyle.push(summariseLapStyle(samples, lapGame));
   }
 
   return buildDriverFingerprint({

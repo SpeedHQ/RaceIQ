@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
 import { tryGetGame } from "../../../shared/games/registry";
-import { getTireTemperatureSourceUnit } from "../../../shared/games/telemetry";
 import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib/speed";
 import { convertTemp } from "../lib/temperature";
 import { useGameId } from "../stores/game";
@@ -15,11 +14,10 @@ const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
  * Provides:
  * - Labels (speedLabel, tempLabel, distanceLabel)
  * - Converters for non-telemetry data (static car specs, thresholds)
- * - Syncs unit preferences to the telemetry store so live packets
- *   are auto-converted on arrival
+ * - Syncs unit preferences to semantic telemetry rendering
  *
- * For telemetry data: use DisplayPacket fields (DisplaySpeed, DisplayTireTemp*)
- * instead of calling these converters manually.
+ * Telemetry resolver values use catalog units. Temperature semantics are °C,
+ * independent of simulator source units.
  */
 export function useUnits() {
   const { displaySettings } = useSettings();
@@ -39,9 +37,8 @@ export function useUnits() {
     // Game-specific tire temp thresholds (°C) from adapter
     const adapter = gameId ? tryGetGame(gameId) : null;
     const thresholds = adapter?.tireTempThresholds ?? DEFAULT_TIRE_TEMP;
-    const sourceTempUnit = adapter ? getTireTemperatureSourceUnit(adapter.telemetry.tireTemperature) : "C";
-    /** Convert raw packet temp to °C for threshold comparisons */
-    const toTempC = (rawTemp: number) => convertTemp(rawTemp, "C", sourceTempUnit);
+    /** Semantic temperature values are already canonical °C. */
+    const toTempC = (temperatureC: number) => temperatureC;
 
     return {
       // ── Speed / distance (for non-telemetry data) ──────────────
@@ -57,8 +54,8 @@ export function useUnits() {
       distanceLabel: distanceLabel(su),
 
       // ── Temperature ─────────────────────────────────────────────
-      /** Convert raw packet temp → user display unit. */
-      temp: (rawTemp: number) => convertTemp(rawTemp, tu, sourceTempUnit),
+      /** Convert canonical °C to user display unit. */
+      temp: (temperatureC: number) => convertTemp(temperatureC, tu, "C"),
       /** Display label for temperature, e.g. "°F" or "°C" */
       tempLabel: `°${tu}`,
       /** Temperature unit raw value */
@@ -67,7 +64,7 @@ export function useUnits() {
       // ── Tire temperature thresholds (°C, game-specific) ─────────
       /** Game-specific tire temp thresholds in °C */
       thresholds,
-      /** Convert raw packet temp to °C for threshold comparisons */
+      /** Preserve canonical °C for threshold comparisons. */
       toTempC,
 
       // ── Raw settings (escape hatch) ─────────────────────────────

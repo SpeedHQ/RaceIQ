@@ -1,147 +1,137 @@
-import type { TelemetryPacket } from "../../../../telemetry/types";
+import type { SemanticLapFrame } from "../semantic-frame";
 import type { TelemetryModel } from "../../../../games/types";
 import type { LapInsight } from "./types";
 import { groupEvents, midFrame } from "./types";
-import { allWheelStates } from "../physics/vehicle";
+import { wheelStatesFromSignals } from "../physics/vehicle";
 
 type TireTemperaturePacketUnit = TelemetryModel["tireTemperature"]["packetUnit"];
+const finite = (value: number | undefined): value is number => typeof value === "number" && Number.isFinite(value);
 
-export function detectTireOverheat(
-  telemetry: TelemetryPacket[],
-  packetUnit: TireTemperaturePacketUnit,
-): LapInsight[] {
-  const wheels = ["FL", "FR", "RL", "RR"] as const;
-  const fields = {
-    FL: "TireTempFL",
-    FR: "TireTempFR",
-    RL: "TireTempRL",
-    RR: "TireTempRR",
-  } as const;
-
-  // Compare in the packet unit declared by the adapter.
+export function detectTireOverheat(telemetry: SemanticLapFrame[], packetUnit: TireTemperaturePacketUnit): LapInsight[] {
+  const wheels = [
+    ["FL", 0],
+    ["FR", 1],
+    ["RL", 2],
+    ["RR", 3],
+  ] as const;
   const fahrenheit = packetUnit === "fahrenheit";
   const warnTemp = fahrenheit ? 250 : 110;
   const critTemp = fahrenheit ? 300 : 130;
   const unit = fahrenheit ? "°F" : "°C";
-
   const insights: LapInsight[] = [];
-  for (const w of wheels) {
-    const flags = telemetry.map((p) => p[fields[w]] > warnTemp);
+  for (const [wheel, index] of wheels) {
+    let peak = Number.NEGATIVE_INFINITY;
+    const flags = telemetry.map((frame) => {
+      const temperature = frame.tireTemperature[index];
+      if (!finite(temperature)) return false;
+      peak = Math.max(peak, temperature);
+      return temperature > warnTemp;
+    });
     const events = groupEvents(flags, 10, 30);
-    if (events.length > 0) {
-      const peak = Math.max(...telemetry.map((p) => p[fields[w]]));
+    if (events.length > 0)
       insights.push({
-        id: `tire-overheat-${w}`,
+        id: `tire-overheat-${wheel}`,
         category: "tires",
         severity: peak > critTemp ? "critical" : "warning",
         label: "Tire Overheat",
-        detail: `${w} exceeded ${warnTemp}${unit} (peak ${peak.toFixed(0)}${unit})`,
+        detail: `${wheel} exceeded ${warnTemp}${unit} (peak ${peak.toFixed(0)}${unit})`,
         frameIndices: midFrame(events),
       });
-    }
   }
   return insights;
 }
 
-export function detectLockups(telemetry: TelemetryPacket[]): LapInsight[] {
-  const wheels = ["FL", "FR", "RL", "RR"] as const;
+export function detectLockups(telemetry: SemanticLapFrame[]): LapInsight[] {
+  const wheels = [
+    ["FL", "fl"],
+    ["FR", "fr"],
+    ["RL", "rl"],
+    ["RR", "rr"],
+  ] as const;
   const insights: LapInsight[] = [];
-
-  for (const w of wheels) {
-    const flags = telemetry.map((p) => {
-      const ws = allWheelStates(p);
-      return ws[w.toLowerCase() as "fl" | "fr" | "rl" | "rr"].state === "lockup";
-    });
+  for (const [wheel, key] of wheels) {
+    const flags = telemetry.map((frame) => wheelStatesFromSignals(frame.speedMps, frame.steeringInput, frame.wheelRotationRadPerSec)?.[key].state === "lockup");
     const events = groupEvents(flags, 5, 15);
-    if (events.length > 0) {
+    if (events.length > 0)
       insights.push({
-        id: `tire-lockup-${w}`,
+        id: `tire-lockup-${wheel}`,
         category: "tires",
         severity: events.length >= 3 ? "critical" : "warning",
         label: "Wheel Lockup",
-        detail: `${w} locked ${events.length} time${events.length > 1 ? "s" : ""}`,
+        detail: `${wheel} locked ${events.length} time${events.length > 1 ? "s" : ""}`,
         frameIndices: midFrame(events),
       });
-    }
   }
   return insights;
 }
 
-export function detectWheelspin(telemetry: TelemetryPacket[]): LapInsight[] {
-  const wheels = ["FL", "FR", "RL", "RR"] as const;
+export function detectWheelspin(telemetry: SemanticLapFrame[]): LapInsight[] {
+  const wheels = [
+    ["FL", "fl"],
+    ["FR", "fr"],
+    ["RL", "rl"],
+    ["RR", "rr"],
+  ] as const;
   const insights: LapInsight[] = [];
-
-  for (const w of wheels) {
-    const flags = telemetry.map((p) => {
-      const ws = allWheelStates(p);
-      return ws[w.toLowerCase() as "fl" | "fr" | "rl" | "rr"].state === "spin";
-    });
+  for (const [wheel, key] of wheels) {
+    const flags = telemetry.map((frame) => wheelStatesFromSignals(frame.speedMps, frame.steeringInput, frame.wheelRotationRadPerSec)?.[key].state === "spin");
     const events = groupEvents(flags, 5, 15);
-    if (events.length > 0) {
+    if (events.length > 0)
       insights.push({
-        id: `tire-spin-${w}`,
+        id: `tire-spin-${wheel}`,
         category: "tires",
         severity: events.length >= 3 ? "critical" : "warning",
         label: "Wheelspin",
-        detail: `${w} spun ${events.length} time${events.length > 1 ? "s" : ""}`,
+        detail: `${wheel} spun ${events.length} time${events.length > 1 ? "s" : ""}`,
         frameIndices: midFrame(events),
       });
-    }
   }
   return insights;
 }
 
-export function detectWearImbalance(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectWearImbalance(telemetry: SemanticLapFrame[]): LapInsight | null {
   const last = telemetry[telemetry.length - 1];
   if (!last) return null;
-  const wears = [last.TireWearFL, last.TireWearFR, last.TireWearRL, last.TireWearRR];
-  if (wears.some((w) => w < 0)) return null; // -1 = wear not reported (short FM packet)
-  const labels = ["FL", "FR", "RL", "RR"];
-  const maxW = Math.max(...wears);
-  const minW = Math.min(...wears);
+  const wears = last.tireWear;
+  const [fl, fr, rl, rr] = wears;
+  if (!finite(fl) || !finite(fr) || !finite(rl) || !finite(rr) || fl < 0 || fr < 0 || rl < 0 || rr < 0) return null;
+  const maxW = Math.max(fl, fr, rl, rr);
+  const minW = Math.min(fl, fr, rl, rr);
   const delta = maxW - minW;
-  if (delta > 0.15) {
-    const maxLabel = labels[wears.indexOf(maxW)];
-    const minLabel = labels[wears.indexOf(minW)];
-    return {
-      id: "tire-wear-imbalance",
-      category: "tires",
-      severity: delta > 0.3 ? "critical" : "warning",
-      label: "Wear Imbalance",
-      detail: `${maxLabel} most worn, ${minLabel} least (${(delta * 100).toFixed(0)}% spread)`,
-      frameIndices: [telemetry.length - 1],
-    };
-  }
-  return null;
+  if (delta <= 0.15) return null;
+  const labels = ["FL", "FR", "RL", "RR"] as const;
+  const maxIndex = fl === maxW ? 0 : fr === maxW ? 1 : rl === maxW ? 2 : 3;
+  const minIndex = fl === minW ? 0 : fr === minW ? 1 : rl === minW ? 2 : 3;
+  return {
+    id: "tire-wear-imbalance",
+    category: "tires",
+    severity: delta > 0.3 ? "critical" : "warning",
+    label: "Wear Imbalance",
+    detail: `${labels[maxIndex]} most worn, ${labels[minIndex]} least (${(delta * 100).toFixed(0)}% spread)`,
+    frameIndices: [telemetry.length - 1],
+  };
 }
 
-export function detectTireTempSplit(
-  telemetry: TelemetryPacket[],
-  packetUnit: TireTemperaturePacketUnit,
-): LapInsight | null {
-  // Persistent front/rear temperature split points at setup balance:
-  // hot fronts = understeer-prone, hot rears = oversteer/traction-limited.
+export function detectTireTempSplit(telemetry: SemanticLapFrame[], packetUnit: TireTemperaturePacketUnit): LapInsight | null {
   let front = 0;
   let rear = 0;
-  let n = 0;
-  for (const p of telemetry) {
-    if (p.Speed * 2.23694 < 15) continue;
-    front += (p.TireTempFL + p.TireTempFR) / 2;
-    rear += (p.TireTempRL + p.TireTempRR) / 2;
-    n++;
+  let count = 0;
+  for (const frame of telemetry) {
+    const temperatures = frame.tireTemperature;
+    if (!finite(frame.speedMps) || frame.speedMps * 2.23694 < 15 || !finite(temperatures[0]) || !finite(temperatures[1]) || !finite(temperatures[2]) || !finite(temperatures[3])) continue;
+    front += (temperatures[0] + temperatures[1]) / 2;
+    rear += (temperatures[2] + temperatures[3]) / 2;
+    count++;
   }
-  if (n < 100) return null;
-  front /= n;
-  rear /= n;
-  if (front <= 0 || rear <= 0) return null; // temps not reported
-
+  if (count < 100) return null;
+  front /= count;
+  rear /= count;
+  if (front <= 0 || rear <= 0) return null;
   const fahrenheit = packetUnit === "fahrenheit";
   const warn = fahrenheit ? 25 : 12;
   const crit = fahrenheit ? 45 : 22;
-  const unit = fahrenheit ? "°F" : "°C";
   const delta = front - rear;
   if (Math.abs(delta) < warn) return null;
-
   const hotEnd = delta > 0 ? "front" : "rear";
   const hint = delta > 0 ? "understeer-prone — consider softer front or more front downforce" : "oversteer/traction-limited — consider softer rear or less rear camber";
   return {
@@ -149,41 +139,11 @@ export function detectTireTempSplit(
     category: "tires",
     severity: Math.abs(delta) > crit ? "warning" : "info",
     label: "Front/Rear Temp Split",
-    detail: `${hotEnd} axle ${Math.abs(delta).toFixed(0)}${unit} hotter on average — ${hint}`,
+    detail: `${hotEnd} axle ${Math.abs(delta).toFixed(0)}${fahrenheit ? "°F" : "°C"} hotter on average — ${hint}`,
     frameIndices: [Math.round(telemetry.length / 2)],
   };
 }
 
-export function detectInnerOuterTempSpread(telemetry: TelemetryPacket[]): LapInsight[] {
-  // ACC-only: inner-vs-outer tread temperature spread indicates camber/pressure
-  // problems. Sustained inner-hot = too much camber; outer-hot = not enough.
-  const labels = ["FL", "FR", "RL", "RR"] as const;
-  const sums = [0, 0, 0, 0];
-  let n = 0;
-  for (const p of telemetry) {
-    const acc = p.acc;
-    if (!acc || p.Speed * 2.23694 < 15) continue;
-    for (let t = 0; t < 4; t++) {
-      sums[t] += acc.tireInnerTemp[t] - acc.tireOuterTemp[t];
-    }
-    n++;
-  }
-  if (n < 100) return [];
-
-  const insights: LapInsight[] = [];
-  for (let t = 0; t < 4; t++) {
-    const delta = sums[t] / n; // °C, + = inner hotter
-    if (Math.abs(delta) < 8) continue;
-    const hint = delta > 0 ? "inner edge running hot — reduce negative camber or raise pressure" : "outer edge running hot — add negative camber";
-    insights.push({
-      id: `tire-edge-temp-${labels[t]}`,
-      category: "tires",
-      severity: Math.abs(delta) > 15 ? "warning" : "info",
-      label: "Tire Edge Temp Spread",
-      detail: `${labels[t]} ${Math.abs(delta).toFixed(0)}°C ${delta > 0 ? "inner" : "outer"}-hot on average — ${hint}`,
-      frameIndices: [Math.round(telemetry.length / 2)],
-    });
-  }
-  return insights;
+export function detectInnerOuterTempSpread(_: SemanticLapFrame[]): LapInsight[] {
+  return [];
 }
-

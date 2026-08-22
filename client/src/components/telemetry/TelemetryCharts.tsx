@@ -2,7 +2,6 @@ import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { resolveGripDemand, resolveWheelMetric } from "@shared/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
-import type { DisplayPacket } from "@/lib/convert-packet";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { client } from "@/lib/rpc";
 import { controlInputPercent } from "@/lib/vehicle-dynamics";
@@ -15,10 +14,10 @@ import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
  * TelemetryCharts — Aggregates all rolling 60s time-series data into chart components.
  * Downsamples from 60Hz to ~10Hz (every 6th frame) to keep buffers at 600 samples.
  * Seeds from server on mount so charts populate immediately after page refresh.
- * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
+ * Converts semantic telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
-export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view?: LiveTelemetryView }) {
-  const gameId = view?.simulator ?? packet?.gameId;
+export function TelemetryCharts({ view }: { view?: LiveTelemetryView }) {
+  const gameId = view?.simulator;
   const analysis = gameId ? resolveAnalysisTelemetry(getGame(gameId)) : null;
   const showGrip = analysis?.gripDemand.source !== "unavailable";
   const showTemperature = analysis?.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "continuous";
@@ -47,7 +46,6 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
     brake: [],
     speed: [],
   });
-  const frameRef = useRef(0);
   const fetchedRef = useRef(false);
 
   // Seed from server
@@ -80,9 +78,7 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
 
   // Sample at ~10Hz
   useEffect(() => {
-    frameRef.current++;
-    if (frameRef.current % 6 !== 0) return;
-    if (!gameId || !analysis) return;
+    if (!view || !gameId || !analysis) return;
     const activeAnalysis = analysis;
 
     const h = histRef.current;
@@ -98,7 +94,7 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
         t.rr.shift();
       }
     };
-    const semanticFrame: SemanticMetricFrame | null = view ? {
+    const semanticFrame: SemanticMetricFrame = {
       values: {
         "tires.tire-combined-slip": view.tires.combinedSlip,
         "tire.temperature.average": view.tires.temperatureC,
@@ -107,45 +103,66 @@ export function TelemetryCharts({ packet, view }: { packet?: DisplayPacket; view
         "tires.tire-slip-ratio": view.tires.slipRatio,
         "suspension.norm-suspension-travel": view.tires.suspensionNormalized,
       },
-    } : packet ? {
-      values: {
-        "tires.tire-combined-slip": [packet.TireCombinedSlipFL, packet.TireCombinedSlipFR, packet.TireCombinedSlipRL, packet.TireCombinedSlipRR],
-        "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR].map((value) => gameId === "fm-2023" ? (value - 32) * 5 / 9 : value),
-        "tires.tire-wear": [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
-        "tires.tire-slip-angle": [packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR],
-        "tires.tire-slip-ratio": [packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR],
-        "suspension.norm-suspension-travel": [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR],
-      },
-    } : null;
+    };
     const metricBinding = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") => {
-      const metric = key === "combinedSlip" ? activeAnalysis.gripDemand : key === "temperatureC" ? activeAnalysis.tireTemperature : key === "wear" ? activeAnalysis.tireHealth : key === "slipAngleRad" ? activeAnalysis.slipAngle : key === "slipRatio" ? activeAnalysis.slipRatio : activeAnalysis.suspensionTravel;
-      if (!semanticFrame || metric.source === "unavailable") return null;
+      const metric =
+        key === "combinedSlip"
+          ? activeAnalysis.gripDemand
+          : key === "temperatureC"
+            ? activeAnalysis.tireTemperature
+            : key === "wear"
+              ? activeAnalysis.tireHealth
+              : key === "slipAngleRad"
+                ? activeAnalysis.slipAngle
+                : key === "slipRatio"
+                  ? activeAnalysis.slipRatio
+                  : activeAnalysis.suspensionTravel;
+      if (metric.source === "unavailable") return null;
       if (key === "combinedSlip") return resolveGripDemand(semanticFrame, metric);
       return metric.binding?.kind === "value" ? resolveWheelMetric(semanticFrame, metric.binding) : null;
     };
     const wheel = (key: "combinedSlip" | "temperatureC" | "wear" | "slipAngleRad" | "slipRatio" | "suspensionNormalized") => {
       const resolved = metricBinding(key);
-      return resolved
-        ? { fl: resolved[0] ?? 0, fr: resolved[1] ?? 0, rl: resolved[2] ?? 0, rr: resolved[3] ?? 0 }
-        : { fl: 0, fr: 0, rl: 0, rr: 0 };
+      if (!resolved || resolved.length < 4) return null;
+      const fl = resolved[0],
+        fr = resolved[1],
+        rl = resolved[2],
+        rr = resolved[3];
+      if (
+        typeof fl !== "number" ||
+        !Number.isFinite(fl) ||
+        typeof fr !== "number" ||
+        !Number.isFinite(fr) ||
+        typeof rl !== "number" ||
+        !Number.isFinite(rl) ||
+        typeof rr !== "number" ||
+        !Number.isFinite(rr)
+      )
+        return null;
+      return { fl, fr, rl, rr };
     };
-    const grip = wheel("combinedSlip"), temp = wheel("temperatureC"), wear = wheel("wear"), angle = wheel("slipAngleRad"), ratio = wheel("slipRatio"), suspension = wheel("suspensionNormalized");
-    push4(h.grip, Math.abs(grip.fl), Math.abs(grip.fr), Math.abs(grip.rl), Math.abs(grip.rr));
-    push4(h.temp, temp.fl, temp.fr, temp.rl, temp.rr);
-    push4(h.wear, wear.fl, wear.fr, wear.rl, wear.rr);
-    push4(h.slipAngle, angle.fl * (180 / Math.PI), angle.fr * (180 / Math.PI), angle.rl * (180 / Math.PI), angle.rr * (180 / Math.PI));
-    push4(h.slipRatio, Math.abs(ratio.fl), Math.abs(ratio.fr), Math.abs(ratio.rl), Math.abs(ratio.rr));
-    push4(h.suspension, suspension.fl, suspension.fr, suspension.rl, suspension.rr);
-    h.throttle.push(controlInputPercent(view?.inputs.throttle ?? packet?.Accel));
-    h.brake.push(controlInputPercent(view?.inputs.brake ?? packet?.Brake));
-    h.speed.push(view?.motion.speedMps ?? packet?.DisplaySpeed ?? 0);
-    if (h.throttle.length > GRIP_MAX_SAMPLES) {
-      h.throttle.shift();
-      h.brake.shift();
-      h.speed.shift();
-    }
+    const grip = wheel("combinedSlip");
+    const temp = wheel("temperatureC");
+    const wear = wheel("wear");
+    const angle = wheel("slipAngleRad");
+    const ratio = wheel("slipRatio");
+    const suspension = wheel("suspensionNormalized");
+    if (grip) push4(h.grip, Math.abs(grip.fl), Math.abs(grip.fr), Math.abs(grip.rl), Math.abs(grip.rr));
+    if (temp) push4(h.temp, temp.fl, temp.fr, temp.rl, temp.rr);
+    if (wear) push4(h.wear, wear.fl, wear.fr, wear.rl, wear.rr);
+    if (angle) push4(h.slipAngle, angle.fl * (180 / Math.PI), angle.fr * (180 / Math.PI), angle.rl * (180 / Math.PI), angle.rr * (180 / Math.PI));
+    if (ratio) push4(h.slipRatio, Math.abs(ratio.fl), Math.abs(ratio.fr), Math.abs(ratio.rl), Math.abs(ratio.rr));
+    if (suspension) push4(h.suspension, suspension.fl, suspension.fr, suspension.rl, suspension.rr);
+    const pushScalar = (values: number[], value: number | undefined) => {
+      if (value === undefined || !Number.isFinite(value)) return;
+      values.push(value);
+      if (values.length > GRIP_MAX_SAMPLES) values.shift();
+    };
+    pushScalar(h.throttle, view.inputs.throttle === undefined ? undefined : controlInputPercent(view.inputs.throttle));
+    pushScalar(h.brake, view.inputs.brake === undefined ? undefined : controlInputPercent(view.inputs.brake));
+    pushScalar(h.speed, view.motion.speedMps);
     setChartData({ ...h });
-  }, [packet, view?.sequence, view?.streamId]);
+  }, [view?.sequence, view?.streamId]);
 
   if (!gameId || !analysis) return null;
 

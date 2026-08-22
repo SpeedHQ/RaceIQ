@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "../../../telemetry/types";
-import { allWheelStates } from "./physics/vehicle";
+import type { SemanticLapFrame } from "./semantic-frame";
+import { wheelStatesFromSignals } from "./physics/vehicle";
 
 /**
  * Time-loss estimation primitives for lap insights.
@@ -24,19 +24,28 @@ const REFERENCE_BIN_M_S = 10;
 /** Losses below this are indistinguishable from sampling noise. */
 export const MIN_REPORTABLE_LOSS_S = 0.02;
 
-
 /** Sum of the timesteps covering frames [start, end]. */
 function windowDuration(dt: number[], start: number, end: number): number {
-  let t = 0;
-  for (let i = start; i <= end; i++) t += dt[i];
-  return t;
+  let duration = 0;
+  for (let i = start; i <= end; i++) {
+    const step = dt[i];
+    if (typeof step !== "number" || !Number.isFinite(step) || step < 0) return Number.NaN;
+    duration += step;
+  }
+  return duration;
 }
 
 /** Distance covered over frames [start, end], metres (Speed is m/s). */
-function windowDistance(telemetry: TelemetryPacket[], dt: number[], start: number, end: number): number {
-  let d = 0;
-  for (let i = start; i <= end; i++) d += telemetry[i].Speed * dt[i];
-  return d;
+function windowDistance(telemetry: SemanticLapFrame[], dt: number[], start: number, end: number): number {
+  let distance = 0;
+  for (let i = start; i <= end; i++) {
+    const frame = telemetry[i];
+    const step = dt[i];
+    const speed = frame?.speedMps;
+    if (typeof speed !== "number" || !Number.isFinite(speed) || typeof step !== "number" || !Number.isFinite(step) || step < 0) return Number.NaN;
+    distance += speed * step;
+  }
+  return distance;
 }
 
 /**
@@ -50,10 +59,11 @@ function windowDistance(telemetry: TelemetryPacket[], dt: number[], start: numbe
  * negative loss, it simply isn't a loss, and no in-window fault can cost more
  * time than the window itself took.
  */
-export function speedDeficitLoss(telemetry: TelemetryPacket[], dt: number[], start: number, end: number, vRef: number): number {
-  if (end <= start || vRef <= 0) return 0;
+export function speedDeficitLoss(telemetry: SemanticLapFrame[], dt: number[], start: number, end: number, vRef: number): number {
+  if (end <= start || !Number.isFinite(vRef) || vRef <= 0) return 0;
   const actual = windowDuration(dt, start, end);
   const distance = windowDistance(telemetry, dt, start, end);
+  if (!Number.isFinite(actual) || !Number.isFinite(distance)) return 0;
   const loss = actual - distance / vRef;
   return Math.max(0, Math.min(loss, actual));
 }
@@ -68,30 +78,47 @@ export interface AccelReference {
   bins: (number | undefined)[];
 }
 
-export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[]): AccelReference {
+export function buildAccelReference(telemetry: SemanticLapFrame[], dt: number[]): AccelReference {
   const samples: number[][] = [];
   for (let i = 0; i < telemetry.length - 1; i++) {
-    const p = telemetry[i];
+    const frame = telemetry[i];
+    const next = telemetry[i + 1];
+    const step = dt[i];
+    if (!frame || !next || typeof step !== "number" || !Number.isFinite(step) || step <= 0) continue;
     // Clean reference frame: full throttle, no brake, no wheel slip, moving.
-    if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5) continue;
-    const ws = allWheelStates(p);
-    if (ws.fl.state === "spin" || ws.fr.state === "spin" || ws.rl.state === "spin" || ws.rr.state === "spin") continue;
+    if (
+      typeof frame.throttleInput !== "number" ||
+      !Number.isFinite(frame.throttleInput) ||
+      typeof frame.brakeInput !== "number" ||
+      !Number.isFinite(frame.brakeInput) ||
+      typeof frame.speedMps !== "number" ||
+      !Number.isFinite(frame.speedMps) ||
+      typeof next.speedMps !== "number" ||
+      !Number.isFinite(next.speedMps) ||
+      frame.throttleInput <= 230 ||
+      frame.brakeInput >= 5 ||
+      frame.speedMps < 5
+    )
+      continue;
+    const wheelStates = wheelStatesFromSignals(frame.speedMps, frame.steeringInput, frame.wheelRotationRadPerSec);
+    if (wheelStates === null || wheelStates.fl.state === "spin" || wheelStates.fr.state === "spin" || wheelStates.rl.state === "spin" || wheelStates.rr.state === "spin") continue;
 
-    const a = (telemetry[i + 1].Speed - p.Speed) / dt[i];
+    const acceleration = (next.speedMps - frame.speedMps) / step;
     // Discard physically implausible steps (packet reordering, respawns).
-    if (!Number.isFinite(a) || Math.abs(a) > 30) continue;
+    if (!Number.isFinite(acceleration) || Math.abs(acceleration) > 30) continue;
 
-    const bin = Math.floor(p.Speed / REFERENCE_BIN_M_S);
-    samples[bin] ??= [];
-    samples[bin].push(a);
+    const bin = Math.floor(frame.speedMps / REFERENCE_BIN_M_S);
+    const binSamples = samples[bin] ?? (samples[bin] = []);
+    binSamples.push(acceleration);
   }
 
   const bins: (number | undefined)[] = [];
-  for (let b = 0; b < samples.length; b++) {
-    const s = samples[b];
-    if (!s || s.length < MIN_REFERENCE_SAMPLES) continue;
-    s.sort((x, y) => x - y);
-    bins[b] = s[Math.floor(s.length / 2)];
+  for (let bin = 0; bin < samples.length; bin++) {
+    const binSamples = samples[bin];
+    if (!binSamples || binSamples.length < MIN_REFERENCE_SAMPLES) continue;
+    binSamples.sort((left, right) => left - right);
+    const median = binSamples[Math.floor(binSamples.length / 2)];
+    if (median !== undefined) bins[bin] = median;
   }
   return { bins };
 }
@@ -113,36 +140,48 @@ function refAccelAt(ref: AccelReference, speed: number): number | undefined {
  * Returns undefined when the reference has no data for the speeds involved, so
  * callers can omit the estimate instead of extrapolating one.
  */
-export function accelDeficitLoss(
-  telemetry: TelemetryPacket[],
-  dt: number[],
-  start: number,
-  end: number,
-  ref: AccelReference,
-): number | undefined {
+export function accelDeficitLoss(telemetry: SemanticLapFrame[], dt: number[], start: number, end: number, ref: AccelReference): number | undefined {
   if (end <= start) return 0;
 
   const actualTime = windowDuration(dt, start, end);
   const distance = windowDistance(telemetry, dt, start, end);
+  if (!Number.isFinite(actualTime) || !Number.isFinite(distance)) return undefined;
   if (distance <= 0) return 0;
 
-  let v = telemetry[start].Speed;
+  const startSpeed = telemetry[start]?.speedMps;
+  if (typeof startSpeed !== "number" || !Number.isFinite(startSpeed)) return undefined;
+  let speed = startSpeed;
   let covered = 0;
   let time = 0;
   let sawReference = false;
 
   for (let i = start; i <= end && covered < distance; i++) {
-    const refA = refAccelAt(ref, v);
-    if (refA === undefined) return undefined; // unsupported speed range — do not guess
+    const stepDuration = dt[i];
+    const frame = telemetry[i];
+    const next = telemetry[Math.min(i + 1, telemetry.length - 1)];
+    const currentSpeed = frame?.speedMps;
+    const nextSpeed = next?.speedMps;
+    if (
+      typeof currentSpeed !== "number" ||
+      !Number.isFinite(currentSpeed) ||
+      typeof nextSpeed !== "number" ||
+      !Number.isFinite(nextSpeed) ||
+      typeof stepDuration !== "number" ||
+      !Number.isFinite(stepDuration) ||
+      stepDuration <= 0
+    )
+      return undefined;
+    const referenceAcceleration = refAccelAt(ref, speed);
+    if (referenceAcceleration === undefined || !Number.isFinite(referenceAcceleration)) return undefined;
     sawReference = true;
 
-    const actualA = (telemetry[Math.min(i + 1, telemetry.length - 1)].Speed - telemetry[i].Speed) / dt[i];
-    const a = Math.max(refA, Number.isFinite(actualA) ? actualA : refA);
+    const actualAcceleration = (nextSpeed - currentSpeed) / stepDuration;
+    const acceleration = Math.max(referenceAcceleration, Number.isFinite(actualAcceleration) ? actualAcceleration : referenceAcceleration);
 
-    const step = Math.min(dt[i], (distance - covered) / Math.max(v, 1e-6));
-    covered += v * step;
+    const step = Math.min(stepDuration, (distance - covered) / Math.max(speed, 1e-6));
+    covered += speed * step;
     time += step;
-    v = Math.max(0, v + a * step);
+    speed = Math.max(0, speed + acceleration * step);
   }
 
   if (!sawReference) return undefined;
@@ -150,7 +189,7 @@ export function accelDeficitLoss(
   // Any distance the counterfactual has not yet covered is closed at its
   // (higher) exit speed — otherwise a faster run would be credited with less
   // distance rather than less time.
-  if (covered < distance && v > 0) time += (distance - covered) / v;
+  if (covered < distance && speed > 0) time += (distance - covered) / speed;
 
   const loss = actualTime - time;
   return Math.max(0, Math.min(loss, actualTime));
@@ -166,9 +205,9 @@ export function reportableLoss(seconds: number | undefined): number | undefined 
 export function sumLosses(losses: (number | undefined)[]): number | undefined {
   let total = 0;
   let any = false;
-  for (const l of losses) {
-    if (l === undefined) continue;
-    total += l;
+  for (const loss of losses) {
+    if (typeof loss !== "number" || !Number.isFinite(loss)) continue;
+    total += loss;
     any = true;
   }
   return any ? total : undefined;

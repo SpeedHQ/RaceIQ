@@ -15,7 +15,7 @@ import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analys
 import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context, telemetry summary, and (if available) the previous structured analysis are supplied per request via the system prompt. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.
 
-For F1 2025 setup questions: when the driver asks about their car setup or how to tune it, call the \`compare-f1-setup-to-catalog\` tool with their \`lapId\` (supplied in the system prompt). It returns their current setup alongside the top-5 community setups for the same track with per-field deltas. Ground your answer in those comparisons — cite the reference team/driver and the delta — rather than offering generic advice.${TRACK_GUIDE_PROMPT}`;
+For F1 2025 setup questions: when driver asks about car setup or tuning, call \`compare-f1-setup-to-catalog\` with \`lapId\` and matching \`gameId\` (supplied in system prompt). It reads persisted car setup and returns top-5 community comparisons. Ground answer in references — cite team/driver and delta — rather than generic advice.${TRACK_GUIDE_PROMPT}`;
 
 export const lapChatAgent = new Agent({
   id: "lap-chat",

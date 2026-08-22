@@ -12,37 +12,21 @@
  *     contributors can opt in by exporting their own laps.
  */
 import { describe, test, expect, beforeAll } from "bun:test";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { buildAnalystPrompt } from "../../../server/ai/analyst-prompt";
 import { compareLapHeader } from "../../../server/ai/compare-engineer";
 import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../../shared/racing/analysis/laps/semantic-frame";
+import { LiveTelemetryProjector } from "../../../server/telemetry/live-projector";
 import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
-import {
-  buildEvalLapAnalystAgent,
-  buildEvalCompareEngineerAgent,
-  resolveEvalModelId,
-} from "../../../mastra/evals/eval-agents";
-import {
-  listLapFixtures,
-  listComparePairFixtures,
-  loadLapPackets,
-  type LapFixture,
-  type ComparePairFixture,
-} from "../../../mastra/evals/fixtures";
-import {
-  analystScorers,
-  compareScorers,
-  judgeScorers,
-  scoreOutput,
-  SCORER_THRESHOLDS,
-  type ScoreResult,
-} from "../../../mastra/evals";
+import { buildEvalLapAnalystAgent, buildEvalCompareEngineerAgent, resolveEvalModelId } from "../../../mastra/evals/eval-agents";
+import { listLapFixtures, listComparePairFixtures, loadLapPackets, type LapFixture, type ComparePairFixture } from "../../../mastra/evals/fixtures";
+import { analystScorers, compareScorers, judgeScorers, scoreOutput, SCORER_THRESHOLDS, type ScoreResult } from "../../../mastra/evals";
 
-const HAS_API_KEY =
-  Boolean(process.env.GEMINI_API_KEY) ||
-  Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+const HAS_API_KEY = Boolean(process.env.GEMINI_API_KEY) || Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
 const describeIf = HAS_API_KEY ? describe : describe.skip;
 
@@ -72,37 +56,33 @@ describeIf("AI quality — Lap Analyst", () => {
     const hasPackets = packets !== null && packets.length > 0;
     const runOrSkip = hasPackets ? test : test.skip;
 
-    runOrSkip(`${fx.id} (model=${resolveEvalModelId()})`, async () => {
-      const prompt = buildAnalystPrompt(
-        { ...fx.lap, gameId: fx.game },
-        packets!,
-        deriveCornerDefs(fx),
-        fx.units,
-      );
-      const agent = buildEvalLapAnalystAgent();
-      const response = await agent.generate(prompt);
-      const output = response.text ?? "";
+    runOrSkip(
+      `${fx.id} (model=${resolveEvalModelId()})`,
+      async () => {
+        const samples = semanticSamplesFromPackets(packets!);
+        const prompt = buildAnalystPrompt({ ...fx.lap, gameId: fx.game }, samples, deriveCornerDefs(fx), fx.units);
+        const agent = buildEvalLapAnalystAgent();
+        const response = await agent.generate(prompt);
+        const output = response.text ?? "";
 
-      const groundTruth = {
-        slowestCorners: fx.expected.slowestCorners,
-        trackCorners: fx.expected.trackCorners,
-        units: fx.units,
-        // Source the judge grades against: the exact prompt the agent saw.
-        sourceContext: prompt,
-      };
+        const groundTruth = {
+          slowestCorners: fx.expected.slowestCorners,
+          trackCorners: fx.expected.trackCorners,
+          units: fx.units,
+          // Source the judge grades against: the exact prompt the agent saw.
+          sourceContext: prompt,
+        };
 
-      const scorers = HAS_LOCAL_JUDGE ? [...analystScorers, ...judgeScorers] : analystScorers;
-      const results = await Promise.all(
-        scorers.map((s) => scoreOutput(s, output, groundTruth)),
-      );
+        const scorers = HAS_LOCAL_JUDGE ? [...analystScorers, ...judgeScorers] : analystScorers;
+        const results = await Promise.all(scorers.map((s) => scoreOutput(s, output, groundTruth)));
 
-      reportScores(fx.id, results);
-      for (const r of results) {
-        expect(r.score, `${fx.id} · ${r.id} — ${r.reason}`).toBeGreaterThanOrEqual(
-          SCORER_THRESHOLDS[r.id] ?? 0.5,
-        );
-      }
-    }, 180_000);
+        reportScores(fx.id, results);
+        for (const r of results) {
+          expect(r.score, `${fx.id} · ${r.id} — ${r.reason}`).toBeGreaterThanOrEqual(SCORER_THRESHOLDS[r.id] ?? 0.5);
+        }
+      },
+      180_000,
+    );
   }
 });
 
@@ -119,29 +99,31 @@ describeIf("AI quality — Compare Engineer", () => {
     const hasPackets = packetsA && packetsB && packetsA.length > 0 && packetsB.length > 0;
     const runOrSkip = hasPackets ? test : test.skip;
 
-    runOrSkip(`${fx.id} (model=${resolveEvalModelId()})`, async () => {
-      const prompt = buildMinimalComparePrompt(fx, packetsA!, packetsB!);
-      const agent = buildEvalCompareEngineerAgent(fx.units);
-      const response = await agent.generate(prompt);
-      const output = response.text ?? "";
+    runOrSkip(
+      `${fx.id} (model=${resolveEvalModelId()})`,
+      async () => {
+        const samplesA = semanticSamplesFromPackets(packetsA!);
+        const samplesB = semanticSamplesFromPackets(packetsB!);
+        const prompt = buildMinimalComparePrompt(fx, samplesA, samplesB);
+        const agent = buildEvalCompareEngineerAgent(fx.units);
+        const response = await agent.generate(prompt);
+        const output = response.text ?? "";
 
-      const groundTruth = {
-        fasterLap: fx.expected.fasterLap,
-        trackCorners: fx.expected.trackCorners,
-        units: fx.units,
-      };
+        const groundTruth = {
+          fasterLap: fx.expected.fasterLap,
+          trackCorners: fx.expected.trackCorners,
+          units: fx.units,
+        };
 
-      const results = await Promise.all(
-        compareScorers.map((s) => scoreOutput(s, output, groundTruth)),
-      );
+        const results = await Promise.all(compareScorers.map((s) => scoreOutput(s, output, groundTruth)));
 
-      reportScores(fx.id, results);
-      for (const r of results) {
-        expect(r.score, `${fx.id} · ${r.id} — ${r.reason}`).toBeGreaterThanOrEqual(
-          SCORER_THRESHOLDS[r.id] ?? 0.5,
-        );
-      }
-    }, 180_000);
+        reportScores(fx.id, results);
+        for (const r of results) {
+          expect(r.score, `${fx.id} · ${r.id} — ${r.reason}`).toBeGreaterThanOrEqual(SCORER_THRESHOLDS[r.id] ?? 0.5);
+        }
+      },
+      180_000,
+    );
   }
 });
 
@@ -161,29 +143,47 @@ function deriveCornerDefs(fx: LapFixture) {
   }));
 }
 
-function buildMinimalComparePrompt(
-  fx: ComparePairFixture,
-  packetsA: TelemetryPacket[],
-  packetsB: TelemetryPacket[],
-): string {
+function semanticSamplesFromPackets(packets: readonly TelemetryPacket[]): SemanticTelemetrySample[] {
+  const projector = new LiveTelemetryProjector(CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+  const samples: SemanticTelemetrySample[] = [];
+  for (const packet of packets) {
+    samples.push(
+      projector.project({
+        packet,
+        receivedAtMs: packet.TimestampMS,
+      }).sample,
+    );
+  }
+  return samples;
+}
+
+function buildMinimalComparePrompt(fx: ComparePairFixture, samplesA: readonly SemanticTelemetrySample[], samplesB: readonly SemanticTelemetrySample[]): string {
   const trackName = resolveTrackName(fx.lapA.trackOrdinal);
   const carA = resolveCarName(fx.lapA.carOrdinal);
   const carB = resolveCarName(fx.lapB.carOrdinal);
   const finalDelta = fx.lapA.lapTime - fx.lapB.lapTime;
   const header = compareLapHeader(trackName, carA, carB, fx.lapA, fx.lapB, finalDelta);
 
-  const inputSummary = (pkts: typeof packetsA, label: string) => {
-    const avgThrottle = pkts.reduce((s, p) => s + (p.Accel ?? 0), 0) / pkts.length;
-    const avgBrake = pkts.reduce((s, p) => s + (p.Brake ?? 0), 0) / pkts.length;
-    const topSpeed = Math.max(...pkts.map((p) => p.Speed ?? 0));
-    return `${label}: avg throttle ${avgThrottle.toFixed(1)}, avg brake ${avgBrake.toFixed(1)}, top speed ${topSpeed.toFixed(1)}`;
+  const inputSummary = (samples: readonly SemanticTelemetrySample[], label: string) => {
+    let throttleTotal = 0;
+    let brakeTotal = 0;
+    let topSpeed = 0;
+    for (const sample of samples) {
+      const throttle = sample.values["inputs.accel"];
+      const brake = sample.values["inputs.brake"];
+      const speed = sample.values["motion.speed"];
+      if (typeof throttle === "number") throttleTotal += throttle;
+      if (typeof brake === "number") brakeTotal += brake;
+      if (typeof speed === "number" && speed > topSpeed) topSpeed = speed;
+    }
+    return `${label}: avg throttle ${(throttleTotal / samples.length).toFixed(1)}, avg brake ${(brakeTotal / samples.length).toFixed(1)}, top speed ${topSpeed.toFixed(1)}`;
   };
 
   return `${header}
 
 --- LAP SUMMARY ---
-${inputSummary(packetsA, "Lap A")}
-${inputSummary(packetsB, "Lap B")}
+${inputSummary(samplesA, "Lap A")}
+${inputSummary(samplesB, "Lap B")}
 
 Which lap is faster, and where is time being gained? Coach the slower lap.`;
 }

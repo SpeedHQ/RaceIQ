@@ -1,20 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  RACE_EVENT_SCHEMA_VERSION,
-  type RaceEvent,
-  type RaceEventPayloadMap,
-  type RaceEventType,
-} from "../../shared/racing/events/contracts";
+import { RACE_EVENT_SCHEMA_VERSION, type RaceEvent, type RaceEventPayloadMap, type RaceEventType } from "../../shared/racing/events/contracts";
 import { SessionRunBuilder } from "../../server/session-runs/builder";
 import { RaceEventConflictError } from "../../server/race-events/ordering";
 
 let eventOrdinal = 0;
-function raceEvent<Type extends RaceEventType>(
-  eventType: Type,
-  payload: RaceEventPayloadMap[Type],
-  overrides: Partial<RaceEvent> = {},
-): RaceEvent {
+function raceEvent<Type extends RaceEventType>(eventType: Type, payload: RaceEventPayloadMap[Type], overrides: Partial<RaceEvent> = {}): RaceEvent {
   eventOrdinal += 1;
   const hex = eventOrdinal.toString(16).padStart(64, "0");
   return {
@@ -65,10 +56,7 @@ function participantJoined() {
   });
 }
 
-function completedLap(
-  lapNumber: number,
-  conditions: RaceEventPayloadMap["lap_completed"]["conditions"] = [],
-) {
+function completedLap(lapNumber: number, conditions: RaceEventPayloadMap["lap_completed"]["conditions"] = []) {
   return raceEvent(
     "lap_completed",
     {
@@ -115,9 +103,7 @@ describe("SessionRunBuilder", () => {
     expect(prepared.runs.filter(({ runKind }) => runKind === "tire")).toHaveLength(1);
     const tire = prepared.runs.find(({ runKind }) => runKind === "tire");
     expect(tire?.summary.completedLapCount).toBe(2);
-    expect(
-      prepared.memberships.filter(({ runId }) => runId === tire?.runId),
-    ).toHaveLength(2);
+    expect(prepared.memberships.filter(({ runId }) => runId === tire?.runId)).toHaveLength(2);
     prepared.commit();
     expect(builder.openRuns()).toHaveLength(0);
   });
@@ -153,9 +139,7 @@ describe("SessionRunBuilder", () => {
       ...joined,
       contentHash: `sha256:${"f".repeat(64)}`,
     } as RaceEvent;
-    expect(() =>
-      builder.consume({ events: [conflicting], lapsByCompletionEventId: {} }),
-    ).toThrow(RaceEventConflictError);
+    expect(() => builder.consume({ events: [conflicting], lapsByCompletionEventId: {} })).toThrow(RaceEventConflictError);
     expect(builder.openRuns()).toHaveLength(4);
   });
 
@@ -202,11 +186,7 @@ describe("SessionRunBuilder", () => {
       prepared.commit();
       return builder.finalize();
     })();
-    expect(
-      [...prepared.runs, ...finalized.runs].filter(
-        ({ runKind }) => runKind === "pace",
-      ),
-    ).toHaveLength(2);
+    expect([...prepared.runs, ...finalized.runs].filter(({ runKind }) => runKind === "pace")).toHaveLength(2);
   });
 
   test("drops cross-batch boundary-only pace intervals while retaining latest opening evidence", () => {
@@ -251,16 +231,9 @@ describe("SessionRunBuilder", () => {
     third.commit();
     const finalized = builder.finalize();
     const runs = [...first.runs, ...second.runs, ...third.runs, ...finalized.runs];
-    const memberships = [
-      ...first.memberships,
-      ...second.memberships,
-      ...third.memberships,
-      ...finalized.memberships,
-    ];
+    const memberships = [...first.memberships, ...second.memberships, ...third.memberships, ...finalized.memberships];
     const paceRuns = runs.filter(({ runKind }) => runKind === "pace");
-    const paceMemberships = memberships.filter(({ runId }) =>
-      paceRuns.some((run) => run.runId === runId),
-    );
+    const paceMemberships = memberships.filter(({ runId }) => paceRuns.some((run) => run.runId === runId));
 
     expect(paceRuns).toHaveLength(2);
     expect(paceRuns.every(({ summary }) => summary.completedLapCount === 1)).toBe(true);
@@ -347,15 +320,7 @@ describe("SessionRunBuilder", () => {
     });
     first.commit();
     const second = builder.consume({
-      events: [
-        caution,
-        cautionLap,
-        formation,
-        formationLap2,
-        greenRestart,
-        tire,
-        greenLap2,
-      ],
+      events: [caution, cautionLap, formation, formationLap2, greenRestart, tire, greenLap2],
       lapsByCompletionEventId: {},
     });
     second.commit();
@@ -367,15 +332,9 @@ describe("SessionRunBuilder", () => {
     expect(builder.openRuns()).toHaveLength(0);
 
     const runs = [...first.runs, ...second.runs, ...third.runs];
-    const memberships = [
-      ...first.memberships,
-      ...second.memberships,
-      ...third.memberships,
-    ];
+    const memberships = [...first.memberships, ...second.memberships, ...third.memberships];
     const participant = runs.find(({ runKind }) => runKind === "participant");
-    const participantMemberships = memberships.filter(
-      ({ runId }) => runId === participant?.runId,
-    );
+    const participantMemberships = memberships.filter(({ runId }) => runId === participant?.runId);
     const tireRuns = runs.filter(({ runKind }) => runKind === "tire");
     const paceRuns = runs.filter(({ runKind }) => runKind === "pace");
 
@@ -383,33 +342,17 @@ describe("SessionRunBuilder", () => {
     expect(runs.filter(({ runKind }) => runKind === "driver")).toHaveLength(1);
     expect(tireRuns).toHaveLength(2);
     expect(paceRuns).toHaveLength(3);
-    expect(tireRuns.map(({ openingBoundary }) => openingBoundary.eventId)).toEqual([
-      joined.eventId,
-      tire.eventId,
-    ]);
-    expect(paceRuns.map(({ openingBoundary }) => openingBoundary.eventId)).toEqual([
-      joined.eventId,
-      tire.eventId,
-      fuel.eventId,
-    ]);
+    expect(tireRuns.map(({ openingBoundary }) => openingBoundary.eventId)).toEqual([joined.eventId, tire.eventId]);
+    expect(paceRuns.map(({ openingBoundary }) => openingBoundary.eventId)).toEqual([joined.eventId, tire.eventId, fuel.eventId]);
     expect(runs.every(({ summary }) => summary.membershipCount > 0)).toBe(true);
-    const finalLapRunIds = new Set(
-      memberships
-        .filter(({ lapEventId }) => lapEventId === greenLap3.eventId)
-        .map(({ runId }) => runId),
-    );
+    const finalLapRunIds = new Set(memberships.filter(({ lapEventId }) => lapEventId === greenLap3.eventId).map(({ runId }) => runId));
     expect(
       runs
         .filter(({ runId }) => finalLapRunIds.has(runId))
         .map(({ runKind }) => runKind)
         .sort(),
     ).toEqual(["driver", "pace", "participant", "tire"]);
-    expect(participant?.observedPhases).toEqual([
-      "formation",
-      "green",
-      "caution",
-      "checkered",
-    ]);
+    expect(participant?.observedPhases).toEqual(["formation", "green", "caution", "checkered"]);
     expect(participant?.summary.cautionLapCount).toBe(1);
     expect(participantMemberships.map(({ lapEventId }) => lapEventId)).toEqual([
       formationLap1.eventId,
@@ -440,11 +383,7 @@ describe("SessionRunBuilder", () => {
       events: [joined, lap, lap, ended],
       lapsByCompletionEventId: {},
     });
-    expect(
-      prepared.runs.every(
-        ({ summary }) => summary.completedLapCount === 1,
-      ),
-    ).toBe(true);
+    expect(prepared.runs.every(({ summary }) => summary.completedLapCount === 1)).toBe(true);
     expect(prepared.memberships).toHaveLength(4);
 
     const other = {
@@ -484,17 +423,8 @@ describe("SessionRunBuilder", () => {
       events: [joined, lap1, tire, lap2, disconnected, recovered],
       lapsByCompletionEventId: {},
     });
-    expect(
-      prepared.nextBuilderState.every(
-        ({ tireCompound, tireSetId }) =>
-          tireCompound === null && tireSetId === null,
-      ),
-    ).toBe(true);
-    expect(
-      prepared.nextBuilderState.every(({ qualityFlags }) =>
-        qualityFlags.includes("source_continuity_unknown"),
-      ),
-    ).toBe(true);
+    expect(prepared.nextBuilderState.every(({ tireCompound, tireSetId }) => tireCompound === null && tireSetId === null)).toBe(true);
+    expect(prepared.nextBuilderState.every(({ qualityFlags }) => qualityFlags.includes("source_continuity_unknown"))).toBe(true);
   });
 
   test("keeps null and literal unknown participants distinct", () => {
@@ -514,9 +444,7 @@ describe("SessionRunBuilder", () => {
       events: [unknownLap, literalJoin],
       lapsByCompletionEventId: {},
     });
-    expect(
-      new Set(prepared.nextBuilderState.map(({ participantId }) => participantId)),
-    ).toEqual(new Set([null, "<unknown>"]));
+    expect(new Set(prepared.nextBuilderState.map(({ participantId }) => participantId))).toEqual(new Set([null, "<unknown>"]));
     expect(prepared.nextBuilderState).toHaveLength(8);
   });
 
@@ -542,24 +470,30 @@ describe("SessionRunBuilder", () => {
       lapsByCompletionEventId: {},
     });
     expect(
-      prepared.nextBuilderState.every(
-        ({ participantId, driverId, teamId, sourceGeneration }) =>
-          participantId === null &&
-          driverId === null &&
-          teamId === null &&
-          sourceGeneration === null,
-      ),
+      prepared.nextBuilderState.every(({ participantId, driverId, teamId, sourceGeneration }) => participantId === null && driverId === null && teamId === null && sourceGeneration === null),
     ).toBe(true);
     prepared.commit();
-    expect(() =>
-      builder.finalize({ reason: "session-ended" } as never),
-    ).toThrow("requires a session_ended event");
-    expect(() =>
-      builder.finalize({ event: joined } as never),
-    ).toThrow("cannot include an event");
+    expect(() => builder.finalize({ reason: "session-ended" } as never)).toThrow("requires a session_ended event");
+    expect(() => builder.finalize({ event: joined } as never)).toThrow("cannot include an event");
     const finalized = builder.finalize();
-    expect(finalized.runs.every(({ createdAt }) => createdAt === joined.createdAt)).toBe(
-      true,
-    );
+    expect(finalized.runs.every(({ createdAt }) => createdAt === joined.createdAt)).toBe(true);
+  });
+
+  test("prunes finalized session state after commit while retaining event dedupe", () => {
+    eventOrdinal = 0;
+    const builder = new SessionRunBuilder();
+    const joined = participantJoined();
+    const lap = completedLap(1);
+    builder.consume({ events: [joined, lap], lapsByCompletionEventId: {} }).commit();
+
+    const finalized = builder.finalize({ sessionId: 1 });
+    expect(finalized.runs.length).toBeGreaterThan(0);
+    finalized.commit();
+    expect(builder.openRuns()).toHaveLength(0);
+
+    const duplicate = builder.consume({ events: [joined, lap], lapsByCompletionEventId: {} });
+    expect(duplicate.runs).toHaveLength(0);
+    duplicate.commit();
+    expect(builder.openRuns()).toHaveLength(0);
   });
 });

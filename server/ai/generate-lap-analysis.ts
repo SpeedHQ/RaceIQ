@@ -1,18 +1,21 @@
 import type { Tune } from "../../shared/racing/tuning/types";
-import type { GameId } from "../../shared/games/ids";
 import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
 import { eligibilityDecisionText } from "../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
-import { getLapById } from "../db/lap-read-queries";
+import { getLapMetaById } from "../db/lap-read-queries";
 import { getCorners } from "../db/track-queries";
 import { getAnalysis, lapFindingGenerationCacheKey, qualityCacheIdentityForLap, saveAnalysis } from "../db/analysis-queries";
 import { getCurrentFindingGeneration } from "../findings/store";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { detectCorners, type Corner } from "../lap-analysis/corners";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS, semanticLapFrames } from "../../shared/racing/analysis/laps/semantic-frame";
+import { queryLapTelemetryBySemanticId } from "../telemetry/replay";
+import { semanticSamplesFromReplay } from "../telemetry/semantic-samples";
+import { TRACK_CONDITION_SEMANTIC_IDS } from "./track-conditions";
 import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt, type PromptSectors } from "./analyst-prompt";
 import { resolveTrack } from "../tracks/info";
-import { computeNativeSectorTimeline, computeLapSectors } from "../lap-analysis/sectors";
+import { computeSemanticSectorTimeline, computeLapSectors } from "../lap-analysis/sectors";
 import { getGame } from "../../shared/games/registry";
 import { lapAnalystAgent } from "./agents";
 import { getAnalystJsonSchema, AnalystOutputSchema } from "./schemas";
@@ -22,6 +25,7 @@ import { toClientAiError } from "./provider-error";
 import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
 import type { StructuredRequest, ResolvedAi } from "./ai-types";
+const AI_LAP_ANALYSIS_SEMANTIC_IDS = [...CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS, ...TRACK_CONDITION_SEMANTIC_IDS];
 import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "./chat-message-context";
 
 export interface AnalysisUsage {
@@ -48,7 +52,7 @@ export interface LapAnalysisResult {
 
 type AgentGenerate = (prompt: string, options: Record<string, unknown>) => Promise<unknown>;
 export interface GenerateLapAnalysisDeps {
-  getLapById?: typeof getLapById;
+  getLapMetaById?: typeof getLapMetaById;
   getCorners?: typeof getCorners;
   getAnalysis?: typeof getAnalysis;
   saveAnalysis?: typeof saveAnalysis;
@@ -56,7 +60,8 @@ export interface GenerateLapAnalysisDeps {
   getDbTune?: typeof getDbTune;
   detectCorners?: typeof detectCorners;
   computeLapSectors?: typeof computeLapSectors;
-  computeNativeSectorTimeline?: typeof computeNativeSectorTimeline;
+  computeSemanticSectorTimeline?: typeof computeSemanticSectorTimeline;
+  queryLapTelemetryBySemanticId?: typeof queryLapTelemetryBySemanticId;
   getGame?: typeof getGame;
   loadSettings?: typeof loadSettings;
   buildAnalystPrompt?: typeof buildAnalystPrompt;
@@ -87,7 +92,7 @@ export async function generateLapAnalysis(
   } = {},
   deps: GenerateLapAnalysisDeps = {},
 ): Promise<LapAnalysisResult> {
-  const findLap = deps.getLapById ?? getLapById;
+  const findLap = deps.getLapMetaById ?? getLapMetaById;
   const findCorners = deps.getCorners ?? getCorners;
   const readAnalysis = deps.getAnalysis ?? getAnalysis;
   const writeAnalysis = deps.saveAnalysis ?? saveAnalysis;
@@ -113,14 +118,14 @@ export async function generateLapAnalysis(
       error: eligibilityDecisionText(decision),
     };
   }
-  if (lap.telemetry.length === 0)
+  if (!lap.gameId)
     return {
       analysis: null,
       cached: false,
       cornerFracs: [],
       hasTune: false,
-      error: "No telemetry data",
       decision,
+      error: "Lap has no game identity",
     };
   if (!qualityIdentity)
     return {
@@ -131,15 +136,18 @@ export async function generateLapAnalysis(
       error: "Lap has no current quality generation",
       decision,
     };
-  if (!lap.gameId)
+  const replay = await (deps.queryLapTelemetryBySemanticId ?? queryLapTelemetryBySemanticId)(lap.id, AI_LAP_ANALYSIS_SEMANTIC_IDS);
+  if (!replay || replay.envelopes.length === 0)
     return {
       analysis: null,
       cached: false,
       cornerFracs: [],
       hasTune: false,
       decision,
-      error: "Lap has no game identity",
+      error: "No resolver-backed telemetry data",
     };
+  const samples = semanticSamplesFromReplay(replay);
+  const frames = semanticLapFrames(samples);
 
   const findingScope = {
     kind: "lap",
@@ -166,14 +174,18 @@ export async function generateLapAnalysis(
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
   let corners: Corner[] = trackOrdinal > 0 && lap.gameId ? await findCorners(trackOrdinal, lap.gameId) : [];
-  if (corners.length === 0) corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
-  const totalDist = lap.telemetry.length > 1 ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled - lap.telemetry[0].DistanceTraveled : 1;
-  const firstDist = lap.telemetry[0]?.DistanceTraveled ?? 0;
-  const cornerFracs = corners.map((corner) => ({
-    label: corner.label,
-    startFrac: Math.max(0, (corner.distanceStart - firstDist) / totalDist),
-    endFrac: Math.min(1, (corner.distanceEnd - firstDist) / totalDist),
-  }));
+  if (corners.length === 0) corners = (deps.detectCorners ?? detectCorners)(samples, lap.gameId);
+  const firstDistance = frames[0]?.distanceM;
+  const lastDistance = frames[frames.length - 1]?.distanceM;
+  let cornerFracs: CornerFraction[] = [];
+  if (typeof firstDistance === "number" && Number.isFinite(firstDistance) && typeof lastDistance === "number" && Number.isFinite(lastDistance) && lastDistance > firstDistance) {
+    const lapDistance = lastDistance - firstDistance;
+    cornerFracs = corners.map((corner) => ({
+      label: corner.label,
+      startFrac: Math.max(0, Math.min(1, (corner.distanceStart - firstDistance) / lapDistance)),
+      endFrac: Math.max(0, Math.min(1, (corner.distanceEnd - firstDistance) / lapDistance)),
+    }));
+  }
   const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
 
   if (!options.regenerate) {
@@ -216,17 +228,17 @@ export async function generateLapAnalysis(
   const track = (deps.resolveTrack ?? resolveTrack)(lap.gameId, lap.trackOrdinal);
   let sectors: PromptSectors | undefined;
   try {
-    const game = lap.gameId ? (deps.getGame ?? getGame)(lap.gameId) : undefined;
-    if (game?.nativeSectors && game.getNativeSectorLayout) {
-      const timeline = (deps.computeNativeSectorTimeline ?? computeNativeSectorTimeline)(lap.telemetry, lap.lapTime, game.getNativeSectorLayout);
-      if (timeline && timeline.times.length >= 2) {
+    const game = (deps.getGame ?? getGame)(lap.gameId);
+    if (game.nativeSectors) {
+      const timeline = (deps.computeSemanticSectorTimeline ?? computeSemanticSectorTimeline)(samples, lap.lapTime);
+      if (timeline) {
         sectors = {
           times: timeline.times,
           sectorStarts: timeline.sectorStarts,
         };
       }
-    } else if (track.sectors.s1End && track.sectors.s2End && lap.gameId && lap.trackOrdinal != null) {
-      const times = await (deps.computeLapSectors ?? computeLapSectors)(lap.trackOrdinal, lap.gameId as GameId, lap.telemetry, lap.lapTime);
+    } else if (track.sectors.s1End && track.sectors.s2End && lap.trackOrdinal != null) {
+      const times = await (deps.computeLapSectors ?? computeLapSectors)(lap.trackOrdinal, lap.gameId, samples, lap.lapTime);
       if (times && times.length >= 3) {
         sectors = {
           times,
@@ -240,7 +252,7 @@ export async function generateLapAnalysis(
 
   const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
-    lap.telemetry,
+    samples,
     corners,
     settings.unit,
     settings.temperatureUnit,
@@ -270,7 +282,6 @@ export async function generateLapAnalysis(
     return { analysis: null, cached: false, cornerFracs, hasTune, decision };
   }
   const model = ai.model;
-  const startedAt = Date.now();
   try {
     const schema = getAnalystJsonSchema();
     const input: StructuredRequest<unknown> = {
@@ -301,11 +312,13 @@ export async function generateLapAnalysis(
         kind: "lap",
         gameId: lap.gameId,
         cacheKey: findingGenerationKey,
-        laps: [{
-          lapId: lap.id,
-          generationId: findingGeneration.receipt.generationId,
-          contentHash: findingGeneration.receipt.contentHash,
-        }],
+        laps: [
+          {
+            lapId: lap.id,
+            generationId: findingGeneration.receipt.generationId,
+            contentHash: findingGeneration.receipt.contentHash,
+          },
+        ],
       });
       return generate(prompt, { ...generationOptions, requestContext });
     });
@@ -320,15 +333,7 @@ export async function generateLapAnalysis(
         error: invalidAnalysisError,
       };
 
-    const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-    const numberFor = (...keys: string[]) => keys.map((key) => rawUsage[key]).find((value): value is number => typeof value === "number") ?? 0;
-    const usage: AnalysisUsage = {
-      inputTokens: numberFor("inputTokens", "promptTokens"),
-      outputTokens: numberFor("outputTokens", "completionTokens"),
-      costUsd: numberFor("costUsd"),
-      durationMs: numberFor("durationMs") || Date.now() - startedAt,
-      model,
-    };
+    const usage: AnalysisUsage = result.usage;
     const currentFindingGeneration = await loadFindingGeneration(findingScope);
     if (!currentFindingGeneration || lapFindingGenerationCacheKey(currentFindingGeneration.receipt) !== findingGenerationKey) {
       return {

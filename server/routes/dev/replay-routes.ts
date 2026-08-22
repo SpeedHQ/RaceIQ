@@ -11,28 +11,18 @@ import { PitTracker } from "../../live-strategy/pit-tracker";
 import { LiveTelemetryProjector } from "../../telemetry/live-projector";
 import { normalizeTelemetryPacket } from "../../telemetry/normalization";
 import { wsManager } from "../../runtime/websocket-manager";
-import {
-  resolveRecordingGameId,
-  resolveRecordingPath,
-} from "./recording-support";
+import { resolveRecordingGameId, resolveRecordingPath } from "./recording-support";
 
 const DEFAULT_PACKET_LIMIT = 160;
 const DEFAULT_INTERVAL_MS = 24;
 
-function boundedInteger(
-  value: string | undefined,
-  fallback: number,
-  minimum: number,
-  maximum: number,
-): number {
+function boundedInteger(value: string | undefined, fallback: number, minimum: number, maximum: number): number {
   const parsed = value === undefined ? Number.NaN : Number.parseInt(value, 10);
-  return Number.isFinite(parsed)
-    ? Math.min(maximum, Math.max(minimum, parsed))
-    : fallback;
+  return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
 }
 
 function timestampMilliseconds(timestamp: { domain: string; milliseconds?: number }): number {
-  return timestamp.domain === "monotonic" ? 0 : timestamp.milliseconds ?? 0;
+  return timestamp.domain === "monotonic" ? 0 : (timestamp.milliseconds ?? 0);
 }
 
 interface ReplayLapWindow {
@@ -45,9 +35,7 @@ function replayLapKey(packet: TelemetryPacket, lapNumber: number): string {
   return `${packet.sessionUID ?? "unknown"}:${lapNumber}`;
 }
 
-function selectIRacingReferenceLap(
-  packets: readonly TelemetryPacket[],
-): { packets: TelemetryPacket[]; lapTime: number } | null {
+function selectIRacingReferenceLap(packets: readonly TelemetryPacket[]): { packets: TelemetryPacket[]; lapTime: number } | null {
   const windows = new Map<string, ReplayLapWindow>();
   const completedTimeByLap = new Map<string, number>();
   let activeKey: string | null = null;
@@ -67,29 +55,15 @@ function selectIRacingReferenceLap(
       windows.get(key)!.hasPitRoad = true;
     }
 
-    if (
-      packet.CurrentLap >= 0 &&
-      packet.CurrentLap <= 5 &&
-      packet.LastLap > 10
-    ) {
-      completedTimeByLap.set(
-        replayLapKey(packet, packet.LapNumber - 1),
-        packet.LastLap,
-      );
+    if (packet.CurrentLap >= 0 && packet.CurrentLap <= 5 && packet.LastLap > 10) {
+      completedTimeByLap.set(replayLapKey(packet, packet.LapNumber - 1), packet.LastLap);
     }
   }
 
-  let best:
-    | { window: ReplayLapWindow; lapTime: number }
-    | null = null;
+  let best: { window: ReplayLapWindow; lapTime: number } | null = null;
   for (const [key, lapTime] of completedTimeByLap) {
     const window = windows.get(key);
-    if (
-      !window ||
-      window.hasPitRoad ||
-      window.end - window.start < 2 ||
-      (best && lapTime >= best.lapTime)
-    ) {
+    if (!window || window.hasPitRoad || window.end - window.start < 2 || (best && lapTime >= best.lapTime)) {
       continue;
     }
     best = { window, lapTime };
@@ -106,34 +80,58 @@ export const replayRoutes = new Hono()
   .get("/api/dev/laps/:id/live-telemetry", async (c) => {
     const lapId = Number.parseInt(c.req.param("id"), 10);
     if (!Number.isSafeInteger(lapId) || lapId < 1) return c.json({ error: "Invalid lap id" }, 400);
-    const ids = c.req.query("semanticIds")?.split(",").map((id) => id.trim()).filter(Boolean);
+    const ids = c.req
+      .query("semanticIds")
+      ?.split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
     if (!ids?.length) return c.json({ error: "semanticIds query parameter is required" }, 400);
     try {
       const replay = await queryLapTelemetryBySemanticId(lapId, ids);
       if (!replay || replay.envelopes.length === 0) return c.json({ error: "Lap not found" }, 404);
       const first = replay.envelopes[0];
-      const definitions: LiveTelemetryDefinitionV1[] = ids.map((semanticId) => ({
-        semanticId, unit: null, mappingStatus: "direct", schemaVersion: first.catalogSchemaVersion, limitations: [],
-      }));
-      const schema = encodeLiveSchema(definitions, {
-        schemaId: `replay-${lapId}-${first.catalogHash.slice(0, 16)}`, simulator: first.simulator,
-        catalogVersion: first.catalogVersion, catalogHash: first.catalogHash,
-        catalogSchemaVersion: first.catalogSchemaVersion, parserVersion: first.parserVersion,
-        resolverVersion: first.resolverVersion, derivationVersion: first.derivationVersion,
+      const firstValues = new Map(first.values.map((value) => [value.semanticId, value] as const));
+      const definitions: LiveTelemetryDefinitionV1[] = replay.requestedSemanticIds.map((semanticId) => {
+        const value = firstValues.get(semanticId);
+        if (!value) {
+          throw new Error(`Replay omitted requested semantic ID ${semanticId}`);
+        }
+        return {
+          semanticId,
+          unit: value.unit,
+          mappingStatus: value.mappingStatus,
+          schemaVersion: value.schemaVersion,
+          limitations: value.limitations,
+        };
       });
-      const frames = replay.envelopes.map((envelope) => encodeLiveFrame({
-        schemaId: schema.schemaId, streamId: `replay-${lapId}`, sessionId: Number(envelope.sessionId),
-        sequence: Number(envelope.sequence), observedAt: envelope.observedAt.domain === "monotonic" ? { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) } : envelope.observedAt,
-        receivedAtMs: timestampMilliseconds(envelope.receivedAt), values: envelope.values, context: {},
-      }));
+      const schema = encodeLiveSchema(definitions, {
+        schemaId: `replay-${lapId}-${first.catalogHash.slice(0, 16)}`,
+        simulator: first.simulator,
+        catalogVersion: first.catalogVersion,
+        catalogHash: first.catalogHash,
+        catalogSchemaVersion: first.catalogSchemaVersion,
+        parserVersion: first.parserVersion,
+        resolverVersion: first.resolverVersion,
+        derivationVersion: first.derivationVersion,
+      });
+      const frames = replay.envelopes.map((envelope) =>
+        encodeLiveFrame({
+          schemaId: schema.schemaId,
+          streamId: `replay-${lapId}`,
+          sessionId: Number(envelope.sessionId),
+          sequence: Number(envelope.sequence),
+          observedAt: envelope.observedAt.domain === "monotonic" ? { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) } : envelope.observedAt,
+          receivedAtMs: timestampMilliseconds(envelope.receivedAt),
+          values: envelope.values,
+          context: {},
+        }),
+      );
       return c.json({ schema, frames });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Replay failed" }, 400);
     }
   })
-  .post(
-    "/api/dev/replay/:recordingName",
-    async (c) => {
+  .post("/api/dev/replay/:recordingName", async (c) => {
     const recordingName = c.req.param("recordingName");
     const recordingPath = resolveRecordingPath(recordingName);
     if (!recordingPath.ok) {
@@ -145,18 +143,8 @@ export const replayRoutes = new Hono()
       return c.json({ error: "Could not determine recording game" }, 400);
     }
 
-    const packetLimit = boundedInteger(
-      c.req.query("packets"),
-      DEFAULT_PACKET_LIMIT,
-      2,
-      600,
-    );
-    const intervalMs = boundedInteger(
-      c.req.query("intervalMs"),
-      DEFAULT_INTERVAL_MS,
-      0,
-      100,
-    );
+    const packetLimit = boundedInteger(c.req.query("packets"), DEFAULT_PACKET_LIMIT, 2, 600);
+    const intervalMs = boundedInteger(c.req.query("intervalMs"), DEFAULT_INTERVAL_MS, 0, 100);
     const recorded = readRecordedTelemetry(gameId, recordingPath.path);
     if (recorded.packets.length === 0) {
       return c.json({ error: "No telemetry packets found in recording" }, 400);
@@ -169,13 +157,7 @@ export const replayRoutes = new Hono()
       sampleCount === recorded.packets.length
         ? recorded.packets
         : Array.from({ length: sampleCount }, (_, index) => {
-            const sourceIndex =
-              sampleCount === 1
-                ? 0
-                : Math.round(
-                    (index * (recorded.packets.length - 1)) /
-                      (sampleCount - 1),
-                  );
+            const sourceIndex = sampleCount === 1 ? 0 : Math.round((index * (recorded.packets.length - 1)) / (sampleCount - 1));
             return recorded.packets[sourceIndex]!;
           });
 
@@ -193,18 +175,11 @@ export const replayRoutes = new Hono()
     });
 
     const sectorTracker = new SectorTracker();
-    await sectorTracker.reset(
-      packets[0]!.TrackOrdinal,
-      gameId,
-      packets[0]!.CarOrdinal,
-    );
+    await sectorTracker.reset(packets[0]!.TrackOrdinal, gameId, packets[0]!.CarOrdinal);
     if (gameId === "iracing") {
       const referenceLap = selectIRacingReferenceLap(recorded.packets);
       if (referenceLap) {
-        sectorTracker.updateRefLap(
-          referenceLap.packets,
-          referenceLap.lapTime,
-        );
+        sectorTracker.updateRefLap(referenceLap.packets, referenceLap.lapTime);
       }
     }
     const pitTracker = new PitTracker();
@@ -215,17 +190,9 @@ export const replayRoutes = new Hono()
     pitTracker.setTireThresholds(getServerGame(gameId).tireHealthThresholds.yellow);
     for (const packet of packets) {
       wsManager.stageDevTelemetry(structuredClone(packet));
-      normalizeTelemetryPacket(
-        packet,
-        getServerGame(gameId).coordSystem === "standard-xyz",
-        getServerGame(gameId).runtime.normSuspensionTravelMm,
-      );
+      normalizeTelemetryPacket(packet, getServerGame(gameId).coordSystem === "standard-xyz", getServerGame(gameId).runtime.normSuspensionTravelMm);
       const sectors = sectorTracker.feed(packet);
-      const pit = pitTracker.feed(
-        packet,
-        sectorTracker.getTrackLength(),
-        sectorTracker.getLapDistStart(),
-      );
+      const pit = pitTracker.feed(packet, sectorTracker.getTrackLength(), sectorTracker.getLapDistStart());
       const projection = projector.project({
         packet,
         sessionId: replaySessionId,
@@ -234,7 +201,6 @@ export const replayRoutes = new Hono()
         receivedAtMs: Date.now(),
       });
       wsManager.publishTelemetry(projection);
-      wsManager.broadcast(packet, sectors, pit);
       if (intervalMs > 0) {
         await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
       }
@@ -256,9 +222,9 @@ export const replayRoutes = new Hono()
       carModel: recorded.carModel,
       trackName: recorded.trackName,
     });
-  },
-).post("/api/dev/disconnect", (c) => {
-  const disconnectedClients = wsManager.connectedClients;
-  wsManager.disconnectClients();
-  return c.json({ ok: true, disconnectedClients });
-});
+  })
+  .post("/api/dev/disconnect", (c) => {
+    const disconnectedClients = wsManager.connectedClients;
+    wsManager.disconnectClients();
+    return c.json({ ok: true, disconnectedClients });
+  });

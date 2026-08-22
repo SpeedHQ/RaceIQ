@@ -1,8 +1,9 @@
 import { tryGetGame } from "../../../games/registry";
 import type { GameId } from "../../../games/ids";
-import type { TelemetryPacket } from "../../../telemetry/types";
+import { semanticLapFrames, type SemanticLapFrame } from "./semantic-frame";
+import type { SemanticTelemetrySample } from "../../../telemetry/replay/contracts";
 import { frameDt } from "./frame-time";
-import { LAT_G_FLOOR, SPEED_FLOOR, allFrictionCircle, steerBalance } from "./physics/vehicle";
+import { LAT_G_FLOOR, SPEED_FLOOR, frictionCircleFromSignals, steerBalanceFromSignals } from "./physics/vehicle";
 
 /**
  * Continuous driving-style measurement for a single lap.
@@ -125,7 +126,7 @@ export interface LapStyleSummary {
    */
   balanceMedianDeg?: number;
   /**
-   * Fraction of cornering frames `steerBalance` classifies as understeer /
+   * Fraction of cornering frames `steerBalanceFromSignals` classifies as understeer /
    * oversteer. 0–1. These use the same classifier the analyse view shows, so a
    * driver reading both sees consistent verdicts.
    */
@@ -224,7 +225,7 @@ function round4(v: number): number {
 /**
  * Is this frame actually cornering?
  *
- * Reuses `steerBalance`'s own gates rather than inventing parallel ones — the
+ * Reuses `steerBalanceFromSignals`'s own gates rather than inventing parallel ones — the
  * thresholds are documented there (`LAT_G_FLOOR` 0.25 g, `SPEED_FLOOR` 5 m/s)
  * and the whole point is that this module and the analyse view agree about when
  * a frame may be classified at all.
@@ -234,9 +235,11 @@ function round4(v: number): number {
  */
 const G = 9.81;
 
-export function isCornering(pkt: TelemetryPacket): boolean {
-  const latG = Math.abs(-pkt.AccelerationX / G);
-  return Number.isFinite(latG) && latG >= LAT_G_FLOOR && pkt.Speed >= SPEED_FLOOR;
+export function isCornering(frame: SemanticLapFrame): boolean {
+  const { accelerationXMps2, speedMps } = frame;
+  if (typeof accelerationXMps2 !== "number" || !Number.isFinite(accelerationXMps2) || typeof speedMps !== "number" || !Number.isFinite(speedMps)) return false;
+  const latG = Math.abs(-accelerationXMps2 / G);
+  return latG >= LAT_G_FLOOR && speedMps >= SPEED_FLOOR;
 }
 
 // ---------------------------------------------------------------------------
@@ -257,12 +260,18 @@ export function isCornering(pkt: TelemetryPacket): boolean {
  * turn a full-lock corner into a straight or vice versa, and there is no safe
  * default: FM's 127 and everyone else's 0 are both wrong for the other.
  */
-function normalisedSteer(telemetry: TelemetryPacket[], gameId: GameId): number[] | undefined {
+function normalisedSteer(telemetry: SemanticLapFrame[], gameId: GameId): number[] | undefined {
   const adapter = tryGetGame(gameId);
   if (!adapter) return undefined;
-  const centre = adapter.steeringCenter;
-  const range = adapter.steeringRange || 1;
-  return telemetry.map((p) => Math.max(-1, Math.min(1, (p.Steer - centre) / range)));
+  const { steeringCenter: centre, steeringRange: range } = adapter;
+  if (!Number.isFinite(centre) || !Number.isFinite(range) || range <= 0) return undefined;
+  const steer: number[] = [];
+  for (const frame of telemetry) {
+    const value = frame.steeringInput;
+    if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+    steer.push(Math.max(-1, Math.min(1, (value - centre) / range)));
+  }
+  return steer;
 }
 
 /**
@@ -335,7 +344,8 @@ function unusable(frames: number, corneringFrames: number, corneringSeconds: num
  * cornering was spent catching the rear" without that percentage silently
  * having a different denominator to the balance figure next to it.
  */
-export function summariseLapStyle(telemetry: TelemetryPacket[], gameId: GameId): LapStyleSummary {
+export function summariseLapStyle(samples: readonly SemanticTelemetrySample[], gameId: GameId): LapStyleSummary {
+  const telemetry = semanticLapFrames(samples);
   const frames = telemetry.length;
   if (frames === 0) return unusable(0, 0, 0);
 
@@ -360,21 +370,40 @@ export function summariseLapStyle(telemetry: TelemetryPacket[], gameId: GameId):
   let controlLoss = 0;
 
   for (const i of corneringIdx) {
-    const p = telemetry[i];
+    const frame = telemetry[i];
+    if (!frame) continue;
 
-    const fc = allFrictionCircle(p);
-    const mean = (fc.fl + fc.fr + fc.rl + fc.rr) / 4;
-    // Car-level demand, not one tyre's: a single wheel momentarily past peak
-    // (kerb strike, inside wheel unloaded) is not the car at its limit.
-    if (Number.isFinite(mean)) grip.push(mean);
+    const frictionCircle = frictionCircleFromSignals(frame.speedMps, frame.wheelRotationRadPerSec, frame.tireSlipAngleRad);
+    if (frictionCircle !== null) {
+      const mean = (frictionCircle.fl + frictionCircle.fr + frictionCircle.rl + frictionCircle.rr) / 4;
+      // Car-level demand, not one tyre's: a single wheel momentarily past peak
+      // (kerb strike, inside wheel unloaded) is not the car at its limit.
+      if (Number.isFinite(mean)) grip.push(mean);
+    }
 
-    const b = steerBalance(p);
-    if (Number.isFinite(b.slipDelta)) slipDelta.push(b.slipDelta);
-    if (b.state === "understeer") understeer++;
-    else if (b.state === "oversteer") oversteer++;
+    const { speedMps, accelerationXMps2, yawRateRadPerSec, tireSlipAngleRad } = frame;
+    if (
+      typeof speedMps !== "number" ||
+      !Number.isFinite(speedMps) ||
+      typeof accelerationXMps2 !== "number" ||
+      !Number.isFinite(accelerationXMps2) ||
+      typeof yawRateRadPerSec !== "number" ||
+      !Number.isFinite(yawRateRadPerSec)
+    )
+      continue;
+    const [fl, fr, rl, rr] = tireSlipAngleRad;
+    const slipAngles =
+      typeof fl === "number" && Number.isFinite(fl) && typeof fr === "number" && Number.isFinite(fr) && typeof rl === "number" && Number.isFinite(rl) && typeof rr === "number" && Number.isFinite(rr)
+        ? ([fl, fr, rl, rr] as const)
+        : undefined;
+    const balance = steerBalanceFromSignals({ speedMps, accelerationX: accelerationXMps2, yawRate: yawRateRadPerSec, slipAngles });
+    if (balance === null) continue;
+    if (Number.isFinite(balance.slipDelta)) slipDelta.push(balance.slipDelta);
+    if (balance.state === "understeer") understeer++;
+    else if (balance.state === "oversteer") oversteer++;
 
     // Gyro says over-rotating AND tyres agree the rear is the end letting go.
-    if (b.yawError > CONTROL_LOSS_YAW_ERR && b.slipDelta < 0) controlLoss++;
+    if (Number.isFinite(balance.yawError) && Number.isFinite(balance.slipDelta) && balance.yawError > CONTROL_LOSS_YAW_ERR && balance.slipDelta < 0) controlLoss++;
   }
 
   const n = corneringIdx.length;

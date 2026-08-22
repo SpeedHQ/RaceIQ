@@ -1,36 +1,43 @@
 /**
- * telemetryToTrackConditions — deterministic weather / track-surface summary
- * from a lap's telemetry.
- *
- * Shared by the Setup Engineer's `get_track_conditions` tool and the Lap
- * Analyst prompt: both need to know whether a slow lap is a *weather* problem
- * (cold/green/wet track) versus a driver or setup one, and both must read the
- * same fields the same way.
- *
- * Game-agnostic. The condition channels live in different places per game:
- *   - ACC / AC-EVO — on `packet.acc` (rain/grip/wind + air/road temp), with
- *     AC-EVO's static session grip on `packet.acc.acEvo`.
- *   - F1 — top-level `AirTemp` / `TrackTemp` / `RainPercent` (0-100), mirrored
- *     on `packet.f1`.
- *   - Forza — no weather channel; the extractor returns null.
- *
- * Returns null when no game in the stint exposes any condition data, so callers
- * simply omit the section.
+ * Deterministic weather and track-surface summary from resolver-backed
+ * semantic telemetry. Values stay in catalog canonical units until display.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryVariableId } from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+
+/** Semantic values required by {@link telemetryToTrackConditions}. */
+export const TRACK_CONDITION_SEMANTIC_IDS = [
+  "weather.air-temp",
+  "weather.track-temp",
+  "weather.rain-intensity",
+  "weather.rain-percent",
+  "weather.wind-speed",
+  "weather.wind-direction",
+  "weather.track-grip-status",
+  "weather.starting-grip",
+  "weather.is-static-weather",
+  "weather.track-rubber-state",
+  "weather.track-wetness",
+  "weather.weather-declared-wet",
+] as const satisfies readonly TelemetryVariableId[];
 
 export interface TrackConditions {
   frames: number;
   /** Air / road surface temperature (°C) across the lap. null when unrecorded. */
   airTempC: { min: number; max: number; avg: number } | null;
   roadTempC: { min: number; max: number; avg: number } | null;
-  /** Mean rain fraction 0..1; `wet` when the mean crosses a light-rain floor. */
-  rainIntensity: number;
-  wet: boolean;
-  /** Most-common non-empty grip descriptor across frames ("optimum"/"green"/…). */
-  trackGripStatus: string;
-  windSpeedKmh: number;
-  windDirectionDeg: number;
+  /** Mean rain fraction 0..1; null when precipitation is unavailable. */
+  rainIntensity: number | null;
+  wet: boolean | null;
+  /** Most-common non-empty grip descriptor across frames. */
+  trackGripStatus: string | null;
+  /** Latest available iRacing session rubber-state descriptor. */
+  trackRubberState: string | null;
+  /** Latest native wetness category; null when unavailable. */
+  trackWetness: number | null;
+  /** Canonical wind speed is m/s; converted only for this km/h display field. */
+  windSpeedKmh: number | null;
+  windDirectionDeg: number | null;
   /** AC-EVO only: static session grip label + whether weather is fixed. */
   startingGrip: string | null;
   staticWeather: boolean | null;
@@ -39,27 +46,58 @@ export interface TrackConditions {
 /** Mean rain fraction above which the lap is treated as wet. */
 const WET_RAIN_FRACTION = 0.02;
 
-function firstFinite(...vals: (number | null | undefined)[]): number | null {
-  for (const v of vals) if (v != null && Number.isFinite(v)) return v;
+function semanticNumber(sample: SemanticTelemetrySample, semanticId: TelemetryVariableId): number | null {
+  const value = sample.values[semanticId];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function semanticString(sample: SemanticTelemetrySample, semanticId: TelemetryVariableId): string | null {
+  const value = sample.values[semanticId];
+  return typeof value === "string" && value.length > 0 && value !== "unknown" ? value : null;
+}
+
+function semanticBoolean(sample: SemanticTelemetrySample, semanticId: TelemetryVariableId): boolean | null {
+  const value = sample.values[semanticId];
+  return typeof value === "boolean" ? value : null;
+}
+
+function rubberState(sample: SemanticTelemetrySample): string | null {
+  const value = sample.values["weather.track-rubber-state"];
+  if (typeof value === "string" && value.length > 0) return value;
+  if (!Array.isArray(value)) return null;
+  for (const entry of value) {
+    if (typeof entry === "string" && entry.length > 0) return entry;
+    if (typeof entry === "object" && entry !== null && "value" in entry && typeof entry.value === "string" && entry.value.length > 0) {
+      return entry.value;
+    }
+  }
   return null;
 }
 
-function summariseNumeric(values: number[]): { min: number; max: number; avg: number } | null {
-  if (values.length === 0) return null;
-  let min = values[0]!;
-  let max = values[0]!;
+function summariseNumeric(values: readonly number[]): { min: number; max: number; avg: number } | null {
+  const [first] = values;
+  if (first === undefined) return null;
+  let min = first;
+  let max = first;
   let sum = 0;
-  for (const v of values) {
-    if (v < min) min = v;
-    if (v > max) max = v;
-    sum += v;
+  for (const value of values) {
+    if (value < min) min = value;
+    if (value > max) max = value;
+    sum += value;
   }
-  const round = (n: number) => Math.round(n * 10) / 10;
+  const round = (value: number) => Math.round(value * 10) / 10;
   return { min: round(min), max: round(max), avg: round(sum / values.length) };
 }
 
-export function telemetryToTrackConditions(packets: TelemetryPacket[]): TrackConditions | null {
-  if (packets.length === 0) return null;
+function mean(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  let sum = 0;
+  for (const value of values) sum += value;
+  return sum / values.length;
+}
+
+export function telemetryToTrackConditions(samples: readonly SemanticTelemetrySample[]): TrackConditions | null {
+  if (samples.length === 0) return null;
 
   const airTemps: number[] = [];
   const roadTemps: number[] = [];
@@ -69,53 +107,101 @@ export function telemetryToTrackConditions(packets: TelemetryPacket[]): TrackCon
   const gripCounts = new Map<string, number>();
   let startingGrip: string | null = null;
   let staticWeather: boolean | null = null;
+  let trackRubberState: string | null = null;
+  let trackWetness: number | null = null;
+  let weatherDeclaredWet: boolean | null = null;
   let anyData = false;
 
-  for (const f of packets) {
-    const acc = f.acc;
-    // Air / road temp: ACC-family on acc / acc.acEvo; F1 top-level + f1 mirror.
-    const air = firstFinite(acc?.airTempC, acc?.acEvo?.airTempC, f.AirTemp, f.f1?.airTemperature);
-    const road = firstFinite(acc?.roadTempC, acc?.acEvo?.roadTempC, f.TrackTemp, f.f1?.trackTemperature);
-    if (air != null) { airTemps.push(air); anyData = true; }
-    if (road != null) { roadTemps.push(road); anyData = true; }
-
-    // Rain: ACC rainIntensity is already 0..1; F1 RainPercent is 0-100.
-    const accRain = acc?.rainIntensity;
-    const f1Rain = f.RainPercent ?? f.f1?.rainPercentage;
-    if (accRain != null && Number.isFinite(accRain)) { rain.push(accRain); anyData = true; }
-    else if (f1Rain != null && Number.isFinite(f1Rain)) { rain.push(f1Rain / 100); anyData = true; }
-
-    if (acc?.windSpeed != null && Number.isFinite(acc.windSpeed)) wind.push(acc.windSpeed);
-    if (acc?.windDirection != null && Number.isFinite(acc.windDirection)) windDir.push(acc.windDirection);
-
-    const grip = acc?.trackGripStatus;
-    if (grip && grip !== "unknown") { gripCounts.set(grip, (gripCounts.get(grip) ?? 0) + 1); anyData = true; }
-    if (acc?.acEvo?.startingGrip && acc.acEvo.startingGrip !== "unknown") {
-      startingGrip = acc.acEvo.startingGrip;
+  for (const sample of samples) {
+    const air = semanticNumber(sample, "weather.air-temp");
+    const road = semanticNumber(sample, "weather.track-temp");
+    if (air != null) {
+      airTemps.push(air);
       anyData = true;
     }
-    if (acc?.acEvo?.isStaticWeather != null) staticWeather = acc.acEvo.isStaticWeather;
+    if (road != null) {
+      roadTemps.push(road);
+      anyData = true;
+    }
+
+    const rainIntensity = semanticNumber(sample, "weather.rain-intensity");
+    const rainPercent = semanticNumber(sample, "weather.rain-percent");
+    if (rainIntensity != null) {
+      rain.push(rainIntensity);
+      anyData = true;
+    } else if (rainPercent != null) {
+      rain.push(rainPercent / 100);
+      anyData = true;
+    }
+
+    const windSpeed = semanticNumber(sample, "weather.wind-speed");
+    const direction = semanticNumber(sample, "weather.wind-direction");
+    if (windSpeed != null) {
+      wind.push(windSpeed);
+      anyData = true;
+    }
+    if (direction != null) {
+      windDir.push(direction);
+      anyData = true;
+    }
+
+    const grip = semanticString(sample, "weather.track-grip-status");
+    if (grip != null) {
+      gripCounts.set(grip, (gripCounts.get(grip) ?? 0) + 1);
+      anyData = true;
+    }
+    const starting = semanticString(sample, "weather.starting-grip");
+    if (starting != null) {
+      startingGrip = starting;
+      anyData = true;
+    }
+    const isStatic = semanticBoolean(sample, "weather.is-static-weather");
+    if (isStatic != null) {
+      staticWeather = isStatic;
+      anyData = true;
+    }
+    const rubber = rubberState(sample);
+    if (rubber != null) {
+      trackRubberState = rubber;
+      anyData = true;
+    }
+    const wetness = semanticNumber(sample, "weather.track-wetness");
+    if (wetness != null) {
+      trackWetness = wetness;
+      anyData = true;
+    }
+    const declaredWet = semanticBoolean(sample, "weather.weather-declared-wet");
+    if (declaredWet != null) {
+      weatherDeclaredWet = declaredWet;
+      anyData = true;
+    }
   }
 
   if (!anyData) return null;
 
-  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
   const meanRain = mean(rain);
-  let topGrip = "unknown";
-  let topGripN = 0;
-  for (const [g, n] of gripCounts) {
-    if (n > topGripN) { topGrip = g; topGripN = n; }
+  let trackGripStatus: string | null = null;
+  let topGripCount = 0;
+  for (const [grip, count] of gripCounts) {
+    if (count > topGripCount) {
+      trackGripStatus = grip;
+      topGripCount = count;
+    }
   }
+  const meanWind = mean(wind);
+  const meanWindDirection = mean(windDir);
 
   return {
-    frames: packets.length,
+    frames: samples.length,
     airTempC: summariseNumeric(airTemps),
     roadTempC: summariseNumeric(roadTemps),
-    rainIntensity: Math.round(meanRain * 100) / 100,
-    wet: meanRain > WET_RAIN_FRACTION,
-    trackGripStatus: topGrip,
-    windSpeedKmh: Math.round(mean(wind) * 10) / 10,
-    windDirectionDeg: Math.round(mean(windDir)),
+    rainIntensity: meanRain == null ? null : Math.round(meanRain * 100) / 100,
+    wet: meanRain == null ? weatherDeclaredWet : weatherDeclaredWet === true || meanRain > WET_RAIN_FRACTION,
+    trackGripStatus,
+    trackRubberState,
+    trackWetness,
+    windSpeedKmh: meanWind == null ? null : Math.round(meanWind * 3.6 * 10) / 10,
+    windDirectionDeg: meanWindDirection == null ? null : Math.round(meanWindDirection),
     startingGrip,
     staticWeather,
   };
@@ -126,10 +212,18 @@ export function formatTrackConditions(tc: TrackConditions): string {
   const parts: string[] = [];
   if (tc.airTempC) parts.push(`air ${tc.airTempC.avg}°C`);
   if (tc.roadTempC) parts.push(`track ${tc.roadTempC.avg}°C (${tc.roadTempC.min}–${tc.roadTempC.max})`);
-  parts.push(tc.wet ? `WET (rain ${Math.round(tc.rainIntensity * 100)}%)` : "dry");
+  if (tc.wet === true) {
+    parts.push(tc.rainIntensity == null ? "WET" : `WET (rain ${Math.round(tc.rainIntensity * 100)}%)`);
+  } else if (tc.wet === false) {
+    parts.push("dry");
+  }
   if (tc.startingGrip) parts.push(`grip ${tc.startingGrip}`);
-  else if (tc.trackGripStatus !== "unknown") parts.push(`grip ${tc.trackGripStatus}`);
-  if (tc.windSpeedKmh > 0) parts.push(`wind ${tc.windSpeedKmh}km/h @${tc.windDirectionDeg}°`);
+  else if (tc.trackGripStatus) parts.push(`grip ${tc.trackGripStatus}`);
+  else if (tc.trackRubberState) parts.push(`rubber ${tc.trackRubberState}`);
+  if (tc.trackWetness != null) parts.push(`wetness ${tc.trackWetness}`);
+  if (tc.windSpeedKmh != null && tc.windSpeedKmh > 0) {
+    parts.push(tc.windDirectionDeg == null ? `wind ${tc.windSpeedKmh}km/h` : `wind ${tc.windSpeedKmh}km/h @${tc.windDirectionDeg}°`);
+  }
   if (tc.staticWeather === false) parts.push("dynamic weather");
   return parts.join(", ");
 }

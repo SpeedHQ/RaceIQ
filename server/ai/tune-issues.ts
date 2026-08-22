@@ -1,118 +1,102 @@
 /**
- * tune-issues — projects the deterministic auto-tune symptom engine into the
- * shared `TuneIssue` shape used by the Live Tuning Dashboard's issue feed
- * (per-lap, from `symptomsToIssues`) and its live transient detector
- * (per-packet, from `detectLiveIssues`). No new physics thresholds here —
- * both reuse the exact constants from `tune-symptoms.ts` so the feed and the
- * live alerts never disagree about what counts as "locked" or "bottomed".
+ * Projects completed symptom reports and resolver-backed live semantic samples
+ * into shared TuneIssue records.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { TelemetryVariableId } from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import { semanticFixedNumbers, semanticNumber } from "../telemetry/semantic-samples";
 import type { TuneSymptoms } from "./tune-symptoms";
-import {
-  BALANCE_THRESHOLD,
-  LOCKUP_SLIP,
-  BOTTOM_TRAVEL,
-  BRAKE_ON,
-  ACC_PRESSURE_TARGET,
-  brakeFrac,
-} from "./tune-symptoms";
+import { ACC_PRESSURE_TARGET, BALANCE_THRESHOLD, BOTTOM_TRAVEL, BRAKE_ON, brakeFrac, LOCKUP_SLIP } from "./tune-symptoms";
 
-// psi delta from the target window mid before we call it a live issue.
+export const LIVE_TUNE_ISSUE_SEMANTIC_IDS = [
+  "timing.distance-traveled",
+  "inputs.brake",
+  "tires.tire-slip-angle",
+  "tires.tire-slip-ratio",
+  "suspension.norm-suspension-travel",
+  "motion.speed",
+  "tires.tire-pressure",
+  "tire.temperature.carcass.average",
+] as const satisfies readonly TelemetryVariableId[];
+
 const PRESSURE_DELTA_WARN = 1.5;
-// Celsius spread between hottest and coldest tyre before we flag uneven temps.
 const TEMP_SPREAD_WARN = 12;
+const WHEELS = 4;
+const WHEEL_LABELS = ["FL", "FR", "RL", "RR"] as const;
 
-/**
- * Maps a completed lap's `TuneSymptoms` (from `telemetryToSymptoms`) into a
- * flat `TuneIssue[]` for the per-lap feed. Pure — no I/O, no side effects.
- * `lapNumber` is stamped on every issue so the feed can group/sort by lap.
- */
 export function symptomsToIssues(symptoms: TuneSymptoms, lapNumber?: number): TuneIssue[] {
   const issues: TuneIssue[] = [];
-
   for (const corner of symptoms.corners) {
-    const distanceFrac = corner.distanceFrac;
     for (const phase of corner.phases) {
-      if (phase.balance === "understeer" || phase.balance === "oversteer") {
-        const mag = Math.abs(phase.balanceMagnitude);
+      if ((phase.balance === "understeer" || phase.balance === "oversteer") && phase.balanceMagnitude != null) {
+        const magnitude = Math.abs(phase.balanceMagnitude);
         issues.push({
           kind: phase.balance,
-          severity: mag > BALANCE_THRESHOLD * 3 ? "critical" : "warn",
+          severity: magnitude > BALANCE_THRESHOLD * 3 ? "critical" : "warn",
           corner: corner.label,
-          distanceFrac,
-          detail: `${phase.balance === "understeer" ? "Understeer" : "Oversteer"} on ${phase.phase} (Δ${mag.toFixed(3)} rad)`,
+          distanceFrac: corner.distanceFrac,
+          detail: `${phase.balance === "understeer" ? "Understeer" : "Oversteer"} on ${phase.phase} (Δ${magnitude.toFixed(3)} rad)`,
           lapNumber,
         });
       }
-      if (phase.brakeLockup) {
+      if (phase.brakeLockup === true) {
         issues.push({
           kind: "brake-lockup",
           severity: "critical",
           corner: corner.label,
-          distanceFrac,
-          detail: `Wheel lockup under braking (${phase.phase})`,
+          distanceFrac: corner.distanceFrac,
+          detail: `Brake lockup on ${phase.phase}`,
           lapNumber,
         });
       }
-      if (phase.bottoming) {
+      if (phase.bottoming === true) {
         issues.push({
           kind: "bottoming",
           severity: "warn",
           corner: corner.label,
-          distanceFrac,
+          distanceFrac: corner.distanceFrac,
           detail: `Suspension bottoming out (${phase.phase})`,
           lapNumber,
         });
       }
     }
   }
-
-  const tp = symptoms.aggregate.tyrePressure;
-  if (tp) {
-    for (const [corner, delta] of Object.entries(tp) as [keyof typeof tp, number][]) {
-      if (Math.abs(delta) > PRESSURE_DELTA_WARN) {
-        issues.push({
-          kind: "tyre-pressure",
-          severity: Math.abs(delta) > PRESSURE_DELTA_WARN * 2 ? "critical" : "warn",
-          detail: `${corner} pressure ${delta > 0 ? "+" : ""}${delta.toFixed(1)} psi vs target`,
-          lapNumber,
-        });
-      }
+  const pressure = symptoms.aggregate.tyrePressure;
+  if (pressure) {
+    for (const wheel of WHEEL_LABELS) {
+      const delta = pressure[wheel];
+      if (Math.abs(delta) <= PRESSURE_DELTA_WARN) continue;
+      issues.push({
+        kind: "tyre-pressure",
+        severity: Math.abs(delta) > PRESSURE_DELTA_WARN * 2 ? "critical" : "warn",
+        corner: wheel,
+        detail: `${wheel} pressure ${delta > 0 ? "+" : ""}${delta.toFixed(1)} psi vs target`,
+        lapNumber,
+      });
     }
   }
-
   return issues;
 }
 
-function mean(xs: number[]): number {
-  if (xs.length === 0) return 0;
-  let s = 0;
-  for (const x of xs) s += x;
-  return s / xs.length;
-}
-
 /**
- * Stateless, per-packet live issue detector. Called at packet rate (gated by
- * `LiveTelemetryPipeline.liveIssuesEnabled`) so it must stay cheap and side-effect-free —
- * no history, no smoothing across calls. Transients are deliberately noisy;
- * the client debounces/expires them rather than this function.
- *
- * `trackLength` (metres) is optional — when supplied, `distanceFrac` is
- * populated for track-map placement; omitted otherwise.
+ * Stateless live detector. Semantic sample values have already passed resolver
+ * state and freshness gates; unavailable values suppress only their own issue.
  */
-export function detectLiveIssues(packet: TelemetryPacket, trackLength?: number): TuneIssue[] {
+export function detectLiveIssues(gameId: GameId, sample: SemanticTelemetrySample, trackLength?: number): TuneIssue[] {
+  if (!gameId) throw new Error("gameId is required for live tune issue analysis");
   const issues: TuneIssue[] = [];
-  const distanceFrac =
-    trackLength && trackLength > 0 ? packet.DistanceTraveled / trackLength : undefined;
+  const distance = semanticNumber(sample, "timing.distance-traveled");
+  const distanceFrac = distance != null && trackLength != null && trackLength > 0 ? distance / trackLength : undefined;
 
-  // Brake lockup — any wheel slipping while braking.
+  const brake = brakeFrac(sample);
+  const slipRatios = semanticFixedNumbers(sample, "tires.tire-slip-ratio", WHEELS);
   if (
-    brakeFrac(packet) > BRAKE_ON &&
-    (Math.abs(packet.TireSlipRatioFL) > LOCKUP_SLIP ||
-      Math.abs(packet.TireSlipRatioFR) > LOCKUP_SLIP ||
-      Math.abs(packet.TireSlipRatioRL) > LOCKUP_SLIP ||
-      Math.abs(packet.TireSlipRatioRR) > LOCKUP_SLIP)
+    brake != null &&
+    slipRatios &&
+    brake > BRAKE_ON &&
+    (Math.abs(slipRatios[0]) > LOCKUP_SLIP || Math.abs(slipRatios[1]) > LOCKUP_SLIP || Math.abs(slipRatios[2]) > LOCKUP_SLIP || Math.abs(slipRatios[3]) > LOCKUP_SLIP)
   ) {
     issues.push({
       kind: "brake-lockup",
@@ -122,13 +106,8 @@ export function detectLiveIssues(packet: TelemetryPacket, trackLength?: number):
     });
   }
 
-  // Suspension bottoming.
-  if (
-    packet.NormSuspensionTravelFL > BOTTOM_TRAVEL ||
-    packet.NormSuspensionTravelFR > BOTTOM_TRAVEL ||
-    packet.NormSuspensionTravelRL > BOTTOM_TRAVEL ||
-    packet.NormSuspensionTravelRR > BOTTOM_TRAVEL
-  ) {
+  const travel = semanticFixedNumbers(sample, "suspension.norm-suspension-travel", WHEELS);
+  if (travel && (travel[0] > BOTTOM_TRAVEL || travel[1] > BOTTOM_TRAVEL || travel[2] > BOTTOM_TRAVEL || travel[3] > BOTTOM_TRAVEL)) {
     issues.push({
       kind: "bottoming",
       severity: "warn",
@@ -137,11 +116,10 @@ export function detectLiveIssues(packet: TelemetryPacket, trackLength?: number):
     });
   }
 
-  // Balance while actually cornering/loaded — ignore near-standstill noise.
-  if (packet.Speed > 5) {
-    const frontSlip = (Math.abs(packet.TireSlipAngleFL) + Math.abs(packet.TireSlipAngleFR)) / 2;
-    const rearSlip = (Math.abs(packet.TireSlipAngleRL) + Math.abs(packet.TireSlipAngleRR)) / 2;
-    const magnitude = frontSlip - rearSlip;
+  const speed = semanticNumber(sample, "motion.speed");
+  const angles = semanticFixedNumbers(sample, "tires.tire-slip-angle", WHEELS);
+  if (speed != null && speed > 5 && angles) {
+    const magnitude = (Math.abs(angles[0]) + Math.abs(angles[1]) - Math.abs(angles[2]) - Math.abs(angles[3])) / 2;
     if (magnitude > BALANCE_THRESHOLD) {
       issues.push({
         kind: "understeer",
@@ -159,42 +137,40 @@ export function detectLiveIssues(packet: TelemetryPacket, trackLength?: number):
     }
   }
 
-  // Tyre pressure out of the ACC hot window (only present when the game
-  // reports pressures — FM/F1 leave these fields undefined).
-  if (packet.TirePressureFrontLeft != null) {
-    const pressures = {
-      FL: packet.TirePressureFrontLeft ?? 0,
-      FR: packet.TirePressureFrontRight ?? 0,
-      RL: packet.TirePressureRearLeft ?? 0,
-      RR: packet.TirePressureRearRight ?? 0,
-    };
-    for (const [corner, psi] of Object.entries(pressures)) {
-      const delta = psi - ACC_PRESSURE_TARGET;
-      if (Math.abs(delta) > PRESSURE_DELTA_WARN) {
-        issues.push({
-          kind: "tyre-pressure",
-          severity: Math.abs(delta) > PRESSURE_DELTA_WARN * 2 ? "critical" : "warn",
-          distanceFrac,
-          detail: `${corner} pressure ${delta > 0 ? "+" : ""}${delta.toFixed(1)} psi vs target`,
-        });
-      }
+  const pressures = gameId === "acc" || gameId === "ac-evo" ? semanticFixedNumbers(sample, "tires.tire-pressure", WHEELS) : null;
+  if (pressures) {
+    for (let index = 0; index < WHEELS; index += 1) {
+      const delta = pressures[index] - ACC_PRESSURE_TARGET;
+      if (Math.abs(delta) <= PRESSURE_DELTA_WARN) continue;
+      issues.push({
+        kind: "tyre-pressure",
+        severity: Math.abs(delta) > PRESSURE_DELTA_WARN * 2 ? "critical" : "warn",
+        corner: WHEEL_LABELS[index],
+        distanceFrac,
+        detail: `${WHEEL_LABELS[index]} pressure ${delta > 0 ? "+" : ""}${delta.toFixed(1)} psi vs target`,
+      });
     }
   }
 
-  // Tyre temp spread — one corner running much hotter/colder than the rest.
-  const temps = [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR];
-  if (temps.every((t) => t != null && t > 0)) {
-    const avg = mean(temps);
-    const spread = Math.max(...temps) - Math.min(...temps);
+  const temperatures = semanticFixedNumbers(sample, "tire.temperature.carcass.average", WHEELS);
+  if (temperatures && temperatures.every((temperature) => temperature > 0)) {
+    let total = 0;
+    let minimum = temperatures[0];
+    let maximum = temperatures[0];
+    for (const temperature of temperatures) {
+      total += temperature;
+      if (temperature < minimum) minimum = temperature;
+      if (temperature > maximum) maximum = temperature;
+    }
+    const spread = maximum - minimum;
     if (spread > TEMP_SPREAD_WARN) {
       issues.push({
         kind: "tyre-temp",
         severity: spread > TEMP_SPREAD_WARN * 1.5 ? "critical" : "warn",
         distanceFrac,
-        detail: `Uneven tyre temps — ${spread.toFixed(0)}°C spread (avg ${avg.toFixed(0)}°C)`,
+        detail: `Uneven tyre temps — ${spread.toFixed(0)}°C spread (avg ${(total / WHEELS).toFixed(0)}°C)`,
       });
     }
   }
-
   return issues;
 }

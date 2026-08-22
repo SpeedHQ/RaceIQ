@@ -25,31 +25,31 @@ ordinary tests.
 
 ## Top-level map
 
-| Path | Boundary and purpose |
-| --- | --- |
-| `ai/` | AI unit and prompt/provider tests; explicit evals under `ai/evals/` |
-| `client/` | Client-side logic and component contract tests |
-| `db/` | Database migrations, seeds, and persistence integration |
-| `driver-profile/` | Driver-profile domain tests |
-| `e2e/` | Recording-backed end-to-end checks and rendered outputs |
-| `experiments/` | Experiment and drill behavior |
-| `games/` | Per-game parsers, recorders, SDKs, and shared game contracts |
-| `lap-analysis/` | Lap quality, detection, recap, segments, and stint analysis |
-| `live-strategy/` | Live sector and pit strategy behavior |
-| `motec/` | MoTeC import and visualization behavior |
-| `race-results/` | Race-result capture, storage, source, and derivation |
-| `routes/` | Server route contracts and request behavior |
-| `runtime/` | Runtime options, settings, updates, and supervision |
-| `session-capture/` | Session recording, compression, and binary storage |
-| `setups/` | Setup formats, tuning, and setup engineering |
-| `telemetry/` | Telemetry models, pipelines, resolver, catalog, and catalog E2E |
-| `tooling/` | Developer tooling and UI-diff contracts |
-| `tracks/` | Track models, guides, coverage, and visualization |
-| `benchmarks/` | Explicit performance scripts (`*.bench.ts`) |
-| `support/` | Shared test-only helpers; no test cases |
-| `fixtures/` | Small committed deterministic inputs and golden files |
-| `ai-fixtures/` | Curated AI-eval inputs, packets, and score baselines |
-| `artifacts/` | Generated or captured local outputs; not source fixtures |
+| Path               | Boundary and purpose                                                |
+| ------------------ | ------------------------------------------------------------------- |
+| `ai/`              | AI unit and prompt/provider tests; explicit evals under `ai/evals/` |
+| `client/`          | Client-side logic and component contract tests                      |
+| `db/`              | Database migrations, seeds, and persistence integration             |
+| `driver-profile/`  | Driver-profile domain tests                                         |
+| `e2e/`             | Recording-backed end-to-end checks and rendered outputs             |
+| `experiments/`     | Experiment and drill behavior                                       |
+| `games/`           | Per-game parsers, recorders, SDKs, and shared game contracts        |
+| `lap-analysis/`    | Lap quality, detection, recap, segments, and stint analysis         |
+| `live-strategy/`   | Live sector and pit strategy behavior                               |
+| `motec/`           | MoTeC import and visualization behavior                             |
+| `race-results/`    | Race-result capture, storage, source, and derivation                |
+| `routes/`          | Server route contracts and request behavior                         |
+| `runtime/`         | Runtime options, settings, updates, and supervision                 |
+| `session-capture/` | Session recording, compression, and binary storage                  |
+| `setups/`          | Setup formats, tuning, and setup engineering                        |
+| `telemetry/`       | Telemetry models, pipelines, resolver, catalog, and catalog E2E     |
+| `tooling/`         | Developer tooling and UI-diff contracts                             |
+| `tracks/`          | Track models, guides, coverage, and visualization                   |
+| `benchmarks/`      | Explicit performance scripts (`*.bench.ts`)                         |
+| `support/`         | Shared test-only helpers; no test cases                             |
+| `fixtures/`        | Small committed deterministic inputs and golden files               |
+| `ai-fixtures/`     | Curated AI-eval inputs, packets, and score baselines                |
+| `artifacts/`       | Generated or captured local outputs; not source fixtures            |
 
 ## Test boundaries
 

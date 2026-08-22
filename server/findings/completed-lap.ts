@@ -1,17 +1,12 @@
 import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 import { canonicalJson } from "../../shared/racing/findings/identity";
-import {
-  FINDING_SCHEMA_VERSION,
-  type CanonicalJson,
-  type FindingGenerationReceipt,
-  type FindingScope,
-} from "../../shared/racing/findings/types";
+import { FINDING_SCHEMA_VERSION, type CanonicalJson, type FindingGenerationReceipt, type FindingScope } from "../../shared/racing/findings/types";
 import type { FindingRecord } from "../../shared/racing/findings/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { LapQualityResult } from "../lap-analysis/quality";
 import { deriveFuelPerLap, deriveTyreWear } from "../lap-analysis/metrics";
@@ -35,7 +30,7 @@ export interface CompletedLapFindingInput {
   carOrdinal?: number;
   trackOrdinal?: number;
   sectorTimes?: number[] | null;
-  telemetry: TelemetryPacket[];
+  telemetry: readonly SemanticTelemetrySample[];
   quality: LapQualitySummary;
   recordingQuality: LapQualityResult;
   eligibility?: EligibilityDecisionSet | null;
@@ -88,10 +83,7 @@ function generationId(scope: FindingScope, sourceId: string, config: Record<stri
  * Builds one completed-lap generation without publishing or activating it.
  * Session finalization batches these prepared inputs in one DB transaction.
  */
-export function prepareCompletedLapFindings(
-  input: CompletedLapFindingInput,
-  dependencies: Pick<CompletedLapFindingDependencies, "build" | "analyze" | "now"> = {},
-): PreparedCompletedLapFindings {
+export function prepareCompletedLapFindings(input: CompletedLapFindingInput, dependencies: Pick<CompletedLapFindingDependencies, "build" | "analyze" | "now"> = {}): PreparedCompletedLapFindings {
   const build = dependencies.build ?? buildDeterministicLapFindings;
   const analyze = dependencies.analyze ?? analyzeLap;
   const createdAt = input.createdAt ?? (dependencies.now ?? (() => new Date().toISOString()))();
@@ -102,37 +94,41 @@ export function prepareCompletedLapFindings(
     sessionId: String(input.sessionId),
     lapId: String(input.lapId),
   };
-  const bundle = build({
-    gameId: input.gameId,
-    id: input.lapId,
-    sessionId: input.sessionId,
-    lapNumber: input.lapNumber,
-    lapTime: input.lapTime,
-    isValid: input.isValid,
-    ...(input.invalidReason ? { invalidReason: input.invalidReason } : {}),
-    createdAt,
-    quality: input.quality,
-    eligibility: input.eligibility ?? undefined,
-    qualityGeneration: input.qualityGeneration ?? undefined,
-    qualityStale: input.qualityStale,
-    analysisGenerationId: sourceId,
-    ...input.versionIdentity,
-    ...(input.carOrdinal == null ? {} : { carOrdinal: input.carOrdinal }),
-    ...(input.trackOrdinal == null ? {} : { trackOrdinal: input.trackOrdinal }),
-    ...(input.sectorTimes == null ? {} : { sectorTimes: input.sectorTimes }),
-    fuelPerLap: deriveFuelPerLap(input.telemetry) ?? null,
-    tyreWear: deriveTyreWear(input.telemetry) ?? null,
-    telemetry: input.telemetry,
-  }, analyze(input.telemetry, input.gameId, input.quality), input.recordingQuality, sourceId);
+  const bundle = build(
+    {
+      gameId: input.gameId,
+      id: input.lapId,
+      sessionId: input.sessionId,
+      lapNumber: input.lapNumber,
+      lapTime: input.lapTime,
+      isValid: input.isValid,
+      ...(input.invalidReason ? { invalidReason: input.invalidReason } : {}),
+      createdAt,
+      quality: input.quality,
+      eligibility: input.eligibility ?? undefined,
+      qualityGeneration: input.qualityGeneration ?? undefined,
+      qualityStale: input.qualityStale,
+      analysisGenerationId: sourceId,
+      ...input.versionIdentity,
+      ...(input.carOrdinal == null ? {} : { carOrdinal: input.carOrdinal }),
+      ...(input.trackOrdinal == null ? {} : { trackOrdinal: input.trackOrdinal }),
+      ...(input.sectorTimes == null ? {} : { sectorTimes: input.sectorTimes }),
+      fuelPerLap: deriveFuelPerLap(input.telemetry) ?? null,
+      tyreWear: deriveTyreWear(input.telemetry) ?? null,
+      telemetry: input.telemetry,
+    },
+    analyze(input.telemetry, input.gameId, input.quality),
+    input.recordingQuality,
+    sourceId,
+  );
 
   const sourceIds = [...new Set(bundle.findings.map((finding) => finding.analysisGenerationId))];
   if (sourceIds.length > 1 || (sourceIds[0] && sourceIds[0] !== sourceId)) {
     throw new Error("Completed lap findings contain inconsistent source identities");
   }
-  const constituentRules = [...new Map(bundle.findings.map((finding) => [
-    `${finding.rule.id}\u0000${finding.rule.version}`,
-    { id: finding.rule.id, version: finding.rule.version },
-  ])).values()].sort((left, right) => left.id.localeCompare(right.id) || left.version.localeCompare(right.version));
+  const constituentRules = [...new Map(bundle.findings.map((finding) => [`${finding.rule.id}\u0000${finding.rule.version}`, { id: finding.rule.id, version: finding.rule.version }])).values()].sort(
+    (left, right) => left.id.localeCompare(right.id) || left.version.localeCompare(right.version),
+  );
   const config: Record<string, CanonicalJson> = {
     gameId: input.gameId,
     analysisGenerationId: input.analysisGenerationId ?? null,
@@ -140,16 +136,18 @@ export function prepareCompletedLapFindings(
     versionIdentity: { ...input.versionIdentity },
     constituentRules,
   };
-  const receipt = createFindingGenerationReceipt({
-    generationId: generationId(scope, sourceId, config),
-    sourceId,
-    rule: COMPLETED_LAP_FINDINGS_RULE,
-    config,
-    schemaVersion: FINDING_SCHEMA_VERSION,
-    createdAt,
-  }, bundle.findings);
-  const findingIds = bundle.findings.map((finding) => finding.id)
-    .sort((left, right) => left.localeCompare(right));
+  const receipt = createFindingGenerationReceipt(
+    {
+      generationId: generationId(scope, sourceId, config),
+      sourceId,
+      rule: COMPLETED_LAP_FINDINGS_RULE,
+      config,
+      schemaVersion: FINDING_SCHEMA_VERSION,
+      createdAt,
+    },
+    bundle.findings,
+  );
+  const findingIds = bundle.findings.map((finding) => finding.id).sort((left, right) => left.localeCompare(right));
   return { scope, receipt, findings: bundle.findings, findingIds };
 }
 
@@ -157,10 +155,7 @@ export function prepareCompletedLapFindings(
  * Build, atomically replace, then publish one completed lap generation.
  * Publication occurs only after store activation returns a current receipt.
  */
-export async function persistCompletedLapFindings(
-  input: CompletedLapFindingInput,
-  dependencies: CompletedLapFindingDependencies = {},
-): Promise<CompletedLapFindingResult> {
+export async function persistCompletedLapFindings(input: CompletedLapFindingInput, dependencies: CompletedLapFindingDependencies = {}): Promise<CompletedLapFindingResult> {
   const prepared = prepareCompletedLapFindings(input, dependencies);
   const replace = dependencies.replace ?? replaceFindingGeneration;
   const publish = dependencies.publish ?? publishFindingGeneration;

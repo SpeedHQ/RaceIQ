@@ -35,9 +35,12 @@ describe("websocket message router", () => {
         observedAt: { domain: "session", milliseconds: 1 },
         receivedAtMs: 1,
         values: [],
+        context: {
+          liveIssues: [{ kind: "understeer", severity: "warn", detail: "test" }],
+        },
       }),
     ).toBe(true);
-    expect(useTelemetryStore.getState().telemetryFrame?.sequence).toBe(1);
+    expect(useTelemetryStore.getState().liveIssues).toEqual([{ kind: "understeer", severity: "warn", detail: "test" }]);
   });
   it("keeps current live view when server repeats its schema", () => {
     useTelemetryStore.getState().clearTelemetry();

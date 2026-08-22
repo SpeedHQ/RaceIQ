@@ -75,7 +75,7 @@ export function finalizeLapQualityGeneration(
   identity: {
     lapNumber: number;
     rawByteOffset: number | null;
-    rawFrameCount: number;
+    rawFrameCount: number | null;
   },
 ): { quality: LapQualitySummary; eligibility: EligibilityDecisionSet } {
   const sourceGeneration =

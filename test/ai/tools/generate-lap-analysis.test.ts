@@ -1,20 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import {
-  ELIGIBILITY_POLICY_VERSION,
-  QUALITY_CONFIG_VERSION,
-  QUALITY_SCHEMA_VERSION,
-  type LapQualitySummary,
-} from "../../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type LapQualitySummary } from "../../../shared/racing/quality/contracts";
 import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
-import {
-  type QualityCacheIdentity,
-} from "../../../server/db/analysis-queries";
+import { type QualityCacheIdentity } from "../../../server/db/analysis-queries";
 import type { FindingGenerationExpectation, StoredFindingGeneration } from "../../../server/findings/store";
-import {
-  generateLapAnalysis,
-  type GenerateLapAnalysisDeps,
-} from "../../../server/ai/generate-lap-analysis";
+import { generateLapAnalysis, type GenerateLapAnalysisDeps } from "../../../server/ai/generate-lap-analysis";
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 
 const validAnalysis = JSON.stringify({
@@ -135,7 +124,28 @@ function makeDeps(
     saveIdentities,
     readFindingKeys,
     saveFindingKeys,
-    getLapById: async () => lap as never,
+    getLapMetaById: async () => lap as never,
+    queryLapTelemetryBySemanticId: async () =>
+      ({
+        envelopes: Array.from({ length: 60 }, (_, index) => ({
+          sequence: BigInt(index),
+          observedAt: { domain: "session", milliseconds: index * 100 },
+          values: [
+            {
+              semanticId: "timing.distance-traveled",
+              state: "ok",
+              freshness: "fresh",
+              value: index * 10,
+            },
+            {
+              semanticId: "timing.current-lap",
+              state: "ok",
+              freshness: "fresh",
+              value: index / 10,
+            },
+          ],
+        })),
+      }) as never,
     getCorners: async () => [],
     detectCorners: () => [],
     getAnalysis: async (_lapId, findingExpectation) => {
@@ -214,7 +224,7 @@ describe("generateLapAnalysis", () => {
 
   test("returns missing lap error", async () => {
     const deps = makeDeps();
-    deps.getLapById = async () => null;
+    deps.getLapMetaById = async () => null;
 
     const result = await generateLapAnalysis(404, {}, deps);
 
@@ -234,13 +244,9 @@ describe("generateLapAnalysis", () => {
 
   test("returns preflight error before regeneration for a missing lap", async () => {
     const deps = makeDeps();
-    deps.getLapById = async () => null;
+    deps.getLapMetaById = async () => null;
 
-    const result = await generateLapAnalysis(
-      404,
-      { regenerate: true, cacheOnly: true },
-      deps,
-    );
+    const result = await generateLapAnalysis(404, { regenerate: true, cacheOnly: true }, deps);
 
     expect(result.error).toBe("Lap not found");
     expect(result.analysis).toBeNull();
@@ -253,11 +259,7 @@ describe("generateLapAnalysis", () => {
       throw new Error("provider unavailable");
     };
 
-    const result = await generateLapAnalysis(
-      7,
-      { regenerate: true, cacheOnly: true, preflight: true },
-      deps,
-    );
+    const result = await generateLapAnalysis(7, { regenerate: true, cacheOnly: true, preflight: true }, deps);
 
     expect(result.error).toBe("provider unavailable");
     expect(result.analysis).toBeNull();
@@ -266,22 +268,14 @@ describe("generateLapAnalysis", () => {
 
   test("rejects malformed and schema-invalid output without caching", async () => {
     const malformedDeps = makeDeps({ generated: "not-json" });
-    const malformed = await generateLapAnalysis(
-      7,
-      { regenerate: true },
-      malformedDeps,
-    );
+    const malformed = await generateLapAnalysis(7, { regenerate: true }, malformedDeps);
     expect(malformed.error).toContain("invalid analysis structure");
     expect(malformedDeps.saves).toHaveLength(0);
 
     const schemaDeps = makeDeps({
       generated: JSON.stringify({ verdict: "missing required arrays" }),
     });
-    const schemaInvalid = await generateLapAnalysis(
-      7,
-      { regenerate: true },
-      schemaDeps,
-    );
+    const schemaInvalid = await generateLapAnalysis(7, { regenerate: true }, schemaDeps);
     expect(schemaInvalid.error).toContain("invalid analysis structure");
     expect(schemaDeps.saves).toHaveLength(0);
   });
@@ -318,7 +312,7 @@ describe("generateLapAnalysis", () => {
         loadedLap.quality.provenance.policyVersion = "changed-policy";
       },
     });
-    deps.getLapById = async () => loadedLap as never;
+    deps.getLapMetaById = async () => loadedLap as never;
 
     const result = await generateLapAnalysis(7, { regenerate: true }, deps);
 
@@ -375,35 +369,30 @@ describe("generateLapAnalysis", () => {
 
     expect(result.error).toBe("provider unavailable");
     expect(deps.saves).toHaveLength(0);
-    expect((await deps.getAnalysis!(7, {
-      scope: { kind: "lap", gameId: "fm-2023", sessionId: "17", lapId: "7" },
-      generationId: FINDING_GENERATION.receipt.generationId,
-      contentHash: FINDING_GENERATION.receipt.contentHash,
-    }))?.analysis).toBe(validAnalysis);
+    expect(
+      (
+        await deps.getAnalysis!(7, {
+          scope: { kind: "lap", gameId: "fm-2023", sessionId: "17", lapId: "7" },
+          generationId: FINDING_GENERATION.receipt.generationId,
+          contentHash: FINDING_GENERATION.receipt.contentHash,
+        })
+      )?.analysis,
+    ).toBe(validAnalysis);
   });
 });
 
 test("uses every native sector in iRacing analysis context", async () => {
   let capturedSectors: unknown;
   const deps = Object.assign(makeDeps(), {
-    getLapById: async () =>
+    getLapMetaById: async () =>
       ({
         ...lap,
         gameId: "iracing",
-        telemetry: Array.from({ length: 60 }, (_, index) => ({
-          DistanceTraveled: index * 10,
-          CurrentLap: index / 2,
-          iracing: {
-            lapDistancePct: index / 59,
-            sectorStarts: [0, 0.34, 0.67],
-          },
-        })),
       }) as never,
     getGame: () => ({
       nativeSectors: true,
-      getNativeSectorLayout: (packet: TelemetryPacket) => packet.iracing,
     }),
-    computeNativeSectorTimeline: () => ({
+    computeSemanticSectorTimeline: () => ({
       sectorCount: 6,
       times: [10, 11, 12, 13, 14, 15],
       boundaryIndices: [10, 20, 30, 40, 50],

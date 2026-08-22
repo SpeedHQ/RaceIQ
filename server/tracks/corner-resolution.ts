@@ -1,28 +1,13 @@
-import type { GameId } from "../../shared/games/ids";
+import { GameIdSchema } from "../../shared/games/ids";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
 import { formatTurnNumbers, turnNumbers } from "../../shared/racing/tracks/segment-label";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { getCorners, saveCorners } from "../db/track-queries";
-import { detectCorners, type Corner } from "../lap-analysis/corners";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { Corner } from "../lap-analysis/corners";
+import { getCorners } from "../db/track-queries";
 import { resolveTrackSegments } from "../routes/tracks/support";
 
-function lapDistance(packets: readonly TelemetryPacket[]): number {
-  let first: number | undefined;
-  let last: number | undefined;
-  for (const packet of packets) {
-    if (!Number.isFinite(packet.DistanceTraveled)) continue;
-    first ??= packet.DistanceTraveled;
-    last = packet.DistanceTraveled;
-  }
-  return first === undefined || last === undefined ? 0 : Math.max(0, last - first);
-}
-
 /** Convert lap-fraction track segments into the metre-based corner contract. */
-export function lapCornersFromSegments(
-  segments: readonly NamedSegment[],
-  telemetry: readonly TelemetryPacket[],
-): Corner[] {
-  const distance = lapDistance(telemetry);
+function cornersFromSegments(segments: readonly NamedSegment[], distance: number): Corner[] {
   if (distance <= 0) return [];
 
   const corners: Corner[] = [];
@@ -33,9 +18,7 @@ export function lapCornersFromSegments(
     if (endFrac <= startFrac) continue;
 
     const numbers = turnNumbers(segment);
-    const label = numbers.length > 0
-      ? `T${formatTurnNumbers(numbers)}`
-      : `T${corners.length + 1}`;
+    const label = numbers.length > 0 ? `T${formatTurnNumbers(numbers)}` : `T${corners.length + 1}`;
     corners.push({
       index: corners.length,
       label,
@@ -46,11 +29,21 @@ export function lapCornersFromSegments(
   return corners;
 }
 
+/** Resolve semantic replay values into the same metre-based corner contract. */
+export function lapCornersFromSemanticSamples(segments: readonly NamedSegment[], telemetry: readonly SemanticTelemetrySample[]): Corner[] {
+  let first: number | undefined;
+  let last: number | undefined;
+  for (const sample of telemetry) {
+    const value = sample.values["timing.distance-traveled"];
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    first ??= value;
+    last = value;
+  }
+  return cornersFromSegments(segments, first === undefined || last === undefined ? 0 : Math.max(0, last - first));
+}
+
 /** Resolve game-aware corner and straight segments, including iRacing SVG labels. */
-export async function resolveLapSegments(
-  trackOrdinal: number | null | undefined,
-  gameId: string | null | undefined,
-): Promise<NamedSegment[]> {
+export async function resolveLapSegments(trackOrdinal: number | null | undefined, gameId: string | null | undefined): Promise<NamedSegment[]> {
   if (trackOrdinal == null || trackOrdinal <= 0 || !gameId) return [];
   try {
     return (await resolveTrackSegments(trackOrdinal, gameId)).segments;
@@ -60,35 +53,27 @@ export async function resolveLapSegments(
 }
 
 /**
- * Resolve corners once for every stored-lap analysis path.
- * Official-label-aligned segments win, then stored corners, then telemetry detection.
+ * Resolve comparison corners from semantic replay frames. Official geometry and
+ * stored corners remain valid; unavailable semantic distance never falls back
+ * to raw packet fields or telemetry-derived corner detection.
  */
-export async function resolveLapCorners(
+export async function resolveSemanticLapCorners(
   trackOrdinal: number | null | undefined,
   gameId: string | null | undefined,
-  telemetry: TelemetryPacket[],
-  options: { saveDetected?: boolean; segments?: readonly NamedSegment[] } = {},
+  telemetry: readonly SemanticTelemetrySample[],
+  options: { segments?: readonly NamedSegment[] } = {},
 ): Promise<Corner[]> {
-  const segments = options.segments ?? await resolveLapSegments(trackOrdinal, gameId);
-  const segmentCorners = lapCornersFromSegments(segments, telemetry);
+  const segments = options.segments ?? (await resolveLapSegments(trackOrdinal, gameId));
+  const segmentCorners = lapCornersFromSemanticSamples(segments, telemetry);
   if (segmentCorners.length > 0) return segmentCorners;
 
-  if (trackOrdinal != null && trackOrdinal > 0 && gameId) {
+  const resolvedGame = GameIdSchema.safeParse(gameId);
+  if (trackOrdinal != null && trackOrdinal > 0 && resolvedGame.success) {
     try {
-      const stored = await getCorners(trackOrdinal, gameId as GameId);
-      if (stored.length > 0) return stored;
+      return await getCorners(trackOrdinal, resolvedGame.data);
     } catch {
-      // Stored corners are optional; telemetry detection remains available.
+      return [];
     }
   }
-
-  const detected = detectCorners(telemetry);
-  if (options.saveDetected && detected.length > 0 && trackOrdinal != null && trackOrdinal > 0 && gameId) {
-    try {
-      await saveCorners(trackOrdinal, detected, gameId as GameId, true);
-    } catch {
-      // A concurrent insert is harmless; return the in-memory detection.
-    }
-  }
-  return detected;
+  return [];
 }

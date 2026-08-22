@@ -25,6 +25,10 @@
 
 - Correct imported race cautions, restarts, pit-service actions, and stint boundaries using simulator-independent semantic telemetry evidence
 - Keep deterministic findings, comparisons, and AI conversations bound to finalized current evidence, automatically backfill historical laps, and recover while finding generations rebuild
+- Keep lap comparison charts, findings, and Setup Engineer deltas aligned by deriving them from the same simulator-independent semantic replay
+- Route live and historical analysis, findings, exports, tune diagnosis, track geometry, sectors, pit strategy, race results, and Setup Engineer tools through the same simulator-independent semantic telemetry authority
+- Preserve variable iRacing sector layouts and classify pit-stall and repair service evidence from canonical simulator signals
+- Show canonical tire temperatures consistently across simulators and user display units without converting Forza values twice
 
 - Prevent unfinished or stale lap-quality generations and decisions from driving pace, experiment, AI, or cached lap-metric analysis
 - Keep new-session telemetry capture moving while prior lap, quality, and result writes finish without publishing old-session laps into current live state

@@ -1,13 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { computeIRacingSectorTimeline,
-computeLapSectors, } from "../../../server/lap-analysis/sectors"
+import { computeIRacingSectorTimeline, computeLapSectors } from "../../../server/lap-analysis/sectors";
 import { initServerGameAdapters } from "../../../server/games/init";
-import {
-  createIRacingParserState,
-  normalizeIRacingFrame,
-} from "../../../server/games/iracing/normalizer";
+import { createIRacingParserState, normalizeIRacingFrame } from "../../../server/games/iracing/normalizer";
 import { LapDetectorIRacing } from "../../../server/games/iracing/lap-detector";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
+import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 import { EMPTY_LAP_TIMELINE_CONTEXT } from "../../../server/lap-detection/types";
 import { SectorTracker } from "../../../server/live-strategy/sector-tracker";
 import { initGameAdapters } from "../../../shared/games/init";
@@ -15,7 +11,7 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 initGameAdapters();
 initServerGameAdapters();
-import { sampleFrame, } from "../../support/games/iracing-sdk";
+import { sampleFrame } from "../../support/games/iracing-sdk";
 
 describe("iRacing lap timing and native sectors", () => {
   test("resets normalized elapsed time at the physical Lap transition", () => {
@@ -71,19 +67,21 @@ describe("iRacing lap timing and native sectors", () => {
         },
       } as TelemetryPacket;
     });
+    const samples = packets.map((packet, index) => ({
+      values: {
+        "timing.current-lap": packet.CurrentLap,
+        "timing.distance-traveled": packet.DistanceTraveled,
+        "timing.sector.layout.start-fractions": [0, 0.5],
+      },
+      sequence: String(index),
+      observedAtMs: index * 16,
+    }));
 
-    const timeline = computeIRacingSectorTimeline(packets, 32);
+    const timeline = computeIRacingSectorTimeline(samples, 32);
     expect(timeline?.sectorCount).toBe(2);
     expect(timeline?.times).toEqual([16, 16]);
     expect(timeline?.boundaryIndices).toHaveLength(1);
-    expect(
-      await computeLapSectors(
-        twoSectorTrackOrdinal,
-        "iracing",
-        packets,
-        32,
-      ),
-    ).toEqual([16, 16]);
+    expect(await computeLapSectors(twoSectorTrackOrdinal, "iracing", samples, 32)).toEqual([16, 16]);
 
     const liveTracker = new SectorTracker();
     await liveTracker.reset(twoSectorTrackOrdinal, "iracing", 42);
@@ -103,21 +101,24 @@ describe("iRacing lap timing and native sectors", () => {
         iracing: { lapDistancePct: fraction },
       } as TelemetryPacket;
     });
+    const samples = packets.map((packet, index) => ({
+      values: {
+        "timing.current-lap": packet.CurrentLap,
+        "timing.distance-traveled": packet.DistanceTraveled,
+      },
+      sequence: String(index),
+      observedAtMs: index * 16,
+    }));
 
-    expect(computeIRacingSectorTimeline(packets, 32)).toBeNull();
-    expect(await computeLapSectors(99, "iracing", packets, 32)).toBeNull();
+    expect(computeIRacingSectorTimeline(samples, 32)).toBeNull();
+    expect(await computeLapSectors(99, "iracing", samples, 32)).toBeNull();
   });
 
   test("keeps native sector fractions when the source attaches mid-lap", async () => {
     const tracker = new SectorTracker();
     await tracker.reset(99, "iracing", 42);
 
-    const packet = (
-      lapNumber: number,
-      distance: number,
-      fraction: number,
-      currentLap: number,
-    ): TelemetryPacket =>
+    const packet = (lapNumber: number, distance: number, fraction: number, currentLap: number): TelemetryPacket =>
       ({
         gameId: "iracing",
         LapNumber: lapNumber,
@@ -149,13 +150,7 @@ describe("iRacing lap timing and native sectors", () => {
     const trackLength = 2350;
     let offset = 0;
 
-    const packet = (
-      lapNumber: number,
-      currentLap: number,
-      sdkCurrentLapTime: number,
-      lastLap: number,
-      fraction: number,
-    ): TelemetryPacket =>
+    const packet = (lapNumber: number, currentLap: number, sdkCurrentLapTime: number, lastLap: number, fraction: number): TelemetryPacket =>
       ({
         gameId: "iracing",
         sessionUID: "456:123:2",
@@ -168,15 +163,12 @@ describe("iRacing lap timing and native sectors", () => {
         LastLap: lastLap,
         BestLap: 0,
         CurrentRaceTime: 100 + lapNumber * 40 + currentLap,
-        DistanceTraveled:
-          lapNumber * trackLength + Math.min(fraction, 0.999) * trackLength,
+        DistanceTraveled: lapNumber * trackLength + Math.min(fraction, 0.999) * trackLength,
         PositionX: 0,
         PositionY: 0,
         PositionZ: 0,
         Speed: 70,
-        TimestampMS: Math.round(
-          (100 + lapNumber * 40 + currentLap) * 1000,
-        ),
+        TimestampMS: Math.round((100 + lapNumber * 40 + currentLap) * 1000),
         Fuel: 40,
         TireWearFL: 0,
         TireWearFR: 0,
@@ -222,7 +214,6 @@ describe("iRacing lap timing and native sectors", () => {
     expect(db.laps[0].lapTime).toBeCloseTo(31.917, 3);
     expect(db.laps[1].lapTime).toBeCloseTo(32.045, 3);
     expect(db.laps[0].rawFrameCount).toBe(65);
-    expect(db.laps[0].sectors).toHaveLength(2);
     expect(db.sessions[0]).toMatchObject({
       carOrdinal: 42,
       trackOrdinal: 99,

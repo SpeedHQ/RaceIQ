@@ -1,27 +1,16 @@
 import { eq, inArray } from "drizzle-orm";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { db } from "../db";
 import { lapMetrics, laps } from "../db/schema";
-import { getLapById, getLapsByIds } from "../db/lap-read-queries";
+import { getLapMetaById } from "../db/lap-read-queries";
+import { queryLapTelemetryBySemanticId } from "../telemetry/replay";
+import { semanticSamplesFromReplay } from "../telemetry/semantic-samples";
 import { resolveTrack } from "../tracks/info";
-import { computeLapMetrics, deriveFuelPerLap, deriveTyreWear, LAP_METRICS_ALGO_VERSION, type LapMetrics, type SegmentStat } from "./metrics";
-
-/** Minimal DB surface persistLapMetrics needs (DbAdapter satisfies it). */
-interface LapMetricsWriter {
-  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
-}
-
-/** Derive fuel + tyre metrics from in-memory frames and persist them on the lap row. */
-export async function persistLapMetrics(writer: LapMetricsWriter, lapId: number, packets: TelemetryPacket[]): Promise<void> {
-  const fuelPerLap = deriveFuelPerLap(packets) ?? null;
-  const tyreWear = deriveTyreWear(packets) ?? null;
-  if (fuelPerLap == null && tyreWear == null) return;
-  await writer.setLapMetrics(lapId, fuelPerLap, tyreWear);
-}
+import { computeLapMetrics, LAP_METRICS_ALGO_VERSION, type LapMetrics, type SegmentStat } from "./metrics";
 
 interface MetricsRow {
   lapId: number;
@@ -115,11 +104,14 @@ export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics 
     if (hit) return hit;
   }
 
-  const lap = await getLapById(lapId);
-  if (!lap || !isEligibilityUsable(resolveEligibilityDecision(lap, "corner-trace")) || lap.telemetry.length === 0 || !lap.gameId) return null;
-
+  const lap = await getLapMetaById(lapId);
+  if (!lap || !lap.gameId || !isEligibilityUsable(resolveEligibilityDecision(lap, "corner-trace"))) return null;
+  const replay = await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+  if (!replay) return null;
+  const samples = semanticSamplesFromReplay(replay);
+  if (samples.length === 0) return null;
   const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
-  const metrics = computeLapMetrics(lapId, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
+  const metrics = computeLapMetrics(lapId, samples, lap.gameId as GameId, segments, lap.quality);
   await persist(metrics, lap.qualityGeneration ?? null);
   return metrics;
 }
@@ -156,11 +148,15 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   const missing = ids.filter((id) => !output.has(id));
   if (missing.length === 0) return output;
 
-  const loadedLaps = await getLapsByIds(missing);
-  for (const lap of loadedLaps) {
-    if (!isEligibilityUsable(resolveEligibilityDecision(lap, "corner-trace")) || lap.telemetry.length === 0 || !lap.gameId) continue;
+  const metadata = await Promise.all(missing.map((id) => getLapMetaById(id)));
+  for (const lap of metadata) {
+    if (!lap || !lap.gameId || !isEligibilityUsable(resolveEligibilityDecision(lap, "corner-trace"))) continue;
+    const replay = await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+    if (!replay) continue;
+    const samples = semanticSamplesFromReplay(replay);
+    if (samples.length === 0) continue;
     const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
-    const metrics = computeLapMetrics(lap.id, lap.telemetry, lap.gameId as GameId, segments, lap.quality);
+    const metrics = computeLapMetrics(lap.id, samples, lap.gameId as GameId, segments, lap.quality);
     await persist(metrics, lap.qualityGeneration ?? null);
     output.set(lap.id, metrics);
   }

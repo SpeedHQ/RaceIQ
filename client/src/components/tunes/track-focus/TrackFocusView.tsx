@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { SemanticAnalysisFrame } from "../../analyse/track-map/types";
-import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
@@ -16,6 +15,7 @@ import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
 import { localizedEligibilityDecisionText } from "../../LapQualityBadge";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
+import { semanticSamples } from "../semantic-tune";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
 import { CornerLedger } from "./CornerLedger";
@@ -130,7 +130,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
-      focusTelemetry={focusTel?.envelopes.map((e) => ({ values: Object.fromEntries(e.values.map((v) => [v.semanticId, v.value])), states: {}, freshness: {} })) ?? null}
+      focusTelemetry={semanticSamples(focusTel?.envelopes)}
       focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorStarts ?? [] } : null}
       edges={edges}
       corners={corners ?? []}
@@ -286,8 +286,8 @@ export function TrackFocusViewInner({
               <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
             ) : (
               <TrackFocusMap
-                telemetry={focusTelemetry as unknown as TelemetryPacket[]}
-                sectorTimes={focusSectorTimes as unknown as SectorTimesLite}
+                telemetry={focusTelemetry}
+                sectorTimes={focusSectorTimes}
                 edges={edges}
                 corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}

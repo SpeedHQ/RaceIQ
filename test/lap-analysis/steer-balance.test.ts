@@ -1,29 +1,31 @@
 import { describe, test, expect } from "bun:test";
-import { steerBalance } from "../../shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { steerBalanceFromSignals, type SemanticBalanceSignals } from "../../shared/racing/analysis/laps/physics/vehicle";
 
 const DEG = Math.PI / 180;
 const G = 9.81;
 
-// Minimal packet factory — only the fields steerBalance() reads.
+// Minimal semantic signal fixture.
 function pkt(o: {
   speedKph: number;
-  latG: number;        // right-positive (mirrored to AccelerationX = -latG*G)
-  yawRate?: number;    // rad/s — defaults to steady-state (Ay/V)
+  latG: number; // right-positive (mirrored to AccelerationX = -latG*G)
+  yawRate?: number; // rad/s — defaults to steady-state (Ay/V)
   frontSlipDeg: number;
   rearSlipDeg: number;
-}): TelemetryPacket {
-  const speed = o.speedKph / 3.6;
-  const yawRate = o.yawRate ?? (Math.abs(o.latG) * G) / Math.max(speed, 0.1);
+}): SemanticBalanceSignals {
+  const speedMps = o.speedKph / 3.6;
+  const yawRate = o.yawRate ?? (Math.abs(o.latG) * G) / Math.max(speedMps, 0.1);
   return {
-    Speed: speed,
-    AccelerationX: -o.latG * G,
-    AngularVelocityY: yawRate,
-    TireSlipAngleFL:  o.frontSlipDeg * DEG,
-    TireSlipAngleFR:  o.frontSlipDeg * DEG,
-    TireSlipAngleRL:  o.rearSlipDeg  * DEG,
-    TireSlipAngleRR:  o.rearSlipDeg  * DEG,
-  } as unknown as TelemetryPacket;
+    speedMps,
+    accelerationX: -o.latG * G,
+    yawRate,
+    slipAngles: [o.frontSlipDeg * DEG, o.frontSlipDeg * DEG, o.rearSlipDeg * DEG, o.rearSlipDeg * DEG],
+  };
+}
+
+function steerBalance(signals: SemanticBalanceSignals) {
+  const result = steerBalanceFromSignals(signals);
+  if (result === null) throw new Error("fixture must provide finite steering-balance signals");
+  return result;
 }
 
 describe("steerBalance", () => {
@@ -40,7 +42,7 @@ describe("steerBalance", () => {
     const speed = 80;
     const latG = 1.0;
     // Yaw rate 2× the expected path curvature → body rotating fast → oversteer
-    const yawRate = 2 * (latG * G) / (speed / 3.6);
+    const yawRate = (2 * (latG * G)) / (speed / 3.6);
     const b = steerBalance(pkt({ speedKph: speed, latG, frontSlipDeg: 2, rearSlipDeg: 11, yawRate }));
     expect(b.state).toBe("oversteer");
     expect(b.balance).toBeLessThan(-0.3);
@@ -59,13 +61,15 @@ describe("steerBalance", () => {
   // Fix: when signals disagree, trust slip angle alone.
 
   test("high-speed corner: slip says understeer, yaw says oversteer → slip wins", () => {
-    const b = steerBalance(pkt({
-      speedKph: 263,
-      latG: 0.45,
-      frontSlipDeg: 6.3,
-      rearSlipDeg:  4.0,
-      yawRate: 0.5,   // far above the ~0.06 path yaw → uYaw strongly negative
-    }));
+    const b = steerBalance(
+      pkt({
+        speedKph: 263,
+        latG: 0.45,
+        frontSlipDeg: 6.3,
+        rearSlipDeg: 4.0,
+        yawRate: 0.5, // far above the ~0.06 path yaw → uYaw strongly negative
+      }),
+    );
     expect(b.signalsAgree).toBe(false);
     expect(b.state).toBe("understeer");
     expect(b.balance).toBeGreaterThan(0);

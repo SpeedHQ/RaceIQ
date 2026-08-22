@@ -1,14 +1,19 @@
-import type { TelemetryPacket } from "../../../../telemetry/types";
+import type { SemanticLapFrame } from "../semantic-frame";
 import type { TelemetryModel } from "../../../../games/types";
 import type { LapInsight } from "./types";
 import { groupEvents, midFrame } from "./types";
 
 type FuelPacketUnit = TelemetryModel["fuel"]["packetUnit"];
+const finite = (value: number | undefined): value is number => typeof value === "number" && Number.isFinite(value);
 
-export function detectFuelConsumption(telemetry: TelemetryPacket[], packetUnit: FuelPacketUnit): LapInsight | null {
+export function detectFuelConsumption(telemetry: SemanticLapFrame[], packetUnit: FuelPacketUnit): LapInsight | null {
   if (telemetry.length < 2) return null;
-  const startFuel = telemetry[0].Fuel;
-  const endFuel = telemetry[telemetry.length - 1].Fuel;
+  const first = telemetry[0];
+  const last = telemetry[telemetry.length - 1];
+  if (!first || !last) return null;
+  const startFuel = first.fuel;
+  const endFuel = last.fuel;
+  if (!finite(startFuel) || !finite(endFuel)) return null;
   const used = startFuel - endFuel;
   if (used <= 0) return null;
   const lapsRemaining = endFuel > 0 ? endFuel / used : Number.POSITIVE_INFINITY;
@@ -23,47 +28,50 @@ export function detectFuelConsumption(telemetry: TelemetryPacket[], packetUnit: 
   };
 }
 
-export function detectPeakPower(telemetry: TelemetryPacket[]): LapInsight | null {
-  if (telemetry.length === 0) return null;
-  let peakIdx = 0;
-  let peakVal = 0;
+export function detectPeakPower(telemetry: SemanticLapFrame[]): LapInsight | null {
+  let peakIdx = -1;
+  let peakPower = Number.NEGATIVE_INFINITY;
   for (let i = 0; i < telemetry.length; i++) {
-    if (telemetry[i].Power > peakVal) {
-      peakVal = telemetry[i].Power;
+    const frame = telemetry[i];
+    if (!frame) continue;
+    const power = frame.power;
+    if (finite(power) && power > peakPower) {
+      peakPower = power;
       peakIdx = i;
     }
   }
-  if (peakVal === 0) return null;
-  const pkt = telemetry[peakIdx];
-  const hp = peakVal / 745.7;
+  if (peakIdx < 0 || peakPower <= 0) return null;
+  const frame = telemetry[peakIdx];
+  if (!frame || !finite(frame.engineRpm) || !finite(frame.gear)) return null;
   return {
     id: "mech-peak-power",
     category: "mechanical",
     severity: "info",
     label: "Peak Power",
-    detail: `${hp.toFixed(0)} hp @ ${pkt.CurrentEngineRpm.toFixed(0)} RPM (gear ${pkt.Gear})`,
+    detail: `${(peakPower / 745.7).toFixed(0)} hp @ ${frame.engineRpm.toFixed(0)} RPM (gear ${frame.gear})`,
     frameIndices: [peakIdx],
   };
 }
 
-export function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | null {
-  const maxBoost = Math.max(...telemetry.map((p) => p.Boost));
-  if (maxBoost <= 0) return null;
-
-  const flags: boolean[] = new Array(telemetry.length).fill(false);
-  let rollingPeak = 0;
+export function detectBoostAnomaly(telemetry: SemanticLapFrame[]): LapInsight | null {
+  const flags = new Array<boolean>(telemetry.length).fill(false);
+  let rollingPeak = Number.NEGATIVE_INFINITY;
+  let hasEvidence = false;
   for (let i = 0; i < telemetry.length; i++) {
-    rollingPeak = Math.max(rollingPeak, telemetry[i].Boost);
+    const frame = telemetry[i];
+    if (!frame || !finite(frame.boost) || !finite(frame.throttleInput)) continue;
+    hasEvidence = true;
+    rollingPeak = Math.max(rollingPeak, frame.boost);
     if (i >= 60) {
-      rollingPeak = 0;
+      rollingPeak = Number.NEGATIVE_INFINITY;
       for (let j = i - 59; j <= i; j++) {
-        rollingPeak = Math.max(rollingPeak, telemetry[j].Boost);
+        const boost = telemetry[j]?.boost;
+        if (finite(boost)) rollingPeak = Math.max(rollingPeak, boost);
       }
     }
-    if (telemetry[i].Accel > 240 && rollingPeak > 0 && telemetry[i].Boost < rollingPeak * 0.5) {
-      flags[i] = true;
-    }
+    flags[i] = frame.throttleInput > 240 && rollingPeak > 0 && frame.boost < rollingPeak * 0.5;
   }
+  if (!hasEvidence) return null;
   const events = groupEvents(flags, 5);
   if (events.length === 0) return null;
   return {
@@ -75,4 +83,3 @@ export function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | n
     frameIndices: midFrame(events),
   };
 }
-

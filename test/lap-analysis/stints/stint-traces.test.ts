@@ -3,24 +3,27 @@ import { evaluateAllEligibility } from "../../../shared/racing/quality/policies"
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { semanticLapFrames, type SemanticLapFrame } from "../../../shared/racing/analysis/laps/semantic-frame";
+import type { SemanticTelemetrySample } from "../../../shared/telemetry/replay/contracts";
 import { consistencyAt, downsampleLap, sampleAt, stintStats } from "../../../client/src/lib/stint-traces";
 const TEST_SOURCE_GENERATION = `sha256:${"b".repeat(64)}`;
 
-function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
-  return {
-    DistanceTraveled: 0,
-    TimestampMS: 0,
-    Accel: 0,
-    Brake: 0,
-    Steer: 0,
-    Speed: 0,
-    TireTempFL: 0,
-    TireTempFR: 0,
-    TireTempRL: 0,
-    TireTempRR: 0,
-    ...overrides,
-  } as TelemetryPacket;
+function pkt(observedAtMs: number, values: SemanticTelemetrySample["values"]): SemanticLapFrame {
+  return semanticLapFrames([
+    {
+      sequence: String(observedAtMs),
+      observedAtMs,
+      values: {
+        "timing.distance-traveled": 0,
+        "inputs.accel": 0,
+        "inputs.brake": 0,
+        "inputs.steer": 0,
+        "motion.speed": 0,
+        "tire.temperature.average": [0, 0, 0, 0],
+        ...values,
+      },
+    },
+  ])[0]!;
 }
 
 /** Builds a simple linearly-progressing lap: distance 0..lapDist over
@@ -35,23 +38,19 @@ function makeLap(opts: {
   speedMs: number;
   tireTemp?: number;
   startMs?: number;
-}): TelemetryPacket[] {
+}): SemanticLapFrame[] {
   const { count, lapDist, msPerFrame, throttle255, brake255, steer, speedMs, tireTemp = 0, startMs = 0 } = opts;
-  const out: TelemetryPacket[] = [];
+  const out: SemanticLapFrame[] = [];
   for (let i = 0; i < count; i++) {
     const tsRaw = startMs + i * msPerFrame;
     out.push(
-      pkt({
-        DistanceTraveled: (i / (count - 1)) * lapDist,
-        TimestampMS: tsRaw % 4294967296,
-        Accel: throttle255,
-        Brake: brake255,
-        Steer: steer,
-        Speed: speedMs,
-        TireTempFL: tireTemp,
-        TireTempFR: tireTemp,
-        TireTempRL: tireTemp,
-        TireTempRR: tireTemp,
+      pkt(tsRaw % 4294967296, {
+        "timing.distance-traveled": (i / (count - 1)) * lapDist,
+        "inputs.accel": throttle255,
+        "inputs.brake": brake255,
+        "inputs.steer": steer,
+        "motion.speed": speedMs,
+        "tire.temperature.average": [tireTemp, tireTemp, tireTemp, tireTemp],
       }),
     );
   }
@@ -99,10 +98,10 @@ describe("downsampleLap", () => {
   });
 
   test("computes per-lap tire averages skipping zero frames", () => {
-    const telemetry: TelemetryPacket[] = [
-      pkt({ DistanceTraveled: 0, TimestampMS: 0, TireTempFL: 0, TireTempFR: 80, TireTempRL: 80, TireTempRR: 80 }),
-      pkt({ DistanceTraveled: 500, TimestampMS: 16, TireTempFL: 90, TireTempFR: 80, TireTempRL: 80, TireTempRR: 80 }),
-      pkt({ DistanceTraveled: 1000, TimestampMS: 32, TireTempFL: 90, TireTempFR: 80, TireTempRL: 80, TireTempRR: 80 }),
+    const telemetry: SemanticLapFrame[] = [
+      pkt(0, { "timing.distance-traveled": 0, "tire.temperature.average": [0, 80, 80, 80] }),
+      pkt(16, { "timing.distance-traveled": 500, "tire.temperature.average": [90, 80, 80, 80] }),
+      pkt(32, { "timing.distance-traveled": 1000, "tire.temperature.average": [90, 80, 80, 80] }),
     ];
     const trace = downsampleLap(1, 1, true, telemetry, null);
     expect(trace!.tire).not.toBeNull();
@@ -111,15 +110,15 @@ describe("downsampleLap", () => {
   });
 
   test("tire is null when a corner has no non-zero frames", () => {
-    const telemetry: TelemetryPacket[] = [pkt({ DistanceTraveled: 0, TimestampMS: 0, TireTempFL: 0, TireTempFR: 0, TireTempRL: 0, TireTempRR: 0 }), pkt({ DistanceTraveled: 500, TimestampMS: 16 })];
+    const telemetry: SemanticLapFrame[] = [pkt(0, { "timing.distance-traveled": 0, "tire.temperature.average": [0, 0, 0, 0] }), pkt(16, { "timing.distance-traveled": 500 })];
     const trace = downsampleLap(1, 1, true, telemetry, null);
     expect(trace!.tire).toBeNull();
   });
 
   test("uses sectorTimes firstDist/lapDist offset when provided", () => {
-    const telemetry: TelemetryPacket[] = [];
+    const telemetry: SemanticLapFrame[] = [];
     for (let i = 0; i < 100; i++) {
-      telemetry.push(pkt({ DistanceTraveled: 1000 + i * 10, TimestampMS: i * 16, Accel: 255, Speed: 20 }));
+      telemetry.push(pkt(i * 16, { "timing.distance-traveled": 1000 + i * 10, "inputs.accel": 255, "motion.speed": 20 }));
     }
     const trace = downsampleLap(1, 1, true, telemetry, { firstDist: 1000, lapDist: 990 });
     expect(trace).not.toBeNull();
@@ -130,32 +129,19 @@ describe("downsampleLap", () => {
 
 describe("downsampleLap — balance/grip/suspension channels", () => {
   test("populates balance (degrees), latG, longG, suspTravel, combinedSlip when source fields present", () => {
-    const telemetry: TelemetryPacket[] = [];
+    const telemetry: SemanticLapFrame[] = [];
     for (let i = 0; i < 50; i++) {
       telemetry.push(
-        pkt({
-          DistanceTraveled: i * 20,
-          TimestampMS: i * 16,
+        pkt(i * 16, {
+          "timing.distance-traveled": i * 20,
           // Front slips more than rear -> positive balance (understeer).
-          TireSlipAngleFL: 0.1,
-          TireSlipAngleFR: 0.1,
-          TireSlipAngleRL: 0.02,
-          TireSlipAngleRR: 0.02,
-          AccelerationX: 4.905, // 0.5g lateral
-          AccelerationZ: -9.81, // -1g longitudinal (braking)
-          NormSuspensionTravelFL: 0.3,
-          NormSuspensionTravelFR: 0.3,
-          NormSuspensionTravelRL: 0.4,
-          NormSuspensionTravelRR: 0.4,
-          TireCombinedSlipFL: 0.05,
-          TireCombinedSlipFR: 0.05,
-          TireCombinedSlipRL: 0.03,
-          TireCombinedSlipRR: 0.03,
-          BrakeTempFrontLeft: 350,
-          BrakeTempFrontRight: 360,
-          BrakeTempRearLeft: 300,
-          BrakeTempRearRight: 310,
-        } as Partial<TelemetryPacket>),
+          "tires.tire-slip-angle": [0.1, 0.1, 0.02, 0.02],
+          "motion.acceleration-x": 4.905, // 0.5g lateral
+          "motion.acceleration-z": -9.81, // -1g longitudinal (braking)
+          "suspension.norm-suspension-travel": [0.3, 0.3, 0.4, 0.4],
+          "tires.tire-combined-slip": [0.05, 0.05, 0.03, 0.03],
+          "brakes.brake-temp": [350, 360, 300, 310],
+        }),
       );
     }
     const trace = downsampleLap(1, 1, true, telemetry, null)!;
@@ -184,9 +170,9 @@ describe("downsampleLap — balance/grip/suspension channels", () => {
   });
 
   test("nulls balance/latG/longG/suspTravel/combinedSlip when source fields are absent (all zero)", () => {
-    const telemetry: TelemetryPacket[] = [];
+    const telemetry: SemanticLapFrame[] = [];
     for (let i = 0; i < 20; i++) {
-      telemetry.push(pkt({ DistanceTraveled: i * 20, TimestampMS: i * 16 }));
+      telemetry.push(pkt(i * 16, { "timing.distance-traveled": i * 20 }));
     }
     const trace = downsampleLap(1, 1, true, telemetry, null)!;
     expect(trace.balance).toBeNull();
@@ -199,17 +185,13 @@ describe("downsampleLap — balance/grip/suspension channels", () => {
   });
 
   test("oversteer (rear slips more) yields a negative balance", () => {
-    const telemetry: TelemetryPacket[] = [];
+    const telemetry: SemanticLapFrame[] = [];
     for (let i = 0; i < 20; i++) {
       telemetry.push(
-        pkt({
-          DistanceTraveled: i * 20,
-          TimestampMS: i * 16,
-          TireSlipAngleFL: 0.02,
-          TireSlipAngleFR: 0.02,
-          TireSlipAngleRL: 0.15,
-          TireSlipAngleRR: 0.15,
-        } as Partial<TelemetryPacket>),
+        pkt(i * 16, {
+          "timing.distance-traveled": i * 20,
+          "tires.tire-slip-angle": [0.02, 0.02, 0.15, 0.15],
+        }),
       );
     }
     const trace = downsampleLap(1, 1, true, telemetry, null)!;

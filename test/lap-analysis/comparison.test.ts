@@ -1,84 +1,62 @@
 import { describe, expect, test } from "bun:test";
 import { compareLaps } from "../../server/lap-analysis/comparison";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { semanticSamplesFromReplay } from "../../server/telemetry/semantic-samples";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { SemanticTelemetryReplay } from "../../shared/telemetry/replay/contracts";
 
-function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
+function sample(values: Partial<SemanticTelemetrySample["values"]> = {}, observedAtMs = 0, sequence = "0"): SemanticTelemetrySample {
   return {
-    gameId: "fm-2023",
-    IsRaceOn: 1,
-    TimestampMS: 0,
-    EngineMaxRpm: 9000,
-    EngineIdleRpm: 1000,
-    CurrentEngineRpm: 4000,
-    AccelerationX: 0,
-    AccelerationY: 0,
-    AccelerationZ: 0,
-    VelocityX: 10,
-    VelocityY: 0,
-    VelocityZ: 0,
-    AngularVelocityX: 0,
-    AngularVelocityY: 0,
-    AngularVelocityZ: 0,
-    Yaw: 0,
-    Pitch: 0,
-    Roll: 0,
-    Fuel: 1,
-    DistanceTraveled: 0,
-    BestLap: 0,
-    LastLap: 0,
-    CurrentLap: 0,
-    CurrentRaceTime: 0,
-    LapNumber: 1,
-    RacePosition: 1,
-    Accel: 128,
-    Brake: 0,
-    Clutch: 0,
-    HandBrake: 0,
-    Gear: 3,
-    Steer: 127,
-    NormDrivingLine: 0,
-    NormAIBrakeDiff: 0,
-    TireWearFL: 0,
-    TireWearFR: 0,
-    TireWearRL: 0,
-    TireWearRR: 0,
-    TireTempFL: 80,
-    TireTempFR: 80,
-    TireTempRL: 80,
-    TireTempRR: 80,
-    PositionX: 0,
-    PositionY: 0,
-    PositionZ: 0,
-    ...overrides,
-  } as TelemetryPacket;
+    sequence,
+    observedAtMs,
+    values: {
+      "motion.speed": 10,
+      "inputs.accel": 128,
+      "inputs.brake": 0,
+      "inputs.steer": 127,
+      "engine.current-engine-rpm": 4000,
+      "tires.tire-wear": [0, 0, 0, 0],
+      "fuel.fuel": 1,
+      "timing.distance-traveled": 0,
+      "motion.position-x": 0,
+      "motion.position-z": 0,
+      ...values,
+    },
+  };
 }
 
-function lineLap({ detour = false, shortcut = false, timeOffset = 0 } = {}): TelemetryPacket[] {
-  const points = shortcut
-    ? Array.from({ length: 15 }, (_, index) => index * 5)
-    : Array.from({ length: 21 }, (_, index) => index * 5);
-  const out: TelemetryPacket[] = [];
-  for (const x of points) {
-    out.push(packet({
-      TimestampMS: (x / 10) * 1000 + (x === 0 ? 0 : timeOffset),
-      DistanceTraveled: x,
-      PositionX: x,
-      PositionZ: 0,
-      Accel: x === 75 ? 200 : 128,
-    }));
-  }
+function lineLap({ detour = false, shortcut = false, timeOffset = 0 } = {}): SemanticTelemetrySample[] {
+  const points = shortcut ? Array.from({ length: 15 }, (_, index) => index * 5) : Array.from({ length: 21 }, (_, index) => index * 5);
+  const out = points.map((x, index) =>
+    sample(
+      {
+        "timing.distance-traveled": x,
+        "motion.position-x": x,
+        "motion.position-z": 0,
+        "inputs.accel": x === 75 ? 200 : 128,
+      },
+      (x / 10) * 1000 + (x === 0 ? 0 : timeOffset),
+      String(index),
+    ),
+  );
   if (detour) {
-    const insertAt = out.findIndex((p) => p.PositionX === 50) + 1;
+    const insertAt = out.findIndex((entry) => entry.values["motion.position-x"] === 50) + 1;
     out.splice(
       insertAt,
       0,
-      packet({ TimestampMS: 9000, DistanceTraveled: 70, PositionX: 55, PositionZ: 20, Accel: 255 }),
-      packet({ TimestampMS: 10000, DistanceTraveled: 80, PositionX: 50, PositionZ: 0, Accel: 255 }),
-      packet({ TimestampMS: 11000, DistanceTraveled: 90, PositionX: 60, PositionZ: 0, Accel: 255 }),
+      sample({ "timing.distance-traveled": 70, "motion.position-x": 55, "motion.position-z": 20, "inputs.accel": 255 }, 9000, String(insertAt)),
+      sample({ "timing.distance-traveled": 80, "motion.position-x": 50, "motion.position-z": 0, "inputs.accel": 255 }, 10000, String(insertAt + 1)),
+      sample({ "timing.distance-traveled": 90, "motion.position-x": 60, "motion.position-z": 0, "inputs.accel": 255 }, 11000, String(insertAt + 2)),
     );
-    for (let i = insertAt + 3; i < out.length; i++) {
-      out[i].DistanceTraveled += 40;
-      out[i].TimestampMS += 4000;
+    for (let index = insertAt + 3; index < out.length; index++) {
+      const distance = out[index].values["timing.distance-traveled"];
+      out[index] = sample(
+        {
+          ...out[index].values,
+          "timing.distance-traveled": typeof distance === "number" ? distance + 40 : distance,
+        },
+        out[index].observedAtMs + 4000,
+        String(index),
+      );
     }
   }
   return out;
@@ -92,10 +70,10 @@ describe("compare lap course alignment", () => {
     expect(result.distances.at(-1)).toBe(100);
     expect(result.lapA.sourceIndices).toHaveLength(result.distances.length);
     expect(result.lapB.sourceIndices).toHaveLength(result.distances.length);
-    const idx = 75;
-    expect(crash[result.lapB.sourceIndices[idx]].PositionX).toBeGreaterThanOrEqual(70);
-    expect(crash[result.lapB.sourceIndices[idx]].PositionX).toBeLessThanOrEqual(80);
-    expect(result.timeDelta[idx]).toBeLessThan(-3);
+    const position = crash[result.lapB.sourceIndices[75]].values["motion.position-x"];
+    expect(typeof position === "number" && position).toBeGreaterThanOrEqual(70);
+    expect(typeof position === "number" && position).toBeLessThanOrEqual(80);
+    expect(result.timeDelta[75]).toBeLessThan(-3);
   });
 
   test("chooses clean reference when another lap takes shortcut", () => {
@@ -107,21 +85,66 @@ describe("compare lap course alignment", () => {
     expect(result.distances.at(-1)).toBe(100);
   });
 
-  test("keeps projected position monotonic through noisy samples", () => {
+  test("keeps projected position monotonic through missing and noisy semantic values", () => {
     const noisy = lineLap();
-    noisy.splice(4, 0, packet({ TimestampMS: 3500, DistanceTraveled: 35, PositionX: 0, PositionZ: 0 }));
-    noisy.splice(6, 0, packet({ TimestampMS: 5500, DistanceTraveled: 200, PositionX: 35, PositionZ: 0 }));
+    noisy.splice(4, 0, { sequence: "4a", observedAtMs: 3500, values: { "timing.distance-traveled": 35 } });
+    noisy.splice(6, 0, sample({ "timing.distance-traveled": 200, "motion.position-x": 35, "motion.position-z": 0 }, 5500, "6a"));
     const result = compareLaps(lineLap(), noisy, [], { trackLengthMeters: 100 });
-    const positions = result.lapB.sourceIndices.map((i) => noisy[i].PositionX).filter((position) => position > 0);
-    for (let i = 1; i < positions.length; i++) expect(positions[i]).toBeGreaterThanOrEqual(positions[i - 1]);
+    const positions = result.lapB.sourceIndices.map((index) => noisy[index].values["motion.position-x"]).filter((position): position is number => typeof position === "number" && position > 0);
+    for (let index = 1; index < positions.length; index++) expect(positions[index]).toBeGreaterThanOrEqual(positions[index - 1]);
   });
 
-  test("uses iRacing lap fraction when world positions are unavailable", () => {
-    const a = lineLap().map((p, i) => packet({ ...p, gameId: "iracing", PositionX: 0, PositionZ: 0, DistanceTraveled: i * 5, iracing: { lapDistancePct: i / 20 } as never }));
-    const b = lineLap().map((p, i) => packet({ ...p, gameId: "iracing", PositionX: 0, PositionZ: 0, DistanceTraveled: i * 10, iracing: { lapDistancePct: i / 20 } as never }));
+  test("uses semantic timing distance when world positions are unavailable", () => {
+    const a = lineLap().map((entry, index) => sample({ ...entry.values, "motion.position-x": 0, "motion.position-z": 0, "timing.distance-traveled": index * 5 }, entry.observedAtMs, String(index)));
+    const b = lineLap().map((entry, index) => sample({ ...entry.values, "motion.position-x": 0, "motion.position-z": 0, "timing.distance-traveled": index * 5 }, entry.observedAtMs, String(index)));
     const result = compareLaps(a, b, []);
     expect(result.distances.at(-1)).toBe(100);
     expect(result.lapA.throttle).toEqual(result.lapB.throttle);
+  });
+
+  test("preserves unavailable semantic values without packet fallback", () => {
+    const lapA = lineLap().map((entry, index) => sample({ ...entry.values, "motion.position-x": 0, "motion.position-z": 0 }, entry.observedAtMs, String(index)));
+    lapA[10] = {
+      sequence: lapA[10].sequence,
+      observedAtMs: lapA[10].observedAtMs,
+      values: { "timing.distance-traveled": 50 },
+    };
+    const result = compareLaps(lapA, lineLap(), []);
+    expect(Number.isNaN(result.lapA.speed[50])).toBe(true);
+    expect(Number.isNaN(result.lapA.throttle[50])).toBe(true);
+  });
+
+  test("averages structured semantic tire wear", () => {
+    const lap = lineLap().map((entry) =>
+      sample(
+        {
+          ...entry.values,
+          "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
+        },
+        entry.observedAtMs,
+        entry.sequence,
+      ),
+    );
+    const result = compareLaps(lap, lineLap(), []);
+    expect(result.lapA.tireWear[0]).toBeCloseTo(0.25, 6);
+  });
+
+  test("excludes stale replay values from comparison samples", () => {
+    const replay = {
+      envelopes: [
+        {
+          sequence: 1n,
+          observedAt: { domain: "session", milliseconds: 100 },
+          values: [
+            { semanticId: "motion.speed", state: "ok", freshness: "stale", value: 50 },
+            { semanticId: "inputs.accel", state: "ok", freshness: "fresh", value: 128 },
+          ],
+        },
+      ],
+    } as unknown as SemanticTelemetryReplay;
+    const [resolved] = semanticSamplesFromReplay(replay);
+    expect(resolved.values["motion.speed"]).toBeUndefined();
+    expect(resolved.values["inputs.accel"]).toBe(128);
   });
 
   test("preserves clean lap grid and elapsed delta", () => {
@@ -131,8 +154,8 @@ describe("compare lap course alignment", () => {
   });
 
   test("carries exact aligned and source bounds for corners with different spans", () => {
-    const lapA = lineLap().map((sample) => packet({ ...sample, PositionX: 0, PositionZ: 0 }));
-    const lapB = lineLap({ timeOffset: 500 }).map((sample) => packet({ ...sample, PositionX: 0, PositionZ: 0 }));
+    const lapA = lineLap().map((entry, index) => sample({ ...entry.values, "motion.position-x": 0, "motion.position-z": 0 }, entry.observedAtMs, String(index)));
+    const lapB = lineLap({ timeOffset: 500 }).map((entry, index) => sample({ ...entry.values, "motion.position-x": 0, "motion.position-z": 0 }, entry.observedAtMs, String(index)));
     const result = compareLaps(lapA, lapB, [
       { index: 0, label: "T1", distanceStart: 10, distanceEnd: 20 },
       { index: 1, label: "T2", distanceStart: 40, distanceEnd: 70 },
@@ -156,8 +179,6 @@ describe("compare lap course alignment", () => {
         distanceEnd: 70,
         alignedStartIndex: 40,
         alignedEndIndex: 70,
-        sourceStartIndexA: 8,
-        sourceEndIndexA: 14,
         sourceStartIndexB: 8,
         sourceEndIndexB: 14,
       }),

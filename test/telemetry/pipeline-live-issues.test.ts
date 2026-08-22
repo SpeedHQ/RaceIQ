@@ -73,7 +73,6 @@ class FinalizedFindingDb extends CapturingDbAdapter {
   }
 }
 
-
 function eligibilityDecision(policyId: EligibilityPolicyId, status: EligibilityDecision["status"]): EligibilityDecision {
   return {
     status,
@@ -108,30 +107,30 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     expect(resolveLapIssueEligibility(issueEligibility()).policyId).toBe("transient-event");
   });
 
-  test("disabled: broadcast liveIssues arg is undefined", async () => {
+  test("disabled: semantic frame omits liveIssues", async () => {
     const { pipeline, ws } = makePipeline();
     await pipeline.processPacket(pkt());
-    expect(ws.broadcastedPackets).toHaveLength(1);
-    expect(ws.broadcastedPackets[0].liveIssues).toBeUndefined();
+    expect(ws.publishedTelemetry).toHaveLength(1);
+    expect(ws.publishedTelemetry[0]!.frame!.context.liveIssues).toBeUndefined();
   });
 
-  test("enabled: broadcast liveIssues is an array reflecting detected issues", async () => {
+  test("enabled: semantic frame exposes detected liveIssues", async () => {
     const { pipeline, ws } = makePipeline();
     pipeline.setLiveIssuesEnabled(true);
     expect(pipeline.liveIssuesEnabled).toBe(true);
     // Braking with a locked front-left wheel — detectLiveIssues should flag it.
     await pipeline.processPacket(pkt({ Brake: 1, TireSlipRatioFL: 0.3 }));
-    expect(ws.broadcastedPackets).toHaveLength(1);
-    const liveIssues = ws.broadcastedPackets[0].liveIssues;
+    expect(ws.publishedTelemetry).toHaveLength(1);
+    const liveIssues = ws.publishedTelemetry[0]!.frame!.context.liveIssues;
     expect(liveIssues).toBeDefined();
-    expect(liveIssues!.some((i) => i.kind === "brake-lockup")).toBe(true);
+    expect(liveIssues!.some((issue) => issue.kind === "brake-lockup")).toBe(true);
   });
 
   test("enabled but quiescent packet: liveIssues is an empty array, not undefined", async () => {
     const { pipeline, ws } = makePipeline();
     pipeline.setLiveIssuesEnabled(true);
     await pipeline.processPacket(pkt({ Brake: 0, TireSlipRatioFL: 0, Speed: 0 }));
-    expect(ws.broadcastedPackets[0].liveIssues).toEqual([]);
+    expect(ws.publishedTelemetry[0]!.frame!.context.liveIssues).toEqual([]);
   });
 
   test("toggling back off omits liveIssues again", async () => {
@@ -140,7 +139,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     await pipeline.processPacket(pkt());
     pipeline.setLiveIssuesEnabled(false);
     await pipeline.processPacket(pkt({ TimestampMS: 1_001 }));
-    expect(ws.broadcastedPackets[1].liveIssues).toBeUndefined();
+    expect(ws.publishedTelemetry[1]!.frame!.context.liveIssues).toBeUndefined();
   });
 
   test("finalizes one result after session detector closes", async () => {
@@ -237,7 +236,6 @@ describe("LiveTelemetryPipeline live issue gating", () => {
   });
 
   test("keeps delayed old-session lap ownership out of current live state", async () => {
-
     const db = new CapturingDbAdapter();
     const ws = new CapturingWsAdapter();
     const insertLap = db.insertLap.bind(db);

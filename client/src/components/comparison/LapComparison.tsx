@@ -1,4 +1,5 @@
-import type { ComparisonData, SemanticTelemetrySample } from "@shared/racing/comparison/types";
+import type { ComparisonData } from "@shared/racing/comparison/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { FindingEvidenceRef } from "@shared/racing/findings/types";
 import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => {
@@ -6,15 +7,10 @@ const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof 
   return typeof value === "number" ? value : undefined;
 };
 
-export function telemetryForFindingEvidence(
-  comparison: Pick<ComparisonData, "lapA" | "lapB" | "telemetryA" | "telemetryB">,
-  evidence: FindingEvidenceRef,
-): SemanticTelemetrySample[] | null {
+export function telemetryForFindingEvidence(comparison: Pick<ComparisonData, "lapA" | "lapB" | "telemetryA" | "telemetryB">, evidence: FindingEvidenceRef): SemanticTelemetrySample[] | null {
   if (evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return null;
   if (evidence.lapId == null && evidence.sessionId == null) return null;
-  const matches = (lap: ComparisonData["lapA"]) =>
-    (evidence.lapId == null || evidence.lapId === String(lap.id))
-    && (evidence.sessionId == null || evidence.sessionId === String(lap.sessionId));
+  const matches = (lap: ComparisonData["lapA"]) => (evidence.lapId == null || evidence.lapId === String(lap.id)) && (evidence.sessionId == null || evidence.sessionId === String(lap.sessionId));
   const matchesA = matches(comparison.lapA);
   const matchesB = matches(comparison.lapB);
   if (matchesA === matchesB) return null;
@@ -178,16 +174,18 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     },
     [comparison],
   );
-  const handleFindingEvidence = useCallback((evidence: FindingEvidenceRef) => {
-    if (!comparison || evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return;
-    const telemetry = telemetryForFindingEvidence(comparison, evidence);
-    const sample = telemetry?.[evidence.startFrameIndex];
-    const distance = sample && semanticNumber(sample, "timing.distance-traveled");
-    if (distance == null || !Number.isFinite(distance)) return;
-    hoveredDistanceRef.current = distance;
-    mapRedrawRef.current?.();
-  }, [comparison]);
-
+  const handleFindingEvidence = useCallback(
+    (evidence: FindingEvidenceRef) => {
+      if (!comparison || evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return;
+      const telemetry = telemetryForFindingEvidence(comparison, evidence);
+      const sample = telemetry?.[evidence.startFrameIndex];
+      const distance = sample && semanticNumber(sample, "timing.distance-traveled");
+      if (distance == null || !Number.isFinite(distance)) return;
+      hoveredDistanceRef.current = distance;
+      mapRedrawRef.current?.();
+    },
+    [comparison],
+  );
 
   // Set cursor from URL param once comparison data loads
   const appliedInitialCursor = useRef(false);
@@ -325,10 +323,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     const controller = new AbortController();
     comparisonAbortControllerRef.current = controller;
     comparisonIdentityRef.current = requestIdentity;
-    const isCurrentRequest = () =>
-      comparisonRequestSequenceRef.current === requestSequence
-      && comparisonIdentityRef.current === requestIdentity
-      && !controller.signal.aborted;
+    const isCurrentRequest = () => comparisonRequestSequenceRef.current === requestSequence && comparisonIdentityRef.current === requestIdentity && !controller.signal.aborted;
 
     if (comparisonFindingTimerRef.current != null) window.clearTimeout(comparisonFindingTimerRef.current);
     comparisonFindingTimerRef.current = null;
@@ -533,12 +528,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             }}
           />
 
-          <ComparisonCharts
-            comparison={comparison}
-            units={units}
-            onCursorMove={handleCursorMove}
-            onEvidenceSelect={handleFindingEvidence}
-          />
+          <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} onEvidenceSelect={handleFindingEvidence} />
 
           {/* AI compare sidebar */}
           {aiPanelOpen && gameId && selectedLapA && selectedLapB && (

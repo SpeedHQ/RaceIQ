@@ -9,7 +9,16 @@ import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quali
 import { lapRoutes } from "../../../server/routes/laps";
 import { persistCompletedLapFindings } from "../../../server/findings/completed-lap";
 import { getCurrentFindingGeneration } from "../../../server/findings/store";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../../shared/racing/analysis/laps/semantic-frame";
+import { initGameAdapters } from "../../../shared/games/init";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { initServerGameAdapters } from "../../../server/games/init";
+import { LiveTelemetryProjector } from "../../../server/telemetry/live-projector";
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
+
+initGameAdapters();
+initServerGameAdapters();
 
 const createdSessionIds: number[] = [];
 const createdThreadIds: string[] = [];
@@ -33,6 +42,7 @@ afterEach(async () => {
 
 async function insertCurrentQualityLap(): Promise<{ lapId: number; findingGenerationKey: string }> {
   const packets = qualityPackets(100);
+  const telemetry = semanticSamplesFromPackets(packets);
   const generated = finalizeLapQualityGeneration(summarize(packets), `sha256:${"3".repeat(64)}`, {
     lapNumber: 1,
     rawByteOffset: 1_000,
@@ -58,18 +68,21 @@ async function insertCurrentQualityLap(): Promise<{ lapId: number; findingGenera
       .returning({ id: laps.id })
       .get()
   ).id;
-  await persistCompletedLapFindings({
-    lapId,
-    sessionId,
-    lapNumber: 1,
-    lapTime: 90,
-    isValid: true,
-    gameId: "fm-2023",
-    quality: generated.quality,
-    recordingQuality: { valid: true, reason: null },
-    versionIdentity: generated.quality.versionIdentity,
-    telemetry: packets,
-  }, { analyze: () => [] });
+  await persistCompletedLapFindings(
+    {
+      lapId,
+      sessionId,
+      lapNumber: 1,
+      lapTime: 90,
+      isValid: true,
+      gameId: "fm-2023",
+      quality: generated.quality,
+      recordingQuality: { valid: true, reason: null },
+      versionIdentity: generated.quality.versionIdentity,
+      telemetry,
+    },
+    { analyze: () => [] },
+  );
   const findingGeneration = await getCurrentFindingGeneration({
     kind: "lap",
     gameId: "fm-2023",
@@ -83,8 +96,21 @@ async function insertCurrentQualityLap(): Promise<{ lapId: number; findingGenera
   };
 }
 
-describe("quality-scoped lap chat routes", () => {
+function semanticSamplesFromPackets(packets: readonly TelemetryPacket[]): SemanticTelemetrySample[] {
+  const projector = new LiveTelemetryProjector(CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+  const samples: SemanticTelemetrySample[] = [];
+  for (const packet of packets) {
+    samples.push(
+      projector.project({
+        packet,
+        receivedAtMs: packet.TimestampMS,
+      }).sample,
+    );
+  }
+  return samples;
+}
 
+describe("quality-scoped lap chat routes", () => {
   test("requires valid game identity on history, send, and delete", async () => {
     const missingHistory = await lapRoutes.request("/api/laps/999999/chat");
     expect(missingHistory.status).toBe(400);

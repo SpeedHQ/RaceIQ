@@ -7,29 +7,17 @@
  * assertion between `prepareArm` (all laps in memory) and `streamArmSamples`
  * (one lap at a time), on identical laps.
  *
- * No DB: frames arrive through an injected `LapFrameLoader`, which also lets the
- * peak-live-laps bound be *measured* rather than asserted by inspection.
+ * No DB: samples arrive through an injected `SemanticSampleLoader`, which also
+ * lets the peak-live-lap bound be *measured* rather than asserted by inspection.
  */
 
 import { describe, expect, test } from "bun:test";
 import { compareArmSamples, prepareArm } from "../../../server/experiments/comparison/compare";
 import { streamArmSamples } from "../../../server/experiments/comparison/stream";
 import { OUTCOME_METRICS, type PairwiseFramesOutcomeMetric } from "../../../server/experiments/comparison/metrics";
-import {
-  buildStreamingArm,
-  CORNERS,
-  REPEATABLE,
-  SCATTERED,
-  trackingLoader,
-  type LapSpec,
-} from "../../support/experiments/arms";
+import { buildStreamingArm, CORNERS, REPEATABLE, SCATTERED, trackingLoader, type LapSpec } from "../../support/experiments/arms";
 
-const FRAME_METRICS: PairwiseFramesOutcomeMetric[] = [
-  OUTCOME_METRICS.inputVarianceBrake,
-  OUTCOME_METRICS.inputVarianceThrottle,
-  OUTCOME_METRICS.lineSpreadScore,
-];
-
+const FRAME_METRICS: PairwiseFramesOutcomeMetric[] = [OUTCOME_METRICS.inputVarianceBrake, OUTCOME_METRICS.inputVarianceThrottle, OUTCOME_METRICS.lineSpreadScore];
 
 // ── the equivalence assertion ───────────────────────────────────────────────
 
@@ -42,7 +30,7 @@ describe("streaming produces the same samples as the in-memory path", () => {
         label: "arm",
         metas: built.metas,
         metric,
-        loadFrames: trackingLoader(built.frames).loadFrames,
+        loadSamples: trackingLoader(built.frames).loadSamples,
         resolveCorners: async () => CORNERS,
       });
 
@@ -65,14 +53,14 @@ describe("streaming produces the same samples as the in-memory path", () => {
         label: "arm",
         metas: a.metas,
         metric,
-        loadFrames: trackingLoader(a.frames).loadFrames,
+        loadSamples: trackingLoader(a.frames).loadSamples,
         resolveCorners: async () => CORNERS,
       }),
       await streamArmSamples({
         label: "arm",
         metas: b.metas,
         metric,
-        loadFrames: trackingLoader(b.frames).loadFrames,
+        loadSamples: trackingLoader(b.frames).loadSamples,
         resolveCorners: async () => CORNERS,
       }),
       metric,
@@ -106,7 +94,7 @@ describe("streaming produces the same samples as the in-memory path", () => {
       label: "arm",
       metas: built.metas,
       metric,
-      loadFrames: trackingLoader(built.frames).loadFrames,
+      loadSamples: trackingLoader(built.frames).loadSamples,
       resolveCorners: async () => CORNERS,
     });
 
@@ -116,4 +104,3 @@ describe("streaming produces the same samples as the in-memory path", () => {
     expect(streamed.samples.length).toBe(3);
   });
 });
-

@@ -8,7 +8,16 @@ import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quali
 import { lapRoutes } from "../../../server/routes/laps";
 import { persistCompletedLapFindings } from "../../../server/findings/completed-lap";
 import { getCurrentFindingGeneration } from "../../../server/findings/store";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../../shared/racing/analysis/laps/semantic-frame";
+import { initGameAdapters } from "../../../shared/games/init";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { initServerGameAdapters } from "../../../server/games/init";
+import { LiveTelemetryProjector } from "../../../server/telemetry/live-projector";
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
+
+initGameAdapters();
+initServerGameAdapters();
 
 const createdSessionIds: number[] = [];
 const createdThreadIds: string[] = [];
@@ -32,6 +41,7 @@ afterEach(async () => {
 
 async function insertComparisonLaps(): Promise<[number, number, string]> {
   const packets = qualityPackets(100);
+  const telemetry = semanticSamplesFromPackets(packets);
   const sessionId = (await db.insert(sessions).values({ gameId: "fm-2023", carOrdinal: 4_001, trackOrdinal: 4_002 }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(sessionId);
   const ids: number[] = [];
@@ -58,27 +68,32 @@ async function insertComparisonLaps(): Promise<[number, number, string]> {
       .returning({ id: laps.id })
       .get();
     ids.push(row.id);
-    await persistCompletedLapFindings({
-      lapId: row.id,
-      sessionId,
-      lapNumber,
-      lapTime: 90 + lapNumber,
-      isValid: true,
-      gameId: "fm-2023",
-      quality: generated.quality,
-      recordingQuality: { valid: true, reason: null },
-      versionIdentity: generated.quality.versionIdentity,
-      telemetry: packets,
-    }, { analyze: () => [] });
+    await persistCompletedLapFindings(
+      {
+        lapId: row.id,
+        sessionId,
+        lapNumber,
+        lapTime: 90 + lapNumber,
+        isValid: true,
+        gameId: "fm-2023",
+        quality: generated.quality,
+        recordingQuality: { valid: true, reason: null },
+        versionIdentity: generated.quality.versionIdentity,
+        telemetry,
+      },
+      { analyze: () => [] },
+    );
   }
   const generations = [];
   for (const lapId of ids) {
-    generations.push(await getCurrentFindingGeneration({
-      kind: "lap",
-      gameId: "fm-2023",
-      sessionId: String(sessionId),
-      lapId: String(lapId),
-    }));
+    generations.push(
+      await getCurrentFindingGeneration({
+        kind: "lap",
+        gameId: "fm-2023",
+        sessionId: String(sessionId),
+        lapId: String(lapId),
+      }),
+    );
   }
   if (!generations[0] || !generations[1]) throw new Error("Expected current finding generations");
   const findingGenerationKey = compareFindingGenerationCacheKey([
@@ -86,6 +101,20 @@ async function insertComparisonLaps(): Promise<[number, number, string]> {
     { lapId: ids[1]!, receipt: generations[1].receipt },
   ]);
   return [ids[0]!, ids[1]!, findingGenerationKey];
+}
+
+function semanticSamplesFromPackets(packets: readonly TelemetryPacket[]): SemanticTelemetrySample[] {
+  const projector = new LiveTelemetryProjector(CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+  const samples: SemanticTelemetrySample[] = [];
+  for (const packet of packets) {
+    samples.push(
+      projector.project({
+        packet,
+        receivedAtMs: packet.TimestampMS,
+      }).sample,
+    );
+  }
+  return samples;
 }
 
 describe("quality-scoped comparison chat routes", () => {

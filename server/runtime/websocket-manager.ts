@@ -10,18 +10,13 @@
  */
 import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LiveSectorData, LivePitData } from "../../shared/racing/live/types";
-import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import { semanticFixedNumbers, semanticNumber } from "../telemetry/semantic-samples";
 import type { LiveProjection } from "../telemetry/live-projector";
 import { IS_DEV, IS_E2E } from "./config/env";
-import {
-  isDevTelemetryControlMessageV1,
-  type DevTelemetryControlMessageV1,
-  type DevTelemetryPacketMessageV1,
-  type DevTelemetrySubscriptionMessageV1,
-} from "../../shared/telemetry/live/contracts";
+import { isDevTelemetryControlMessageV1, type DevTelemetryControlMessageV1, type DevTelemetryPacketMessageV1, type DevTelemetrySubscriptionMessageV1 } from "../../shared/telemetry/live/contracts";
 
+import type { LapMeta } from "../../shared/racing/sessions/types";
 export interface WSData {
   createdAt: number;
   devTelemetrySubscribed: boolean;
@@ -50,13 +45,7 @@ export interface TelemetryHistoryData {
   speed: number[];
 }
 
-function pushFourWheelSample(
-  target: FourWheelHistory,
-  fl: number,
-  fr: number,
-  rl: number,
-  rr: number,
-): void {
+function pushFourWheelSample(target: FourWheelHistory, fl: number, fr: number, rl: number, rr: number): void {
   target.fl.push(fl);
   target.fr.push(fr);
   target.rl.push(rl);
@@ -67,6 +56,12 @@ function pushFourWheelSample(
     target.rl.shift();
     target.rr.shift();
   }
+}
+
+function pushScalarSample(target: number[], value: number | null): void {
+  if (value === null) return;
+  target.push(value);
+  if (target.length > GRIP_MAX_SAMPLES) target.shift();
 }
 
 export class WebSocketManager {
@@ -117,10 +112,9 @@ export class WebSocketManager {
   get wantsDevTelemetry(): boolean {
     return this.allowDevTelemetry && [...this.clients].some((client) => client.data.devTelemetrySubscribed);
   }
-
-  /** Monotonic count of packets handed to broadcast() — used by status
-   *  interval to detect active pipeline flow regardless of source (UDP, ACC
-   *  SHM, AC Evo SHM). Reset never; consumers track deltas. */
+  /** Monotonic count of semantic live publications — used by status interval to
+   *  detect active pipeline flow regardless of source (UDP, ACC SHM, AC Evo
+   *  SHM). Reset never; consumers track deltas. */
   get packetCount(): number {
     return this._packetCount;
   }
@@ -133,20 +127,38 @@ export class WebSocketManager {
 
   addClient(ws: ServerWebSocket<WSData>): void {
     this.clients.add(ws);
-    if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch {} }
-    if (this.lastFrameJson) { try { ws.send(this.lastFrameJson); } catch {} }
-    if (this.lastDevPacketJson && ws.data.devTelemetrySubscribed) { try { ws.send(this.lastDevPacketJson); } catch {} }
+    if (this.lastSchemaJson) {
+      try {
+        ws.send(this.lastSchemaJson);
+      } catch {}
+    }
+    if (this.lastFrameJson) {
+      try {
+        ws.send(this.lastFrameJson);
+      } catch {}
+    }
+    if (this.lastDevPacketJson && ws.data.devTelemetrySubscribed) {
+      try {
+        ws.send(this.lastDevPacketJson);
+      } catch {}
+    }
     // Send current session laps so recorded laps survive refresh
     const laps = this._getSessionLaps?.();
     if (laps && laps.length > 0) {
-      try { ws.send(JSON.stringify({ type: "session-laps", laps })); } catch {}
+      try {
+        ws.send(JSON.stringify({ type: "session-laps", laps }));
+      } catch {}
     }
     // Send stale lap detection notification if any sessions need reprocessing
     if (this._staleSessionsNotification) {
-      try { ws.send(JSON.stringify(this._staleSessionsNotification)); } catch {}
+      try {
+        ws.send(JSON.stringify(this._staleSessionsNotification));
+      } catch {}
     }
     if (this._staleRaceResultsNotification) {
-      try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch {}
+      try {
+        ws.send(JSON.stringify(this._staleRaceResultsNotification));
+      } catch {}
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing
@@ -155,8 +167,7 @@ export class WebSocketManager {
   removeClient(ws: ServerWebSocket<WSData>): void {
     this.clients.delete(ws);
     if (this.clients.size === 0) this.stopBroadcastTimer(); // no clients — stop pushing
-    console.log(`[WS] Client disconnected. Active: ${this.clients.size}`
-    );
+    console.log(`[WS] Client disconnected. Active: ${this.clients.size}`);
   }
   disconnectClients(code = 1012, reason = "Server restart simulation"): void {
     for (const client of this.clients) {
@@ -192,7 +203,11 @@ export class WebSocketManager {
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "status", ...status });
     for (const client of this.clients) {
-      try { client.send(json); } catch { /* cleaned up on next telemetry broadcast */ }
+      try {
+        client.send(json);
+      } catch {
+        /* cleaned up on next telemetry broadcast */
+      }
     }
   }
 
@@ -204,34 +219,48 @@ export class WebSocketManager {
     if (this.clients.size === 0) return;
     const json = JSON.stringify(payload);
     for (const client of this.clients) {
-      try { client.send(json); } catch {}
+      try {
+        client.send(json);
+      } catch {}
     }
   }
 
   broadcastDevState(payload: Record<string, unknown>): void {
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "dev-state", ...payload });
-    for (const client of this.clients) { try { client.send(json); } catch {} }
+    for (const client of this.clients) {
+      try {
+        client.send(json);
+      } catch {}
+    }
   }
 
   publishTelemetry(projection: LiveProjection): void {
+    this._packetCount++;
     if (projection.schema) {
       this.lastSchemaJson = JSON.stringify(projection.schema);
       if (this.clients.size > 0) this.pendingSchemaJson = this.lastSchemaJson;
     }
     if (projection.frame) this.lastFrameJson = JSON.stringify(projection.frame);
+    this._recordSemanticHistory(projection.sample);
   }
 
   handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer): void {
     let parsed: unknown;
-    try { parsed = JSON.parse(typeof message === "string" ? message : message.toString()); } catch { parsed = null; }
+    try {
+      parsed = JSON.parse(typeof message === "string" ? message : message.toString());
+    } catch {
+      parsed = null;
+    }
     if (!isDevTelemetryControlMessageV1(parsed)) {
-      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "invalid-message" } satisfies DevTelemetrySubscriptionMessageV1)); return;
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "invalid-message" } satisfies DevTelemetrySubscriptionMessageV1));
+      return;
     }
     const control = parsed as DevTelemetryControlMessageV1;
     if (!this.allowDevTelemetry) {
       ws.data.devTelemetrySubscribed = false;
-      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "not-available" } satisfies DevTelemetrySubscriptionMessageV1)); return;
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "not-available" } satisfies DevTelemetrySubscriptionMessageV1));
+      return;
     }
     ws.data.devTelemetrySubscribed = control.type === "subscribe";
     ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: ws.data.devTelemetrySubscribed } satisfies DevTelemetrySubscriptionMessageV1));
@@ -242,45 +271,50 @@ export class WebSocketManager {
     this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet } satisfies DevTelemetryPacketMessageV1);
   }
 
-  flushLatest(): void { this._pushToClients(); }
+  flushLatest(): void {
+    this._pushToClients();
+  }
 
   // Latest state — written by packet handler, read by broadcast timer
   private _broadcastTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
-   * Store the latest telemetry packet and sample history.
-   * Does NOT send to clients — the broadcast timer handles that.
+   * Sample resolver-backed telemetry history at ~10Hz.
+   * Unavailable semantic values do not produce chart points.
    */
-  broadcast(
-    packet: TelemetryPacket,
-    _sectors?: LiveSectorData | null,
-    _pit?: LivePitData | null,
-    _liveIssues?: TuneIssue[],
-  ): void {
-    this._packetCount++;
-
-    // Sample telemetry history at ~10Hz
+  private _recordSemanticHistory(sample: SemanticTelemetrySample): void {
     this.gripSampleCounter++;
-    if (this.gripSampleCounter % 6 === 0) {
-      const h = this.gripHistory;
-      const slipFL = Math.abs(packet.TireCombinedSlipFL);
-      const slipFR = Math.abs(packet.TireCombinedSlipFR);
-      const slipRL = Math.abs(packet.TireCombinedSlipRL);
-      const slipRR = Math.abs(packet.TireCombinedSlipRR);
-      pushFourWheelSample(h, slipFL, slipFR, slipRL, slipRR);
+    if (this.gripSampleCounter % 6 !== 0) return;
 
-      const t = this.telemetryHistory;
-      pushFourWheelSample(t.grip, slipFL, slipFR, slipRL, slipRR);
-      pushFourWheelSample(t.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
-      pushFourWheelSample(t.wear, packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
-      pushFourWheelSample(t.slipAngle, packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR);
-      pushFourWheelSample(t.slipRatio, packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR);
-      pushFourWheelSample(t.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
-      t.throttle.push(packet.Accel / 255);
-      t.brake.push(packet.Brake / 255);
-      t.speed.push(packet.Speed * 2.23694);
-      if (t.throttle.length > GRIP_MAX_SAMPLES) { t.throttle.shift(); t.brake.shift(); t.speed.shift(); }
+    const grip = semanticFixedNumbers(sample, "tires.tire-combined-slip", 4);
+    if (grip) {
+      pushFourWheelSample(this.gripHistory, grip[0], grip[1], grip[2], grip[3]);
+      pushFourWheelSample(this.telemetryHistory.grip, grip[0], grip[1], grip[2], grip[3]);
     }
+
+    const temp = semanticFixedNumbers(sample, "tire.temperature.average", 4);
+    if (temp) {
+      pushFourWheelSample(this.telemetryHistory.temp, temp[0], temp[1], temp[2], temp[3]);
+    }
+    const wear = semanticFixedNumbers(sample, "tires.tire-wear", 4);
+    if (wear) {
+      pushFourWheelSample(this.telemetryHistory.wear, wear[0], wear[1], wear[2], wear[3]);
+    }
+    const slipAngle = semanticFixedNumbers(sample, "tires.tire-slip-angle", 4);
+    if (slipAngle) {
+      pushFourWheelSample(this.telemetryHistory.slipAngle, slipAngle[0], slipAngle[1], slipAngle[2], slipAngle[3]);
+    }
+    const slipRatio = semanticFixedNumbers(sample, "tires.tire-slip-ratio", 4);
+    if (slipRatio) {
+      pushFourWheelSample(this.telemetryHistory.slipRatio, slipRatio[0], slipRatio[1], slipRatio[2], slipRatio[3]);
+    }
+    const suspension = semanticFixedNumbers(sample, "suspension.norm-suspension-travel", 4);
+    if (suspension) {
+      pushFourWheelSample(this.telemetryHistory.suspension, suspension[0], suspension[1], suspension[2], suspension[3]);
+    }
+    pushScalarSample(this.telemetryHistory.throttle, semanticNumber(sample, "inputs.accel"));
+    pushScalarSample(this.telemetryHistory.brake, semanticNumber(sample, "inputs.brake"));
+    pushScalarSample(this.telemetryHistory.speed, semanticNumber(sample, "motion.speed"));
   }
 
   /** Start a deadline-based broadcast loop that preserves fractional periods. */
@@ -314,7 +348,9 @@ export class WebSocketManager {
         if (schemaJson) client.send(schemaJson);
         if (this.lastFrameJson) client.send(this.lastFrameJson);
         if (this.lastDevPacketJson && client.data.devTelemetrySubscribed) client.send(this.lastDevPacketJson);
-      } catch { deadClients.push(client); }
+      } catch {
+        deadClients.push(client);
+      }
     }
     this.pendingSchemaJson = null;
     for (const dead of deadClients) this.clients.delete(dead);

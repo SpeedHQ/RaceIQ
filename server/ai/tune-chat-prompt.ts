@@ -107,8 +107,8 @@ export function formatSymptoms(symptoms: TuneSymptoms): string {
     .map((c) => {
       const phases = c.phases
         .map((p) => {
-          const flags = [p.balance !== "neutral" ? p.balance : null, p.brakeLockup ? "brake lockup" : null, p.bottoming ? "bottoming" : null].filter(Boolean);
-          return `${p.phase}: ${flags.length ? flags.join("/") : "neutral"}`;
+          const flags = [p.balance != null && p.balance !== "neutral" ? p.balance : null, p.brakeLockup ? "brake lockup" : null, p.bottoming ? "bottoming" : null].filter(Boolean);
+          return `${p.phase}: ${flags.length ? flags.join("/") : p.balance === "neutral" ? "neutral" : "unavailable"}`;
         })
         .join("; ");
       const band = c.speedBand ? ` [${c.speedBand}]` : "";

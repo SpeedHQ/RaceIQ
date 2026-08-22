@@ -1,6 +1,10 @@
-import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
-const v = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
-const num = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=v(p,id); return typeof x === "number" ? x : undefined; }
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+const value = (sample: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): unknown => sample.values[id];
+const numberValue = (sample: SemanticTelemetrySample | null | undefined, id: keyof SemanticTelemetrySample["values"]): number | undefined => {
+  if (!sample) return undefined;
+  const resolved = value(sample, id);
+  return typeof resolved === "number" && Number.isFinite(resolved) ? resolved : undefined;
+};
 
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";
@@ -20,30 +24,90 @@ export interface BoundaryData {
 
 /** Find the telemetry index closest to a given distance value */
 export function findTelemetryAtDistance(telemetry: SemanticTelemetrySample[], distance: number): number {
-  const distStart = num(telemetry[0]!, "timing.distance-traveled") ?? 0;
-  let closest = 0;
-  let closestDelta = Infinity;
-  for (let i = 0; i < telemetry.length; i++) {
-    const d = Math.abs((num(telemetry[i], "timing.distance-traveled") ?? 0) - distStart - distance);
-    if (d < closestDelta) {
-      closestDelta = d;
-      closest = i;
+  let firstIndex = -1;
+  let distanceStart = 0;
+  for (let index = 0; index < telemetry.length; index++) {
+    const sampleDistance = numberValue(telemetry[index], "timing.distance-traveled");
+    if (sampleDistance === undefined) continue;
+    firstIndex = index;
+    distanceStart = sampleDistance;
+    break;
+  }
+  if (firstIndex < 0) return -1;
+
+  let closest = firstIndex;
+  let closestDelta = Number.POSITIVE_INFINITY;
+  for (let index = firstIndex; index < telemetry.length; index++) {
+    const sampleDistance = numberValue(telemetry[index], "timing.distance-traveled");
+    if (sampleDistance === undefined) continue;
+    const delta = Math.abs(sampleDistance - distanceStart - distance);
+    if (delta < closestDelta) {
+      closestDelta = delta;
+      closest = index;
     }
   }
   return closest;
+}
+export interface AlignedCursor<TA, TB> {
+  gridIndex: number;
+  packetA: TA | null;
+  packetB: TB | null;
+}
+
+/** Resolve aligned-grid cursor to each lap's original source sample. */
+export function resolveAlignedCursor<TA, TB>(
+  telemetryA: readonly TA[],
+  telemetryB: readonly TB[],
+  distances: readonly number[],
+  sourceIndicesA: readonly number[],
+  sourceIndicesB: readonly number[],
+  hoveredDistance: number | null,
+): AlignedCursor<TA, TB> | null {
+  if (hoveredDistance === null || distances.length === 0) return null;
+  let gridIndex = -1;
+  let closestDelta = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < distances.length; index++) {
+    const distance = distances[index];
+    if (!Number.isFinite(distance)) continue;
+    const delta = Math.abs(distance - hoveredDistance);
+    if (delta < closestDelta) {
+      closestDelta = delta;
+      gridIndex = index;
+    }
+  }
+  if (gridIndex < 0) return null;
+  const indexA = sourceIndicesA[gridIndex];
+  const indexB = sourceIndicesB[gridIndex];
+  return {
+    gridIndex,
+    packetA: Number.isInteger(indexA) && indexA >= 0 && indexA < telemetryA.length ? telemetryA[indexA] : null,
+    packetB: Number.isInteger(indexB) && indexB >= 0 && indexB < telemetryB.length ? telemetryB[indexB] : null,
+  };
 }
 
 function findMapPosition(telemetry: SemanticTelemetrySample[], distance: number, outline: Point[], telX: (x: number) => number): { x: number; z: number; packet: SemanticTelemetrySample } | null {
   if (telemetry.length < 2) return null;
 
-  const packet = telemetry[findTelemetryAtDistance(telemetry, distance)];
-  if (!packet) return null;
-  if ((num(packet, "motion.position-x") ?? 0) !== 0 || (num(packet, "motion.position-z") ?? 0) !== 0) {
-    return { x: telX((num(packet, "motion.position-x") ?? 0)), z: (num(packet, "motion.position-z") ?? 0), packet };
+  const telemetryIndex = findTelemetryAtDistance(telemetry, distance);
+  if (telemetryIndex < 0) return null;
+  const packet = telemetry[telemetryIndex];
+  const positionX = numberValue(packet, "motion.position-x");
+  const positionZ = numberValue(packet, "motion.position-z");
+  if (positionX !== undefined && positionZ !== undefined && (positionX !== 0 || positionZ !== 0)) {
+    return { x: telX(positionX), z: positionZ, packet };
   }
 
   if (outline.length < 2) return null;
-  const lapDistance = (num(telemetry[telemetry.length - 1], "timing.distance-traveled") ?? 0) - (num(telemetry[0], "timing.distance-traveled") ?? 0);
+  let firstDistance: number | undefined;
+  let lastDistance: number | undefined;
+  for (const sample of telemetry) {
+    const sampleDistance = numberValue(sample, "timing.distance-traveled");
+    if (sampleDistance === undefined) continue;
+    firstDistance ??= sampleDistance;
+    lastDistance = sampleDistance;
+  }
+  if (firstDistance === undefined || lastDistance === undefined) return null;
+  const lapDistance = lastDistance - firstDistance;
   if (!(lapDistance > 0)) return null;
 
   const fraction = Math.max(0, Math.min(distance / lapDistance, 1));
@@ -114,10 +178,13 @@ export function drawTrackCanvas(
   // Car view: rotate map so car A always points up
   let needsRestore = false;
   if (followCar && zoom && hoveredDistance != null && telemetryA.length >= 2) {
-    const pA = telemetryA[findTelemetryAtDistance(telemetryA, hoveredDistance)];
-    const yaw = pA ? num(pA, "motion.yaw") : undefined;
-    if (pA && ((num(pA, "motion.position-x") ?? 0) !== 0 || (num(pA, "motion.position-z") ?? 0) !== 0) && yaw !== undefined) {
-      const [carCx, carCy] = toCanvas(telX((num(pA, "motion.position-x") ?? 0)), (num(pA, "motion.position-z") ?? 0));
+    const telemetryIndex = findTelemetryAtDistance(telemetryA, hoveredDistance);
+    const pA = telemetryIndex < 0 ? undefined : telemetryA[telemetryIndex];
+    const yaw = pA ? numberValue(pA, "motion.yaw") : undefined;
+    const positionX = pA ? numberValue(pA, "motion.position-x") : undefined;
+    const positionZ = pA ? numberValue(pA, "motion.position-z") : undefined;
+    if (positionX !== undefined && positionZ !== undefined && (positionX !== 0 || positionZ !== 0) && yaw !== undefined) {
+      const [carCx, carCy] = toCanvas(telX(positionX), positionZ);
       ctx.save();
       ctx.translate(w / 2, h / 2);
       ctx.rotate(Math.PI - yaw);
@@ -220,8 +287,6 @@ export function drawTrackCanvas(
   // Racing lines
   const drawRacingLine = (telemetry: SemanticTelemetrySample[], color: string) => {
     if (telemetry.length < 2) return;
-    const hasPos = telemetry.some((p) => (num(p, "motion.position-x") ?? 0) !== 0 || (num(p, "motion.position-z") ?? 0) !== 0);
-    if (!hasPos) return;
     ctx.lineWidth = zoom ? 3 : 2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -229,16 +294,19 @@ export function drawTrackCanvas(
     ctx.beginPath();
     ctx.strokeStyle = color;
     let moved = false;
-    for (let i = 0; i < telemetry.length; i++) {
-      const p = telemetry[i];
-      if ((num(p, "motion.position-x") ?? 0) === 0 && (num(p, "motion.position-z") ?? 0) === 0) continue;
-      const [cx, cy] = toCanvas(telX!((num(p, "motion.position-x") ?? 0)), (num(p, "motion.position-z") ?? 0));
+    for (const sample of telemetry) {
+      const positionX = numberValue(sample, "motion.position-x");
+      const positionZ = numberValue(sample, "motion.position-z");
+      if (positionX === undefined || positionZ === undefined || (positionX === 0 && positionZ === 0)) continue;
+      const [cx, cy] = toCanvas(telX!(positionX), positionZ);
       if (!moved) {
         ctx.moveTo(cx, cy);
         moved = true;
-      } else ctx.lineTo(cx, cy);
+      } else {
+        ctx.lineTo(cx, cy);
+      }
     }
-    ctx.stroke();
+    if (moved) ctx.stroke();
     ctx.globalAlpha = 1;
   };
 
@@ -276,7 +344,7 @@ export function drawTrackCanvas(
       ctx.lineWidth = 1.5;
       ctx.stroke();
       // Direction line from Yaw (heading)
-      const yaw = num(position.packet, "motion.yaw");
+      const yaw = numberValue(position.packet, "motion.yaw");
       if (zoom && yaw !== undefined) {
         const lineLen = 22;
         // Yaw: 0 = +Z, positive = clockwise from above
@@ -337,21 +405,25 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   let cx = bx0;
 
   // --- Brake bars for laps A and B ---
-  const drawBar = (x: number, frac: number, color: string, borderColor: string) => {
+  const drawBar = (x: number, frac: number | undefined, color: string, borderColor: string) => {
     ctx.fillStyle = "var(--app-surface-alt)";
     ctx.fillRect(x, y0, barW, barH);
+    ctx.strokeStyle = frac === undefined ? "var(--status-unavailable)" : borderColor;
+    ctx.lineWidth = 1.5;
+    if (frac === undefined) ctx.setLineDash([3, 2]);
+    ctx.strokeRect(x, y0, barW, barH);
+    ctx.setLineDash([]);
+    if (frac === undefined) return;
     ctx.fillStyle = color;
     ctx.fillRect(x, y0 + barH * (1 - frac), barW, barH * frac);
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(x, y0, barW, barH);
   };
+  const controlFraction = (value: number | undefined) => (value === undefined ? undefined : Math.max(0, Math.min(1, value / 255)));
 
-  const brakeA = num(pA!, "inputs.brake") ?? 0;
-  const brakeB = num(pB!, "inputs.brake") ?? 0;
-  drawBar(cx, brakeA, "var(--ch-brake)", COLOR_A);
+  const brakeA = numberValue(pA, "inputs.brake");
+  const brakeB = numberValue(pB, "inputs.brake");
+  drawBar(cx, controlFraction(brakeA), "var(--ch-brake)", COLOR_A);
   cx += barW + barGap;
-  drawBar(cx, brakeB, "var(--ch-brake)", COLOR_B);
+  drawBar(cx, controlFraction(brakeB), "var(--ch-brake)", COLOR_B);
   cx += barW + sectionGap;
 
   // Label
@@ -361,13 +433,23 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   ctx.fillText("Brake", bx0 + barW + barGap / 2, y0 + barH + 14);
 
   // --- Steering wheel A ---
-  const drawWheel = (wcx: number, wcy: number, steer: number, gear: number, color: string) => {
+  const drawWheel = (wcx: number, wcy: number, steer: number | undefined, gear: number | undefined, color: string) => {
     // Outer ring
     ctx.beginPath();
     ctx.arc(wcx, wcy, wheelR, 0, Math.PI * 2);
     ctx.strokeStyle = "var(--app-border)";
     ctx.lineWidth = 4;
     ctx.stroke();
+
+    if (steer === undefined || gear === undefined) {
+      ctx.font = "var(--font-weight-bold) var(--text-xl) var(--font-mono)";
+      ctx.fillStyle = "var(--status-unavailable)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("—", wcx, wcy);
+      ctx.textBaseline = "alphabetic";
+      return;
+    }
 
     // Colored arc showing steer amount
     const steerAngle = (steer / 127) * Math.PI * 0.75;
@@ -398,16 +480,16 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
     ctx.textBaseline = "alphabetic";
   };
 
-  const steerA = num(pA!, "inputs.steer") ?? 0;
-  const gearA = num(pA!, "inputs.gear") ?? 0;
+  const steerA = numberValue(pA, "inputs.steer");
+  const gearA = numberValue(pA, "inputs.gear");
   const wheelAcx = cx + wheelR;
   const wheelAcy = y0 + barH / 2 - 6;
   drawWheel(wheelAcx, wheelAcy, steerA, gearA, COLOR_A);
   cx += wheelR * 2 + sectionGap;
 
   // --- Steering wheel B ---
-  const steerB = num(pB!, "inputs.steer") ?? 0;
-  const gearB = num(pB!, "inputs.gear") ?? 0;
+  const steerB = numberValue(pB, "inputs.steer");
+  const gearB = numberValue(pB, "inputs.gear");
   const wheelBcx = cx + wheelR;
   const wheelBcy = y0 + barH / 2 - 6;
   drawWheel(wheelBcx, wheelBcy, steerB, gearB, COLOR_B);
@@ -420,11 +502,11 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   ctx.fillText("Steering / Gear", (wheelAcx + wheelBcx) / 2, y0 + barH + 14);
 
   // --- Throttle bars for laps A and B ---
-  const throttleA = num(pA!, "inputs.accel") ?? 0;
-  const throttleB = num(pB!, "inputs.accel") ?? 0;
-  drawBar(cx, throttleA, "var(--ch-throttle)", COLOR_A);
+  const throttleA = numberValue(pA, "inputs.accel");
+  const throttleB = numberValue(pB, "inputs.accel");
+  drawBar(cx, controlFraction(throttleA), "var(--ch-throttle)", COLOR_A);
   cx += barW + barGap;
-  drawBar(cx, throttleB, "var(--ch-throttle)", COLOR_B);
+  drawBar(cx, controlFraction(throttleB), "var(--ch-throttle)", COLOR_B);
 
   ctx.font = "var(--text-app-caption) var(--font-mono)";
   ctx.fillStyle = "var(--app-text-dim)";

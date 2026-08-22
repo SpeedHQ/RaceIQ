@@ -9,8 +9,9 @@ import type { LapMeta } from "../../../shared/racing/sessions/types";
 import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 import type { ComparisonData } from "../../../shared/racing/comparison/types";
+import type { SemanticTelemetrySample } from "../../../shared/telemetry/replay/contracts";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
-import { getLapById, getLapMetaById, type LoadedLap } from "../../db/lap-read-queries";
+import { getLapMetaById } from "../../db/lap-read-queries";
 import {
   deleteCompareAnalysis,
   compareFindingGenerationCacheKey,
@@ -20,10 +21,11 @@ import {
   qualityCacheIdentityForComparison,
   saveCompareAnalysis,
 } from "../../db/analysis-queries";
-import { compareLaps, type ComparisonOptions } from "../../lap-analysis/comparison";
+import { COMPARISON_SEMANTIC_IDS, compareLaps, type ComparisonOptions } from "../../lap-analysis/comparison";
+import { semanticSamplesFromReplay } from "../../telemetry/semantic-samples";
 import { getCurrentFindingGeneration, type FindingGenerationExpectation } from "../../findings/store";
 import { loadSettings } from "../../runtime/config/settings";
-import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
+import { resolveLapSegments, resolveSemanticLapCorners } from "../../tracks/corner-resolution";
 import { buildFindingsContext } from "../../ai/findings-context";
 import { buildCompareChatSystemPrompt } from "../../ai/compare-chat-prompt";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../../ai/inputs-compare-prompt";
@@ -31,34 +33,23 @@ import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
 import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "../../ai/google-provider-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "../../ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
-import {
-  CHAT_RESOURCE_ID,
-  compareChatThreadId,
-  generationThreadId,
-  getChatMemory,
-  listThreadGenerations,
-  resolveActiveThread,
-} from "../../ai/chat-agent";
+import { CHAT_RESOURCE_ID, compareChatThreadId, generationThreadId, getChatMemory, listThreadGenerations, resolveActiveThread } from "../../ai/chat-agent";
 import { adaptComparisonToFindings } from "../../findings/comparison-adapter";
 import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "../../ai/chat-message-context";
 import { AnalyseQuerySchema, ChatBodySchema, ChatHistoryQuerySchema, CompareParamsSchema, FindingGenerationBackfilling } from "./support";
 import { getSecret } from "../../runtime/platform/keystore";
 import { resolveTrack } from "../../tracks/info";
-type GameOwnedLap = LoadedLap & { gameId: GameId };
 type GameScopedLap = Pick<LapMeta, "id" | "sessionId"> & { gameId: GameId };
 type GameOwnedLapMetadata = LapMeta & { gameId: GameId };
-type ComparisonLapLoad =
-  | { lapA: GameOwnedLap; lapB: GameOwnedLap }
-  | { error: string; status: 404 | 422 };
-type ComparisonLapMetadataLoad =
-  | { lapA: GameOwnedLapMetadata; lapB: GameOwnedLapMetadata }
-  | { error: string; status: 404 | 422 };
+type ComparisonLapMetadataLoad = { lapA: GameOwnedLapMetadata; lapB: GameOwnedLapMetadata } | { error: string; status: 404 | 422 };
 
-async function loadComparisonLapMetadata(
-  id1: number,
-  id2: number,
-  gameId: GameId,
-): Promise<ComparisonLapMetadataLoad> {
+async function loadComparisonSemanticSamples(id1: number, id2: number): Promise<{ lapA: SemanticTelemetrySample[]; lapB: SemanticTelemetrySample[] } | null> {
+  const [replayA, replayB] = await Promise.all([queryLapTelemetryBySemanticId(id1, COMPARISON_SEMANTIC_IDS), queryLapTelemetryBySemanticId(id2, COMPARISON_SEMANTIC_IDS)]);
+  if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) return null;
+  return { lapA: semanticSamplesFromReplay(replayA), lapB: semanticSamplesFromReplay(replayB) };
+}
+
+async function loadComparisonLapMetadata(id1: number, id2: number, gameId: GameId): Promise<ComparisonLapMetadataLoad> {
   const [lapA, lapB] = await Promise.all([getLapMetaById(id1), getLapMetaById(id2)]);
   if (!lapA || lapA.gameId !== gameId) return { error: `Lap ${id1} not found`, status: 404 };
   if (!lapB || lapB.gameId !== gameId) return { error: `Lap ${id2} not found`, status: 404 };
@@ -71,20 +62,6 @@ async function loadComparisonLapMetadata(
 function requestedGameId(c: Context): GameId | null {
   const parsed = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
   return parsed.success ? parsed.data : null;
-}
-
-async function loadComparisonLaps(
-  id1: number,
-  id2: number,
-  gameId: GameId,
-): Promise<ComparisonLapLoad> {
-  const [lapA, lapB] = await Promise.all([getLapById(id1), getLapById(id2)]);
-  if (!lapA || lapA.gameId !== gameId) return { error: `Lap ${id1} not found`, status: 404 };
-  if (!lapB || lapB.gameId !== gameId) return { error: `Lap ${id2} not found`, status: 404 };
-  if (lapA.trackOrdinal == null || lapB.trackOrdinal == null || lapA.trackOrdinal !== lapB.trackOrdinal) {
-    return { error: "Laps must belong to same track", status: 422 };
-  }
-  return { lapA: { ...lapA, gameId }, lapB: { ...lapB, gameId } };
 }
 
 async function loadStoredComparisonFindings(lapA: GameScopedLap, lapB: GameScopedLap) {
@@ -103,10 +80,7 @@ async function loadStoredComparisonFindings(lapA: GameScopedLap, lapB: GameScope
   return [generationA, generationB] as const;
 }
 
-function findingExpectationForLap(
-  lap: GameScopedLap,
-  receipt: Pick<FindingGenerationReceipt, "generationId" | "contentHash">,
-): FindingGenerationExpectation {
+function findingExpectationForLap(lap: GameScopedLap, receipt: Pick<FindingGenerationReceipt, "generationId" | "contentHash">): FindingGenerationExpectation {
   return {
     scope: {
       kind: "lap",
@@ -120,7 +94,7 @@ function findingExpectationForLap(
 }
 
 /** Authoritative game-owned alignment policy shared by every comparison surface. */
-function comparisonOptions(lapA: GameOwnedLap, lapB: GameOwnedLap): ComparisonOptions {
+function comparisonOptions(lapA: GameOwnedLapMetadata, lapB: GameOwnedLapMetadata): ComparisonOptions {
   return {
     lapAIsValid: lapA.isValid,
     lapBIsValid: lapB.isValid,
@@ -137,7 +111,7 @@ export const comparisonRoutes = new Hono()
 
     const gameId = requestedGameId(c);
     if (!gameId) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const comparisonLaps = await loadComparisonLaps(id1, id2, gameId);
+    const comparisonLaps = await loadComparisonLapMetadata(id1, id2, gameId);
     if (!("lapA" in comparisonLaps)) return c.json({ error: comparisonLaps.error }, comparisonLaps.status);
     const { lapA, lapB } = comparisonLaps;
     const decisions = {
@@ -161,14 +135,12 @@ export const comparisonRoutes = new Hono()
       return c.json(FindingGenerationBackfilling, 409);
     }
 
-
-    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
+    const semanticTelemetry = await loadComparisonSemanticSamples(id1, id2);
+    if (!semanticTelemetry) return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
-      saveDetected: true,
-    });
-    const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, comparisonOptions(lapA, lapB));
+    const corners = await resolveSemanticLapCorners(trackOrdinal, lapA.gameId, semanticTelemetry.lapA);
+    const result = compareLaps(semanticTelemetry.lapA, semanticTelemetry.lapB, corners, comparisonOptions(lapA, lapB));
     const findings = adaptComparisonToFindings({
       gameId,
       sessionId: lapA.sessionId,
@@ -183,28 +155,6 @@ export const comparisonRoutes = new Hono()
       analysisGenerationId: `comparison:${lapA.id}:${lapB.id}:${lapA.derivationVersion ?? "legacy"}:${lapB.derivationVersion ?? "legacy"}`,
       ruleVersion: `${lapA.derivationVersion ?? "1"}:${lapB.derivationVersion ?? "1"}`,
     });
-    const semanticIds = [
-      "motion.position-x",
-      "motion.position-z",
-      "motion.yaw",
-      "motion.speed",
-      "inputs.accel",
-      "inputs.brake",
-      "engine.current-engine-rpm",
-      "tires.tire-wear",
-      "timing.distance-traveled",
-      "timing.current-lap",
-    ] as const;
-    const [replayA, replayB] = await Promise.all([queryLapTelemetryBySemanticId(id1, semanticIds), queryLapTelemetryBySemanticId(id2, semanticIds)]);
-    if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
-      return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
-    }
-    const toSamples = (replay: typeof replayA) =>
-      replay.envelopes.map((envelope) => ({
-        sequence: envelope.sequence.toString(),
-        observedAtMs: envelope.observedAt.domain === "monotonic" ? Number(envelope.observedAt.nanoseconds) / 1_000_000 : envelope.observedAt.milliseconds,
-        values: Object.fromEntries(envelope.values.filter((entry) => entry.state === "ok").map((entry) => [entry.semanticId, entry.value])),
-      }));
 
     const response: ComparisonData = {
       lapA: {
@@ -243,8 +193,8 @@ export const comparisonRoutes = new Hono()
       timeDelta: result.timeDelta,
       corners: result.cornerDeltas,
       findings,
-      telemetryA: toSamples(replayA),
-      telemetryB: toSamples(replayB),
+      telemetryA: semanticTelemetry.lapA,
+      telemetryB: semanticTelemetry.lapB,
       findingReceipts: {
         lapA: {
           generationId: findingGenerationA.receipt.generationId,
@@ -277,7 +227,7 @@ export const comparisonRoutes = new Hono()
 
     const gameId = requestedGameId(c);
     if (!gameId) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const comparisonLaps = await loadComparisonLaps(id1, id2, gameId);
+    const comparisonLaps = await loadComparisonLapMetadata(id1, id2, gameId);
     if (!("lapA" in comparisonLaps)) return c.json({ error: comparisonLaps.error }, comparisonLaps.status);
     const { lapA, lapB } = comparisonLaps;
     const qualityIdentity = qualityCacheIdentityForComparison([lapA, lapB]);
@@ -304,10 +254,7 @@ export const comparisonRoutes = new Hono()
     if (!findingGenerationA || !findingGenerationB) {
       return c.json(FindingGenerationBackfilling, 409);
     }
-    const expectedFindingGenerationPair = [
-      findingExpectationForLap(lapA, findingGenerationA.receipt),
-      findingExpectationForLap(lapB, findingGenerationB.receipt),
-    ] as const;
+    const expectedFindingGenerationPair = [findingExpectationForLap(lapA, findingGenerationA.receipt), findingExpectationForLap(lapB, findingGenerationB.receipt)] as const;
 
     if (!regenerate) {
       const cached = await getCompareAnalysis(id1, id2, expectedFindingGenerationPair, "inputs");
@@ -327,19 +274,15 @@ export const comparisonRoutes = new Hono()
       }
       if (cacheOnly) return c.json({ analysis: null, cached: false, decisions });
     }
-    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
-    const findingsContext =
-      buildFindingsContext(findingGenerationA.findings, { label: "Lap A" }) +
-      buildFindingsContext(findingGenerationB.findings, { label: "Lap B" });
-
+    const findingsContext = buildFindingsContext(findingGenerationA.findings, { label: "Lap A" }) + buildFindingsContext(findingGenerationB.findings, { label: "Lap B" });
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    const trackSegments = await resolveLapSegments(trackOrdinal, lapA.gameId);
-    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
+    const [semanticTelemetry, trackSegments] = await Promise.all([loadComparisonSemanticSamples(id1, id2), resolveLapSegments(trackOrdinal, lapA.gameId)]);
+    if (!semanticTelemetry) return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
+    const corners = await resolveSemanticLapCorners(trackOrdinal, lapA.gameId, semanticTelemetry.lapA, {
       segments: trackSegments,
     });
-
-    const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners, comparisonOptions(lapA, lapB));
+    const comparison = compareLaps(semanticTelemetry.lapA, semanticTelemetry.lapB, corners, comparisonOptions(lapA, lapB));
 
     const settings = loadSettings();
 
@@ -500,10 +443,7 @@ export const comparisonRoutes = new Hono()
     let base: string | null = null;
     try {
       const { lapA, lapB } = comparisonLaps;
-      const [identity, findingGenerations] = await Promise.all([
-        getCompareQualityIdentity(id1, id2),
-        loadStoredComparisonFindings(lapA, lapB),
-      ]);
+      const [identity, findingGenerations] = await Promise.all([getCompareQualityIdentity(id1, id2), loadStoredComparisonFindings(lapA, lapB)]);
       const [findingGenerationA, findingGenerationB] = findingGenerations;
       if (!identity) return c.json({ messages: [], threadId: null, status: "stale", retryable: true }, 409);
       if (!findingGenerationA || !findingGenerationB) {
@@ -545,7 +485,7 @@ export const comparisonRoutes = new Hono()
 
     const gameId = requestedGameId(c);
     if (!gameId) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const comparisonLaps = await loadComparisonLaps(id1, id2, gameId);
+    const comparisonLaps = await loadComparisonLapMetadata(id1, id2, gameId);
     if (!("lapA" in comparisonLaps)) return c.json({ error: comparisonLaps.error }, comparisonLaps.status);
     const { lapA, lapB } = comparisonLaps;
     const decisions = {
@@ -564,7 +504,6 @@ export const comparisonRoutes = new Hono()
         422,
       );
     }
-    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
     const [findingGenerationA, findingGenerationB] = await loadStoredComparisonFindings(lapA, lapB);
     if (!findingGenerationA || !findingGenerationB) {
       return c.json(FindingGenerationBackfilling, 409);
@@ -587,9 +526,7 @@ export const comparisonRoutes = new Hono()
       );
     };
     if (!(await validateReceiptFence())) return c.json({ error: "Compared lap findings changed. Retry chat." }, 409);
-    const findingsContext =
-      buildFindingsContext(findingGenerationA.findings, { label: "Lap A" }) +
-      buildFindingsContext(findingGenerationB.findings, { label: "Lap B" });
+    const findingsContext = buildFindingsContext(findingGenerationA.findings, { label: "Lap A" }) + buildFindingsContext(findingGenerationB.findings, { label: "Lap B" });
     const cachedA = await getAnalysis(id1, expectedFindingGenerationA);
     const cachedB = await getAnalysis(id2, expectedFindingGenerationB);
     if (!cachedA || !cachedB) {
@@ -617,9 +554,12 @@ export const comparisonRoutes = new Hono()
     });
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry);
-
-    const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners, comparisonOptions(lapA, lapB));
+    const [semanticTelemetry, trackSegments] = await Promise.all([loadComparisonSemanticSamples(id1, id2), resolveLapSegments(trackOrdinal, lapA.gameId)]);
+    if (!semanticTelemetry) return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
+    const corners = await resolveSemanticLapCorners(trackOrdinal, lapA.gameId, semanticTelemetry.lapA, {
+      segments: trackSegments,
+    });
+    const comparison = compareLaps(semanticTelemetry.lapA, semanticTelemetry.lapB, corners, comparisonOptions(lapA, lapB));
 
     const settings = loadSettings();
     const systemPrompt = buildCompareChatSystemPrompt(
@@ -714,10 +654,7 @@ export const comparisonRoutes = new Hono()
     try {
       const memory = getChatMemory();
       const { lapA, lapB } = comparisonLaps;
-      const [identity, findingGenerations] = await Promise.all([
-        getCompareQualityIdentity(id1, id2),
-        loadStoredComparisonFindings(lapA, lapB),
-      ]);
+      const [identity, findingGenerations] = await Promise.all([getCompareQualityIdentity(id1, id2), loadStoredComparisonFindings(lapA, lapB)]);
       const [findingGenerationA, findingGenerationB] = findingGenerations;
       if (!identity || !findingGenerationA || !findingGenerationB) return c.json({ ok: true });
       const findingGenerationKey = compareFindingGenerationCacheKey([

@@ -5,47 +5,35 @@ import { buildChatSystemPrompt } from "../../server/ai/chat-prompt";
 import { buildCompareInsightsBlock } from "../../server/ai/insight-format";
 import { initServerGameAdapters } from "../../server/games/init";
 import { initGameAdapters } from "../../shared/games/init";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
 import { finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
 import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 
 initGameAdapters();
 initServerGameAdapters();
 
-function packet(index: number, count: number): TelemetryPacket {
+function sample(index: number, count: number): SemanticTelemetrySample {
   const progress = count <= 1 ? 0 : index / (count - 1);
   return {
-    gameId: "fm-2023",
-    CarOrdinal: 0,
-    TrackOrdinal: 0,
-    CarClass: 0,
-    CarPerformanceIndex: 0,
-    DrivetrainType: 0,
-    VelocityX: 20,
-    VelocityY: 0,
-    VelocityZ: 0,
-    CurrentEngineRpm: 6000,
-    Accel: 128,
-    Brake: 0,
-    TireTempFL: 80,
-    TireTempFR: 80,
-    TireTempRL: 80,
-    TireTempRR: 80,
-    TireWearFL: 0.1,
-    TireWearFR: 0.1,
-    TireWearRL: 0.1,
-    TireWearRR: 0.1,
-    SuspensionTravelMFL: 0.1,
-    SuspensionTravelMFR: 0.1,
-    SuspensionTravelMRL: 0.1,
-    SuspensionTravelMRR: 0.1,
-    Gear: 3,
-    DistanceTraveled: progress * 1000,
-    CurrentLap: progress * 90,
-    TimestampMS: progress * 90_000,
-    PositionX: 0,
-    PositionZ: 0,
-  } as TelemetryPacket;
+    sequence: String(index),
+    observedAtMs: progress * 90_000,
+    values: {
+      "motion.velocity-x": 20,
+      "motion.velocity-y": 0,
+      "motion.velocity-z": 0,
+      "engine.current-engine-rpm": 6000,
+      "inputs.accel": 128,
+      "inputs.brake": 0,
+      "inputs.gear": 3,
+      "tire.temperature.average": [80, 80, 80, 80],
+      "tires.tire-wear": [0.1, 0.1, 0.1, 0.1],
+      "suspension.suspension-travel-m": [0.1, 0.1, 0.1, 0.1],
+      "timing.distance-traveled": progress * 1000,
+      "timing.current-lap": progress * 90,
+      "motion.position-x": 0,
+      "motion.position-z": 0,
+    },
+  };
 }
 
 const currentQuality = finalizeLapQualityGeneration(summarize(qualityPackets(200)), `sha256:${"a".repeat(64)}`, {
@@ -68,7 +56,7 @@ const lap = {
 
 describe("AI lap quality context", () => {
   test("analyst, lap chat, and compare context abstain for rejected telemetry", () => {
-    const rejectedPackets = [packet(0, 1)];
+    const rejectedPackets = [sample(0, 1)];
 
     const analystPrompt = buildAnalystPrompt(lap, rejectedPackets, []);
     const chatPrompt = buildChatSystemPrompt(lap, rejectedPackets, []);
@@ -87,20 +75,22 @@ describe("AI lap quality context", () => {
   });
 
   test("valid telemetry keeps AI context available without quality abstention", () => {
-    const validPackets = Array.from({ length: 30 }, (_, index) => packet(index, 30));
+    const validPackets = Array.from({ length: 30 }, (_, index) => sample(index, 30));
 
     expect(buildAnalystPrompt(lap, validPackets, [])).not.toContain("Lap recording quality rejected");
     expect(buildChatSystemPrompt(lap, validPackets, [])).not.toContain("Lap recording quality rejected");
-    expect(buildCompareInsightsBlock("Lap A", validPackets, lap.gameId, {
-      sessionId: lap.sessionId,
-      lapId: lap.id,
-      lapTime: lap.lapTime,
-      quality: lap.quality,
-    })).not.toContain("recording quality rejected");
+    expect(
+      buildCompareInsightsBlock("Lap A", validPackets, lap.gameId, {
+        sessionId: lap.sessionId,
+        lapId: lap.id,
+        lapTime: lap.lapTime,
+        quality: lap.quality,
+      }),
+    ).not.toContain("recording quality rejected");
   });
 
   test("analyst prompt uses only supplied persisted findings", () => {
-    const validPackets = Array.from({ length: 30 }, (_, index) => packet(index, 30));
+    const validPackets = Array.from({ length: 30 }, (_, index) => sample(index, 30));
     const persistedFinding = {
       schemaVersion: "1",
       id: "persisted-current-finding",
@@ -119,19 +109,7 @@ describe("AI lap quality context", () => {
     } as never;
 
     const withoutStoredFindings = buildAnalystPrompt(lap, validPackets, []);
-    const withStoredFindings = buildAnalystPrompt(
-      lap,
-      validPackets,
-      [],
-      "metric",
-      "C",
-      undefined,
-      undefined,
-      undefined,
-      "en",
-      undefined,
-      [persistedFinding],
-    );
+    const withStoredFindings = buildAnalystPrompt(lap, validPackets, [], "metric", "C", undefined, undefined, undefined, "en", undefined, [persistedFinding]);
 
     expect(withoutStoredFindings).not.toContain("persisted-current-finding");
     expect(withStoredFindings).toContain("[ABSTENTION] persisted-current-finding: indeterminate");

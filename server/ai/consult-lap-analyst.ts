@@ -15,7 +15,11 @@
 import { RequestContext } from "@mastra/core/request-context";
 import type { GameId } from "../../shared/games/ids";
 import { lapFindingGenerationCacheKey } from "../db/analysis-queries";
-import { resolveLapCorners, resolveLapSegments } from "../tracks/corner-resolution";
+import { resolveSemanticLapCorners, resolveLapSegments } from "../tracks/corner-resolution";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
+import { queryLapTelemetryBySemanticId } from "../telemetry/replay";
+import { semanticSamplesFromReplay } from "../telemetry/semantic-samples";
+import { TRACK_CONDITION_SEMANTIC_IDS } from "./track-conditions";
 import { getSecret } from "../runtime/platform/keystore";
 import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt } from "./analyst-prompt";
@@ -25,6 +29,7 @@ import { buildAnalystPrompt } from "./analyst-prompt";
 // the setup-engineer consult doesn't need.
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { loadRepresentativeLapSelection } from "../experiments/representative-lap";
+const CONSULT_LAP_ANALYSIS_SEMANTIC_IDS = [...CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS, ...TRACK_CONDITION_SEMANTIC_IDS];
 import { getCurrentFindingGeneration } from "../findings/store";
 import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "./chat-message-context";
 
@@ -45,18 +50,15 @@ export interface ConsultLapAnalystDeps {
   loadRepresentativeLapSelection?: typeof loadRepresentativeLapSelection;
   getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
   resolveLapSegments?: typeof resolveLapSegments;
-  resolveLapCorners?: typeof resolveLapCorners;
+  resolveSemanticLapCorners?: typeof resolveSemanticLapCorners;
+  queryLapTelemetryBySemanticId?: typeof queryLapTelemetryBySemanticId;
   loadSettings?: typeof loadSettings;
   buildAnalystPrompt?: typeof buildAnalystPrompt;
   getSecret?: typeof getSecret;
   generate?: (prompt: string, options: Record<string, unknown>) => Promise<{ text?: unknown }>;
 }
 
-export async function consultLapAnalystForSession(
-  gameId: GameId,
-  sessionId: number,
-  deps: ConsultLapAnalystDeps = {},
-): Promise<LapAnalystConsult> {
+export async function consultLapAnalystForSession(gameId: GameId, sessionId: number, deps: ConsultLapAnalystDeps = {}): Promise<LapAnalystConsult> {
   const loadFindingGeneration = deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration;
   const selection = await (deps.loadRepresentativeLapSelection ?? loadRepresentativeLapSelection)(sessionId);
   const { lap } = selection;
@@ -86,14 +88,24 @@ export async function consultLapAnalystForSession(
   }
   const findingGenerationKey = lapFindingGenerationCacheKey(findingGeneration.receipt);
 
+  const replay = await (deps.queryLapTelemetryBySemanticId ?? queryLapTelemetryBySemanticId)(lap.id, CONSULT_LAP_ANALYSIS_SEMANTIC_IDS);
+  if (!replay || replay.envelopes.length === 0) {
+    return {
+      available: false,
+      summary: "No resolver-backed telemetry exists for selected lap.",
+      eligibilityStatus: selection.setupDecision.status,
+      reasonCodes: selection.reasonCodes,
+    };
+  }
+  const samples = semanticSamplesFromReplay(replay);
   const trackOrdinal = lap.trackOrdinal ?? 0;
   const segments = await (deps.resolveLapSegments ?? resolveLapSegments)(trackOrdinal, lap.gameId);
-  const corners = await (deps.resolveLapCorners ?? resolveLapCorners)(trackOrdinal, lap.gameId, lap.telemetry, { segments });
+  const corners = await (deps.resolveSemanticLapCorners ?? resolveSemanticLapCorners)(trackOrdinal, lap.gameId, samples, { segments });
 
   const settings = (deps.loadSettings ?? loadSettings)();
   const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
-    lap.telemetry,
+    samples,
     corners,
     settings.unit,
     settings.temperatureUnit,
@@ -139,11 +151,13 @@ export async function consultLapAnalystForSession(
     kind: "lap",
     gameId,
     cacheKey: findingGenerationKey,
-    laps: [{
-      lapId: lap.id,
-      generationId: findingGeneration.receipt.generationId,
-      contentHash: findingGeneration.receipt.contentHash,
-    }],
+    laps: [
+      {
+        lapId: lap.id,
+        generationId: findingGeneration.receipt.generationId,
+        contentHash: findingGeneration.receipt.contentHash,
+      },
+    ],
   });
   const generate = deps.generate ?? ((agentPrompt: string, options: Record<string, unknown>) => lapAnalystAgent.generate(agentPrompt, options as never));
   const result = await generate(prompt, {

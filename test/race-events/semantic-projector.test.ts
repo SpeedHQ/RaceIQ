@@ -7,8 +7,10 @@ import { f1ServerAdapter } from "../../server/games/f1-2025";
 import { initGameAdapters } from "../../shared/games/init";
 import { packet } from "../support/telemetry/resolver";
 import type { RaceEventObservation } from "../../server/games/types";
+import { LiveTelemetryProjector } from "../../server/telemetry/live-projector";
 import {
   applyRaceEventSemanticProjection,
+  RACE_EVENT_SEMANTIC_IDS,
   RaceEventSemanticProjector,
   type RaceEventSemanticEvidence,
   type RaceEventSemanticFrame,
@@ -86,8 +88,12 @@ function normalizedF1Packet({
   });
 }
 
-
-function evidence<T>(value: T | undefined, state: RaceEventSemanticEvidence<T>["state"] = "ok", freshness: RaceEventSemanticEvidence<T>["freshness"] = "fresh", sourceFreshness: RaceEventSemanticEvidence<T>["sourceFreshness"] = null): RaceEventSemanticEvidence<T> {
+function evidence<T>(
+  value: T | undefined,
+  state: RaceEventSemanticEvidence<T>["state"] = "ok",
+  freshness: RaceEventSemanticEvidence<T>["freshness"] = "fresh",
+  sourceFreshness: RaceEventSemanticEvidence<T>["sourceFreshness"] = null,
+): RaceEventSemanticEvidence<T> {
   return { value, state, freshness, sourceFreshness };
 }
 
@@ -110,28 +116,30 @@ function observation(): RaceEventObservation {
     gridStart: null,
     terminalObserved: null,
     rosterAuthoritative: false,
-    participants: [{
-      participantId: "local-player",
-      participantKind: "player",
-      sourceId: null,
-      identityState: "stable",
-      driverId: null,
-      teamId: null,
-      displayName: null,
-      vehicleId: null,
-      pitState: "unknown",
-      nativePitCode: "in_pit",
-      position: 1,
-      speedMps: 20,
-      fuelLitres: 20,
-      tireCompound: null,
-      tireWear: { fl: 0.8, fr: 0.8, rl: 0.8, rr: 0.8 },
-      damage: null,
-      penaltyValue: null,
-      incidentCount: null,
-      retirementStatus: "unknown",
-      nativeRetirementCode: null,
-    }],
+    participants: [
+      {
+        participantId: "local-player",
+        participantKind: "player",
+        sourceId: null,
+        identityState: "stable",
+        driverId: null,
+        teamId: null,
+        displayName: null,
+        vehicleId: null,
+        pitState: "unknown",
+        nativePitCode: "in_pit",
+        position: 1,
+        speedMps: 20,
+        fuelLitres: 20,
+        tireCompound: null,
+        tireWear: { fl: 0.8, fr: 0.8, rl: 0.8, rr: 0.8 },
+        damage: null,
+        penaltyValue: null,
+        incidentCount: null,
+        retirementStatus: "unknown",
+        nativeRetirementCode: null,
+      },
+    ],
   };
 }
 
@@ -143,70 +151,92 @@ function semantic(overrides: Partial<RaceEventSemanticFrame> = {}): RaceEventSem
     pitServiceStatus: evidence<NonNullable<RaceEventSemanticFrame["pitServiceStatus"]["value"]>>(undefined, "missing", "unknown"),
     tireChangeCounts: evidence<NonNullable<RaceEventSemanticFrame["tireChangeCounts"]["value"]>>(undefined, "missing", "unknown"),
     repairEvidence: evidence<NonNullable<RaceEventSemanticFrame["repairEvidence"]["value"]>>(undefined, "missing", "unknown"),
-    tireWear: evidence(undefined, "missing", "unknown"),
+
     ...overrides,
   };
 }
 
 describe("race-event semantic projection", () => {
-  test("projects canonical facts without inspecting simulator identity", () => {
-    const projected = applyRaceEventSemanticProjection(observation(), semantic({
-      raceControlPhase: evidence("caution"),
-      cautionKind: evidence("local-yellow"),
-      pitState: evidence("pit-stall"),
-      pitServiceStatus: evidence("in-progress"),
-      tireChangeCounts: evidence({ fl: 2, fr: 2, rl: 2, rr: 2 }),
-      repairEvidence: evidence({ mandatory: 8, optional: 3 }),
-      tireWear: evidence([0.8, 0.7, 0.6, 0.5], "ok", "fresh", "pit-snapshot"),
-    }));
+  test("projects canonical facts and resolved tire wear without inspecting simulator identity", () => {
+    expect(RACE_EVENT_SEMANTIC_IDS.join(",")).not.toContain("tires.tire-wear");
+    const liveProjector = new LiveTelemetryProjector();
+    const tireWearSample = liveProjector.resolve(
+      packet("acc", {
+        TireWearFL: 0.8,
+        TireWearFR: 0.7,
+        TireWearRL: 0.6,
+        TireWearRR: 0.5,
+      }),
+      10,
+    ).sample;
+    const projected = applyRaceEventSemanticProjection(
+      observation(),
+      semantic({
+        raceControlPhase: evidence("caution"),
+        cautionKind: evidence("local-yellow"),
+        pitState: evidence("pit-stall"),
+        pitServiceStatus: evidence("in-progress"),
+        tireChangeCounts: evidence({ fl: 2, fr: 2, rl: 2, rr: 2 }),
+        repairEvidence: evidence({ mandatory: 8, optional: 3 }),
+      }),
+      tireWearSample,
+    );
 
     expect(projected).toMatchObject({
       sessionPhase: "caution",
       cautionKind: "local-yellow",
       raceControlEvidence: "authoritative",
-      participants: [{
-        pitState: "pit-stall",
-        pitServiceStatus: "in-progress",
-        tireChangeCounts: { fl: 2, fr: 2, rl: 2, rr: 2 },
-        repairRemainingSeconds: { mandatory: 8, optional: 3 },
-        tireWear: { fl: 0.8, fr: 0.7, rl: 0.6, rr: 0.5 },
-        tireWearFreshness: "pit-snapshot",
-      }],
+      participants: [
+        {
+          pitState: "pit-stall",
+          pitServiceStatus: "in-progress",
+          tireChangeCounts: { fl: 2, fr: 2, rl: 2, rr: 2 },
+          repairRemainingSeconds: { mandatory: 8, optional: 3 },
+          tireWear: { fl: 0.8, fr: 0.7, rl: 0.6, rr: 0.5 },
+          tireWearFreshness: "continuous",
+        },
+      ],
     });
   });
 
   test("does not project stale canonical values", () => {
-    const projected = applyRaceEventSemanticProjection(observation(), semantic({
-      raceControlPhase: evidence("checkered", "stale", "stale"),
-      pitState: evidence("pit-stall", "stale", "stale"),
-      tireWear: evidence([0.1, 0.2, 0.3, 0.4], "ok", "stale", "continuous"),
-    }));
+    const projected = applyRaceEventSemanticProjection(
+      observation(),
+      semantic({
+        raceControlPhase: evidence("checkered", "stale", "stale"),
+        pitState: evidence("pit-stall", "stale", "stale"),
+      }),
+    );
 
     expect(projected.sessionPhase).toBe("unknown");
     expect(projected.participants[0]).toMatchObject({
       pitState: "unknown",
       tireWear: { fl: 0.8, fr: 0.8, rl: 0.8, rr: 0.8 },
     });
-    expect(projected.participants[0]).not.toHaveProperty("tireWearFreshness");
   });
 
   test("does not project unknown timestamp-domain evidence", () => {
-    const projected = applyRaceEventSemanticProjection(observation(), semantic({
-      raceControlPhase: evidence("checkered", "ok", "unknown"),
-      cautionKind: evidence("full-course-yellow", "ok", "unknown"),
-      pitState: evidence("pit-stall", "ok", "unknown"),
-      pitServiceStatus: evidence("in-progress", "ok", "unknown"),
-      tireChangeCounts: evidence({ fl: 2, fr: 2, rl: 2, rr: 2 }, "ok", "unknown"),
-      repairEvidence: evidence({ mandatory: 8, optional: 3 }, "ok", "unknown"),
-    }));
+    const projected = applyRaceEventSemanticProjection(
+      observation(),
+      semantic({
+        raceControlPhase: evidence("checkered", "ok", "unknown"),
+        cautionKind: evidence("full-course-yellow", "ok", "unknown"),
+        pitState: evidence("pit-stall", "ok", "unknown"),
+        pitServiceStatus: evidence("in-progress", "ok", "unknown"),
+        tireChangeCounts: evidence({ fl: 2, fr: 2, rl: 2, rr: 2 }, "ok", "unknown"),
+        repairEvidence: evidence({ mandatory: 8, optional: 3 }, "ok", "unknown"),
+      }),
+    );
 
     expect(projected).toMatchObject({
       sessionPhase: "unknown",
       cautionKind: "unknown",
-      participants: [{
-        pitState: "unknown",
-        tireWear: { fl: 0.8, fr: 0.8, rl: 0.8, rr: 0.8 },
-      }],
+      participants: [
+        {
+          pitState: "unknown",
+          tireWear: { fl: 0.8, fr: 0.8, rl: 0.8, rr: 0.8 },
+        },
+      ],
     });
     expect(projected).not.toHaveProperty("raceControlEvidence");
     expect(projected.participants[0]).not.toHaveProperty("pitServiceStatus");
@@ -214,12 +244,10 @@ describe("race-event semantic projection", () => {
     expect(projected.participants[0]).not.toHaveProperty("repairRemainingSeconds");
   });
 
-  test("does not project missing canonical tire wear", () => {
+  test("does not project missing resolved tire wear", () => {
     const input = observation();
     input.participants[0]!.tireWear = null;
-    const projected = applyRaceEventSemanticProjection(input, semantic({
-      tireWear: evidence(undefined, "missing", "unknown", "pit-snapshot"),
-    }));
+    const projected = applyRaceEventSemanticProjection(input, semantic(), { sequence: "0", observedAtMs: 0, values: {} });
 
     expect(projected.participants[0]).toMatchObject({ tireWear: null });
     expect(projected.participants[0]).not.toHaveProperty("tireWearFreshness");
@@ -235,9 +263,7 @@ describe("race-event semantic projection", () => {
     for (const value of malformedValues) {
       const input = observation();
       input.participants[0]!.tireWear = null;
-      const projected = applyRaceEventSemanticProjection(input, semantic({
-        tireWear: evidence(value, "ok", "fresh", "pit-snapshot"),
-      }));
+      const projected = applyRaceEventSemanticProjection(input, semantic(), { sequence: "0", observedAtMs: 0, values: { "tires.tire-wear": value as never } });
 
       expect(projected.participants[0]).toMatchObject({ tireWear: null });
       expect(projected.participants[0]).not.toHaveProperty("tireWearFreshness");
@@ -398,14 +424,13 @@ describe("race-event semantic projection", () => {
       value: "finished",
     });
     expect(finalObservation).toMatchObject({
-
       sessionPhase: "finished",
       terminalObserved: true,
       nativeRaceControlCode: 3,
     });
   });
-  test("reobserves unchanged pit snapshots after reconnect and timebase resets", () => {
-    const projector = new RaceEventSemanticProjector();
+  test("reobserves unchanged iRacing pit snapshots after reconnect and timebase resets", () => {
+    const projector = new LiveTelemetryProjector();
     const snapshot = {
       TireWearFL: 0.1,
       TireWearFR: 0.2,
@@ -413,37 +438,33 @@ describe("race-event semantic projection", () => {
       TireWearRR: 0.4,
     };
 
-    const first = projector.project(packet("iracing", {
-      TimestampMS: 1_000,
-      ...snapshot,
-    }), 1_000);
-    expect(first.tireWear).toMatchObject({
-      value: [0.1, 0.2, 0.3, 0.4],
-      state: "ok",
-      freshness: "fresh",
-    });
+    const first = projector.resolve(
+      packet("iracing", {
+        TimestampMS: 1_000,
+        ...snapshot,
+      }),
+      1_000,
+    ).sample;
+    expect(first.values["tires.tire-wear"]).toEqual([0.1, 0.2, 0.3, 0.4]);
 
+    projector.reset();
+    const reconnected = projector.resolve(
+      packet("iracing", {
+        TimestampMS: 32_000,
+        ...snapshot,
+      }),
+      32_000,
+    ).sample;
+    expect(reconnected.values["tires.tire-wear"]).toEqual([0.1, 0.2, 0.3, 0.4]);
 
-    projector.resetSourceState();
-    const reconnected = projector.project(packet("iracing", {
-      TimestampMS: 32_000,
-      ...snapshot,
-    }), 32_000);
-    expect(reconnected.tireWear).toMatchObject({
-      value: [0.1, 0.2, 0.3, 0.4],
-      state: "ok",
-      freshness: "fresh",
-    });
-
-    const replaySeek = projector.project(packet("iracing", {
-      TimestampMS: 1_000,
-      ...snapshot,
-    }), 1_000);
-    expect(replaySeek.tireWear).toMatchObject({
-      value: [0.1, 0.2, 0.3, 0.4],
-      state: "ok",
-      freshness: "fresh",
-    });
+    const replaySeek = projector.resolve(
+      packet("iracing", {
+        TimestampMS: 1_000,
+        ...snapshot,
+      }),
+      1_000,
+    ).sample;
+    expect(replaySeek.values["tires.tire-wear"]).toEqual([0.1, 0.2, 0.3, 0.4]);
   });
 
   test("resolves iRacing structured pit evidence from normalized packets", () => {
@@ -458,6 +479,7 @@ describe("race-event semantic projection", () => {
       optionalRepair: 3,
     });
     const frame = projector.project(normalized, 2_000);
+    const tireWearSample = new LiveTelemetryProjector().resolve(normalized, 2_000).sample;
     const projected = applyRaceEventSemanticProjection(
       iracingServerAdapter.toRaceEventObservation(normalized, {
         receivedAtMs: 2_000,
@@ -465,18 +487,14 @@ describe("race-event semantic projection", () => {
         semantic: frame,
       }),
       frame,
+      tireWearSample,
     );
 
     expect(frame.pitState.value).toBe("pit-stall");
     expect(frame.pitServiceStatus.value).toBe("in-progress");
     expect(frame.tireChangeCounts.value).toEqual({ fl: 2, fr: 2, rl: 2, rr: 2 });
     expect(frame.repairEvidence.value).toEqual({ mandatory: 8, optional: 3 });
-    expect(frame.tireWear).toMatchObject({
-      state: "ok",
-      freshness: "fresh",
-      sourceFreshness: "pit-snapshot",
-      value: [0.8, 0.7, 0.6, 0.5],
-    });
+    expect(tireWearSample.values["tires.tire-wear"]).toEqual([0.8, 0.7, 0.6, 0.5]);
     expect(projected.participants).toEqual([
       expect.objectContaining({
         pitState: "pit-stall",

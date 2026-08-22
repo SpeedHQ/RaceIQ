@@ -1,6 +1,6 @@
-import { pointAtLapFraction } from "@shared/racing/tracks/path";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import { pointAtLapFraction } from "@shared/racing/tracks/path";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { MutableRefObject, RefObject } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
@@ -20,7 +20,7 @@ const ISSUE_COLORS: Record<TuneIssue["severity"], string> = { info: "var(--statu
 
 export function drawLiveTrack({
   canvasRef,
-  packet,
+  view,
   outline,
   noOutline,
   isRecorded,
@@ -33,7 +33,7 @@ export function drawLiveTrack({
   lapDistRef,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  packet: TelemetryPacket | null;
+  view: LiveTelemetryView | null;
   outline: Point[] | null;
   noOutline: boolean;
   isRecorded: boolean;
@@ -410,21 +410,21 @@ export function drawLiveTrack({
   }
 
   // Live car position
-  if (packet) {
+  if (view) {
     let cx: number;
     let cy: number;
     let hasPos = false;
 
-    const nativeLapFraction = packet.iracing?.lapDistancePct;
-    if (packet.gameId === "iracing" && outline && Number.isFinite(nativeLapFraction)) {
-      const point = pointAtLapFraction(displayOutline, nativeLapFraction!);
+    const nativeLapFraction = view.timing.lapFraction;
+    if (view.simulator === "iracing" && outline && Number.isFinite(nativeLapFraction)) {
+      const point = pointAtLapFraction(displayOutline, nativeLapFraction ?? 0);
       if (point) {
         [cx, cy] = toCanvas(point.x, point.z);
         hasPos = true;
       } else {
         [cx, cy] = [0, 0];
       }
-    } else if (isLiveTrace && packet.gameId === "iracing") {
+    } else if (isLiveTrace && view.simulator === "iracing") {
       const point = deadReckonedPosRef.current;
       if (point) {
         [cx, cy] = toCanvas(point.x, point.z);
@@ -434,8 +434,9 @@ export function drawLiveTrack({
       }
     } else if (isLiveTrace || isRecorded || boundaryCenter) {
       // Forza coords: live trace, recorded outline, or boundary center — plot directly
-      if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
-        [cx, cy] = toCanvas(packet.PositionX, packet.PositionZ);
+      const position = view.motion.position;
+      if (position && (position.x !== 0 || position.z !== 0)) {
+        [cx, cy] = toCanvas(position.x, position.z);
         hasPos = true;
       } else {
         [cx, cy] = [0, 0];
@@ -445,15 +446,20 @@ export function drawLiveTrack({
       // (distance traveled this lap) / (total lap distance) = 0-1 progress
       const d = lapDistRef.current;
       if (d.totalDist > 50) {
-        const lapDist = packet.DistanceTraveled - d.startDist;
-        const frac = Math.max(0, Math.min(lapDist / d.totalDist, 1));
-        const idx = Math.round(frac * (displayOutline.length - 1));
-        const pt = displayOutline[Math.min(idx, displayOutline.length - 1)];
-        if (pt) {
-          [cx, cy] = toCanvas(pt.x, pt.z);
-          hasPos = true;
-        } else {
+        const distanceM = view.motion.distanceM;
+        if (distanceM === undefined) {
           [cx, cy] = [0, 0];
+        } else {
+          const lapDist = distanceM - d.startDist;
+          const frac = Math.max(0, Math.min(lapDist / d.totalDist, 1));
+          const idx = Math.round(frac * (displayOutline.length - 1));
+          const pt = displayOutline[Math.min(idx, displayOutline.length - 1)];
+          if (pt) {
+            [cx, cy] = toCanvas(pt.x, pt.z);
+            hasPos = true;
+          } else {
+            [cx, cy] = [0, 0];
+          }
         }
       } else {
         [cx, cy] = [0, 0];

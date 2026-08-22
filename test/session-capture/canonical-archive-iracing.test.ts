@@ -10,16 +10,13 @@ import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { deleteSession } from "../../server/db/session-queries";
 import { db } from "../../server/db";
 import { sessions } from "../../server/db/schema";
-import { currentTelemetryVersionIdentity } from "../../server/telemetry/pipeline-ports";
+import { currentTelemetryVersionIdentity } from "../../server/telemetry/version-identity";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { importSessionFrames } from "../../server/session-capture/import-pipeline";
 import { readSessionPackets } from "../support/recordings/session-frames";
 import { assertCanonicalArchiveGameContract } from "../support/session-capture/canonical-archive-game-contract";
 
-const FIXTURE = resolve(
-  import.meta.dir,
-  "../artifacts/sessions/iracing-road-america-gt3.bin.gz",
-);
+const FIXTURE = resolve(import.meta.dir, "../artifacts/sessions/iracing-road-america-gt3.bin.gz");
 
 initGameAdapters();
 initServerGameAdapters();
@@ -47,11 +44,7 @@ describe("iRacing canonical archive", () => {
         const sessionId = imported.sessionIds[0]!;
         createdSessionIds.push(sessionId);
 
-        const session = await db
-          .select({ rawFile: sessions.rawFile })
-          .from(sessions)
-          .where(eq(sessions.id, sessionId))
-          .get();
+        const session = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
         if (!session?.rawFile) throw new Error("iRacing import did not create a RaceIQ session recording");
 
         expect(readSessionPackets(session.rawFile, "iracing")).toHaveLength(imported.packetCount);

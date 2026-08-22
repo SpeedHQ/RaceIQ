@@ -47,7 +47,15 @@ function SuspBarAbsolute({ mmTravel }: { mmTravel: number }) {
     </div>
   );
 }
-export function SuspBar({ norm, thresholds, mmTravel, mmMode = "centered" }: { norm: number; thresholds: number[]; mmTravel?: number; mmMode?: "centered" | "absolute" }) {
+export function SuspBar({ norm, thresholds, mmTravel, mmMode = "centered" }: { norm?: number; thresholds: number[]; mmTravel?: number; mmMode?: "centered" | "absolute" }) {
+  if (norm === undefined) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <div className="w-4 h-16 rounded-sm border border-dashed border-app-border" />
+        <span className="text-app-caption font-mono text-app-text-dim tabular-nums w-7 text-center">—</span>
+      </div>
+    );
+  }
   if (mmTravel !== undefined) {
     return mmMode === "absolute" ? <SuspBarAbsolute mmTravel={mmTravel} /> : <SuspBarCentered norm={norm} thresholds={thresholds} mmTravel={mmTravel} />;
   }

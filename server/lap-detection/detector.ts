@@ -32,11 +32,9 @@ import {
 import { summarizeLapQuality } from "../../shared/racing/quality/measure";
 import { evaluateAllEligibility, isEligibilityUsable } from "../../shared/racing/quality/policies";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
-import { persistLapMetrics } from "../lap-analysis/metrics-store";
+import { currentTelemetryVersionIdentity } from "../telemetry/version-identity";
 import { updateLapCarSetup } from "../db/lap-mutation-queries";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
-import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset, type SessionBoundaryReason } from "./boundaries";
 
 export interface SessionState {
@@ -424,7 +422,6 @@ export class LapDetector implements ILapDetector {
       });
       const eligibility = evaluateAllEligibility(quality);
       const normalPaceEligible = valid && classification.paceEligibility === "eligible" && isEligibilityUsable(eligibility["normal-pace"]);
-      const sectors = await this.computeLapSectors(session, this.lapBuffer, lapTime);
 
       if (normalPaceEligible && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) {
         session.bestLapTime = lapTime;
@@ -436,7 +433,7 @@ export class LapDetector implements ILapDetector {
         lapTime,
         isValid: valid,
         ...classification,
-        sectors,
+        sectors: null,
         quality,
         eligibility,
       };
@@ -465,8 +462,8 @@ export class LapDetector implements ILapDetector {
         await this.onLapComplete_?.(event, context);
       }
 
-      // Capture the frame buffer before resetLapState reassigns it — the insert
-      // below is fire-and-forget, so persistLapMetrics runs after the reset.
+      // Capture the frame buffer before resetLapState reassigns it; completion
+      // followups still persist F1 setup metadata from this recording boundary.
       const lapPackets = this.lapBuffer;
       this.trackLapWrite(
         context.session.sessionId,
@@ -481,7 +478,7 @@ export class LapDetector implements ILapDetector {
             profileId: null,
             tuneId,
             invalidReason,
-            sectors,
+            sectors: event.sectors,
             classification,
             quality,
             eligibility,
@@ -499,7 +496,7 @@ export class LapDetector implements ILapDetector {
                 lapTime,
                 isValid: valid,
                 ...classification,
-                sectors,
+                sectors: event.sectors,
                 estimatedBestLapTime: context.session.bestLapTime,
                 quality,
                 eligibility,
@@ -630,25 +627,24 @@ export class LapDetector implements ILapDetector {
         sourceChannelProfile: this.sourceChannelProfile,
       });
       const eligibility = evaluateAllEligibility(quality);
+      let completedEvent: LapCompleteEvent | null = null;
       if (isComplete) {
         const context: LapEventContext = {
           session: { ...session },
           lapNumber: lapNum,
           eventIds: this.lapTimelineContext.eventIdsForLap(session.sessionId, lapNum),
         };
-        await this.onLapEvaluated?.(
-          {
-            packets: lapPackets,
-            lapDistStart: lapPackets[0].DistanceTraveled,
-            lapTime,
-            isValid: valid,
-            ...classification,
-            sectors: null,
-            quality,
-            eligibility,
-          },
-          context,
-        );
+        completedEvent = {
+          packets: lapPackets,
+          lapDistStart: lapPackets[0].DistanceTraveled,
+          lapTime,
+          isValid: valid,
+          ...classification,
+          sectors: null,
+          quality,
+          eligibility,
+        };
+        await this.onLapEvaluated?.(completedEvent, context);
       }
       this.trackLapWrite(
         session.sessionId,
@@ -663,7 +659,7 @@ export class LapDetector implements ILapDetector {
             profileId: null,
             tuneId: tuneAssignment?.tuneId ?? null,
             invalidReason,
-            sectors: null,
+            sectors: completedEvent?.sectors ?? null,
             classification,
             quality,
             eligibility,
@@ -707,12 +703,6 @@ export class LapDetector implements ILapDetector {
     }
   }
 
-  /** Compute s1/s2/s3 sector times from a lap's telemetry buffer. */
-  private async computeLapSectors(session: Readonly<SessionState>, packets: TelemetryPacket[], lapTime: number): Promise<number[] | null> {
-    const { trackOrdinal, gameId } = session;
-    return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime);
-  }
-
   private async persistLapFollowups(lapId: number, lapPackets: TelemetryPacket[]): Promise<void> {
     const setup = lapPackets.find((packet) => packet.f1?.setup)?.f1?.setup;
     if (setup) {
@@ -721,11 +711,6 @@ export class LapDetector implements ILapDetector {
       } catch (error) {
         console.error("[Lap] updateLapCarSetup failed:", error);
       }
-    }
-    try {
-      await persistLapMetrics(this.db, lapId, lapPackets);
-    } catch (error) {
-      console.error("[Lap] persistLapMetrics failed:", error);
     }
     try {
       await reconcileAutoExclusionsForLap(this.db, lapId);

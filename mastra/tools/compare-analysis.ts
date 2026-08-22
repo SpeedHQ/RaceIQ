@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { InputsCompareSchema } from "../../server/ai/inputs-compare-prompt";
 import { compareFindingGenerationCacheKey, getCompareAnalysis } from "../../server/db/analysis-queries";
-import { getLapById } from "../../server/db/lap-read-queries";
+import { getLapMetaById } from "../../server/db/lap-read-queries";
 import { getCurrentFindingGeneration } from "../../server/findings/store";
 import type { FindingGenerationExpectation } from "../../server/findings/store";
 import { getFindingReceiptFence } from "../../server/ai/chat-message-context";
@@ -23,24 +23,20 @@ const CompareAnalysisOutput = z.object({
 });
 
 export interface CompareAnalysisToolDeps {
-  getLapById?: typeof getLapById;
+  getLapMetaById?: typeof getLapMetaById;
   getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
 }
 
-export function getCompareAnalysisToolFor(
-  readAnalysis: typeof getCompareAnalysis = getCompareAnalysis,
-  deps: CompareAnalysisToolDeps = {},
-) {
+export function getCompareAnalysisToolFor(readAnalysis: typeof getCompareAnalysis = getCompareAnalysis, deps: CompareAnalysisToolDeps = {}) {
   return createTool({
     id: "get_compare_analysis",
     description:
-      "Fetch the cached Inputs comparison for two laps. Call this at the beginning of every comparison conversation. " +
-      "If available is false, do not claim findings from the missing comparison.",
+      "Fetch the cached Inputs comparison for two laps. Call this at the beginning of every comparison conversation. " + "If available is false, do not claim findings from the missing comparison.",
     inputSchema: CompareAnalysisInput,
     outputSchema: CompareAnalysisOutput,
     execute: async ({ lapAId, lapBId }, execCtx) => {
       try {
-        const loadLap = deps.getLapById ?? getLapById;
+        const loadLap = deps.getLapMetaById ?? getLapMetaById;
         const [lapA, lapB] = await Promise.all([loadLap(lapAId), loadLap(lapBId)]);
         if (!lapA?.gameId || !lapB?.gameId || lapA.gameId !== lapB.gameId) {
           return {
@@ -55,12 +51,7 @@ export function getCompareAnalysisToolFor(
         if (fence) {
           const requestedIds = [lapAId, lapBId].sort((left, right) => left - right);
           const fencedIds = fence.laps.map(({ lapId }) => lapId).sort((left, right) => left - right);
-          const exactPair =
-            fence.kind === "comparison" &&
-            fence.gameId === lapA.gameId &&
-            fence.laps.length === 2 &&
-            fencedIds[0] === requestedIds[0] &&
-            fencedIds[1] === requestedIds[1];
+          const exactPair = fence.kind === "comparison" && fence.gameId === lapA.gameId && fence.laps.length === 2 && fencedIds[0] === requestedIds[0] && fencedIds[1] === requestedIds[1];
           if (!exactPair) {
             return {
               available: false,

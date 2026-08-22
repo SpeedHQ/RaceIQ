@@ -20,26 +20,24 @@ function isCompareResult(value: unknown): value is CompareResult {
     lapAId?: unknown;
     lapBId?: unknown;
   };
-  return (
-    typeof result.available === "boolean" &&
-    typeof result.lapAId === "number" &&
-    typeof result.lapBId === "number"
-  );
+  return typeof result.available === "boolean" && typeof result.lapAId === "number" && typeof result.lapBId === "number";
 }
 
 const findingDeps = {
-  getLapById: async (lapId: number) => ({
-    id: lapId,
-    gameId: "fm-2023" as const,
-    sessionId: lapId + 100,
-  }) as never,
-  getCurrentFindingGeneration: async (scope: { lapId?: string }) => ({
-    receipt: {
-      generationId: `generation-${scope.lapId}`,
-      contentHash: `content-${scope.lapId}`,
-    },
-    findings: [],
-  }) as never,
+  getLapMetaById: async (lapId: number) =>
+    ({
+      id: lapId,
+      gameId: "fm-2023" as const,
+      sessionId: lapId + 100,
+    }) as never,
+  getCurrentFindingGeneration: async (scope: { lapId?: string }) =>
+    ({
+      receipt: {
+        generationId: `generation-${scope.lapId}`,
+        contentHash: `content-${scope.lapId}`,
+      },
+      findings: [],
+    }) as never,
 };
 describe("get_compare_analysis tool", () => {
   test("returns persisted Inputs analysis for either lap order", async () => {
@@ -61,9 +59,7 @@ describe("get_compare_analysis tool", () => {
         ],
         coaching: [{ tip: "Brake later", detail: "At T1", targetLap: "B" }],
       };
-      return lo === 3 && hi === 7
-        ? ({ analysis: JSON.stringify(analysis), model: "test-model" } as never)
-        : null;
+      return lo === 3 && hi === 7 ? ({ analysis: JSON.stringify(analysis), model: "test-model" } as never) : null;
     }, findingDeps);
 
     const execute = tool.execute;
@@ -140,18 +136,13 @@ describe("get_compare_analysis tool", () => {
     );
     const execute = tool.execute;
     if (!execute) throw new Error("Compare analysis tool has no execute function");
-    const rawResult = await execute(
-      { lapAId: 7, lapBId: 3 },
-      {
-        requestContext: {
-          get(key: string) {
-            return key === FINDING_RECEIPT_FENCE_CONTEXT_KEY
-              ? { kind: "comparison", gameId: "fm-2023", cacheKey, laps }
-              : undefined;
-          },
+    const rawResult = await execute({ lapAId: 7, lapBId: 3 }, {
+      requestContext: {
+        get(key: string) {
+          return key === FINDING_RECEIPT_FENCE_CONTEXT_KEY ? { kind: "comparison", gameId: "fm-2023", cacheKey, laps } : undefined;
         },
-      } as never,
-    );
+      },
+    } as never);
     if (!isCompareResult(rawResult)) throw new Error("Unexpected compare analysis tool result");
 
     expect(receivedExpectations).toEqual([

@@ -1,20 +1,19 @@
 import { eq } from "drizzle-orm";
 import type { GameId } from "../../shared/games/ids";
+import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { getLapById, type LoadedLap } from "../db/lap-read-queries";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
+import { getLapMetaById } from "../db/lap-read-queries";
 import { db } from "../db/index";
 import { laps } from "../db/schema";
 import { cacheDelete } from "../db/telemetry-replay-storage";
-import { assessLapRecording } from "../lap-analysis/quality";
-import {
-  prepareCompletedLapFindings,
-  type CompletedLapFindingResult,
-  type PreparedCompletedLapFindings,
-} from "./completed-lap";
+import { queryLapTelemetryBySemanticId } from "../telemetry/replay";
+import { semanticSamplesFromReplay } from "../telemetry/semantic-samples";
+import { prepareCompletedLapFindings, type CompletedLapFindingResult, type PreparedCompletedLapFindings } from "./completed-lap";
 import { publishFindingGeneration } from "./publication";
 import { replaceFindingGenerationsBatch } from "./store";
-
-function storedVersionIdentity(lap: LoadedLap): TelemetryVersionIdentity {
+function storedVersionIdentity(lap: LapMeta): TelemetryVersionIdentity {
   const qualityVersion = lap.quality?.versionIdentity;
   const catalogVersion = lap.catalogVersion ?? qualityVersion?.catalogVersion;
   const catalogHash = lap.catalogHash ?? qualityVersion?.catalogHash;
@@ -43,42 +42,49 @@ function storedVersionIdentity(lap: LoadedLap): TelemetryVersionIdentity {
 export async function rebuildCompletedSessionFindings(
   sessionId: number,
   gameId: GameId,
+  samplesByLap?: ReadonlyMap<number, readonly SemanticTelemetrySample[]>,
 ): Promise<readonly CompletedLapFindingResult[]> {
-  const rows = await db
-    .select({ id: laps.id })
-    .from(laps)
-    .where(eq(laps.sessionId, sessionId))
-    .all();
+  const rows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
   const prepared: PreparedCompletedLapFindings[] = [];
   const lapIds: number[] = [];
   for (const { id } of rows) {
-    const lap = await getLapById(id);
+    const lap = await getLapMetaById(id);
     if (!lap) throw new Error(`Completed lap ${id} disappeared during finding rebuild`);
     if (lap.sessionId !== sessionId || lap.gameId !== gameId) {
       throw new Error(`Completed lap ${id} no longer belongs to session ${sessionId}`);
     }
     if (!lap.quality) throw new Error(`Completed lap ${id} lacks finalized quality`);
-    prepared.push(prepareCompletedLapFindings({
-      lapId: lap.id,
-      sessionId: lap.sessionId,
-      lapNumber: lap.lapNumber,
-      lapTime: lap.lapTime,
-      isValid: lap.isValid,
-      invalidReason: lap.invalidReason ?? null,
-      gameId,
-      carOrdinal: lap.carOrdinal,
-      trackOrdinal: lap.trackOrdinal,
-      sectorTimes: lap.sectorTimes ?? null,
-      telemetry: lap.telemetry,
-      quality: lap.quality,
-      eligibility: lap.eligibility ?? null,
-      qualityGeneration: lap.qualityGeneration ?? null,
-      qualityStale: lap.qualityStale,
-      recordingQuality: assessLapRecording(lap.telemetry, lap.lapTime),
-      analysisGenerationId: lap.analysisGenerationId ?? null,
-      versionIdentity: storedVersionIdentity(lap),
-      createdAt: lap.createdAt,
-    }));
+    const liveSamples = samplesByLap?.get(lap.id);
+    const replay = liveSamples ? null : await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+    if (!liveSamples && !replay) {
+      throw new Error(`Completed lap ${lap.id} lacks semantic telemetry`);
+    }
+    prepared.push(
+      prepareCompletedLapFindings({
+        lapId: lap.id,
+        sessionId: lap.sessionId,
+        lapNumber: lap.lapNumber,
+        lapTime: lap.lapTime,
+        isValid: lap.isValid,
+        invalidReason: lap.invalidReason ?? null,
+        gameId,
+        carOrdinal: lap.carOrdinal,
+        trackOrdinal: lap.trackOrdinal,
+        sectorTimes: lap.sectorTimes ?? null,
+        telemetry: liveSamples ?? semanticSamplesFromReplay(replay!),
+        quality: lap.quality,
+        eligibility: lap.eligibility ?? null,
+        qualityGeneration: lap.qualityGeneration ?? null,
+        qualityStale: lap.qualityStale,
+        recordingQuality: {
+          valid: lap.isValid,
+          reason: lap.isValid ? null : (lap.invalidReason ?? "persisted lap invalid"),
+        },
+        analysisGenerationId: lap.analysisGenerationId ?? null,
+        versionIdentity: storedVersionIdentity(lap),
+        createdAt: lap.createdAt,
+      }),
+    );
     lapIds.push(id);
   }
   if (prepared.length === 0) return [];

@@ -1,22 +1,12 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import {
-  RaceEventsAppendedMessageSchema,
-  type RaceEvent,
-} from "../../shared/racing/events/contracts";
+import { RaceEventsAppendedMessageSchema, type RaceEvent } from "../../shared/racing/events/contracts";
 import { initGameAdapters } from "../../shared/games/init";
 import type { RecordingQualitySummary } from "../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { initServerGameAdapters } from "../../server/games/init";
 import { compareRaceEvents, MemoryRaceEventStore } from "../../server/race-events/store";
-import {
-  CapturingDbAdapter,
-  CapturingWsAdapter,
-  NullSessionRecorderAdapter,
-} from "../../server/telemetry/pipeline-ports";
-import {
-  LiveTelemetryPipeline,
-  stopMaintenanceTasks,
-} from "../../server/telemetry/live-pipeline";
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import type { AnalysisReceiptRow } from "../../server/db/analysis-receipt-queries";
 
 initGameAdapters();
@@ -104,14 +94,30 @@ describe("live race-event timeline integration", () => {
 
     await pipeline.processPacket(packet());
 
-    const messages = ws.broadcastedNotifications
-      .filter(({ type }) => type === "race-events-appended")
-      .map((message) => RaceEventsAppendedMessageSchema.parse(message));
+    const messages = ws.broadcastedNotifications.filter(({ type }) => type === "race-events-appended").map((message) => RaceEventsAppendedMessageSchema.parse(message));
     expect(messages).toHaveLength(1);
-    expect(messages[0]!.events.map(({ eventId }) => eventId)).toEqual(
-      store.list().map(({ eventId }) => eventId),
-    );
+    expect(messages[0]!.events.map(({ eventId }) => eventId)).toEqual(store.list().map(({ eventId }) => eventId));
     expect(messages[0]!.events.some(({ eventType }) => eventType === "session_started")).toBe(true);
+
+    await pipeline.finalizeCurrentSession();
+  });
+
+  test("rotates session when track ordinal changes to valid zero", async () => {
+    const ws = new CapturingWsAdapter();
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), ws, {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: new MemoryRaceEventStore(),
+    });
+
+    await pipeline.processPacket(packet());
+    await pipeline.processPacket(packet({ TimestampMS: 1_100, CurrentLap: 30.1, DistanceTraveled: 2_010, TrackOrdinal: 0 }));
+
+    expect(ws.publishedTelemetry).toHaveLength(2);
+    expect(ws.publishedTelemetry[1]?.frame?.sequence).toBe(0);
+    expect(ws.publishedTelemetry[1]?.frame?.streamId).not.toBe(ws.publishedTelemetry[0]?.frame?.streamId);
 
     await pipeline.finalizeCurrentSession();
   });
@@ -131,7 +137,7 @@ describe("live race-event timeline integration", () => {
     await pipeline.processPacket(samePacket);
     await pipeline.processPacket({ ...samePacket });
 
-    expect(ws.broadcastedPackets).toHaveLength(1);
+    expect(ws.publishedTelemetry).toHaveLength(1);
     expect(store.list().filter(({ eventType }) => eventType === "duplicate_input_suppressed")).toHaveLength(1);
 
     await pipeline.finalizeCurrentSession();
@@ -152,10 +158,7 @@ describe("live race-event timeline integration", () => {
     expect(ws.broadcastedNotifications.filter(({ type }) => type === "race-events-appended")).toEqual([]);
 
     await pipeline.processPacket(packet({ TimestampMS: 1_100, CurrentLap: 30.1, DistanceTraveled: 2_010 }));
-    await pipeline.noteSourceLifecycle(
-      { kind: "timeout", timestampMs: 1_100 },
-      { kind: "udp", gameId: "fm-2023", sessionId: 1 },
-    );
+    await pipeline.noteSourceLifecycle({ kind: "timeout", timestampMs: 1_100 }, { kind: "udp", gameId: "fm-2023", sessionId: 1 });
 
     expect(store.batches).toHaveLength(3);
     expect(store.batches[1]).toEqual(store.batches[0]);
@@ -174,19 +177,12 @@ describe("live race-event timeline integration", () => {
       raceEventStore: store,
     });
     await pipeline.processPacket(packet());
-    await pipeline.noteSourceLifecycle(
-      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:post-persist" },
-      { kind: "udp", gameId: "fm-2023", sessionId: 1 },
-    );
+    await pipeline.noteSourceLifecycle({ kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:post-persist" }, { kind: "udp", gameId: "fm-2023", sessionId: 1 });
 
     const [first, later] = store.list();
     if (!first || !later) throw new Error("Expected initial timeline events");
     const internals = pipeline as unknown as {
-      _persistTimelineEventsCore(
-        events: readonly RaceEvent[],
-        lapLinks?: readonly [],
-        afterPersist?: () => Promise<void>,
-      ): Promise<RaceEvent[]>;
+      _persistTimelineEventsCore(events: readonly RaceEvent[], lapLinks?: readonly [], afterPersist?: () => Promise<void>): Promise<RaceEvent[]>;
     };
     let attempts = 0;
 
@@ -214,10 +210,7 @@ describe("live race-event timeline integration", () => {
       raceEventStore: store,
     });
     await pipeline.processPacket(packet());
-    await pipeline.noteSourceLifecycle(
-      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:queued-batches" },
-      { kind: "udp", gameId: "fm-2023", sessionId: 1 },
-    );
+    await pipeline.noteSourceLifecycle({ kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:queued-batches" }, { kind: "udp", gameId: "fm-2023", sessionId: 1 });
 
     const [first, later] = store.list();
     if (!first || !later) throw new Error("Expected initial timeline events");
@@ -226,15 +219,10 @@ describe("live race-event timeline integration", () => {
     };
     store.failNext(1);
 
-    await expect(internals._persistTimelineEventsCore([first])).rejects.toThrow(
-      "Failed to persist race events",
-    );
+    await expect(internals._persistTimelineEventsCore([first])).rejects.toThrow("Failed to persist race events");
     await internals._persistTimelineEventsCore([later]);
 
-    expect(store.batches.slice(-3).flat()).toEqual([
-      first.eventId,
-      ...[first, later].sort(compareRaceEvents).map(({ eventId }) => eventId),
-    ]);
+    expect(store.batches.slice(-3).flat()).toEqual([first.eventId, ...[first, later].sort(compareRaceEvents).map(({ eventId }) => eventId)]);
 
     await pipeline.finalizeCurrentSession();
   });
@@ -250,18 +238,12 @@ describe("live race-event timeline integration", () => {
     });
 
     await expect(pipeline.processPacket(packet())).rejects.toThrow("Failed to persist race events");
-    await expect(
-      pipeline.noteSourceLifecycle(
-        { kind: "timeout", timestampMs: 1_100, eventId: "source-timeout:A" },
-        { kind: "udp", gameId: "fm-2023", sessionId: 1 },
-      ),
-    ).rejects.toThrow("Failed to persist race events");
-    await expect(
-      pipeline.noteSourceLifecycle(
-        { kind: "reconnect", timestampMs: 1_200, eventId: "source-reconnect:B" },
-        { kind: "udp", gameId: "fm-2023", sessionId: 1 },
-      ),
-    ).rejects.toThrow("Failed to persist race events");
+    await expect(pipeline.noteSourceLifecycle({ kind: "timeout", timestampMs: 1_100, eventId: "source-timeout:A" }, { kind: "udp", gameId: "fm-2023", sessionId: 1 })).rejects.toThrow(
+      "Failed to persist race events",
+    );
+    await expect(pipeline.noteSourceLifecycle({ kind: "reconnect", timestampMs: 1_200, eventId: "source-reconnect:B" }, { kind: "udp", gameId: "fm-2023", sessionId: 1 })).rejects.toThrow(
+      "Failed to persist race events",
+    );
 
     await pipeline.processPacket(packet({ TimestampMS: 1_300, CurrentLap: 30.3, DistanceTraveled: 2_030 }));
 
@@ -435,10 +417,7 @@ describe("live race-event timeline integration", () => {
         steps.push("reconcile");
       },
       onSessionAnalysisFinalized: async () => {
-        notificationPrecededActivation =
-          ws.broadcastedNotifications.some(
-            ({ type }) => type === "race-result-reconciled",
-          );
+        notificationPrecededActivation = ws.broadcastedNotifications.some(({ type }) => type === "race-result-reconciled");
         steps.push("activate");
       },
     });
@@ -463,11 +442,7 @@ describe("live race-event timeline integration", () => {
     expect(steps.slice(1, -1).length).toBeGreaterThan(0);
     expect(steps.slice(1, -1).every((step) => step === "reconcile")).toBe(true);
     expect(notificationPrecededActivation).toBe(false);
-    expect(
-      ws.broadcastedNotifications.some(
-        ({ type }) => type === "race-result-reconciled",
-      ),
-    ).toBe(true);
+    expect(ws.broadcastedNotifications.some(({ type }) => type === "race-result-reconciled")).toBe(true);
   });
 
   test("keeps failed activation unfinalized until retry activates same attempt", async () => {
@@ -493,22 +468,12 @@ describe("live race-event timeline integration", () => {
     });
 
     await pipeline.processPacket(packet());
-    await expect(pipeline.finalizeCurrentSession()).rejects.toThrow(
-      "receipt activation failed",
-    );
-    expect(
-      ws.broadcastedNotifications.some(
-        ({ type }) => type === "race-result-reconciled",
-      ),
-    ).toBe(false);
+    await expect(pipeline.finalizeCurrentSession()).rejects.toThrow("receipt activation failed");
+    expect(ws.broadcastedNotifications.some(({ type }) => type === "race-result-reconciled")).toBe(false);
 
     await pipeline.finalizeCurrentSession();
 
     expect(activationAttempts).toBe(2);
-    expect(
-      ws.broadcastedNotifications.some(
-        ({ type }) => type === "race-result-reconciled",
-      ),
-    ).toBe(true);
+    expect(ws.broadcastedNotifications.some(({ type }) => type === "race-result-reconciled")).toBe(true);
   });
 });

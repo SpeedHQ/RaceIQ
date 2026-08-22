@@ -1,56 +1,14 @@
 import type { ServerGameAdapter } from "../types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { f1Adapter } from "../../../shared/games/f1-2025";
 import { F1StateAccumulator } from "./f1-state";
 import { F1_RACE_EVENT_DERIVATIONS } from "./race-event-semantics";
 import { parseF1Header } from "./f1-wire";
-import { getF1CarName } from "../../../shared/racing/cars/f1"
-import { getF1TrackName, getF1TrackInfo } from "../../../shared/racing/tracks/catalogs/f1"
+import { getF1CarName } from "../../../shared/racing/cars/f1";
+import { getF1TrackName, getF1TrackInfo } from "../../../shared/racing/tracks/catalogs/f1";
 import { LAP_DETECTOR_ID, LapDetector } from "../../lap-detection/detector";
-import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import type { RaceParticipantObservation } from "../types";
-import {
-  baseRaceEventObservation,
-  normalizedFuelLitres,
-  normalizedTireWear,
-} from "../race-event-observation";
-
-const F1_SYSTEM_PROMPT = `You are an expert Formula 1 racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
-
-Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
-
-${renderAnalystSchemaForPrompt()}
-
-CATEGORY GUIDELINES:
-- "pace": 4-6 items covering speed, ERS deployment, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
-- "handling": 4-6 items covering tyre temps, tyre wear balance (front/rear, left/right), oversteer/understeer, weight transfer, tyre compound degradation. Each with a concrete value.
-- "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
-- "technique": 3-5 actionable driving tips. Consider ERS harvesting vs deployment, lift-and-coast for fuel/tyre saving, and tyre temperature management.
-
-THERMAL REFERENCE (F1 25, slick tyres, dry):
-- Tyre surface temp: optimal 90-110°C, warning 80-89°C or 111-125°C, critical <80°C or >125°C.
-- Tyre inner-carcass temp: optimal 95-115°C, warning 85-94°C or 116-125°C, critical <85°C or >125°C.
-- Brake disc temp: optimal 450-700°C, warning 350-449°C or 701-850°C, critical <350°C or >850°C (carbon brakes cold-crack below 200°C and fade above 900°C).
-- Tyre health / wear remaining: good 100-85%, warning 84-60%, critical <60% (scale grip loss and lap-time cost in your verdict).
-When citing temps in \`pace\`, \`handling\`, or \`corners\`, use these bands to grade \`assessment\`.
-
-ERS & LAP-TYPE RULES (read \`Session Type\` from the prompt context):
-- \`one-shot-qualifying\` / \`time-trial\` / \`qualifying-3\`: this is a single hot lap. ERS deployment must be aggressive — reserve should finish near 0-10% at the line. If \`ers.reserve\` ends the lap above ~15%, flag it as left-on-the-table in \`technique[]\` and in the verdict.
-- \`qualifying-1\` / \`qualifying-2\` / \`short-qualifying\`: same single-lap logic — target 0-10% reserve at the line.
-- \`race\` / \`race-2\` / \`race-3\`: opposite — ending the lap at 0% is a strategy problem. Grade deployment against race-pace cadence, not max dump.
-- \`practice-*\`: neutral. Skip ERS end-of-lap reserve critique.
-- When \`Session Type\` is \`unknown\` or missing, assume \`one-shot-qualifying\` (covers the common Analyse-one-good-lap flow).
-
-DRS:
-- Do not mention DRS anywhere in the output (pace, handling, corners, technique, verdict). Zone data is unreliable and raw activation counts are not actionable feedback.
-
-- Factor in ERS deployment strategy — was energy used in the right places?
-- Consider tyre compound characteristics (soft/medium/hard) and degradation patterns
-- Weather conditions affect grip levels and optimal driving lines
-- Reference specific numbers from the data — don't be vague
-- Be specific and actionable, not generic
-- Address the driver as "you"
-- Output ONLY valid JSON, nothing else`;
+import type { ResultClassification } from "../../race-results/types";
+import { baseRaceEventObservation, normalizedFuelLitres, normalizedTireWear } from "../race-event-observation";
 
 export const f1ServerAdapter: ServerGameAdapter = {
   ...f1Adapter,
@@ -67,8 +25,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
   },
   raceEventDerivations: F1_RACE_EVENT_DERIVATIONS,
   raceEventTimestampDomain: "session",
-  raceEventObservedAtMs: (packet, receivedAtMs) =>
-    Number.isFinite(packet.TimestampMS) ? packet.TimestampMS : receivedAtMs,
+  raceEventObservedAtMs: (packet, receivedAtMs) => (Number.isFinite(packet.TimestampMS) ? packet.TimestampMS : receivedAtMs),
 
   processNames: ["F1_25.exe", "F1_2025.exe"],
 
@@ -102,28 +59,52 @@ export const f1ServerAdapter: ServerGameAdapter = {
     const observation = baseRaceEventObservation(packet, context);
     const f1 = packet.f1;
     if (!f1) return observation;
+    const classification: ResultClassification | null =
+      f1.resultStatus === 3 ? "finished" : f1.resultStatus === 4 ? "dnf" : f1.resultStatus === 5 ? "disqualified" : f1.resultStatus === 6 ? "not-classified" : f1.resultStatus === 7 ? "retired" : null;
+    const classificationSource = classification == null ? null : f1.resultSource === "final-classification" ? ("final-classification" as const) : ("lap-data" as const);
+    const finishingPosition = Number.isInteger(packet.RacePosition) && packet.RacePosition > 0 ? packet.RacePosition : null;
+    const gridPosition = f1.gridPosition;
+    const qualifyingPosition = typeof gridPosition === "number" && Number.isInteger(gridPosition) && gridPosition > 0 ? gridPosition : null;
+    let isFastestLap: boolean | null = null;
+    if (Number.isFinite(packet.BestLap) && packet.BestLap > 0 && f1.grid) {
+      let gridBest: number | null = null;
+      for (const entry of f1.grid) {
+        if (Number.isFinite(entry.bestLapTime) && entry.bestLapTime > 0 && (gridBest == null || entry.bestLapTime < gridBest)) {
+          gridBest = entry.bestLapTime;
+        }
+      }
+      if (gridBest != null) isFastestLap = packet.BestLap <= gridBest;
+    }
+    observation.raceResult = {
+      ...observation.raceResult,
+      sessionType: f1.sessionType && f1.sessionType !== "unknown" ? f1.sessionType : null,
+      classification,
+      classificationSource,
+      finishingPosition,
+      finishingPositionSource: classificationSource === "final-classification" ? "final-classification" : "lap-data",
+      qualifyingPosition,
+      qualifyingPositionSource: qualifyingPosition == null ? null : classificationSource === "final-classification" ? "final-classification" : "lap-data",
+      isFastestLap,
+      fastestLapSource: isFastestLap == null ? null : "f1-grid",
+      resultReason: classificationSource === "final-classification" ? (f1.resultReason ?? null) : null,
+      observedAtMs: Number.isFinite(packet.TimestampMS) ? packet.TimestampMS : context.receivedAtMs,
+      sourcePaths: {
+        sessionType: "f1.sessionType",
+        classification: "f1.resultStatus",
+        finishingPosition: "race.race-position",
+        qualifyingPosition: "timing.grid-position",
+        isFastestLap: "player-vs-f1.grid.bestLapTime",
+        resultReason: "f1.finalClassification.resultReason",
+      },
+    };
     // Native F1 reports signed pre-grid distance; shared event coordinates are
     // non-negative, while grid detection below still uses signed magnitude.
     if (packet.DistanceTraveled < 0) observation.trackDistanceM = null;
 
     observation.gridStart =
-      packet.LapNumber === 1 &&
-      (f1.gridPosition ?? 0) > 0 &&
-      packet.RacePosition > 0 &&
-      packet.CurrentRaceTime >= 0 &&
-      packet.CurrentRaceTime <= 5 &&
-      Math.abs(packet.DistanceTraveled) >= 25;
-    observation.trackDistancePct =
-      f1.trackLength != null &&
-      f1.trackLength > 0 &&
-      Number.isFinite(packet.DistanceTraveled)
-        ? Math.max(0, Math.min(1, packet.DistanceTraveled / f1.trackLength))
-        : null;
+      packet.LapNumber === 1 && qualifyingPosition !== null && packet.RacePosition > 0 && packet.CurrentRaceTime >= 0 && packet.CurrentRaceTime <= 5 && Math.abs(packet.DistanceTraveled) >= 25;
 
-    observation.nativeRaceControlCode =
-      f1.resultSource === "final-classification"
-        ? (f1.resultStatus ?? null)
-        : (f1.safetyCarStatus ?? f1.vehicleFIAFlags ?? null);
+    observation.nativeRaceControlCode = f1.resultSource === "final-classification" ? (f1.resultStatus ?? null) : (f1.safetyCarStatus ?? f1.vehicleFIAFlags ?? null);
     if (f1.resultSource === "final-classification") {
       observation.terminalObserved = true;
     }
@@ -152,12 +133,8 @@ export const f1ServerAdapter: ServerGameAdapter = {
         damageEntries.push([component, Math.max(0, Math.min(100, value))]);
       }
     }
-    const localDamage =
-      f1.damageAvailable !== false && damageEntries.length > 0 ? Object.fromEntries(damageEntries) : null;
-    const localFuelLitres = normalizedFuelLitres(
-      packet,
-      f1Adapter.telemetry.fuel.packetUnit,
-    );
+    const localDamage = f1.damageAvailable !== false && damageEntries.length > 0 ? Object.fromEntries(damageEntries) : null;
+    const localFuelLitres = normalizedFuelLitres(packet, f1Adapter.telemetry.fuel.packetUnit);
     const localRetirementStatus =
       f1.resultSource !== "final-classification"
         ? "unknown"
@@ -170,20 +147,12 @@ export const f1ServerAdapter: ServerGameAdapter = {
               : f1.resultStatus === 2
                 ? "active"
                 : "unknown";
-    const sourceDriverId = (value: number | null | undefined) =>
-      typeof value === "number" && value >= 0 && value !== 255
-        ? `f1-driver:${value}`
-        : null;
-    const sourceTeamId = (value: number | null | undefined) =>
-      typeof value === "number" && value >= 0 && value !== 255
-        ? `f1-team:${value}`
-        : null;
+    const sourceDriverId = (value: number | null | undefined) => (typeof value === "number" && value >= 0 && value !== 255 ? `f1-driver:${value}` : null);
+    const sourceTeamId = (value: number | null | undefined) => (typeof value === "number" && value >= 0 && value !== 255 ? `f1-team:${value}` : null);
 
     observation.participants = (f1.grid ?? []).map((entry) => {
       const player = entry.isPlayer;
-      const nativePitCode = Number.isFinite(entry.pitStatus)
-        ? entry.pitStatus
-        : null;
+      const nativePitCode = Number.isFinite(entry.pitStatus) ? entry.pitStatus : null;
       return {
         participantId: `f1-car:${entry.carIndex}`,
         participantKind: player ? "player" : "opponent",
@@ -198,25 +167,17 @@ export const f1ServerAdapter: ServerGameAdapter = {
         position: entry.position > 0 ? entry.position : null,
         speedMps: player && Number.isFinite(packet.Speed) ? packet.Speed : null,
         fuelLitres: player ? localFuelLitres : null,
-        tireCompound:
-          entry.tyreCompound && entry.tyreCompound !== "unknown"
-            ? entry.tyreCompound
-            : null,
+        tireCompound: entry.tyreCompound && entry.tyreCompound !== "unknown" ? entry.tyreCompound : null,
         tireWear: player ? localWear : null,
         damage: player ? localDamage : null,
         penaltyValue: player ? (f1.penalties ?? null) : null,
         incidentCount: null,
         retirementStatus: player ? localRetirementStatus : "unknown",
-        nativeRetirementCode:
-          player && f1.resultSource === "final-classification"
-            ? (f1.resultStatus ?? null)
-            : null,
+        nativeRetirementCode: player && f1.resultSource === "final-classification" ? (f1.resultStatus ?? null) : null,
       } satisfies RaceParticipantObservation;
     });
     if (observation.participants.length === 0) {
-      const nativePitCode = Number.isFinite(f1.pitStatus)
-        ? f1.pitStatus
-        : null;
+      const nativePitCode = Number.isFinite(f1.pitStatus) ? f1.pitStatus : null;
       observation.participants = [
         {
           participantId: `f1-car:${f1.playerCarIndex}`,
@@ -232,93 +193,18 @@ export const f1ServerAdapter: ServerGameAdapter = {
           position: packet.RacePosition > 0 ? packet.RacePosition : null,
           speedMps: Number.isFinite(packet.Speed) ? packet.Speed : null,
           fuelLitres: localFuelLitres,
-          tireCompound:
-            f1.tyreCompound && f1.tyreCompound !== "unknown"
-              ? f1.tyreCompound
-              : null,
+          tireCompound: f1.tyreCompound && f1.tyreCompound !== "unknown" ? f1.tyreCompound : null,
           tireWear: localWear,
           damage: localDamage,
           penaltyValue: f1.penalties ?? null,
           incidentCount: null,
           retirementStatus: localRetirementStatus,
-          nativeRetirementCode:
-            f1.resultSource === "final-classification"
-              ? (f1.resultStatus ?? null)
-              : null,
+          nativeRetirementCode: f1.resultSource === "final-classification" ? (f1.resultStatus ?? null) : null,
         },
       ];
     }
-    observation.rosterAuthoritative =
-      f1.packetId === 4 && f1.grid.length > 0;
+    observation.rosterAuthoritative = f1.packetId === 4 && f1.grid != null && f1.grid.length > 0;
     return observation;
-  },
-
-  aiSystemPrompt: F1_SYSTEM_PROMPT,
-
-  buildAiContext(packets: TelemetryPacket[]): string {
-    if (packets.length === 0) return "";
-    const first = packets[0];
-    const last = packets[packets.length - 1];
-
-    let context = "";
-
-    // Tyre compound (top-level TyreCompound survives CSV; f1.tyreCompound is first-packet only)
-    const compoundNum = first.TyreCompound ?? first.f1?.tyreVisualCompound;
-    const compoundNames: Record<number, string> = { 16: "soft", 17: "medium", 18: "hard", 7: "inter", 8: "wet" };
-    const compound = compoundNum != null ? (compoundNames[compoundNum] ?? `compound-${compoundNum}`) : (first.f1?.tyreCompound ?? "unknown");
-    context += `\nTyre Compound: ${compound}`;
-
-    // Weather (top-level WeatherType survives CSV)
-    const weatherNames: Record<number, string> = { 0: "clear", 1: "light cloud", 2: "overcast", 3: "light rain", 4: "heavy rain", 5: "storm" };
-    const weather = first.WeatherType != null ? (weatherNames[first.WeatherType] ?? "unknown") : (first.f1?.weather ?? "unknown");
-    context += `\nWeather: ${weather}`;
-    if (first.TrackTemp) context += `\nTrack Temp: ${first.TrackTemp}°C`;
-    if (first.AirTemp) context += `\nAir Temp: ${first.AirTemp}°C`;
-
-// ERS deployment summary (use top-level fields which survive CSV storage)
-    const ersFirst = first.ErsStoreEnergy;
-    const ersLast = last.ErsStoreEnergy;
-    if (typeof ersFirst === "number" && typeof ersLast === "number" && (ersFirst > 0 || ersLast > 0)) {
-      context += `\nERS Energy: ${(ersFirst / 1000).toFixed(0)} kJ -> ${(ersLast / 1000).toFixed(0)} kJ (delta: ${((ersLast - ersFirst) / 1000).toFixed(0)} kJ)`;
-    }
-    const ersDeployed = last.ErsDeployed;
-    const ersHarvested = last.ErsHarvested;
-    if (typeof ersDeployed === "number" && ersDeployed > 0) {
-      context += `\nERS Deployed This Lap: ${(ersDeployed / 1000).toFixed(0)} kJ`;
-    }
-    if (typeof ersHarvested === "number" && ersHarvested > 0) {
-      context += `\nERS Harvested This Lap: ${(ersHarvested / 1000).toFixed(0)} kJ`;
-    }
-
-    // Car setup (from in-game settings)
-    const setup = first.f1?.setup;
-    if (setup) {
-      context += `\n\n--- CURRENT CAR SETUP ---`;
-      context += `\nFront Wing: ${setup.frontWing}`;
-      context += `\nRear Wing: ${setup.rearWing}`;
-      context += `\nDifferential On-Throttle: ${setup.onThrottle}%`;
-      context += `\nDifferential Off-Throttle: ${setup.offThrottle}%`;
-      context += `\nFront Camber: ${setup.frontCamber.toFixed(2)}°`;
-      context += `\nRear Camber: ${setup.rearCamber.toFixed(2)}°`;
-      context += `\nFront Toe: ${setup.frontToe.toFixed(2)}°`;
-      context += `\nRear Toe: ${setup.rearToe.toFixed(2)}°`;
-      context += `\nFront Suspension: ${setup.frontSuspension}`;
-      context += `\nRear Suspension: ${setup.rearSuspension}`;
-      context += `\nFront Anti-Roll Bar: ${setup.frontAntiRollBar}`;
-      context += `\nRear Anti-Roll Bar: ${setup.rearAntiRollBar}`;
-      context += `\nFront Ride Height: ${setup.frontRideHeight}`;
-      context += `\nRear Ride Height: ${setup.rearRideHeight}`;
-      context += `\nBrake Pressure: ${setup.brakePressure}%`;
-      context += `\nBrake Bias: ${setup.brakeBias}%`;
-      context += `\nEngine Braking: ${setup.engineBraking}%`;
-      context += `\nFront Left Tyre Pressure: ${setup.frontLeftTyrePressure.toFixed(1)} psi`;
-      context += `\nFront Right Tyre Pressure: ${setup.frontRightTyrePressure.toFixed(1)} psi`;
-      context += `\nRear Left Tyre Pressure: ${setup.rearLeftTyrePressure.toFixed(1)} psi`;
-      context += `\nRear Right Tyre Pressure: ${setup.rearRightTyrePressure.toFixed(1)} psi`;
-      context += `\nFuel Load: ${setup.fuelLoad.toFixed(1)} kg`;
-    }
-
-    return context;
   },
 
   lapDetectorId: LAP_DETECTOR_ID,

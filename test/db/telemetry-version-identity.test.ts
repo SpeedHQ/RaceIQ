@@ -2,21 +2,16 @@ import { expect, test } from "bun:test";
 import { deleteSession, getSessions } from "../../server/db/session-queries";
 import { getLapById, getLaps } from "../../server/db/lap-read-queries";
 import { initServerGameAdapters } from "../../server/games/init";
-import {
-  currentTelemetryVersionIdentity,
-  RealDbAdapter,
-} from "../../server/telemetry/pipeline-ports";
+import { RealDbAdapter } from "../../server/telemetry/pipeline-ports";
+import { currentTelemetryVersionIdentity } from "../../server/telemetry/version-identity";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { DEFAULT_LAP_CLASSIFICATION } from "../../shared/racing/laps/classification";
 initServerGameAdapters();
 
 test("production adapter stamps current runtime identity on sessions and laps", async () => {
   const adapter = new RealDbAdapter();
-  const expected: TelemetryVersionIdentity =
-    currentTelemetryVersionIdentity("iracing");
-  expect(expected.derivationVersion).toContain(
-    "iracing.race.control.phase@",
-  );
+  const expected: TelemetryVersionIdentity = currentTelemetryVersionIdentity("iracing");
+  expect(expected.derivationVersion).toContain("iracing.race.control.phase@");
   const sessionId = await adapter.insertSession(990_205, 991_205, "iracing");
   try {
     const lapId = await adapter.insertLap({

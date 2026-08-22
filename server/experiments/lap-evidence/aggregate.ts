@@ -20,22 +20,50 @@
  * Phase 1 only strengthens the multi-lap case, it never regresses the
  * single-lap one.
  */
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { EligibilityDecision, EligibilityReason, EligibilityStatus, QualityReasonCode } from "../../../shared/racing/quality/contracts";
 import { selectEvaluationLaps, type EvaluationReason, type EvaluationSelection } from "../../../shared/racing/laps/review-selection";
 import { resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { getLapById } from "../../db/lap-read-queries";
 import { getLapsForExperiment, getLapMetaForExperimentVersion } from "../../db/experiment-lap-queries";
-import { resolveLapCorners } from "../../tracks/corner-resolution";
+import { resolveSemanticLapCorners } from "../../tracks/corner-resolution";
 import { resolveActiveTestId } from "../../db/experiment-version-queries";
-import { telemetryToSymptoms, type TuneSymptoms, type TyreDeltas } from "../../ai/tune-symptoms";
-import { telemetryToTrackConditions, type TrackConditions } from "../../ai/track-conditions";
-import { loadRepresentativeLap } from "../representative-lap";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { semanticSamplesFromReplay } from "../../telemetry/semantic-samples";
+import { telemetryToSymptoms, TUNE_SYMPTOM_SEMANTIC_IDS, type TuneSymptoms, type TyreDeltas } from "../../ai/tune-symptoms";
+import { telemetryToTrackConditions, TRACK_CONDITION_SEMANTIC_IDS, type TrackConditions } from "../../ai/track-conditions";
+import { loadRepresentativeLapTelemetry } from "../representative-lap";
 import { computeLapConsistencyDelta, computeLineSpreadTrace, type CornerConsistency, type LineSpreadTrace } from "../../lap-analysis/consistency";
 import { stddevPopulation } from "../../lap-analysis/stats";
 import { medianSorted, percentileSorted as percentile } from "../statistics";
 import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
+
+/** Exact semantic evidence required for every loaded clean lap. */
+export const CLEAN_LAP_AGGREGATE_SEMANTIC_IDS = [
+  ...TUNE_SYMPTOM_SEMANTIC_IDS,
+  ...TRACK_CONDITION_SEMANTIC_IDS,
+  "engine.boost",
+  "engine.current-engine-rpm",
+  "engine.engine-max-rpm",
+  "engine.power",
+  "fuel.fuel",
+  "inputs.accel",
+  "inputs.gear",
+  "inputs.steer",
+  "motion.angular-velocity-y",
+  "motion.position-x",
+  "motion.position-z",
+  "motion.velocity-x",
+  "motion.velocity-y",
+  "motion.velocity-z",
+  "suspension.suspension-travel-m",
+  "tire.temperature.average",
+  "tires.normalized-tire-slip-angle",
+  "tires.tire-combined-slip",
+  "tires.tire-wear",
+  "tires.wheel-on-rumble-strip",
+  "tires.wheel-rotation-speed",
+] as const;
 
 /** Overall confidence in the clean-lap pool backing an aggregate. */
 export type Confidence = "high" | "medium" | "low" | "very-low";
@@ -317,8 +345,8 @@ async function representativeLapFallback(
   lapBreakdown: LapBreakdownRow[],
   setupDecision: EligibilityDecision,
 ): Promise<CleanLapAggregate> {
-  const lap = await loadRepresentativeLap(sessionId);
-  if (!lap) {
+  const representative = await loadRepresentativeLapTelemetry(sessionId, CLEAN_LAP_AGGREGATE_SEMANTIC_IDS);
+  if (!representative) {
     return {
       ok: false,
       lapIds: [],
@@ -333,12 +361,13 @@ async function representativeLapFallback(
     };
   }
 
-  const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
+  const { lap, samples } = representative;
+  const corners = await resolveSemanticLapCorners(lap.trackOrdinal, lap.gameId, samples);
   return {
     ok: true,
     lapIds: [lap.id],
-    symptoms: telemetryToSymptoms(lap.telemetry, corners),
-    trackConditions: telemetryToTrackConditions(lap.telemetry),
+    symptoms: lap.gameId ? telemetryToSymptoms(lap.gameId, samples, corners) : null,
+    trackConditions: telemetryToTrackConditions(samples),
     consistency: emptyConsistency("very-low"),
     fallbackSingleLap: true,
     setupDecision,
@@ -387,39 +416,36 @@ export async function loadCleanLapAggregate(sessionId: number, opts?: { versionI
   const cleanSorted = [...clean].sort((a, b) => a.lapTime - b.lapTime).slice(0, MAX_CLEAN_LAPS);
   const fastestMeta = cleanSorted[0]!;
 
-  const loadedLaps: { meta: LapMeta; telemetry: TelemetryPacket[] }[] = [];
+  const loadedLaps: { meta: LapMeta; samples: SemanticTelemetrySample[] }[] = [];
   for (const meta of cleanSorted) {
-    const lap = await getLapById(meta.id);
-    if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) continue;
-    loadedLaps.push({ meta, telemetry: lap.telemetry });
+    if (!meta.gameId) continue;
+    const replay = await queryLapTelemetryBySemanticId(meta.id, CLEAN_LAP_AGGREGATE_SEMANTIC_IDS);
+    if (!replay) continue;
+    const samples = semanticSamplesFromReplay(replay);
+    if (samples.length < MIN_TELEMETRY_FRAMES) continue;
+    loadedLaps.push({ meta, samples });
   }
 
   if (loadedLaps.length < 2) {
-    // Telemetry too thin to analyse as a pool — fall back to the single
+    // Semantic replay too thin to analyse as a pool — fall back to the single
     // representative lap rather than aggregating over <2 laps.
     return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown, setupDecision);
   }
 
-  const fastestLoaded = loadedLaps.find((l) => l.meta.id === fastestMeta.id) ?? loadedLaps[0]!;
+  const fastestLoaded = loadedLaps.find((lap) => lap.meta.id === fastestMeta.id) ?? loadedLaps[0]!;
+  const corners = await resolveSemanticLapCorners(fastestLoaded.meta.trackOrdinal, fastestLoaded.meta.gameId, fastestLoaded.samples);
 
-  const corners = await resolveLapCorners(
-    fastestLoaded.meta.trackOrdinal,
-    fastestLoaded.meta.gameId,
-    fastestLoaded.telemetry,
-  );
-
-  const perLapSymptoms = loadedLaps.map((l) => telemetryToSymptoms(l.telemetry, corners));
-  const symptoms = aggregateSymptoms(perLapSymptoms);
-  const trackConditions = telemetryToTrackConditions(fastestLoaded.telemetry);
+  const symptoms = aggregateSymptoms(loadedLaps.map((lap) => telemetryToSymptoms(lap.meta.gameId!, lap.samples, corners)));
+  const trackConditions = telemetryToTrackConditions(fastestLoaded.samples);
 
   const cornerConsistencyDelta = computeLapConsistencyDelta(
-    loadedLaps.map((l) => l.telemetry),
+    loadedLaps.map((lap) => lap.samples),
     corners,
   );
   const cornerConsistency = cornerConsistencyDelta.perCorner.length > 0 ? cornerConsistencyDelta.perCorner : null;
   const lineSpread = computeLineSpreadTrace(
-    loadedLaps.map((l) => l.telemetry),
-    loadedLaps.map((l) => l.meta.id),
+    loadedLaps.map((lap) => lap.samples),
+    loadedLaps.map((lap) => lap.meta.id),
     corners,
   );
 

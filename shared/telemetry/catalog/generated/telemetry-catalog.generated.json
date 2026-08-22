@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "9660e843baebe3c7c47d2fc24de95fac9730aa1bcf98d134ad4273ac34ddbab2"
+      "sourceHash": "4ae0c8d04d909b262c90228bf1f0fd6b4beebe801ecd851521a21dd29efa495b"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "7d30f11083b66d4da68319754921ee3de75892f66279a407ee253b7229ac3f18",
@@ -22,7 +22,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "1ce5a5fc009f7330127f7b313ad1456ebf1603d9ef9058ae7cc55334a8c550af"
+    "contentHash": "efc558637b607a8db3ed78140328182758797bcb34a94476358af3cbb15c8747"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -47200,7 +47200,7 @@
             "iracing.sectorStarts",
             "iRacing.SessionInfo.SplitTimeInfo.Sectors[].SectorStartPct"
           ],
-          "freshness": "session-update",
+          "freshness": "static",
           "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",

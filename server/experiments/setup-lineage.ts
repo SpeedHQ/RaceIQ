@@ -1,6 +1,6 @@
 /** Active setup lineage and experiment-context resolution. */
 import type { GameId } from "../../shared/games/ids";
-import { getLapById } from "../db/lap-read-queries";
+import { getLapMetaById } from "../db/lap-read-queries";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { listExperimentVersions, updateExperimentVersionSetupSnapshot } from "../db/experiment-version-queries";
@@ -39,14 +39,8 @@ export function nearestSetupAncestor<
 }
 
 /** Resolve setup path in force at a version, walking past drill nodes. */
-export async function resolveSetupPathForVersion(
-  experimentId: number,
-  versionId: number | null,
-): Promise<string | null> {
-  const [session, versions] = await Promise.all([
-    getExperiment(experimentId),
-    listExperimentVersions(experimentId),
-  ]);
+export async function resolveSetupPathForVersion(experimentId: number, versionId: number | null): Promise<string | null> {
+  const [session, versions] = await Promise.all([getExperiment(experimentId), listExperimentVersions(experimentId)]);
   const ancestor = nearestSetupAncestor(versions, versionId);
   return ancestor?.setupPath ?? session?.baseSetupPath ?? null;
 }
@@ -78,9 +72,7 @@ export async function loadActiveExperimentContext(sessionId: number): Promise<Ac
 
   const tests = await listExperimentVersions(sessionId);
   const activeTest =
-    session.headVersionId != null
-      ? (tests.find((test) => test.id === session.headVersionId) ?? (tests.length ? tests[tests.length - 1]! : null))
-      : (tests.length ? tests[tests.length - 1]! : null);
+    session.headVersionId != null ? (tests.find((test) => test.id === session.headVersionId) ?? (tests.length ? tests[tests.length - 1]! : null)) : tests.length ? tests[tests.length - 1]! : null;
   const setupAncestor = nearestSetupAncestor(tests, activeTest?.id ?? null);
 
   if (gameId === "f1-2025") {
@@ -127,16 +119,12 @@ export async function loadActiveExperimentContext(sessionId: number): Promise<Ac
   };
 }
 
-/** Scan newest F1 laps for first telemetry setup, serialized for storage. */
+/** Return newest persisted F1 setup snapshot. */
 export async function captureF1SetupFromLaps(experimentId: number): Promise<string | null> {
   const sessionLaps = await getLapsForExperiment(experimentId);
   for (const meta of sessionLaps) {
-    const lap = await getLapById(meta.id);
-    if (!lap) continue;
-    for (const packet of lap.telemetry) {
-      const setup = (packet as any).f1?.setup;
-      if (setup && typeof setup === "object") return JSON.stringify(setup);
-    }
+    const lap = await getLapMetaById(meta.id);
+    if (lap?.carSetup) return lap.carSetup;
   }
   return null;
 }

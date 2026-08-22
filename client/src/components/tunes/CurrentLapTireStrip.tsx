@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
 
 /**
@@ -8,7 +8,7 @@ import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
  * replacement for sector-by-sector breakdown, which reviews completed lap
  * rather than what car is doing right now.
  */
-export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[] }) {
+export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) {
   const models = useMemo(() => METRICS.map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })), [telemetry]);
 
   // Fuel: min→avg→max over the trace, on a padded domain — same math/visual as a
@@ -18,11 +18,12 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[
     let max = Number.NEGATIVE_INFINITY;
     let sum = 0;
     let n = 0;
-    for (const p of telemetry) {
-      if (p.Fuel == null || !Number.isFinite(p.Fuel) || p.Fuel <= 0) continue;
-      if (p.Fuel < min) min = p.Fuel;
-      if (p.Fuel > max) max = p.Fuel;
-      sum += p.Fuel;
+    for (const frame of telemetry) {
+      const fuelValue = semanticNumber(frame, "fuel.fuel");
+      if (fuelValue == null || fuelValue <= 0) continue;
+      if (fuelValue < min) min = fuelValue;
+      if (fuelValue > max) max = fuelValue;
+      sum += fuelValue;
       n++;
     }
     if (n === 0) return null;

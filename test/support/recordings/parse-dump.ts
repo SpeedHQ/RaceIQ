@@ -1,9 +1,9 @@
 import type { GameId } from "../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { CapturedLap, CapturedSession } from "../../../server/telemetry/pipeline-ports"
-import type { LapSavedNotification } from "../../../server/lap-detection/types"
-import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../../server/telemetry/pipeline-ports"
-import { LiveTelemetryPipeline } from "../../../server/telemetry/live-pipeline"
+import type { CapturedLap, CapturedSession } from "../../../server/telemetry/pipeline-ports";
+import type { LapSavedNotification } from "../../../server/lap-detection/types";
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../../server/telemetry/pipeline-ports";
+import { LiveTelemetryPipeline } from "../../../server/telemetry/live-pipeline";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getAllServerGames, getServerGame } from "../../../server/games/registry";
@@ -14,11 +14,11 @@ import { parseAccBuffers } from "../../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
 import { readWString } from "../../../server/games/acc/utils";
 import { STATIC } from "../../../server/games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
+import { getAccCarByModel } from "../../../shared/racing/cars/acc";
+import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
+import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
 
 let _initialized = false;
 export function ensureInit(): void {
@@ -69,9 +69,7 @@ export interface TelemetryLapSegment {
   readonly lapNumber: number | undefined;
 }
 
-export function segmentTelemetryLaps(
-  packets: readonly TelemetryPacket[],
-): TelemetryLapSegment[] {
+export function segmentTelemetryLaps(packets: readonly TelemetryPacket[]): TelemetryLapSegment[] {
   const segments: TelemetryLapSegment[] = [];
   let start = 0;
   let minLapTime = packets[0]?.CurrentLap ?? 0;
@@ -95,15 +93,8 @@ export function segmentTelemetryLaps(
   for (let index = 1; index < packets.length; index += 1) {
     const previous = packets[index - 1];
     const packet = packets[index];
-    const sessionChanged =
-      previous.sessionUID !== undefined &&
-      packet.sessionUID !== undefined &&
-      previous.sessionUID !== packet.sessionUID;
-    const boundary =
-      sessionChanged ||
-      previous.LapNumber !== packet.LapNumber ||
-      (previous.CurrentLap > 5 && packet.CurrentLap < 1) ||
-      previous.DistanceTraveled - packet.DistanceTraveled > 500;
+    const sessionChanged = previous.sessionUID !== undefined && packet.sessionUID !== undefined && previous.sessionUID !== packet.sessionUID;
+    const boundary = sessionChanged || previous.LapNumber !== packet.LapNumber || (previous.CurrentLap > 5 && packet.CurrentLap < 1) || previous.DistanceTraveled - packet.DistanceTraveled > 500;
     if (boundary) closeSegment(index);
     minLapTime = Math.min(minLapTime, packet.CurrentLap);
     maxLapTime = Math.max(maxLapTime, packet.CurrentLap);
@@ -131,8 +122,14 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
     if (carOrdinal === 0 || trackOrdinal === 0) {
       const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
       const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-      if (cm) { carModel = cm; carOrdinal = getAccCarByModel(cm)?.id ?? 0; }
-      if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
+      if (cm) {
+        carModel = cm;
+        carOrdinal = getAccCarByModel(cm)?.id ?? 0;
+      }
+      if (tn) {
+        trackName = tn;
+        trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
+      }
     }
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal, timestampMS: frame.timestampMS });
     if (packet) packets.push(packet);
@@ -178,9 +175,7 @@ export function readUdpPackets(dumpPath: string, gameId?: GameId): ParsedFrames 
     return { packets: [], carModel: null, trackName: null };
   }
   if (buffers.length === 0) return { packets: [], carModel: null, trackName: null };
-  const serverAdapter = gameId
-    ? getServerGame(gameId)
-    : getAllServerGames().find((a) => a.canHandle(buffers[0]));
+  const serverAdapter = gameId ? getServerGame(gameId) : getAllServerGames().find((a) => a.canHandle(buffers[0]));
   if (!serverAdapter) {
     return { packets: [], carModel: null, trackName: null };
   }
@@ -209,11 +204,7 @@ export interface ParseDumpOptions {
  * @param gameId   The game the dump was recorded for
  * @param dumpPath Path to the dump.bin file
  */
-export async function parseDump(
-  gameId: GameId,
-  dumpPath: string,
-  options: ParseDumpOptions = {}
-): Promise<DumpResult> {
+export async function parseDump(gameId: GameId, dumpPath: string, options: ParseDumpOptions = {}): Promise<DumpResult> {
   ensureInit();
 
   const db = new CapturingDbAdapter();
@@ -222,6 +213,7 @@ export async function parseDump(
     bypassPacketRateFilter: true,
     recorder: new NullSessionRecorderAdapter(),
   });
+  const rawPackets: TelemetryPacket[] = [];
 
   let carModel: string | null = null;
   let trackName: string | null = null;
@@ -257,7 +249,10 @@ export async function parseDump(
           }
         }
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal, timestampMS: frame.timestampMS });
-        if (packet) await pipeline.processPacket(packet);
+        if (packet) {
+          if (options.capturePackets !== false) rawPackets.push(packet);
+          await pipeline.processPacket(packet);
+        }
         // Capture adapter writes resolve synchronously. Yield
         // periodically so long recordings do not defer GC until suite timeout.
         if ((++processedFrames & 1023) === 0) {
@@ -291,7 +286,10 @@ export async function parseDump(
         if (offset + frameLen > raw.length) break;
         const packet = serverGame.tryParse(raw.subarray(offset, offset + frameLen), parserState);
         offset += frameLen;
-        if (packet) await pipeline.processPacket(packet);
+        if (packet) {
+          if (options.capturePackets !== false) rawPackets.push(packet);
+          await pipeline.processPacket(packet);
+        }
       }
     }
   } else if (gameId === "ac-evo") {
@@ -299,6 +297,7 @@ export async function parseDump(
     carModel = parsed.carModel;
     trackName = parsed.trackName;
     for (const packet of parsed.packets) {
+      if (options.capturePackets !== false) rawPackets.push(packet);
       await pipeline.processPacket(packet);
     }
   } else if (gameId === "iracing") {
@@ -315,12 +314,14 @@ export async function parseDump(
       if (!packet) continue;
       carModel ??= packet.iracing?.carName ?? null;
       trackName ??= packet.iracing?.trackName ?? null;
+      if (options.capturePackets !== false) rawPackets.push(packet);
       await pipeline.processPacket(packet);
     }
   } else {
     const parsed = readUdpPackets(dumpPath, gameId);
     if (parsed.packets.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
     for (const packet of parsed.packets) {
+      if (options.capturePackets !== false) rawPackets.push(packet);
       await pipeline.processPacket(packet);
     }
   }
@@ -331,8 +332,7 @@ export async function parseDump(
   // Flush deferred insertLap calls (lap-detector uses setTimeout(..., 0))
   await new Promise<void>((r) => setTimeout(r, 0));
 
-  // Extract raw packets from broadcast events (all packets that went through the pipeline)
-  const rawPackets = ws.broadcastedPackets.map((e) => e.packet);
+  // Raw fixtures retain their parser-ingress frames for lap segmentation.
 
   // Match each captured DB lap to one contiguous packet segment. Lap numbers
   // restart across sessions, so grouping every packet by LapNumber mixes laps.
@@ -364,8 +364,7 @@ export async function parseDump(
       continue;
     }
     unusedSegments.delete(bestIndex);
-    const packetStart =
-      lap.rawFrameCount > 0 ? Math.max(segment.start, segment.end - lap.rawFrameCount) : segment.start;
+    const packetStart = lap.rawFrameCount > 0 ? Math.max(segment.start, segment.end - lap.rawFrameCount) : segment.start;
     lap.packets = rawPackets.slice(packetStart, segment.end);
   }
   assertLapsHavePackets(db.laps);
@@ -380,4 +379,3 @@ export async function parseDump(
     rawPackets,
   };
 }
-

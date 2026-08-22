@@ -46,9 +46,9 @@ const AppSettingsSchema = z.object({
   // calls to cap GPU/CPU work when the scene is idle or when the user
   // wants to trade smoothness for battery/thermal headroom. 15–120 fps.
   renderFpsCap: z.number().int().min(15).max(120).default(60),
-  // Max in-memory cache for parsed lap telemetry, in megabytes. Bounds the
-  // size of the per-lap TelemetryPacket[] cache used by analyse/compare/chat
-  // workflows. LRU eviction kicks in once the budget is exceeded.
+  // Max in-memory cache for native lap replay decoding, in megabytes.
+  // Resolver-backed consumers never inspect this packet cache directly.
+  // LRU eviction starts once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),

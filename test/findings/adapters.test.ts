@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
 import { validateFinding } from "../../shared/racing/findings/validate";
 import { adaptComparisonToFindings } from "../../server/findings/comparison-adapter";
 import { adaptLapInsightsToFindingBundle, adaptLapInsightsToFindings } from "../../server/findings/lap-adapter";
@@ -26,65 +26,71 @@ const reportQuality = finalizeLapQualityGeneration(summarize(qualityPackets(200)
   rawByteOffset: null,
   rawFrameCount: 200,
 });
+function semanticSamples(count: number): SemanticTelemetrySample[] {
+  return Array.from({ length: count }, (_, index) => ({
+    sequence: String(index),
+    observedAtMs: index * 100,
+    values: {},
+  }));
+}
 
 function comparisonResult(deltaSeconds = -0.25): ComparisonResult {
   const trace = {
-    speed: [100, 90], throttle: [1, 0], brake: [0, 1], steer: [0, 0], rpm: [7000, 6000],
-    gear: [4, 3], posX: [0, 1], posZ: [0, 1], elapsedTime: [0, 1], tireWear: [0, 0],
-    fuel: [20, 19], sourceIndices: [4, 9],
+    speed: [100, 90],
+    throttle: [1, 0],
+    brake: [0, 1],
+    steer: [0, 0],
+    rpm: [7000, 6000],
+    gear: [4, 3],
+    posX: [0, 1],
+    posZ: [0, 1],
+    elapsedTime: [0, 1],
+    tireWear: [0, 0],
+    fuel: [20, 19],
+    sourceIndices: [4, 9],
   };
   return {
     distances: [0, 1],
     lapA: trace,
     lapB: { ...trace, sourceIndices: [6, 11] },
     timeDelta: [0, deltaSeconds],
-    cornerDeltas: [{
-      label: "Turn 1",
-      deltaSeconds,
-      timeA: 1,
-      timeB: 1 - deltaSeconds,
-      distanceStart: 0,
-      distanceEnd: 1,
-      alignedStartIndex: 0,
-      alignedEndIndex: 1,
-      sourceStartIndexA: 4,
-      sourceEndIndexA: 9,
-      sourceStartIndexB: 6,
-      sourceEndIndexB: 11,
-    }],
+    cornerDeltas: [
+      {
+        label: "Turn 1",
+        deltaSeconds,
+        timeA: 1,
+        timeB: 1 - deltaSeconds,
+        distanceStart: 0,
+        distanceEnd: 1,
+        alignedStartIndex: 0,
+        alignedEndIndex: 1,
+        sourceStartIndexA: 4,
+        sourceEndIndexA: 9,
+        sourceStartIndexB: 6,
+        sourceEndIndexB: 11,
+      },
+    ],
   };
 }
 
-function reportPacket(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
+function reportSample(distanceM: number, observedAtMs: number): SemanticTelemetrySample {
   return {
-    gameId: "acc",
-    CarClass: 1,
-    DrivetrainType: 0,
-    CarOrdinal: 1,
-    CarPerformanceIndex: 700,
-    VelocityX: 20,
-    VelocityY: 0,
-    VelocityZ: 0,
-    CurrentEngineRpm: 6000,
-    Accel: 128,
-    Brake: 0,
-    TireTempFL: 80,
-    TireTempFR: 81,
-    TireTempRL: 82,
-    TireTempRR: 83,
-    SuspensionTravelMFL: 0.1,
-    SuspensionTravelMFR: 0.1,
-    SuspensionTravelMRL: 0.1,
-    SuspensionTravelMRR: 0.1,
-    Gear: 3,
-    TireWearFL: 0.1,
-    TireWearFR: 0.11,
-    TireWearRL: 0.12,
-    TireWearRR: 0.13,
-    DistanceTraveled: 0,
-    TimestampMS: 0,
-    ...overrides,
-  } as TelemetryPacket;
+    sequence: String(observedAtMs),
+    observedAtMs,
+    values: {
+      "motion.velocity-x": 20,
+      "motion.velocity-y": 0,
+      "motion.velocity-z": 0,
+      "engine.current-engine-rpm": 6000,
+      "inputs.accel": 128,
+      "inputs.brake": 0,
+      "inputs.gear": 3,
+      "tire.temperature.average": [80, 81, 82, 83],
+      "suspension.suspension-travel-m": [0.1, 0.1, 0.1, 0.1],
+      "tires.tire-wear": [0.1, 0.11, 0.12, 0.13],
+      "timing.distance-traveled": distanceM,
+    },
+  };
 }
 
 describe("finding adapters", () => {
@@ -155,9 +161,7 @@ describe("finding adapters", () => {
       analysisGenerationId: "generation-contiguous",
     })[0]!;
 
-    expect(finding.evidenceRefs.filter((reference) => reference.kind === "telemetry-range")).toEqual([
-      expect.objectContaining({ startFrameIndex: 0, endFrameIndex: 999 }),
-    ]);
+    expect(finding.evidenceRefs.filter((reference) => reference.kind === "telemetry-range")).toEqual([expect.objectContaining({ startFrameIndex: 0, endFrameIndex: 999 })]);
     expect(finding.limitations).not.toContainEqual(expect.objectContaining({ code: "evidence-truncated" }));
     expect(finding.measurements.find((measurement) => measurement.type === "occurrence-count")?.value).toBe(1_000);
   });
@@ -180,12 +184,14 @@ describe("finding adapters", () => {
 
     const findingId = original.findings[0]?.id;
     expect(findingId).toBe(reworded.findings[0]?.id);
-    expect(original.narratives).toEqual([expect.objectContaining({
-      findingIds: [findingId],
-      text: "Release brake fully before throttle.",
-      generator: "lap-insight-adapter",
-      generationId: "generation-1",
-    })]);
+    expect(original.narratives).toEqual([
+      expect.objectContaining({
+        findingIds: [findingId],
+        text: "Release brake fully before throttle.",
+        generator: "lap-insight-adapter",
+        generationId: "generation-1",
+      }),
+    ]);
     expect(original.recommendations).toEqual([]);
   });
 
@@ -221,10 +227,12 @@ describe("finding adapters", () => {
       expect(finding.status).toBe("indeterminate");
       expect(finding.confidence).toBe("unknown");
       expect(finding.measurements[0]?.confidence).toBe("unknown");
-      expect(finding.limitations).toContainEqual(expect.objectContaining({
-        code: "quality-rejected",
-        detail: "telemetry distance too short",
-      }));
+      expect(finding.limitations).toContainEqual(
+        expect.objectContaining({
+          code: "quality-rejected",
+          detail: "telemetry distance too short",
+        }),
+      );
       expect(finding.qualityRefs).toEqual([
         expect.objectContaining({
           kind: "quality-decision",
@@ -245,11 +253,7 @@ describe("finding adapters", () => {
       quality: { valid: true, reason: null },
     });
 
-    expect(findings.every((finding) =>
-      finding.status === "available" &&
-      finding.confidence === "high" &&
-      finding.qualityRefs.length === 0
-    )).toBe(true);
+    expect(findings.every((finding) => finding.status === "available" && finding.confidence === "high" && finding.qualityRefs.length === 0)).toBe(true);
     expect(findings.every((finding) => validateFinding(finding).valid)).toBe(true);
   });
 
@@ -279,10 +283,12 @@ describe("finding adapters", () => {
     });
 
     expect(finding.measurements.find((measurement) => measurement.type === "lap-a-minus-lap-b-time-delta")?.value).toBe(-0.25);
-    expect(finding.comparisonReference).toEqual(expect.objectContaining({
-      id: "lap:52",
-      selectionReason: "selected fastest valid lap",
-    }));
+    expect(finding.comparisonReference).toEqual(
+      expect.objectContaining({
+        id: "lap:52",
+        selectionReason: "selected fastest valid lap",
+      }),
+    );
     expect(finding.evidenceRefs).toContainEqual(expect.objectContaining({ kind: "lap", lapId: "52", sessionId: "9" }));
     expect(finding.evidenceRefs.filter((reference) => reference.kind === "telemetry-range")).toEqual([
       expect.objectContaining({ lapId: "41", sessionId: "7", startFrameIndex: 4, endFrameIndex: 9 }),
@@ -293,17 +299,22 @@ describe("finding adapters", () => {
   });
 
   test("lap resource helper emits deterministic findings without raw packets", () => {
-    const bundle = buildDeterministicLapFindings({
-      id: 41,
-      sessionId: 7,
-      gameId: "acc",
-      lapNumber: 2,
-      lapTime: 90,
-      isValid: true,
-      createdAt: "2026-08-21T00:00:00.000Z",
-      quality: reportQuality.quality,
-      telemetry: [{ TimestampMS: 100 }, { TimestampMS: 200 }],
-    }, [insight], { valid: true, reason: null }, "analysis-generation-1");
+    const bundle = buildDeterministicLapFindings(
+      {
+        id: 41,
+        sessionId: 7,
+        gameId: "acc",
+        lapNumber: 2,
+        lapTime: 90,
+        isValid: true,
+        createdAt: "2026-08-21T00:00:00.000Z",
+        quality: reportQuality.quality,
+        telemetry: semanticSamples(2),
+      },
+      [insight],
+      { valid: true, reason: null },
+      "analysis-generation-1",
+    );
 
     expect(bundle.findings.some((finding) => finding.type === "lap-insight")).toBe(true);
     expect(JSON.stringify(bundle)).not.toContain("VelocityX");
@@ -311,29 +322,30 @@ describe("finding adapters", () => {
   });
 
   test("lap findings service applies rejected quality to every metric finding", () => {
-    const bundle = buildDeterministicLapFindings({
-      id: 41,
-      sessionId: 7,
-      gameId: "acc",
-      lapNumber: 2,
-      lapTime: 90,
-      isValid: false,
-      createdAt: "2026-08-21T00:00:00.000Z",
-      fuelPerLap: 2.4,
-      tyreWear: 13,
-      quality: reportQuality.quality,
-      telemetry: [{ TimestampMS: 100 }],
-    }, [insight], { valid: false, reason: "too few telemetry packets" }, "analysis-generation-1");
-
-    const metrics = bundle.findings.filter((finding) =>
-      finding.type === "fuel-per-lap" || finding.type === "tyre-wear"
+    const bundle = buildDeterministicLapFindings(
+      {
+        id: 41,
+        sessionId: 7,
+        gameId: "acc",
+        lapNumber: 2,
+        lapTime: 90,
+        isValid: false,
+        createdAt: "2026-08-21T00:00:00.000Z",
+        fuelPerLap: 2.4,
+        tyreWear: 13,
+        quality: reportQuality.quality,
+        telemetry: semanticSamples(1),
+      },
+      [insight],
+      { valid: false, reason: "too few telemetry packets" },
+      "analysis-generation-1",
     );
+
+    const metrics = bundle.findings.filter((finding) => finding.type === "fuel-per-lap" || finding.type === "tyre-wear");
     expect(metrics).toHaveLength(2);
-    expect(metrics.every((finding) =>
-      finding.status === "indeterminate" &&
-      finding.confidence === "unknown" &&
-      finding.limitations.some((limitation) => limitation.code === "quality-rejected")
-    )).toBe(true);
+    expect(metrics.every((finding) => finding.status === "indeterminate" && finding.confidence === "unknown" && finding.limitations.some((limitation) => limitation.code === "quality-rejected"))).toBe(
+      true,
+    );
     expect(bundle.narratives).toEqual([
       expect.objectContaining({
         findingIds: [expect.any(String)],
@@ -349,41 +361,42 @@ describe("finding adapters", () => {
       ...reportQuality.eligibility[policy],
       status: "ineligible" as const,
     });
-    const bundle = buildDeterministicLapFindings({
-      id: 41,
-      sessionId: 7,
-      gameId: "iracing",
-      lapNumber: 2,
-      lapTime: 90,
-      isValid: true,
-      createdAt: "2026-08-21T00:00:00.000Z",
-      fuelPerLap: 2.4,
-      tyreWear: 13,
-      telemetry: qualityPackets(200),
-      quality: reportQuality.quality,
-      eligibility: {
-        ...reportQuality.eligibility,
-        "corner-trace": ineligible("corner-trace"),
-        "fuel-burn": ineligible("fuel-burn"),
-        "tire-analysis": ineligible("tire-analysis"),
+    const bundle = buildDeterministicLapFindings(
+      {
+        id: 41,
+        sessionId: 7,
+        gameId: "iracing",
+        lapNumber: 2,
+        lapTime: 90,
+        isValid: true,
+        createdAt: "2026-08-21T00:00:00.000Z",
+        fuelPerLap: 2.4,
+        tyreWear: 13,
+        telemetry: semanticSamples(200),
+        quality: reportQuality.quality,
+        eligibility: {
+          ...reportQuality.eligibility,
+          "corner-trace": ineligible("corner-trace"),
+          "fuel-burn": ineligible("fuel-burn"),
+          "tire-analysis": ineligible("tire-analysis"),
+        },
+        qualityGeneration: reportQuality.quality.provenance.outputGeneration,
+        qualityStale: false,
       },
-      qualityGeneration: reportQuality.quality.provenance.outputGeneration,
-      qualityStale: false,
-    }, [insight], { valid: true, reason: null }, "analysis-generation-1");
-
-    const restricted = bundle.findings.filter((finding) =>
-      finding.type === "lap-insight" || finding.type === "fuel-per-lap" || finding.type === "tyre-wear"
+      [insight],
+      { valid: true, reason: null },
+      "analysis-generation-1",
     );
+
+    const restricted = bundle.findings.filter((finding) => finding.type === "lap-insight" || finding.type === "fuel-per-lap" || finding.type === "tyre-wear");
     expect(restricted).toHaveLength(3);
-    expect(restricted.every((finding) =>
-      finding.status === "indeterminate" &&
-      finding.confidence === "unknown" &&
-      finding.limitations.some((limitation) => limitation.code.startsWith("quality-policy-"))
-    )).toBe(true);
+    expect(
+      restricted.every((finding) => finding.status === "indeterminate" && finding.confidence === "unknown" && finding.limitations.some((limitation) => limitation.code.startsWith("quality-policy-"))),
+    ).toBe(true);
   });
 
   test("lap export renders deterministic findings section", () => {
-    const packets = [reportPacket(), reportPacket({ DistanceTraveled: 100, TimestampMS: 1000 })];
+    const packets = [reportSample(0, 0), reportSample(100, 1000)];
     const findings = adaptMetricsToFindings({
       gameId: "acc",
       sessionId: 7,

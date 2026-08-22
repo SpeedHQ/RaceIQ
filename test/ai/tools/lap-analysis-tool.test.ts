@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  getLapAnalysisToolFor,
-  parseCachedLapAnalysis,
-} from "../../../mastra/tools/lap-analysis";
+import { getLapAnalysisToolFor, parseCachedLapAnalysis } from "../../../mastra/tools/lap-analysis";
 import { lapFindingGenerationCacheKey } from "../../../server/db/analysis-queries";
 import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "../../../server/ai/chat-message-context";
 import { buildCompareChatSystemPrompt } from "../../../server/ai/compare-chat-prompt";
@@ -41,11 +38,7 @@ function isLapResult(value: unknown): value is LapResult {
     lapId?: unknown;
     readable?: unknown;
   };
-  return (
-    typeof result.available === "boolean" &&
-    typeof result.lapId === "number" &&
-    typeof result.readable === "string"
-  );
+  return typeof result.available === "boolean" && typeof result.lapId === "number" && typeof result.readable === "string";
 }
 
 const comparison = {
@@ -55,18 +48,20 @@ const comparison = {
 } as never;
 
 const findingDeps = {
-  getLapById: async (lapId: number) => ({
-    id: lapId,
-    gameId: "fm-2023" as const,
-    sessionId: 17,
-  }) as never,
-  getCurrentFindingGeneration: async () => ({
-    receipt: {
-      generationId: "generation-4",
-      contentHash: "content-4",
-    },
-    findings: [],
-  }) as never,
+  getLapMetaById: async (lapId: number) =>
+    ({
+      id: lapId,
+      gameId: "fm-2023" as const,
+      sessionId: 17,
+    }) as never,
+  getCurrentFindingGeneration: async () =>
+    ({
+      receipt: {
+        generationId: "generation-4",
+        contentHash: "content-4",
+      },
+      findings: [],
+    }) as never,
 };
 
 describe("lap analysis retrieval contract", () => {
@@ -87,11 +82,7 @@ describe("lap analysis retrieval contract", () => {
   });
 
   test("rejects null, arrays, and schema-invalid cached rows", async () => {
-    for (const analysis of [
-      "null",
-      "[]",
-      JSON.stringify({ verdict: "missing required fields" }),
-    ]) {
+    for (const analysis of ["null", "[]", JSON.stringify({ verdict: "missing required fields" })]) {
       const tool = getLapAnalysisToolFor(
         async () => ({
           analysis,
@@ -154,23 +145,20 @@ describe("lap analysis retrieval contract", () => {
     );
     const execute = tool.execute;
     if (!execute) throw new Error("Lap analysis tool has no execute function");
-    const rawResult = await execute(
-      { lapId: 4 },
-      {
-        requestContext: {
-          get(key: string) {
-            return key === FINDING_RECEIPT_FENCE_CONTEXT_KEY
-              ? {
-                  kind: "lap",
-                  gameId: "fm-2023",
-                  cacheKey,
-                  laps: [{ lapId: 4, ...receipt }],
-                }
-              : undefined;
-          },
+    const rawResult = await execute({ lapId: 4 }, {
+      requestContext: {
+        get(key: string) {
+          return key === FINDING_RECEIPT_FENCE_CONTEXT_KEY
+            ? {
+                kind: "lap",
+                gameId: "fm-2023",
+                cacheKey,
+                laps: [{ lapId: 4, ...receipt }],
+              }
+            : undefined;
         },
-      } as never,
-    );
+      },
+    } as never);
     if (!isLapResult(rawResult)) throw new Error("Unexpected lap analysis tool result");
 
     expect(receivedExpectation).toEqual({
@@ -180,14 +168,7 @@ describe("lap analysis retrieval contract", () => {
     });
   });
   test("does not embed cached analysis in compare prompts", () => {
-    const comparePrompt = buildCompareChatSystemPrompt(
-      lap,
-      { ...lap, lapNumber: 5 },
-      comparison,
-      "metric",
-      "C",
-      "en",
-    );
+    const comparePrompt = buildCompareChatSystemPrompt(lap, { ...lap, lapNumber: 5 }, comparison, "metric", "C", "en");
     expect(comparePrompt).not.toContain("LAP A ANALYSIS");
     expect(comparePrompt).not.toContain("LAP B ANALYSIS");
     expect(comparePrompt).toContain("get_lap_analysis");

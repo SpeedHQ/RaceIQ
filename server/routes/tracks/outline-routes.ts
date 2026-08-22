@@ -3,13 +3,16 @@ import { zValidator } from "@hono/zod-validator";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import { eligibilityDecisionText } from "@shared/racing/quality/display";
 import { isEligibilityUsable, isTimedLapEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/quality/policies";
-import { getLaps, getLapById } from "../../db/lap-read-queries";
+import { getLaps, getLapMetaById } from "../../db/lap-read-queries";
 import { deleteRecordedOutline, getStartYaw, recordLapTrace } from "../../../shared/racing/tracks/recording/outlines";
 import { getTrackAltitudeByOrdinal } from "../../../shared/racing/tracks/geometry/extracted";
 import { filterLapOutliers, normalizeToFixedPoints, averageOutlines, smoothOutline } from "../../lap-detection/detector";
 import type { GameId } from "../../../shared/games/ids";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../../shared/racing/analysis/laps/semantic-frame";
 import { computeLapSectors } from "../../lap-analysis/sectors";
-import { requireGameId, resolveTrackOutline, TrackOrdinalParamSchema } from "./support";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { semanticNumber, semanticSamplesFromReplay } from "../../telemetry/semantic-samples";
+import { requireGameId, resolveTrackOutline, TRACK_OUTLINE_SEMANTIC_IDS, TrackOrdinalParamSchema } from "./support";
 
 export const trackRecomputeOutlineRoutes = new Hono()
 
@@ -24,7 +27,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
     if (lapIdParam) {
       // Single lap mode — use its telemetry directly as the outline
       const lapId = parseInt(lapIdParam, 10);
-      const lapData = await getLapById(lapId);
+      const lapData = await getLapMetaById(lapId);
       if (!lapData || lapData.gameId !== gameId || lapData.trackOrdinal !== trackOrdinal || lapData.ownership !== "mine" || lapData.lapTime <= 0) {
         return c.json({ error: `Lap ${lapId} not found` }, 404);
       }
@@ -33,10 +36,13 @@ export const trackRecomputeOutlineRoutes = new Hono()
         return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
       }
 
+      const replay = await queryLapTelemetryBySemanticId(lapData.id, TRACK_OUTLINE_SEMANTIC_IDS);
+      if (!replay) return c.json({ error: "Lap telemetry not found" }, 404);
       const raw: { x: number; z: number }[] = [];
-      for (const p of lapData.telemetry) {
-        if (p.PositionX === 0 && p.PositionZ === 0) continue;
-        raw.push({ x: p.PositionX, z: p.PositionZ });
+      for (const sample of semanticSamplesFromReplay(replay)) {
+        const x = semanticNumber(sample, "motion.position-x");
+        const z = semanticNumber(sample, "motion.position-z");
+        if (x != null && z != null && (x !== 0 || z !== 0)) raw.push({ x, z });
       }
       if (raw.length < 50) {
         return c.json({ error: "Not enough telemetry data" }, 400);
@@ -68,28 +74,23 @@ export const trackRecomputeOutlineRoutes = new Hono()
     const startPositions: { x: number; z: number }[] = [];
 
     for (const lapMeta of bestLaps) {
-      const lapData = await getLapById(lapMeta.id);
-      if (
-        !lapData ||
-        lapData.gameId !== gameId ||
-        lapData.trackOrdinal !== trackOrdinal ||
-        lapData.ownership !== "mine" ||
-        !isTimedLapEligibilityUsable(lapData, "corner-trace") ||
-        lapData.telemetry.length < 50
-      ) {
+      const lapData = await getLapMetaById(lapMeta.id);
+      if (!lapData || lapData.gameId !== gameId || lapData.trackOrdinal !== trackOrdinal || lapData.ownership !== "mine" || !isTimedLapEligibilityUsable(lapData, "corner-trace")) {
         continue;
       }
-
-      let raw: { x: number; z: number; speed: number }[] = [];
-      for (const p of lapData.telemetry) {
-        if (p.PositionX === 0 && p.PositionZ === 0) continue;
-        raw.push({ x: p.PositionX, z: p.PositionZ, speed: (p.Speed ?? 0) * 2.23694 });
+      const replay = await queryLapTelemetryBySemanticId(lapData.id, TRACK_OUTLINE_SEMANTIC_IDS);
+      if (!replay) continue;
+      const raw: { x: number; z: number; speed: number }[] = [];
+      for (const sample of semanticSamplesFromReplay(replay)) {
+        const x = semanticNumber(sample, "motion.position-x");
+        const z = semanticNumber(sample, "motion.position-z");
+        const speed = semanticNumber(sample, "motion.speed");
+        if (x != null && z != null && speed != null && (x !== 0 || z !== 0)) raw.push({ x, z, speed });
       }
-      raw = filterLapOutliers(raw);
-      if (raw.length < 50) continue;
-
-      rawLaps.push(raw);
-      const last = raw[raw.length - 1];
+      const filtered = filterLapOutliers(raw);
+      if (filtered.length < 50) continue;
+      rawLaps.push(filtered);
+      const last = filtered[filtered.length - 1];
       startPositions.push({ x: last.x, z: last.z });
     }
 
@@ -151,11 +152,13 @@ export const trackLapSectorRoutes = new Hono()
     const result: Record<number, number[]> = {};
 
     for (const lapMeta of trackLaps) {
-      const lapData = await getLapById(lapMeta.id);
-      if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
+      const lapData = await getLapMetaById(lapMeta.id);
+      if (!lapData) continue;
       const lapGameId = lapMeta.gameId ?? gameId;
       if (!lapGameId) continue;
-      const times = await computeLapSectors(ordinal, lapGameId, lapData.telemetry, lapMeta.lapTime);
+      const replay = await queryLapTelemetryBySemanticId(lapData.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+      if (!replay) continue;
+      const times = await computeLapSectors(ordinal, lapGameId, semanticSamplesFromReplay(replay), lapMeta.lapTime);
       if (times) result[lapMeta.id] = times;
     }
 

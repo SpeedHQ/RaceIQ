@@ -110,7 +110,12 @@ test("RealDbAdapter can suppress profile notifications for imports", async () =>
 describe("NullWsAdapter", () => {
   test("all methods are no-ops and do not throw", () => {
     const ws = new NullWsAdapter();
-    expect(() => ws.broadcast({ gameId: "f1-2025" } as TelemetryPacket, null, null)).not.toThrow();
+    expect(() => ws.stageDevTelemetry({ gameId: "f1-2025" } as TelemetryPacket)).not.toThrow();
+    expect(() =>
+      ws.publishTelemetry({
+        sample: { sequence: "0", observedAtMs: 0, values: {} },
+      }),
+    ).not.toThrow();
     expect(() => ws.broadcastNotification({ type: "test" })).not.toThrow();
     expect(() => ws.broadcastDevState({ key: "value" })).not.toThrow();
   });

@@ -74,14 +74,25 @@ describe("consultLapAnalystForSession finding authority", () => {
       loadRepresentativeLapSelection: async () => selection,
       getCurrentFindingGeneration: async () => FINDING_GENERATION,
       resolveLapSegments: async () => [],
-      resolveLapCorners: async () => [],
-      loadSettings: () => ({
-        aiProvider: "local",
-        localEndpoint: "http://localhost:1234/v1",
-        unit: "metric",
-        temperatureUnit: "C",
-        language: "en",
-      }) as never,
+      resolveSemanticLapCorners: async () => [],
+      queryLapTelemetryBySemanticId: async () =>
+        ({
+          envelopes: [
+            {
+              sequence: 0n,
+              observedAt: { domain: "session", milliseconds: 0 },
+              values: [],
+            },
+          ],
+        }) as never,
+      loadSettings: () =>
+        ({
+          aiProvider: "local",
+          localEndpoint: "http://localhost:1234/v1",
+          unit: "metric",
+          temperatureUnit: "C",
+          language: "en",
+        }) as never,
       buildAnalystPrompt: () => "fenced prompt",
       generate: async () => ({ text: "analysis" }),
     });

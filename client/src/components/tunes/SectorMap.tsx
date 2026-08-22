@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { useTrackBoundaries } from "../../hooks/track-queries";
 import { buildGeometry, extractEdges, type ProjPt, VIEW } from "./track-map-geometry";
 
@@ -16,7 +16,7 @@ export interface ReadoutRow {
 }
 
 interface SectorMapProps {
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   sectorTimes: SectorTimes | null;
   /** When set, only that sector's segment is lit; the rest are faded. */
   highlight?: number;
@@ -25,7 +25,7 @@ interface SectorMapProps {
   /** When provided, the track's left/right edges are fetched and drawn faintly. */
   trackOrdinal?: number;
   /** Tooltip content for the hovered frame; when omitted, hover is disabled. */
-  readout?: (frame: TelemetryPacket, fraction: number) => ReadoutRow[];
+  readout?: (frame: SemanticAnalysisFrame, fraction: number) => ReadoutRow[];
   /** Reports the hovered telemetry index (or null) so a parent can sync other
    *  views — e.g. draw the cursor value on the range bars. */
   onHover?: (idx: number | null) => void;

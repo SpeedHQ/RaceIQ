@@ -7,6 +7,28 @@ import { TELEMETRY_DERIVATION_VERSION } from "../../../shared/telemetry/derivati
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
 import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../../shared/telemetry/resolver/versions";
 import { packet } from "../../support/telemetry/resolver";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+
+type IRacingExtension = NonNullable<TelemetryPacket["iracing"]>;
+
+function iracingExtension(overrides: Partial<IRacingExtension> = {}): IRacingExtension {
+  return {
+    sessionTick: 1,
+    sessionNum: 0,
+    driverCarIdx: 0,
+    trackLengthM: 0,
+    lapDistanceM: 0,
+    lapDistancePct: 0,
+    onPitRoad: false,
+    playerTrackSurface: 0,
+    incidents: 0,
+    trackWetness: 0,
+    carName: "",
+    carClassName: "",
+    trackName: "",
+    ...overrides,
+  };
+}
 
 describe("compiled telemetry resolver", () => {
   test("compiles normalized packet fields for every supported simulator", () => {
@@ -51,9 +73,7 @@ describe("compiled telemetry resolver", () => {
       ],
     });
 
-    expect(resolver.derivationVersion).toContain(
-      `${derivation.id}@${derivation.version}:${derivation.codeHash}`,
-    );
+    expect(resolver.derivationVersion).toContain(`${derivation.id}@${derivation.version}:${derivation.codeHash}`);
     expect(changed.derivationVersion).not.toBe(resolver.derivationVersion);
   });
 
@@ -136,6 +156,29 @@ describe("compiled telemetry resolver", () => {
     expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
       value: [80, 81, 82, 83],
       mappingStatus: "simplified",
+      state: "ok",
+    });
+  });
+  test("accepts source-ordered variable arrays at their runtime length", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "timing.sector.layout.start-fractions" }],
+    });
+    const slot = resolver.slot("timing.sector.layout.start-fractions");
+    const frame = resolver.createFrameView(
+      packet("iracing", {
+        iracing: iracingExtension({
+          sectorStarts: [0, 0.34, 0.67],
+        }),
+      }),
+      {
+        timestamp: { domain: "session", milliseconds: 1_000 },
+        updateSequence: 1n,
+      },
+    );
+
+    expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
+      value: [0, 0.34, 0.67],
       state: "ok",
     });
   });

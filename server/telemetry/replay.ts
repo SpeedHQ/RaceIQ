@@ -7,6 +7,8 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "../games/iracing/source-frame";
+import { getServerGame } from "../games/registry";
+import type { ServerGameAdapter } from "../games/types";
 import { readFrameStreamStart } from "../session-capture/framing";
 import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 
@@ -58,7 +60,7 @@ function resolveRawReference(source: LapReplaySource, capture: RawCaptureIdentit
   return undefined;
 }
 
-function receivedTimestamp(createdAt: string): TelemetryTimestamp {
+function receivedTimestamp(createdAt: string): { readonly domain: "wall-clock"; readonly milliseconds: number } {
   const iso = createdAt.includes("T") ? createdAt : `${createdAt.replace(" ", "T")}Z`;
   const milliseconds = Date.parse(iso);
   if (!Number.isFinite(milliseconds)) {
@@ -67,9 +69,11 @@ function receivedTimestamp(createdAt: string): TelemetryTimestamp {
   return { domain: "wall-clock", milliseconds };
 }
 
-function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp): TelemetryTimestamp {
-  if (!Number.isFinite(packet.TimestampMS)) return fallback;
-  return packet.gameId === "acc" || packet.gameId === "ac-evo" ? { domain: "wall-clock", milliseconds: packet.TimestampMS } : { domain: "session", milliseconds: packet.TimestampMS };
+function replayTimestamp(adapter: ServerGameAdapter, packet: TelemetryPacket, receivedAtMs: number): TelemetryTimestamp {
+  return {
+    domain: adapter.raceEventTimestampDomain,
+    milliseconds: adapter.raceEventObservedAtMs(packet, receivedAtMs),
+  };
 }
 
 /**
@@ -88,6 +92,10 @@ export async function queryLapTelemetryBySemanticId(lapId: number, requestedSema
   if (lap.telemetry.length === 0) {
     throw new Error(`Lap ${lapId} has no replayable telemetry`);
   }
+  const firstPacket = lap.telemetry[0];
+  if (!firstPacket) {
+    throw new Error(`Lap ${lapId} has no replayable telemetry`);
+  }
 
   const resolver = compileTelemetryResolver<ReplayNativeFrame>(TELEMETRY_CATALOG, {
     simulator: source.gameId,
@@ -95,30 +103,33 @@ export async function queryLapTelemetryBySemanticId(lapId: number, requestedSema
   });
   const slots = semanticIds.map((semanticId) => resolver.slot(semanticId));
   const receivedAt = receivedTimestamp(source.createdAt);
+  const adapter = getServerGame(source.gameId);
   const rawCapture = source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
   const rawReference = resolveRawReference(source, rawCapture);
   const nativeFrames = iterateIRacingNativeFrames(source, rawCapture?.bytes);
-  const envelopes: CanonicalTelemetryEnvelope[] = new Array(lap.telemetry.length);
+  const envelopes: CanonicalTelemetryEnvelope[] = [];
   const target: ResolvedValue<unknown>[] = [];
-  const nativeFrame: ReplayNativeFrame = { packet: lap.telemetry[0] };
+  const nativeFrame: ReplayNativeFrame = { packet: firstPacket };
   let view: TelemetryFrameView<ReplayNativeFrame> | undefined;
 
-  for (let sequence = 0; sequence < lap.telemetry.length; sequence++) {
-    const packet = lap.telemetry[sequence];
-    const observedAt = replayTimestamp(packet, receivedAt);
+  for (const [sequence, packet] of lap.telemetry.entries()) {
+    const observedAt = replayTimestamp(adapter, packet, receivedAt.milliseconds);
     const observation: SourceObservation = {
       timestamp: observedAt,
       updateSequence: BigInt(sequence),
     };
     nativeFrame.packet = packet;
-    nativeFrame.nativeValues = nativeFrames.next().value;
+    const nextNativeFrame = nativeFrames.next();
+    nativeFrame.nativeValues = nextNativeFrame.done ? undefined : nextNativeFrame.value;
     view = resolver.createFrameView(nativeFrame, observation, view);
     const resolved = view.resolveMany(slots, target);
-    const values: CanonicalTelemetryValue[] = new Array(resolved.length);
-    for (let index = 0; index < resolved.length; index++) {
-      values[index] = canonicalTelemetryValue(slots[index], resolved[index]);
+    const values: CanonicalTelemetryValue[] = [];
+    for (const [index, value] of resolved.entries()) {
+      const slot = slots[index];
+      if (slot === undefined) throw new Error(`Telemetry resolver omitted requested slot at index ${index}`);
+      values.push(canonicalTelemetryValue(slot, value));
     }
-    envelopes[sequence] = {
+    envelopes.push({
       sessionId: String(source.sessionId),
       sequence: BigInt(sequence),
       observedAt,
@@ -133,7 +144,7 @@ export async function queryLapTelemetryBySemanticId(lapId: number, requestedSema
       recordedWith: source.versionIdentity,
       values,
       rawReference,
-    };
+    });
   }
 
   return {

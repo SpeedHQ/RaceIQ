@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { lapPath } from "../../shared/racing/tracks/path";
+import { semanticLapFrames, type SemanticLapFrame } from "../../shared/racing/analysis/laps/semantic-frame";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { Corner } from "./corners";
 import { populationVariance } from "./stats";
 
@@ -70,9 +70,7 @@ interface ResampledLap {
 function medianSpan(laps: ResampledLap[]): number {
   const spans = laps.map((lap) => lap.span).sort((a, b) => a - b);
   const middle = Math.floor(spans.length / 2);
-  return spans.length % 2 === 0
-    ? (spans[middle - 1] + spans[middle]) / 2
-    : spans[middle];
+  return spans.length % 2 === 0 ? (spans[middle - 1] + spans[middle]) / 2 : spans[middle];
 }
 
 function normChannel(v: number): number {
@@ -105,23 +103,43 @@ function lerpAt(dist: number[], vals: number[], d: number): number {
   return vals[lo] + (vals[hi] - vals[lo]) * t;
 }
 
-function resampleLap(packets: TelemetryPacket[], lapId: number): ResampledLap | null {
+function resampleLap(packets: SemanticLapFrame[], lapId: number): ResampledLap | null {
   if (packets.length < 2) return null;
 
-  const { x, z } = lapPath(packets);
-  const base = packets[0].DistanceTraveled;
-  const dist = new Array<number>(packets.length);
-  const brake = new Array<number>(packets.length);
-  const throttle = new Array<number>(packets.length);
-  for (let index = 0; index < packets.length; index++) {
-    const packet = packets[index];
-    dist[index] = packet.DistanceTraveled - base;
-    brake[index] = normChannel(packet.Brake);
-    throttle[index] = normChannel(packet.Accel);
+  const x: number[] = [];
+  const z: number[] = [];
+  const dist: number[] = [];
+  const brake: number[] = [];
+  const throttle: number[] = [];
+  let baseDistance: number | undefined;
+  for (const packet of packets) {
+    if (
+      typeof packet.positionXM !== "number" ||
+      !Number.isFinite(packet.positionXM) ||
+      typeof packet.positionZM !== "number" ||
+      !Number.isFinite(packet.positionZM) ||
+      typeof packet.distanceM !== "number" ||
+      !Number.isFinite(packet.distanceM) ||
+      typeof packet.brakeInput !== "number" ||
+      !Number.isFinite(packet.brakeInput) ||
+      typeof packet.throttleInput !== "number" ||
+      !Number.isFinite(packet.throttleInput)
+    ) {
+      return null;
+    }
+    baseDistance ??= packet.distanceM;
+    const relativeDistance = packet.distanceM - baseDistance;
+    const previousDistance = dist[dist.length - 1];
+    if (previousDistance !== undefined && relativeDistance < previousDistance) return null;
+    x.push(packet.positionXM);
+    z.push(packet.positionZM);
+    dist.push(relativeDistance);
+    brake.push(normChannel(packet.brakeInput));
+    throttle.push(normChannel(packet.throttleInput));
   }
 
   const span = dist[dist.length - 1];
-  if (!(span > 0)) return null;
+  if (span === undefined || !(span > 0)) return null;
 
   const rx: number[] = [];
   const rz: number[] = [];
@@ -129,16 +147,15 @@ function resampleLap(packets: TelemetryPacket[], lapId: number): ResampledLap | 
   const rThrottle: number[] = [];
   for (let i = 0; i < RESAMPLE_BINS; i++) {
     const frac = i / (RESAMPLE_BINS - 1);
-    const d = frac * span;
-    rx.push(lerpAt(dist, x, d));
-    rz.push(lerpAt(dist, z, d));
-    rBrake.push(lerpAt(dist, brake, d));
-    rThrottle.push(lerpAt(dist, throttle, d));
+    const distance = frac * span;
+    rx.push(lerpAt(dist, x, distance));
+    rz.push(lerpAt(dist, z, distance));
+    rBrake.push(lerpAt(dist, brake, distance));
+    rThrottle.push(lerpAt(dist, throttle, distance));
   }
 
   return { lapId, x: rx, z: rz, brake: rBrake, throttle: rThrottle, span };
 }
-
 
 function round3(v: number): number {
   return Math.round(v * 1000) / 1000;
@@ -227,8 +244,9 @@ const MIN_LINE_SPREAD_LAPS = 3;
  * valid resampled laps are available (need enough laps for a meaningful
  * percentile trim).
  */
-export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number[], corners: Corner[]): LineSpreadTrace | null {
-  const resampled = laps.map((packets, i) => resampleLap(packets, lapIds[i])).filter((r): r is ResampledLap => r !== null);
+export function computeLineSpreadTrace(laps: readonly (readonly SemanticTelemetrySample[])[], lapIds: number[], corners: Corner[]): LineSpreadTrace | null {
+  const semanticLaps = laps.map(semanticLapFrames);
+  const resampled = semanticLaps.map((packets, i) => resampleLap(packets, lapIds[i])).filter((r): r is ResampledLap => r !== null);
   if (resampled.length < MIN_LINE_SPREAD_LAPS) return null;
 
   const offsets = lateralDistancesPerBin(resampled);
@@ -274,23 +292,45 @@ export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number
   const round4 = (v: number) => Math.round(v * 10000) / 10000;
   const survivingIds = new Set(resampled.map((r) => r.lapId));
   const lapLines: LineSpreadTrace["lapLines"] = [];
-  for (let i = 0; i < laps.length; i++) {
-    if (!survivingIds.has(lapIds[i])) continue;
-    const packets = laps[i];
-    const { x, z } = lapPath(packets);
-    // Per-frame normalized distance fraction (matches the resample's DistanceTraveled
-    // basis) so the zoom locates a distance-fraction cursor at the right physical point.
-    const base = packets[0].DistanceTraveled;
-    const span = packets[packets.length - 1].DistanceTraveled - base;
-    const frac = span > 0 ? packets.map((p) => round4(clamp01((p.DistanceTraveled - base) / span))) : packets.map((_, k) => round4(k / Math.max(1, packets.length - 1)));
-    lapLines.push({
-      lapId: lapIds[i],
-      x: x.map(round2),
-      z: z.map(round2),
-      brake: packets.map((p) => round2(normChannel(p.Brake))),
-      throttle: packets.map((p) => round2(normChannel(p.Accel))),
-      frac,
-    });
+  for (let i = 0; i < semanticLaps.length; i++) {
+    const lapId = lapIds[i];
+    const packets = semanticLaps[i];
+    if (lapId === undefined || !packets || !survivingIds.has(lapId)) continue;
+    const base = packets[0]?.distanceM;
+    const lastDistance = packets[packets.length - 1]?.distanceM;
+    if (typeof base !== "number" || !Number.isFinite(base) || typeof lastDistance !== "number" || !Number.isFinite(lastDistance) || lastDistance <= base) {
+      continue;
+    }
+    const span = lastDistance - base;
+    const x: number[] = [];
+    const z: number[] = [];
+    const brake: number[] = [];
+    const throttle: number[] = [];
+    const frac: number[] = [];
+    let complete = true;
+    for (const packet of packets) {
+      if (
+        typeof packet.positionXM !== "number" ||
+        !Number.isFinite(packet.positionXM) ||
+        typeof packet.positionZM !== "number" ||
+        !Number.isFinite(packet.positionZM) ||
+        typeof packet.distanceM !== "number" ||
+        !Number.isFinite(packet.distanceM) ||
+        typeof packet.brakeInput !== "number" ||
+        !Number.isFinite(packet.brakeInput) ||
+        typeof packet.throttleInput !== "number" ||
+        !Number.isFinite(packet.throttleInput)
+      ) {
+        complete = false;
+        break;
+      }
+      x.push(round2(packet.positionXM));
+      z.push(round2(packet.positionZM));
+      brake.push(round2(normChannel(packet.brakeInput)));
+      throttle.push(round2(normChannel(packet.throttleInput)));
+      frac.push(round4(clamp01((packet.distanceM - base) / span)));
+    }
+    if (complete) lapLines.push({ lapId, x, z, brake, throttle, frac });
   }
 
   return {
@@ -310,10 +350,9 @@ const EMPTY_DELTA: LapConsistencyDelta = {
   overall: { lateralSpreadM: 0, brakeVar: 0, throttleVar: 0, lowTrust: false },
 };
 
-export function computeLapConsistencyDelta(laps: TelemetryPacket[][], corners: Corner[]): LapConsistencyDelta {
+export function computeLapConsistencyDelta(laps: readonly (readonly SemanticTelemetrySample[])[], corners: Corner[]): LapConsistencyDelta {
   if (laps.length < 2 || corners.length < 1) return EMPTY_DELTA;
-
-  const resampled = laps.map((packets, i) => resampleLap(packets, i)).filter((r): r is ResampledLap => r !== null);
+  const resampled = laps.map((samples, i) => resampleLap(semanticLapFrames(samples), i)).filter((r): r is ResampledLap => r !== null);
   if (resampled.length < 2) return EMPTY_DELTA;
 
   // Per-bin metrics across laps.

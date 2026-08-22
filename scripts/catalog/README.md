@@ -4,12 +4,12 @@ Owns telemetry catalog generation and iRacing SessionInfo capture coverage.
 
 ## Commands
 
-| Command | Purpose |
-| --- | --- |
-| `bun run telemetry:catalog` | Build checked-in JSON, TypeScript, Markdown, and matrix outputs. |
-| `bun run telemetry:catalog --check` | Rebuild in memory and fail when checked-in outputs differ. |
-| `bun run telemetry:catalog --repeat` | Build twice and fail on non-deterministic output. Combine with `--check` for baseline verification. |
-| `bun run telemetry:catalog --check --baseline <path>` | Require reviews for direct-to-simplified mapping changes against baseline catalog. |
+| Command                                               | Purpose                                                                                             |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `bun run telemetry:catalog`                           | Build checked-in JSON, TypeScript, Markdown, and matrix outputs.                                    |
+| `bun run telemetry:catalog --check`                   | Rebuild in memory and fail when checked-in outputs differ.                                          |
+| `bun run telemetry:catalog --repeat`                  | Build twice and fail on non-deterministic output. Combine with `--check` for baseline verification. |
+| `bun run telemetry:catalog --check --baseline <path>` | Require reviews for direct-to-simplified mapping changes against baseline catalog.                  |
 
 Generator entrypoint is `scripts/catalog/generate-telemetry-catalog.ts`; it exports catalog builder, artifact builder, source hashing, and compatibility review APIs. Generated artifacts remain checked in under `shared/telemetry/catalog/generated/`; this domain does not regenerate them during refactors.
 

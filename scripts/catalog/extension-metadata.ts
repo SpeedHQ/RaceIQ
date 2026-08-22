@@ -381,7 +381,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "iracing.sectorStarts": {
     unit: "fraction",
     description: "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
-    freshness: "session-update",
+    freshness: "static",
   },
 };
 

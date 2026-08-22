@@ -20,7 +20,6 @@ const provenance: RaceResultProvenance = {
 
 const source = (overrides: Partial<RaceSourceObservation> = {}): RaceSourceObservation => ({
   gameId: "f1-2025",
-  packets: [],
   provenance,
   evidence: {
     fieldStatus: {
@@ -74,15 +73,19 @@ describe("race result derivation", () => {
 
   test("retains confirmed outcome for direct conflict-free classification", () => {
     const baseEvidence = source().evidence;
-    expect(deriveRaceResult(source({
-      sessionType: "race",
-      classification: "finished",
-      finishingPosition: 2,
-      evidence: {
-        ...baseEvidence,
-        fieldStatus: { ...baseEvidence.fieldStatus, classification: "direct" },
-      },
-    })).outcomeStatus).toBe("confirmed");
+    expect(
+      deriveRaceResult(
+        source({
+          sessionType: "race",
+          classification: "finished",
+          finishingPosition: 2,
+          evidence: {
+            ...baseEvidence,
+            fieldStatus: { ...baseEvidence.fieldStatus, classification: "direct" },
+          },
+        }),
+      ).outcomeStatus,
+    ).toBe("confirmed");
   });
 });
 
@@ -92,7 +95,14 @@ describe("pit timeline projection", () => {
     const events = [
       { eventId: id("a"), eventType: "pit_entry", lifecycleId: "visit:1", participantKind: "player", payload: { previousState: "out", state: "pit-lane" } },
       { eventId: id("b"), eventType: "fuel_service_observed", lifecycleId: "visit:1", participantKind: "player", lapNumber: 4, payload: { beforeLitres: 20, afterLitres: 30, addedLitres: 10 } },
-      { eventId: id("c"), eventType: "tire_service_observed", lifecycleId: "visit:1", participantKind: "player", lapNumber: 4, payload: { changedCorners: ["fl"], previousCompound: "soft", currentCompound: "medium", beforeWear: null, afterWear: null } },
+      {
+        eventId: id("c"),
+        eventType: "tire_service_observed",
+        lifecycleId: "visit:1",
+        participantKind: "player",
+        lapNumber: 4,
+        payload: { changedCorners: ["fl"], previousCompound: "soft", currentCompound: "medium", beforeWear: null, afterWear: null },
+      },
     ] as RaceEvent[];
     const result = deriveRaceResult(source({ sessionType: "race" }), events);
     expect(result.pitCount).toBe(1);

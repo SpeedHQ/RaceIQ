@@ -1,15 +1,25 @@
-import type { TelemetryPacket } from "../../../../telemetry/types";
+import type { SemanticLapFrame } from "../semantic-frame";
 import { reportableLoss, accelDeficitLoss, sumLosses } from "../time-loss";
-import { allWheelStates, steerBalance } from "../physics/vehicle";
+import { steerBalanceFromSignals, wheelStatesFromSignals } from "../physics/vehicle";
 import { groupEvents, midFrame, type TimeLossCtx } from "./types";
 import type { LapInsight } from "./types";
+const finite = (value: number | undefined): value is number => typeof value === "number" && Number.isFinite(value);
 
-export function detectBrakeDrag(telemetry: TelemetryPacket[]): LapInsight | null {
+function balance(frame: SemanticLapFrame) {
+  if (!finite(frame.speedMps) || !finite(frame.accelerationXMps2) || !finite(frame.yawRateRadPerSec)) return null;
+  return steerBalanceFromSignals({
+    speedMps: frame.speedMps,
+    accelerationX: frame.accelerationXMps2,
+    yawRate: frame.yawRateRadPerSec,
+  });
+}
+
+export function detectBrakeDrag(telemetry: SemanticLapFrame[]): LapInsight | null {
   // Flag frames where throttle is applied AND brake is lightly applied simultaneously
   const flags = telemetry.map((p) => {
-    const throttle = p.Accel / 255;
-    const brake = p.Brake / 255;
-    // Throttle > 50% with light brake (0.5-25%) — not intentional trail braking or hard braking
+    if (!finite(p.throttleInput) || !finite(p.brakeInput)) return false;
+    const throttle = p.throttleInput / 255;
+    const brake = p.brakeInput / 255;
     return throttle > 0.5 && brake > 0.005 && brake < 0.25;
   });
 
@@ -31,22 +41,23 @@ export function detectBrakeDrag(telemetry: TelemetryPacket[]): LapInsight | null
   };
 }
 
-export function detectDownshiftOverRev(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectDownshiftOverRev(telemetry: SemanticLapFrame[]): LapInsight | null {
   // Downshift that sends the engine near the limiter — too aggressive, risks
   // rear lockup from engine braking and over-rev damage.
-  if (telemetry.length === 0) return null;
-  const maxRpm = telemetry[0].EngineMaxRpm;
-  if (maxRpm === 0) return null;
+  const first = telemetry[0];
+  const maxRpm = first?.engineMaxRpm;
+  if (!finite(maxRpm) || maxRpm === 0) return null;
 
   const eventFrames: number[] = [];
   let lastEvent = -60;
   for (let i = 1; i < telemetry.length; i++) {
-    const prev = telemetry[i - 1];
-    const cur = telemetry[i];
-    if (!(cur.Gear > 0 && prev.Gear > cur.Gear)) continue;
+    const previous = telemetry[i - 1];
+    const current = telemetry[i];
+    if (!previous || !current || !finite(current.gear) || !finite(previous.gear) || !(current.gear > 0 && previous.gear > current.gear)) continue;
     // RPM spike within 0.3s of the downshift
     for (let j = i; j < Math.min(i + 18, telemetry.length); j++) {
-      if (telemetry[j].CurrentEngineRpm >= maxRpm * 0.97) {
+      const frame = telemetry[j];
+      if (frame && finite(frame.engineRpm) && frame.engineRpm >= maxRpm * 0.97) {
         if (i - lastEvent >= 60) {
           eventFrames.push(j);
           lastEvent = i;
@@ -67,11 +78,11 @@ export function detectDownshiftOverRev(telemetry: TelemetryPacket[]): LapInsight
   };
 }
 
-export function detectLateBrakingOvershoot(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectLateBrakingOvershoot(telemetry: SemanticLapFrame[]): LapInsight | null {
   // Carried too much speed into the corner: still braking hard while turning
   // hard, with the front tires scrubbing (understeer) — the opposite fault of
   // over-slowing.
-  const brakeFlags = telemetry.map((p) => p.Brake > 25);
+  const brakeFlags = telemetry.map((p) => finite(p.brakeInput) && p.brakeInput > 25);
   const brakeZones = groupEvents(brakeFlags, 5, 10);
   if (brakeZones.length === 0) return null;
 
@@ -80,13 +91,21 @@ export function detectLateBrakingOvershoot(telemetry: TelemetryPacket[]): LapIns
     let overlapFrames = 0;
     let peakFrame = start;
     for (let i = start; i <= end; i++) {
-      const p = telemetry[i];
-      if (p.Brake > 90 && Math.abs(p.Steer) > 35 && p.Speed * 2.23694 > 30) {
-        const bal = steerBalance(p);
-        if (bal.state === "understeer" && bal.severity > 0.3) {
-          overlapFrames++;
-          peakFrame = i;
-        }
+      const frame = telemetry[i];
+      if (
+        !frame ||
+        !finite(frame.brakeInput) ||
+        !finite(frame.steeringInput) ||
+        !finite(frame.speedMps) ||
+        frame.brakeInput <= 90 ||
+        Math.abs(frame.steeringInput) <= 35 ||
+        frame.speedMps * 2.23694 <= 30
+      )
+        continue;
+      const bal = balance(frame);
+      if (bal?.state === "understeer" && bal.severity > 0.3) {
+        overlapFrames++;
+        peakFrame = i;
       }
     }
     if (overlapFrames >= 10) events.push([start, peakFrame]); // ≥~0.17s of hard-brake understeer
@@ -103,13 +122,13 @@ export function detectLateBrakingOvershoot(telemetry: TelemetryPacket[]): LapIns
   };
 }
 
-export function detectUndersteerScrub(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectUndersteerScrub(telemetry: SemanticLapFrame[]): LapInsight | null {
   // Sustained understeer mid-corner: lots of steering, front slip well above
   // rear — the fronts are sliding, adding steering won't help.
   const flags = telemetry.map((p) => {
-    if (p.Speed * 2.23694 < 30 || Math.abs(p.Steer) < 25) return false;
-    const bal = steerBalance(p);
-    return bal.state === "understeer" && bal.severity > 0.4;
+    if (!finite(p.speedMps) || !finite(p.steeringInput) || p.speedMps * 2.23694 < 30 || Math.abs(p.steeringInput) < 25) return false;
+    const bal = balance(p);
+    return bal?.state === "understeer" && bal.severity > 0.4;
   });
   const events = groupEvents(flags, 10, 20);
   if (events.length === 0) return null;
@@ -124,22 +143,24 @@ export function detectUndersteerScrub(telemetry: TelemetryPacket[]): LapInsight 
   };
 }
 
-export function detectSteeringSawing(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectSteeringSawing(telemetry: SemanticLapFrame[]): LapInsight | null {
   // High-frequency steering reversals mid-corner — fighting the car or
   // overdriving. Count direction flips of the steering derivative.
   const reversal: boolean[] = new Array(telemetry.length).fill(false);
   let lastDir = 0;
   for (let i = 1; i < telemetry.length; i++) {
-    const p = telemetry[i];
-    if (Math.abs(p.Steer) < 15 || p.Speed * 2.23694 < 40) {
+    const frame = telemetry[i];
+    if (!frame || !finite(frame.steeringInput) || !finite(frame.speedMps) || Math.abs(frame.steeringInput) < 15 || frame.speedMps * 2.23694 < 40) {
       lastDir = 0;
       continue;
     }
-    const d = p.Steer - telemetry[i - 1].Steer;
-    if (Math.abs(d) < 5) continue;
-    const dir = Math.sign(d);
-    if (lastDir !== 0 && dir !== lastDir) reversal[i] = true;
-    lastDir = dir;
+    const previousSteer = telemetry[i - 1]?.steeringInput;
+    if (!finite(previousSteer)) continue;
+    const delta = frame.steeringInput - previousSteer;
+    if (Math.abs(delta) < 5) continue;
+    const direction = Math.sign(delta);
+    if (lastDir !== 0 && direction !== lastDir) reversal[i] = true;
+    lastDir = direction;
   }
 
   // Flag windows with ≥4 reversals per second
@@ -162,7 +183,7 @@ export function detectSteeringSawing(telemetry: TelemetryPacket[]): LapInsight |
   };
 }
 
-export function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: TimeLossCtx): LapInsight | null {
+export function detectThrottleMicroLifts(telemetry: SemanticLapFrame[], ctx?: TimeLossCtx): LapInsight | null {
   // Repeated small throttle lifts under power with the rear breaking loose —
   // manually doing traction control's job. Signature: near-full throttle,
   // sharp dip, quick recovery, with wheelspin nearby.
@@ -170,14 +191,17 @@ export function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: Tim
   const liftWindows: [number, number][] = [];
   let i = 1;
   while (i < telemetry.length - 1) {
-    const prev = telemetry[i - 1];
-    const cur = telemetry[i];
-    if (prev.Accel > 180 && prev.Accel - cur.Accel >= 60) {
+    const previous = telemetry[i - 1];
+    const current = telemetry[i];
+    if (previous && current && finite(previous.throttleInput) && finite(current.throttleInput) && previous.throttleInput > 180 && previous.throttleInput - current.throttleInput >= 60) {
       // Find recovery within 20 frames
       let recovered = -1;
       for (let j = i + 1; j < Math.min(i + 20, telemetry.length); j++) {
-        if (telemetry[j].Brake > 25) break; // lift into braking = corner entry, not a micro-lift
-        if (telemetry[j].Accel > 180) {
+        const frame = telemetry[j];
+        const brake = frame?.brakeInput;
+        const throttle = frame?.throttleInput;
+        if (!finite(brake) || !finite(throttle) || brake > 25) break;
+        if (throttle > 180) {
           recovered = j;
           break;
         }
@@ -186,8 +210,10 @@ export function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: Tim
         // Require rear slip near the lift to distinguish from deliberate lifts
         let slipNearby = false;
         for (let j = Math.max(0, i - 10); j <= Math.min(recovered + 10, telemetry.length - 1); j++) {
-          const ws = allWheelStates(telemetry[j]);
-          if (ws.rl.state === "spin" || ws.rr.state === "spin") {
+          const frame = telemetry[j];
+          if (!frame) continue;
+          const wheelStates = wheelStatesFromSignals(frame.speedMps, frame.steeringInput, frame.wheelRotationRadPerSec);
+          if (wheelStates !== null && (wheelStates.rl.state === "spin" || wheelStates.rr.state === "spin")) {
             slipNearby = true;
             break;
           }
@@ -219,25 +245,35 @@ export function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: Tim
   };
 }
 
-export function detectKerbRiding(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectKerbRiding(telemetry: SemanticLapFrame[]): LapInsight | null {
   // Hard kerb strikes: wheel on a rumble strip (when the game reports it)
   // combined with a sharp suspension compression spike at speed. Games that
   // don't report rumble strips (F1, AC Evo) fall back to the spike alone.
-  const hasRumble = telemetry.some((p) => p.WheelOnRumbleStripFL > 0 || p.WheelOnRumbleStripFR > 0 || p.WheelOnRumbleStripRL > 0 || p.WheelOnRumbleStripRR > 0);
+  const hasRumble = telemetry.some((p) => p.wheelOnRumbleStrip[0] === true || p.wheelOnRumbleStrip[1] === true || p.wheelOnRumbleStrip[2] === true || p.wheelOnRumbleStrip[3] === true);
 
   const flags: boolean[] = new Array(telemetry.length).fill(false);
   for (let i = 1; i < telemetry.length; i++) {
-    const p = telemetry[i];
-    if (p.Speed * 2.23694 < 30) continue;
-    const prev = telemetry[i - 1];
-    const spike = Math.max(
-      Math.abs(p.NormSuspensionTravelFL - prev.NormSuspensionTravelFL),
-      Math.abs(p.NormSuspensionTravelFR - prev.NormSuspensionTravelFR),
-      Math.abs(p.NormSuspensionTravelRL - prev.NormSuspensionTravelRL),
-      Math.abs(p.NormSuspensionTravelRR - prev.NormSuspensionTravelRR),
-    );
+    const frame = telemetry[i];
+    const previous = telemetry[i - 1];
+    if (!frame || !previous) continue;
+    const [fl, fr, rl, rr] = frame.normalizedSuspensionTravel;
+    const [previousFl, previousFr, previousRl, previousRr] = previous.normalizedSuspensionTravel;
+    if (
+      !finite(frame.speedMps) ||
+      frame.speedMps * 2.23694 < 30 ||
+      !finite(fl) ||
+      !finite(fr) ||
+      !finite(rl) ||
+      !finite(rr) ||
+      !finite(previousFl) ||
+      !finite(previousFr) ||
+      !finite(previousRl) ||
+      !finite(previousRr)
+    )
+      continue;
+    const spike = Math.max(Math.abs(fl - previousFl), Math.abs(fr - previousFr), Math.abs(rl - previousRl), Math.abs(rr - previousRr));
     if (hasRumble) {
-      const onKerb = p.WheelOnRumbleStripFL > 0 || p.WheelOnRumbleStripFR > 0 || p.WheelOnRumbleStripRL > 0 || p.WheelOnRumbleStripRR > 0;
+      const onKerb = frame.wheelOnRumbleStrip[0] === true || frame.wheelOnRumbleStrip[1] === true || frame.wheelOnRumbleStrip[2] === true || frame.wheelOnRumbleStrip[3] === true;
       flags[i] = onKerb && spike > 0.1;
     } else {
       flags[i] = spike > 0.18; // spike-only needs a stronger signal
@@ -254,4 +290,3 @@ export function detectKerbRiding(telemetry: TelemetryPacket[]): LapInsight | nul
     frameIndices: midFrame(events),
   };
 }
-

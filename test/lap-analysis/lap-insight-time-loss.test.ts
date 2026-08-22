@@ -1,34 +1,47 @@
 import { describe, expect, test } from "bun:test";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
+import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import { evaluateEligibility } from "@shared/racing/quality/policies";
 import { initGameAdapters } from "@shared/games/init";
 import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
+import { QUALITY_THRESHOLDS_V1 } from "@shared/racing/quality/measure";
 import type { ChannelQualitySummary, LapQualitySummary } from "../../shared/racing/quality/contracts";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
+import type { TelemetryGroupId, TelemetryVariableId } from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
+import { qualityPackets, summarize, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
 
 const RADIUS = 0.33;
 const STEP_MS = 16;
 const STEP_S = STEP_MS / 1000;
 
 const ANALYSIS_CHANNELS = [
-  "timing.distance-traveled",
-  "motion.speed",
-  "inputs.accel",
-  "inputs.brake",
-  "inputs.steer",
-  "tires.tire-slip-ratio",
-  "tires.tire-slip-angle",
-  "tires.wheel-rotation-speed",
-  "suspension.norm-suspension-travel",
-  "fuel.fuel",
-  "tire.temperature.average",
-  "tires.tire-wear",
-] as const;
-const ANALYSIS_QUALITY = {
+  { semanticId: "timing.distance-traveled", channelFamily: "timing" },
+  { semanticId: "motion.speed", channelFamily: "motion" },
+  { semanticId: "inputs.accel", channelFamily: "inputs" },
+  { semanticId: "inputs.brake", channelFamily: "inputs" },
+  { semanticId: "inputs.steer", channelFamily: "inputs" },
+  { semanticId: "tires.tire-slip-ratio", channelFamily: "tires" },
+  { semanticId: "tires.tire-slip-angle", channelFamily: "tires" },
+  { semanticId: "tires.wheel-rotation-speed", channelFamily: "tires" },
+  { semanticId: "suspension.norm-suspension-travel", channelFamily: "suspension" },
+  { semanticId: "fuel.fuel", channelFamily: "fuel" },
+  { semanticId: "tire.temperature.average", channelFamily: "tires" },
+  { semanticId: "tires.tire-wear", channelFamily: "tires" },
+] as const satisfies readonly { semanticId: TelemetryVariableId; channelFamily: TelemetryGroupId }[];
+
+const ANALYSIS_PROVENANCE = {
+  schemaVersion: "1",
+  policyVersion: "1",
+  configurationVersion: "1",
+  sourceGeneration: `sha256:${"a".repeat(64)}`,
+  outputGeneration: `sha256:${"b".repeat(64)}`,
+};
+
+const ANALYSIS_QUALITY: LapQualitySummary = {
   lifecycleState: "exact",
   complete: true,
   structurallyValid: true,
+  invalidReason: null,
   timing: {
     source: "simulator-last-lap",
     lapTimeMs: 10_000,
@@ -45,36 +58,38 @@ const ANALYSIS_QUALITY = {
   },
   trackDistanceCoverage: 1,
   worldPositionCoverage: 1,
-  channelQuality: ANALYSIS_CHANNELS.map(
-    (semanticId) =>
-      ({
-        semanticId,
-        channelFamily: semanticId.split(".")[0] as ChannelQualitySummary["channelFamily"],
-        mappingStatus: "direct",
-        canonicalUnit: null,
-        nativeUnit: null,
-        coverage: 1,
-        observedCount: 100,
-        expectedCount: 100,
-        expectedCadenceMs: STEP_MS,
-        observedCadenceMs: STEP_MS,
-        boundaryCoverage: { first500Ms: 1, last500Ms: 1 },
-        confidenceMean: 1,
-        freshnessCounts: { fresh: 100, stale: 0, unknown: 0 },
-        resolutionCounts: { ok: 100, missing: 0, stale: 0, invalid: 0, "not-applicable": 0, error: 0 },
-        issueIntervals: [],
-        limitations: [],
-        provenance: null,
-        sourceProfile: null,
-      }) satisfies ChannelQualitySummary,
-  ),
+  channelQuality: ANALYSIS_CHANNELS.map(({ semanticId, channelFamily }) => ({
+    semanticId,
+    channelFamily,
+    mappingStatus: "direct",
+    canonicalUnit: null,
+    nativeUnit: null,
+    coverage: 1,
+    observedCount: 100,
+    expectedCount: 100,
+    expectedCadenceMs: STEP_MS,
+    observedCadenceMs: STEP_MS,
+    boundaryCoverage: { first500Ms: 1, last500Ms: 1 },
+    confidenceMean: 1,
+    freshnessCounts: { fresh: 100, stale: 0, unknown: 0 },
+    resolutionCounts: { ok: 100, missing: 0, stale: 0, invalid: 0, "not-applicable": 0, error: 0 },
+    issueIntervals: [],
+    limitations: [],
+    provenance: null,
+    sourceProfile: null,
+  })),
   facts: [],
+  sourceKind: "native-live",
+  participant: { kind: "player", sourceId: null, stableId: "test-player", identityState: "stable" },
   classification: {
     phase: "flying",
     conditions: [],
     paceEligibility: "eligible",
   },
-} as unknown as LapQualitySummary;
+  thresholds: { ...QUALITY_THRESHOLDS_V1 },
+  versionIdentity: TEST_VERSION_IDENTITY,
+  provenance: ANALYSIS_PROVENANCE,
+};
 initGameAdapters();
 const CLEAN_QUALITY = summarize(qualityPackets(200).map((packet) => ({ ...packet, gameId: "fm-2023" })));
 
@@ -86,46 +101,43 @@ interface Frame {
 }
 
 /**
- * Builds a lap from a list of phases, each contributing `n` frames. Speed is
- * integrated from the phase's acceleration so the packets stay self-consistent
- * (time-loss estimation reads Speed, TimestampMS and dt together).
+ * Builds a lap from phases. Canonical values use catalog units: speed in m/s,
+ * inputs in simulator's 0–255 scale, and wheel rotation in rad/s.
  */
-function lap(phases: { n: number; a: number; accel: number; brake?: number; locked?: boolean }[], v0 = 40): TelemetryPacket[] {
-  const out: TelemetryPacket[] = [];
-  let v = v0;
-  let t = 0;
+function lap(phases: { n: number; a: number; accel: number; brake?: number; locked?: boolean }[], v0 = 40): SemanticTelemetrySample[] {
+  const out: SemanticTelemetrySample[] = [];
+  let speed = v0;
+  let observedAtMs = 0;
   for (const phase of phases) {
-    for (let i = 0; i < phase.n; i++) {
-      out.push(pkt({ speed: v, accel: phase.accel, brake: phase.brake, locked: phase.locked }, t));
-      v = Math.max(1, v + phase.a * STEP_S);
-      t += STEP_MS;
+    for (let index = 0; index < phase.n; index++) {
+      const rotation = speed / RADIUS;
+      out.push({
+        sequence: String(observedAtMs),
+        observedAtMs,
+        values: {
+          "timing.distance-traveled": (observedAtMs / 1_000) * speed,
+          "motion.speed": speed,
+          "inputs.accel": phase.accel,
+          "inputs.brake": phase.brake ?? 0,
+          "inputs.steer": 0,
+          "engine.engine-max-rpm": 8_000,
+          "engine.current-engine-rpm": 4_000,
+          "tires.wheel-rotation-speed": [phase.locked ? 0 : rotation, rotation, rotation, rotation],
+        },
+      });
+      speed = Math.max(1, speed + phase.a * STEP_S);
+      observedAtMs += STEP_MS;
     }
   }
   return out;
 }
 
-function pkt(f: Frame, t: number): TelemetryPacket {
-  const rot = f.speed / RADIUS;
-  return {
-    TimestampMS: t,
-    DistanceTraveled: (t / 1_000) * f.speed,
-    Speed: f.speed,
-    Accel: f.accel ?? 0,
-    Brake: f.brake ?? 0,
-    Steer: 0,
-    WheelRotationSpeedFL: f.locked ? 0 : rot,
-    WheelRotationSpeedFR: rot,
-    WheelRotationSpeedRL: rot,
-    WheelRotationSpeedRR: rot,
-  } as unknown as TelemetryPacket;
+function find(insights: readonly LapInsight[], id: string) {
+  return insights.find((insight) => insight.id === id);
 }
 
-function find(insights: ReturnType<typeof analyzeLap>, id: string) {
-  return insights.find((i) => i.id === id);
-}
-
-function analyzeFixtureLap(telemetry: TelemetryPacket[], gameId: Parameters<typeof analyzeLap>[1]) {
-  return analyzeLap(telemetry, gameId, ANALYSIS_QUALITY);
+function analyzeFixtureLap(samples: SemanticTelemetrySample[], gameId: Parameters<typeof analyzeLap>[1]) {
+  return analyzeLap(samples, gameId, ANALYSIS_QUALITY);
 }
 
 const LOCALIZED_ISSUE_RANGE = { startFraction: 0.2, endFraction: 0.4 };
@@ -166,19 +178,31 @@ function qualityWithGlobalWarning(): LapQualitySummary {
   return quality;
 }
 
-function localizedInsightLap(): TelemetryPacket[] {
-  const telemetry = lap([{ n: 100, a: 0, accel: 128 }], 30);
-  for (let index = 0; index < telemetry.length; index++) {
-    const packet = telemetry[index]!;
-    packet.DistanceTraveled = index;
-    packet.EngineMaxRpm = 8_000;
-    packet.CurrentEngineRpm = 4_000;
-  }
-  return telemetry;
+function localizedInsightLap(): SemanticTelemetrySample[] {
+  return lap([{ n: 100, a: 0, accel: 128 }], 30).map((sample, index) => ({
+    ...sample,
+    values: {
+      ...sample.values,
+      "timing.distance-traveled": index,
+    },
+  }));
 }
 
-function markFrames(telemetry: TelemetryPacket[], start: number, end: number, mark: (packet: TelemetryPacket) => void): void {
-  for (let index = start; index <= end; index++) mark(telemetry[index]!);
+function markFrames(telemetry: SemanticTelemetrySample[], start: number, end: number, update: (values: SemanticTelemetrySample["values"]) => SemanticTelemetrySample["values"]): void {
+  for (let index = start; index <= end; index++) {
+    const sample = telemetry[index]!;
+    telemetry[index] = { ...sample, values: update(sample.values) };
+  }
+}
+function lockFrontLeft(values: SemanticTelemetrySample["values"]): SemanticTelemetrySample["values"] {
+  const rotation = values["tires.wheel-rotation-speed"];
+  if (!Array.isArray(rotation) || rotation.length !== 4 || !rotation.every((value) => typeof value === "number" && Number.isFinite(value))) {
+    throw new Error("Expected complete wheel rotation fixture");
+  }
+  return {
+    ...values,
+    "tires.wheel-rotation-speed": [0, rotation[1], rotation[2], rotation[3]],
+  };
 }
 
 describe("analyzeLap time-loss quantification", () => {
@@ -245,7 +269,7 @@ describe("analyzeLap time-loss quantification", () => {
 });
 
 describe("analyzeLap wheel-state capabilities", () => {
-  function lockedLap(): TelemetryPacket[] {
+  function lockedLap(): SemanticTelemetrySample[] {
     return lap([{ n: 20, a: -2, accel: 0, brake: 200, locked: true }], 30);
   }
 
@@ -266,10 +290,13 @@ describe("analyzeLap wheel-state capabilities", () => {
 });
 
 describe("analyzeLap fuel units", () => {
-  function fuelLap(startFuel: number, endFuel: number): TelemetryPacket[] {
+  function fuelLap(startFuel: number, endFuel: number): SemanticTelemetrySample[] {
     const telemetry = lap([{ n: 10, a: 0, accel: 128 }]);
-    telemetry[0].Fuel = startFuel;
-    telemetry[telemetry.length - 1].Fuel = endFuel;
+    const first = telemetry[0]!;
+    const lastIndex = telemetry.length - 1;
+    const last = telemetry[lastIndex]!;
+    telemetry[0] = { ...first, values: { ...first.values, "fuel.fuel": startFuel } };
+    telemetry[lastIndex] = { ...last, values: { ...last.values, "fuel.fuel": endFuel } };
     return telemetry;
   }
 
@@ -289,18 +316,10 @@ describe("analyzeLap fuel units", () => {
 describe("analyzeLap localized insight eligibility", () => {
   test("keeps global warning limitations while ranged warnings exclude affected events", () => {
     const telemetry = localizedInsightLap();
-    markFrames(telemetry, 22, 33, (packet) => {
-      packet.CurrentEngineRpm = packet.EngineMaxRpm;
-    });
-    markFrames(telemetry, 22, 27, (packet) => {
-      packet.WheelRotationSpeedFL = 0;
-    });
-    markFrames(telemetry, 60, 71, (packet) => {
-      packet.CurrentEngineRpm = packet.EngineMaxRpm;
-    });
-    markFrames(telemetry, 60, 65, (packet) => {
-      packet.WheelRotationSpeedFL = 0;
-    });
+    markFrames(telemetry, 22, 33, (values) => ({ ...values, "engine.current-engine-rpm": 8_000 }));
+    markFrames(telemetry, 22, 27, lockFrontLeft);
+    markFrames(telemetry, 60, 71, (values) => ({ ...values, "engine.current-engine-rpm": 8_000 }));
+    markFrames(telemetry, 60, 65, lockFrontLeft);
     const globalQuality = qualityWithGlobalWarning();
 
     const decision = evaluateEligibility("corner-trace", globalQuality);
@@ -323,9 +342,7 @@ describe("analyzeLap localized insight eligibility", () => {
 
   test("analyzes corner events outside a policy-ineligible range and remaps source frames", () => {
     const telemetry = localizedInsightLap();
-    markFrames(telemetry, 60, 71, (packet) => {
-      packet.CurrentEngineRpm = packet.EngineMaxRpm;
-    });
+    markFrames(telemetry, 60, 71, (values) => ({ ...values, "engine.current-engine-rpm": 8_000 }));
 
     const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("inputs.steer")), "driving-rev-limiter");
 
@@ -334,12 +351,8 @@ describe("analyzeLap localized insight eligibility", () => {
 
   test("excludes corner warning ranges while retaining and remapping unaffected events", () => {
     const telemetry = localizedInsightLap();
-    markFrames(telemetry, 22, 33, (packet) => {
-      packet.CurrentEngineRpm = packet.EngineMaxRpm;
-    });
-    markFrames(telemetry, 60, 71, (packet) => {
-      packet.CurrentEngineRpm = packet.EngineMaxRpm;
-    });
+    markFrames(telemetry, 22, 33, (values) => ({ ...values, "engine.current-engine-rpm": 8_000 }));
+    markFrames(telemetry, 60, 71, (values) => ({ ...values, "engine.current-engine-rpm": 8_000 }));
 
     const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedWarning()), "driving-rev-limiter");
 
@@ -348,18 +361,14 @@ describe("analyzeLap localized insight eligibility", () => {
 
   test("does not emit corner insights confined to a policy-ineligible range", () => {
     const telemetry = localizedInsightLap();
-    markFrames(telemetry, 22, 33, (packet) => {
-      packet.CurrentEngineRpm = packet.EngineMaxRpm;
-    });
+    markFrames(telemetry, 22, 33, (values) => ({ ...values, "engine.current-engine-rpm": 8_000 }));
 
     expect(find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("inputs.steer")), "driving-rev-limiter")).toBeUndefined();
   });
 
   test("analyzes transient events outside a policy-ineligible range and remaps source frames", () => {
     const telemetry = localizedInsightLap();
-    markFrames(telemetry, 60, 65, (packet) => {
-      packet.WheelRotationSpeedFL = 0;
-    });
+    markFrames(telemetry, 60, 65, lockFrontLeft);
 
     const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("tires.wheel-rotation-speed")), "tire-lockup-FL");
 
@@ -368,12 +377,8 @@ describe("analyzeLap localized insight eligibility", () => {
 
   test("excludes transient warning ranges while retaining and remapping unaffected events", () => {
     const telemetry = localizedInsightLap();
-    markFrames(telemetry, 22, 27, (packet) => {
-      packet.WheelRotationSpeedFL = 0;
-    });
-    markFrames(telemetry, 60, 65, (packet) => {
-      packet.WheelRotationSpeedFL = 0;
-    });
+    markFrames(telemetry, 22, 27, lockFrontLeft);
+    markFrames(telemetry, 60, 65, lockFrontLeft);
 
     const insight = find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedWarning()), "tire-lockup-FL");
 
@@ -382,9 +387,7 @@ describe("analyzeLap localized insight eligibility", () => {
 
   test("does not emit transient insights confined to a policy-ineligible range", () => {
     const telemetry = localizedInsightLap();
-    markFrames(telemetry, 22, 27, (packet) => {
-      packet.WheelRotationSpeedFL = 0;
-    });
+    markFrames(telemetry, 22, 27, lockFrontLeft);
 
     expect(find(analyzeLap(telemetry, "fm-2023", qualityWithLocalizedIssue("tires.wheel-rotation-speed")), "tire-lockup-FL")).toBeUndefined();
   });

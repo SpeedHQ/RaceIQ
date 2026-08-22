@@ -1,50 +1,60 @@
 /**
- * telemetryToSymptoms — deterministic pass 1 of the auto-tune pipeline.
+ * telemetryToSymptoms — deterministic pass 1 of auto-tune analysis.
  *
- * Turns a stint's raw telemetry (+ detected corners) into a compact,
- * human-readable symptom report: per-corner entry/mid/exit balance,
- * brake lockup, suspension bottoming, and (ACC only) tyre pressure/temp
- * deltas. This is the *evidence* the tune-intent LLM reasons over — no
- * setup knowledge lives here, only physics-derived observations.
+ * Consumers receive resolver-backed canonical semantic samples only. Raw
+ * telemetry stays at ingest, recording, storage-decode, and resolver bounds.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { TelemetryVariableId } from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { Corner } from "../lap-analysis/corners";
-import { tireTempSymptoms } from "./tune-tire-symptoms";
-import { damperSymptoms } from "./tune-damper-symptoms";
-import { weightTransferSymptoms, cornerWeightTransfer } from "./tune-weight-transfer";
+import { semanticFixedNumbers, semanticNumber } from "../telemetry/semantic-samples";
+import { tireTempSymptoms, type TireTempSymptoms } from "./tune-tire-symptoms";
+import { damperSymptoms, type DamperSymptoms } from "./tune-damper-symptoms";
+import { weightTransferSymptoms, cornerWeightTransfer, type CornerLoad, type WeightTransferSymptoms } from "./tune-weight-transfer";
 
-export type TireTempSymptoms = NonNullable<ReturnType<typeof tireTempSymptoms>>;
-export type DamperSymptoms = NonNullable<ReturnType<typeof damperSymptoms>>;
-export type CornerLoad = ReturnType<typeof cornerWeightTransfer>;
-export type WeightTransferSymptoms = NonNullable<ReturnType<typeof weightTransferSymptoms>>;
+export const TUNE_SYMPTOM_SEMANTIC_IDS = [
+  "timing.distance-traveled",
+  "inputs.brake",
+  "tires.tire-slip-angle",
+  "tires.tire-slip-ratio",
+  "suspension.norm-suspension-travel",
+  "tires.tire-pressure",
+  "tire.temperature.carcass.average",
+  "tires.tire-inner-temp",
+  "tire.temperature.surface.middle",
+  "tire.temperature.surface.outer",
+  "motion.speed",
+  "motion.acceleration-x",
+  "motion.acceleration-y",
+  "suspension.wheel-load",
+] as const satisfies readonly TelemetryVariableId[];
 
 export type Balance = "oversteer" | "understeer" | "neutral";
 export type Phase = "entry" | "mid" | "exit";
 export type SpeedBand = "slow" | "medium" | "fast";
 
+const PHASES = ["entry", "mid", "exit"] as const satisfies readonly Phase[];
+
 export interface PhaseSymptom {
   phase: Phase;
-  balance: Balance;
-  /** front-minus-rear mean |slip angle| (rad); +ve = understeer. */
-  balanceMagnitude: number;
-  brakeLockup: boolean;
-  bottoming: boolean;
+  /** Undefined when a complete four-wheel slip-angle channel is unavailable. */
+  balance?: Balance;
+  /** Front-minus-rear mean |slip angle| (rad); undefined with unavailable slip. */
+  balanceMagnitude?: number;
+  /** Undefined when brake or complete four-wheel slip-ratio data is unavailable. */
+  brakeLockup?: boolean;
+  /** Undefined when complete four-wheel suspension travel is unavailable. */
+  bottoming?: boolean;
 }
 
 export interface CornerSymptom {
   index: number;
   label: string;
-  /** Corner mid-point as a fraction of lap distance (0-1), for sector bucketing
-   *  and track-map placement. Undefined when lap distance can't be derived. */
   distanceFrac?: number;
-  /** Apex speed (km/h) from detectCorners; undefined when unavailable. */
   minSpeedKph?: number;
-  /** Slow/medium/fast band derived from minSpeedKph. Drives band-specific
-   *  rules in tune-recommend.ts; undefined when apex speed is unknown. */
   speedBand?: SpeedBand;
   phases: PhaseSymptom[];
-  /** Per-corner weight-transfer read (lateral load-transfer distribution).
-   *  Undefined when the wheelLoad channel is absent for this game. */
   load?: CornerLoad;
 }
 
@@ -63,36 +73,22 @@ export interface TuneSymptoms {
     oversteerCorners: string[];
     lockupCorners: string[];
     bottomingCorners: string[];
-    /** psi delta vs the mid of the ACC target window; null when unavailable. */
     tyrePressure: TyreDeltas | null;
-    /** Per-tyre thermal profile (camber/pressure/thermal reads); null when the
-     *  acc-family temp channels are absent (older games / legacy laps). */
     tyreTemp: TireTempSymptoms | null;
-    /** Per-corner damper profile (travel usage + shaft-velocity reads); null
-     *  when the suspension-travel channel is flat/absent. */
     damper: DamperSymptoms | null;
-    /** Stint-level weight-transfer read (LLTD, static bias, dive, g envelope);
-     *  load-derived fields null when the wheelLoad channel is absent. */
     weightTransfer: WeightTransferSymptoms | null;
   };
 }
 
-// Balance is called only when |front-rear| exceeds this many radians (~1.15°).
-// Exported so the live-tuning issue detectors (server/ai/tune-issues.ts) reuse
-// the exact same thresholds instead of drifting out of sync.
 export const BALANCE_THRESHOLD = 0.02;
-// Slip ratio magnitude while braking that counts as a locked wheel.
 export const LOCKUP_SLIP = 0.15;
-// Brake input (0..255 or 0..1) treated as "braking".
 export const BRAKE_ON = 0.2;
-// Normalised suspension travel treated as bottomed-out.
 export const BOTTOM_TRAVEL = 0.95;
-// Nominal ACC hot-pressure target window mid (psi).
 export const ACC_PRESSURE_TARGET = 27.5;
 const SLOW_CORNER_KPH = 100;
 const FAST_CORNER_KPH = 160;
+const WHEELS = 4;
 
-/** Bucket an apex speed into slow/medium/fast; undefined when speed unknown. */
 export function classifySpeedBand(minSpeedKph?: number): SpeedBand | undefined {
   if (minSpeedKph == null || !Number.isFinite(minSpeedKph)) return undefined;
   if (minSpeedKph < SLOW_CORNER_KPH) return "slow";
@@ -100,20 +96,20 @@ export function classifySpeedBand(minSpeedKph?: number): SpeedBand | undefined {
   return "medium";
 }
 
-function mean(xs: number[]): number {
-  if (xs.length === 0) return 0;
-  let s = 0;
-  for (const x of xs) s += x;
-  return s / xs.length;
+function mean(total: number, count: number): number | undefined {
+  return count > 0 ? total / count : undefined;
 }
 
-/** Normalise a brake reading that may be 0..1 or 0..255 into 0..1. */
-export function brakeFrac(p: TelemetryPacket): number {
-  const b = p.Brake ?? 0;
-  return b > 1 ? b / 255 : b;
+/** Convert canonical 0–255 brake input to a 0–1 fraction. */
+export function brakeFrac(sample: SemanticTelemetrySample): number | null {
+  const brake = semanticNumber(sample, "inputs.brake");
+  return brake == null ? null : brake > 1 ? brake / 255 : brake;
 }
 
-function classifyBalance(frontSlip: number, rearSlip: number): {
+function classifyBalance(
+  frontSlip: number,
+  rearSlip: number,
+): {
   balance: Balance;
   magnitude: number;
 } {
@@ -123,98 +119,108 @@ function classifyBalance(frontSlip: number, rearSlip: number): {
   return { balance: "neutral", magnitude };
 }
 
-function summarisePhase(phase: Phase, frames: TelemetryPacket[]): PhaseSymptom {
-  const frontSlip = mean(
-    frames.map((p) => (Math.abs(p.TireSlipAngleFL) + Math.abs(p.TireSlipAngleFR)) / 2),
-  );
-  const rearSlip = mean(
-    frames.map((p) => (Math.abs(p.TireSlipAngleRL) + Math.abs(p.TireSlipAngleRR)) / 2),
-  );
-  const { balance, magnitude } = classifyBalance(frontSlip, rearSlip);
+function summarisePhase(phase: Phase, frames: readonly SemanticTelemetrySample[]): PhaseSymptom {
+  let frontSlipTotal = 0;
+  let rearSlipTotal = 0;
+  let slipFrames = 0;
+  let hasBrakeAndSlip = false;
+  let brakeLockup = false;
+  let hasTravel = false;
+  let bottoming = false;
 
-  const brakeLockup = frames.some(
-    (p) =>
-      brakeFrac(p) > BRAKE_ON &&
-      (Math.abs(p.TireSlipRatioFL) > LOCKUP_SLIP ||
-        Math.abs(p.TireSlipRatioFR) > LOCKUP_SLIP ||
-        Math.abs(p.TireSlipRatioRL) > LOCKUP_SLIP ||
-        Math.abs(p.TireSlipRatioRR) > LOCKUP_SLIP),
-  );
+  for (const frame of frames) {
+    const angles = semanticFixedNumbers(frame, "tires.tire-slip-angle", WHEELS);
+    if (angles) {
+      frontSlipTotal += (Math.abs(angles[0]) + Math.abs(angles[1])) / 2;
+      rearSlipTotal += (Math.abs(angles[2]) + Math.abs(angles[3])) / 2;
+      slipFrames += 1;
+    }
 
-  const bottoming = frames.some(
-    (p) =>
-      p.NormSuspensionTravelFL > BOTTOM_TRAVEL ||
-      p.NormSuspensionTravelFR > BOTTOM_TRAVEL ||
-      p.NormSuspensionTravelRL > BOTTOM_TRAVEL ||
-      p.NormSuspensionTravelRR > BOTTOM_TRAVEL,
-  );
+    const brake = brakeFrac(frame);
+    const ratios = semanticFixedNumbers(frame, "tires.tire-slip-ratio", WHEELS);
+    if (brake != null && ratios) {
+      hasBrakeAndSlip = true;
+      if (brake > BRAKE_ON && (Math.abs(ratios[0]) > LOCKUP_SLIP || Math.abs(ratios[1]) > LOCKUP_SLIP || Math.abs(ratios[2]) > LOCKUP_SLIP || Math.abs(ratios[3]) > LOCKUP_SLIP)) {
+        brakeLockup = true;
+      }
+    }
 
-  return { phase, balance, balanceMagnitude: magnitude, brakeLockup, bottoming };
-}
+    const travel = semanticFixedNumbers(frame, "suspension.norm-suspension-travel", WHEELS);
+    if (travel) {
+      hasTravel = true;
+      if (travel[0] > BOTTOM_TRAVEL || travel[1] > BOTTOM_TRAVEL || travel[2] > BOTTOM_TRAVEL || travel[3] > BOTTOM_TRAVEL) {
+        bottoming = true;
+      }
+    }
+  }
 
-/** Split a corner's frames into entry/mid/exit thirds by distance. */
-function splitPhases(frames: TelemetryPacket[]): Record<Phase, TelemetryPacket[]> {
-  const n = frames.length;
-  const a = Math.floor(n / 3);
-  const b = Math.floor((2 * n) / 3);
+  const frontSlip = mean(frontSlipTotal, slipFrames);
+  const rearSlip = mean(rearSlipTotal, slipFrames);
+  const balance = frontSlip == null || rearSlip == null ? undefined : classifyBalance(frontSlip, rearSlip);
   return {
-    entry: frames.slice(0, a),
-    mid: frames.slice(a, b),
-    exit: frames.slice(b),
+    phase,
+    ...(balance ? { balance: balance.balance, balanceMagnitude: balance.magnitude } : {}),
+    ...(hasBrakeAndSlip ? { brakeLockup } : {}),
+    ...(hasTravel ? { bottoming } : {}),
   };
 }
 
-export function telemetryToSymptoms(
-  packets: TelemetryPacket[],
-  corners: Corner[],
-): TuneSymptoms {
+function splitPhases(frames: readonly SemanticTelemetrySample[]): Record<Phase, readonly SemanticTelemetrySample[]> {
+  const firstThird = Math.floor(frames.length / 3);
+  const secondThird = Math.floor((2 * frames.length) / 3);
+  return {
+    entry: frames.slice(0, firstThird),
+    mid: frames.slice(firstThird, secondThird),
+    exit: frames.slice(secondThird),
+  };
+}
+
+export function telemetryToSymptoms(gameId: GameId, samples: readonly SemanticTelemetrySample[], corners: readonly Corner[]): TuneSymptoms {
+  if (!gameId) throw new Error("gameId is required for tune symptom analysis");
   const cornerSymptoms: CornerSymptom[] = [];
   const understeerCorners: string[] = [];
   const oversteerCorners: string[] = [];
   const lockupCorners: string[] = [];
   const bottomingCorners: string[] = [];
 
-  // Lap distance span, for placing each corner as a 0-1 fraction along the lap.
-  const lapStart = packets.length > 0 ? packets[0].DistanceTraveled : 0;
-  const lapSpan = packets.length > 0 ? packets[packets.length - 1].DistanceTraveled - lapStart : 0;
+  const firstDistance = samples.length > 0 ? semanticNumber(samples[0], "timing.distance-traveled") : null;
+  const lastDistance = samples.length > 0 ? semanticNumber(samples[samples.length - 1], "timing.distance-traveled") : null;
+  const lapSpan = firstDistance != null && lastDistance != null ? lastDistance - firstDistance : null;
 
-  for (const corner of corners) {
-    // detectCorners reports corner bounds relative to lap start, so match
-    // frames on the same relative distance — not absolute DistanceTraveled,
-    // which is cumulative and only coincides when a lap starts at 0.
-    const frames = packets.filter((p) => {
-      const rel = p.DistanceTraveled - lapStart;
-      return rel >= corner.distanceStart && rel <= corner.distanceEnd;
-    });
-    if (frames.length < 3) continue;
+  if (firstDistance != null && lapSpan != null) {
+    for (const corner of corners) {
+      const frames: SemanticTelemetrySample[] = [];
+      for (const sample of samples) {
+        const distance = semanticNumber(sample, "timing.distance-traveled");
+        if (distance == null) continue;
+        const relativeDistance = distance - firstDistance;
+        if (relativeDistance >= corner.distanceStart && relativeDistance <= corner.distanceEnd) {
+          frames.push(sample);
+        }
+      }
+      if (frames.length < 3) continue;
 
-    const split = splitPhases(frames);
-    const phases: PhaseSymptom[] = (["entry", "mid", "exit"] as Phase[]).map(
-      (phase) => summarisePhase(phase, split[phase]),
-    );
+      const split = splitPhases(frames);
+      const phases: PhaseSymptom[] = PHASES.map((phase) => summarisePhase(phase, split[phase]));
+      if (phases.some((phase) => phase.balance === "understeer")) understeerCorners.push(corner.label);
+      if (phases.some((phase) => phase.balance === "oversteer")) oversteerCorners.push(corner.label);
+      if (phases.some((phase) => phase.brakeLockup === true)) lockupCorners.push(corner.label);
+      if (phases.some((phase) => phase.bottoming === true)) bottomingCorners.push(corner.label);
 
-    const dominant = phases.filter((p) => p.balance !== "neutral");
-    if (dominant.some((p) => p.balance === "understeer")) understeerCorners.push(corner.label);
-    if (dominant.some((p) => p.balance === "oversteer")) oversteerCorners.push(corner.label);
-    if (phases.some((p) => p.brakeLockup)) lockupCorners.push(corner.label);
-    if (phases.some((p) => p.bottoming)) bottomingCorners.push(corner.label);
-
-    // Corner mid-point is already relative to lap start, so it maps directly
-    // onto the lap-distance span.
-    const mid = (corner.distanceStart + corner.distanceEnd) / 2;
-    const distanceFrac = lapSpan > 0 ? Math.min(1, Math.max(0, mid / lapSpan)) : undefined;
-    cornerSymptoms.push({
-      index: corner.index,
-      label: corner.label,
-      distanceFrac,
-      minSpeedKph: corner.minSpeedKph,
-      speedBand: classifySpeedBand(corner.minSpeedKph),
-      phases,
-      load: cornerWeightTransfer(frames),
-    });
+      const midpoint = (corner.distanceStart + corner.distanceEnd) / 2;
+      const distanceFrac = lapSpan > 0 ? Math.min(1, Math.max(0, midpoint / lapSpan)) : undefined;
+      cornerSymptoms.push({
+        index: corner.index,
+        label: corner.label,
+        distanceFrac,
+        minSpeedKph: corner.minSpeedKph,
+        speedBand: classifySpeedBand(corner.minSpeedKph),
+        phases,
+        load: cornerWeightTransfer(gameId, frames),
+      });
+    }
   }
 
-  // Aggregate balance: whichever tendency shows in more corners.
   let balance: Balance = "neutral";
   if (understeerCorners.length > oversteerCorners.length) balance = "understeer";
   else if (oversteerCorners.length > understeerCorners.length) balance = "oversteer";
@@ -227,22 +233,35 @@ export function telemetryToSymptoms(
       oversteerCorners,
       lockupCorners,
       bottomingCorners,
-      tyrePressure: tyrePressureDeltas(packets),
-      tyreTemp: tireTempSymptoms(packets),
-      damper: damperSymptoms(packets),
-      weightTransfer: weightTransferSymptoms(packets),
+      tyrePressure: tyrePressureDeltas(gameId, samples),
+      tyreTemp: tireTempSymptoms(gameId, samples),
+      damper: damperSymptoms(gameId, samples),
+      weightTransfer: weightTransferSymptoms(gameId, samples),
     },
   };
 }
 
-/** ACC-only: mean hot pressure delta vs target window mid, per corner. */
-function tyrePressureDeltas(packets: TelemetryPacket[]): TyreDeltas | null {
-  const withPressure = packets.filter((p) => p.TirePressureFrontLeft != null);
-  if (withPressure.length === 0) return null;
+function tyrePressureDeltas(gameId: GameId, samples: readonly SemanticTelemetrySample[]): TyreDeltas | null {
+  if (gameId !== "acc" && gameId !== "ac-evo") return null;
+  let fl = 0;
+  let fr = 0;
+  let rl = 0;
+  let rr = 0;
+  let count = 0;
+  for (const sample of samples) {
+    const pressure = semanticFixedNumbers(sample, "tires.tire-pressure", WHEELS);
+    if (!pressure) continue;
+    fl += pressure[0];
+    fr += pressure[1];
+    rl += pressure[2];
+    rr += pressure[3];
+    count += 1;
+  }
+  if (count === 0) return null;
   return {
-    FL: mean(withPressure.map((p) => (p.TirePressureFrontLeft ?? 0))) - ACC_PRESSURE_TARGET,
-    FR: mean(withPressure.map((p) => (p.TirePressureFrontRight ?? 0))) - ACC_PRESSURE_TARGET,
-    RL: mean(withPressure.map((p) => (p.TirePressureRearLeft ?? 0))) - ACC_PRESSURE_TARGET,
-    RR: mean(withPressure.map((p) => (p.TirePressureRearRight ?? 0))) - ACC_PRESSURE_TARGET,
+    FL: fl / count - ACC_PRESSURE_TARGET,
+    FR: fr / count - ACC_PRESSURE_TARGET,
+    RL: rl / count - ACC_PRESSURE_TARGET,
+    RR: rr / count - ACC_PRESSURE_TARGET,
   };
 }

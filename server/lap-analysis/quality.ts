@@ -6,16 +6,11 @@ export interface LapQualityResult {
 }
 
 /**
- * Assess recording quality of a completed lap.
- * Returns { valid: false, reason } when the telemetry indicates a bad recording.
- * Returns { valid: true, reason: null } when the lap looks clean.
- *
- * This is a pure function — no side effects, no DB access.
+ * Assess source-recording integrity before semantic replay exists. This is part
+ * of lap capture, not downstream analysis; normal consumers use persisted
+ * quality plus resolver-backed semantic samples.
  */
-export function assessLapRecording(
-  packets: TelemetryPacket[],
-  lapTime: number
-): LapQualityResult {
+export function assessLapRecording(packets: readonly TelemetryPacket[], lapTime: number): LapQualityResult {
   if (packets.length < 30) {
     return { valid: false, reason: "too few telemetry packets" };
   }
@@ -28,10 +23,6 @@ export function assessLapRecording(
     return { valid: false, reason: "telemetry distance too short" };
   }
 
-  // Lap time in telemetry should roughly match stored lapTime (within 2s).
-  // Use peak CurrentLap across the buffer rather than the last packet — in ACC,
-  // iCurrentTime can reset to ~0 and start counting the new lap before completedLaps
-  // increments, so the last few packets may show the new lap's elapsed time instead.
   let peakTelemetryLapTime = -Infinity;
   for (const packet of packets) {
     peakTelemetryLapTime = Math.max(peakTelemetryLapTime, packet.CurrentLap);
@@ -40,15 +31,10 @@ export function assessLapRecording(
     return { valid: false, reason: "telemetry lap time mismatch" };
   }
 
-  // Start and end positions must be close (circuit lap should return to start/finish).
-  // ACC lap counter can reset to 0 after session changes, so only reject if it looks
-  // like an actual formation lap (very short, < 30 seconds).
   if (first.gameId === "acc" && first.LapNumber === 0 && lapTime < 30) {
     return { valid: false, reason: "starting lap" };
   }
 
-  // Start and end positions must be close (circuit lap should return to start/finish).
-  // Skip for ACC — carCoordinates are in a different scale to DistanceTraveled.
   if (first.gameId !== "acc") {
     const dx = last.PositionX - first.PositionX;
     const dz = last.PositionZ - first.PositionZ;

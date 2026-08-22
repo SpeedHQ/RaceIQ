@@ -5,8 +5,8 @@ import { m } from "@/paraglide/messages";
 const PAD_NEW_MM = 29; // ACC: pads start at 29mm when new
 
 export interface WheelData {
-  tempC: number; // always °C — caller normalises
-  wear: number; // 0 (new) → 1 (gone)
+  tempC?: number; // always °C — caller normalises
+  wear?: number; // 0 (new) → 1 (gone)
   brakeTemp?: number; // °C, optional
   brakePadMm?: number; // mm remaining (ACC: new = 29mm), drives pad height
   pressure?: number; // psi, optional
@@ -84,10 +84,10 @@ export function TireGrid({
       <div className="p-3">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           {wheels.map((wheel) => {
-            const health = Math.max(0, (1 - wheel.wear) * 100);
-            const healthColor = healthAvailable ? tireHealthColor(wheel.wear, healthThresholds) : "var(--status-unavailable)";
-            const temperatureColor = temperatureAvailable ? tireTempColor(wheel.tempC, normalizedTempThresholds) : "var(--status-unavailable)";
-            const temperature = units.tempUnit === "F" ? Math.round((wheel.tempC * 9) / 5 + 32) : Math.round(wheel.tempC);
+            const health = healthAvailable && wheel.wear !== undefined ? Math.max(0, (1 - wheel.wear) * 100) : undefined;
+            const healthColor = health !== undefined ? tireHealthColor(wheel.wear!, healthThresholds) : "var(--status-unavailable)";
+            const temperatureColor = temperatureAvailable && wheel.tempC !== undefined ? tireTempColor(wheel.tempC, normalizedTempThresholds) : "var(--status-unavailable)";
+            const temperature = wheel.tempC === undefined ? undefined : units.tempUnit === "F" ? Math.round((wheel.tempC * 9) / 5 + 32) : Math.round(wheel.tempC);
             const isLeft = wheel.label.endsWith("L");
             const isRight = !isLeft;
             const isRear = wheel.label.startsWith("R");
@@ -96,7 +96,7 @@ export function TireGrid({
               <div key={wheel.label} className={`flex items-center gap-2 ${isRight ? "flex-row-reverse" : ""}`}>
                 <div className={`flex-1 min-w-0 ${isLeft ? "text-right" : ""}`}>
                   <div className="text-xl font-mono font-bold tabular-nums leading-none" style={{ color: temperatureColor }}>
-                    {temperatureAvailable ? (
+                    {temperature !== undefined && temperatureAvailable ? (
                       <>
                         {temperature}
                         {units.tempLabel}
@@ -107,7 +107,7 @@ export function TireGrid({
                   </div>
                   <div className="mt-1">
                     <span className="text-xs font-mono font-bold tabular-nums" style={{ color: healthColor }}>
-                      {healthAvailable ? `${health.toFixed(0)}%` : "—"}
+                      {health !== undefined ? `${health.toFixed(0)}%` : "—"}
                     </span>
                   </div>
                   {hasPressure && wheel.pressure !== undefined && (
@@ -116,16 +116,14 @@ export function TireGrid({
                     </div>
                   )}
                 </div>
-
                 <div className="relative w-6 h-12 rounded-sm overflow-hidden bg-app-surface-alt/50 shrink-0">
-                  <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: temperatureColor, height: healthAvailable ? `${health}%` : 0 }} />
+                  <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: temperatureColor, height: health === undefined ? 0 : `${health}%` }} />
                 </div>
-
                 {hasBrake && (
                   <div className={`flex items-center gap-1 shrink-0 ${isRight ? "flex-row-reverse" : ""}`}>
                     {(() => {
-                      const pct = wheel.brakePadMm !== undefined ? Math.max(0, Math.min(100, (wheel.brakePadMm / PAD_NEW_MM) * 100)) : 100;
-                      const color = brakeTempColor(wheel.brakeTemp ?? 0, isRear, brakeTempThresholds);
+                      const pct = wheel.brakePadMm !== undefined ? Math.max(0, Math.min(100, (wheel.brakePadMm / PAD_NEW_MM) * 100)) : 0;
+                      const color = wheel.brakeTemp === undefined ? "var(--status-unavailable)" : brakeTempColor(wheel.brakeTemp, isRear, brakeTempThresholds);
                       return (
                         <div className="relative w-2 h-12 overflow-hidden bg-app-surface-alt/50 shrink-0">
                           <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: color, height: `${pct}%` }} />

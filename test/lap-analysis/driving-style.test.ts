@@ -1,16 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-  aggregateLapStyles,
-  isCornering,
-  medianAbsDeviation,
-  MIN_CORNERING_FRAMES,
-  quantile,
-  summariseLapStyle,
-  type LapStyleSummary,
-} from "@shared/racing/analysis/laps/driving-style";
+import { aggregateLapStyles, isCornering, medianAbsDeviation, MIN_CORNERING_FRAMES, quantile, summariseLapStyle, type LapStyleSummary } from "@shared/racing/analysis/laps/driving-style";
 import { initGameAdapters } from "@shared/games/init";
 import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import { semanticLapFrame } from "@shared/racing/analysis/laps/semantic-frame";
 
 // Steering normalisation is the one genuinely game-dependent step, so the
 // adapters have to exist before any lap is summarised.
@@ -39,32 +32,29 @@ interface Frame {
   rearRot?: number;
 }
 
-function pkt(f: Frame, i: number): TelemetryPacket {
+function sample(f: Frame, i: number): SemanticTelemetrySample {
   const speed = f.speedKph / 3.6;
-  const rot = speed / RADIUS;
-  const rear = f.rearRot ?? rot;
+  const rotation = speed / RADIUS;
+  const rearRotation = f.rearRot ?? rotation;
   return {
-    TimestampMS: i * STEP_MS,
-    Speed: speed,
-    AccelerationX: -f.latG * G,
-    AngularVelocityY: f.yawRate ?? (Math.abs(f.latG) * G) / Math.max(speed, 0.1),
-    TireSlipAngleFL: f.frontSlipDeg * DEG,
-    TireSlipAngleFR: f.frontSlipDeg * DEG,
-    TireSlipAngleRL: f.rearSlipDeg * DEG,
-    TireSlipAngleRR: f.rearSlipDeg * DEG,
-    WheelRotationSpeedFL: rot,
-    WheelRotationSpeedFR: rot,
-    WheelRotationSpeedRL: rear,
-    WheelRotationSpeedRR: rear,
-    Steer: FM_CENTRE + (f.steer ?? 0) * 127,
-    Accel: 0,
-    Brake: 0,
-  } as unknown as TelemetryPacket;
+    sequence: String(i),
+    observedAtMs: i * STEP_MS,
+    values: {
+      "motion.speed": speed,
+      "motion.acceleration-x": -f.latG * G,
+      "motion.angular-velocity-y": f.yawRate ?? (Math.abs(f.latG) * G) / Math.max(speed, 0.1),
+      "tires.tire-slip-angle": [f.frontSlipDeg * DEG, f.frontSlipDeg * DEG, f.rearSlipDeg * DEG, f.rearSlipDeg * DEG],
+      "tires.wheel-rotation-speed": [rotation, rotation, rearRotation, rearRotation],
+      "inputs.steer": FM_CENTRE + (f.steer ?? 0) * 127,
+      "inputs.accel": 0,
+      "inputs.brake": 0,
+    },
+  };
 }
 
-/** `n` identical frames. */
-function run(n: number, f: Frame, offset = 0): TelemetryPacket[] {
-  return Array.from({ length: n }, (_, i) => pkt(f, offset + i));
+/** `n` identical semantic samples. */
+function run(n: number, f: Frame, offset = 0): SemanticTelemetrySample[] {
+  return Array.from({ length: n }, (_, i) => sample(f, offset + i));
 }
 
 const STEADY: Frame = { speedKph: 120, latG: 1.0, frontSlipDeg: 4, rearSlipDeg: 4, steer: 0.3 };
@@ -85,10 +75,10 @@ const LONG = MIN_CORNERING_FRAMES * 4;
 
 describe("gating", () => {
   test("the cornering gate matches steerBalance's own floors", () => {
-    expect(isCornering(pkt({ ...STEADY, latG: 0.23 }, 0))).toBe(false);
-    expect(isCornering(pkt({ ...STEADY, latG: 0.3 }, 0))).toBe(true);
+    expect(isCornering(semanticLapFrame(sample({ ...STEADY, latG: 0.23 }, 0)))).toBe(false);
+    expect(isCornering(semanticLapFrame(sample({ ...STEADY, latG: 0.3 }, 0)))).toBe(true);
     // Below SPEED_FLOOR (5 m/s = 18 km/h) nothing is cornering, however bent.
-    expect(isCornering(pkt({ ...STEADY, speedKph: 10, latG: 1.5 }, 0))).toBe(false);
+    expect(isCornering(semanticLapFrame(sample({ ...STEADY, speedKph: 10, latG: 1.5 }, 0)))).toBe(false);
   });
 
   test("a lap with too few cornering frames reports itself unusable, not neutral", () => {
@@ -201,7 +191,7 @@ describe("smoothness is variability, not magnitude", () => {
     expect(steadyBig.slipVariabilityDeg).toBeCloseTo(0, 6);
 
     // Same mean slip delta (0°), but sawing the balance between ±4°.
-    const blocks: TelemetryPacket[] = [];
+    const blocks: SemanticTelemetrySample[] = [];
     for (let b = 0; b < 12; b++) {
       const front = b % 2 === 0 ? 8 : 4;
       const rear = b % 2 === 0 ? 4 : 8;
@@ -217,7 +207,7 @@ describe("smoothness is variability, not magnitude", () => {
   });
 
   test("sawing at the wheel raises the reversal rate", () => {
-    const blocks: TelemetryPacket[] = [];
+    const blocks: SemanticTelemetrySample[] = [];
     for (let b = 0; b < 12; b++) {
       blocks.push(...run(20, { ...STEADY, steer: b % 2 === 0 ? 0.4 : 0.1 }, blocks.length));
     }
@@ -227,7 +217,7 @@ describe("smoothness is variability, not magnitude", () => {
   });
 
   test("movement below the deadband is quantisation, not an input", () => {
-    const blocks: TelemetryPacket[] = [];
+    const blocks: SemanticTelemetrySample[] = [];
     for (let b = 0; b < 12; b++) {
       blocks.push(...run(20, { ...STEADY, steer: b % 2 === 0 ? 0.3 : 0.29 }, blocks.length));
     }

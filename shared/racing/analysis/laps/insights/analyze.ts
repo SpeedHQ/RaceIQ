@@ -1,6 +1,7 @@
 import { getGame } from "../../../../games/registry";
 import type { GameId } from "../../../../games/ids";
-import type { TelemetryPacket } from "../../../../telemetry/types";
+import { semanticLapFrame, type SemanticLapFrame } from "../semantic-frame";
+import type { SemanticTelemetrySample } from "../../../../telemetry/replay/contracts";
 import type { TelemetryVariableId } from "../../../../telemetry/catalog/generated/telemetry-catalog.types";
 import type { EligibilityPolicyId, EligibilityReason, LapQualitySummary, QualityDistanceRange } from "../../../../racing/quality/contracts";
 import { evaluateEligibility, isEligibilityUsable } from "../../../../racing/quality/policies";
@@ -29,7 +30,6 @@ const BRAKE_TRACTION_CHANNELS = [...WHEEL_EVENT_CHANNELS, "inputs.brake"] as con
 const THROTTLE_TRACTION_CHANNELS = [...WHEEL_EVENT_CHANNELS, "inputs.accel"] as const;
 const STEERING_EVENT_CHANNELS = ["motion.speed", "inputs.steer"] as const;
 
-
 function mergeInsights(target: LapInsight[], additions: LapInsight[], sourceIndices: readonly number[]): void {
   for (const addition of additions) {
     const remapped = addition.frameIndices.map((index) => sourceIndices[index]).filter((index): index is number => index != null);
@@ -40,43 +40,32 @@ function mergeInsights(target: LapInsight[], additions: LapInsight[], sourceIndi
       continue;
     }
     existing.frameIndices = [...new Set([...existing.frameIndices, ...remapped])].sort((left, right) => left - right);
-    if (addition.timeLossS != null) existing.timeLossS = (existing.timeLossS ?? 0) + addition.timeLossS;
+    if (addition.timeLossS != null) {
+      existing.timeLossS = existing.timeLossS === undefined ? addition.timeLossS : existing.timeLossS + addition.timeLossS;
+    }
   }
 }
 
-function warningReasonCoversPacket(
-  reason: EligibilityReason,
-  packet: TelemetryPacket,
-  distanceFraction: number,
-): boolean {
-  const distanceCovered =
-    reason.distanceRange != null &&
-    distanceFraction >= reason.distanceRange.startFraction &&
-    distanceFraction <= reason.distanceRange.endFraction;
-  const timeCovered =
-    reason.timeRange != null &&
-    packet.TimestampMS >= reason.timeRange.startMs &&
-    packet.TimestampMS <= reason.timeRange.endMs;
+function warningReasonCoversPacket(reason: EligibilityReason, packet: SemanticLapFrame, distanceFraction: number): boolean {
+  const distanceCovered = reason.distanceRange != null && distanceFraction >= reason.distanceRange.startFraction && distanceFraction <= reason.distanceRange.endFraction;
+  const timeCovered = reason.timeRange != null && packet.observedAtMs >= reason.timeRange.startMs && packet.observedAtMs <= reason.timeRange.endMs;
   return distanceCovered || timeCovered;
 }
 
 function eligibleSegments(
-  telemetry: TelemetryPacket[],
+  telemetry: SemanticLapFrame[],
   quality: LapQualitySummary,
   policyId: EligibilityPolicyId,
   sourceIndices: number[],
   requiredSemanticIds?: readonly TelemetryVariableId[],
-): Array<{ packets: TelemetryPacket[]; indices: number[] }> {
+): Array<{ packets: SemanticLapFrame[]; indices: number[] }> {
   const policyOptions = requiredSemanticIds ? { requiredSemanticIds } : {};
   const wholeLap = evaluateEligibility(policyId, quality, policyOptions);
   // Transient detectors also depend on lap distance and speed, whose localized warnings belong to lap-comparison.
-  const warningPolicyIds: readonly EligibilityPolicyId[] =
-    policyId === "transient-event" ? ["transient-event", "lap-comparison"] : [policyId];
+  const warningPolicyIds: readonly EligibilityPolicyId[] = policyId === "transient-event" ? ["transient-event", "lap-comparison"] : [policyId];
   const rangedWarningReasons = warningPolicyIds.flatMap((warningPolicyId) => {
     const decision = warningPolicyId === policyId ? wholeLap : evaluateEligibility(warningPolicyId, quality);
-    return decision.status === "eligible_with_warning"
-      ? decision.reasons.filter((reason) => reason.distanceRange != null || reason.timeRange != null)
-      : [];
+    return decision.status === "eligible_with_warning" ? decision.reasons.filter((reason) => reason.distanceRange != null || reason.timeRange != null) : [];
   });
   if (
     isEligibilityUsable(wholeLap) &&
@@ -111,8 +100,11 @@ function eligibleSegments(
   const ranges: Array<QualityDistanceRange & { interiorUsable: boolean; startUsable: boolean; endUsable: boolean }> = [];
   let hasUsableRange = false;
   for (let index = 1; index < sorted.length; index++) {
-    const startFraction = sorted[index - 1]!;
-    const endFraction = sorted[index]!;
+    const startFraction = sorted[index - 1];
+    const endFraction = sorted[index];
+    const startUsable = pointUsability[index - 1];
+    const endUsable = pointUsability[index];
+    if (startFraction === undefined || endFraction === undefined || startUsable === undefined || endUsable === undefined) continue;
     const midpoint = (startFraction + endFraction) / 2;
     const interiorUsable = isEligibilityUsable(
       evaluateEligibility(policyId, quality, {
@@ -120,22 +112,28 @@ function eligibleSegments(
         ...policyOptions,
       }),
     );
-    const startUsable = pointUsability[index - 1]!;
-    const endUsable = pointUsability[index]!;
     ranges.push({ startFraction, endFraction, interiorUsable, startUsable, endUsable });
     hasUsableRange ||= interiorUsable || startUsable || endUsable;
   }
   if (!hasUsableRange) return [];
 
-  const firstDistance = telemetry[0]?.DistanceTraveled;
-  const lastDistance = telemetry[telemetry.length - 1]?.DistanceTraveled;
-  const span = (lastDistance ?? 0) - (firstDistance ?? 0);
-  if (!Number.isFinite(span) || span <= 0) return [];
-  const segments: Array<{ packets: TelemetryPacket[]; indices: number[] }> = [];
-  let current: { packets: TelemetryPacket[]; indices: number[] } | null = null;
+  const firstDistance = telemetry[0]?.distanceM;
+  const lastDistance = telemetry[telemetry.length - 1]?.distanceM;
+  if (typeof firstDistance !== "number" || !Number.isFinite(firstDistance) || typeof lastDistance !== "number" || !Number.isFinite(lastDistance)) return [];
+  const span = lastDistance - firstDistance;
+  if (span <= 0) return [];
+  const segments: Array<{ packets: SemanticLapFrame[]; indices: number[] }> = [];
+  let current: { packets: SemanticLapFrame[]; indices: number[] } | null = null;
   for (let index = 0; index < telemetry.length; index++) {
-    const packet = telemetry[index]!;
-    const fraction = Math.max(0, Math.min(1, (packet.DistanceTraveled - firstDistance!) / span));
+    const packet = telemetry[index];
+    const sourceIndex = sourceIndices[index];
+    const distance = packet?.distanceM;
+    if (!packet || typeof distance !== "number" || !Number.isFinite(distance) || sourceIndex === undefined) {
+      if (current && current.packets.length >= 10) segments.push(current);
+      current = null;
+      continue;
+    }
+    const fraction = Math.max(0, Math.min(1, (distance - firstDistance) / span));
     let usable = false;
     for (const range of ranges) {
       if (fraction < range.startFraction || fraction > range.endFraction) continue;
@@ -154,13 +152,15 @@ function eligibleSegments(
     }
     if (!current) current = { packets: [], indices: [] };
     current.packets.push(packet);
-    current.indices.push(sourceIndices[index]!);
+    current.indices.push(sourceIndex);
   }
   if (current && current.packets.length >= 10) segments.push(current);
   return segments;
 }
 
-export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, quality?: LapQualitySummary | null): LapInsight[] {
+/** Analyze resolver-backed lap samples; unavailable channels produce no evidence. */
+export function analyzeLap(samples: readonly SemanticTelemetrySample[], gameId: GameId, quality?: LapQualitySummary | null): LapInsight[] {
+  const telemetry = samples.map(semanticLapFrame);
   if (telemetry.length < 10 || !quality) return [];
   const game = getGame(gameId);
   const tireTemperatureUnit = game.telemetry.tireTemperature.packetUnit;

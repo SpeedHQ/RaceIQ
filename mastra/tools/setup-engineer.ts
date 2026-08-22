@@ -16,6 +16,7 @@
  */
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
+import { existsSync, unlinkSync } from "node:fs";
 
 import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "../../server/ai/chat-message-context";
 
@@ -48,17 +49,20 @@ import { eligibilityDecisionText } from "../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import type { EligibilityPolicyId } from "../../shared/racing/quality/contracts";
 import { setLapExperimentExcluded, getLapsForExperiment } from "../../server/db/experiment-lap-queries";
-import { getLapById, type LoadedLap } from "../../server/db/lap-read-queries";
 import { resolveTrack } from "../../server/tracks/info";
 import { recordAction } from "../../server/db/experiment-action-queries";
 import { undoLastAction } from "../../server/experiments/undo";
-import { detectCorners } from "../../server/lap-analysis/corners";
-import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
+import { telemetryToSymptoms, TUNE_SYMPTOM_SEMANTIC_IDS } from "../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../server/ai/tune-issues";
-import { compareLaps } from "../../server/lap-analysis/comparison";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { COMPARISON_SEMANTIC_IDS, compareLaps } from "../../server/lap-analysis/comparison";
+import { queryLapTelemetryBySemanticId } from "../../server/telemetry/replay";
+import { semanticSamplesFromReplay, semanticFixedNumbers, semanticNumber } from "../../server/telemetry/semantic-samples";
+import { resolveSemanticLapCorners } from "../../server/tracks/corner-resolution";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { TelemetryVariableId } from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
@@ -106,25 +110,49 @@ const CornerSnapShape = z.object({
   pressure: z.number(),
   brakeTempC: z.number(),
 });
+type TireReading = { tempC: number; wear: number; pressure: number; brakeTempC: number };
+type TireSnapshot = Record<"FL" | "FR" | "RL" | "RR", TireReading>;
 
-// Same per-corner tyre read the review UI shows (client/src/components/tunes/
-// TuneReviewDashboard.tsx::tireSnapshot) — reimplemented here since that file
-// is client-only. Wear is the LAST frame's value (cumulative), everything
-// else is a lap-average.
-function tireSnapshot(pkts: TelemetryPacket[]): Record<"FL" | "FR" | "RL" | "RR", { tempC: number; wear: number; pressure: number; brakeTempC: number }> | null {
-  if (pkts.length === 0) return null;
-  const last = pkts[pkts.length - 1]!;
-  const avg = (sel: (p: TelemetryPacket) => number | undefined) => {
-    let s = 0;
-    for (const p of pkts) s += sel(p) ?? 0;
-    return s / pkts.length;
+function tireSnapshot(samples: readonly SemanticTelemetrySample[]): TireSnapshot | null {
+  if (samples.length === 0) return null;
+  const values = {
+    temp: samples.map((sample) => semanticFixedNumbers(sample, "tire.temperature.average", 4)),
+    wear: samples.map((sample) => semanticFixedNumbers(sample, "tires.tire-wear", 4)),
+    pressure: samples.map((sample) => semanticFixedNumbers(sample, "tires.tire-pressure", 4)),
+    brakeTemp: samples.map((sample) => semanticFixedNumbers(sample, "brakes.brake-temp", 4)),
   };
-  return {
-    FL: { tempC: avg((p) => p.TireTempFL), wear: last.TireWearFL, pressure: avg((p) => p.TirePressureFrontLeft), brakeTempC: avg((p) => p.BrakeTempFrontLeft) },
-    FR: { tempC: avg((p) => p.TireTempFR), wear: last.TireWearFR, pressure: avg((p) => p.TirePressureFrontRight), brakeTempC: avg((p) => p.BrakeTempFrontRight) },
-    RL: { tempC: avg((p) => p.TireTempRL), wear: last.TireWearRL, pressure: avg((p) => p.TirePressureRearLeft), brakeTempC: avg((p) => p.BrakeTempRearLeft) },
-    RR: { tempC: avg((p) => p.TireTempRR), wear: last.TireWearRR, pressure: avg((p) => p.TirePressureRearRight), brakeTempC: avg((p) => p.BrakeTempRearRight) },
+  if (Object.values(values).some((channel) => channel.every((value) => value == null))) return null;
+
+  const average = (channel: readonly (readonly number[] | null)[], wheel: number): number | null => {
+    let total = 0;
+    let count = 0;
+    for (const value of channel) {
+      const reading = value?.[wheel];
+      if (reading == null || !Number.isFinite(reading)) continue;
+      total += reading;
+      count += 1;
+    }
+    return count > 0 ? total / count : null;
   };
+  const last = values.wear.findLast((value) => value != null);
+  const readWheel = (index: number): TireReading | null => {
+    const tempC = average(values.temp, index);
+    const wear = last?.[index] ?? null;
+    const pressure = average(values.pressure, index);
+    const brakeTempC = average(values.brakeTemp, index);
+    if (tempC == null || wear == null || pressure == null || brakeTempC == null) return null;
+    return { tempC, wear, pressure, brakeTempC };
+  };
+  const FL = readWheel(0);
+  const FR = readWheel(1);
+  const RL = readWheel(2);
+  const RR = readWheel(3);
+  if (FL === null || FR === null || RL === null || RR === null) return null;
+  return { FL, FR, RL, RR };
+}
+
+function finiteSamples(samples: readonly SemanticTelemetrySample[], semanticIds: readonly TelemetryVariableId[]): SemanticTelemetrySample[] {
+  return samples.filter((sample) => semanticIds.every((semanticId) => semanticNumber(sample, semanticId) !== null));
 }
 
 // Cap on how many laps get_lap_issues walks when no lapId is given — mirrors
@@ -134,7 +162,17 @@ const MAX_ISSUE_LAPS = 8;
 // Matches loadRepresentativeLap's/clean-lap-aggregate's analysable-lap gate.
 const MIN_TELEMETRY_FRAMES = 30;
 
-type FullLap = LoadedLap;
+function removeWrittenSetup(setupPath: string | null): string | null {
+  if (!setupPath || !existsSync(setupPath)) return null;
+  try {
+    unlinkSync(setupPath);
+    return null;
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
+    const message = error instanceof Error ? error.message : String(error);
+    return `Could not remove setup file ${setupPath}: ${message}`;
+  }
+}
 
 interface SetupEngineerLapScope {
   experimentId: number;
@@ -144,7 +182,7 @@ interface SetupEngineerLapScope {
 }
 
 type SetupEngineerScopeResult = { ok: true; scope: SetupEngineerLapScope } | { ok: false; error: string };
-type SetupEngineerLapResult = { ok: true; meta: LapMeta; lap: FullLap } | { ok: false; error: string };
+type SetupEngineerLapResult = { ok: true; meta: LapMeta } | { ok: false; error: string };
 
 async function loadSetupEngineerLapScope(context: SetupEngineerRequestContext): Promise<SetupEngineerScopeResult> {
   const experiment = await getExperiment(context.sessionId);
@@ -169,17 +207,22 @@ async function loadSetupEngineerLapScope(context: SetupEngineerRequestContext): 
   };
 }
 
+async function querySemanticLapSamples(lap: LapMeta, semanticIds: readonly string[]): Promise<SemanticTelemetrySample[] | null> {
+  if (!lap.gameId) return null;
+  try {
+    const replay = await queryLapTelemetryBySemanticId(lap.id, semanticIds);
+    return replay ? semanticSamplesFromReplay(replay) : null;
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === `Lap ${lap.id} has no replayable telemetry`) return null;
+    throw error;
+  }
+}
 async function loadSetupEngineerLap(scope: SetupEngineerLapScope, lapId: number): Promise<SetupEngineerLapResult> {
   const meta = scope.lapsById.get(lapId);
   if (!meta || meta.experimentId !== scope.experimentId || meta.gameId !== scope.gameId || meta.trackOrdinal !== scope.trackOrdinal || meta.ownership !== "mine") {
     return { ok: false, error: `Lap ${lapId} is not accessible in this experiment.` };
   }
-
-  const lap = await getLapById(lapId);
-  if (!lap || lap.experimentId !== scope.experimentId || lap.gameId !== scope.gameId || lap.trackOrdinal !== scope.trackOrdinal || lap.ownership !== "mine") {
-    return { ok: false, error: `Lap ${lapId} is not accessible in this experiment.` };
-  }
-  return { ok: true, meta, lap };
+  return { ok: true, meta };
 }
 
 function lapPolicyRejection(lap: LapMeta, policyIds: readonly EligibilityPolicyId[]) {
@@ -259,9 +302,10 @@ export function buildSetupEngineerTools() {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const ctx = await loadActiveExperimentContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, knobs: [] };
+      const version = ctx.activeTest?.version;
       return {
         ok: true,
-        version: ctx.activeTest?.version ?? 0,
+        ...(version === undefined ? {} : { version }),
         knobs: describeKnobs(ctx.gameId, ctx.setup),
       };
     },
@@ -316,11 +360,11 @@ export function buildSetupEngineerTools() {
       reasonCodes: z.array(z.string()),
       airTempC: z.object({ min: z.number(), max: z.number(), avg: z.number() }).nullable().optional(),
       roadTempC: z.object({ min: z.number(), max: z.number(), avg: z.number() }).nullable().optional(),
-      rainIntensity: z.number().optional(),
-      wet: z.boolean().optional(),
-      trackGripStatus: z.string().optional(),
-      windSpeedKmh: z.number().optional(),
-      windDirectionDeg: z.number().optional(),
+      rainIntensity: z.number().nullable().optional(),
+      wet: z.boolean().nullable().optional(),
+      trackGripStatus: z.string().nullable().optional(),
+      windSpeedKmh: z.number().nullable().optional(),
+      windDirectionDeg: z.number().nullable().optional(),
       startingGrip: z.string().nullable().optional(),
       staticWeather: z.boolean().nullable().optional(),
     }),
@@ -370,11 +414,13 @@ export function buildSetupEngineerTools() {
       eligibilityStatus: EligibilityStatusEnum,
       reasonCodes: z.array(z.string()),
       lapId: z.number().int().positive().optional(),
-      provenance: z.object({
-        findingGenerationId: z.string(),
-        findingContentHash: z.string(),
-        findingCacheKey: z.string(),
-      }).optional(),
+      provenance: z
+        .object({
+          findingGenerationId: z.string(),
+          findingContentHash: z.string(),
+          findingCacheKey: z.string(),
+        })
+        .optional(),
     }),
     execute: async (_input, execCtx) => {
       const { gameId, sessionId } = readSetupEngineerContext(execCtx?.requestContext);
@@ -469,9 +515,9 @@ export function buildSetupEngineerTools() {
         },
       ]);
       void setup;
-      if (applied.length > 0) {
-        const c = applied[0]!;
-        return { ok: true, noop: false, from: c.from, to: c.to };
+      const [change] = applied;
+      if (change) {
+        return { ok: true, noop: false, from: change.from, to: change.to };
       }
       return { ok: true, noop: true, reason: skipped[0]?.reason ?? "No effect" };
     },
@@ -550,14 +596,15 @@ export function buildSetupEngineerTools() {
       let baseRealPath = ctx.realPath;
       let baseDir = ctx.baseDir;
       let parent = ctx.activeTest;
-      if (inputData.target) {
-        const target = inputData.target.trim().replace(/^v/i, "");
+      const targetInput = inputData.target?.trim();
+      if (targetInput) {
+        const target = targetInput.replace(/^v/i, "");
         const asNum = Number(target);
         const match =
-          ctx.tests.find((t) => t.label.toLowerCase() === inputData.target!.trim().toLowerCase()) ??
-          ctx.tests.find((t) => t.label.toLowerCase() === target.toLowerCase()) ??
-          (Number.isFinite(asNum) ? ctx.tests.find((t) => t.version === asNum) : undefined);
-        if (!match) return { ok: false, error: `No version matching "${inputData.target}" in this session.`, applied: [], skipped: [] };
+          ctx.tests.find((test) => test.label.toLowerCase() === targetInput.toLowerCase()) ??
+          ctx.tests.find((test) => test.label.toLowerCase() === target.toLowerCase()) ??
+          (Number.isFinite(asNum) ? ctx.tests.find((test) => test.version === asNum) : undefined);
+        if (!match) return { ok: false, error: `No version matching "${targetInput}" in this session.`, applied: [], skipped: [] };
         const guarded = await readActiveSetup(ctx.gameId, { setupPath: match.setupPath ?? null, setupSnapshot: match.setupSnapshot ?? null });
         if (!guarded.ok) return { ok: false, error: `Could not read ${match.label}: ${guarded.error}`, applied: [], skipped: [] };
         baseSetup = guarded.setup;
@@ -614,18 +661,30 @@ export function buildSetupEngineerTools() {
         return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
       }
 
-      const newTestId = await createExperimentVersion({
-        experimentId: sessionId,
-        version: nextVer,
-        label,
-        setupPath: written.setupPath,
-        setupSnapshot: written.setupSnapshot,
-        parentVersionId: parent?.id ?? null,
-        appliedChanges: applied.length ? JSON.stringify(applied) : null,
-        driverComment: null,
-        notes: inputData.goal?.trim() || null,
-        engine: "llm",
-      });
+      let newTestId: number;
+      try {
+        newTestId = await createExperimentVersion({
+          experimentId: sessionId,
+          version: nextVer,
+          label,
+          setupPath: written.setupPath,
+          setupSnapshot: written.setupSnapshot,
+          parentVersionId: parent?.id ?? null,
+          appliedChanges: applied.length ? JSON.stringify(applied) : null,
+          driverComment: null,
+          notes: inputData.goal?.trim() || null,
+          engine: "llm",
+        });
+      } catch (err: unknown) {
+        const cleanupError = removeWrittenSetup(written.setupPath);
+        const detail = err instanceof Error ? err.message : String(err);
+        return {
+          ok: false,
+          error: `Version create failed: ${detail}${cleanupError ? `; ${cleanupError}` : ""}`,
+          applied: [],
+          skipped: [],
+        };
+      }
 
       // Branch grows and head follows the work: the new node becomes the head.
       //
@@ -637,8 +696,30 @@ export function buildSetupEngineerTools() {
       const prevHeadTestId = ctx.session.headVersionId ?? parent?.id ?? null;
       try {
         await setSessionHead(sessionId, newTestId);
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to advance head:", err?.message);
+      } catch (err: unknown) {
+        const detail = err instanceof Error ? err.message : String(err);
+        const cleanupErrors: string[] = [];
+        try {
+          // Soft-delete newly-created node so failed apply cannot leave an
+          // active version behind. Pass newTestId because head update may have
+          // committed before reporting its failure.
+          await deleteTestSubtree(sessionId, newTestId, newTestId);
+        } catch (cleanupError: unknown) {
+          cleanupErrors.push(`version cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+        }
+        try {
+          await setSessionHead(sessionId, prevHeadTestId);
+        } catch (restoreError: unknown) {
+          cleanupErrors.push(`head restore failed: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
+        }
+        const fileCleanupError = removeWrittenSetup(written.setupPath);
+        if (fileCleanupError) cleanupErrors.push(fileCleanupError);
+        return {
+          ok: false,
+          error: `Head update failed: ${detail}${cleanupErrors.length ? `; ${cleanupErrors.join("; ")}` : ""}`,
+          applied: [],
+          skipped: [],
+        };
       }
 
       // Push the new version to any open clients so the tree + head update
@@ -962,33 +1043,13 @@ export function buildSetupEngineerTools() {
       if (!scopeResult.ok) return scopeResult;
       const lapResult = await loadSetupEngineerLap(scopeResult.scope, inputData.lapId);
       if (!lapResult.ok) return lapResult;
-      const { meta, lap } = lapResult;
-      const policyRejection = lapPolicyRejection(lap, ["corner-trace", "tire-analysis"]);
+      const { meta } = lapResult;
+      const policyRejection = lapPolicyRejection(meta, ["corner-trace", "tire-analysis"]);
       if (policyRejection) return policyRejection;
 
-      const telemetry = lap.telemetry;
-      if (telemetry.length === 0) {
-        return {
-          ok: true,
-          lapNumber: meta.lapNumber,
-          lapTime: meta.lapTime,
-          isValid: meta.isValid,
-          excluded: Boolean(meta.experimentExcluded),
-          s1Time: meta.sectorTimes?.[0] ?? null,
-          s2Time: meta.sectorTimes?.[1] ?? null,
-          s3Time: meta.sectorTimes?.[2] ?? null,
-          corners: [],
-          tires: null,
-          metrics: null,
-        };
-      }
-
-      const corners = detectCorners(telemetry).map((c) => ({ label: c.label, minSpeedKph: c.minSpeedKph }));
-      const topSpeedKph = telemetry.reduce((max, p) => Math.max(max, p.Speed * 3.6), 0);
-      const avg = (sel: (p: TelemetryPacket) => number) => telemetry.reduce((s, p) => s + sel(p), 0) / telemetry.length;
-
-      return {
-        ok: true,
+      const samples = await querySemanticLapSamples(meta, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+      const base = {
+        ok: true as const,
         lapNumber: meta.lapNumber,
         lapTime: meta.lapTime,
         isValid: meta.isValid,
@@ -996,14 +1057,51 @@ export function buildSetupEngineerTools() {
         s1Time: meta.sectorTimes?.[0] ?? null,
         s2Time: meta.sectorTimes?.[1] ?? null,
         s3Time: meta.sectorTimes?.[2] ?? null,
-        corners,
-        tires: tireSnapshot(telemetry),
-        metrics: {
-          topSpeedKph,
-          avgThrottle: avg((p) => p.Accel ?? 0),
-          avgBrake: avg((p) => p.Brake ?? 0),
-        },
       };
+      if (!samples || samples.length === 0) {
+        return {
+          ...base,
+          ok: false,
+          error: `Lap ${meta.id} unavailable: no semantic telemetry data.`,
+          corners: [],
+          tires: null,
+          metrics: null,
+        };
+      }
+
+      const distances = samples.map((sample) => semanticNumber(sample, "timing.distance-traveled"));
+      const firstDistance = distances.find((distance) => distance != null);
+      const corners =
+        firstDistance == null
+          ? []
+          : (await resolveSemanticLapCorners(meta.trackOrdinal, meta.gameId, samples)).flatMap((corner) => {
+              const speeds = samples
+                .map((sample, index) => {
+                  const distance = distances[index];
+                  const speed = semanticNumber(sample, "motion.speed");
+                  return distance != null && speed != null && distance - firstDistance >= corner.distanceStart && distance - firstDistance <= corner.distanceEnd ? speed * 3.6 : null;
+                })
+                .filter((speed): speed is number => speed != null);
+              return [{ label: corner.label, ...(speeds.length > 0 ? { minSpeedKph: Math.min(...speeds) } : {}) }];
+            });
+      const metricSamples = finiteSamples(samples, ["motion.speed", "inputs.accel", "inputs.brake"]);
+      const metrics = (() => {
+        if (metricSamples.length === 0) return null;
+        let topSpeedKph = 0;
+        let throttleTotal = 0;
+        let brakeTotal = 0;
+        for (const sample of metricSamples) {
+          const speed = semanticNumber(sample, "motion.speed");
+          const throttle = semanticNumber(sample, "inputs.accel");
+          const brake = semanticNumber(sample, "inputs.brake");
+          if (speed === null || throttle === null || brake === null) return null;
+          topSpeedKph = Math.max(topSpeedKph, speed * 3.6);
+          throttleTotal += throttle;
+          brakeTotal += brake;
+        }
+        return { topSpeedKph, avgThrottle: throttleTotal / metricSamples.length, avgBrake: brakeTotal / metricSamples.length };
+      })();
+      return { ...base, corners, tires: tireSnapshot(samples), metrics };
     },
   });
 
@@ -1038,11 +1136,11 @@ export function buildSetupEngineerTools() {
       const sessionLaps = [...scope.lapsById.values()];
       const selection = selectEvaluationLaps(sessionLaps, Number.POSITIVE_INFINITY);
 
-      const issuesForLap = async (meta: LapMeta, loadedLap?: FullLap) => {
-        const lapResult = loadedLap ? { ok: true as const, meta, lap: loadedLap } : await loadSetupEngineerLap(scope, meta.id);
-        if (!lapResult.ok || lapResult.lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
-        const corners = detectCorners(lapResult.lap.telemetry);
-        const symptoms = telemetryToSymptoms(lapResult.lap.telemetry, corners);
+      const issuesForLap = async (meta: LapMeta) => {
+        const samples = await querySemanticLapSamples(meta, TUNE_SYMPTOM_SEMANTIC_IDS);
+        if (!samples || samples.length < MIN_TELEMETRY_FRAMES) return null;
+        const corners = await resolveSemanticLapCorners(meta.trackOrdinal, scope.gameId, samples);
+        const symptoms = telemetryToSymptoms(scope.gameId, samples, corners);
         return symptomsToIssues(symptoms, meta.lapNumber);
       };
 
@@ -1076,7 +1174,7 @@ export function buildSetupEngineerTools() {
             laps: [],
           };
         }
-        const issues = await issuesForLap(meta, lapResult.lap);
+        const issues = await issuesForLap(meta);
         if (issues == null) return { ok: false, error: `Lap ${inputData.lapId} has no analysable telemetry.`, laps: [] };
         return { ok: true, laps: [{ lapId: meta.id, lapNumber: meta.lapNumber, issues }] };
       }
@@ -1131,26 +1229,30 @@ export function buildSetupEngineerTools() {
       const [resultA, resultB] = await Promise.all([loadSetupEngineerLap(scopeResult.scope, inputData.lapId1), loadSetupEngineerLap(scopeResult.scope, inputData.lapId2)]);
       if (!resultA.ok) return resultA;
       if (!resultB.ok) return resultB;
-      const { meta: metaA, lap: lapA } = resultA;
-      const { meta: metaB, lap: lapB } = resultB;
-      if (lapA.gameId !== lapB.gameId || lapA.trackOrdinal !== lapB.trackOrdinal) {
+      const { meta: metaA } = resultA;
+      const { meta: metaB } = resultB;
+      if (metaA.gameId !== metaB.gameId || metaA.trackOrdinal !== metaB.trackOrdinal) {
         return { ok: false, error: "Laps must belong to the same game and track." };
       }
-      const policyRejectionA = lapPolicyRejection(lapA, ["lap-comparison"]);
+      const policyRejectionA = lapPolicyRejection(metaA, ["lap-comparison"]);
       if (policyRejectionA) return policyRejectionA;
-      const policyRejectionB = lapPolicyRejection(lapB, ["lap-comparison"]);
+      const policyRejectionB = lapPolicyRejection(metaB, ["lap-comparison"]);
       if (policyRejectionB) return policyRejectionB;
-      if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) {
-        return { ok: false, error: "One or both laps have no telemetry data." };
+
+      const [samplesA, samplesB] = await Promise.all([querySemanticLapSamples(metaA, COMPARISON_SEMANTIC_IDS), querySemanticLapSamples(metaB, COMPARISON_SEMANTIC_IDS)]);
+      if (!samplesA || !samplesB || samplesA.length === 0 || samplesB.length === 0) {
+        return { ok: false, error: "One or both laps have no semantic telemetry data." };
       }
-      const corners = detectCorners(lapA.telemetry);
-      const track = resolveTrack(lapA.gameId, lapA.trackOrdinal);
-      const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, {
-        lapAIsValid: lapA.isValid,
-        lapBIsValid: lapB.isValid,
+
+      const corners = await resolveSemanticLapCorners(metaA.trackOrdinal, scopeResult.scope.gameId, samplesA);
+      const track = resolveTrack(scopeResult.scope.gameId, metaA.trackOrdinal);
+      const result = compareLaps(samplesA, samplesB, corners, {
+        lapAIsValid: metaA.isValid,
+        lapBIsValid: metaB.isValid,
         trackLengthMeters: track.lengthMeters,
       });
-      const timeDeltaSec = result.timeDelta.length > 0 ? result.timeDelta[result.timeDelta.length - 1]! : 0;
+      const timeDeltaSec = result.timeDelta.at(-1);
+      if (timeDeltaSec === undefined) return { ok: false, error: "Comparison unavailable: no cumulative delta produced." };
 
       return {
         ok: true,
