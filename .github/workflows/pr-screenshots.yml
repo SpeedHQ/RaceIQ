@@ -38,7 +38,7 @@ jobs:
     runs-on:
       - whitesmith-windows-x64
       - 4VCPU
-      - 5G
+      - 15G
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
     steps:

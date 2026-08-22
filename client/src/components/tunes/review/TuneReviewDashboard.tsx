@@ -45,6 +45,7 @@ interface TuneReviewDashboardProps {
 
 type SectorView = `s${number}`;
 type ReviewView = "overview" | "track" | SectorView;
+type TrackTab = "consistency" | "tires" | "balance" | "suspension";
 
 /**
  * TuneReviewDashboard — post-lap analysis for a finished lap, in the "sector
@@ -58,10 +59,13 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView };
+  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TrackTab };
   const focusLap = validLaps.find((l) => l.id === search.lap) ?? validLaps[0];
+  const trackTab = search.trackTab ?? "consistency";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const setFocus = (id: number) => navigate({ search: (p: any) => ({ ...p, lap: id }) } as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const setTrackTab = (tab: TrackTab) => navigate({ search: (p: any) => ({ ...p, view: "track", trackTab: tab }) } as any);
 
   // Point the URL at a real lap when it's missing or stale for this session.
   // The track view is stint-wide: a missing ?lap= there means "All", so leave it.
@@ -309,7 +313,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
       {/* Detail body — owns its own scroll; the header above stays static. */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {view === "track" ? (
-          <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
+          <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} activeTab={trackTab} onActiveTabChange={setTrackTab} />
         ) : sectorIndex != null ? (
           <SectorDetailView telemetry={telemetry as unknown as TelemetryPacket[]} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
         ) : (

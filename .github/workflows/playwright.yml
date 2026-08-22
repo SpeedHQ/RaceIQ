@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: "--project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device"
+      shard:
+        description: "Optional Playwright shard in N/M format"
+        required: false
+        type: string
+        default: ""
       server-set:
         description: "Playwright server set: all, fresh, tunes, tunes-unseeded, or seeded"
         required: false
@@ -94,7 +99,7 @@ jobs:
           PW_WORKERS: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
-        run: bun run ../scripts/playwright-ci.ts test --list
+        run: bun run ../scripts/playwright-ci.ts test --list ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
       - name: Run Playwright gate
         working-directory: playwright
@@ -105,7 +110,7 @@ jobs:
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
-        run: bun run ../scripts/playwright-ci.ts test
+        run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
 
       - name: Upload Playwright artifacts
