@@ -37,17 +37,6 @@ function getSync(key: string): uPlot.SyncPubSub {
   return SYNC_INSTANCES.get(key)!;
 }
 
-function isCompareDebugEnabled(): boolean {
-  try {
-    return localStorage.getItem("raceiq:compare-debug") === "1";
-  } catch {
-    return false;
-  }
-}
-
-function compareDebug(event: string, details: Record<string, unknown> = {}): void {
-  if (isCompareDebugEnabled()) console.log("[compare-debug]", event, details);
-}
 
 export function pixelAlignedCursorBBox(x: number, y: number, size: number): uPlot.BBox {
   const roundedX = Math.round(x);
@@ -173,7 +162,6 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
                 pointerDownPlotX = e.offsetX;
                 const sel = getOverOffset(e.offsetX);
                 if (sel) setDragSel(sel);
-                compareDebug("pointer-down", { title, syncKey, offsetX: e.offsetX });
               };
 
               const onUp = (e: PointerEvent) => {
@@ -188,26 +176,17 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
                 const endPx = e.clientX - overRect.left;
                 const start = startPx == null ? null : upl.posToVal(startPx, "x");
                 const end = upl.posToVal(endPx, "x");
-                compareDebug("pointer-up", { title, syncKey, start, end, moved });
                 if (moved < DRAG_THRESHOLD_PX) {
-                  compareDebug("click-ignored", { title, syncKey, moved, threshold: DRAG_THRESHOLD_PX });
                   return;
                 }
                 if (start != null && end != null && end > start) {
-                  compareDebug("range-select", { title, syncKey, start, end });
                   onRangeSelect?.(start, end);
                 }
               };
 
               const onDoubleClick = () => {
-                compareDebug("double-click", {
-                  title,
-                  syncKey,
-                  scale: { min: upl.scales.x.min, max: upl.scales.x.max },
-                });
                 onResetZoom?.();
               };
-              compareDebug("chart-ready", { title, syncKey, points: data.distance.length });
               over.addEventListener("pointerdown", onDown);
               window.addEventListener("pointerup", onUp);
               over.addEventListener("dblclick", onDoubleClick);

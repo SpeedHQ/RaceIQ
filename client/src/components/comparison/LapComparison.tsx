@@ -20,13 +20,6 @@ import { CompareAiSidebar } from "./CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./CompareTrackMap";
 import { ComparisonCharts } from "./ComparisonCharts";
 import { ComparisonSelectors } from "./ComparisonSelectors";
-const compareDebug = (event: string, details: Record<string, unknown> = {}): void => {
-  try {
-    if (localStorage.getItem("raceiq:compare-debug") === "1") console.log("[compare-debug]", event, details);
-  } catch {
-    // Ignore unavailable browser storage.
-  }
-};
 
 interface TrackGroup {
   trackOrdinal: number;
@@ -184,18 +177,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   );
   const handleRangeSelect = useCallback(
     (start: number, end: number) => {
-      compareDebug("range-handler", {
-        start,
-        end,
-        hasComparison: Boolean(comparison),
-        fullDistance,
-        activeRange,
-      });
       if (!comparison || fullDistance <= 0) return;
       const currentStart = activeRange?.distanceStart ?? comparison.traces.distance[0] ?? 0;
       const currentEnd = activeRange?.distanceEnd ?? fullDistance;
       const fidelity = selectFidelity(end - start, Math.max(1, currentEnd - currentStart + 1));
-      compareDebug("range-fidelity", { start, end, currentStart, currentEnd, fidelity });
       if (!fidelity) {
         setOptimisticRange(null);
         setDetailRange(null);
@@ -210,7 +195,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     [activeRange, comparison, fullDistance],
   );
   const handleResetZoom = useCallback(() => {
-    compareDebug("reset-handler", { activeRange, optimisticRange, detailRange });
     setOptimisticRange(null);
     setDetailRange(null);
   }, [activeRange, detailRange, optimisticRange]);
