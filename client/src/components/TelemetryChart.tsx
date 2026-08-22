@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import { clampVisibleRange, type ChartRange } from "../lib/chart-range";
 import { resolveCssColor, resolveCssFont } from "../lib/rendering/css-values";
-
 interface Props {
   data: {
     distance: number[];
@@ -15,6 +15,7 @@ interface Props {
   title?: string;
   fillColors?: (string | null)[];
   onCursorMove?: (distance: number | null) => void;
+  onRangeSelect?: (start: number, end: number) => void;
 }
 
 interface DragSel {
@@ -32,11 +33,11 @@ function getSync(key: string): uPlot.SyncPubSub {
   }
   return SYNC_INSTANCES.get(key)!;
 }
-
-export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove }: Props) {
+export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove, onRangeSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
+  const visibleRangeRef = useRef<ChartRange | null>(null);
   const onCursorMoveRef = useRef(onCursorMove);
   onCursorMoveRef.current = onCursorMove;
   const cleanupOverlayRef = useRef<(() => void) | null>(null);
@@ -117,10 +118,12 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
               };
 
               const onUp = () => {
-                if (dragging) {
-                  dragging = false;
-                  setDragSel(null);
-                }
+                if (!dragging) return;
+                dragging = false;
+                setDragSel(null);
+                const start = upl.scales.x.min;
+                const end = upl.scales.x.max;
+                if (start != null && end != null && end > start) onRangeSelect?.(start, end);
               };
 
               over.addEventListener("pointerdown", onDown);
@@ -143,10 +146,9 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
           ],
         },
       };
-
       return opts;
     },
-    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance],
+    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance, onRangeSelect],
   );
 
   useEffect(() => {
@@ -158,12 +160,25 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
 
     if (syncKey) getSync(syncKey);
 
-    plotRef.current = new uPlot(buildOpts(rect.width), uplotData, el);
+    const plot = new uPlot(buildOpts(rect.width), uplotData, el);
+    plotRef.current = plot;
+    const domainMin = data.distance[0];
+    const domainMax = data.distance.at(-1);
+    const visibleRange =
+      domainMin != null && domainMax != null && visibleRangeRef.current
+        ? clampVisibleRange(visibleRangeRef.current, { min: domainMin, max: domainMax })
+        : null;
+    if (visibleRange) plot.setScale("x", visibleRange);
 
     return () => {
+      const currentPlot = plotRef.current;
+      if (currentPlot) {
+        const { min, max } = currentPlot.scales.x;
+        if (min != null && max != null && max > min) visibleRangeRef.current = { min, max };
+      }
       cleanupOverlayRef.current?.();
       cleanupOverlayRef.current = null;
-      plotRef.current?.destroy();
+      currentPlot?.destroy();
       plotRef.current = null;
     };
   }, [buildOpts, data, syncKey]);

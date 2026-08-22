@@ -127,4 +127,39 @@ describe("lap telemetry cache (byte-budget LRU)", () => {
     expect(cache.size()).toBe(0);
     expect(cache.bytesUsed()).toBe(0);
   });
+  test("stores ordered comparison bodies and returns exact string", () => {
+    const body = JSON.stringify({ lapA: 1, lapB: 2 });
+    cache.comparisonSet(1, 2, body);
+    expect(cache.comparisonGet(1, 2)).toBe(body);
+    expect(cache.comparisonGet(2, 1)).toBeUndefined();
+  });
+
+  test("comparison entries share byte budget and refresh global recency", () => {
+    const oneEntryBytes = cache.estimateBytes(stub(1, 1000));
+    cache.setMaxBytes(oneEntryBytes * 2);
+    cache.set(1, stub(1, 1000));
+    cache.comparisonSet(2, 3, "x".repeat(oneEntryBytes));
+    expect(cache.comparisonGet(2, 3)).toBeDefined();
+    cache.set(4, stub(4, 1000));
+    expect(cache.get(1)).toBeUndefined();
+    expect(cache.comparisonGet(2, 3)).toBeDefined();
+    expect(cache.get(4)).toBeDefined();
+  });
+
+  test("oversize comparison entry is not retained", () => {
+    cache.setMaxBytes(10);
+    cache.comparisonSet(1, 2, "01234567890");
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    expect(cache.bytesUsed()).toBe(0);
+  });
+
+  test("deleting lap invalidates comparison pairs containing it", () => {
+    cache.comparisonSet(1, 2, "a");
+    cache.comparisonSet(2, 3, "b");
+    cache.comparisonSet(3, 4, "c");
+    cache.delete(2);
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    expect(cache.comparisonGet(2, 3)).toBeUndefined();
+    expect(cache.comparisonGet(3, 4)).toBe("c");
+  });
 });

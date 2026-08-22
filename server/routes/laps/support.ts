@@ -29,6 +29,12 @@ export const AnalyseQuerySchema = z.object({
     .optional(),
 });
 
+export const ComparisonRangeQuerySchema = z.object({
+  step: z.literal("0.1").transform(() => 0.1),
+  start: z.coerce.number().finite().min(0),
+  end: z.coerce.number().finite().gt(0),
+});
+
 export const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
 });

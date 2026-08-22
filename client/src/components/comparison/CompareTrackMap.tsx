@@ -1,11 +1,9 @@
 import type { GameId } from "@shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
-import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
-const value = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
-const numberValue = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=value(p,id); return typeof x === "number" ? x : undefined; }
+import type { AlignedTrace } from "@shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, type Point } from "@/lib/comparison-utils";
+import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTraceIndexAtDistance, type Point } from "@/lib/comparison-utils";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -21,8 +19,7 @@ export interface SegmentTiming {
 
 interface CompareTrackMapProps {
   outline: Point[];
-  telemetryA: SemanticTelemetrySample[];
-  telemetryB: SemanticTelemetrySample[];
+  traces: AlignedTrace;
   labelA: string;
   labelB: string;
   lapTimeA: string;
@@ -35,7 +32,7 @@ interface CompareTrackMapProps {
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId }: CompareTrackMapProps) {
+export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId }: CompareTrackMapProps) {
   const overviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
   const overviewContainerRef = useRef<HTMLDivElement>(null);
@@ -97,8 +94,8 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
 
     // Extract telemetry positions from lap A
     const telPts: Point[] = [];
-    for (const p of telemetryA) {
-      if ((numberValue(p, "motion.position-x") ?? 0) !== 0 || (numberValue(p, "motion.position-z") ?? 0) !== 0) telPts.push({ x: (numberValue(p, "motion.position-x") ?? 0), z: (numberValue(p, "motion.position-z") ?? 0) });
+    for (let i = 0; i < traces.distance.length; i++) {
+      if ((traces.positionXA[i] ?? 0) !== 0 || (traces.positionZA[i] ?? 0) !== 0) telPts.push({ x: traces.positionXA[i], z: traces.positionZA[i] });
     }
     if (telPts.length < 20 || outline.length < 10) {
       return { alignedOutline: outline, alignedBoundaries: boundaries, telXFn: identity, trackRange: computeRange(outline) };
@@ -261,7 +258,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     }
 
     return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, telXFn: identity, trackRange: computeRange(newOutline) };
-  }, [displayOutline, telemetryA, displayBoundaries]);
+  }, [displayOutline, traces, displayBoundaries]);
 
   const drawBoth = useCallback(() => {
     const hd = hoveredDistanceRef.current;
@@ -280,16 +277,15 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       if (ctx) {
         ctx.scale(dpr, dpr);
         const segPts =
-          segments.length > 0 && telemetryA.length >= 2
+          segments.length > 0 && traces.distance.length >= 2
             ? segments
                 .map((s) => {
-                  const idx = Math.round(s.startFrac * (telemetryA.length - 1));
-                  const p = telemetryA[idx];
-                  return { x: telXFn((numberValue(p, "motion.position-x") ?? 0)), z: (numberValue(p, "motion.position-z") ?? 0), type: s.type, label: s.name };
+                  const idx = Math.round(s.startFrac * (traces.distance.length - 1));
+                  return { x: telXFn(traces.positionXA[idx] ?? 0), z: traces.positionZA[idx] ?? 0, type: s.type, label: s.name };
                 })
                 .filter((sp) => sp.x !== 0 || sp.z !== 0)
             : undefined;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, null, segPts, undefined, alignedBoundaries, telXFn);
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, traces, hd, null, segPts, false, alignedBoundaries, telXFn);
       }
     }
 
@@ -306,22 +302,20 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       const ctx = getSemanticCanvasContext(zc);
       if (ctx) {
         ctx.scale(dpr, dpr);
-        const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn, alignedOutline) : null;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true);
+        const zoom = hd != null ? computeZoom(traces, hd, trackRange, telXFn, alignedOutline) : null;
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, traces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true);
 
-        // Draw input HUDs when zoomed
         if (hd != null) {
-          const pA = telemetryA.length >= 2 ? telemetryA[findTelemetryAtDistance(telemetryA, hd)] : null;
-          const pB = telemetryB.length >= 2 ? telemetryB[findTelemetryAtDistance(telemetryB, hd)] : null;
-          drawInputsHUD(ctx, rect.width, rect.height, pA, pB);
+          const index = findTraceIndexAtDistance(traces.distance, hd);
+          drawInputsHUD(ctx, rect.width, rect.height, traces, index);
         }
       }
     }
     // Highlight active segment row
     if (segmentTableRef.current && segments.length > 0) {
       let activeIdx = -1;
-      if (hd != null && telemetryA.length >= 2) {
-        const totalDist = (numberValue(telemetryA[telemetryA.length - 1], "timing.distance-traveled") ?? 0) - (numberValue(telemetryA[0], "timing.distance-traveled") ?? 0);
+      if (hd != null && traces.distance.length >= 2) {
+        const totalDist = traces.distance.at(-1)! - traces.distance[0];
         if (totalDist > 0) {
           const frac = hd / totalDist;
           activeIdx = segments.findIndex((s) => frac >= s.startFrac && frac < s.endFrac);
@@ -339,15 +333,25 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
         prevActiveSegRef.current = activeIdx;
       }
     }
-  }, [alignedOutline, telemetryA, telemetryB, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange]);
+  }, [alignedOutline, traces, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange]);
+  const redrawFrameRef = useRef<number | null>(null);
+  const scheduleDraw = useCallback(() => {
+    if (redrawFrameRef.current != null) return;
+    redrawFrameRef.current = requestAnimationFrame(() => {
+      redrawFrameRef.current = null;
+      drawBoth();
+    });
+  }, [drawBoth]);
 
   // Register redraw function so parent can trigger canvas updates without React re-render
   useEffect(() => {
-    redrawRef.current = drawBoth;
+    redrawRef.current = scheduleDraw;
     return () => {
       redrawRef.current = null;
+      if (redrawFrameRef.current != null) cancelAnimationFrame(redrawFrameRef.current);
+      redrawFrameRef.current = null;
     };
-  }, [drawBoth, redrawRef]);
+  }, [scheduleDraw, redrawRef]);
 
   useEffect(() => {
     drawBoth();
@@ -376,7 +380,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             const next = !followCarRef.current;
             followCarRef.current = next;
             setFollowCar(next);
-            drawBoth();
+            scheduleDraw();
           }}
           variant={followCar ? "selected-toggle" : "app-outline"}
           size="app-sm"

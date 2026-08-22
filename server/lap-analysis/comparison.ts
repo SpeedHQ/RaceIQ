@@ -12,6 +12,7 @@ export interface AlignedTrace {
   gear: number[];
   posX: number[];
   posZ: number[];
+  yaw: number[];
   elapsedTime: number[];
   tireWear: number[];
   fuel: number[];
@@ -37,6 +38,8 @@ export interface ComparisonOptions {
   lapAIsValid?: boolean;
   lapBIsValid?: boolean;
   trackLengthMeters?: number | null;
+  gridStepMeters?: number;
+  distanceRange?: { start: number; end: number };
 }
 
 interface LapData {
@@ -49,10 +52,12 @@ interface LapData {
   gears: number[];
   posXs: number[];
   posZs: number[];
+  yaws: number[];
   times: number[];
   tireWears: number[];
   fuels: number[];
 }
+
 
 function positiveSpan(packets: TelemetryPacket[]): number {
   const first = packets.find((packet) => Number.isFinite(packet.DistanceTraveled));
@@ -186,6 +191,7 @@ function extractLapData(packets: TelemetryPacket[], distances: number[]): LapDat
     gears: packets.map((packet) => packet.Gear),
     posXs: packets.map((packet) => packet.PositionX),
     posZs: packets.map((packet) => packet.PositionZ),
+    yaws: packets.map((packet) => packet.Yaw),
     times: packets.map((packet) => (packet.TimestampMS - first.TimestampMS) / 1000),
     tireWears: packets.map((packet) => (packet.TireWearFL + packet.TireWearFR + packet.TireWearRL + packet.TireWearRR) / 4),
     fuels: packets.map((packet) => packet.Fuel),
@@ -201,7 +207,8 @@ function alignLap(data: LapData, grid: number[]): AlignedTrace {
   const trace: AlignedTrace = {
     speed: new Array(grid.length), throttle: new Array(grid.length), brake: new Array(grid.length), steer: new Array(grid.length),
     rpm: new Array(grid.length), gear: new Array(grid.length), posX: new Array(grid.length), posZ: new Array(grid.length),
-    elapsedTime: new Array(grid.length), tireWear: new Array(grid.length), fuel: new Array(grid.length), sourceIndices: new Array(grid.length),
+    yaw: new Array(grid.length), elapsedTime: new Array(grid.length), tireWear: new Array(grid.length), fuel: new Array(grid.length),
+    sourceIndices: new Array(grid.length),
   };
   const last = Math.max(0, data.distances.length - 1);
   let sourceIndex = 0;
@@ -221,6 +228,7 @@ function alignLap(data: LapData, grid: number[]): AlignedTrace {
     trace.brake[gridIndex] = interpolateSample(data.brakes, lower, upper, interpolation);
     trace.steer[gridIndex] = interpolateSample(data.steers, lower, upper, interpolation);
     trace.rpm[gridIndex] = interpolateSample(data.rpms, lower, upper, interpolation);
+    trace.yaw[gridIndex] = interpolateSample(data.yaws, lower, upper, interpolation);
     trace.gear[gridIndex] = Math.round(interpolateSample(data.gears, lower, upper, interpolation));
     trace.posX[gridIndex] = interpolateSample(data.posXs, lower, upper, interpolation);
     trace.posZ[gridIndex] = interpolateSample(data.posZs, lower, upper, interpolation);
@@ -257,8 +265,13 @@ export function compareLaps(
   options: ComparisonOptions = {},
 ): ComparisonResult {
   const [distancesA, distancesB, nominalSpan] = buildAlignmentDistances(packetsA, packetsB, options);
-  const gridLength = Math.max(0, Math.floor(nominalSpan));
-  const distances = Array.from({ length: gridLength + 1 }, (_, index) => index);
+  const requestedStep = Number.isFinite(options.gridStepMeters) && options.gridStepMeters! > 0 ? options.gridStepMeters! : 1;
+  const rangeStart = Math.max(0, Math.min(nominalSpan, options.distanceRange?.start ?? 0));
+  const rangeEnd = Math.max(rangeStart, Math.min(nominalSpan, options.distanceRange?.end ?? nominalSpan));
+  const maxPoints = 50_000;
+  const step = Math.max(requestedStep, (rangeEnd - rangeStart) / Math.max(1, maxPoints - 1));
+  const pointCount = Math.min(maxPoints, Math.max(1, Math.ceil((rangeEnd - rangeStart) / step) + 1));
+  const distances = Array.from({ length: pointCount }, (_, index) => index === pointCount - 1 ? rangeEnd : rangeStart + index * step);
   const lapA = alignLap(extractLapData(packetsA, distancesA), distances);
   const lapB = alignLap(extractLapData(packetsB, distancesB), distances);
   const timeDelta = computeTimeDelta(lapA.elapsedTime, lapB.elapsedTime);

@@ -129,4 +129,28 @@ describe("compare lap course alignment", () => {
     expect(result.distances).toHaveLength(101);
     expect(result.timeDelta.at(-1)).toBeCloseTo(-0.5, 3);
   });
+  test("interpolates yaw and aligns every trace array to the distance grid", () => {
+    const result = compareLaps(
+      lineLap().map((p) => packet({ ...p, Yaw: p.PositionX })),
+      lineLap().map((p) => packet({ ...p, Yaw: p.PositionX * 2 })),
+      [],
+    );
+    expect(result.lapA.yaw[5]).toBeCloseTo(result.lapA.posX[5], 6);
+    expect(result.lapB.yaw[5]).toBeCloseTo(result.lapB.posX[5] * 2, 6);
+    for (const trace of [result.lapA, result.lapB]) {
+      for (const values of Object.values(trace)) expect(values).toHaveLength(result.distances.length);
+    }
+  });
+  test("supports finer bounded alignment grids", () => {
+    const result = compareLaps(lineLap(), lineLap(), [], { gridStepMeters: 0.5, distanceRange: { start: 10, end: 20 } });
+    expect(result.distances[0]).toBe(10);
+    expect(result.distances.at(-1)).toBe(20);
+    expect(result.distances).toHaveLength(21);
+    expect(result.lapA.yaw).toHaveLength(result.distances.length);
+  });
+
+  test("caps oversized fine grids at 50,000 points", () => {
+    const result = compareLaps(lineLap(), lineLap(), [], { gridStepMeters: 0.001 });
+    expect(result.distances.length).toBeLessThanOrEqual(50_000);
+  });
 });
