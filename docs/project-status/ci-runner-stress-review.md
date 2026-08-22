@@ -238,7 +238,7 @@ sharing mutable seeded runtime state:
 - The light E2E job uses `4VCPU`, `10G`; the seeded E2E job uses `10VCPU`, `15G`.
 - Each job performs checkout, Bun, Node, dependency installation, Chromium installation, and compiled artifact download once.
 - Fresh, tunes, and tunes-unseeded remain isolated sequential batches with one backend set live at a time.
-- Seeded tests run as four Playwright shards. Each shard has one worker plus its own compiled backend, data directory, setup home, HTTP/client/UDP ports, and output directory.
+- Seeded tests run as two Playwright shards. Each shard has one worker plus its own compiled backend, data directory, setup home, HTTP/client/UDP ports, and output directory.
 - Batch discovery or test failure does not skip another batch or shard; the job reports aggregate failure after all executions finish.
 - Responsive screenshots wait for PR E2E and use `PW_SCREENSHOT_WORKERS="1"`.
 - Release E2E retains its existing single-set path through the reusable workflow.

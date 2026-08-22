@@ -135,13 +135,13 @@ Playwright projects and shards define CI boundaries:
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
 | PR light batches | `fresh`, `tunes`, `tunes-unseeded` | Matching project for each server set | Ordered batches with one backend at a time |
-| PR seeded shards | `seeded` | `seeded-e2e`, `seeded-routes`, `seeded-imports`, `mobile-device`, `tablet-device` | Four concurrent shards; one worker, backend, data directory, and port set per shard |
+| PR seeded shards | `seeded` | `seeded-e2e`, `seeded-routes`, `seeded-imports`, `mobile-device`, `tablet-device` | Two concurrent shards; one worker, backend, data directory, and port set per shard |
 | Release E2E | `all` | All configured E2E projects | One release-gate process |
 
 `.github/workflows/playwright-dev.yml` invokes the reusable workflow once for
 light batches and once for seeded shards. Each job performs checkout,
 dependency setup, Chromium installation, and compiled artifact download once.
-The seeded job then starts four Playwright processes with isolated backends;
+The seeded job then starts two Playwright processes with isolated backends;
 shared installation directories remain read-only.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
