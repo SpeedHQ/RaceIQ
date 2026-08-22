@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type {
+  LiveTelemetryFrameMessageV1,
+  LiveTelemetrySchemaMessageV1,
+} from "../../../shared/telemetry/live/contracts";
+import { LiveTelemetryProjector } from "../../telemetry/live-projector";
 import {
   type KunosRecordingFrame,
   type Point2D,
@@ -187,9 +191,11 @@ recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
 
 /**
  * GET /api/dev/e2e-telemetry/:recordingName
- * Parse .bin recording file and return the full TelemetryPacket array
- * (RPM, power, torque, etc.) — richer than e2e-packets which only returns
- * position+speed. Used by the gearing/powerband tooling.
+ * Parse a .bin recording and resolve every packet through the same semantic
+ * pipeline that serves live telemetry (`LiveTelemetryProjector`), so recorded
+ * gearing cannot disagree with live behavior. Returns the live-wire schema
+ * plus one frame per packet; the client rebuilds `LiveTelemetryView`s with
+ * the live decoder. Richer than e2e-packets (position+speed only).
  */
 recordingPacketRoutes.get("/api/dev/e2e-telemetry/:recordingName", (c) => {
   try {
@@ -206,15 +212,24 @@ recordingPacketRoutes.get("/api/dev/e2e-telemetry/:recordingName", (c) => {
         return c.json({ error: "Could not determine recording game" }, 400);
       }
 
-      const packets: TelemetryPacket[] = readRecordedTelemetry(
-        gameId,
-        recordingPath.path,
-      ).packets;
+      const packets = readRecordedTelemetry(gameId, recordingPath.path).packets;
+      const projector = new LiveTelemetryProjector();
+      let schema: LiveTelemetrySchemaMessageV1 | null = null;
+      const frames: LiveTelemetryFrameMessageV1[] = [];
+      for (let i = 0; i < packets.length; i++) {
+        const packet = packets[i]!;
+        const receivedAtMs = Number.isFinite(packet.TimestampMS)
+          ? packet.TimestampMS
+          : i;
+        const projection = projector.project({ packet, receivedAtMs });
+        if (projection.schema) schema = projection.schema;
+        if (projection.frame) frames.push(projection.frame);
+      }
 
-      return c.json({ packetCount: packets.length, packets });
+      return c.json({ packetCount: packets.length, schema, frames });
     } catch (e) {
       console.error("Failed to parse recording:", e);
-      return c.json({ packetCount: 0, packets: [] });
+      return c.json({ packetCount: 0, schema: null, frames: [] });
     }
   } catch (e) {
     return c.json(

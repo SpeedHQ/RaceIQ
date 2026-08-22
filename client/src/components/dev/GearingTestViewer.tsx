@@ -1,8 +1,16 @@
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import type {
+  LiveTelemetryFrameMessageV1,
+  LiveTelemetrySchemaMessageV1,
+} from "@shared/telemetry/live/contracts";
 import { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
-import { convertPacket } from "../../lib/convert-packet";
+import { viewToGearingSample } from "../../hooks/useGearingIngest";
+import { useUnits } from "../../hooks/useUnits";
 import { findBestShiftRpm, findVisualCrossing } from "../../lib/gearing-ratios";
+import {
+  buildLiveTelemetryView,
+  type LiveTelemetryView,
+} from "../../lib/live-telemetry-view";
 import { computeGearingState, computeTrackLaps } from "../../lib/session-gearing";
 import { GearRatioCharts } from "../telemetry/GearRatioCharts";
 import { PowerBandChart } from "../telemetry/PowerBandChart";
@@ -18,33 +26,48 @@ interface E2EFile {
 export function GearingTestViewer() {
   const [files, setFiles] = useState<E2EFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [rawPackets, setRawPackets] = useState<TelemetryPacket[]>([]);
+  const [schema, setSchema] = useState<LiveTelemetrySchemaMessageV1 | null>(null);
+  const [frames, setFrames] = useState<LiveTelemetryFrameMessageV1[]>([]);
   const [packetIndex, setPacketIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const units = useUnits();
+
+  // Decode frames with the live decoder, then adapt through the live gearing
+  // adapter — the exact path live telemetry takes before charting.
+  const views = useMemo(() => {
+    if (!schema) return [];
+    const out: LiveTelemetryView[] = [];
+    for (const frame of frames) {
+      const view = buildLiveTelemetryView(schema, frame);
+      if (view) out.push(view);
+    }
+    return out;
+  }, [schema, frames]);
+
+  const samples = useMemo(
+    () => views.map((view) => viewToGearingSample(view, units.speed)),
+    [views, units],
+  );
 
   // Replay the recording at 20 fps so the scrubbed charts update realistically.
   useEffect(() => {
     if (!playing) return;
-    if (packetIndex >= rawPackets.length - 1) {
+    if (packetIndex >= samples.length - 1) {
       setPlaying(false);
       return;
     }
-    const id = setInterval(() => setPacketIndex((i) => Math.min(i + 1, rawPackets.length - 1)), 50);
+    const id = setInterval(() => setPacketIndex((i) => Math.min(i + 1, samples.length - 1)), 50);
     return () => clearInterval(id);
-  }, [playing, rawPackets.length, packetIndex]);
+  }, [playing, samples.length, packetIndex]);
 
   const fm23Files = useMemo(() => files.filter((f) => f.name.startsWith("fm-2023-")).sort((a, b) => b.modified - a.modified), [files]);
 
-  const displayPackets = useMemo(() => {
-    return rawPackets.map((p) => convertPacket(p, "kmh", "C"));
-  }, [rawPackets]);
-
-  const currentPacket = displayPackets[packetIndex] ?? null;
+  const currentPacket = samples[packetIndex] ?? null;
 
   const gearingState = useMemo(() => {
-    return computeGearingState(displayPackets.slice(0, packetIndex + 1));
-  }, [displayPackets, packetIndex]);
+    return computeGearingState(samples.slice(0, packetIndex + 1));
+  }, [samples, packetIndex]);
 
   const crossRpm = useMemo(() => {
     const p = gearingState.powerCurve;
@@ -54,8 +77,8 @@ export function GearingTestViewer() {
   }, [gearingState]);
 
   const trackLaps = useMemo(() => {
-    return computeTrackLaps(displayPackets.slice(0, packetIndex + 1));
-  }, [displayPackets, packetIndex]);
+    return computeTrackLaps(samples.slice(0, packetIndex + 1));
+  }, [samples, packetIndex]);
 
   useEffect(() => {
     fetch("/api/dev/e2e-files")
@@ -67,18 +90,21 @@ export function GearingTestViewer() {
   const handleSelectFile = async (filename: string) => {
     setSelectedFile(filename);
     setLoading(true);
-    setRawPackets([]);
+    setFrames([]);
+    setSchema(null);
     setPacketIndex(0);
 
     try {
       const res = await fetch(`/api/dev/e2e-telemetry/${encodeURIComponent(filename)}`);
       const data = await res.json();
-      const packets: TelemetryPacket[] = data.packets || [];
-      setRawPackets(packets);
-      setPacketIndex(packets.length > 0 ? packets.length - 1 : 0);
+      setSchema(data.schema ?? null);
+      const nextFrames: LiveTelemetryFrameMessageV1[] = Array.isArray(data.frames) ? data.frames : [];
+      setFrames(nextFrames);
+      setPacketIndex(nextFrames.length > 0 ? nextFrames.length - 1 : 0);
     } catch (e) {
       console.error("Failed to load telemetry:", e);
-      setRawPackets([]);
+      setFrames([]);
+      setSchema(null);
       setPacketIndex(0);
     } finally {
       setLoading(false);
@@ -133,10 +159,10 @@ export function GearingTestViewer() {
                       <PowerBandChart packet={currentPacket} powerCurve={gearingState.powerCurve} torqueCurve={gearingState.torqueCurve} shiftPointRpm={findBestShiftRpm(gearingState.powerCurve)} />
                     </div>
                     <div className="lg:col-span-3">
-                      <TrackSpeedChart laps={trackLaps} toDistance={(m) => m / 1000} distanceLabel="km" speedLabel="km/h" />
+                      <TrackSpeedChart laps={trackLaps} toDistance={units.distance} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} />
                     </div>
                     <div className="lg:col-span-3">
-                      <GearRatioCharts packet={currentPacket} powerCurve={gearingState.powerCurve} targetMaxSpeed={0} speedLabel="km/h" crossRpm={crossRpm} />
+                      <GearRatioCharts packet={currentPacket} powerCurve={gearingState.powerCurve} targetMaxSpeed={0} speedLabel={units.speedLabel} crossRpm={crossRpm} />
                     </div>
                   </div>
                 </div>
@@ -146,7 +172,7 @@ export function GearingTestViewer() {
                   <div className="flex items-center gap-2">
                     <Label className="text-sm font-medium">
                       Packet: <span className="text-app-accent font-mono">{packetIndex + 1}</span>
-                      <span className="text-app-text-muted ml-2">/ {rawPackets.length}</span>
+                      <span className="text-app-text-muted ml-2">/ {samples.length}</span>
                     </Label>
                     <button
                       type="button"
@@ -156,7 +182,7 @@ export function GearingTestViewer() {
                       {playing ? "Pause" : "Play"}
                     </button>
                   </div>
-                  <input type="range" min="0" max={Math.max(0, rawPackets.length - 1)} value={packetIndex} onChange={(e) => setPacketIndex(Number(e.target.value))} className="w-full" />
+                  <input type="range" min="0" max={Math.max(0, samples.length - 1)} value={packetIndex} onChange={(e) => setPacketIndex(Number(e.target.value))} className="w-full" />
                   <div className="flex gap-4 text-xs text-app-text-muted flex-wrap">
                     <span>
                       RPM: <span className="text-app-text">{currentPacket.CurrentEngineRpm.toFixed(0)}</span>
