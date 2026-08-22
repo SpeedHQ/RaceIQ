@@ -27,19 +27,37 @@ jobs:
             server_set: tunes-unseeded
             projects: --project=tunes-unseeded
             runs_on: '["whitesmith-windows-x64", "2VCPU", "15G"]'
-          - name: seeded-core
+          - name: seeded-shard-1
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            shard: 1/5
             runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
-          - name: seeded-imports
+          - name: seeded-shard-2
             server_set: seeded
-            projects: --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            shard: 2/5
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+          - name: seeded-shard-3
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            shard: 3/5
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+          - name: seeded-shard-4
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            shard: 4/5
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+          - name: seeded-shard-5
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            shard: 5/5
             runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
       server-set: ${{ matrix.server_set }}
       projects: ${{ matrix.projects }}
+      shard: ${{ matrix.shard }}
       runs-on: ${{ matrix.runs_on }}
       dist-artifact: raceiq-dist-windows
       artifact-name: playwright-${{ matrix.name }}
