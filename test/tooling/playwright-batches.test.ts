@@ -24,12 +24,12 @@ describe("parsePlaywrightBatches", () => {
       { name: "fresh-install", serverSet: "fresh", projects: "  --project=fresh-install  " },
       { name: "tunes", serverSet: "tunes", projects: "--project=tunes", workers: 2 },
       { name: "tunes-unseeded", serverSet: "tunes-unseeded", projects: "--project=tunes-unseeded" },
-      { name: "seeded", serverSet: "seeded", projects: "--project=seeded-e2e" },
+      { name: "seeded-1", serverSet: "seeded", projects: "--project=seeded-e2e", shard: "1/4", isolation: 1 },
     ]))).toEqual([
       { name: "fresh-install", serverSet: "fresh", projects: "--project=fresh-install", workers: 1 },
       { name: "tunes", serverSet: "tunes", projects: "--project=tunes", workers: 2 },
       { name: "tunes-unseeded", serverSet: "tunes-unseeded", projects: "--project=tunes-unseeded", workers: 1 },
-      { name: "seeded", serverSet: "seeded", projects: "--project=seeded-e2e", workers: 1 },
+      { name: "seeded-1", serverSet: "seeded", projects: "--project=seeded-e2e", workers: 1, shard: "1/4", isolation: 1 },
     ]);
   });
 
@@ -48,6 +48,14 @@ describe("parsePlaywrightBatches", () => {
       batchJson({ name: "fresh", serverSet: "fresh", projects: "  " }),
       batchJson({ name: "fresh", serverSet: "fresh", projects: "--project=fresh-install", workers: 0 }),
       batchJson({ name: "fresh", serverSet: "fresh", projects: "--project=fresh-install", workers: 1.5 }),
+      batchJson({ name: "seeded", serverSet: "seeded", projects: "--project=seeded-e2e", shard: "0/4" }),
+      batchJson({ name: "seeded", serverSet: "seeded", projects: "--project=seeded-e2e", shard: "5/4" }),
+      batchJson({ name: "seeded", serverSet: "seeded", projects: "--project=seeded-e2e", isolation: 0 }),
+      batchJson({ name: "fresh", serverSet: "fresh", projects: "--project=fresh-install", isolation: 1 }),
+      JSON.stringify([
+        { name: "seeded-1", serverSet: "seeded", projects: "--project=seeded-e2e", isolation: 1 },
+        { name: "seeded-2", serverSet: "seeded", projects: "--project=seeded-e2e", isolation: 1 },
+      ]),
     ];
 
     for (const source of invalidSources) {
@@ -82,10 +90,59 @@ describe("runPlaywrightBatches", () => {
       expect(calls).toEqual(expectedCalls.slice(0, index + 1));
       releases[index]();
       await Promise.resolve();
+      await Promise.resolve();
     }
 
     expect(await completion).toBe(0);
     expect(calls).toEqual(expectedCalls);
+  });
+
+  test("runs isolated seeded shards concurrently", async () => {
+    const calls: string[] = [];
+    const releases: Array<() => void> = [];
+    const runner: PlaywrightCommandRunner = (args, options) => {
+      calls.push(`${options.env.PW_SEEDED_E2E_PORT}:${args.join(" ")}`);
+      const { promise, resolve } = Promise.withResolvers<number>();
+      releases.push(() => resolve(0));
+      return promise;
+    };
+    const batches: PlaywrightBatch[] = [1, 2, 3, 4].map((isolation) => ({
+      name: `seeded-${isolation}`,
+      serverSet: "seeded",
+      projects: "--project=seeded-e2e",
+      workers: 1,
+      shard: `${isolation}/4`,
+      isolation,
+    }));
+
+    const completion = runPlaywrightBatches(batches, runner, { parallel: true });
+    expect(calls).toEqual([
+      "3120:test --list --shard=1/4",
+      "3130:test --list --shard=2/4",
+      "3140:test --list --shard=3/4",
+      "3150:test --list --shard=4/4",
+    ]);
+
+    for (const release of releases.splice(0, 4)) release();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls.slice(4).sort()).toEqual([
+      "3120:test --shard=1/4",
+      "3130:test --shard=2/4",
+      "3140:test --shard=3/4",
+      "3150:test --shard=4/4",
+    ]);
+
+    for (const release of releases) release();
+    expect(await completion).toBe(0);
+  });
+
+  test("rejects parallel batches that share a backend or worker", async () => {
+    const runner: PlaywrightCommandRunner = async () => 0;
+    await expect(runPlaywrightBatches([freshBatch], runner, { parallel: true })).rejects.toThrow();
+    await expect(runPlaywrightBatches([
+      { name: "seeded", serverSet: "seeded", projects: "--project=seeded-e2e", workers: 2, isolation: 1 },
+    ], runner, { parallel: true })).rejects.toThrow();
   });
 
   test("skips gate after failed discovery and continues with later batches", async () => {
@@ -145,6 +202,37 @@ describe("runPlaywrightBatches", () => {
       expect(options.env.PLAYWRIGHT_PROJECTS).toBe("--project=tunes-unseeded");
       expect(options.env.PW_WORKERS).toBe("3");
       expect(options.env.PW_OUTPUT_DIR).toBe("./test-results/batches/tunes-unseeded");
+    }
+  });
+
+  test("sets unique seeded ports and data directory for an isolated batch", async () => {
+    const calls: Array<{ args: readonly string[]; options: PlaywrightCommandOptions }> = [];
+    const runner: PlaywrightCommandRunner = async (args, options) => {
+      calls.push({ args, options });
+      return 0;
+    };
+
+    await runPlaywrightBatches([
+      {
+        name: "seeded-3",
+        serverSet: "seeded",
+        projects: "--project=seeded-e2e",
+        workers: 1,
+        shard: "3/4",
+        isolation: 3,
+      },
+    ], runner);
+
+    expect(calls.map(({ args }) => args)).toEqual([
+      ["test", "--list", "--shard=3/4"],
+      ["test", "--shard=3/4"],
+    ]);
+    for (const { options } of calls) {
+      expect(options.env.PW_SEEDED_E2E_PORT).toBe("3140");
+      expect(options.env.PW_SEEDED_E2E_CLIENT_PORT).toBe("4140");
+      expect(options.env.PW_SEEDED_E2E_UDP_PORT).toBe("15340");
+      expect(options.env.PW_SEEDED_E2E_DATA_DIR).toBe("./test-results/test-data-seeded-3");
+      expect(options.env.PW_OUTPUT_DIR).toBe("./test-results/batches/seeded-3");
     }
   });
 });

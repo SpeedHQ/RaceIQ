@@ -130,24 +130,29 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-Playwright projects are CI boundaries, not individual test files:
+Playwright projects and shards define CI boundaries:
 
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
-| Compiled E2E | `all` | `fresh-install`, `tunes`, `seeded-e2e`, `mobile-device`, `tablet-device` | All functional, responsive, and Chromium device projects |
+| PR light batches | `fresh`, `tunes`, `tunes-unseeded` | Matching project for each server set | Ordered batches with one backend at a time |
+| PR seeded shards | `seeded` | `seeded-e2e`, `seeded-routes`, `seeded-imports`, `mobile-device`, `tablet-device` | Four concurrent shards; one worker, backend, data directory, and port set per shard |
+| Release E2E | `all` | All configured E2E projects | One release-gate process |
 
-`.github/workflows/playwright-dev.yml` and the release workflow each invoke
-the reusable workflow once. The invocation starts the `all` server set and
-runs every configured E2E project in one `bunx playwright test` process.
+`.github/workflows/playwright-dev.yml` invokes the reusable workflow once for
+light batches and once for seeded shards. Each job performs checkout,
+dependency setup, Chromium installation, and compiled artifact download once.
+The seeded job then starts four Playwright processes with isolated backends;
+shared installation directories remain read-only.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
 automatically; no workflow edit is needed. Adding a new Playwright project or
 changing a `testMatch` boundary requires updating the reusable workflow inputs
-and this table. The reusable job runs `bunx playwright test --list` first and
-fails if its project selection discovers zero tests.
+and this table. Every batch or shard runs `playwright test --list` first and
+fails if its selection discovers zero tests.
 
 The reusable `.github/workflows/playwright.yml` accepts project flags, server
-mode, server set, runner, optional `dist` artifact, and result artifact name.
+mode, server set, runner, optional ordered or parallel batches, optional `dist`
+artifact, and result artifact name.
 Both PR and release lanes upload `playwright/test-results/` and
 `playwright/screenshots/` with `if: always()`.
 

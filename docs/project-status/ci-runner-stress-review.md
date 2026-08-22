@@ -232,18 +232,22 @@ Build workflow documents ACC fixture replay reaching roughly 4GB heap and GC-thr
 
 ## Mitigation implemented
 
-This pull request applies a stricter stability baseline than matrix `max-parallel: 1`:
+Current pull-request topology preserves shared installation work without
+sharing mutable seeded runtime state:
 
-- PR E2E uses one `4VCPU`, `10G` Whitesmith job.
-- Checkout, Bun, Node, dependency installation, Chromium installation, and compiled artifact download run once.
-- Fresh, tunes, tunes-unseeded, and seeded server sets run as isolated sequential batches. Only one backend set is live at a time.
-- Batch discovery or test failure does not skip later batches; the job reports aggregate failure after all batches finish.
-- Every current batch keeps `PW_WORKERS="1"`. Per-batch worker configuration permits future increases after stateful tests are isolated and measured.
+- The light E2E job uses `4VCPU`, `10G`; the seeded E2E job uses `10VCPU`, `15G`.
+- Each job performs checkout, Bun, Node, dependency installation, Chromium installation, and compiled artifact download once.
+- Fresh, tunes, and tunes-unseeded remain isolated sequential batches with one backend set live at a time.
+- Seeded tests run as four Playwright shards. Each shard has one worker plus its own compiled backend, data directory, setup home, HTTP/client/UDP ports, and output directory.
+- Batch discovery or test failure does not skip another batch or shard; the job reports aggregate failure after all executions finish.
 - Responsive screenshots wait for PR E2E and use `PW_SCREENSHOT_WORKERS="1"`.
-- Release E2E retains its existing single-set matrix path through the reusable workflow.
+- Release E2E retains its existing single-set path through the reusable workflow.
 - Both reusable Playwright gate paths emit `pw:browser` process diagnostics, including Chromium stderr and exit codes, so a later `TargetClosedError` preserves its initiating browser failure rather than only the cleanup symptom.
 
-Configured post-build Whitesmith demand for one PR falls from as much as 14 vCPU and 45G across concurrent E2E and responsive screenshot jobs to one E2E allocation of at most 4 vCPU and 10G, followed by the 4-vCPU, 5G screenshot allocation. Cross-PR host admission control and out-of-process telemetry remain unresolved.
+Configured concurrency now stays inside one Whitesmith allocation per stage:
+at most `10VCPU`, `15G` for seeded E2E, followed by the `4VCPU`, `5G`
+screenshot allocation. Cross-PR host admission control and out-of-process
+telemetry remain unresolved.
 
 ## Final assessment
 

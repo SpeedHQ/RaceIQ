@@ -28,6 +28,11 @@ on:
         required: false
         type: string
         default: ""
+      parallel-batches:
+        description: "Run isolated Playwright batches concurrently after shared setup"
+        required: false
+        type: boolean
+        default: false
       dist-artifact:
         description: "Optional prebuilt dist artifact for compiled-server gate"
         required: false
@@ -121,6 +126,7 @@ jobs:
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_BATCHES: ${{ inputs.batches }}
+          PLAYWRIGHT_BATCHES_PARALLEL: ${{ inputs.parallel-batches && '1' || '0' }}
         shell: cmd
         timeout-minutes: 20
         run: bun run ../scripts/playwright-batches.ts
