@@ -106,27 +106,29 @@ describe("runPlaywrightBatches", () => {
       releases.push(() => resolve(0));
       return promise;
     };
-    const batches: PlaywrightBatch[] = [1, 2].map((isolation) => ({
+    const batches: PlaywrightBatch[] = [1, 2, 3].map((isolation) => ({
       name: `seeded-${isolation}`,
       serverSet: "seeded",
       projects: "--project=seeded-e2e",
       workers: 1,
-      shard: `${isolation}/2`,
+      shard: `${isolation}/3`,
       isolation,
     }));
 
     const completion = runPlaywrightBatches(batches, runner, { parallel: true });
     expect(calls).toEqual([
-      "3120:test --list --shard=1/2",
-      "3130:test --list --shard=2/2",
+      "3120:test --list --shard=1/3",
+      "3130:test --list --shard=2/3",
+      "3140:test --list --shard=3/3",
     ]);
 
-    for (const release of releases.splice(0, 2)) release();
+    for (const release of releases.splice(0, 3)) release();
     await Promise.resolve();
     await Promise.resolve();
-    expect(calls.slice(2).sort()).toEqual([
-      "3120:test --shard=1/2",
-      "3130:test --shard=2/2",
+    expect(calls.slice(3).sort()).toEqual([
+      "3120:test --shard=1/3",
+      "3130:test --shard=2/3",
+      "3140:test --shard=3/3",
     ]);
 
     for (const release of releases) release();

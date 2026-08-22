@@ -33,11 +33,12 @@ jobs:
       server-mode: compiled
       runs-on: '["whitesmith-windows-x64", "10VCPU", "15G"]'
       dist-artifact: raceiq-dist-windows
-      parallel-batches: false
+      parallel-batches: true
       batches: >-
         [
-          {"name":"seeded-1","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"1/2","isolation":1},
-          {"name":"seeded-2","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"2/2","isolation":2}
+          {"name":"seeded-1","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"1/3","isolation":1},
+          {"name":"seeded-2","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"2/3","isolation":2},
+          {"name":"seeded-3","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"3/3","isolation":3}
         ]
       artifact-name: playwright-results-seeded
       diagnostic-artifact-name: server-diagnostics-seeded

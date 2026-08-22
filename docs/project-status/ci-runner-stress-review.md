@@ -238,16 +238,16 @@ sharing mutable seeded runtime state:
 - The light E2E job uses `4VCPU`, `10G`; the seeded E2E job uses `10VCPU`, `15G`.
 - Each job performs checkout, Bun, Node, dependency installation, Chromium installation, and compiled artifact download once.
 - Fresh, tunes, and tunes-unseeded remain isolated sequential batches with one backend set live at a time.
-- Seeded tests run as two sequential Playwright shards. Each shard has one worker plus its own compiled backend, data directory, setup home, HTTP/client/UDP ports, and output directory; only one shard is live at a time.
+- Seeded tests run as three concurrent Playwright shards. Each shard has one worker plus its own compiled backend, data directory, setup home, HTTP/client/UDP ports, and output directory.
 - Batch discovery or test failure does not skip another batch or shard; the job reports aggregate failure after all executions finish.
 - Responsive screenshots wait for PR E2E and use `PW_SCREENSHOT_WORKERS="1"`.
 - Release E2E retains its existing single-set path through the reusable workflow.
 - Both reusable Playwright gate paths emit `pw:browser` process diagnostics, including Chromium stderr and exit codes, so a later `TargetClosedError` preserves its initiating browser failure rather than only the cleanup symptom.
 
-Configured concurrency now stays at one Playwright worker and one compiled
-backend per job. Seeded E2E retains the `10VCPU`, `15G` allocation, followed by
-the `4VCPU`, `5G` screenshot allocation. Cross-PR host admission control and
-out-of-process telemetry remain unresolved.
+Configured seeded concurrency stays at three Playwright workers and three compiled
+backends inside one `10VCPU`, `15G` allocation, followed by the `4VCPU`, `5G`
+screenshot allocation. Cross-PR host admission control and out-of-process
+telemetry remain unresolved.
 
 ## Final assessment
 
