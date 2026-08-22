@@ -73,7 +73,7 @@
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
-- Run pull-request E2E suites as sequential light, replay-heavy seeded, and standard seeded jobs; exclude disposable seeded runtime data from result artifacts so each isolated runner stays inside its communication window
+- Run pull-request E2E suites as sequential light, replay-heavy seeded, core seeded, and seeded support jobs; exclude disposable runtime data from result artifacts so each isolated runner stays inside its communication window
 - Keep recorded telemetry contracts within their timeout budgets by retaining boundary-preserving packet samples, avoiding duplicate fixture replays, and generating diagnostic visualizations only on request
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only

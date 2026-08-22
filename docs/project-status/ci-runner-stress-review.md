@@ -237,10 +237,10 @@ sharing mutable seeded runtime state:
 
 - The light E2E job uses `4VCPU`, `10G`; each seeded E2E job uses `10VCPU`, `15G`.
 - Fresh, tunes, and tunes-unseeded remain isolated sequential batches with one backend set live at a time.
-- Seeded tests run as two sequential resource-aware jobs: five replay-heavy specs first, then remaining seeded projects. Each job has one worker and one compiled backend.
+- Seeded tests run as three sequential resource-aware jobs: five replay-heavy specs, remaining core specs, then route/import/device coverage. Each job has one worker and one compiled backend.
 - Each seeded job repeats checkout, Bun, Node, dependency installation, Chromium installation, and compiled artifact download. This cost is required because one long seeded job consistently loses runner communication after about 25 minutes.
 - Each direct Playwright gate has a 20-minute step timeout, leaving cleanup and artifact upload time before the observed runner disconnect window. Result artifacts exclude disposable `test-data*` databases and captured sessions; diagnostics retain matching server logs.
-- Responsive screenshots wait for both seeded jobs and use `PW_SCREENSHOT_WORKERS="1"`.
+- Responsive screenshots wait for all seeded jobs and use `PW_SCREENSHOT_WORKERS="1"`.
 - Release E2E retains its existing single-set path through the reusable workflow.
 - Both reusable Playwright gate paths emit `pw:browser` process diagnostics, including Chromium stderr and exit codes, so a later `TargetClosedError` preserves its initiating browser failure rather than only the cleanup symptom.
 

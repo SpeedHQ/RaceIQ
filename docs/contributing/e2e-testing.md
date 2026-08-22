@@ -135,7 +135,7 @@ Playwright projects and jobs define CI boundaries:
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
 | PR light batches | `fresh`, `tunes`, `tunes-unseeded` | Matching project for each server set | Ordered batches with one backend at a time |
-| PR seeded groups | `seeded` | Resource-intensive seeded specs; remaining seeded projects | Two sequential jobs; one worker and backend per job |
+| PR seeded groups | `seeded` | Resource-intensive specs; remaining core specs; routes/imports/devices | Three sequential jobs; one worker and backend per job |
 | Release E2E | `all` | All configured E2E projects | One release-gate process |
 
 `.github/workflows/playwright-dev.yml` invokes the reusable workflow once for
