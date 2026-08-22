@@ -1,4 +1,5 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
+import type { ChartRange } from "@/lib/chart-range";
 import { useMemo } from "react";
 import { TelemetryChart } from "@/components/TelemetryChart";
 import { TimeDelta } from "@/components/TimeDelta";
@@ -12,13 +13,15 @@ export function ComparisonCharts({
   units,
   onCursorMove,
   onRangeSelect,
-  onResetZoom,
+  visibleRange,
+  onZoomOut,
 }: {
   comparison: ComparisonData;
   units: { fromMph: (value: number) => number; speedLabel: string };
   onCursorMove: (distance: number | null) => void;
   onRangeSelect?: (start: number, end: number) => void;
-  onResetZoom?: () => void;
+  visibleRange: ChartRange | null;
+  onZoomOut?: () => void;
 }) {
   const chartData = useMemo(() => {
     const { traces } = comparison;
@@ -41,22 +44,22 @@ export function ComparisonCharts({
   return (
     <div className="flex min-w-0 flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
       <div className="rounded-lg border border-app-border p-1 shrink-0">
-        <TimeDelta distances={distance} timeDelta={timeDelta} syncKey="lap-compare" height={140} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} onResetZoom={onResetZoom} />
+        <TimeDelta distances={distance} timeDelta={timeDelta} syncKey="lap-compare" height={140} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} visibleRange={visibleRange} onZoomOut={onZoomOut} />
       </div>
       <div className="overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto">
         <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-app-border p-1">
-            <TelemetryChart data={{ distance, values: [speedA, speedB], labels: [`${m.compare_speed_a()} (${units.speedLabel})`, `${m.compare_speed_b()} (${units.speedLabel})`], colors: [COLOR_A, COLOR_B] }} syncKey="lap-compare" height={200} title={m.label_speed()} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} onResetZoom={onResetZoom} />
+            <TelemetryChart data={{ distance, values: [speedA, speedB], labels: [`${m.compare_speed_a()} (${units.speedLabel})`, `${m.compare_speed_b()} (${units.speedLabel})`], colors: [COLOR_A, COLOR_B] }} syncKey="lap-compare" height={200} title={m.label_speed()} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} visibleRange={visibleRange} onZoomOut={onZoomOut} />
           </div>
           <div className="rounded-lg border border-app-border p-1">
-            <TelemetryChart data={{ distance, values: [throttleA, throttleB, brakeA, brakeB], labels: [m.compare_chart_throttle_a(), m.compare_chart_throttle_b(), m.compare_chart_brake_a(), m.compare_chart_brake_b()], colors: [COLOR_A, COLOR_B, "color-mix(in srgb, var(--comparison-lap-a) 67%, transparent)", "color-mix(in srgb, var(--comparison-lap-b) 67%, transparent)"] }} syncKey="lap-compare" height={180} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} onResetZoom={onResetZoom} />
+            <TelemetryChart data={{ distance, values: [throttleA, throttleB, brakeA, brakeB], labels: [m.compare_chart_throttle_a(), m.compare_chart_throttle_b(), m.compare_chart_brake_a(), m.compare_chart_brake_b()], colors: [COLOR_A, COLOR_B, "color-mix(in srgb, var(--comparison-lap-a) 67%, transparent)", "color-mix(in srgb, var(--comparison-lap-b) 67%, transparent)"] }} syncKey="lap-compare" height={180} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} visibleRange={visibleRange} onZoomOut={onZoomOut} />
           </div>
           <div className="rounded-lg border border-app-border p-1">
-            <TelemetryChart data={{ distance, values: [rpmA, rpmB], labels: [m.compare_chart_rpm_a(), m.compare_chart_rpm_b()], colors: [COLOR_A, COLOR_B] }} syncKey="lap-compare" height={180} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} onResetZoom={onResetZoom} />
+            <TelemetryChart data={{ distance, values: [rpmA, rpmB], labels: [m.compare_chart_rpm_a(), m.compare_chart_rpm_b()], colors: [COLOR_A, COLOR_B] }} syncKey="lap-compare" height={180} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} visibleRange={visibleRange} onZoomOut={onZoomOut} />
           </div>
           {hasValues(tireWearA) && hasValues(tireWearB) && (
             <div className="rounded-lg border border-app-border p-1">
-              <TelemetryChart data={{ distance, values: [tireWearA, tireWearB], labels: [`${m.compare_chart_tire_wear_a()} (%)`, `${m.compare_chart_tire_wear_b()} (%)`], colors: [COLOR_A, COLOR_B] }} syncKey="lap-compare" height={160} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} onResetZoom={onResetZoom} />
+              <TelemetryChart data={{ distance, values: [tireWearA, tireWearB], labels: [`${m.compare_chart_tire_wear_a()} (%)`, `${m.compare_chart_tire_wear_b()} (%)`], colors: [COLOR_A, COLOR_B] }} syncKey="lap-compare" height={160} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} visibleRange={visibleRange} onZoomOut={onZoomOut} />
             </div>
           )}
         </div>

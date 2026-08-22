@@ -9,6 +9,7 @@ import { useUnits } from "@/hooks/useUnits";
 import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "@/lib/comparison-layout";
 import { formatLapTime } from "@/lib/format";
 import type { Point } from "@/lib/comparison-utils";
+import type { ChartRange } from "@/lib/chart-range";
 import { cropComparisonData, cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, rangeComparison, selectFidelity } from "@/lib/comparison-fidelity";
 import type { CompareSearch } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
@@ -71,6 +72,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       : comparisonError.message || m.compare_load_failed()
     : null;
   const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
+  const [zoomLevels, setZoomLevels] = useState<Array<ChartRange | null>>([null]);
   const [detailRange, setDetailRange] = useState<{ start: number; end: number; stepMeters: 0.1 } | null>(null);
   const [optimisticRange, setOptimisticRange] = useState<ComparisonRangeData | null>(null);
   const fullDistance = comparison?.traces.distance.at(-1) ?? 0;
@@ -99,7 +101,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   useEffect(() => {
     setPointerPosition(detailLoading ? pointerPositionRef.current : null);
   }, [detailLoading]);
-  const activeRange = optimisticRange ?? comparisonRange;
+  const visibleRange = zoomLevels.at(-1) ?? null;
+  const activeRange = visibleRange == null ? null : optimisticRange ?? comparisonRange;
   const mergedComparison = useMemo(
     () => (comparison && activeRange ? mergeComparisonRange(comparison, activeRange) : comparison),
     [comparison, activeRange],
@@ -182,22 +185,31 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       const currentEnd = activeRange?.distanceEnd ?? fullDistance;
       const fidelity = selectFidelity(end - start, Math.max(1, currentEnd - currentStart + 1));
       if (!fidelity) {
+        setZoomLevels([null]);
         setOptimisticRange(null);
         setDetailRange(null);
         return;
       }
       const nextRange = normalizeFidelityRange(start, end, fullDistance);
-      if (comparison) {
-        setOptimisticRange(activeRange ? cropComparisonRange(activeRange, start, end) : cropComparisonData(comparison, start, end));
-      }
+      setZoomLevels((previous) => [...previous, { min: start, max: end }]);
+      setOptimisticRange(activeRange ? cropComparisonRange(activeRange, start, end) : cropComparisonData(comparison, start, end));
       setDetailRange(nextRange);
     },
     [activeRange, comparison, fullDistance],
   );
-  const handleResetZoom = useCallback(() => {
-    setOptimisticRange(null);
-    setDetailRange(null);
-  }, [activeRange, detailRange, optimisticRange]);
+  const handleZoomOut = useCallback(() => {
+    if (zoomLevels.length <= 1) return;
+    const previous = zoomLevels[zoomLevels.length - 2];
+    setZoomLevels((current) => current.slice(0, -1));
+    if (previous == null) {
+      setOptimisticRange(null);
+      setDetailRange(null);
+      return;
+    }
+    if (!comparison) return;
+    setOptimisticRange(cropComparisonData(comparison, previous.min, previous.max));
+    setDetailRange(normalizeFidelityRange(previous.min, previous.max, fullDistance));
+  }, [comparison, fullDistance, zoomLevels]);
   const handleJumpToFrac = useCallback(
     (frac: number) => {
       const distances = comparison?.traces.distance;
@@ -321,7 +333,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   }, [carBOrd]);
 
   useEffect(() => {
+    setZoomLevels([null]);
     setDetailRange(null);
+    setOptimisticRange(null);
   }, [lapAId, lapBId]);
 
   // Laps filtered to selected track
@@ -473,7 +487,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               window.addEventListener("mouseup", onUp);
             }}
           />
-          <ComparisonCharts comparison={chartComparison ?? comparison} units={units} onCursorMove={handleCursorMove} onRangeSelect={handleRangeSelect} onResetZoom={handleResetZoom} />
+          <ComparisonCharts comparison={chartComparison ?? comparison} units={units} onCursorMove={handleCursorMove} onRangeSelect={handleRangeSelect} visibleRange={visibleRange} onZoomOut={handleZoomOut} />
 
           {/* AI compare sidebar */}
           {aiPanelOpen && (

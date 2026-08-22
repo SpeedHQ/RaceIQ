@@ -99,18 +99,37 @@ test("Compare chart supports consecutive narrower zooms", async ({ page, request
   expect(second.end - second.start).toBeLessThan(first.end - first.start);
 });
 
-test("Compare chart double-click restores full-lap x scale", async ({ page, request }) => {
+test("Compare chart double-click steps back one zoom level", async ({ page, request }) => {
   test.setTimeout(180_000);
   const chart = await openComparison(page, request);
+  const fullSpan = await visibleDistanceSpan(chart);
 
-  const response = rangeRequest(page);
+  const firstResponse = rangeRequest(page);
   await dragChart(page, chart, 0.2, 0.55);
-  await response;
-  const zoomedSpan = await visibleDistanceSpan(chart);
+  await firstResponse;
+  const firstSpan = await visibleDistanceSpan(chart);
+
+  const secondResponse = rangeRequest(page);
+  await dragChart(page, chart, 0.3, 0.65);
+  await secondResponse;
+  const secondSpan = await visibleDistanceSpan(chart);
+  expect(secondSpan).toBeLessThan(firstSpan);
+  expect(firstSpan).toBeLessThan(fullSpan);
 
   await chart.locator(".u-over").dblclick({ position: { x: 300, y: 60 } });
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeGreaterThanOrEqual(firstSpan * 0.9);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThanOrEqual(firstSpan * 1.1);
+  expect(await visibleDistanceSpan(chart)).toBeLessThan(fullSpan * 0.9);
 
-  await expect.poll(() => visibleDistanceSpan(chart)).toBeGreaterThan(zoomedSpan * 2);
+  await chart.locator(".u-over").dblclick({ position: { x: 300, y: 60 } });
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeGreaterThanOrEqual(fullSpan * 0.9);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThanOrEqual(fullSpan * 1.1);
+
+  await chart.locator(".u-over").dblclick({ position: { x: 300, y: 60 } });
+  await page.waitForTimeout(500);
+  const afterThirdDoubleClick = await visibleDistanceSpan(chart);
+  expect(afterThirdDoubleClick).toBeGreaterThanOrEqual(fullSpan * 0.9);
+  expect(afterThirdDoubleClick).toBeLessThanOrEqual(fullSpan * 1.1);
 });
 
 test("Compare chart click does not submit a zoom range", async ({ page, request }) => {

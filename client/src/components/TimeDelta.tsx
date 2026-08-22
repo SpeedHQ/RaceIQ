@@ -1,6 +1,6 @@
 import { DELTA_COLOR_VARS } from "@/lib/colors";
+import type { ChartRange } from "@/lib/chart-range";
 import { TelemetryChart } from "./TelemetryChart";
-
 interface Props {
   distances: number[];
   timeDelta: number[];
@@ -8,10 +8,11 @@ interface Props {
   height?: number;
   onCursorMove?: (distance: number | null) => void;
   onRangeSelect?: (start: number, end: number) => void;
-  onResetZoom?: () => void;
+  visibleRange?: ChartRange | null;
+  onZoomOut?: () => void;
 }
 
-export function TimeDelta({ distances, timeDelta, syncKey, height = 160, onCursorMove, onRangeSelect, onResetZoom }: Props) {
+export function TimeDelta({ distances, timeDelta, syncKey, height = 160, onCursorMove, onRangeSelect, visibleRange, onZoomOut }: Props) {
   // Split positive (losing) and negative (gaining) values for theme-owned fills.
   const gaining = timeDelta.map((d) => (d <= 0 ? d : 0));
   const losing = timeDelta.map((d) => (d > 0 ? d : 0));
@@ -29,7 +30,8 @@ export function TimeDelta({ distances, timeDelta, syncKey, height = 160, onCurso
       height={height}
       onCursorMove={onCursorMove}
       onRangeSelect={onRangeSelect}
-      onResetZoom={onResetZoom}
+      visibleRange={visibleRange}
+      onZoomOut={onZoomOut}
     />
   );
 }

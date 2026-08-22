@@ -17,7 +17,8 @@ interface Props {
   fillColors?: (string | null)[];
   onCursorMove?: (distance: number | null) => void;
   onRangeSelect?: (start: number, end: number) => void;
-  onResetZoom?: () => void;
+  visibleRange?: ChartRange | null;
+  onZoomOut?: () => void;
 }
 
 
@@ -51,11 +52,10 @@ export function pixelAlignedCursorBBox(x: number, y: number, size: number): uPlo
 
 const CURSOR_POINT_SIZE = 6;
 
-export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove, onRangeSelect, onResetZoom }: Props) {
+export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove, onRangeSelect, visibleRange, onZoomOut }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
-  const visibleRangeRef = useRef<ChartRange | null>(null);
   const onCursorMoveRef = useRef(onCursorMove);
   onCursorMoveRef.current = onCursorMove;
   const cleanupOverlayRef = useRef<(() => void) | null>(null);
@@ -117,7 +117,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
                 : { left: -1, top: -1, width: 0, height: 0 };
             },
           },
-          drag: { x: true, y: false },
+          drag: { x: true, y: false, setScale: false },
         },
         scales: {
           x: { time: false },
@@ -183,18 +183,19 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
                   onRangeSelect?.(start, end);
                 }
               };
-
-              const onDoubleClick = () => {
-                onResetZoom?.();
+              const onDoubleClick = (event: MouseEvent) => {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                onZoomOut?.();
               };
               over.addEventListener("pointerdown", onDown);
               window.addEventListener("pointerup", onUp);
-              over.addEventListener("dblclick", onDoubleClick);
+              over.addEventListener("dblclick", onDoubleClick, true);
 
               cleanupOverlayRef.current = () => {
                 over.removeEventListener("pointerdown", onDown);
                 window.removeEventListener("pointerup", onUp);
-                over.removeEventListener("dblclick", onDoubleClick);
+                over.removeEventListener("dblclick", onDoubleClick, true);
               };
             },
           ],
@@ -212,7 +213,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
       };
       return opts;
     },
-    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance, onRangeSelect, onResetZoom],
+    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance, onRangeSelect, onZoomOut],
   );
 
   useEffect(() => {
@@ -228,24 +229,18 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
     plotRef.current = plot;
     const domainMin = data.distance[0];
     const domainMax = data.distance.at(-1);
-    const visibleRange =
-      domainMin != null && domainMax != null && visibleRangeRef.current
-        ? clampVisibleRange(visibleRangeRef.current, { min: domainMin, max: domainMax })
-        : null;
-    if (visibleRange) plot.setScale("x", visibleRange);
+    if (visibleRange && domainMin != null && domainMax != null) {
+      const clampedRange = clampVisibleRange(visibleRange, { min: domainMin, max: domainMax });
+      if (clampedRange) plot.setScale("x", clampedRange);
+    }
 
     return () => {
-      const currentPlot = plotRef.current;
-      if (currentPlot) {
-        const { min, max } = currentPlot.scales.x;
-        if (min != null && max != null && max > min) visibleRangeRef.current = { min, max };
-      }
       cleanupOverlayRef.current?.();
       cleanupOverlayRef.current = null;
-      currentPlot?.destroy();
+      plot.destroy();
       plotRef.current = null;
     };
-  }, [buildOpts, data, syncKey]);
+  }, [buildOpts, data, syncKey, visibleRange]);
 
   // Resize handler
   useEffect(() => {
@@ -272,7 +267,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
       {title && (
         <div className="relative flex items-center justify-center px-1 pb-0.5">
           <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-secondary">{title}</span>
-          <span className="absolute right-1 hidden text-app-caption text-app-text-dim @3xl/workspace:inline">Click &amp; drag to zoom · Double-click to reset</span>
+          <span className="absolute right-1 hidden text-app-caption text-app-text-dim @3xl/workspace:inline">Click &amp; drag to zoom · Double-click to zoom out</span>
         </div>
       )}
       <div ref={outerRef} className="relative w-full">
