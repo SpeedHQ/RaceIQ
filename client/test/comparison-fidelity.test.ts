@@ -22,10 +22,9 @@ const base: ComparisonData = {
 const detail: ComparisonRangeData = { distanceStart: 1, distanceEnd: 3, stepMeters: 0.5, traces: { ...trace([1, 1.5, 2, 2.5, 3]), speedA: [10, 10.5, 11, 11.5, 12] }, timeDelta: [10, 10.5, 11, 11.5, 12] };
 
 describe("comparison fidelity", () => {
-  test("selects progressively finer levels as range narrows", () => {
-    expect(selectFidelity(400, 1001)?.stepMeters).toBe(0.1);
-    expect(selectFidelity(40, 1001)?.stepMeters).toBe(0.1);
-    expect(selectFidelity(600, 1001)).toBeNull();
+  test("allows repeated zoom within an already narrowed range", () => {
+    expect(selectFidelity(800, 1001)?.stepMeters).toBe(0.1);
+    expect(selectFidelity(990, 1001)).toBeNull();
   });
 
   test("pads and clamps requested range", () => {

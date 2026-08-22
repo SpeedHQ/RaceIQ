@@ -7,7 +7,7 @@ type FidelityRange = { start: number; end: number; stepMeters: typeof HIGH_FIDEL
 
 export function selectFidelity(rangeMeters: number, basePointCount: number): FidelityRange | null {
   const fullDistance = Math.max(0, basePointCount - 1);
-  if (!(rangeMeters > 0) || fullDistance <= 0 || rangeMeters >= fullDistance * 0.5) return null;
+  if (!(rangeMeters > 0) || fullDistance <= 0 || rangeMeters >= fullDistance * 0.98) return null;
   return { start: 0, end: rangeMeters, stepMeters: HIGH_FIDELITY_STEP };
 }
 

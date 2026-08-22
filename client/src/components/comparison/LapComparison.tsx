@@ -19,6 +19,13 @@ import { CompareAiSidebar } from "./CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./CompareTrackMap";
 import { ComparisonCharts } from "./ComparisonCharts";
 import { ComparisonSelectors } from "./ComparisonSelectors";
+const compareDebug = (event: string, details: Record<string, unknown> = {}): void => {
+  try {
+    if (localStorage.getItem("raceiq:compare-debug") === "1") console.log("[compare-debug]", event, details);
+  } catch {
+    // Ignore unavailable browser storage.
+  }
+};
 
 interface TrackGroup {
   trackOrdinal: number;
@@ -127,6 +134,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       return next;
     });
   }, []);
+  const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
+  const handleCursorMove = useCallback((d: number | null) => {
+    hoveredDistanceRef.current = d;
+    // Directly redraw the map canvas without React re-render
+    mapRedrawRef.current?.();
+  }, []);
   useEffect(() => {
     const layout = comparisonLayoutRef.current;
     if (!layout) return;
@@ -143,16 +156,20 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     },
     [],
   );
-  const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
-  const handleCursorMove = useCallback((d: number | null) => {
-    hoveredDistanceRef.current = d;
-    // Directly redraw the map canvas without React re-render
-    mapRedrawRef.current?.();
-  }, []);
   const handleRangeSelect = useCallback(
     (start: number, end: number) => {
+      compareDebug("range-handler", {
+        start,
+        end,
+        hasComparison: Boolean(comparison),
+        fullDistance,
+        activeRange,
+      });
       if (!comparison || fullDistance <= 0) return;
-      const fidelity = selectFidelity(end - start, comparison.traces.distance.length);
+      const currentStart = activeRange?.distanceStart ?? comparison.traces.distance[0] ?? 0;
+      const currentEnd = activeRange?.distanceEnd ?? fullDistance;
+      const fidelity = selectFidelity(end - start, Math.max(1, currentEnd - currentStart + 1));
+      compareDebug("range-fidelity", { start, end, currentStart, currentEnd, fidelity });
       if (!fidelity) {
         setOptimisticRange(null);
         setDetailRange(null);
@@ -164,6 +181,11 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     },
     [activeRange, comparison, fullDistance],
   );
+  const handleResetZoom = useCallback(() => {
+    compareDebug("reset-handler", { activeRange, optimisticRange, detailRange });
+    setOptimisticRange(null);
+    setDetailRange(null);
+  }, [activeRange, detailRange, optimisticRange]);
   const handleJumpToFrac = useCallback(
     (frac: number) => {
       const distances = comparison?.traces.distance;
@@ -438,8 +460,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               window.addEventListener("mouseup", onUp);
             }}
           />
-
-          <ComparisonCharts comparison={chartComparison ?? comparison} units={units} onCursorMove={handleCursorMove} onRangeSelect={handleRangeSelect} />
+          <ComparisonCharts comparison={chartComparison ?? comparison} units={units} onCursorMove={handleCursorMove} onRangeSelect={handleRangeSelect} onResetZoom={handleResetZoom} />
 
           {/* AI compare sidebar */}
           {aiPanelOpen && (

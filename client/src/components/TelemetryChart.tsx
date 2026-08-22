@@ -16,6 +16,7 @@ interface Props {
   fillColors?: (string | null)[];
   onCursorMove?: (distance: number | null) => void;
   onRangeSelect?: (start: number, end: number) => void;
+  onResetZoom?: () => void;
 }
 
 interface DragSel {
@@ -33,7 +34,19 @@ function getSync(key: string): uPlot.SyncPubSub {
   }
   return SYNC_INSTANCES.get(key)!;
 }
-export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove, onRangeSelect }: Props) {
+const isCompareDebugEnabled = (): boolean => {
+  try {
+    return localStorage.getItem("raceiq:compare-debug") === "1";
+  } catch {
+    return false;
+  }
+};
+
+function compareDebug(event: string, details: Record<string, unknown> = {}): void {
+  if (isCompareDebugEnabled()) console.log("[compare-debug]", event, details);
+}
+
+export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove, onRangeSelect, onResetZoom }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
@@ -98,6 +111,9 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
               // Drag start line overlay
               const over = upl.over;
               let dragging = false;
+              let pointerDownClientX: number | null = null;
+              let pointerDownPlotX: number | null = null;
+              const DRAG_THRESHOLD_PX = 3;
 
               const getOverOffset = (startPx: number): DragSel | null => {
                 const overRect = over.getBoundingClientRect();
@@ -113,25 +129,53 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
 
               const onDown = (e: PointerEvent) => {
                 dragging = true;
+                pointerDownClientX = e.clientX;
+                pointerDownPlotX = e.offsetX;
                 const sel = getOverOffset(e.offsetX);
                 if (sel) setDragSel(sel);
+                compareDebug("pointer-down", { title, syncKey, offsetX: e.offsetX });
               };
 
-              const onUp = () => {
+              const onUp = (e: PointerEvent) => {
                 if (!dragging) return;
                 dragging = false;
                 setDragSel(null);
-                const start = upl.scales.x.min;
-                const end = upl.scales.x.max;
-                if (start != null && end != null && end > start) onRangeSelect?.(start, end);
+                const moved = pointerDownClientX == null ? 0 : Math.abs(e.clientX - pointerDownClientX);
+                const startPx = pointerDownPlotX;
+                pointerDownClientX = null;
+                pointerDownPlotX = null;
+                const overRect = over.getBoundingClientRect();
+                const endPx = e.clientX - overRect.left;
+                const start = startPx == null ? null : upl.posToVal(startPx, "x");
+                const end = upl.posToVal(endPx, "x");
+                compareDebug("pointer-up", { title, syncKey, start, end, moved });
+                if (moved < DRAG_THRESHOLD_PX) {
+                  compareDebug("click-ignored", { title, syncKey, moved, threshold: DRAG_THRESHOLD_PX });
+                  return;
+                }
+                if (start != null && end != null && end > start) {
+                  compareDebug("range-select", { title, syncKey, start, end });
+                  onRangeSelect?.(start, end);
+                }
               };
 
+              const onDoubleClick = () => {
+                compareDebug("double-click", {
+                  title,
+                  syncKey,
+                  scale: { min: upl.scales.x.min, max: upl.scales.x.max },
+                });
+                onResetZoom?.();
+              };
+              compareDebug("chart-ready", { title, syncKey, points: data.distance.length });
               over.addEventListener("pointerdown", onDown);
               window.addEventListener("pointerup", onUp);
+              over.addEventListener("dblclick", onDoubleClick);
 
               cleanupOverlayRef.current = () => {
                 over.removeEventListener("pointerdown", onDown);
                 window.removeEventListener("pointerup", onUp);
+                over.removeEventListener("dblclick", onDoubleClick);
               };
             },
           ],
@@ -148,7 +192,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
       };
       return opts;
     },
-    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance, onRangeSelect],
+    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance, onRangeSelect, onResetZoom],
   );
 
   useEffect(() => {
