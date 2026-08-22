@@ -13,6 +13,13 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     "seeded/sessions/import.spec.ts",
     "seeded/sessions/lifecycle.spec.ts",
   ] as const;
+  const resourceIntensiveSeededSpecs = [
+    "seeded/analyse/cross-game.spec.ts",
+    "seeded/compare/interactions.spec.ts",
+    "seeded/live/channels.spec.ts",
+    "seeded/raw/catalog.spec.ts",
+    "seeded/sessions/reprocessing.spec.ts",
+  ] as const;
 
   return [
     {
@@ -70,15 +77,21 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
+      name: "seeded-heavy",
+      testMatch: [...resourceIntensiveSeededSpecs],
+      timeout: 240_000,
+      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
       name: "seeded-e2e",
       testMatch: "seeded/**/*.spec.ts",
-      testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts"],
+      testIgnore: [...sequentialImportSpecs, ...resourceIntensiveSeededSpecs, "seeded/routes/**/*.spec.ts"],
       timeout: 120_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
       name: "seeded-imports",
-      testMatch: sequentialImportSpecs,
+      testMatch: [...sequentialImportSpecs],
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },

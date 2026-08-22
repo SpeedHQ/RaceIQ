@@ -36,9 +36,8 @@ jobs:
       parallel-batches: true
       batches: >-
         [
-          {"name":"seeded-1","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"1/3","isolation":1},
-          {"name":"seeded-2","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"2/3","isolation":2},
-          {"name":"seeded-3","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"3/3","isolation":3}
+          {"name":"seeded-heavy","serverSet":"seeded","projects":"--project=seeded-heavy","workers":1,"isolation":1},
+          {"name":"seeded-standard","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"isolation":2}
         ]
       artifact-name: playwright-results-seeded
       diagnostic-artifact-name: server-diagnostics-seeded

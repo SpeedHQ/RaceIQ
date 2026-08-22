@@ -135,19 +135,19 @@ Playwright projects and shards define CI boundaries:
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
 | PR light batches | `fresh`, `tunes`, `tunes-unseeded` | Matching project for each server set | Ordered batches with one backend at a time |
-| PR seeded shards | `seeded` | `seeded-e2e`, `seeded-routes`, `seeded-imports`, `mobile-device`, `tablet-device` | Three concurrent isolated shards; one worker per shard |
+| PR seeded groups | `seeded` | Resource-intensive seeded specs; remaining seeded projects | Two concurrent isolated groups; one worker and backend per group |
 | Release E2E | `all` | All configured E2E projects | One release-gate process |
 
 `.github/workflows/playwright-dev.yml` invokes the reusable workflow once for
-light batches and once for seeded shards. Each job performs checkout,
+light batches and once for seeded groups. Each job performs checkout,
 dependency setup, Chromium installation, and compiled artifact download once.
-The seeded job then runs three Playwright shards concurrently on isolated backends;
-shared installation directories remain read-only.
+The seeded job then runs one resource-intensive group and one standard group
+concurrently on isolated backends; shared installation directories remain read-only.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
 automatically; no workflow edit is needed. Adding a new Playwright project or
 changing a `testMatch` boundary requires updating the reusable workflow inputs
-and this table. Every batch or shard runs `playwright test --list` first and
+and this table. Every batch or group runs `playwright test --list` first and
 fails if its selection discovers zero tests.
 
 The reusable `.github/workflows/playwright.yml` accepts project flags, server
@@ -159,7 +159,7 @@ Both PR and release lanes upload `playwright/test-results/` and
 Diagnose only seeded behavior with:
 
 ```sh
-cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded bunx playwright test --project=seeded-e2e -g "Forza Motorsport 2023"
+cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded bunx playwright test --project=seeded-heavy --project=seeded-e2e -g "Forza Motorsport 2023"
 ```
 
 Compiled-server lane uses `dist/raceiq.exe` on Windows (`dist/raceiq` elsewhere).

@@ -24,9 +24,9 @@ bun install
 bun run typecheck
 bun run build
 bun run test                         # build, then full Playwright run
-bunx playwright test --project=seeded-e2e
+bunx playwright test --project=seeded-heavy --project=seeded-e2e
 bunx playwright test --project=mobile-screenshots
-E2E_SERVER_MODE=dev bunx playwright test --project=seeded-e2e
+E2E_SERVER_MODE=dev bunx playwright test --project=seeded-heavy --project=seeded-e2e
 PW_SERVER_SET=fresh bunx playwright test --project=fresh-install
 ```
 

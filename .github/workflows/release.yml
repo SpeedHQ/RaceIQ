@@ -173,7 +173,7 @@ jobs:
             runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
           - name: seeded
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-heavy --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             runs_on: '["whitesmith-windows-x64", "4VCPU", "10G"]'
     uses: ./.github/workflows/playwright.yml
     with:

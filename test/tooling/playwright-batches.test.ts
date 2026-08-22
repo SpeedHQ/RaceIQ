@@ -106,29 +106,35 @@ describe("runPlaywrightBatches", () => {
       releases.push(() => resolve(0));
       return promise;
     };
-    const batches: PlaywrightBatch[] = [1, 2, 3].map((isolation) => ({
-      name: `seeded-${isolation}`,
-      serverSet: "seeded",
-      projects: "--project=seeded-e2e",
-      workers: 1,
-      shard: `${isolation}/3`,
-      isolation,
-    }));
+    const batches: PlaywrightBatch[] = [
+      {
+        name: "seeded-heavy",
+        serverSet: "seeded",
+        projects: "--project=seeded-heavy",
+        workers: 1,
+        isolation: 1,
+      },
+      {
+        name: "seeded-standard",
+        serverSet: "seeded",
+        projects: "--project=seeded-e2e",
+        workers: 1,
+        isolation: 2,
+      },
+    ];
 
     const completion = runPlaywrightBatches(batches, runner, { parallel: true });
     expect(calls).toEqual([
-      "3120:test --list --shard=1/3",
-      "3130:test --list --shard=2/3",
-      "3140:test --list --shard=3/3",
+      "3120:test --list",
+      "3130:test --list",
     ]);
 
-    for (const release of releases.splice(0, 3)) release();
+    for (const release of releases.splice(0, 2)) release();
     await Promise.resolve();
     await Promise.resolve();
-    expect(calls.slice(3).sort()).toEqual([
-      "3120:test --shard=1/3",
-      "3130:test --shard=2/3",
-      "3140:test --shard=3/3",
+    expect(calls.slice(2).sort()).toEqual([
+      "3120:test",
+      "3130:test",
     ]);
 
     for (const release of releases) release();
