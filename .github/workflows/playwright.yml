@@ -47,7 +47,6 @@ on:
         required: false
         type: string
 
-
 jobs:
   playwright:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
@@ -72,7 +71,6 @@ jobs:
       - name: Restore compiled server permissions
         if: inputs.dist-artifact != '' && runner.os != 'Windows'
         run: chmod +x dist/raceiq
-
 
       - name: Install workspace dependencies
         shell: powershell
@@ -124,8 +122,8 @@ jobs:
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_BATCHES: ${{ inputs.batches }}
         shell: cmd
+        timeout-minutes: 20
         run: bun run ../scripts/playwright-batches.ts
-
 
       - name: Upload Playwright artifacts
         if: always()

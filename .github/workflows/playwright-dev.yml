@@ -9,8 +9,25 @@ on:
         type: string
 
 jobs:
-  playwright:
-    name: Playwright E2E
+  playwright-light:
+    uses: ./.github/workflows/playwright.yml
+    with:
+      server-mode: compiled
+      runs-on: '["whitesmith-windows-x64", "4VCPU", "10G"]'
+      dist-artifact: raceiq-dist-windows
+      batches: >-
+        [
+          {"name":"fresh","serverSet":"fresh","projects":"--project=fresh-install","workers":1},
+          {"name":"tunes","serverSet":"tunes","projects":"--project=tunes","workers":1},
+          {"name":"tunes-unseeded","serverSet":"tunes-unseeded","projects":"--project=tunes-unseeded","workers":1}
+        ]
+      artifact-name: playwright-results-light
+      diagnostic-artifact-name: server-diagnostics-light
+      target-ref: ${{ inputs.target-ref }}
+
+  playwright-seeded:
+    needs: playwright-light
+    if: ${{ always() }}
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
@@ -18,11 +35,8 @@ jobs:
       dist-artifact: raceiq-dist-windows
       batches: >-
         [
-          {"name":"fresh","serverSet":"fresh","projects":"--project=fresh-install","workers":1},
-          {"name":"tunes","serverSet":"tunes","projects":"--project=tunes","workers":1},
-          {"name":"tunes-unseeded","serverSet":"tunes-unseeded","projects":"--project=tunes-unseeded","workers":1},
           {"name":"seeded","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":4}
         ]
-      artifact-name: playwright-results
-      diagnostic-artifact-name: server-diagnostics
+      artifact-name: playwright-results-seeded
+      diagnostic-artifact-name: server-diagnostics-seeded
       target-ref: ${{ inputs.target-ref }}
