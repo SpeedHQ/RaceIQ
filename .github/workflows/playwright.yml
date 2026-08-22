@@ -139,6 +139,7 @@ jobs:
           name: ${{ inputs.artifact-name }}
           path: |
             playwright/test-results/
+            !playwright/test-results/test-data*/**
             playwright/screenshots/
           if-no-files-found: ignore
           retention-days: 7

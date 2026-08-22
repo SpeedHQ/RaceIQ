@@ -153,8 +153,9 @@ fails if its selection discovers zero tests.
 The reusable `.github/workflows/playwright.yml` accepts project flags, server
 mode, server set, runner, optional ordered or parallel batches, optional `dist`
 artifact, and result artifact name.
-Both PR and release lanes upload `playwright/test-results/` and
-`playwright/screenshots/` with `if: always()`.
+Both PR and release lanes upload traces and screenshots with `if: always()`.
+Disposable seeded databases and captured sessions under `test-results/test-data*`
+are excluded; server diagnostics upload only matching log files.
 
 Diagnose only seeded behavior with:
 
