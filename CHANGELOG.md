@@ -71,6 +71,7 @@
 - Keep analysis and comparison pages usable on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 - Keep Compare map markers, telemetry inputs, and deltas aligned by track position after crashes, spins, shortcuts, and off-track detours
+- Keep overlapping Compare lap markers on one shared map position instead of visually separating red and blue dots
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
 - Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
 - Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
@@ -103,6 +104,7 @@
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
+- Cover Compare cursor and map-marker alignment with focused unit and seeded browser regressions
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog
