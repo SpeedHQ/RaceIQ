@@ -4,8 +4,9 @@ import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
+import { normalizeTelemetryPacket } from "../telemetry/normalization";
+import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
 
@@ -29,7 +30,8 @@ interface TelemetryCacheEntry {
 
 interface ComparisonCacheEntry {
   kind: "comparison";
-  body: string;
+  body?: string;
+  alignmentIndex?: ComparisonAlignmentIndex;
   bytes: number;
   idA: number;
   idB: number;
@@ -81,26 +83,52 @@ export function cacheSet(id: number, packets: TelemetryPacket[]): void {
   cacheBytesUsed += bytes;
   evictUntilWithinBudget();
 }
+function comparisonEntryBytes(body: string | undefined, alignmentIndex: ComparisonAlignmentIndex | undefined): number {
+  return (body === undefined ? 0 : Buffer.byteLength(body, "utf8"))
+    + (alignmentIndex === undefined ? 0 : 8 * (alignmentIndex.distancesA.length + alignmentIndex.distancesB.length));
+}
+
+function replaceComparisonEntry(
+  idA: number,
+  idB: number,
+  fields: { body?: string; alignmentIndex?: ComparisonAlignmentIndex },
+): void {
+  const key = comparisonKey(idA, idB);
+  const existing = telemetryCache.get(key);
+  if (existing?.kind === "comparison") {
+    cacheBytesUsed -= existing.bytes;
+  }
+  const body = fields.body ?? (existing?.kind === "comparison" ? existing.body : undefined);
+  const alignmentIndex = fields.alignmentIndex ?? (existing?.kind === "comparison" ? existing.alignmentIndex : undefined);
+  const bytes = comparisonEntryBytes(body, alignmentIndex);
+  telemetryCache.delete(key);
+  telemetryCache.set(key, { kind: "comparison", body, alignmentIndex, bytes, idA, idB });
+  cacheBytesUsed += bytes;
+  evictUntilWithinBudget();
+}
 
 export function comparisonCacheGet(idA: number, idB: number): string | undefined {
   const key = comparisonKey(idA, idB);
   const entry = telemetryCache.get(key);
-  if (entry?.kind !== "comparison") return undefined;
+  if (entry?.kind !== "comparison" || entry.body === undefined) return undefined;
   touch(key, entry);
   return entry.body;
 }
 
 export function comparisonCacheSet(idA: number, idB: number, body: string): void {
+  replaceComparisonEntry(idA, idB, { body });
+}
+
+export function comparisonAlignmentIndexCacheGet(idA: number, idB: number): ComparisonAlignmentIndex | undefined {
   const key = comparisonKey(idA, idB);
-  const existing = telemetryCache.get(key);
-  if (existing) {
-    cacheBytesUsed -= existing.bytes;
-    telemetryCache.delete(key);
-  }
-  const bytes = Buffer.byteLength(body, "utf8");
-  telemetryCache.set(key, { kind: "comparison", body, bytes, idA, idB });
-  cacheBytesUsed += bytes;
-  evictUntilWithinBudget();
+  const entry = telemetryCache.get(key);
+  if (entry?.kind !== "comparison" || entry.alignmentIndex === undefined) return undefined;
+  touch(key, entry);
+  return entry.alignmentIndex;
+}
+
+export function comparisonAlignmentIndexCacheSet(idA: number, idB: number, index: ComparisonAlignmentIndex): void {
+  replaceComparisonEntry(idA, idB, { alignmentIndex: index });
 }
 
 export function cacheDelete(id: number): boolean {
@@ -147,6 +175,8 @@ export const _telemetryCacheForTest = {
   delete: cacheDelete,
   comparisonGet: comparisonCacheGet,
   comparisonSet: comparisonCacheSet,
+  comparisonAlignmentIndexGet: comparisonAlignmentIndexCacheGet,
+  comparisonAlignmentIndexSet: comparisonAlignmentIndexCacheSet,
   clear: () => {
     telemetryCache.clear();
     cacheBytesUsed = 0;

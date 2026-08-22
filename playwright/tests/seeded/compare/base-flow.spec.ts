@@ -32,9 +32,16 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   expect(await repeatResponse.text(), "cached comparison body parity").toBe(firstBody);
   const detailResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}/range?step=0.1&start=100&end=300`);
   expect(detailResponse.ok(), "high-fidelity comparison range").toBe(true);
+  expect(detailResponse.headers()["x-raceiq-alignment-cache"], "warm alignment index header").toBe("HIT");
   const detail = (await detailResponse.json()) as { traces: { distance: number[] }; stepMeters: number };
   expect(detail.stepMeters).toBeCloseTo(0.1, 9);
   expect(detail.traces.distance.length).toBeLessThanOrEqual(100_000);
+  const secondDetailResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}/range?step=0.1&start=500&end=700`);
+  expect(secondDetailResponse.ok(), "second high-fidelity comparison range").toBe(true);
+  expect(secondDetailResponse.headers()["x-raceiq-alignment-cache"], "reused alignment index header").toBe("HIT");
+  const secondDetail = (await secondDetailResponse.json()) as { traces: { distance: number[] }; stepMeters: number };
+  expect(secondDetail.stepMeters).toBeCloseTo(0.1, 9);
+  expect(secondDetail.traces.distance.length).toBeLessThanOrEqual(100_000);
   await page.goto(`/${fm23.prefix}/compare?${query}`, { waitUntil: "domcontentloaded" });
   expect(comparison.traces.distance.length, "trace length").toBeGreaterThan(1);
   expect(comparison.traces.distance).toHaveLength(comparison.timeDelta.length);

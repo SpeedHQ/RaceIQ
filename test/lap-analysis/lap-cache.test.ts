@@ -162,4 +162,45 @@ describe("lap telemetry cache (byte-budget LRU)", () => {
     expect(cache.comparisonGet(2, 3)).toBeUndefined();
     expect(cache.comparisonGet(3, 4)).toBe("c");
   });
+  test("stores alignment index independently and preserves both fields", () => {
+    const index = { distancesA: [0, 1, 2], distancesB: [0, 2], nominalSpan: 2 };
+    const body = "body";
+    cache.comparisonAlignmentIndexSet(1, 2, index);
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBe(index);
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    cache.comparisonSet(1, 2, body);
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBe(index);
+    expect(cache.comparisonGet(1, 2)).toBe(body);
+    expect(cache.bytesUsed()).toBe(Buffer.byteLength(body) + 8 * 5);
+  });
+
+  test("preserves body when index is added after body", () => {
+    const index = { distancesA: [0, 1], distancesB: [0, 1, 2], nominalSpan: 2 };
+    cache.comparisonSet(3, 4, "payload");
+    cache.comparisonAlignmentIndexSet(3, 4, index);
+    expect(cache.comparisonGet(3, 4)).toBe("payload");
+    expect(cache.comparisonAlignmentIndexGet(3, 4)).toBe(index);
+  });
+
+  test("alignment index getter refreshes ordered comparison recency", () => {
+    const indexBytes = 8 * 20;
+    cache.setMaxBytes(indexBytes * 2);
+    cache.comparisonAlignmentIndexSet(1, 2, { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 });
+    cache.comparisonAlignmentIndexSet(3, 4, { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 });
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBeDefined();
+    cache.comparisonAlignmentIndexSet(5, 6, { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 });
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBeDefined();
+    expect(cache.comparisonAlignmentIndexGet(3, 4)).toBeUndefined();
+  });
+
+  test("combined index and body entry evicts as one oversize entry", () => {
+    const index = { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 };
+    cache.setMaxBytes(8 * 20 + 3);
+    cache.comparisonAlignmentIndexSet(1, 2, index);
+    cache.comparisonSet(1, 2, "body");
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBeUndefined();
+    expect(cache.bytesUsed()).toBe(0);
+  });
+
 });

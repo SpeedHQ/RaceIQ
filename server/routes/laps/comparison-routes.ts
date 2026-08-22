@@ -5,9 +5,14 @@ import { Hono } from "hono";
 import type { GameId } from "../../../shared/games/ids";
 import { getLapById } from "../../db/lap-read-queries";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
-import { comparisonCacheGet, comparisonCacheSet } from "../../db/telemetry-replay-storage";
+import {
+  comparisonAlignmentIndexCacheGet,
+  comparisonAlignmentIndexCacheSet,
+  comparisonCacheGet,
+  comparisonCacheSet,
+} from "../../db/telemetry-replay-storage";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
-import { compareLaps } from "../../lap-analysis/comparison";
+import { compareLaps, prepareComparisonAlignmentIndex } from "../../lap-analysis/comparison";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
@@ -42,17 +47,20 @@ export const comparisonRoutes = new Hono()
       c.header("X-RaceIQ-Cache", "HIT");
       return c.body(cached);
     }
-
     const [lapA, lapB] = await Promise.all([getLapById(id1), getLapById(id2)]);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
+    const cachedAlignmentIndex = comparisonAlignmentIndexCacheGet(id1, id2);
+    const alignmentIndex = cachedAlignmentIndex ?? prepareComparisonAlignmentIndex(lapA.telemetry, lapB.telemetry);
+    if (!cachedAlignmentIndex) comparisonAlignmentIndexCacheSet(id1, id2, alignmentIndex);
+
     const trackOrdinal = lapA.trackOrdinal ?? 0;
     const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
       saveDetected: true,
     });
-    const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+    const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, { alignmentIndex });
     const semanticIds = [
       "motion.position-x",
       "motion.position-z",
@@ -90,7 +98,6 @@ export const comparisonRoutes = new Hono()
           entry.semanticId === "tires.tire-wear" && entry.state === "ok",
       ),
     );
-
     const body = JSON.stringify({
       lapA: {
         lapNumber: lapA.lapNumber,
@@ -153,8 +160,15 @@ export const comparisonRoutes = new Hono()
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
-    const corners = await resolveLapCorners(lapA.trackOrdinal ?? 0, lapA.gameId, lapA.telemetry, { saveDetected: true });
-    const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, { gridStepMeters: step, distanceRange: { start, end } });
+    const cachedAlignmentIndex = comparisonAlignmentIndexCacheGet(id1, id2);
+    const alignmentIndex = cachedAlignmentIndex ?? prepareComparisonAlignmentIndex(lapA.telemetry, lapB.telemetry);
+    if (!cachedAlignmentIndex) comparisonAlignmentIndexCacheSet(id1, id2, alignmentIndex);
+    const result = compareLaps(lapA.telemetry, lapB.telemetry, [], {
+      alignmentIndex,
+      gridStepMeters: step,
+      distanceRange: { start, end },
+    });
+    const alignmentCacheHeader = cachedAlignmentIndex ? "HIT" : "MISS";
     const traces = {
       distance: result.distances,
       sourceIndicesA: result.lapA.sourceIndices,
@@ -189,7 +203,7 @@ export const comparisonRoutes = new Hono()
       traces,
       timeDelta: result.timeDelta,
     });
-    return c.body(body);
+    return c.body(body, 200, { "X-RaceIQ-Alignment-Cache": alignmentCacheHeader });
   })
 
   .get("/api/laps/:id1/compare/:id2/inputs-analyse/status", zValidator("param", CompareParamsSchema), (c) => {

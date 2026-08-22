@@ -40,6 +40,35 @@ export interface ComparisonOptions {
   trackLengthMeters?: number | null;
   gridStepMeters?: number;
   distanceRange?: { start: number; end: number };
+  alignmentIndex?: ComparisonAlignmentIndex;
+}
+
+export interface ComparisonAlignmentIndex {
+  distancesA: number[];
+  distancesB: number[];
+  nominalSpan: number;
+}
+
+function lowerBound(values: readonly number[], target: number): number {
+  let low = 0;
+  let high = values.length;
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    if (values[middle] < target) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+function upperBound(values: readonly number[], target: number): number {
+  let low = 0;
+  let high = values.length;
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    if (values[middle] <= target) low = middle + 1;
+    else high = middle;
+  }
+  return low;
 }
 
 interface LapData {
@@ -135,7 +164,9 @@ function projectedDistances(packets: TelemetryPacket[], referencePackets: Teleme
     const high = index === 0 ? Math.min(total, 50) : Math.min(total, previous + Math.min(250, Math.max(50, increment * 3)));
     let bestProgress = previous;
     let bestDistance = Number.POSITIVE_INFINITY;
-    for (let segment = 0; segment < points.length - 1; segment++) {
+    const firstSegment = Math.max(0, lowerBound(cumulative, low) - 1);
+    const lastSegment = Math.min(points.length - 2, upperBound(cumulative, high) - 1);
+    for (let segment = firstSegment; segment <= lastSegment; segment++) {
       if (cumulative[segment + 1] < low || cumulative[segment] > high) continue;
       const candidate = projectPoint(x, z, points[segment].x, points[segment].z, points[segment + 1].x, points[segment + 1].z);
       const progress = cumulative[segment] + candidate.t * (cumulative[segment + 1] - cumulative[segment]);
@@ -165,18 +196,22 @@ function chooseReferenceIndex(packetsA: TelemetryPacket[], packetsB: TelemetryPa
   return spanA <= spanB ? 0 : 1;
 }
 
-function buildAlignmentDistances(packetsA: TelemetryPacket[], packetsB: TelemetryPacket[], options: ComparisonOptions): [number[], number[], number] {
+export function prepareComparisonAlignmentIndex(
+  packetsA: TelemetryPacket[],
+  packetsB: TelemetryPacket[],
+  options: Omit<ComparisonOptions, "alignmentIndex"> = {},
+): ComparisonAlignmentIndex {
   const referencePackets = chooseReferenceIndex(packetsA, packetsB, options) === 0 ? packetsA : packetsB;
   const nominalSpan = positiveSpan(referencePackets) || Math.max(positiveSpan(packetsA), positiveSpan(packetsB));
   if (hasWorldPositions(packetsA) && hasWorldPositions(packetsB) && nominalSpan > 0) {
     const distancesA = projectedDistances(packetsA, referencePackets, nominalSpan);
     const distancesB = projectedDistances(packetsB, referencePackets, nominalSpan);
-    if (distancesA && distancesB) return [distancesA, distancesB, nominalSpan];
+    if (distancesA && distancesB) return { distancesA, distancesB, nominalSpan };
   }
   const fractionsA = fractionDistances(packetsA, nominalSpan);
   const fractionsB = fractionDistances(packetsB, nominalSpan);
-  if (fractionsA && fractionsB) return [fractionsA, fractionsB, nominalSpan];
-  return [rawDistances(packetsA), rawDistances(packetsB), nominalSpan];
+  if (fractionsA && fractionsB) return { distancesA: fractionsA, distancesB: fractionsB, nominalSpan };
+  return { distancesA: rawDistances(packetsA), distancesB: rawDistances(packetsB), nominalSpan };
 }
 
 function extractLapData(packets: TelemetryPacket[], distances: number[]): LapData {
@@ -211,7 +246,7 @@ function alignLap(data: LapData, grid: number[]): AlignedTrace {
     sourceIndices: new Array(grid.length),
   };
   const last = Math.max(0, data.distances.length - 1);
-  let sourceIndex = 0;
+  let sourceIndex = Math.max(0, lowerBound(data.distances, grid[0] ?? 0) - 1);
   for (let gridIndex = 0; gridIndex < grid.length; gridIndex++) {
     const distance = grid[gridIndex];
     while (sourceIndex < last && data.distances[sourceIndex + 1] <= distance) sourceIndex++;
@@ -264,7 +299,7 @@ export function compareLaps(
   corners: Corner[] = [],
   options: ComparisonOptions = {},
 ): ComparisonResult {
-  const [distancesA, distancesB, nominalSpan] = buildAlignmentDistances(packetsA, packetsB, options);
+  const { distancesA, distancesB, nominalSpan } = options.alignmentIndex ?? prepareComparisonAlignmentIndex(packetsA, packetsB, options);
   const requestedStep = Number.isFinite(options.gridStepMeters) && options.gridStepMeters! > 0 ? options.gridStepMeters! : 1;
   const rangeStart = Math.max(0, Math.min(nominalSpan, options.distanceRange?.start ?? 0));
   const rangeEnd = Math.max(rangeStart, Math.min(nominalSpan, options.distanceRange?.end ?? nominalSpan));
