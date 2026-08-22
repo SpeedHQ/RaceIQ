@@ -1,3 +1,5 @@
+import type { FindingRecord } from "../../shared/racing/findings/types";
+
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
@@ -8,7 +10,8 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { assessLapRecording } from "../lap-analysis/quality";
+import { buildFindingsContext } from "./findings-context";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { resolveTrack } from "../tracks/info";
@@ -139,6 +142,7 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
 export function buildAnalystPrompt(
   lap: {
     id?: number;
+    sessionId?: string | number;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -161,6 +165,8 @@ export function buildAnalystPrompt(
   language: string = "en",
   /** This lap's sector times, with the boundaries they were split on. */
   sectors?: PromptSectors,
+  /** Persisted deterministic records for this lap's current generation. */
+  storedFindings?: readonly FindingRecord[],
 ): string {
   const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
   const trackName = resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId);
@@ -169,23 +175,12 @@ export function buildAnalystPrompt(
   const exportText = lap.gameId === "f1-2025" ? "" : generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
-  // Run precomputed insight analysis
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId, lap.quality);
-  let insightsText = "";
-  if (insights.length > 0) {
-    insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
-    insightsText += "These are automated detections that may contain false positives. Use them as hints, not facts.\n\n";
-    for (const insight of insights) {
-      // Convert frame index to approximate lap timestamp
-      const frameIdx = insight.frameIndices[0];
-      const pkt = packets[frameIdx];
-      const timestamp = pkt ? `${(pkt.DistanceTraveled).toFixed(0)}m` : "?";
-      const count = insight.frameIndices.length;
-      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label}`;
-      insightsText += ` (at ${timestamp}${count > 1 ? `, ${count} occurrences` : ""})\n`;
-      insightsText += `  ${insight.detail}\n`;
-    }
-  }
+  const quality = assessLapRecording(packets, lap.lapTime);
+  const findingsContext = storedFindings ? buildFindingsContext(storedFindings) : "";
+  const qualityAbstention = quality.valid
+    ? ""
+    : `[ABSTENTION] Lap recording quality rejected: ${quality.reason ?? "unknown reason"}; do not make lap-performance claims from this telemetry.`;
+  const findingsText = [qualityAbstention, findingsContext].filter(Boolean).join("\n");
 
   let tuneText = "";
   if (tune) {
@@ -288,7 +283,7 @@ ${qualityContext}
 ${conditionsText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
-${insightsText}`;
+${findingsText ? `\n${findingsText}` : ""}`;
 
   const systemPrompt = getSystemPrompt(gameId, unit, temperatureUnit, language);
 

@@ -2,7 +2,9 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { InputsCompareSchema } from "../../server/ai/inputs-compare-prompt";
-import { getCompareAnalysis } from "../../server/db/analysis-queries";
+import { compareFindingGenerationCacheKey, getCompareAnalysis } from "../../server/db/analysis-queries";
+import { getLapById } from "../../server/db/lap-read-queries";
+import { getCurrentFindingGeneration } from "../../server/findings/store";
 
 const CompareAnalysisInput = z.object({
   lapAId: z.number().int().positive(),
@@ -18,8 +20,14 @@ const CompareAnalysisOutput = z.object({
   error: z.string().optional(),
 });
 
+export interface CompareAnalysisToolDeps {
+  getLapById?: typeof getLapById;
+  getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
+}
+
 export function getCompareAnalysisToolFor(
   readAnalysis: typeof getCompareAnalysis = getCompareAnalysis,
+  deps: CompareAnalysisToolDeps = {},
 ) {
   return createTool({
     id: "get_compare_analysis",
@@ -30,7 +38,44 @@ export function getCompareAnalysisToolFor(
     outputSchema: CompareAnalysisOutput,
     execute: async ({ lapAId, lapBId }) => {
       try {
-        const row = await readAnalysis(lapAId, lapBId, "inputs");
+        const loadLap = deps.getLapById ?? getLapById;
+        const [lapA, lapB] = await Promise.all([loadLap(lapAId), loadLap(lapBId)]);
+        if (!lapA?.gameId || !lapB?.gameId || lapA.gameId !== lapB.gameId) {
+          return {
+            available: false,
+            lapAId,
+            lapBId,
+            error: "Compared laps are unavailable or do not belong to the same game.",
+          };
+        }
+        const loadGeneration = deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration;
+        const [findingGenerationA, findingGenerationB] = await Promise.all([
+          loadGeneration({
+            kind: "lap",
+            gameId: lapA.gameId,
+            sessionId: String(lapA.sessionId),
+            lapId: String(lapA.id),
+          }),
+          loadGeneration({
+            kind: "lap",
+            gameId: lapB.gameId,
+            sessionId: String(lapB.sessionId),
+            lapId: String(lapB.id),
+          }),
+        ]);
+        if (!findingGenerationA || !findingGenerationB) {
+          return {
+            available: false,
+            lapAId,
+            lapBId,
+            error: "Current stored finding generations are unavailable for one or both compared laps.",
+          };
+        }
+        const findingGenerationKey = compareFindingGenerationCacheKey([
+          { lapId: lapA.id, receipt: findingGenerationA.receipt },
+          { lapId: lapB.id, receipt: findingGenerationB.receipt },
+        ]);
+        const row = await readAnalysis(lapAId, lapBId, findingGenerationKey, "inputs");
         if (!row) {
           return {
             available: false,

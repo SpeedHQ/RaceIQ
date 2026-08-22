@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
+import type { FindingEvidenceRef, FindingNarrative, FindingRecord } from "../../../../shared/racing/findings/types";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
@@ -228,6 +228,14 @@ function LapAnalyseInner() {
     [updateOverlays],
   );
 
+  const handleFindingEvidence = useCallback(
+    (evidence: FindingEvidenceRef) => {
+      if (evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return;
+      handleChartClick(evidence.startFrameIndex);
+    },
+    [handleChartClick],
+  );
+
   const handleScrubStart = useCallback(() => {
     setPlaying(false);
     playRef.current = false;
@@ -250,7 +258,8 @@ function LapAnalyseInner() {
     });
     return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
   }, [currentFrame, cursorIdx, telemetry]);
-  const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
+  const findings = useMemo<FindingRecord[]>(() => semanticReplay?.findings ?? [], [semanticReplay]);
+  const narratives = useMemo<FindingNarrative[]>(() => semanticReplay?.narratives ?? [], [semanticReplay]);
   const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const qualityStateKey = selectedLap ? lapAiStateKey(selectedLap) : null;
@@ -461,8 +470,9 @@ function LapAnalyseInner() {
             gameId,
             units,
             wearRate,
-            lapInsights,
-            onJumpToFrame: handleChartClick,
+            findings,
+            narratives,
+            onEvidenceSelect: handleFindingEvidence,
           }}
           aiSidebarProps={
             aiPanelOpen && analysisUsable && selectedLapId && qualityStateKey

@@ -7,7 +7,8 @@ import type { Tune } from "../../../shared/racing/tuning/types";
 import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 import { getLapById } from "../../db/lap-read-queries";
-import { deleteAnalysis as deleteAnalysisQuery, getAnalysis, getLapQualityIdentity } from "../../db/analysis-queries";
+import { deleteAnalysis as deleteAnalysisQuery, getAnalysis, getLapQualityIdentity, lapFindingGenerationCacheKey } from "../../db/analysis-queries";
+import { getCurrentFindingGeneration } from "../../findings/store";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { loadSettings } from "../../runtime/config/settings";
@@ -25,9 +26,20 @@ export const chatRoutes = new Hono()
     const { id } = c.req.valid("param");
     let base: string | null = null;
     try {
-      const identity = await getLapQualityIdentity(id);
-      if (!identity) return c.json({ messages: [], threadId: null });
-      base = chatThreadId(id, `${identity.policyVersion}:${identity.generation}`);
+      const lap = await getLapById(id);
+      if (!lap?.gameId) return c.json({ messages: [], threadId: null });
+      const [identity, findingGeneration] = await Promise.all([
+        getLapQualityIdentity(id),
+        getCurrentFindingGeneration({
+          kind: "lap",
+          gameId: lap.gameId,
+          sessionId: String(lap.sessionId),
+          lapId: String(lap.id),
+        }),
+      ]);
+      if (!identity || !findingGeneration) return c.json({ messages: [], threadId: null });
+      const findingGenerationKey = lapFindingGenerationCacheKey(findingGeneration.receipt);
+      base = chatThreadId(id, `${identity.policyVersion}:${identity.generation}:${findingGenerationKey}`);
       const memory = getChatMemory();
       const genParam = Number(c.req.query("gen"));
       const threadId = Number.isInteger(genParam) && genParam >= 1 ? generationThreadId(base, genParam) : await resolveActiveThread(base);
@@ -60,6 +72,19 @@ export const chatRoutes = new Hono()
     const identity = await getLapQualityIdentity(id);
     if (!identity) return c.json({ error: "Lap quality identity is unavailable." }, 422);
     if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
+    const findingGeneration = lap.gameId
+      ? await getCurrentFindingGeneration({
+          kind: "lap",
+          gameId: lap.gameId,
+          sessionId: String(lap.sessionId),
+          lapId: String(lap.id),
+        })
+      : null;
+    if (!findingGeneration) {
+      return c.json({ error: "No persisted finding generation for this lap" }, 409);
+    }
+    const findingGenerationKey = lapFindingGenerationCacheKey(findingGeneration.receipt);
+
 
     const settings = loadSettings();
     const trackOrdinal = lap.trackOrdinal ?? 0;
@@ -77,11 +102,21 @@ export const chatRoutes = new Hono()
     }
 
     // Load cached analysis for context
-    const cached = await getAnalysis(id);
+    const cached = await getAnalysis(id, findingGenerationKey);
     const analysisJson = cached?.analysis;
 
     // Build chat prompt
-    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
+    const systemPrompt = buildChatSystemPrompt(
+      lap,
+      lap.telemetry,
+      corners,
+      settings.unit,
+      settings.temperatureUnit,
+      parsedTune,
+      analysisJson,
+      settings.language,
+      findingGeneration.findings,
+    );
 
     // Provider/key/model plumbing — inlined from the old startChatStream
     // helper (removed, was the NDJSON transport's shared provider setup)
@@ -108,7 +143,7 @@ export const chatRoutes = new Hono()
 
     const chatModelLabel = settings.chatModel || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "local" ? "local-model" : "gemini-flash-latest");
 
-    const threadId = await resolveActiveThread(chatThreadId(id, `${identity.policyVersion}:${identity.generation}`));
+    const threadId = await resolveActiveThread(chatThreadId(id, `${identity.policyVersion}:${identity.generation}:${findingGenerationKey}`));
     const turnStartedAt = Date.now();
     try {
       const stream = await lapChatAgent.stream([{ role: "system", content: systemPrompt }, ...messages], {
@@ -135,15 +170,27 @@ export const chatRoutes = new Hono()
   .delete("/api/laps/:id/chat", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
     try {
-      const identity = await getLapQualityIdentity(id);
-      if (identity) {
-        const memory = getChatMemory();
-        const base = chatThreadId(id, `${identity.policyVersion}:${identity.generation}`);
-        const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((generation) => generation.threadId));
-        ids.add(base);
-        for (const threadId of ids) {
-          await memory.deleteThread(threadId);
+      const lap = await getLapById(id);
+      if (lap?.gameId) {
+        const [identity, findingGeneration] = await Promise.all([
+          getLapQualityIdentity(id),
+          getCurrentFindingGeneration({
+            kind: "lap",
+            gameId: lap.gameId,
+            sessionId: String(lap.sessionId),
+            lapId: String(lap.id),
+          }),
+        ]);
+        if (identity && findingGeneration) {
+          const memory = getChatMemory();
+          const findingGenerationKey = lapFindingGenerationCacheKey(findingGeneration.receipt);
+          const base = chatThreadId(id, `${identity.policyVersion}:${identity.generation}:${findingGenerationKey}`);
+          const gens = await listThreadGenerations(base);
+          const ids = new Set(gens.map((generation) => generation.threadId));
+          ids.add(base);
+          for (const threadId of ids) {
+            await memory.deleteThread(threadId);
+          }
         }
       }
     } catch (err: any) {

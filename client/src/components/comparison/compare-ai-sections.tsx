@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { GameId } from "@shared/games/ids";
 import { isEligibilityUsable, resolveEligibilityDecision } from "@shared/racing/quality/policies";
 import { AnalysisResultCard, AnalysisSummaryRow } from "@/components/ai/analysis-summary";
 import { m } from "@/paraglide/messages";
@@ -8,6 +9,7 @@ import { useAiRunAction, useInputsAnalysis, useLapAnalysis } from "./compare-ai-
 import type { AnalysisSummary, InputsAnalysis, LapHeader } from "./compare-ai-types";
 
 export function InputsSection({
+  gameId,
   lapA,
   lapB,
   panelOpen,
@@ -15,6 +17,7 @@ export function InputsSection({
   configureAi,
   onView,
 }: {
+  gameId: GameId;
   lapA: LapHeader;
   lapB: LapHeader;
   panelOpen: boolean;
@@ -22,7 +25,7 @@ export function InputsSection({
   configureAi: () => void;
   onView: (analysis: InputsAnalysis) => void;
 }) {
-  const { analysis, loading, error, deleting, run, remove } = useInputsAnalysis(lapA.id, lapB.id, comparisonAiStateKey(lapA, lapB), panelOpen);
+  const { analysis, loading, error, deleting, run, remove } = useInputsAnalysis(lapA.id, lapB.id, gameId, comparisonAiStateKey(lapA, lapB), panelOpen);
   const runAi = useAiRunAction(aiConfigured, run, configureAi);
   const decisions = {
     lapA: resolveEligibilityDecision(lapA, "corner-trace"),
@@ -64,6 +67,7 @@ export function InputsSection({
 }
 
 export function LapSection({
+  gameId,
   lap,
   dotClass,
   panelOpen,
@@ -72,6 +76,7 @@ export function LapSection({
   onAnalysisChange,
   onView,
 }: {
+  gameId: GameId;
   lap: LapHeader;
   dotClass: string;
   panelOpen: boolean;
@@ -80,7 +85,7 @@ export function LapSection({
   onAnalysisChange: (hasAnalysis: boolean) => void;
   onView: (label: string, summary: AnalysisSummary) => void;
 }) {
-  const { summary, loading, error, deleting, run, remove } = useLapAnalysis(lap.id, lapAiStateKey(lap), panelOpen);
+  const { summary, loading, error, deleting, run, remove } = useLapAnalysis(lap.id, gameId, lapAiStateKey(lap), panelOpen);
   const runAi = useAiRunAction(aiConfigured, run, configureAi);
   const decision = resolveEligibilityDecision(lap, "corner-trace");
   const usable = isEligibilityUsable(decision);

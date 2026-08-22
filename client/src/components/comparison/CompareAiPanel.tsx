@@ -3,6 +3,8 @@ import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
 import { comparisonAiStateKey } from "../../lib/lap-ai-state-key";
+import { client } from "../../lib/rpc";
+import { rpcJson } from "../../lib/rpc-json";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
 import { PanelSectionHeader } from "../ui/panel-section-header";
@@ -13,7 +15,7 @@ import { type AnalysisSummary, type CompareAiPanelHandle, type CompareAiPanelPro
 
 export type { CompareAiPanelHandle } from "./compare-ai-types";
 
-export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
+export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ gameId, lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
   const qualityStateKey = comparisonAiStateKey(lapA, lapB);
   const { aiConfigured } = useComparisonAiSettings();
   const openSettings = useUiStore((s) => s.openSettings);
@@ -22,11 +24,21 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const [viewing, setViewing] = useState<{ kind: "lap"; label: string; summary: AnalysisSummary } | { kind: "inputs"; analysis: InputsAnalysis } | null>(null);
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
-  const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" })
-      .catch(() => {})
-      .finally(() => setChatRemountKey((k) => k + 1));
-  }, [lapA.id, lapB.id]);
+  const headers = { "X-Game-Id": gameId };
+  const clearChat = useCallback(async () => {
+    try {
+      await rpcJson<{ ok: true }>(
+        await client.api.laps[":id1"].compare[":id2"].chat.$delete(
+          { param: { id1: String(lapA.id), id2: String(lapB.id) } },
+          { headers },
+        ),
+      );
+    } catch {
+      /* clearing chat is best-effort */
+    } finally {
+      setChatRemountKey((key) => key + 1);
+    }
+  }, [gameId, lapA.id, lapB.id]);
   useImperativeHandle(ref, () => ({ clearChat, clearAll: clearChat }), [clearChat]);
   const configureAi = useCallback(() => openSettings("ai"), [openSettings]);
   const bothReady = hasA && hasB;
@@ -37,6 +49,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         {!analysisCollapsed && (
           <>
             <LapSection
+              gameId={gameId}
               lap={lapA}
               dotClass="bg-(--comparison-lap-a)"
               panelOpen={panelOpen}
@@ -46,6 +59,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
               onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
             />
             <LapSection
+              gameId={gameId}
               lap={lapB}
               dotClass="bg-(--comparison-lap-b)"
               panelOpen={panelOpen}
@@ -54,7 +68,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
               onAnalysisChange={setHasB}
               onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
             />
-            <InputsSection lapA={lapA} lapB={lapB} panelOpen={panelOpen} aiConfigured={aiConfigured} configureAi={configureAi} onView={(analysis) => setViewing({ kind: "inputs", analysis })} />
+            <InputsSection gameId={gameId} lapA={lapA} lapB={lapB} panelOpen={panelOpen} aiConfigured={aiConfigured} configureAi={configureAi} onView={(analysis) => setViewing({ kind: "inputs", analysis })} />
             {!bothReady && <div className="rounded border border-dashed border-app-border-input/40 py-2 text-center text-app-caption text-app-text-muted">{m.compare_analyse_both_laps()}</div>}
           </>
         )}
@@ -69,9 +83,10 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
           <ChatPanel
             key={`${qualityStateKey}:${chatRemountKey}`}
             api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
-            fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}
-            historyQueryKey={["compare-chat-history", lapA.id, lapB.id, qualityStateKey, chatRemountKey]}
-            remountKey={`${qualityStateKey}:${chatRemountKey}`}
+            onClearChat={clearChat}
+            fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gameId, gen)}
+            historyQueryKey={["compare-chat-history", gameId, lapA.id, lapB.id, qualityStateKey, chatRemountKey]}
+            headers={headers}
           />
         </div>
       )}

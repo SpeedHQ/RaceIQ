@@ -504,8 +504,8 @@ describe("telemetry capability UI", () => {
       gameId: "f1-2025",
       units: parityUnits,
       wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-      lapInsights: [],
-      onJumpToFrame: () => {},
+      findings: [],
+      onEvidenceSelect: () => {},
     })));
     expect(markup.indexOf("Brake")).toBeLessThan(markup.indexOf("Steer"));
     expect(markup.indexOf("Slip")).toBeLessThan(markup.indexOf("Wheels"));
@@ -542,8 +542,8 @@ describe("telemetry capability UI", () => {
             gameId,
             units: parityUnits,
             wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-            lapInsights: [],
-            onJumpToFrame: () => {},
+            findings: [],
+            onEvidenceSelect: () => {},
           }),
         ),
       );

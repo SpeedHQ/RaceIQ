@@ -248,6 +248,7 @@ export async function getLapById(id: number): Promise<(LapMeta & { telemetry: Te
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
       phase: laps.phase,
       conditions: laps.conditions,
       paceEligibility: laps.paceEligibility,
@@ -276,7 +277,10 @@ export async function getLapById(id: number): Promise<(LapMeta & { telemetry: Te
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       qualityGeneration: laps.qualityGeneration,
+      analysisGenerationId: laps.analysisGenerationId,
       experimentId: laps.experimentId,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -328,6 +332,7 @@ type LapResultRow = {
   lapNumber: number;
   lapTime: number;
   isValid: number | boolean;
+  invalidReason: string | null;
   phase: LapMeta["phase"];
   conditions: LapMeta["conditions"];
   paceEligibility: LapMeta["paceEligibility"];
@@ -347,6 +352,8 @@ type LapResultRow = {
   ownership: string | null;
   resolverVersion: string | null;
   derivationVersion: string | null;
+  fuelPerLap: number | null;
+  tyreWear: number | null;
   rawFile?: string | null;
   source: string | null;
   quality: LapMeta["quality"] | null;
@@ -355,6 +362,7 @@ type LapResultRow = {
   qualityPolicyVersion: string | null;
   qualityConfigVersion: string | null;
   qualityGeneration: string | null;
+  analysisGenerationId: string | null;
 };
 
 function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMeta & { telemetry: TelemetryPacket[] } {
@@ -364,6 +372,7 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
     lapNumber: row.lapNumber,
     lapTime: row.lapTime,
     isValid: Boolean(row.isValid),
+    invalidReason: row.invalidReason ?? undefined,
     phase: row.phase,
     conditions: row.conditions,
     paceEligibility: row.paceEligibility,
@@ -387,6 +396,7 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
     quality: row.quality ?? undefined,
     eligibility: row.eligibility ?? undefined,
     qualityGeneration: row.qualityGeneration ?? undefined,
+    analysisGenerationId: row.analysisGenerationId,
     qualityStale:
       row.quality != null &&
       !isEligibilitySnapshotCurrent({
@@ -397,6 +407,8 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
         qualityPolicyVersion: row.qualityPolicyVersion,
         qualityConfigVersion: row.qualityConfigVersion,
       }),
+    fuelPerLap: row.fuelPerLap,
+    tyreWear: row.tyreWear,
     telemetry,
   };
 }
@@ -420,6 +432,7 @@ export async function getLapsByIds(ids: number[]): Promise<(LapMeta & { telemetr
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
       phase: laps.phase,
       conditions: laps.conditions,
       paceEligibility: laps.paceEligibility,
@@ -448,7 +461,10 @@ export async function getLapsByIds(ids: number[]): Promise<(LapMeta & { telemetr
       qualityPolicyVersion: laps.qualityPolicyVersion,
       qualityConfigVersion: laps.qualityConfigVersion,
       qualityGeneration: laps.qualityGeneration,
+      analysisGenerationId: laps.analysisGenerationId,
       experimentId: laps.experimentId,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))

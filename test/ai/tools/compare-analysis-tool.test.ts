@@ -24,9 +24,25 @@ function isCompareResult(value: unknown): value is CompareResult {
     typeof result.lapBId === "number"
   );
 }
+
+const findingDeps = {
+  getLapById: async (lapId: number) => ({
+    id: lapId,
+    gameId: "fm-2023" as const,
+    sessionId: lapId + 100,
+  }) as never,
+  getCurrentFindingGeneration: async (scope: { lapId?: string }) => ({
+    receipt: {
+      generationId: `generation-${scope.lapId}`,
+      contentHash: `content-${scope.lapId}`,
+    },
+    findings: [],
+  }) as never,
+};
 describe("get_compare_analysis tool", () => {
   test("returns persisted Inputs analysis for either lap order", async () => {
-    const tool = getCompareAnalysisToolFor(async (a, b) => {
+    const tool = getCompareAnalysisToolFor(async (a, b, _findingKey, kind) => {
+      expect(kind).toBe("inputs");
       const [lo, hi] = [a, b].sort((x, y) => x - y);
       const analysis = {
         verdict: "A gains time",
@@ -46,7 +62,7 @@ describe("get_compare_analysis tool", () => {
       return lo === 3 && hi === 7
         ? ({ analysis: JSON.stringify(analysis), model: "test-model" } as never)
         : null;
-    });
+    }, findingDeps);
 
     const execute = tool.execute;
     if (!execute) throw new Error("Compare analysis tool has no execute function");
@@ -63,7 +79,7 @@ describe("get_compare_analysis tool", () => {
   });
 
   test("reports unavailable without inventing analysis", async () => {
-    const tool = getCompareAnalysisToolFor(async () => null);
+    const tool = getCompareAnalysisToolFor(async () => null, findingDeps);
     const execute = tool.execute;
     if (!execute) throw new Error("Compare analysis tool has no execute function");
     const rawResult = await execute({ lapAId: 3, lapBId: 7 }, {} as never);
@@ -74,5 +90,27 @@ describe("get_compare_analysis tool", () => {
       lapBId: 7,
       error: "No cached Inputs comparison is available for laps 3 and 7.",
     });
+  });
+
+  test("abstains before cache lookup when a current finding generation is missing", async () => {
+    let cacheRead = false;
+    const tool = getCompareAnalysisToolFor(
+      async () => {
+        cacheRead = true;
+        return null;
+      },
+      {
+        ...findingDeps,
+        getCurrentFindingGeneration: async () => null,
+      },
+    );
+    const execute = tool.execute;
+    if (!execute) throw new Error("Compare analysis tool has no execute function");
+    const rawResult = await execute({ lapAId: 3, lapBId: 7 }, {} as never);
+    if (!isCompareResult(rawResult)) throw new Error("Unexpected compare analysis tool result");
+
+    expect(cacheRead).toBe(false);
+    expect(rawResult.available).toBe(false);
+    expect(rawResult.error).toContain("finding generations");
   });
 });

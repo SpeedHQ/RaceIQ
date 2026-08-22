@@ -19,8 +19,10 @@ export interface ChatHistoryResult {
 export interface ChatPanelProps {
   api: string;
   clearChatApi?: string;
+  onClearChat?: () => Promise<void>;
   fetchHistory: (gen?: number) => Promise<ChatHistoryResult>;
   historyQueryKey: unknown[];
+  headers?: Record<string, string>;
   remountKey?: string;
   onFinish?: () => void;
   components?: ThreadProps["components"];
@@ -31,7 +33,7 @@ export interface ChatPanelProps {
   compactThreadId?: string;
 }
 
-export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
+export function ChatPanel({ api, clearChatApi, onClearChat, fetchHistory, historyQueryKey, headers, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
@@ -43,7 +45,8 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
 
   const clearChat = async () => {
     try {
-      await fetch(clearChatApi ?? api, { method: "DELETE" });
+      if (onClearChat) await onClearChat();
+      else await fetch(clearChatApi ?? api, { method: "DELETE", headers });
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
     } finally {
       setClearVersion((version) => version + 1);
@@ -138,6 +141,7 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
       key={`${remountKey ?? ""}:${effectiveGen}:${history?.messages.length ?? 0}:${clearVersion}:${regenerateVersion}`}
       initialMessages={history?.messages ?? []}
       api={api}
+      headers={headers}
       onFinish={onFinish}
       components={components}
       className={className}

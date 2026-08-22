@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { ELIGIBILITY_POLICY_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../shared/racing/quality/contracts";
 import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
@@ -25,6 +26,49 @@ export interface LapQualityCacheEvidence {
   qualityConfigVersion?: string | null;
   quality?: LapQualitySummary | null;
   eligibility?: Partial<EligibilityDecisionSet> | null;
+}
+
+export type FindingGenerationCacheKey = string & { readonly __findingGenerationCacheKey: unique symbol };
+
+export interface FindingGenerationCacheReceipt {
+  generationId: string;
+  contentHash: string;
+}
+
+export interface ComparisonFindingGenerationCacheInput {
+  lapId: number;
+  receipt: FindingGenerationCacheReceipt;
+}
+
+function findingGenerationCacheKey(value: unknown): FindingGenerationCacheKey {
+  return `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}` as FindingGenerationCacheKey;
+}
+
+/**
+ * Fences a lap cache entry to one stored finding-generation receipt.
+ */
+export function lapFindingGenerationCacheKey(receipt: FindingGenerationCacheReceipt): FindingGenerationCacheKey {
+  return findingGenerationCacheKey({
+    generationId: receipt.generationId,
+    contentHash: receipt.contentHash,
+  });
+}
+
+/**
+ * Fences a comparison cache entry to its two stored finding-generation receipts.
+ * Lap ids make A/B ordering canonical even when callers receive them reversed.
+ */
+export function compareFindingGenerationCacheKey(
+  inputs: readonly [ComparisonFindingGenerationCacheInput, ComparisonFindingGenerationCacheInput],
+): FindingGenerationCacheKey {
+  return findingGenerationCacheKey(
+    [...inputs]
+      .sort((left, right) => left.lapId - right.lapId)
+      .map(({ receipt }) => ({
+        generationId: receipt.generationId,
+        contentHash: receipt.contentHash,
+      })),
+  );
 }
 
 export function qualityCacheIdentityForLap(evidence: LapQualityCacheEvidence): QualityCacheIdentity | null {
@@ -127,7 +171,7 @@ export interface AnalysisUsage {
  * Save or replace AI analysis for a lap.
  */
 
-export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
+export async function getAnalysis(lapId: number, expectedFindingGenerationKey: FindingGenerationCacheKey): Promise<AnalysisRow | null> {
   const identity = await getLapQualityIdentity(lapId);
   if (!identity || identity.policyVersion !== ELIGIBILITY_POLICY_VERSION) return null;
   const row = await db
@@ -140,12 +184,25 @@ export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
       model: lapAnalyses.model,
     })
     .from(lapAnalyses)
-    .where(and(eq(lapAnalyses.lapId, lapId), eq(lapAnalyses.qualityGeneration, identity.generation), eq(lapAnalyses.qualityPolicyVersion, identity.policyVersion)))
+    .where(
+      and(
+        eq(lapAnalyses.lapId, lapId),
+        eq(lapAnalyses.qualityGeneration, identity.generation),
+        eq(lapAnalyses.qualityPolicyVersion, identity.policyVersion),
+        eq(lapAnalyses.findingGenerationKey, expectedFindingGenerationKey),
+      ),
+    )
     .get();
   return row ?? null;
 }
 
-export async function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage, expectedIdentity: QualityCacheIdentity): Promise<boolean> {
+export async function saveAnalysis(
+  lapId: number,
+  analysis: string,
+  usage: AnalysisUsage,
+  expectedIdentity: QualityCacheIdentity,
+  expectedFindingGenerationKey: FindingGenerationCacheKey,
+): Promise<boolean> {
   const currentIdentity = await getLapQualityIdentity(lapId);
   if (!currentIdentity || expectedIdentity.generation !== currentIdentity.generation || expectedIdentity.policyVersion !== currentIdentity.policyVersion) {
     return false;
@@ -161,6 +218,7 @@ export async function saveAnalysis(lapId: number, analysis: string, usage: Analy
     createdAt: sql`(datetime('now'))`,
     qualityGeneration: expectedIdentity.generation,
     qualityPolicyVersion: expectedIdentity.policyVersion,
+    findingGenerationKey: expectedFindingGenerationKey,
   };
 
   if (existing) {
@@ -187,7 +245,12 @@ export async function deleteAnalysis(lapId: number): Promise<void> {
  * The pair key is canonical (min, max) so the order of arguments doesn't matter.
  */
 
-export async function getCompareAnalysis(idA: number, idB: number, kind: string = "inputs"): Promise<AnalysisRow | null> {
+export async function getCompareAnalysis(
+  idA: number,
+  idB: number,
+  expectedFindingGenerationKey: FindingGenerationCacheKey,
+  kind: string = "inputs",
+): Promise<AnalysisRow | null> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
   const identity = await getCompareQualityIdentity(lo, hi);
@@ -209,13 +272,22 @@ export async function getCompareAnalysis(idA: number, idB: number, kind: string 
         eq(compareAnalyses.kind, kind),
         eq(compareAnalyses.qualityGeneration, identity.generation),
         eq(compareAnalyses.qualityPolicyVersion, identity.policyVersion),
+        eq(compareAnalyses.findingGenerationKey, expectedFindingGenerationKey),
       ),
     )
     .get();
   return row ?? null;
 }
 
-export async function saveCompareAnalysis(idA: number, idB: number, analysis: string, usage: AnalysisUsage, expectedIdentity: QualityCacheIdentity, kind: string = "inputs"): Promise<boolean> {
+export async function saveCompareAnalysis(
+  idA: number,
+  idB: number,
+  analysis: string,
+  usage: AnalysisUsage,
+  expectedIdentity: QualityCacheIdentity,
+  expectedFindingGenerationKey: FindingGenerationCacheKey,
+  kind: string = "inputs",
+): Promise<boolean> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
   const currentIdentity = await getCompareQualityIdentity(lo, hi);
@@ -236,6 +308,7 @@ export async function saveCompareAnalysis(idA: number, idB: number, analysis: st
     model: usage.model,
     createdAt: sql`(datetime('now'))`,
     qualityGeneration: expectedIdentity.generation,
+    findingGenerationKey: expectedFindingGenerationKey,
     qualityPolicyVersion: expectedIdentity.policyVersion,
   };
   if (existing) {

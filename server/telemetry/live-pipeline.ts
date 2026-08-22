@@ -627,6 +627,12 @@ export class LiveTelemetryPipeline {
         },
       );
       const finalized = await this.db.updateSessionQuality(closed.session.sessionId, summary);
+      if (this.db.rebuildCompletedSessionFindings) {
+        await this.db.rebuildCompletedSessionFindings(
+          closed.session.sessionId,
+          closed.session.gameId,
+        );
+      }
       await this.raceEventStore.refreshQualityLinks(closed.session.sessionId);
       if (!finalized.provenance.sourceGeneration.startsWith("provisional:")) {
         await this.raceEventStore.finalizeSourceGeneration(closed.session.sessionId, finalized.provenance.sourceGeneration);
@@ -771,6 +777,7 @@ export class LiveTelemetryPipeline {
               session.sessionId,
               analysisAttempt.generationId,
             );
+            session.analysisGenerationId = analysisAttempt.generationId;
           }
           this.raceEvents.setAnalysisGenerationId(
             analysisAttempt?.generationId ?? null,

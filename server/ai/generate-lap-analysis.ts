@@ -5,7 +5,8 @@ import { eligibilityDecisionText } from "../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { getLapById } from "../db/lap-read-queries";
 import { getCorners } from "../db/track-queries";
-import { getAnalysis, qualityCacheIdentityForLap, saveAnalysis } from "../db/analysis-queries";
+import { getAnalysis, lapFindingGenerationCacheKey, qualityCacheIdentityForLap, saveAnalysis } from "../db/analysis-queries";
+import { getCurrentFindingGeneration } from "../findings/store";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { detectCorners, type Corner } from "../lap-analysis/corners";
 import { loadSettings } from "../runtime/config/settings";
@@ -50,6 +51,7 @@ export interface GenerateLapAnalysisDeps {
   getCorners?: typeof getCorners;
   getAnalysis?: typeof getAnalysis;
   saveAnalysis?: typeof saveAnalysis;
+  getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
   getDbTune?: typeof getDbTune;
   detectCorners?: typeof detectCorners;
   computeLapSectors?: typeof computeLapSectors;
@@ -88,6 +90,7 @@ export async function generateLapAnalysis(
   const findCorners = deps.getCorners ?? getCorners;
   const readAnalysis = deps.getAnalysis ?? getAnalysis;
   const writeAnalysis = deps.saveAnalysis ?? saveAnalysis;
+  const loadFindingGeneration = deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration;
   const lap = await findLap(lapId);
   if (!lap)
     return {
@@ -127,6 +130,34 @@ export async function generateLapAnalysis(
       error: "Lap has no current quality generation",
       decision,
     };
+  if (!lap.gameId)
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs: [],
+      hasTune: false,
+      decision,
+      error: "Lap has no game identity",
+    };
+
+  const findingScope = {
+    kind: "lap",
+    gameId: lap.gameId,
+    sessionId: String(lap.sessionId),
+    lapId: String(lap.id),
+  } as const;
+  const findingGeneration = await loadFindingGeneration(findingScope);
+  if (!findingGeneration)
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs: [],
+      hasTune: false,
+      decision,
+      error: "No persisted finding generation for this lap",
+    };
+  const findingGenerationKey = lapFindingGenerationCacheKey(findingGeneration.receipt);
+
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
   let corners: Corner[] = trackOrdinal > 0 && lap.gameId ? await findCorners(trackOrdinal, lap.gameId) : [];
@@ -141,7 +172,7 @@ export async function generateLapAnalysis(
   const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
 
   if (!options.regenerate) {
-    const cached = await readAnalysis(lapId);
+    const cached = await readAnalysis(lapId, findingGenerationKey);
     const cachedAnalysis = parseAndValidateAnalysis(cached?.analysis);
     if (cached && cachedAnalysis) {
       return {
@@ -213,6 +244,7 @@ export async function generateLapAnalysis(
     undefined,
     settings.language,
     sectors,
+    findingGeneration.findings,
   );
 
   let ai: ResolvedAi;
@@ -280,7 +312,18 @@ export async function generateLapAnalysis(
       durationMs: numberFor("durationMs") || Date.now() - startedAt,
       model,
     };
-    const saved = await writeAnalysis(lapId, text, usage, qualityIdentity);
+    const currentFindingGeneration = await loadFindingGeneration(findingScope);
+    if (!currentFindingGeneration || lapFindingGenerationCacheKey(currentFindingGeneration.receipt) !== findingGenerationKey) {
+      return {
+        analysis: null,
+        cached: false,
+        cornerFracs,
+        hasTune,
+        decision,
+        error: "Lap findings changed during analysis generation. Analysis not cached.",
+      };
+    }
+    const saved = await writeAnalysis(lapId, text, usage, qualityIdentity, findingGenerationKey);
     if (!saved) {
       return {
         analysis: null,

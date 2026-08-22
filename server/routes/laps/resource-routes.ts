@@ -12,7 +12,7 @@ import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyz
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
-import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
+import { getLaps, getLapById, getLapsByIds, getLapsRaw, type LoadedLap } from "../../db/lap-read-queries";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
@@ -21,7 +21,17 @@ import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
+import { getCurrentFindingGeneration } from "../../findings/store";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
+
+async function loadStoredLapFindings(lap: LoadedLap, gameId: GameId) {
+  return getCurrentFindingGeneration({
+    kind: "lap",
+    gameId,
+    sessionId: String(lap.sessionId),
+    lapId: String(lap.id),
+  });
+}
 
 export function semanticReplayIds(): readonly string[] {
   return [
@@ -72,6 +82,10 @@ export const resourceRoutes = new Hono()
       const lap = await getLapById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const decision = resolveEligibilityDecision(lap, "corner-trace");
+      const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
+      if (!findingGeneration) {
+        return c.json({ error: "No persisted finding generation for this lap" }, 409);
+      }
       if (lap.parseError) {
         return c.json({
           lapId: id,
@@ -79,6 +93,10 @@ export const resourceRoutes = new Hono()
           sectorTimes: lap.sectorTimes ?? null,
           sectorStarts: null,
           insights: [],
+          findings: findingGeneration.findings,
+          narratives: [],
+          recommendations: [],
+          findingReceipt: findingGeneration.receipt,
           parseError: lap.parseError,
           decision,
           qualityGeneration: lap.qualityGeneration ?? null,
@@ -89,12 +107,17 @@ export const resourceRoutes = new Hono()
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const insights = analyzeLap(lap.telemetry, lap.gameId, lap.quality);
       return c.json({
         lapId: replay.lapId,
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
         sectorStarts: nativeLayout?.starts ?? null,
-        insights: isEligibilityUsable(decision) ? analyzeLap(lap.telemetry, lap.gameId, lap.quality) : [],
+        insights: isEligibilityUsable(decision) ? insights : [],
+        findings: findingGeneration.findings,
+        narratives: [],
+        recommendations: [],
+        findingReceipt: findingGeneration.receipt,
         parseError: lap.parseError ?? null,
         decision,
         qualityGeneration: lap.qualityGeneration ?? null,
@@ -175,6 +198,10 @@ export const resourceRoutes = new Hono()
     if (!lap || lap.gameId !== gameId) {
       return c.json({ error: "Lap not found" }, 404);
     }
+    const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
+    if (!findingGeneration) {
+      return c.json({ error: "No persisted finding generation for this lap" }, 409);
+    }
 
     // Compute sector times server-side
     let sectorTimes: {
@@ -243,22 +270,37 @@ export const resourceRoutes = new Hono()
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = isEligibilityUsable(decision) ? analyzeLap(packets, gameId, lap.quality) : [];
+    const insights = analyzeLap(packets, gameId, lap.quality);
 
-    return c.json({ ...lap, sectorTimes, insights, decision });
+    return c.json({
+      ...lap,
+      sectorTimes,
+      insights: isEligibilityUsable(decision) ? insights : [],
+      findings: findingGeneration.findings,
+      narratives: [],
+      recommendations: [],
+      findingReceipt: findingGeneration.receipt,
+      decision,
+    });
   })
 
   .get("/api/laps/:id/export", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
     const lap = await getLapById(id);
-    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
     const decision = resolveEligibilityDecision(lap, "corner-trace");
     if (!isEligibilityUsable(decision)) {
       return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
     }
     const packets = lap.telemetry;
     if (packets.length === 0) return c.json({ error: "No telemetry data" }, 400);
-    const exportText = generateExport(lap, packets);
+    const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
+    if (!findingGeneration) {
+      return c.json({ error: "No persisted finding generation for this lap" }, 409);
+    }
+    const exportText = generateExport(lap, packets, "metric", undefined, findingGeneration.findings);
     return c.text(exportText);
   })
 

@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnalyseDataPanel } from "../components/analyse/AnalyseDataPanel";
 import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
+import type { FindingRecord } from "../../../shared/racing/findings/types";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
 const frame: SemanticAnalysisFrame = {
@@ -38,6 +39,45 @@ const frame: SemanticAnalysisFrame = {
   states: {},
   freshness: {},
 };
+const finding: FindingRecord = {
+  schemaVersion: "1",
+  id: "story-fuel-per-lap",
+  type: "fuel-per-lap",
+  category: "fuel",
+  scope: {
+    kind: "lap",
+    gameId: "f1-2025",
+    sessionId: "42",
+    lapId: "7",
+  },
+  status: "available",
+  severity: "informational",
+  confidence: "high",
+  measurements: [{
+    id: "fuel-per-lap",
+    type: "fuel-per-lap",
+    value: 2.4,
+    unit: "L",
+    sampleCount: 240,
+    confidence: "high",
+    semanticIds: ["fuel.fuel-level"],
+    derivation: { id: "lap-metrics-adapter", version: "1" },
+  }],
+  evidenceRefs: [{
+    kind: "telemetry-range",
+    id: "fuel-range",
+    lapId: "7",
+    startFrameIndex: 20,
+    endFrameIndex: 220,
+    channel: "fuel.fuel-level",
+  }],
+  qualityRefs: [],
+  limitations: [],
+  rule: { id: "lap-metrics-adapter", version: "1", inputs: {} },
+  analysisGenerationId: "story-generation",
+  title: "Fuel used per lap",
+};
+
 
 const meta: Meta<typeof AnalyseDataPanel> = {
   title: "Screens/AnalyseDataPanelParity",
@@ -65,7 +105,15 @@ export const LoadedMainParity: Story = {
       toTempC: (value: number) => value,
     } as never,
     wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-    lapInsights: [],
-    onJumpToFrame: () => {},
+    findings: [],
+    onEvidenceSelect: () => {},
+  },
+};
+
+export const FindingsParity: Story = {
+  args: {
+    ...LoadedMainParity.args,
+    sidebarTab: "insights",
+    findings: [finding],
   },
 };

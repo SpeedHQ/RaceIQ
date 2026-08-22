@@ -36,6 +36,14 @@ import { getTuneAssignment } from "../db/tune-queries";
 import { SessionRecorder } from "../session-capture/recorder";
 import { finalizeRecordingQualityGeneration } from "../lap-analysis/quality-generation";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import {
+  rebuildCompletedSessionFindings,
+} from "../findings/session-finalization";
+import {
+  persistCompletedLapFindings,
+  type CompletedLapFindingInput,
+  type CompletedLapFindingResult,
+} from "../findings/completed-lap";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
   return {
@@ -97,6 +105,15 @@ export interface DbAdapter {
    *  Called right after insertLap so /lap-metrics is a pure column read and
    *  never has to decode telemetry on first open. */
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
+  /** Explicit durable finding activation seam; detectors must not call it. */
+  persistCompletedLapFindings?(
+    input: CompletedLapFindingInput,
+  ): Promise<CompletedLapFindingResult>;
+  /** Rebuild findings from finalized quality and persisted lap evidence. */
+  rebuildCompletedSessionFindings?(
+    sessionId: number,
+    gameId: GameId,
+  ): Promise<readonly CompletedLapFindingResult[]>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void>;
@@ -279,6 +296,15 @@ export class RealDbAdapter implements DbAdapter {
   }
   updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
     return updateSessionQuality(sessionId, quality);
+  }
+  persistCompletedLapFindings(input: CompletedLapFindingInput): Promise<CompletedLapFindingResult> {
+    return persistCompletedLapFindings(input);
+  }
+  rebuildCompletedSessionFindings(
+    sessionId: number,
+    gameId: GameId,
+  ): Promise<readonly CompletedLapFindingResult[]> {
+    return rebuildCompletedSessionFindings(sessionId, gameId);
   }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return getLaps(gameId, limit);

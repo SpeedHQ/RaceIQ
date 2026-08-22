@@ -7,11 +7,14 @@ import { evaluateAllEligibility } from "../../shared/racing/quality/policies";
 import {
   getAnalysis,
   getCompareAnalysis,
+  lapFindingGenerationCacheKey,
+  compareFindingGenerationCacheKey,
   qualityCacheIdentityForComparison,
   qualityCacheIdentityForLap,
   saveAnalysis,
   saveCompareAnalysis,
   type AnalysisUsage,
+  type FindingGenerationCacheReceipt,
 } from "../../server/db/analysis-queries";
 import { db } from "../../server/db";
 import { compareAnalyses, lapAnalyses, laps, sessions } from "../../server/db/schema";
@@ -32,6 +35,13 @@ const usage: AnalysisUsage = {
 
 function qualityGeneration(label: string): string {
   return `sha256:${createHash("sha256").update(label).digest("hex")}`;
+}
+
+function findingReceipt(label: string): FindingGenerationCacheReceipt {
+  return {
+    generationId: `finding:${label}`,
+    contentHash: qualityGeneration(`finding-content:${label}`),
+  };
 }
 function currentQuality(generation: string): LapQualitySummary {
   const quality = summarize(qualityPackets(100));
@@ -119,16 +129,17 @@ describe("AI analysis quality generation races", () => {
     const currentGeneration = qualityGeneration("single-current");
     const [lapId] = await createLaps([originalGeneration]);
     const expectedIdentity = qualityCacheIdentityForLap(currentEvidence(originalGeneration));
+    const findingKey = lapFindingGenerationCacheKey(findingReceipt("single"));
     if (!expectedIdentity) throw new Error("Expected single-lap quality identity");
-    expect(await saveAnalysis(lapId!, "existing analysis", usage, expectedIdentity)).toBe(true);
+    expect(await saveAnalysis(lapId!, "existing analysis", usage, expectedIdentity, findingKey)).toBe(true);
 
     const staleOutput = await finishModelWork(async () => {
       await db.update(laps).set({ qualityGeneration: currentGeneration }).where(eq(laps.id, lapId!)).run();
     }, "stale model output");
-    const saved = await saveAnalysis(lapId!, staleOutput, usage, expectedIdentity);
+    const saved = await saveAnalysis(lapId!, staleOutput, usage, expectedIdentity, findingKey);
 
     expect(saved).toBe(false);
-    expect(await getAnalysis(lapId!)).toBeNull();
+    expect(await getAnalysis(lapId!, findingKey)).toBeNull();
     const stored = await db
       .select({ analysis: lapAnalyses.analysis, qualityGeneration: lapAnalyses.qualityGeneration })
       .from(lapAnalyses)
@@ -144,16 +155,20 @@ describe("AI analysis quality generation races", () => {
     const originalGenerations = [qualityGeneration("compare-a"), qualityGeneration("compare-b")] as const;
     const [lapAId, lapBId] = await createLaps(originalGenerations);
     const expectedIdentity = qualityCacheIdentityForComparison([currentEvidence(originalGenerations[0]), currentEvidence(originalGenerations[1])]);
+    const findingKey = compareFindingGenerationCacheKey([
+      { lapId: lapAId!, receipt: findingReceipt("compare-a") },
+      { lapId: lapBId!, receipt: findingReceipt("compare-b") },
+    ]);
     if (!expectedIdentity) throw new Error("Expected comparison quality identity");
-    expect(await saveCompareAnalysis(lapAId!, lapBId!, "existing comparison", usage, expectedIdentity, "inputs")).toBe(true);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "existing comparison", usage, expectedIdentity, findingKey, "inputs")).toBe(true);
 
     const staleOutput = await finishModelWork(async () => {
       await db.update(laps).set({ qualityGeneration: qualityGeneration("compare-a-current") }).where(eq(laps.id, lapAId!)).run();
     }, "stale comparison output");
-    const saved = await saveCompareAnalysis(lapAId!, lapBId!, staleOutput, usage, expectedIdentity, "inputs");
+    const saved = await saveCompareAnalysis(lapAId!, lapBId!, staleOutput, usage, expectedIdentity, findingKey, "inputs");
 
     expect(saved).toBe(false);
-    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, findingKey, "inputs")).toBeNull();
     const [lo, hi] = [lapAId!, lapBId!].sort((left, right) => left - right);
     const stored = await db
       .select({ analysis: compareAnalyses.analysis, qualityGeneration: compareAnalyses.qualityGeneration })
@@ -177,14 +192,19 @@ describe("AI analysis quality generation races", () => {
     const [lapAId, lapBId] = await createLaps(generations);
     const lapIdentity = qualityCacheIdentityForLap(currentEvidence(generations[0]));
     const comparisonIdentity = qualityCacheIdentityForComparison([currentEvidence(generations[0]), currentEvidence(generations[1])]);
+    const lapFindingKey = lapFindingGenerationCacheKey(findingReceipt("stale-cache-a"));
+    const compareFindingKey = compareFindingGenerationCacheKey([
+      { lapId: lapAId!, receipt: findingReceipt("stale-cache-a") },
+      { lapId: lapBId!, receipt: findingReceipt("stale-cache-b") },
+    ]);
     if (!lapIdentity || !comparisonIdentity) throw new Error("Expected current quality identities");
-    expect(await saveAnalysis(lapAId!, "stale single analysis", usage, lapIdentity)).toBe(true);
-    expect(await saveCompareAnalysis(lapAId!, lapBId!, "stale comparison", usage, comparisonIdentity, "inputs")).toBe(true);
+    expect(await saveAnalysis(lapAId!, "stale single analysis", usage, lapIdentity, lapFindingKey)).toBe(true);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "stale comparison", usage, comparisonIdentity, compareFindingKey, "inputs")).toBe(true);
 
     await db.update(laps).set({ qualityConfigVersion: "stale-config" }).where(eq(laps.id, lapAId!)).run();
 
-    expect(await getAnalysis(lapAId!)).toBeNull();
-    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
+    expect(await getAnalysis(lapAId!, lapFindingKey)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, compareFindingKey, "inputs")).toBeNull();
   });
 
   test("cache reads and writes reject missing, stale-decision, and provisional evidence with matching metadata", async () => {
@@ -192,27 +212,32 @@ describe("AI analysis quality generation races", () => {
     const [lapAId, lapBId] = await createLaps(generations);
     const lapIdentity = qualityCacheIdentityForLap(currentEvidence(generations[0]));
     const comparisonIdentity = qualityCacheIdentityForComparison([currentEvidence(generations[0]), currentEvidence(generations[1])]);
+    const lapFindingKey = lapFindingGenerationCacheKey(findingReceipt("decision-cache-a"));
+    const compareFindingKey = compareFindingGenerationCacheKey([
+      { lapId: lapAId!, receipt: findingReceipt("decision-cache-a") },
+      { lapId: lapBId!, receipt: findingReceipt("decision-cache-b") },
+    ]);
     if (!lapIdentity || !comparisonIdentity) throw new Error("Expected current quality identities");
-    expect(await saveAnalysis(lapAId!, "current single", usage, lapIdentity)).toBe(true);
-    expect(await saveCompareAnalysis(lapAId!, lapBId!, "current comparison", usage, comparisonIdentity, "inputs")).toBe(true);
+    expect(await saveAnalysis(lapAId!, "current single", usage, lapIdentity, lapFindingKey)).toBe(true);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "current comparison", usage, comparisonIdentity, compareFindingKey, "inputs")).toBe(true);
 
     expect(qualityCacheIdentityForLap({ ...currentEvidence(generations[0]), eligibility: null })).toBeNull();
     expect(qualityCacheIdentityForComparison([{ ...currentEvidence(generations[0]), eligibility: null }, currentEvidence(generations[1])])).toBeNull();
     await db.update(laps).set({ eligibility: null }).where(eq(laps.id, lapAId!)).run();
-    expect(await getAnalysis(lapAId!)).toBeNull();
-    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
-    expect(await saveAnalysis(lapAId!, "missing decision", usage, lapIdentity)).toBe(false);
-    expect(await saveCompareAnalysis(lapAId!, lapBId!, "missing decision", usage, comparisonIdentity, "inputs")).toBe(false);
+    expect(await getAnalysis(lapAId!, lapFindingKey)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, compareFindingKey, "inputs")).toBeNull();
+    expect(await saveAnalysis(lapAId!, "missing decision", usage, lapIdentity, lapFindingKey)).toBe(false);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "missing decision", usage, comparisonIdentity, compareFindingKey, "inputs")).toBe(false);
 
     const staleEligibility = evaluateAllEligibility(currentQuality(generations[0]));
     staleEligibility["normal-pace"] = { ...staleEligibility["normal-pace"], policyVersion: "legacy-policy" };
     expect(qualityCacheIdentityForLap({ ...currentEvidence(generations[0]), eligibility: staleEligibility })).toBeNull();
     expect(qualityCacheIdentityForComparison([{ ...currentEvidence(generations[0]), eligibility: staleEligibility }, currentEvidence(generations[1])])).toBeNull();
     await db.update(laps).set({ eligibility: staleEligibility as EligibilityDecisionSet }).where(eq(laps.id, lapAId!)).run();
-    expect(await getAnalysis(lapAId!)).toBeNull();
-    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
-    expect(await saveAnalysis(lapAId!, "stale decision", usage, lapIdentity)).toBe(false);
-    expect(await saveCompareAnalysis(lapAId!, lapBId!, "stale decision", usage, comparisonIdentity, "inputs")).toBe(false);
+    expect(await getAnalysis(lapAId!, lapFindingKey)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, compareFindingKey, "inputs")).toBeNull();
+    expect(await saveAnalysis(lapAId!, "stale decision", usage, lapIdentity, lapFindingKey)).toBe(false);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "stale decision", usage, comparisonIdentity, compareFindingKey, "inputs")).toBe(false);
 
     const provisionalQuality = {
       ...currentQuality("provisional"),
@@ -243,9 +268,59 @@ describe("AI analysis quality generation races", () => {
 
     const provisionalIdentity = { generation: "provisional", policyVersion: ELIGIBILITY_POLICY_VERSION };
     const provisionalComparisonIdentity = { generation: provisionalComparisonGeneration, policyVersion: ELIGIBILITY_POLICY_VERSION };
-    expect(await getAnalysis(lapAId!)).toBeNull();
-    expect(await getCompareAnalysis(lapAId!, lapBId!, "inputs")).toBeNull();
-    expect(await saveAnalysis(lapAId!, "provisional", usage, provisionalIdentity)).toBe(false);
-    expect(await saveCompareAnalysis(lapAId!, lapBId!, "provisional", usage, provisionalComparisonIdentity, "inputs")).toBe(false);
+    expect(await getAnalysis(lapAId!, lapFindingKey)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, compareFindingKey, "inputs")).toBeNull();
+    expect(await saveAnalysis(lapAId!, "provisional", usage, provisionalIdentity, lapFindingKey)).toBe(false);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "provisional", usage, provisionalComparisonIdentity, compareFindingKey, "inputs")).toBe(false);
+  });
+  test("finding-generation fence keys require same current non-null receipt key", async () => {
+    const generations = [qualityGeneration("fence-a"), qualityGeneration("fence-b")] as const;
+    const [lapAId, lapBId] = await createLaps(generations);
+    const lapIdentity = qualityCacheIdentityForLap(currentEvidence(generations[0]));
+    const comparisonIdentity = qualityCacheIdentityForComparison([currentEvidence(generations[0]), currentEvidence(generations[1])]);
+    if (!lapIdentity || !comparisonIdentity) throw new Error("Expected current quality identities");
+
+    const receiptA = findingReceipt("fence-a");
+    const receiptB = findingReceipt("fence-b");
+    const lapKey = lapFindingGenerationCacheKey(receiptA);
+    const compareKey = compareFindingGenerationCacheKey([
+      { lapId: lapAId!, receipt: receiptA },
+      { lapId: lapBId!, receipt: receiptB },
+    ]);
+    const reverseCompareKey = compareFindingGenerationCacheKey([
+      { lapId: lapBId!, receipt: receiptB },
+      { lapId: lapAId!, receipt: receiptA },
+    ]);
+    expect(compareKey).toBe(reverseCompareKey);
+
+    expect(await saveAnalysis(lapAId!, "fenced single", usage, lapIdentity, lapKey)).toBe(true);
+    expect(await saveCompareAnalysis(lapAId!, lapBId!, "fenced comparison", usage, comparisonIdentity, compareKey, "inputs")).toBe(true);
+    expect(await getAnalysis(lapAId!, lapKey)).not.toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, compareKey, "inputs")).not.toBeNull();
+
+    const changedGenerationKey = lapFindingGenerationCacheKey({
+      ...receiptA,
+      generationId: "finding:fence-a-next",
+    });
+    const changedContentHashKey = lapFindingGenerationCacheKey({
+      ...receiptA,
+      contentHash: qualityGeneration("finding-content:fence-a-next"),
+    });
+    const changedCompareKey = compareFindingGenerationCacheKey([
+      { lapId: lapAId!, receipt: { ...receiptA, contentHash: qualityGeneration("finding-content:fence-a-next") } },
+      { lapId: lapBId!, receipt: receiptB },
+    ]);
+    expect(await getAnalysis(lapAId!, changedGenerationKey)).toBeNull();
+    expect(await getAnalysis(lapAId!, changedContentHashKey)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, changedCompareKey, "inputs")).toBeNull();
+
+    await db.update(lapAnalyses).set({ findingGenerationKey: null }).where(eq(lapAnalyses.lapId, lapAId!)).run();
+    await db
+      .update(compareAnalyses)
+      .set({ findingGenerationKey: null })
+      .where(and(eq(compareAnalyses.lapAId, Math.min(lapAId!, lapBId!)), eq(compareAnalyses.lapBId, Math.max(lapAId!, lapBId!)), eq(compareAnalyses.kind, "inputs")))
+      .run();
+    expect(await getAnalysis(lapAId!, lapKey)).toBeNull();
+    expect(await getCompareAnalysis(lapAId!, lapBId!, compareKey, "inputs")).toBeNull();
   });
 });

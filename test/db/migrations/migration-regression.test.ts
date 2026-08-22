@@ -781,4 +781,40 @@ describe("migration regressions", () => {
     expect((await client.execute("SELECT COUNT(*) AS count FROM analysis_receipts")).rows[0]?.count).toBe(0);
     client.close();
   });
+  test("v69 adds nullable finding-generation keys without invalidating legacy analysis caches", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 68);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await client.execute(
+      "INSERT INTO laps (id, session_id, lap_number, lap_time) VALUES (11, 1, 1, 90), (12, 1, 2, 91)",
+    );
+    await client.execute(
+      "INSERT INTO lap_analyses (lap_id, analysis) VALUES (11, 'legacy lap analysis')",
+    );
+    await client.execute(
+      "INSERT INTO compare_analyses (lap_a_id, lap_b_id, kind, analysis) VALUES (11, 12, 'inputs', 'legacy comparison')",
+    );
+
+    expect(await runMigrations(client, 69)).toBe(1);
+
+    const legacyRows = await client.execute(
+      `SELECT
+         (SELECT finding_generation_key FROM lap_analyses WHERE lap_id = 11) AS lap_key,
+         (SELECT finding_generation_key FROM compare_analyses WHERE lap_a_id = 11 AND lap_b_id = 12) AS compare_key`,
+    );
+    expect(legacyRows.rows[0]).toMatchObject({
+      lap_key: null,
+      compare_key: null,
+    });
+    await client.execute(
+      `UPDATE lap_analyses SET finding_generation_key = 'sha256:lap-fence' WHERE lap_id = 11`,
+    );
+    await client.execute(
+      `UPDATE compare_analyses SET finding_generation_key = 'sha256:compare-fence' WHERE lap_a_id = 11 AND lap_b_id = 12`,
+    );
+    client.close();
+  });
 });

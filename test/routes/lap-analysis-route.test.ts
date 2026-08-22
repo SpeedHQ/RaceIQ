@@ -59,11 +59,11 @@ describe("GET /api/laps/:id/analyse/status", () => {
 });
 
 describe("GET /api/laps/:id1/compare/:id2/inputs-analyse/status", () => {
-  test("reports no active run for idle comparison", async () => {
+  test("requires game identity for comparison status", async () => {
     const response = await lapRoutes.request("/api/laps/1/compare/2/inputs-analyse/status");
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: "none" });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Missing or invalid X-Game-Id header" });
   });
 });
 
@@ -75,10 +75,10 @@ describe("quality-scoped chat history", () => {
     expect(await response.json()).toEqual({ messages: [], threadId: null });
   });
 
-  test("returns no comparison thread when either current quality identity is unavailable", async () => {
+  test("requires game identity for comparison chat history", async () => {
     const response = await lapRoutes.request("/api/laps/999998/compare/999999/chat");
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ messages: [], threadId: null });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Missing or invalid X-Game-Id header" });
   });
 });

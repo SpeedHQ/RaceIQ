@@ -52,6 +52,21 @@ const comparison = {
   cornerDeltas: [],
 } as never;
 
+const findingDeps = {
+  getLapById: async (lapId: number) => ({
+    id: lapId,
+    gameId: "fm-2023" as const,
+    sessionId: 17,
+  }) as never,
+  getCurrentFindingGeneration: async () => ({
+    receipt: {
+      generationId: "generation-4",
+      contentHash: "content-4",
+    },
+    findings: [],
+  }) as never,
+};
+
 describe("lap analysis retrieval contract", () => {
   test("parses cached structured analysis for tool output", () => {
     const result = parseCachedLapAnalysis({ analysis: validAnalysis });
@@ -75,14 +90,17 @@ describe("lap analysis retrieval contract", () => {
       "[]",
       JSON.stringify({ verdict: "missing required fields" }),
     ]) {
-      const tool = getLapAnalysisToolFor(async () => ({
-        analysis,
-        inputTokens: 1,
-        outputTokens: 1,
-        costUsd: 0,
-        durationMs: 1,
-        model: "test-model",
-      }));
+      const tool = getLapAnalysisToolFor(
+        async () => ({
+          analysis,
+          inputTokens: 1,
+          outputTokens: 1,
+          costUsd: 0,
+          durationMs: 1,
+          model: "test-model",
+        }),
+        findingDeps,
+      );
       const execute = tool.execute;
       if (!execute) throw new Error("Lap analysis tool has no execute function");
       const rawResult = await execute({ lapId: 4 }, {} as never);
@@ -92,6 +110,28 @@ describe("lap analysis retrieval contract", () => {
       expect(result.analysis).toBeUndefined();
       expect(result.error).toContain("schema");
     }
+  });
+
+  test("abstains before cache lookup when current findings are missing", async () => {
+    let cacheRead = false;
+    const tool = getLapAnalysisToolFor(
+      async () => {
+        cacheRead = true;
+        return null;
+      },
+      {
+        ...findingDeps,
+        getCurrentFindingGeneration: async () => null,
+      },
+    );
+    const execute = tool.execute;
+    if (!execute) throw new Error("Lap analysis tool has no execute function");
+    const rawResult = await execute({ lapId: 4 }, {} as never);
+    if (!isLapResult(rawResult)) throw new Error("Unexpected lap analysis tool result");
+
+    expect(cacheRead).toBe(false);
+    expect(rawResult.available).toBe(false);
+    expect(rawResult.error).toBe("Finding generation not found");
   });
   test("does not embed cached analysis in compare prompts", () => {
     const comparePrompt = buildCompareChatSystemPrompt(

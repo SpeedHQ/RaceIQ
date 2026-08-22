@@ -42,6 +42,7 @@ import {
   updateSessionRawFile,
 } from "../db/session-queries";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
+import { rebuildCompletedSessionFindings } from "../findings/session-finalization";
 
 import { deriveRaceResult, normalizeSessionType } from "../race-results/derive";
 import {
@@ -707,9 +708,10 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
           : persistedReceipt;
         await activateAnalysisGeneration({ generationId: attempt!.generationId, receipt }, tx);
       });
+      for (const lap of existingLaps) cacheDelete(lap.id);
+      await rebuildCompletedSessionFindings(sessionId, gameId);
       return attempt!;
     });
-    for (const lap of existingLaps) cacheDelete(lap.id);
     wsManager.broadcastNotification(
       RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
     );

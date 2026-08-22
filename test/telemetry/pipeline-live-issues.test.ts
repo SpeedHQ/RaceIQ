@@ -54,6 +54,25 @@ function makePipeline(onSessionFinalized?: (sessionId: number, gameId: Telemetry
   });
   return { pipeline, ws };
 }
+class FinalizedFindingDb extends CapturingDbAdapter {
+  readonly finalizationOrder: string[] = [];
+
+  async persistCompletedLapFindings(): Promise<never> {
+    throw new Error("Detector-time findings activation is prohibited");
+  }
+
+  override async updateSessionQuality(sessionId: number, quality: Parameters<CapturingDbAdapter["updateSessionQuality"]>[1]) {
+    this.finalizationOrder.push("quality");
+    return super.updateSessionQuality(sessionId, quality);
+  }
+
+  async rebuildCompletedSessionFindings(sessionId: number, _gameId: TelemetryPacket["gameId"]) {
+    expect(this.sessionQuality.get(sessionId)?.provenance.sourceGeneration).not.toStartWith("provisional:");
+    this.finalizationOrder.push("findings");
+    return [];
+  }
+}
+
 
 function eligibilityDecision(policyId: EligibilityPolicyId, status: EligibilityDecision["status"]): EligibilityDecision {
   return {
@@ -136,6 +155,23 @@ describe("LiveTelemetryPipeline live issue gating", () => {
 
     expect(finalized).toEqual([{ sessionId: 1, gameId: "fm-2023" }]);
     expect(pipeline.lapDetector?.session).toBeNull();
+  });
+
+  test("rebuilds findings only after finalized session quality", async () => {
+    const db = new FinalizedFindingDb();
+    const ws = new CapturingWsAdapter();
+    const pipeline = new LiveTelemetryPipeline(db, ws, {
+      bypassPacketRateFilter: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+    });
+
+    await pipeline.processPacket(pkt({ TimestampMS: 1_000, LapNumber: 1, CurrentLap: 30, DistanceTraveled: 2_000 }));
+    await pipeline.processPacket(pkt({ TimestampMS: 2_000, LapNumber: 2, CurrentLap: 0.1, LastLap: 90, DistanceTraveled: 5_000 }));
+    await pipeline.finalizeCurrentSession();
+
+    expect(db.finalizationOrder).toEqual(["quality", "findings"]);
+    expect(ws.broadcastedNotifications.some(({ type }) => type === "quality-updated")).toBe(true);
   });
 
   test("preserves original source verification until canonical Parquet activation", async () => {

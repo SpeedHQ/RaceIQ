@@ -45,6 +45,7 @@ export interface SessionState {
   trackOrdinal: number;
   carPI: number;
   gameId: GameId;
+  analysisGenerationId?: string | null;
   sessionUID?: string; // F1 session UID for reliable session boundary detection
   bestLapTime: number; // best valid pace lap in current session (0 = none yet)
 }

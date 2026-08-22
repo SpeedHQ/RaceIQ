@@ -1,9 +1,25 @@
-import type { ComparisonData } from "@shared/racing/comparison/types";
+import type { ComparisonData, SemanticTelemetrySample } from "@shared/racing/comparison/types";
+import type { FindingEvidenceRef } from "@shared/racing/findings/types";
 import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => {
   const value = sample.values[id];
   return typeof value === "number" ? value : undefined;
 };
+
+export function telemetryForFindingEvidence(
+  comparison: Pick<ComparisonData, "lapA" | "lapB" | "telemetryA" | "telemetryB">,
+  evidence: FindingEvidenceRef,
+): SemanticTelemetrySample[] | null {
+  if (evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return null;
+  if (evidence.lapId == null && evidence.sessionId == null) return null;
+  const matches = (lap: ComparisonData["lapA"]) =>
+    (evidence.lapId == null || evidence.lapId === String(lap.id))
+    && (evidence.sessionId == null || evidence.sessionId === String(lap.sessionId));
+  const matchesA = matches(comparison.lapA);
+  const matchesB = matches(comparison.lapB);
+  if (matchesA === matchesB) return null;
+  return matchesA ? comparison.telemetryA : comparison.telemetryB;
+}
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +32,7 @@ import type { Point } from "@/lib/comparison-utils";
 import { formatLapTime } from "@/lib/format";
 import type { CompareSearch } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
+import { rpcJson } from "@/lib/rpc-json";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import type { CompareAiPanelHandle } from "./CompareAiPanel";
@@ -135,6 +152,16 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     },
     [comparison],
   );
+  const handleFindingEvidence = useCallback((evidence: FindingEvidenceRef) => {
+    if (!comparison || evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return;
+    const telemetry = telemetryForFindingEvidence(comparison, evidence);
+    const sample = telemetry?.[evidence.startFrameIndex];
+    const distance = sample && semanticNumber(sample, "timing.distance-traveled");
+    if (distance == null || !Number.isFinite(distance)) return;
+    hoveredDistanceRef.current = distance;
+    mapRedrawRef.current?.();
+  }, [comparison]);
+
 
   // Set cursor from URL param once comparison data loads
   const appliedInitialCursor = useRef(false);
@@ -265,14 +292,17 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
 
   // Fetch comparison when both laps selected
   const fetchComparison = useCallback(async () => {
-    if (!lapAId || !lapBId || lapAId === lapBId) {
+    if (!lapAId || !lapBId || lapAId === lapBId || !gameId) {
       setComparison(null);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const res = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } });
+      const res = await client.api.laps[":id1"].compare[":id2"].$get(
+        { param: { id1: String(lapAId), id2: String(lapBId) } },
+        { headers: { "X-Game-Id": gameId } },
+      );
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         const msg = body.error ?? m.compare_load_failed();
@@ -280,14 +310,16 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         setComparison(null);
         return;
       }
-      setComparison((await res.json()) as unknown as ComparisonData);
+      const comparisonData = await rpcJson<ComparisonData>(res);
+      if (comparisonData.gameId !== gameId) throw new Error("Comparison game does not match request");
+      setComparison(comparisonData);
     } catch {
       setError(m.compare_load_failed());
       setComparison(null);
     } finally {
       setLoading(false);
     }
-  }, [lapAId, lapBId]);
+  }, [lapAId, lapBId, gameId]);
 
   useEffect(() => {
     fetchComparison();
@@ -439,11 +471,17 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             }}
           />
 
-          <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} />
+          <ComparisonCharts
+            comparison={comparison}
+            units={units}
+            onCursorMove={handleCursorMove}
+            onEvidenceSelect={handleFindingEvidence}
+          />
 
           {/* AI compare sidebar */}
-          {aiPanelOpen && selectedLapA && selectedLapB && (
+          {aiPanelOpen && gameId && selectedLapA && selectedLapB && (
             <CompareAiSidebar
+              gameId={gameId}
               lapA={{
                 id: selectedLapA.id,
                 label: `${carNames.get(comparison.lapA.carOrdinal ?? -1) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,

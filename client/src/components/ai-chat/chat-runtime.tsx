@@ -26,6 +26,7 @@ function PendingPromptSubmit({ prompt, onSubmitted }: { prompt?: string; onSubmi
 
 export function ChatPanelThread({
   api,
+  headers,
   initialMessages,
   onFinish,
   components,
@@ -47,6 +48,7 @@ export function ChatPanelThread({
   onClearChat,
 }: {
   api: string;
+  headers?: Record<string, string>;
   initialMessages: UIMessage[];
   onFinish?: () => void;
   components?: ThreadProps["components"];
@@ -70,13 +72,14 @@ export function ChatPanelThread({
   const transport = resumableThreadId
     ? new AssistantChatTransport({
         api,
+        headers,
         body: extraBody,
         resumable: {
           storage: createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }),
           resumeApi: () => `/api/chats/${encodeURIComponent(resumableThreadId)}/run/stream`,
         },
       })
-    : new AssistantChatTransport({ api, body: extraBody });
+    : new AssistantChatTransport({ api, headers, body: extraBody });
   const runtime = useChatRuntime({ messages: initialMessages, transport, onFinish });
   const [compacting, setCompacting] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -87,7 +90,7 @@ export function ChatPanelThread({
         const url = new URL(api, window.location.origin);
         url.searchParams.set("export", "1");
         url.searchParams.set("gen", String(viewingGen));
-        const response = await fetch(url);
+        const response = await fetch(url, { headers });
         if (!response.ok) throw new Error("Could not load chat export");
         const data = (await response.json()) as { messages?: unknown[] };
         await navigator.clipboard.writeText(JSON.stringify({ messages: data.messages ?? [] }, null, 2));

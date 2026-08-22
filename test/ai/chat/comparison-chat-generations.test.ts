@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { compareChatThreadId, getChatMemory, saveChatMessages } from "../../../server/ai/chat-agent";
-import { getCompareQualityIdentity } from "../../../server/db/analysis-queries";
+import { compareFindingGenerationCacheKey, getCompareQualityIdentity } from "../../../server/db/analysis-queries";
 import { db } from "../../../server/db";
 import { laps, sessions } from "../../../server/db/schema";
 import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quality-generation";
 import { lapRoutes } from "../../../server/routes/laps";
+import { persistCompletedLapFindings } from "../../../server/findings/completed-lap";
+import { getCurrentFindingGeneration } from "../../../server/findings/store";
 import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 
 const createdSessionIds: number[] = [];
@@ -28,7 +30,7 @@ afterEach(async () => {
   createdSessionIds.length = 0;
 });
 
-async function insertComparisonLaps(): Promise<[number, number]> {
+async function insertComparisonLaps(): Promise<[number, number, string]> {
   const packets = qualityPackets(100);
   const sessionId = (await db.insert(sessions).values({ gameId: "fm-2023", carOrdinal: 4_001, trackOrdinal: 4_002 }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(sessionId);
@@ -56,22 +58,49 @@ async function insertComparisonLaps(): Promise<[number, number]> {
       .returning({ id: laps.id })
       .get();
     ids.push(row.id);
+    await persistCompletedLapFindings({
+      lapId: row.id,
+      sessionId,
+      lapNumber,
+      lapTime: 90 + lapNumber,
+      isValid: true,
+      gameId: "fm-2023",
+      quality: generated.quality,
+      recordingQuality: { valid: true, reason: null },
+      versionIdentity: generated.quality.versionIdentity,
+      telemetry: packets,
+    }, { analyze: () => [] });
   }
-  return [ids[0]!, ids[1]!];
+  const generations = await Promise.all(ids.map((lapId) =>
+    getCurrentFindingGeneration({
+      kind: "lap",
+      gameId: "fm-2023",
+      sessionId: String(sessionId),
+      lapId: String(lapId),
+    })
+  ));
+  if (!generations[0] || !generations[1]) throw new Error("Expected current finding generations");
+  const findingGenerationKey = compareFindingGenerationCacheKey([
+    { lapId: ids[0]!, receipt: generations[0].receipt },
+    { lapId: ids[1]!, receipt: generations[1].receipt },
+  ]);
+  return [ids[0]!, ids[1]!, findingGenerationKey];
 }
 
 describe("quality-scoped comparison chat routes", () => {
   test("returns canonical current thread and never deletes prior quality history", async () => {
-    const [lapAId, lapBId] = await insertComparisonLaps();
+    const [lapAId, lapBId, findingGenerationKey] = await insertComparisonLaps();
     const identity = await getCompareQualityIdentity(lapAId, lapBId);
     if (!identity) throw new Error("Expected current comparison quality identity");
-    const currentThread = compareChatThreadId(lapAId, lapBId, `${identity.policyVersion}:${identity.generation}`);
+    const currentThread = compareChatThreadId(lapAId, lapBId, `${identity.policyVersion}:${identity.generation}:${findingGenerationKey}`);
     const previousThread = compareChatThreadId(lapAId, lapBId, "previous-policy:previous-generations");
     createdThreadIds.push(currentThread, previousThread);
     await saveChatMessages(previousThread, [{ role: "user", markdown: "previous comparison message" }]);
     await saveChatMessages(currentThread, [{ role: "user", markdown: "current comparison message" }]);
 
-    const historyResponse = await lapRoutes.request(`/api/laps/${lapAId}/compare/${lapBId}/chat`);
+    const historyResponse = await lapRoutes.request(`/api/laps/${lapAId}/compare/${lapBId}/chat`, {
+      headers: { "X-Game-Id": "fm-2023" },
+    });
     expect(historyResponse.status).toBe(200);
     const history = (await historyResponse.json()) as { threadId: string | null; messages: unknown[] };
     expect(history.threadId).toBe(currentThread);
@@ -80,6 +109,7 @@ describe("quality-scoped comparison chat routes", () => {
 
     const deleteResponse = await lapRoutes.request(`/api/laps/${lapAId}/compare/${lapBId}/chat`, {
       method: "DELETE",
+      headers: { "X-Game-Id": "fm-2023" },
     });
     expect(deleteResponse.status).toBe(200);
     const memory = getChatMemory();

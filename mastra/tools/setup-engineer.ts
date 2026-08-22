@@ -371,8 +371,8 @@ export function buildSetupEngineerTools() {
       reasonCodes: z.array(z.string()),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      return consultLapAnalystForSession(sessionId);
+      const { gameId, sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      return consultLapAnalystForSession(gameId, sessionId);
     },
   });
 

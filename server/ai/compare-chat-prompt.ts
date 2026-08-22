@@ -88,7 +88,7 @@ export function buildCompareChatSystemPrompt(
   unit?: UnitSystem,
   temperatureUnit?: TemperatureUnit,
   language?: string,
-  precomputedInsights?: string,
+  findingsContext?: string,
 ): string;
 export function buildCompareChatSystemPrompt(
   lapA: LapInfo,
@@ -99,7 +99,7 @@ export function buildCompareChatSystemPrompt(
   languageOrUnit: string | UnitSystem = "en",
   legacyTemperature?: TemperatureUnit,
   legacyLanguage = "en",
-  legacyPrecomputedInsights = "",
+  legacyFindings = "",
 ): string {
   const isCurrent = unitOrAnalysisA === "metric" || unitOrAnalysisA === "imperial";
   const unit: UnitSystem = isCurrent ? unitOrAnalysisA : languageOrUnit === "imperial" ? "imperial" : "metric";
@@ -132,8 +132,9 @@ Lap A:
 ${qualityContextA}
 Lap B:
 ${qualityContextB}
-${legacyPrecomputedInsights}
 
 ${summarizeComparison(comparison)}
-Use the retrieved analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;
+${legacyFindings}
+Use deterministic findings only as supplied evidence. Keep unavailable or indeterminate records as abstentions, preserve confidence, and never invent IDs or upgrade association to causation.
+Use retrieved analyses and corner-by-corner deltas to explain where time is gained or lost and what slower lap should change.`;
 }

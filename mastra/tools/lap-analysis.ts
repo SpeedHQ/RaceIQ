@@ -1,7 +1,9 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { getAnalysis } from "../../server/db/analysis-queries";
+import { getAnalysis, lapFindingGenerationCacheKey } from "../../server/db/analysis-queries";
+import { getLapById } from "../../server/db/lap-read-queries";
+import { getCurrentFindingGeneration } from "../../server/findings/store";
 import { AnalystOutputSchema } from "../../server/ai/schemas";
 import type {
   AnalysisUsage,
@@ -47,9 +49,15 @@ const LapAnalysisOutput = z.object({
   error: z.string().optional(),
 });
 
+
+export interface LapAnalysisToolDeps {
+  getLapById?: typeof getLapById;
+  getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
+}
 /** Read-only access to cached analysis. Never invents or regenerates results. */
 export function getLapAnalysisToolFor(
   readAnalysis: typeof getAnalysis = getAnalysis,
+  deps: LapAnalysisToolDeps = {},
 ) {
   return createTool({
     id: "get_lap_analysis",
@@ -60,7 +68,30 @@ export function getLapAnalysisToolFor(
     outputSchema: LapAnalysisOutput,
     execute: async ({ lapId }) => {
       try {
-        const row = await readAnalysis(lapId);
+        const lap = await (deps.getLapById ?? getLapById)(lapId);
+        if (!lap?.gameId) {
+          return {
+            available: false,
+            lapId,
+            readable: `No stored game-owned lap is available for lap ${lapId}. Do not make lap-specific claims from analysis.`,
+            error: "Lap not found",
+          };
+        }
+        const findingGeneration = await (deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration)({
+          kind: "lap",
+          gameId: lap.gameId,
+          sessionId: String(lap.sessionId),
+          lapId: String(lap.id),
+        });
+        if (!findingGeneration) {
+          return {
+            available: false,
+            lapId,
+            readable: `No current stored finding generation is available for lap ${lapId}. Do not make lap-specific claims from analysis.`,
+            error: "Finding generation not found",
+          };
+        }
+        const row = await readAnalysis(lapId, lapFindingGenerationCacheKey(findingGeneration.receipt));
         if (!row) {
           return {
             available: false,

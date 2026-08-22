@@ -110,18 +110,22 @@ export async function setLapMetrics(lapId: number, fuelPerLap: number | null, ty
 }
 
 export async function deleteLap(id: number): Promise<boolean> {
-  // Get session ID before deleting
-  const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
-  const result = await db.delete(laps).where(eq(laps.id, id)).returning().all();
-  if (result.length > 0) {
-    cacheDelete(id);
-    // Clean up empty parent session
-    if (lap) {
-      const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
-      if (remaining.length === 0) {
-        await db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
-      }
-    }
+  const deleted = await db
+    .delete(laps)
+    .where(eq(laps.id, id))
+    .returning({ sessionId: laps.sessionId })
+    .get();
+  if (!deleted) return false;
+
+  cacheDelete(id);
+  const remaining = await db
+    .select({ id: laps.id })
+    .from(laps)
+    .where(eq(laps.sessionId, deleted.sessionId))
+    .limit(1)
+    .all();
+  if (remaining.length === 0) {
+    await db.delete(sessions).where(eq(sessions.id, deleted.sessionId)).run();
   }
-  return result.length > 0;
+  return true;
 }

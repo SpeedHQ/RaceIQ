@@ -35,6 +35,7 @@ import { laps, sessions } from "../db/schema";
 import { updateSessionQuality } from "../db/session-queries";
 import { tryGetServerGame } from "../games/registry";
 import { getSessionCanonicalAvailability } from "./canonical-archive-availability";
+import { rebuildCompletedSessionFindings } from "../findings/session-finalization";
 
 export type QualityRebuildAction = "current" | "rebuild_eligibility" | "reprocess" | "rebuild_in_progress" | "unavailable";
 
@@ -372,6 +373,7 @@ export async function rebuildSessionEligibility(sessionId: number): Promise<Qual
       const receipt = await createPersistedSessionAnalysisReceipt(attempt, session.gameId as GameId, tx, canonicalEvidence);
       await activateAnalysisGeneration({ generationId: attempt.generationId, receipt }, tx);
     });
+    await rebuildCompletedSessionFindings(sessionId, session.gameId as GameId);
   } catch (error) {
     await failAnalysisGeneration(attempt.generationId, {
       code: "output_verification_failed",

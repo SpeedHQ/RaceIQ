@@ -409,7 +409,12 @@ describe("quality diagnostics API", () => {
   test("blocks reports, issues, and rules auto-tuning when stored quality is stale", async () => {
     const { lapId } = await seedUnsafeRecordedLap();
 
-    await expectQualityBlocked(await lapRoutes.request(`/api/laps/${lapId}/export`), "corner-trace");
+    await expectQualityBlocked(
+      await lapRoutes.request(`/api/laps/${lapId}/export`, {
+        headers: { "X-Game-Id": "iracing" },
+      }),
+      "corner-trace",
+    );
     await expectQualityBlocked(await tuneRoutes.request(`/api/laps/${lapId}/issues?gameId=iracing`), "setup-analysis");
     await expectQualityBlocked(
       await tuneRoutes.request("/api/tunes/auto", {
@@ -427,25 +432,19 @@ describe("quality diagnostics API", () => {
     );
   });
 
-  test("keeps stale recorded laps inspectable without deriving insights", async () => {
+  test("does not derive findings for stored laps without a persisted finding generation", async () => {
     const { lapId } = await seedUnsafeRecordedLap();
     const gameHeader = { "X-Game-Id": "iracing" };
 
     const semanticResponse = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, {
       headers: gameHeader,
     });
-    expect(semanticResponse.status).toBe(200);
-    const semantic = await semanticResponse.json();
-    expect(semantic.envelopes.length).toBeGreaterThan(0);
-    expect(semantic.insights).toEqual([]);
-    expect(semantic.decision.reasons.map((reason: { code: string }) => reason.code)).toEqual(["quality_stale"]);
+    expect(semanticResponse.status).toBe(409);
+    expect((await semanticResponse.json()).error).toBe("No persisted finding generation for this lap");
 
     const detailResponse = await lapRoutes.request(`/api/laps/${lapId}`, { headers: gameHeader });
-    expect(detailResponse.status).toBe(200);
-    const detail = await detailResponse.json();
-    expect(detail.telemetry.length).toBeGreaterThan(0);
-    expect(detail.insights).toEqual([]);
-    expect(detail.decision.reasons.map((reason: { code: string }) => reason.code)).toEqual(["quality_stale"]);
+    expect(detailResponse.status).toBe(409);
+    expect((await detailResponse.json()).error).toBe("No persisted finding generation for this lap");
 
     const notesResponse = await lapRoutes.request(`/api/laps/${lapId}/notes`, {
       method: "PATCH",

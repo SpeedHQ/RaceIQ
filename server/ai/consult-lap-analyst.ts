@@ -12,6 +12,7 @@
  * Analyst's own `aiProvider`/`aiModel`, which are distinct from the chat
  * provider the engineer runs on).
  */
+import type { GameId } from "../../shared/games/ids";
 import { resolveLapCorners, resolveLapSegments } from "../tracks/corner-resolution";
 import { getSecret } from "../runtime/platform/keystore";
 import { loadSettings } from "../runtime/config/settings";
@@ -22,6 +23,7 @@ import { buildAnalystPrompt } from "./analyst-prompt";
 // the setup-engineer consult doesn't need.
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { loadRepresentativeLapSelection } from "../experiments/representative-lap";
+import { getCurrentFindingGeneration } from "../findings/store";
 
 interface LapAnalystConsult {
   available: boolean;
@@ -30,13 +32,37 @@ interface LapAnalystConsult {
   reasonCodes: string[];
 }
 
-export async function consultLapAnalystForSession(sessionId: number): Promise<LapAnalystConsult> {
-  const selection = await loadRepresentativeLapSelection(sessionId);
+export interface ConsultLapAnalystDeps {
+  loadRepresentativeLapSelection?: typeof loadRepresentativeLapSelection;
+  getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
+}
+
+export async function consultLapAnalystForSession(
+  gameId: GameId,
+  sessionId: number,
+  deps: ConsultLapAnalystDeps = {},
+): Promise<LapAnalystConsult> {
+  const selection = await (deps.loadRepresentativeLapSelection ?? loadRepresentativeLapSelection)(sessionId);
   const { lap } = selection;
-  if (!lap) {
+  if (!lap || lap.gameId !== gameId) {
     return {
       available: false,
-      summary: "No policy-suitable analysable lap yet for this session.",
+      summary: "No policy-suitable analysable lap yet for this game and session.",
+      eligibilityStatus: selection.setupDecision.status,
+      reasonCodes: selection.reasonCodes,
+    };
+  }
+
+  const findingGeneration = await (deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration)({
+    kind: "lap",
+    gameId,
+    sessionId: String(lap.sessionId),
+    lapId: String(lap.id),
+  });
+  if (!findingGeneration) {
+    return {
+      available: false,
+      summary: "No persisted current finding generation exists for the selected lap.",
       eligibilityStatus: selection.setupDecision.status,
       reasonCodes: selection.reasonCodes,
     };
@@ -57,6 +83,8 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
     segments,
     undefined,
     settings.language,
+    undefined,
+    findingGeneration.findings,
   );
 
   // Bridge the Lap Analyst's provider secret → env. It reads `aiProvider`

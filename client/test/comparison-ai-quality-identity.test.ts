@@ -35,12 +35,17 @@ describe("comparison AI state identity", () => {
     expect(comparisonAiStateKey(lap(1, "quality-a1"), lap(2, "quality-b1"))).toBe(comparisonAiStateKey(lap(2, "quality-b1"), lap(1, "quality-a1")));
   });
 
-  test("preserves server canonical thread identity without constructing a raw compare ID", async () => {
+  test("uses typed RPC with GameId header instead of missing-game 400 path", async () => {
     const serverThreadId = `compare-1-2~q${"a".repeat(64)}`;
     const originalFetch = globalThis.fetch;
     let requestedUrl = "";
-    globalThis.fetch = async (input) => {
-      requestedUrl = String(input);
+    let requestedGameId: string | null = null;
+    globalThis.fetch = async (input, init) => {
+      requestedUrl = input instanceof Request ? input.url : String(input);
+      requestedGameId = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get("X-Game-Id");
+      if (requestedGameId !== "acc") {
+        return new Response(JSON.stringify({ error: "Missing or invalid X-Game-Id header" }), { status: 400 });
+      }
       return new Response(
         JSON.stringify({
           messages: [
@@ -53,8 +58,9 @@ describe("comparison AI state identity", () => {
       );
     };
     try {
-      const history = await fetchCompareChatHistory(2, 1, 1);
+      const history = await fetchCompareChatHistory(2, 1, "acc", 1);
       expect(requestedUrl).toEndWith("?gen=1");
+      expect(requestedGameId).toBe("acc");
       expect(history.threadId).toBe(serverThreadId);
       expect(history.messages.map((message) => message.role)).toEqual(["user"]);
       expect(history.threadId).not.toContain("quality-a1");

@@ -1,7 +1,10 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { CornerDelta } from "../../shared/racing/comparison/types";
 import { hasWorldPositions, lapPath } from "../../shared/racing/tracks/path";
 import type { Corner } from "./corners";
 import { speedMphFromPacket } from "./metrics";
+
+export type { CornerDelta } from "../../shared/racing/comparison/types";
 
 export interface AlignedTrace {
   speed: number[];
@@ -26,12 +29,6 @@ export interface ComparisonResult {
   cornerDeltas: CornerDelta[];
 }
 
-export interface CornerDelta {
-  label: string;
-  deltaSeconds: number;
-  timeA: number;
-  timeB: number;
-}
 
 export interface ComparisonOptions {
   lapAIsValid?: boolean;
@@ -235,17 +232,47 @@ function computeTimeDelta(lapATime: number[], lapBTime: number[]): number[] {
   return lapATime.map((time, index) => time - lapBTime[index]);
 }
 
-function computeCornerDeltas(corners: Corner[], distances: number[], timeDelta: number[], lapATime: number[], lapBTime: number[]): CornerDelta[] {
+function computeCornerDeltas(
+  corners: Corner[],
+  distances: number[],
+  timeDelta: number[],
+  lapA: AlignedTrace,
+  lapB: AlignedTrace,
+): CornerDelta[] {
   return corners.map((corner) => {
-    const startIdx = distances.findIndex((distance) => distance >= corner.distanceStart);
-    let endIdx = distances.findIndex((distance) => distance >= corner.distanceEnd);
-    if (endIdx === -1) endIdx = distances.length - 1;
-    if (startIdx === -1 || startIdx >= endIdx) return { label: corner.label, deltaSeconds: 0, timeA: 0, timeB: 0 };
+    const alignedStartIndex = distances.findIndex((distance) => distance >= corner.distanceStart);
+    let alignedEndIndex = distances.findIndex((distance) => distance >= corner.distanceEnd);
+    if (alignedEndIndex === -1) alignedEndIndex = distances.length - 1;
+    const hasRange = alignedStartIndex >= 0 && alignedStartIndex < alignedEndIndex;
+    if (!hasRange) {
+      return {
+        label: corner.label,
+        deltaSeconds: 0,
+        timeA: 0,
+        timeB: 0,
+        distanceStart: corner.distanceStart,
+        distanceEnd: corner.distanceEnd,
+        alignedStartIndex: null,
+        alignedEndIndex: null,
+        sourceStartIndexA: null,
+        sourceEndIndexA: null,
+        sourceStartIndexB: null,
+        sourceEndIndexB: null,
+      };
+    }
     return {
       label: corner.label,
-      deltaSeconds: Math.round((timeDelta[endIdx] - timeDelta[startIdx]) * 1000) / 1000,
-      timeA: Math.round((lapATime[endIdx] - lapATime[startIdx]) * 1000) / 1000,
-      timeB: Math.round((lapBTime[endIdx] - lapBTime[startIdx]) * 1000) / 1000,
+      deltaSeconds: Math.round((timeDelta[alignedEndIndex] - timeDelta[alignedStartIndex]) * 1000) / 1000,
+      timeA: Math.round((lapA.elapsedTime[alignedEndIndex] - lapA.elapsedTime[alignedStartIndex]) * 1000) / 1000,
+      timeB: Math.round((lapB.elapsedTime[alignedEndIndex] - lapB.elapsedTime[alignedStartIndex]) * 1000) / 1000,
+      distanceStart: distances[alignedStartIndex],
+      distanceEnd: distances[alignedEndIndex],
+      alignedStartIndex,
+      alignedEndIndex,
+      sourceStartIndexA: lapA.sourceIndices[alignedStartIndex],
+      sourceEndIndexA: lapA.sourceIndices[alignedEndIndex],
+      sourceStartIndexB: lapB.sourceIndices[alignedStartIndex],
+      sourceEndIndexB: lapB.sourceIndices[alignedEndIndex],
     };
   });
 }
@@ -262,5 +289,5 @@ export function compareLaps(
   const lapA = alignLap(extractLapData(packetsA, distancesA), distances);
   const lapB = alignLap(extractLapData(packetsB, distancesB), distances);
   const timeDelta = computeTimeDelta(lapA.elapsedTime, lapB.elapsedTime);
-  return { distances, lapA, lapB, timeDelta, cornerDeltas: computeCornerDeltas(corners, distances, timeDelta, lapA.elapsedTime, lapB.elapsedTime) };
+  return { distances, lapA, lapB, timeDelta, cornerDeltas: computeCornerDeltas(corners, distances, timeDelta, lapA, lapB) };
 }

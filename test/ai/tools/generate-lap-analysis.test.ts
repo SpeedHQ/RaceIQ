@@ -7,7 +7,11 @@ import {
   type LapQualitySummary,
 } from "../../../shared/racing/quality/contracts";
 import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
-import type { QualityCacheIdentity } from "../../../server/db/analysis-queries";
+import {
+  lapFindingGenerationCacheKey,
+  type FindingGenerationCacheKey,
+  type QualityCacheIdentity,
+} from "../../../server/db/analysis-queries";
 import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
@@ -25,6 +29,14 @@ const validAnalysis = JSON.stringify({
 
 const QUALITY_GENERATION = `sha256:${"a".repeat(64)}`;
 const QUALITY_SOURCE_GENERATION = `sha256:${"b".repeat(64)}`;
+const FINDING_GENERATION = {
+  receipt: {
+    generationId: `sha256:${"c".repeat(64)}`,
+    contentHash: `sha256:${"d".repeat(64)}`,
+  },
+  findings: [],
+};
+const FINDING_GENERATION_KEY = lapFindingGenerationCacheKey(FINDING_GENERATION.receipt);
 
 function currentQuality(generation: string): LapQualitySummary {
   const measured = summarize(qualityPackets(100));
@@ -72,12 +84,20 @@ function makeDeps(
     generated?: string;
     generateError?: Error;
     onGenerate?: () => void;
-    onSave?: (analysis: string, identity: QualityCacheIdentity) => void;
+    onSave?: (analysis: string, identity: QualityCacheIdentity, findingKey: FindingGenerationCacheKey) => void;
   } = {},
-): GenerateLapAnalysisDeps & { generateCalls: number; saves: string[]; saveIdentities: QualityCacheIdentity[] } {
+): GenerateLapAnalysisDeps & {
+  generateCalls: number;
+  saves: string[];
+  saveIdentities: QualityCacheIdentity[];
+  readFindingKeys: FindingGenerationCacheKey[];
+  saveFindingKeys: FindingGenerationCacheKey[];
+} {
   let generateCalls = 0;
   const saves: string[] = [];
   const saveIdentities: QualityCacheIdentity[] = [];
+  const readFindingKeys: FindingGenerationCacheKey[] = [];
+  const saveFindingKeys: FindingGenerationCacheKey[] = [];
   let cached = options.cached
     ? {
         analysis: options.cached,
@@ -92,18 +112,27 @@ function makeDeps(
     generateCalls: number;
     saves: string[];
     saveIdentities: QualityCacheIdentity[];
+    readFindingKeys: FindingGenerationCacheKey[];
+    saveFindingKeys: FindingGenerationCacheKey[];
   } = {
     generateCalls,
     saves,
     saveIdentities,
+    readFindingKeys,
+    saveFindingKeys,
     getLapById: async () => lap as never,
     getCorners: async () => [],
     detectCorners: () => [],
-    getAnalysis: async () => cached,
-    saveAnalysis: async (_lapId, analysis, _usage, identity) => {
+    getAnalysis: async (_lapId, findingKey) => {
+      readFindingKeys.push(findingKey);
+      return cached;
+    },
+    getCurrentFindingGeneration: async () => FINDING_GENERATION as never,
+    saveAnalysis: async (_lapId, analysis, _usage, identity, findingKey) => {
       saves.push(analysis);
       saveIdentities.push(identity);
-      options.onSave?.(analysis, identity);
+      saveFindingKeys.push(findingKey);
+      options.onSave?.(analysis, identity, findingKey);
       cached = {
         analysis,
         inputTokens: 1,
@@ -165,6 +194,7 @@ describe("generateLapAnalysis", () => {
     expect(result.cached).toBe(true);
     expect(result.analysis).toBe(validAnalysis);
     expect(deps.generateCalls).toBe(0);
+    expect(deps.readFindingKeys).toEqual([FINDING_GENERATION_KEY]);
   });
 
   test("returns missing lap error", async () => {
@@ -174,6 +204,16 @@ describe("generateLapAnalysis", () => {
     const result = await generateLapAnalysis(404, {}, deps);
 
     expect(result.error).toBe("Lap not found");
+    expect(deps.generateCalls).toBe(0);
+  });
+
+  test("does not build an AI prompt when finding generation is absent", async () => {
+    const deps = makeDeps();
+    deps.getCurrentFindingGeneration = async () => null;
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.error).toBe("No persisted finding generation for this lap");
     expect(deps.generateCalls).toBe(0);
   });
 
@@ -274,6 +314,7 @@ describe("generateLapAnalysis", () => {
         policyVersion: "1",
       },
     ]);
+    expect(deps.saveFindingKeys).toEqual([FINDING_GENERATION_KEY]);
   });
 
   test("rejects model output when save reports a stale prompt identity", async () => {
@@ -286,6 +327,29 @@ describe("generateLapAnalysis", () => {
     expect(result.error).toBe("Lap quality changed during analysis generation. Analysis not cached.");
   });
 
+  test("rejects model output when finding generation changes before save", async () => {
+    const deps = makeDeps();
+    let readCount = 0;
+    deps.getCurrentFindingGeneration = async () => {
+      readCount++;
+      return readCount === 1
+        ? FINDING_GENERATION as never
+        : ({
+            receipt: {
+              generationId: `sha256:${"e".repeat(64)}`,
+              contentHash: FINDING_GENERATION.receipt.contentHash,
+            },
+            findings: [],
+          } as never);
+    };
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.analysis).toBeNull();
+    expect(result.error).toBe("Lap findings changed during analysis generation. Analysis not cached.");
+    expect(deps.saves).toHaveLength(0);
+  });
+
   test("failed regeneration leaves prior valid cache untouched", async () => {
     const deps = makeDeps({
       cached: validAnalysis,
@@ -296,7 +360,7 @@ describe("generateLapAnalysis", () => {
 
     expect(result.error).toBe("provider unavailable");
     expect(deps.saves).toHaveLength(0);
-    expect((await deps.getAnalysis!(7))?.analysis).toBe(validAnalysis);
+    expect((await deps.getAnalysis!(7, FINDING_GENERATION_KEY))?.analysis).toBe(validAnalysis);
   });
 });
 

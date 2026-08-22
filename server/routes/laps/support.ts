@@ -28,6 +28,14 @@ export const AnalyseQuerySchema = z.object({
     .transform((v) => v === "true")
     .optional(),
 });
+export const ChatHistoryQuerySchema = z.object({
+  gen: z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .transform(Number)
+    .optional(),
+});
+
 
 export const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),

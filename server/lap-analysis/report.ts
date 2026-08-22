@@ -3,6 +3,8 @@ import { eligibilityDecisionText } from "../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision, type QualitySnapshotEvidence } from "../../shared/racing/quality/policies";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { tryGetGame } from "../../shared/games/registry";
+import type { FindingRecord } from "../../shared/racing/findings/types";
+import { renderFindingsReport } from "../../shared/racing/findings/render";
 
 export type UnitSystem = "metric" | "imperial";
 export type TemperatureUnit = "C" | "F";
@@ -34,6 +36,7 @@ export function generateExport(
   packets: TelemetryPacket[],
   unit: UnitSystem = "metric",
   temperatureUnit?: TemperatureUnit,
+  findings?: readonly FindingRecord[],
 ): string {
   const decision = resolveEligibilityDecision(lap, "corner-trace");
   if (!isEligibilityUsable(decision)) throw new Error(eligibilityDecisionText(decision));
@@ -168,7 +171,10 @@ FL: ${avgSuspFL.toFixed(4)}m  FR: ${avgSuspFR.toFixed(4)}m  RL: ${avgSuspRL.toFi
 
 --- Tire Wear ---
 FL: ${last.TireWearFL.toFixed(2)}  FR: ${last.TireWearFR.toFixed(2)}  RL: ${last.TireWearRL.toFixed(2)}  RR: ${last.TireWearRR.toFixed(2)}
-
+${findings ? `
+--- Deterministic Findings ---
+${renderFindingsReport(findings)}
+` : ""}
 Paste this into a Claude conversation for tuning advice.`;
 
   return output;

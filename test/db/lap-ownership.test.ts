@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import type { GameId } from "../../shared/games/ids";
 import { eq, sql } from "drizzle-orm";
-import { getLapStats, getLapMetaForPitHistory, getLapMetaForProfileScope, getLaps } from "../../server/db/lap-read-queries";
+import { getLapById, getLapsByIds, getLapStats, getLapMetaForPitHistory, getLapMetaForProfileScope, getLaps } from "../../server/db/lap-read-queries";
 import { deleteSession, getSessions, insertSession } from "../../server/db/session-queries";
 import { insertLap } from "../../server/db/lap-mutation-queries";
 import { db } from "../../server/db";
@@ -9,7 +9,12 @@ import { laps, sessions } from "../../server/db/schema";
 
 const sessionIds: number[] = [];
 const testGameId = "lap-ownership-test" as GameId;
-async function insertTestLap(sessionId: number, lapNumber: number, lapTime: number): Promise<number> {
+async function insertTestLap(
+  sessionId: number,
+  lapNumber: number,
+  lapTime: number,
+  analysisGenerationId?: string,
+): Promise<number> {
   return insertLap({
     sessionId,
     lapNumber,
@@ -28,10 +33,21 @@ async function insertTestLap(sessionId: number, lapNumber: number, lapTime: numb
     },
     quality: null,
     eligibility: null,
+    analysisGenerationId,
   });
 }
 afterEach(async () => {
   for (const id of sessionIds.splice(0)) await deleteSession(id);
+});
+
+test("single and batch lap reads expose stored analysis generation", async () => {
+  const sessionId = await insertSession(5, 6, "iracing", "race");
+  sessionIds.push(sessionId);
+  const analysisGenerationId = `analysis-generation:${crypto.randomUUID()}`;
+  const lapId = await insertTestLap(sessionId, 1, 90, analysisGenerationId);
+
+  expect((await getLapById(lapId))?.analysisGenerationId).toBe(analysisGenerationId);
+  expect((await getLapsByIds([lapId]))[0]?.analysisGenerationId).toBe(analysisGenerationId);
 });
 
 test("owned stats and profile pool exclude others while general reads preserve ownership", async () => {

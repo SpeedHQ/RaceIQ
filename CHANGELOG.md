@@ -17,6 +17,7 @@
 - Persist simulator-independent participant runs, tire and driver stints, pace segments, lap membership, evidence, and summaries for live and reprocessed sessions, with typed APIs for filtering and comparison
 - Show versioned analysis receipts, current or stale rebuild status, verification failures, and safe whole-session rebuild diagnostics
 - Preserve verified complete canonical telemetry archives so RaceIQ can safely rebuild declared session analysis after raw recordings are removed
+- Review persistent deterministic findings in Analyse, Compare, and lap exports, including guidance, confidence, measurements, limitations, comparison references, and exact lap/frame evidence without an AI provider
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
