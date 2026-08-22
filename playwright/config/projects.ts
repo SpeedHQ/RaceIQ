@@ -65,6 +65,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     {
       name: "seeded-routes",
       testMatch: "seeded/routes/**/*.spec.ts",
+      fullyParallel: true,
       timeout: 120_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
