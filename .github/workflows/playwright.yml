@@ -128,7 +128,7 @@ jobs:
           PLAYWRIGHT_BATCHES: ${{ inputs.batches }}
           PLAYWRIGHT_BATCHES_PARALLEL: ${{ inputs.parallel-batches && '1' || '0' }}
         shell: cmd
-        timeout-minutes: 20
+        timeout-minutes: 60
         run: bun run ../scripts/playwright-batches.ts
 
       - name: Upload Playwright artifacts

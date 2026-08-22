@@ -33,7 +33,7 @@ jobs:
       server-mode: compiled
       runs-on: '["whitesmith-windows-x64", "10VCPU", "15G"]'
       dist-artifact: raceiq-dist-windows
-      parallel-batches: true
+      parallel-batches: false
       batches: >-
         [
           {"name":"seeded-1","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"shard":"1/2","isolation":1},

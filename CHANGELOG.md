@@ -73,7 +73,7 @@
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
-- Run pull-request E2E suites with shared setup, sequential light batches, and parallel seeded shards on isolated backends so Chromium installs once without sharing mutable test state
+- Run pull-request E2E suites with shared setup and sequential isolated batches so Chromium installs once without sharing mutable test state or saturating the runner
 - Keep recorded telemetry contracts within their timeout budgets by retaining boundary-preserving packet samples, avoiding duplicate fixture replays, and generating diagnostic visualizations only on request
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
