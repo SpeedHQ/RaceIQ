@@ -118,7 +118,7 @@ export function enrichCatalogContracts(
           id: `${gameId}:${variable.id}:${mapping.kind}`,
           version: DERIVATION_VERSION,
           deterministic: true,
-          declaredInputs: sources,
+          inputs: sources,
           missingDataPolicy:
             /available|fallback|prefer/i.test(mapping.normalization ?? "")
               ? ("drop-missing" as const)

@@ -5,7 +5,7 @@ import type { FourCornerRaceEventValue, RaceParticipantObservation } from "../..
 import { EVENT_ORDER_PRIORITY, type DetectorContext, type DetectorEventDraft } from "../types";
 
 export const PIT_SERVICE_DETECTOR_ID = "pit-service";
-export const PIT_SERVICE_DETECTOR_VERSION = "2";
+export const PIT_SERVICE_DETECTOR_VERSION = "4";
 
 const LOW_SPEED_MPS = 0.5;
 const HIGH_SPEED_MPS = 2;
@@ -28,6 +28,7 @@ interface PitVisit {
   serviceStarted: boolean;
   serviceStartTimeMs: number | null;
   observedActions: Set<PitServiceAction>;
+  nativeCompletionObserved: boolean;
 }
 
 interface PitParticipantState {
@@ -105,6 +106,32 @@ function aggregateDamage(damage: Readonly<Record<string, number>> | null): numbe
 function changedTireCorners(previous: FourCornerRaceEventValue | null, current: FourCornerRaceEventValue | null): Array<keyof FourCornerRaceEventValue> {
   if (previous == null || current == null) return [];
   return (["fl", "fr", "rl", "rr"] as const).filter((corner) => previous[corner] - current[corner] >= TIRE_WEAR_DECREASE);
+}
+
+function changedTireCountCorners(
+  previous: FourCornerRaceEventValue | null | undefined,
+  current: FourCornerRaceEventValue | null | undefined,
+): Array<keyof FourCornerRaceEventValue> {
+  if (previous == null || current == null) return [];
+  return (["fl", "fr", "rl", "rr"] as const).filter(
+    (corner) => Number.isFinite(previous[corner]) &&
+      Number.isFinite(current[corner]) &&
+      current[corner] > previous[corner],
+  );
+}
+
+function repairCountdownDecreased(
+  previous: RaceParticipantObservation["repairRemainingSeconds"],
+  current: RaceParticipantObservation["repairRemainingSeconds"],
+): boolean {
+  return previous != null &&
+    current != null &&
+    ((Number.isFinite(previous.mandatory) &&
+      Number.isFinite(current.mandatory) &&
+      current.mandatory < previous.mandatory) ||
+      (Number.isFinite(previous.optional) &&
+        Number.isFinite(current.optional) &&
+        current.optional < previous.optional));
 }
 
 function repairedComponents(previous: Readonly<Record<string, number>> | null, current: Readonly<Record<string, number>> | null): string[] {
@@ -219,9 +246,14 @@ export class PitServiceDetector {
 
     if (state === "pit-stall" && participant.pitState !== "pit-stall" && visit) {
       const directExit = participant.pitState === "out";
-      const directLaneDeparture = participant.pitState === "pit-lane" && visit.stallEvidence === "observed";
+      const directLaneDeparture =
+        participant.pitState === "pit-lane" &&
+        visit.stallEvidence === "observed" &&
+        participant.pitServiceStatus !== "in-progress";
       if (directExit || directLaneDeparture) {
-        drafts.push(...this.completeService(context, participant, visit, "pit-stall"));
+        if (!visit.nativeCompletionObserved) {
+          drafts.push(...this.completeService(context, participant, visit, "pit-stall"));
+        }
         drafts.push(transitionDraft(context, participant, "pit_stall_departure", "pit-stall", "pit-lane", visit));
         state = "pit-lane";
       } else if (participant.speedMps != null && participant.speedMps >= HIGH_SPEED_MPS) {
@@ -231,7 +263,9 @@ export class PitServiceDetector {
         };
         existing.highSpeed.observations += 1;
         if (existing.highSpeed.observations >= 2) {
-          drafts.push(...this.completeService(context, participant, visit, "pit-stall"));
+          if (!visit.nativeCompletionObserved) {
+            drafts.push(...this.completeService(context, participant, visit, "pit-stall"));
+          }
           drafts.push(transitionDraft(context, participant, "pit_stall_departure", "pit-stall", "pit-lane", visit, "inferred"));
           state = "pit-lane";
           existing.highSpeed = null;
@@ -242,7 +276,7 @@ export class PitServiceDetector {
     }
 
     if (participant.pitState === "out" && state !== "out" && visit) {
-      if (visit.serviceStarted) {
+      if (visit.serviceStarted && !visit.nativeCompletionObserved) {
         drafts.push(...this.completeService(context, participant, visit, state));
       } else if (!visit.stallObserved) {
         drafts.push(
@@ -271,6 +305,7 @@ export class PitServiceDetector {
       stallObserved: participant.pitState === "pit-stall",
       stallEvidence: participant.pitState === "pit-stall" ? "observed" : null,
       serviceStarted: false,
+      nativeCompletionObserved: false,
       serviceStartTimeMs: null,
       observedActions: new Set(),
     };
@@ -288,7 +323,11 @@ export class PitServiceDetector {
     visit.stallEvidence = evidenceKind;
     state.state = "pit-stall";
     const drafts = [transitionDraft(context, participant, "pit_stall_arrival", previousState, "pit-stall", visit, evidenceKind)];
-    if (!visit.serviceStarted) {
+    if (
+      participant.pitServiceStatus !== "none" &&
+      !visit.nativeCompletionObserved &&
+      !visit.serviceStarted
+    ) {
       visit.serviceStarted = true;
       visit.serviceStartTimeMs = context.observation.sourceTimeMs;
       drafts.push(
@@ -302,6 +341,10 @@ export class PitServiceDetector {
 
   private detectServiceActions(context: DetectorContext, current: RaceParticipantObservation, previous: RaceParticipantObservation, visit: PitVisit): DetectorEventDraft[] {
     const drafts: DetectorEventDraft[] = [];
+    if (current.pitServiceStatus === "in-progress") {
+      drafts.push(...this.ensureServiceStarted(context, current, visit));
+    }
+
     const fuelAdded = current.fuelLitres != null && previous.fuelLitres != null ? current.fuelLitres - previous.fuelLitres : 0;
     if (fuelAdded >= FUEL_INCREASE_LITRES && !visit.observedActions.has("fuel")) {
       drafts.push(...this.ensureServiceStarted(context, current, visit));
@@ -315,7 +358,21 @@ export class PitServiceDetector {
       );
     }
 
-    const corners = changedTireCorners(previous.tireWear, current.tireWear);
+    const countCorners = changedTireCountCorners(
+      previous.tireChangeCounts,
+      current.tireChangeCounts,
+    );
+    const hasTireCounts =
+      previous.tireChangeCounts != null && current.tireChangeCounts != null;
+    const wearCanProveService =
+      !hasTireCounts &&
+      previous.tireWearFreshness !== "pit-snapshot" &&
+      current.tireWearFreshness !== "pit-snapshot";
+    const corners = countCorners.length > 0
+      ? countCorners
+      : wearCanProveService
+        ? changedTireCorners(previous.tireWear, current.tireWear)
+        : [];
     const compoundChanged = previous.tireCompound != null && current.tireCompound != null && previous.tireCompound !== current.tireCompound;
     if ((compoundChanged || corners.length > 0) && !visit.observedActions.has("tires")) {
       drafts.push(...this.ensureServiceStarted(context, current, visit));
@@ -334,7 +391,17 @@ export class PitServiceDetector {
     const previousDamage = aggregateDamage(previous.damage);
     const currentDamage = aggregateDamage(current.damage);
     const repaired = repairedComponents(previous.damage, current.damage);
-    if (previousDamage != null && currentDamage != null && previousDamage - currentDamage >= DAMAGE_DECREASE && !visit.observedActions.has("repair")) {
+    const repairCountdownObserved = repairCountdownDecreased(
+      previous.repairRemainingSeconds,
+      current.repairRemainingSeconds,
+    );
+    if (
+      ((previousDamage != null &&
+        currentDamage != null &&
+        previousDamage - currentDamage >= DAMAGE_DECREASE) ||
+        repairCountdownObserved) &&
+      !visit.observedActions.has("repair")
+    ) {
       drafts.push(...this.ensureServiceStarted(context, current, visit));
       visit.observedActions.add("repair");
       drafts.push(
@@ -342,6 +409,12 @@ export class PitServiceDetector {
           previousComponents: previous.damage ?? {},
           currentComponents: current.damage ?? {},
           repairedComponents: repaired,
+          ...(repairCountdownObserved
+            ? {
+                previousRemainingSeconds: previous.repairRemainingSeconds!,
+                currentRemainingSeconds: current.repairRemainingSeconds!,
+              }
+            : {}),
         }),
       );
     }
@@ -356,11 +429,20 @@ export class PitServiceDetector {
         }),
       );
     }
+
+    if (
+      current.pitServiceStatus === "complete" &&
+      !visit.nativeCompletionObserved
+    ) {
+      drafts.push(...this.ensureServiceStarted(context, current, visit));
+      visit.nativeCompletionObserved = true;
+      drafts.push(...this.completeService(context, current, visit, current.pitState));
+    }
     return drafts;
   }
 
   private ensureServiceStarted(context: DetectorContext, participant: RaceParticipantObservation, visit: PitVisit): DetectorEventDraft[] {
-    if (visit.serviceStarted) return [];
+    if (visit.nativeCompletionObserved || visit.serviceStarted) return [];
     visit.serviceStarted = true;
     visit.serviceStartTimeMs = context.observation.sourceTimeMs;
     return [
@@ -386,7 +468,7 @@ export class PitServiceDetector {
           state,
         },
         "completed",
-        actions.length === 0 ? "ambiguous" : "available",
+        actions.length === 0 && !visit.nativeCompletionObserved ? "ambiguous" : "available",
       ),
     ];
   }
@@ -396,12 +478,26 @@ function mergeKnown(previous: RaceParticipantObservation, current: RaceParticipa
   return {
     ...current,
     pitState: previous.pitState,
+    sourceId: current.sourceId ?? previous.sourceId,
+    identityState:
+      current.identityState === "unknown"
+        ? previous.identityState
+        : current.identityState,
+    driverId: current.driverId ?? previous.driverId,
+    teamId: current.teamId ?? previous.teamId,
+    displayName: current.displayName ?? previous.displayName,
+    vehicleId: current.vehicleId ?? previous.vehicleId,
     nativePitCode: current.nativePitCode ?? previous.nativePitCode,
     position: current.position ?? previous.position,
     speedMps: current.speedMps ?? previous.speedMps,
     fuelLitres: current.fuelLitres ?? previous.fuelLitres,
     tireCompound: current.tireCompound ?? previous.tireCompound,
     tireWear: current.tireWear ?? previous.tireWear,
+    tireChangeCounts: current.tireChangeCounts ?? previous.tireChangeCounts,
+    tireWearFreshness: current.tireWearFreshness ?? previous.tireWearFreshness,
+    repairRemainingSeconds:
+      current.repairRemainingSeconds ?? previous.repairRemainingSeconds,
+    pitServiceStatus: current.pitServiceStatus ?? previous.pitServiceStatus,
     damage: current.damage ?? previous.damage,
     penaltyValue: current.penaltyValue ?? previous.penaltyValue,
     incidentCount: current.incidentCount ?? previous.incidentCount,

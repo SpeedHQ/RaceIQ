@@ -5,6 +5,7 @@ getIRacingTrackOrdinalByName, } from "../../../shared/racing/tracks/catalogs/ira
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { LAP_DETECTOR_IRACING_ID, LapDetectorIRacing } from "./lap-detector";
+import { IRACING_RACE_EVENT_DERIVATIONS } from "./race-event-semantics";
 import type { ServerGameAdapter } from "../types";
 import {
   createIRacingParserState,
@@ -19,7 +20,6 @@ import {
   baseRaceEventObservation,
   localPlayerObservation,
   normalizedFuelLitres,
-  normalizedTireWear,
 } from "../race-event-observation";
 
 const IRACING_SYSTEM_PROMPT = `You are an expert iRacing driver coach and race engineer.
@@ -47,6 +47,11 @@ export const iracingServerAdapter: ServerGameAdapter = {
     requiresTrackCalibration: false,
     normSuspensionTravelMm: { min: 0, max: 100 },
   },
+  raceEventTimestampDomain: "session",
+  raceEventDerivations: IRACING_RACE_EVENT_DERIVATIONS,
+  raceEventObservedAtMs: (packet, receivedAtMs) =>
+    Number.isFinite(packet.TimestampMS) ? packet.TimestampMS : receivedAtMs,
+
   processNames: [
     "iRacingSim64DX11.exe",
     "iRacingSim64DX11",
@@ -99,12 +104,7 @@ export const iracingServerAdapter: ServerGameAdapter = {
     const onPitRoad = packet.iracing?.onPitRoad;
     observation.participants = [
       localPlayerObservation(packet, {
-        pitState:
-          typeof onPitRoad === "boolean"
-            ? onPitRoad
-              ? "pit-lane"
-              : "out"
-            : "unknown",
+        pitState: "unknown",
         nativePitCode:
           typeof onPitRoad === "boolean" ? (onPitRoad ? 1 : 0) : null,
         fuelLitres: normalizedFuelLitres(
@@ -112,10 +112,7 @@ export const iracingServerAdapter: ServerGameAdapter = {
           iracingAdapter.telemetry.fuel.packetUnit,
         ),
         tireCompound: null,
-        tireWear:
-          packet.iracing?.pitTireWearAvailable === true
-            ? normalizedTireWear(packet)
-            : null,
+        tireWear: null,
         damage: null,
         penaltyValue: null,
         incidentCount:

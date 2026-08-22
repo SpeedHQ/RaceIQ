@@ -23,12 +23,15 @@ import {
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
 } from "../../../server/games/iracing/source-frame";
+import { IRACING_TELEMETRY_VARIABLES } from "../../../server/games/iracing/sdk-reader";
 import { parsePacket } from "../../../server/games/packet-dispatch";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   injectDiscoveredIRacingIdentity,
   iracingAdapter,
 } from "../../../shared/games/iracing";
+import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -114,6 +117,96 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.TireCarcassTempRightFL).toBe(86);
     expect(packet?.TireWearFL).toBeCloseTo(0.06);
     expect(packet?.iracing?.incidents).toBe(1);
+  });
+
+  test("selects and retains native full tire-set count", () => {
+    expect(IRACING_TELEMETRY_VARIABLES).toContain("TireSetsUsed");
+
+    const frame = sampleFrame();
+    frame.values.TireSetsUsed = 4;
+
+    expect(normalizeIRacingFrame(frame).iracing?.TireSetsUsed).toBe(4);
+  });
+
+  test("retains native session flags and state without interpreting race control", () => {
+    const cases = [
+      { flags: 0, state: 3 },
+      { flags: 0x4000 | 0x10, state: 4 },
+      { flags: 0x10, state: 4 },
+      { flags: 0x4200, state: 4 },
+      { flags: 0x4, state: 4 },
+      { flags: 0x1, state: 4 },
+    ] as const;
+
+    for (const { flags, state } of cases) {
+      const frame = sampleFrame();
+      frame.values.SessionFlags = flags;
+      frame.values.SessionState = state;
+      expect(normalizeIRacingFrame(frame).iracing).toMatchObject({
+        sessionFlags: flags,
+        sessionState: state,
+      });
+    }
+  });
+
+  test("leaves legacy frames without native race-control values absent", () => {
+    const packet = normalizeIRacingFrame(sampleFrame());
+
+    expect(packet.iracing?.sessionFlags).toBeUndefined();
+    expect(packet.iracing?.sessionState).toBeUndefined();
+  });
+
+  test("resolves native race-control values through catalog semantics", () => {
+    const frame = sampleFrame();
+    frame.values.SessionFlags = 0x4000;
+    frame.values.SessionState = 3;
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [
+        { semanticId: "session.session-flags" },
+        { semanticId: "session.session-state" },
+      ],
+    });
+    const view = resolver.createFrameView(normalizeIRacingFrame(frame), {
+      timestamp: { domain: "session", milliseconds: 1 },
+      updateSequence: 1n,
+    });
+
+    expect(view.readNumber(resolver.slot("session.session-flags"))).toBe(0x4000);
+    expect(view.readNumber(resolver.slot("session.session-state"))).toBe(3);
+  });
+
+  test("retains optional native pit channels for semantic resolution", () => {
+    const frame = sampleFrame();
+    Object.assign(frame.values, {
+      PlayerCarInPitStall: true,
+      PitstopActive: true,
+      PlayerCarPitSvStatus: 2,
+      PitSvFlags: 0x12,
+      PitSvFuel: 18.5,
+      PitRepairLeft: 7,
+      PitOptRepairLeft: 3,
+      LFTiresUsed: 4,
+      RFTiresUsed: 4,
+      LRTiresUsed: 3,
+      RRTiresUsed: 3,
+      TireSetsUsed: 4,
+    });
+
+    expect(normalizeIRacingFrame(frame).iracing).toMatchObject({
+      PlayerCarInPitStall: true,
+      PitstopActive: true,
+      PlayerCarPitSvStatus: 2,
+      PitSvFlags: 0x12,
+      PitSvFuel: 18.5,
+      PitRepairLeft: 7,
+      PitOptRepairLeft: 3,
+      LFTiresUsed: 4,
+      RFTiresUsed: 4,
+      LRTiresUsed: 3,
+      RRTiresUsed: 3,
+      TireSetsUsed: 4,
+    });
   });
 
   test("normalizes iRacing steering and yaw to canonical turn signs", () => {

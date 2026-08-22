@@ -46,6 +46,13 @@ export interface ResolvedValue<T> {
   state: ResolutionState;
   confidence: number | null;
   freshness: FreshnessState;
+  /** Catalog source cadence, distinct from current resolved freshness. */
+  sourceFreshness:
+    | "continuous"
+    | "pit-snapshot"
+    | "session-update"
+    | "static"
+    | null;
   confidenceComponents: ConfidenceComponents;
   provenance: ResolutionProvenance;
   schemaVersion: string;
@@ -70,6 +77,11 @@ export interface ResolverCompileOptions {
 export interface TelemetryFrameView<NativeFrame = TelemetryPacket> {
   readonly __nativeFrameType?: NativeFrame;
   observation: SourceObservation;
+  /** Clears retained non-continuous source observations before a new source epoch. */
+  resetSourceState(): void;
+  resolutionState(slot: SemanticSlot): ResolutionState;
+  freshnessState(slot: SemanticSlot): FreshnessState;
+  sourceFreshness(slot: SemanticSlot): ResolvedValue<unknown>["sourceFreshness"];
   has(slot: SemanticSlot): boolean;
   readValue<T>(slot: SemanticSlot): T | undefined;
   readNumber(slot: SemanticSlot): number | undefined;

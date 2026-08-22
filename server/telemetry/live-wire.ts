@@ -1,7 +1,7 @@
 import type { GameId } from "../../shared/games/ids";
 import type { LiveSectorData } from "../../shared/racing/live/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
-import type { CanonicalTelemetryScalar } from "../../shared/telemetry/replay/contracts";
+import type { CanonicalTelemetryScalar, CanonicalTelemetryValue } from "../../shared/telemetry/replay/contracts";
 import type { LiveTelemetryDefinitionV1, LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 
@@ -21,7 +21,7 @@ export function encodeLiveSchema(definitions: readonly LiveTelemetryDefinitionV1
   return { type: "telemetry-schema", protocolVersion: 1, ...meta, definitions: definitions.map((d) => ({ ...d, limitations: [...d.limitations] })) };
 }
 
-export function encodeLiveFrame(input: Omit<LiveTelemetryFrameMessageV1, "type" | "protocolVersion" | "values"> & { values: readonly (CanonicalTelemetryScalar | ResolvedValue<unknown> | undefined)[] }): LiveTelemetryFrameMessageV1 {
+export function encodeLiveFrame(input: Omit<LiveTelemetryFrameMessageV1, "type" | "protocolVersion" | "values"> & { values: readonly (CanonicalTelemetryScalar | CanonicalTelemetryValue | ResolvedValue<unknown> | undefined)[] }): LiveTelemetryFrameMessageV1 {
   if (!Number.isSafeInteger(input.sequence) || input.sequence < 0) throw new RangeError("Live sequence must be non-negative safe integer");
   const values = input.values.map((value, i) => {
     if (value === undefined) return null;

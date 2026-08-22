@@ -916,7 +916,11 @@ export class SessionRunBuilder {
       accumulator.open.participantId,
       accumulator.open.runKind,
     );
-    if (!accumulator.open.hasContent) {
+    if (
+      !accumulator.open.hasContent ||
+      (accumulator.open.runKind === "pace" &&
+        accumulator.open.lapEventIds.length === 0)
+    ) {
       const pending = state.pendingEvidence.get(pendingKey) ?? [];
       for (const evidence of accumulator.evidence) addUnique(pending, evidence.eventId);
       if (event) addUnique(pending, event.eventId);
@@ -1133,26 +1137,8 @@ export class SessionRunBuilder {
         : previous;
     state.phases.set(event.sessionId, current);
 
-    if (current === "checkered" || current === "finished" || current === "inactive") {
+    if (current === "finished" || current === "inactive") {
       this.closeSession(state, artifacts, event, "session_ended");
-      return;
-    }
-    const cautionPair =
-      (declaredPrevious === "green" && current === "caution") ||
-      (declaredPrevious === "caution" && current === "green");
-    if (cautionPair) {
-      this.forEachActiveParticipant(state, event.sessionId, (participant) => {
-        this.splitKinds(
-          state,
-          artifacts,
-          participant,
-          event,
-          ["participant"],
-          "session_phase_changed",
-          [],
-        );
-      });
-      this.addObservedPhase(state, event.sessionId, current);
       return;
     }
     if (current === "red" && declaredPrevious !== "red") {
@@ -1233,19 +1219,6 @@ export class SessionRunBuilder {
       state.awaitingRedRestart.add(event.sessionId);
       this.addObservedPhase(state, event.sessionId, current);
       return;
-    }
-    if (current !== declaredPrevious && current !== "unknown") {
-      this.forEachActiveParticipant(state, event.sessionId, (participant) => {
-        this.splitKinds(
-          state,
-          artifacts,
-          participant,
-          event,
-          RUN_KINDS,
-          "session_phase_changed",
-          [],
-        );
-      });
     }
     this.addObservedPhase(state, event.sessionId, current);
   }

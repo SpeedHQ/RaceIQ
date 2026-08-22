@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { GAME_RACE_EVENT_DERIVATIONS } from "../../server/games/race-event-derivations";
 import {
   CATALOG_FORMAT,
   CATALOG_SCHEMA_VERSION,
@@ -61,6 +62,7 @@ import {
 } from "./extension-mapping";
 import {
   addCrossSourceProjections,
+  addRaceEventSemanticProjections,
   addSectorDerivedVariables,
   contentHash,
   enrichCatalogContracts,
@@ -101,6 +103,7 @@ const CATALOG_GENERATOR_SOURCE_FILES = [
   "scripts/catalog/semantic-definitions.ts",
   "scripts/catalog/semantic-metadata.ts",
   "scripts/catalog/setup-link-mapping.ts",
+  "server/games/race-event-derivations.ts",
 ] as const;
 
 export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
@@ -510,6 +513,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
 
   addCrossSourceProjections(variables, groups);
+  addRaceEventSemanticProjections(variables, groups);
   addSectorDerivedVariables(variables, groups);
 
   for (const group of groups.values()) {
@@ -592,6 +596,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       ...IRACING_SESSION_INFO_SOURCE_FILES,
       ...Object.values(PARSER_FILES),
       "data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
+      ...Object.values(GAME_RACE_EVENT_DERIVATIONS)
+        .filter(({ derivations }) => derivations.length > 0)
+        .map(({ artifact }) => artifact),
       ...iracingSessionInfoCaptureArtifacts,
     ],
     groups: [...groups.values()].sort((a, b) => a.id.localeCompare(b.id)),

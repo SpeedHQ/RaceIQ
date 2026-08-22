@@ -120,6 +120,10 @@ export function localPlayerObservation(
         | "vehicleId"
         | "retirementStatus"
         | "nativeRetirementCode"
+        | "pitServiceStatus"
+        | "tireChangeCounts"
+        | "tireWearFreshness"
+        | "repairRemainingSeconds"
       >
     >,
 ): RaceParticipantObservation {
@@ -142,6 +146,10 @@ export function localPlayerObservation(
     fuelLitres: input.fuelLitres,
     tireCompound: input.tireCompound,
     tireWear: input.tireWear,
+    pitServiceStatus: input.pitServiceStatus,
+    tireChangeCounts: input.tireChangeCounts,
+    tireWearFreshness: input.tireWearFreshness,
+    repairRemainingSeconds: input.repairRemainingSeconds,
     damage: input.damage,
     penaltyValue: input.penaltyValue,
     incidentCount: input.incidentCount,

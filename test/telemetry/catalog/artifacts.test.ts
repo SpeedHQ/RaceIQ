@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
+import { GAME_RACE_EVENT_DERIVATIONS } from "../../../server/games/race-event-derivations";
 import {
   buildTelemetryCatalogArtifacts,
   getSourcesWithoutSemanticDefinition,
@@ -13,6 +14,7 @@ import {
   TELEMETRY_CATALOG_VERSION,
   telemetryCatalogSourceHash,
   assertTelemetryCatalogComplete,
+  assertTelemetryCatalogDerivationContracts,
 } from "../../support/telemetry/catalog";
 import {
   ast,
@@ -33,6 +35,144 @@ describe("semantic telemetry catalog artifacts", () => {
     expect(() =>
       assertTelemetryCatalogComplete(JSON.parse(actualJson)),
     ).not.toThrow();
+  });
+  test("matches game race-event derivation execution contracts", () => {
+    expect(() =>
+      assertTelemetryCatalogDerivationContracts(
+        TELEMETRY_CATALOG,
+        GAME_RACE_EVENT_DERIVATIONS,
+      ),
+    ).not.toThrow();
+    const f1RaceControl = getTelemetryVariable("race.control.phase").games[
+      "f1-2025"
+    ];
+    if (f1RaceControl.kind === "unavailable") {
+      throw new Error("Missing F1 race-control derivation");
+    }
+    expect(f1RaceControl.sources).toContain("f1.resultSource");
+    for (const gameId of ["acc", "ac-evo"] as const) {
+      const raceControl = getTelemetryVariable("race.control.phase").games[
+        gameId
+      ];
+      if (raceControl.kind === "unavailable") {
+        throw new Error(`Missing ${gameId} race-control derivation`);
+      }
+      expect(raceControl.sources).toContain("TelemetryPacket.IsRaceOn");
+    }
+  });
+  test("rejects mismatched race-event derivation metadata and dependencies", () => {
+    const mismatch = structuredClone(TELEMETRY_CATALOG);
+    const mapping = mismatch.variables.find(
+      ({ id }) => id === "race.control.phase",
+    )?.games["f1-2025"];
+    const execution = mapping?.kind === "derived" ? mapping.execution : undefined;
+    if (
+      !mapping ||
+      mapping.kind !== "derived" ||
+      !execution ||
+      execution.kind !== "derivation"
+    ) {
+      throw new Error("Missing F1 race-control derivation");
+    }
+    execution.codeHash = `sha256:${"a".repeat(64)}`;
+    expect(() =>
+      assertTelemetryCatalogDerivationContracts(
+        mismatch,
+        GAME_RACE_EVENT_DERIVATIONS,
+      ),
+    ).toThrow("race.control.phase differs from runtime derivation");
+    const derivation = GAME_RACE_EVENT_DERIVATIONS["f1-2025"].derivations.find(
+      ({ output }) => output.semanticId === "race.control.phase",
+    );
+    if (!derivation) throw new Error("Missing F1 race-control derivation");
+    execution.codeHash = derivation.codeHash;
+    execution.missingDataPolicy = "hold-last";
+    expect(() =>
+      assertTelemetryCatalogDerivationContracts(
+        mismatch,
+        GAME_RACE_EVENT_DERIVATIONS,
+      ),
+    ).toThrow("race.control.phase differs from runtime derivation");
+
+    execution.missingDataPolicy = derivation.missingDataPolicy;
+    mapping.provenance.artifact = "server/games/f1-2025/other.ts";
+    expect(() =>
+      assertTelemetryCatalogDerivationContracts(
+        mismatch,
+        GAME_RACE_EVENT_DERIVATIONS,
+      ),
+    ).toThrow("race.control.phase differs from runtime derivation");
+
+    const dependencyMismatch = structuredClone(TELEMETRY_CATALOG);
+    const dependencyMapping = dependencyMismatch.variables.find(
+      ({ id }) => id === "race.control.phase",
+    )?.games["f1-2025"];
+    const dependencyExecution =
+      dependencyMapping?.kind === "derived"
+        ? dependencyMapping.execution
+        : undefined;
+    if (
+      !dependencyMapping ||
+      dependencyMapping.kind !== "derived" ||
+      !dependencyExecution ||
+      dependencyExecution.kind !== "derivation"
+    ) {
+      throw new Error("Missing F1 race-control derivation");
+    }
+    dependencyExecution.inputs = [
+      {
+        semanticId: "missing.semantic",
+        acceptedMappings: ["direct"],
+        required: true,
+      },
+    ];
+    expect(() => assertTelemetryCatalogComplete(dependencyMismatch)).toThrow(
+      "race.control.phase f1-2025 has incompatible semantic dependency missing.semantic",
+    );
+    const conversionMismatch = structuredClone(TELEMETRY_CATALOG);
+    const conversionMapping = conversionMismatch.variables.find(
+      ({ id }) => id === "fuel.fuel-percent",
+    )?.games["fm-2023"];
+    const conversionExecution =
+      conversionMapping?.kind === "normalized"
+        ? conversionMapping.execution
+        : undefined;
+    if (
+      !conversionExecution ||
+      conversionExecution.kind !== "conversion" ||
+      !conversionExecution.inputs.length
+    ) {
+      throw new Error("Missing Forza fuel conversion");
+    }
+    (conversionExecution.inputs as string[])[0] = "missing.raw";
+    expect(() => assertTelemetryCatalogComplete(conversionMismatch)).toThrow(
+      "fuel.fuel-percent fm-2023 has undeclared raw execution input",
+    );
+  });
+
+  test("accepts explicit scalar schemas for canonical structured objects", () => {
+    const tireChanges = getTelemetryVariable(
+      "race.pit-service.tire-change-counts",
+    );
+    const repairTime = getTelemetryVariable(
+      "race.pit-service.repair-time-remaining",
+    );
+
+    expect(tireChanges).toMatchObject({
+      cardinality: { kind: "scalar" },
+      structuredSchema: { indices: [] },
+    });
+    expect(tireChanges.structuredSchema?.fields.map((field) => field.id)).toEqual(
+      ["fl", "fr", "rl", "rr"],
+    );
+    expect(repairTime).toMatchObject({
+      cardinality: { kind: "scalar" },
+      structuredSchema: { indices: [] },
+    });
+    expect(repairTime.structuredSchema?.fields.map((field) => field.id)).toEqual(
+      ["mandatory", "optional"],
+    );
+    expect(() => assertTelemetryCatalogComplete()).not.toThrow();
   });
   test("rejects unconstrained structured and enum value contracts", () => {
     const structured = getTelemetryVariable("race.competitor.position");
@@ -115,7 +255,7 @@ describe("semantic telemetry catalog artifacts", () => {
   });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(741);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(757);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -154,13 +294,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 221,
       },
       iracing: {
-        total: 955,
+        total: 969,
         packet: 119,
-        extension: 17,
+        extension: 31,
         sdk: 324,
         yaml: 495,
         setup: 0,
-        recorded: 705,
+        recorded: 719,
       },
     });
 

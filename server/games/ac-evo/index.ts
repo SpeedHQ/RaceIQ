@@ -5,6 +5,7 @@ import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/racing/cars/ac-evo"
 import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { LAP_DETECTOR_AC_EVO_ID, LapDetectorAcEvo } from "./lap-detector"
+import { AC_EVO_RACE_EVENT_DERIVATIONS } from "./race-event-semantics";
 import { parseAcEvoBuffers, createAcEvoParserCache, type AcEvoParserCache } from "./parser";
 import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
@@ -62,6 +63,9 @@ export const acEvoServerAdapter: ServerGameAdapter = {
     requiresTrackCalibration: false,
     normSuspensionTravelMm: { min: 20, max: 80 },
   },
+  raceEventDerivations: AC_EVO_RACE_EVENT_DERIVATIONS,
+  raceEventTimestampDomain: "wall-clock",
+  raceEventObservedAtMs: (_packet, receivedAtMs) => receivedAtMs,
 
   processNames: ["AssettoCorsaEVO.exe"],
 
@@ -106,27 +110,12 @@ export const acEvoServerAdapter: ServerGameAdapter = {
 
   toRaceEventObservation(packet, context) {
     const observation = baseRaceEventObservation(packet, context);
-    const flag = packet.acc?.flagStatus?.toLowerCase() ?? "unknown";
-    observation.nativeRaceControlCode = flag;
-    if (flag === "green") observation.sessionPhase = "green";
-    else if (flag === "yellow") {
-      observation.sessionPhase = "caution";
-      observation.cautionKind = "local-yellow";
-    } else if (flag === "red") observation.sessionPhase = "red";
-    else if (flag === "checkered") observation.sessionPhase = "checkered";
-
+    observation.nativeRaceControlCode =
+      packet.acc?.flagStatus?.toLowerCase() ?? "unknown";
     const nativePitCode = packet.acc?.pitStatus ?? null;
-    const pitState =
-      nativePitCode === "out"
-        ? "out"
-        : nativePitCode === "pit_lane"
-          ? "pit-lane"
-          : nativePitCode === "in_pit"
-            ? "pit-stall"
-            : "unknown";
     observation.participants = [
       localPlayerObservation(packet, {
-        pitState,
+        pitState: "unknown",
         nativePitCode,
         fuelLitres: normalizedFuelLitres(
           packet,

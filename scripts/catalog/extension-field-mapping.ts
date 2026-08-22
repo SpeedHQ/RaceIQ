@@ -11,6 +11,7 @@ import type {
 } from "./model";
 
 const NORMALIZED_SEMANTIC_ALIASES: Record<string, string> = {
+  sessionFlags: "session.session-flags",
   TyreCompound: "tires.tire-compound",
   NumCylinders: "engine.cylinder-count",
   SurfaceRumbleFL_2: "tires.surface-rumble",

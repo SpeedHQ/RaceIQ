@@ -20,6 +20,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.trackTemperature": "weather.track-temp",
   "f1.airTemperature": "weather.air-temp",
   "f1.rainPercentage": "weather.rain-percent",
+  "f1.resultSource": "diagnostics.result-source",
   "f1.drsAllowed": "aero.drs-available",
   "f1.frontBrakeBias": "brakes.brake-bias",
   "f1.tractionControl": "electronics.traction-control-level",
@@ -178,6 +179,10 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "f1.fuelRemainingLaps": {
     unit: "count",
     description: "F1 estimated laps remaining at current fuel usage.",
+  },
+  "f1.resultSource": {
+    unit: "enum",
+    description: "Whether F1 result status comes from live lap data or final classification.",
   },
   "f1.tractionControl": {
     unit: "level",

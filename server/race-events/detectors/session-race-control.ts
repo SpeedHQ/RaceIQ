@@ -3,7 +3,7 @@ import type { RaceEventObservation } from "../../games/types";
 import { EVENT_ORDER_PRIORITY, type DetectorContext, type DetectorEventDraft } from "../types";
 
 export const SESSION_RACE_CONTROL_DETECTOR_ID = "race-control";
-export const SESSION_RACE_CONTROL_DETECTOR_VERSION = "2";
+export const SESSION_RACE_CONTROL_DETECTOR_VERSION = "3";
 
 function draft(context: DetectorContext, eventType: DetectorEventDraft["eventType"], payload: DetectorEventDraft["payload"], suffix: string = eventType ?? "event"): DetectorEventDraft {
   return {
@@ -19,25 +19,26 @@ function draft(context: DetectorContext, eventType: DetectorEventDraft["eventTyp
   } as DetectorEventDraft;
 }
 
+function provesCaution(observation: RaceEventObservation): boolean {
+  return observation.sessionPhase === "caution" && observation.raceControlEvidence === "authoritative";
+}
+
 function canEndCaution(observation: RaceEventObservation): boolean {
-  const code = observation.nativeRaceControlCode;
-  if (observation.gameId === "f1-2025") return code === 0;
-  if (observation.gameId === "acc") {
-    return typeof code === "string" && code.toLowerCase() === "none";
-  }
-  if (observation.gameId === "ac-evo") {
-    return observation.sessionPhase === "green" || observation.sessionPhase === "red" || observation.sessionPhase === "checkered";
-  }
-  return false;
+  if (observation.raceControlEvidence !== "authoritative") return false;
+  const phase = observation.sessionPhase;
+  return phase === "red" || phase === "checkered" || phase === "finished";
 }
 
 function provesGreen(observation: RaceEventObservation): boolean {
-  if (observation.sessionPhase !== "green") return false;
-  return observation.gameId === "ac-evo" || observation.gameId === "f1-2025";
+  return observation.sessionPhase === "green" && observation.raceControlEvidence === "authoritative";
+}
+
+function provesRed(observation: RaceEventObservation): boolean {
+  return observation.sessionPhase === "red" && observation.raceControlEvidence === "authoritative";
 }
 
 function provesCheckered(observation: RaceEventObservation): boolean {
-  return observation.sessionPhase === "checkered" && (observation.gameId === "acc" || observation.gameId === "ac-evo");
+  return observation.sessionPhase === "checkered" && observation.raceControlEvidence === "authoritative";
 }
 
 export class SessionRaceControlDetector {
@@ -45,6 +46,7 @@ export class SessionRaceControlDetector {
   private cautionKind: CautionKind | null = null;
   private redActive = false;
   private checkeredActive = false;
+  private restartPending = false;
   private ended = false;
 
   reset(): void {
@@ -53,6 +55,7 @@ export class SessionRaceControlDetector {
     this.redActive = false;
     this.checkeredActive = false;
     this.ended = false;
+    this.restartPending = false;
   }
 
   startSession(context: DetectorContext, reason: string): DetectorEventDraft[] {
@@ -74,7 +77,7 @@ export class SessionRaceControlDetector {
         `session-start:${reason}`,
       ),
     ];
-    if (phase === "caution") {
+    if (provesCaution(observation)) {
       events.push(
         draft(context, "caution_started", {
           kind: observation.cautionKind,
@@ -89,7 +92,7 @@ export class SessionRaceControlDetector {
         }),
       );
     }
-    if (observation.gameId === "ac-evo" && phase === "red") {
+    if (provesRed(observation)) {
       events.push(
         draft(context, "red_flag_started", {
           nativeCode: observation.nativeRaceControlCode,
@@ -156,10 +159,17 @@ export class SessionRaceControlDetector {
     const events: DetectorEventDraft[] = [];
     const previousPhase = this.phase;
     const hadCaution = this.cautionKind != null;
-    const directCaution = observation.sessionPhase === "caution";
+    const directCaution = provesCaution(observation);
     const directGreen = provesGreen(observation);
-    const directRed = observation.gameId === "ac-evo" && observation.sessionPhase === "red";
+    const directRed = provesRed(observation);
     const directCheckered = provesCheckered(observation);
+    if (
+      hadCaution &&
+      observation.raceControlEvidence === "authoritative" &&
+      observation.sessionPhase === "formation"
+    ) {
+      this.restartPending = true;
+    }
 
     if (hadCaution && !directCaution && (directGreen || canEndCaution(observation))) {
       events.push(
@@ -169,10 +179,12 @@ export class SessionRaceControlDetector {
         }),
       );
       this.cautionKind = null;
+      this.restartPending = directGreen;
       if (observation.sessionPhase === "unknown") this.phase = "unknown";
     }
 
     if (directCaution) {
+      this.restartPending = false;
       if (this.cautionKind == null || this.cautionKind !== observation.cautionKind) {
         events.push(
           draft(context, "caution_started", {
@@ -185,13 +197,14 @@ export class SessionRaceControlDetector {
     }
 
     if (directGreen && previousPhase !== "green") {
-      if (hadCaution) {
+      if (hadCaution || this.restartPending) {
         events.push(
           draft(context, "restart_started", {
             nativeCode: observation.nativeRaceControlCode,
           }),
         );
       }
+      this.restartPending = false;
       events.push(
         draft(context, "green_flag", {
           nativeCode: observation.nativeRaceControlCode,
@@ -244,6 +257,9 @@ export class SessionRaceControlDetector {
     }
     if (observation.sessionPhase !== "unknown") this.redActive = directRed;
     this.checkeredActive ||= directCheckered;
+    if (directRed || directCheckered || observation.sessionPhase === "finished") {
+      this.restartPending = false;
+    }
     return events;
   }
 
@@ -263,10 +279,10 @@ export class SessionRaceControlDetector {
     if (observation.sessionPhase !== "unknown") {
       this.phase = observation.sessionPhase;
     }
-    if (observation.sessionPhase === "caution") {
+    if (provesCaution(observation)) {
       this.cautionKind = observation.cautionKind;
     }
-    this.redActive = observation.gameId === "ac-evo" && observation.sessionPhase === "red";
+    this.redActive = provesRed(observation);
     this.checkeredActive = provesCheckered(observation);
   }
 }

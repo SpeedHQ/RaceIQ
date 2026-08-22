@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
+import { GAME_RACE_EVENT_DERIVATIONS } from "../../../server/games/race-event-derivations";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
 import { TELEMETRY_DERIVATION_VERSION } from "../../../shared/telemetry/derivations/builtins";
@@ -31,6 +32,29 @@ describe("compiled telemetry resolver", () => {
       });
       expect(resolver.derivationVersion).toBe(TELEMETRY_DERIVATION_VERSION);
     }
+  });
+  test("includes selected game derivation code identity", () => {
+    const derivation = GAME_RACE_EVENT_DERIVATIONS["f1-2025"].derivations[0]!;
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: [{ semanticId: "motion.speed" }],
+      derivations: [derivation],
+    });
+    const changed = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: [{ semanticId: "motion.speed" }],
+      derivations: [
+        {
+          ...derivation,
+          codeHash: `sha256:${"a".repeat(64)}`,
+        },
+      ],
+    });
+
+    expect(resolver.derivationVersion).toContain(
+      `${derivation.id}@${derivation.version}:${derivation.codeHash}`,
+    );
+    expect(changed.derivationVersion).not.toBe(resolver.derivationVersion);
   });
 
   test("uses normalized packet values without running a derivation DAG", () => {
@@ -177,6 +201,47 @@ describe("compiled telemetry resolver", () => {
         sourceObservation: {
           timestamp: { domain: "session", milliseconds: 1_000 },
           updateSequence: 1n,
+        },
+      },
+    });
+  });
+
+  test("reobserves an unchanged pit snapshot after a source epoch reset", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "tire.temperature.carcass.average" }],
+      staleAfterMs: { "tire.temperature.carcass.average": 50 },
+    });
+    const slot = resolver.slot("tire.temperature.carcass.average");
+    const snapshot = {
+      TireCarcassTempFL: 80,
+      TireCarcassTempFR: 81,
+      TireCarcassTempRL: 82,
+      TireCarcassTempRR: 83,
+    };
+    const first = resolver.createFrameView(packet("iracing", snapshot), {
+      timestamp: { domain: "session", milliseconds: 1_000 },
+      updateSequence: 1n,
+    });
+    first.resetSourceState();
+
+    const reconnected = resolver.createFrameView(
+      packet("iracing", snapshot),
+      {
+        timestamp: { domain: "session", milliseconds: 2_000 },
+        updateSequence: 2n,
+      },
+      first,
+    );
+
+    expect(reconnected.resolveValue(slot)).toMatchObject({
+      value: [80, 81, 82, 83],
+      state: "ok",
+      freshness: "fresh",
+      provenance: {
+        sourceObservation: {
+          timestamp: { domain: "session", milliseconds: 2_000 },
+          updateSequence: 2n,
         },
       },
     });

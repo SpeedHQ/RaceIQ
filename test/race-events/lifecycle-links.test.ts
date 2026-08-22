@@ -22,14 +22,16 @@ function cautionEpisode(sessionId: number): {
       sessionPhase: "caution",
       cautionKind: "local-yellow",
       nativeRaceControlCode: "yellow",
+      raceControlEvidence: "authoritative",
     }),
   );
   const closing = coordinator.processObservation(
     sessionId,
     observation(2, {
       gameId: "acc",
-      sessionPhase: "unknown",
+      sessionPhase: "green",
       nativeRaceControlCode: "none",
+      raceControlEvidence: "authoritative",
     }),
   );
   return {

@@ -51,6 +51,12 @@ import {
   type RebuiltRaceEventTimeline,
 } from "../race-events/rebuild";
 import { getServerGame } from "../games/registry";
+import type { RaceEventObservationContext } from "../games/types";
+import {
+  applyRaceEventSemanticProjection,
+  RaceEventSemanticProjector,
+} from "../race-events/semantic-projector";
+
 import type { LapDetectorCallbacks } from "../lap-detection/types";
 import { wsManager } from "../runtime/websocket-manager";
 import {
@@ -269,16 +275,28 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
   let lifecycleIndex = 0;
   let sessionStarted = false;
   let pendingSourceSequences: SourceSequenceObservation[] = [];
+  const semanticProjector = new RaceEventSemanticProjector();
+  let pendingObservationContext: RaceEventObservationContext | null = null;
+
   const callbacks: LapDetectorCallbacks = {
     onSessionStart: async (_session, context) => {
       if (sessionStarted) throw new Error("Canonical rebuild contains multiple detected session boundaries");
       sessionStarted = true;
-      coordinator.bindSession(input.sessionId, {
-        reason: context.reason,
-        observation: adapter.toRaceEventObservation(context.packet, {
+      const observationContext =
+        pendingObservationContext ?? {
           receivedAtMs: context.packet.TimestampMS,
           sourceSequences: pendingSourceSequences,
-        }),
+          semantic: semanticProjector.project(context.packet, context.packet.TimestampMS),
+        };
+      const observation = adapter.toRaceEventObservation(
+        context.packet,
+        observationContext,
+      );
+      coordinator.bindSession(input.sessionId, {
+        reason: context.reason,
+        observation: observationContext.semantic
+          ? applyRaceEventSemanticProjection(observation, observationContext.semantic)
+          : observation,
       });
     },
     onSessionEnd: async (_session, context) => {
@@ -323,18 +341,27 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
   for (const packet of input.packets) {
     while (lifecycleIndex < lifecycle.length && lifecycle[lifecycleIndex]!.timestampMs <= packet.TimestampMS) {
       const evidence = lifecycle[lifecycleIndex++]!;
-      if (evidence.kind === "reconnect") sourceSequence.markDiscontinuity();
+      if (evidence.kind === "reconnect") {
+        sourceSequence.markDiscontinuity();
+        semanticProjector.resetSourceState();
+      }
       recordingQuality.noteSourceLifecycle(evidence);
       coordinator.noteSourceLifecycle(evidence, input.sessionId);
     }
     const sourceSequences = packetSequences(packet);
     pendingSourceSequences = sourceSequences;
     const sequenceEvidence = sourceSequence.observe(packet, sourceSequences);
+    const observationContext = {
+      receivedAtMs: packet.TimestampMS,
+      sourceSequences,
+      semantic: semanticProjector.project(packet, packet.TimestampMS),
+    };
+    pendingObservationContext = observationContext;
     const preflight = coordinator.preflight(
-      adapter.toRaceEventObservation(packet, {
-        receivedAtMs: packet.TimestampMS,
-        sourceSequences,
-      }),
+      applyRaceEventSemanticProjection(
+        adapter.toRaceEventObservation(packet, observationContext),
+        observationContext.semantic,
+      ),
       {
         sourceSequenceBoundaries: sequenceEvidence.boundaries,
         sourceSequenceGapCandidates: sequenceEvidence.gapCandidates,

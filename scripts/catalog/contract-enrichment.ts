@@ -3,6 +3,7 @@
 export {
   addSectorDerivedVariables,
   addCrossSourceProjections,
+  addRaceEventSemanticProjections,
 } from "./derived-projections";
 export {
   canonicalize,

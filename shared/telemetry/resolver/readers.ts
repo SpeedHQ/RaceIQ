@@ -49,6 +49,22 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
   const sourcePaths = sources(mapping);
   const nativeUnit = mapping.nativeUnit.trim().toLowerCase();
   const reading = {} as SourceReading;
+  const numericIdentity =
+    nativeUnit === variable.canonicalUnit.trim().toLowerCase() ||
+    (nativeUnit === "count" &&
+      (variable.canonicalUnit === "bitfield" ||
+        variable.canonicalUnit === "enum"));
+  if (numericIdentity) {
+    return (frame, context) => {
+      for (const source of sourcePaths) {
+        const value = sourceValue(frame, source);
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return setReading(reading, context, mapping, source, value);
+        }
+      }
+      return undefined;
+    };
+  }
   if (variable.id === "fuel.fuel-percent" && nativeUnit === "fraction") {
     return (frame, context) => {
       for (const source of sourcePaths) {

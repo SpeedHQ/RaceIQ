@@ -2,6 +2,7 @@ import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { f1Adapter } from "../../../shared/games/f1-2025";
 import { F1StateAccumulator } from "./f1-state";
+import { F1_RACE_EVENT_DERIVATIONS } from "./race-event-semantics";
 import { parseF1Header } from "./f1-wire";
 import { getF1CarName } from "../../../shared/racing/cars/f1"
 import { getF1TrackName, getF1TrackInfo } from "../../../shared/racing/tracks/catalogs/f1"
@@ -64,6 +65,10 @@ export const f1ServerAdapter: ServerGameAdapter = {
     requiresTrackCalibration: true,
     normSuspensionTravelMm: { min: 20, max: 80 },
   },
+  raceEventDerivations: F1_RACE_EVENT_DERIVATIONS,
+  raceEventTimestampDomain: "session",
+  raceEventObservedAtMs: (packet, receivedAtMs) =>
+    Number.isFinite(packet.TimestampMS) ? packet.TimestampMS : receivedAtMs,
 
   processNames: ["F1_25.exe", "F1_2025.exe"],
 
@@ -115,30 +120,12 @@ export const f1ServerAdapter: ServerGameAdapter = {
         ? Math.max(0, Math.min(1, packet.DistanceTraveled / f1.trackLength))
         : null;
 
+    observation.nativeRaceControlCode =
+      f1.resultSource === "final-classification"
+        ? (f1.resultStatus ?? null)
+        : (f1.safetyCarStatus ?? f1.vehicleFIAFlags ?? null);
     if (f1.resultSource === "final-classification") {
-      observation.sessionPhase = "finished";
-      observation.nativeRaceControlCode = f1.resultStatus ?? null;
       observation.terminalObserved = true;
-    } else if (f1.safetyCarStatus === 1) {
-      observation.sessionPhase = "caution";
-      observation.cautionKind = "safety-car";
-      observation.nativeRaceControlCode = 1;
-    } else if (f1.safetyCarStatus === 2) {
-      observation.sessionPhase = "caution";
-      observation.cautionKind = "virtual-safety-car";
-      observation.nativeRaceControlCode = 2;
-    } else if (f1.safetyCarStatus === 3) {
-      observation.sessionPhase = "formation";
-      observation.nativeRaceControlCode = 3;
-    } else if (f1.vehicleFIAFlags === 1) {
-      observation.sessionPhase = "green";
-      observation.nativeRaceControlCode = 1;
-    } else if (f1.vehicleFIAFlags === 3) {
-      observation.sessionPhase = "caution";
-      observation.cautionKind = "local-yellow";
-      observation.nativeRaceControlCode = 3;
-    } else if (f1.safetyCarStatus === 0 || f1.vehicleFIAFlags === 0) {
-      observation.nativeRaceControlCode = 0;
     }
 
     const localWear = normalizedTireWear(packet);
@@ -183,12 +170,6 @@ export const f1ServerAdapter: ServerGameAdapter = {
               : f1.resultStatus === 2
                 ? "active"
                 : "unknown";
-    const pitState = (nativeCode: number | null) =>
-      nativeCode === 0
-        ? ("out" as const)
-        : nativeCode === 1 || nativeCode === 2
-          ? ("pit-lane" as const)
-          : ("unknown" as const);
     const sourceDriverId = (value: number | null | undefined) =>
       typeof value === "number" && value >= 0 && value !== 255
         ? `f1-driver:${value}`
@@ -212,7 +193,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
         teamId: sourceTeamId(entry.teamId),
         displayName: entry.name || null,
         vehicleId: `f1-car:${entry.carIndex}`,
-        pitState: pitState(nativePitCode),
+        pitState: "unknown",
         nativePitCode,
         position: entry.position > 0 ? entry.position : null,
         speedMps: player && Number.isFinite(packet.Speed) ? packet.Speed : null,
@@ -246,7 +227,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
           teamId: null,
           displayName: null,
           vehicleId: `f1-car:${f1.playerCarIndex}`,
-          pitState: pitState(nativePitCode),
+          pitState: "unknown",
           nativePitCode,
           position: packet.RacePosition > 0 ? packet.RacePosition : null,
           speedMps: Number.isFinite(packet.Speed) ? packet.Speed : null,

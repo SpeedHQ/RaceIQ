@@ -5,6 +5,7 @@ import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName, getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
 import { LAP_DETECTOR_ACC_ID, LapDetectorAcc } from "./lap-detector"
+import { ACC_RACE_EVENT_DERIVATIONS } from "./race-event-semantics";
 import { parseAccBuffers } from "./parser";
 import { PHYSICS, STATIC } from "./structs";
 import { readWString } from "./utils";
@@ -65,6 +66,9 @@ export const accServerAdapter: ServerGameAdapter = {
     requiresTrackCalibration: false,
     normSuspensionTravelMm: { min: 0, max: 50 },
   },
+  raceEventDerivations: ACC_RACE_EVENT_DERIVATIONS,
+  raceEventTimestampDomain: "wall-clock",
+  raceEventObservedAtMs: (_packet, receivedAtMs) => receivedAtMs,
 
   processNames: ["acc.exe", "acs2.exe", "AC2-Win64-Shipping.exe"],
 
@@ -139,26 +143,12 @@ export const accServerAdapter: ServerGameAdapter = {
 
   toRaceEventObservation(packet, context) {
     const observation = baseRaceEventObservation(packet, context);
-    const flag = packet.acc?.flagStatus?.toLowerCase() ?? "unknown";
-    observation.nativeRaceControlCode = flag;
-    if (flag === "yellow") {
-      observation.sessionPhase = "caution";
-      observation.cautionKind = "local-yellow";
-    } else if (flag === "checkered") {
-      observation.sessionPhase = "checkered";
-    }
+    observation.nativeRaceControlCode =
+      packet.acc?.flagStatus?.toLowerCase() ?? "unknown";
     const nativePitCode = packet.acc?.pitStatus ?? null;
-    const pitState =
-      nativePitCode === "out"
-        ? "out"
-        : nativePitCode === "pit_lane"
-          ? "pit-lane"
-          : nativePitCode === "in_pit"
-            ? "pit-stall"
-            : "unknown";
     observation.participants = [
       localPlayerObservation(packet, {
-        pitState,
+        pitState: "unknown",
         nativePitCode,
         fuelLitres: normalizedFuelLitres(
           packet,

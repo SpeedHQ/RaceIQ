@@ -259,11 +259,19 @@ const FuelServicePayloadSchema = z
     addedLitres: NonNegativeFiniteSchema,
   })
   .strict();
+const RepairRemainingSecondsSchema = z
+  .object({
+    mandatory: NonNegativeFiniteSchema,
+    optional: NonNegativeFiniteSchema,
+  })
+  .strict();
 const RepairServicePayloadSchema = z
   .object({
     previousComponents: DamageComponentsSchema,
     currentComponents: DamageComponentsSchema,
     repairedComponents: z.array(z.string().min(1)),
+    previousRemainingSeconds: RepairRemainingSecondsSchema.optional(),
+    currentRemainingSeconds: RepairRemainingSecondsSchema.optional(),
   })
   .strict();
 const DriverServicePayloadSchema = z

@@ -88,6 +88,19 @@ const LAP_FRACTION_DERIVATION: TelemetryDerivation = {
 
 export const TELEMETRY_DERIVATION_VERSION = DERIVATION_VERSION;
 
+export function telemetryDerivationVersionIdentity(
+  derivations: readonly TelemetryDerivation[],
+): string {
+  if (derivations.length === 0) return DERIVATION_VERSION;
+  const identities = derivations
+    .map(
+      (derivation) =>
+        `${derivation.id}@${derivation.version}:${derivation.codeHash}`,
+    )
+    .sort();
+  return `${DERIVATION_VERSION}+${identities.join(",")}`;
+}
+
 
 export function getBuiltinTelemetryDerivation(
   semanticId: string,

@@ -23,6 +23,8 @@
 
 ### Fixes
 
+- Correct imported race cautions, restarts, pit-service actions, and stint boundaries using simulator-independent semantic telemetry evidence
+
 - Prevent unfinished or stale lap-quality generations and decisions from driving pace, experiment, AI, or cached lap-metric analysis
 - Keep new-session telemetry capture moving while prior lap, quality, and result writes finish without publishing old-session laps into current live state
 - Show iRacing live fuel bars using tank capacity reported by simulator session data

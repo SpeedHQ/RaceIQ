@@ -82,6 +82,68 @@ describe("pit and service detector", () => {
     );
   });
 
+  test("ignores one-frame pit-stall loss while native service remains in progress", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 63 });
+    coordinator.processObservation(63, observation(1));
+    const arrival = coordinator.processObservation(63, observation(2, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "in-progress",
+      })],
+    }));
+    const flicker = coordinator.processObservation(63, observation(3, {
+      participants: [participant({
+        pitState: "pit-lane",
+        speedMps: 0,
+        pitServiceStatus: "in-progress",
+      })],
+    }));
+    const restored = coordinator.processObservation(63, observation(4, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "in-progress",
+      })],
+    }));
+    const completion = coordinator.processObservation(63, observation(5, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "complete",
+      })],
+    }));
+    coordinator.processObservation(63, observation(6, {
+      participants: [participant({
+        pitState: "out",
+        speedMps: 20,
+        pitServiceStatus: "none",
+      })],
+    }));
+
+    expect(arrival.events.map(({ eventType }) => eventType)).toEqual(
+      expect.arrayContaining(["pit_stall_arrival", "pit_service_started"]),
+    );
+    expect(flicker.events.map(({ eventType }) => eventType)).not.toContain(
+      "pit_stall_departure",
+    );
+    expect(restored.events.map(({ eventType }) => eventType)).not.toContain(
+      "pit_stall_arrival",
+    );
+    expect(completion.events.map(({ eventType }) => eventType)).toContain(
+      "pit_service_completed",
+    );
+    expect(
+      coordinator.events().filter(({ eventType }) => eventType === "pit_stall_arrival"),
+    ).toHaveLength(1);
+    expect(
+      coordinator.events().filter(({ eventType }) => eventType === "pit_service_started"),
+    ).toHaveLength(1);
+    expect(
+      coordinator.events().filter(({ eventType }) => eventType === "pit_service_completed"),
+    ).toHaveLength(1);
+  });
+
   test("records proven fuel service and completes it before pit exit", () => {
     const coordinator = new RaceEventCoordinator({ sessionId: 22 });
     coordinator.processObservation(22, observation(1));
@@ -172,6 +234,134 @@ describe("pit and service detector", () => {
     );
   });
 
+  test("does not fabricate service for a known none lifecycle, but preserves legacy stall inference", () => {
+    const knownNone = new RaceEventCoordinator({ sessionId: 57 });
+    knownNone.processObservation(57, observation(1));
+    knownNone.processObservation(57, observation(2, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "none",
+      })],
+    }));
+    knownNone.processObservation(57, observation(3, {
+      participants: [participant({
+        pitState: "out",
+        speedMps: 20,
+        pitServiceStatus: "none",
+      })],
+    }));
+
+    expect(
+      knownNone.events().filter(({ eventType }) => eventType.includes("service")),
+    ).toEqual([]);
+
+    const seededNone = new RaceEventCoordinator({ sessionId: 58 });
+    seededNone.processObservation(58, observation(1, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "none",
+      })],
+    }));
+    seededNone.processObservation(58, observation(2, {
+      participants: [participant({
+        pitState: "out",
+        speedMps: 20,
+        pitServiceStatus: "none",
+      })],
+    }));
+
+    expect(
+      seededNone.events().filter(({ eventType }) => eventType.includes("service")),
+    ).toEqual([]);
+
+    const legacy = new RaceEventCoordinator({ sessionId: 59 });
+    legacy.processObservation(59, observation(1));
+    const arrival = legacy.processObservation(59, observation(2, {
+      participants: [participant({ pitState: "pit-stall", speedMps: 0 })],
+    }));
+    const departure = legacy.processObservation(59, observation(3, {
+      participants: [participant({ pitState: "out", speedMps: 20 })],
+    }));
+
+    expect(arrival.events.map(({ eventType }) => eventType)).toContain("pit_service_started");
+    expect(departure.events.map(({ eventType }) => eventType)).toContain("pit_service_completed");
+  });
+
+  test("records late actions after native completion without reopening service", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 61 });
+    coordinator.processObservation(61, observation(1, {
+      participants: [participant({
+        tireChangeCounts: { fl: 1, fr: 1, rl: 1, rr: 1 },
+        repairRemainingSeconds: { mandatory: 10, optional: 0 },
+      })],
+    }));
+    coordinator.processObservation(61, observation(2, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "in-progress",
+        tireChangeCounts: { fl: 1, fr: 1, rl: 1, rr: 1 },
+        repairRemainingSeconds: { mandatory: 10, optional: 0 },
+      })],
+    }));
+    coordinator.processObservation(61, observation(3, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "complete",
+        tireChangeCounts: { fl: 1, fr: 1, rl: 1, rr: 1 },
+        repairRemainingSeconds: { mandatory: 10, optional: 0 },
+      })],
+    }));
+    const lateAction = coordinator.processObservation(61, observation(4, {
+      participants: [participant({
+        pitState: "pit-stall",
+        speedMps: 0,
+        pitServiceStatus: "complete",
+        tireChangeCounts: { fl: 2, fr: 2, rl: 2, rr: 2 },
+        repairRemainingSeconds: { mandatory: 5, optional: 0 },
+      })],
+    }));
+    const departure = coordinator.processObservation(61, observation(5, {
+      participants: [participant({
+        pitState: "out",
+        speedMps: 20,
+        pitServiceStatus: "none",
+        tireChangeCounts: { fl: 2, fr: 2, rl: 2, rr: 2 },
+        repairRemainingSeconds: { mandatory: 5, optional: 0 },
+      })],
+    }));
+
+    const lateServiceActions = lateAction.events.filter(
+      ({ eventType }) =>
+        eventType === "tire_service_observed" ||
+        eventType === "repair_service_observed",
+    );
+    expect(lateServiceActions.map(({ eventType }) => eventType)).toEqual(
+      expect.arrayContaining([
+        "tire_service_observed",
+        "repair_service_observed",
+      ]),
+    );
+    expect(lateServiceActions).toHaveLength(2);
+    const tireEvent = lateServiceActions.find(
+      ({ eventType }) => eventType === "tire_service_observed",
+    );
+    expect(tireEvent?.payload).toMatchObject({
+      changedCorners: ["fl", "fr", "rl", "rr"],
+    });
+    expect(departure.events.map(({ eventType }) => eventType)).not.toContain(
+      "pit_service_completed",
+    );
+    expect(
+      coordinator.events().filter(({ eventType }) => eventType === "pit_service_started"),
+    ).toHaveLength(1);
+    expect(
+      coordinator.events().filter(({ eventType }) => eventType === "pit_service_completed"),
+    ).toHaveLength(1);
+  });
   test("source end closes an open visit only as incomplete", () => {
     const coordinator = new RaceEventCoordinator({ sessionId: 24 });
     coordinator.processObservation(24, observation(1));

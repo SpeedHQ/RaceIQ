@@ -44,14 +44,29 @@ export interface TelemetryStructuredValueSchema {
   fields: readonly TelemetryStructuredFieldSchema[];
 }
 
+export interface TelemetryMappingInputRequirement {
+  semanticId: string;
+  acceptedMappings: readonly TelemetryLinkKind[];
+  required: boolean;
+}
+
 export interface TelemetryMappingExecution {
   kind: "conversion" | "derivation" | "simplification";
   id: string;
   version: string;
   codeHash: string;
   deterministic: boolean;
-  declaredInputs: readonly string[];
-  missingDataPolicy: "propagate-missing" | "drop-missing" | "require-all";
+  inputs:
+    | readonly TelemetryMappingSourcePath<GameId>[]
+    | readonly TelemetryMappingInputRequirement[];
+  missingDataPolicy:
+    | "propagate-missing"
+    | "drop-missing"
+    | "require-all"
+    | "unavailable"
+    | "hold-last"
+    | "interpolate"
+    | "partial";
 }
 
 export interface TelemetryMappingProvenance {
@@ -153,7 +168,7 @@ export interface TelemetryCatalogMetadata {
 }
 
 export interface TelemetryCatalogData {
-  format: "raceiq-semantic-telemetry-catalog-v7";
+  format: "raceiq-semantic-telemetry-catalog-v8";
   metadata: TelemetryCatalogMetadata;
   generatedFrom: readonly string[];
   groups: readonly TelemetryCatalogGroup[];

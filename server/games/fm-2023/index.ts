@@ -51,6 +51,10 @@ export const forzaServerAdapter: ServerGameAdapter = {
 		requiresTrackCalibration: true,
 		normSuspensionTravelMm: { min: 20, max: 80 },
 	},
+	raceEventDerivations: [],
+	raceEventTimestampDomain: "session",
+	raceEventObservedAtMs: (packet, receivedAtMs) =>
+		Number.isFinite(packet.TimestampMS) ? packet.TimestampMS : receivedAtMs,
 
 	processNames: ["ForzaMotorsport.exe", "forza_steamworks_release_final"],
 

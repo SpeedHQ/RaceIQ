@@ -59,41 +59,62 @@ The `.bin` and decoded `.bin.gz` byte counts and SHA-256 identities match exactl
 - Source identity: `sha256:7c9505f106debf074b1d198d3f9e3f58957a136b9a53bd39bbbc9b2a9f6c8c61`
 - Output identity: `sha256:3d410d7e6473609b26f3de1ae59dd127ca16619050ca34ba0228ebf0822c24bc`
 - Status: `verified`
-- Completeness: `complete`
+- Sample archive completeness: `complete`
 - Physical sample-order mismatches: 0
 
-`verifyCanonicalArchiveParquet` passed against all 370,498 expected rows. Parquet sample count equals RaceIQ recorder frame count. Archive source identity equals `.bin` and decoded `.bin.gz` identity.
+`verifyCanonicalArchiveParquet` passed structural checks against all 370,498 expected rows. Parquet sample count equals RaceIQ recorder frame count. Archive source identity equals `.bin` and decoded `.bin.gz` identity. This verifies physical sample archival, not semantic event detection.
 
-## Run and stint structure
+## Semantic detector validation
 
-SQLite evidence is retained at:
+The original SQLite evidence remains at:
 
 `test/artifacts/local/iracing/richmond-work/test.db`
 
-Persisted run records:
+That database records the pre-fix detector baseline. Current verification replayed all 370,498 RaceIQ packets through the production parser, canonical semantic projector, race-event coordinator, lap detector, and session-run builder.
 
-- Total runs: 11
-- Driver runs: 1
-- Participant runs: 1
-- Pace runs: 7
-- Tire runs: 2
+### Source priority
 
-Pace ranges:
+- [`richmond win review.md`](./richmond%20win%20review.md) records direct video evidence and remains authoritative for cautions, restarts, tire changes, repairs, contact, and race narrative.
+- The IBT, RaceIQ recording, and canonical Parquet prove sample preservation and provide raw telemetry for correlation.
+- Canonical semantic events corroborate video when source telemetry carries the fact. Missing or conflicting source evidence must remain explicit rather than override the video.
 
-1. Laps 1–36
-2. Laps 37–54
-3. Laps 55–81
-4. Laps 82–86
-5. Service transition with no lap membership
-6. Laps 87–179
-7. Laps 180–200
+### Corrected race-control evidence
 
-Tire ranges:
+- Detected 16 complete full-course caution lifecycles.
+- Native caution-start lap values: 1, 8, 18, 26, 35, 53, 59, 79, 85, 100, 106, 111, 177, 183, 188, and 193.
+- Detected 16 caution ends and green restarts.
+- Delayed restart around lap 39 remained one continuous caution instead of becoming a false second caution.
+- Detected the checkered flag on native lap 200 and retained lap 200 in every active session run.
 
-1. Laps 1–86
-2. Laps 87–200
+iRacing reports the current lap at the event sample. Video notes often describe the lap being entered, so a native green event on lap 5 corresponds to taking green entering lap 6. The same indexing explains video/native one-lap offsets around several caution transitions.
 
-These boundaries provide stable anchors for correlating video timestamps with IBT frames, RaceIQ packets, Parquet samples, race events, laps, fuel-service boundaries, and tire-service boundaries.
+### Corrected pit-service evidence
+
+The semantic detector found eight pit entries and eight pit exits. Entry laps align with video: 36, 54, 81, 86, 88, 102, 107, and 179.
+
+| Evidence | Canonical semantic result | Video reconciliation |
+|---|---|---|
+| Tire service | Full four-corner changes on laps 37, 55, 82, 108, and 180 | Matches five video-observed four-tire stops. No false tire event on fuel-only lap 87. |
+| Fuel service | Laps 37, 55, 82, 87, and 180 | Matches native fuel-level increases. Video reports fuel on lap 108, but native `PitSvFuel`, service flags, and fuel level show no qualifying fuel addition there; telemetry cannot corroborate that action. |
+| Repair activity | Native repair countdown decreased on laps 55, 82, 87, 103, 108, and 180 | Confirms video-observed repair activity on laps 87, 103, and 108 and supports the uncertain lap 55 wait. Laps 82 and 180 show automatic repair countdown activity, not proof that the driver intentionally waited for repairs. |
+| Drive-through | Entered lap 88 and exited lap 89 without a stall | Independently supports the video note that this visit may have been a drive-through; neither source establishes why I returned. |
+| Service lifecycle | Seven completed stops and one drive-through | Pre-race pit-stall state no longer fabricates service. Each real visit has at most one completion despite one-frame stall-state flicker. |
+
+### Corrected run structure
+
+- Participant runs: 1, laps 1–200
+- Driver runs: 1, laps 1–200
+- Tire runs: 6
+- Tire memberships: laps 1–36, 37–54, 55–81, 82–107, 108–179, and 180–200
+- Pace runs: 8
+- Pace memberships: laps 1–36, 37–54, 55–81, 82–86, 87–102, 103–107, 108–179, and 180–200
+- Zero-membership runs: 0
+
+Pace runs remain service-delimited segments, not uninterrupted green-flag periods. Caution and formation conditions stay attached to their laps so pace analysis can exclude them without fragmenting participant, driver, tire, or pace runs on every flag transition.
+
+### Original regression baseline
+
+The original database produced seven pace runs, two tire runs, one false lap 87 tire event, no repair events, no caution lifecycle, and one zero-membership transition. Keep it only as regression evidence. Regenerate persisted detector artifacts before using them for current analysis.
 
 ## Losslessness checks
 
@@ -107,6 +128,8 @@ These boundaries provide stable anchors for correlating video timestamps with IB
 | Parquet | Structural verification | Passed |
 | Parquet | Physical sample ordering | 0 mismatches |
 | Parquet | Status/completeness | `verified` / `complete` |
+
+These checks prove lossless transport and complete sample archival. They do not validate semantic interpretation of cautions, tire changes, repairs, or pace/tire run boundaries.
 
 ## Reproduction tools
 

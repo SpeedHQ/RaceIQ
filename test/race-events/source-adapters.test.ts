@@ -34,7 +34,7 @@ describe("race event source adapters", () => {
     });
   });
 
-  test("normalizes Kunos fuel, damage, pit state, and verified flags", () => {
+  test("keeps Kunos projector-owned facts neutral while retaining fuel and damage", () => {
     const acc = accServerAdapter.toRaceEventObservation(
       packet("acc", {
         Fuel: 38.5,
@@ -53,10 +53,10 @@ describe("race event source adapters", () => {
       }),
       context,
     );
-    expect(acc.sessionPhase).toBe("caution");
-    expect(acc.cautionKind).toBe("local-yellow");
+    expect(acc.sessionPhase).toBe("unknown");
+    expect(acc.cautionKind).toBe("unknown");
     expect(acc.participants[0]).toMatchObject({
-      pitState: "pit-stall",
+      pitState: "unknown",
       fuelLitres: 38.5,
       damage: { front: 20, rear: 10, centre: 5 },
     });
@@ -73,11 +73,11 @@ describe("race event source adapters", () => {
       }),
       context,
     );
-    expect(acEvo.sessionPhase).toBe("red");
-    expect(acEvo.participants[0]?.pitState).toBe("out");
+    expect(acEvo.sessionPhase).toBe("unknown");
+    expect(acEvo.participants[0]?.pitState).toBe("unknown");
   });
 
-  test("maps iRacing local pit and incident facts without world-position claims", () => {
+  test("keeps iRacing service state neutral while retaining non-service facts", () => {
     const observation = iracingServerAdapter.toRaceEventObservation(
       packet("iracing", {
         Fuel: 22,
@@ -99,13 +99,14 @@ describe("race event source adapters", () => {
     ]);
     expect(observation.participants[0]).toMatchObject({
       participantId: "local-player",
-      pitState: "pit-lane",
+      pitState: "unknown",
+      nativePitCode: 1,
       incidentCount: 4,
       fuelLitres: 22,
     });
   });
 
-  test("emits F1 session-scoped vehicle identities and preserves native pit code", () => {
+  test("emits F1 session identities while keeping projector-owned facts neutral", () => {
     const observation = f1ServerAdapter.toRaceEventObservation(
       packet("f1-2025", {
         Fuel: 0.5,
@@ -155,8 +156,8 @@ describe("race event source adapters", () => {
     );
 
     expect(observation.rosterAuthoritative).toBe(true);
-    expect(observation.sessionPhase).toBe("caution");
-    expect(observation.cautionKind).toBe("safety-car");
+    expect(observation.sessionPhase).toBe("unknown");
+    expect(observation.cautionKind).toBe("unknown");
     expect(observation.participants.map(({ participantId }) => participantId)).toEqual([
       "f1-car:0",
       "f1-car:1",
@@ -165,7 +166,7 @@ describe("race event source adapters", () => {
       participantKind: "player",
       driverId: "f1-driver:22",
       teamId: "f1-team:3",
-      pitState: "pit-lane",
+      pitState: "unknown",
       nativePitCode: 2,
       fuelLitres: 50,
       damage: { "front-left-wing": 15 },

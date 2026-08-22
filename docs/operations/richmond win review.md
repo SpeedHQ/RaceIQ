@@ -1,5 +1,7 @@
 # Richmond Win Review
 
+> **Evidence source:** Direct video review. This timeline is authoritative for cautions, restarts, tire changes, repairs, contact, and race narrative. Telemetry-derived events may corroborate it but must not override it.
+
 ## Race Summary
 
 - **Result:** Win
@@ -59,5 +61,5 @@
 
 ## Items to Confirm
 
-- Whether damage repair caused the extra wait during the lap 54/55 pit stop.
-- Why I returned to pit road on lap 88 and whether it was only a drive-through.
+- Native `PitOptRepairLeft` countdown confirms optional repair activity during the lap 54/55 stop, but the video review does not establish whether I intentionally waited for it.
+- Why I returned to pit road on lap 88. Telemetry independently classifies the lap 88–89 visit as a drive-through, but the video review does not establish the reason.

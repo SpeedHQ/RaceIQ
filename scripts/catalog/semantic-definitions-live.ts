@@ -629,6 +629,73 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
     canonicalUnit: "s",
     shape: "structured",
   },
+  "diagnostics.result-source": {
+    label: "Result source",
+    description: "Origin of current result status, distinguishing live lap data from final classification.",
+    parentId: "diagnostics",
+    canonicalUnit: "enum",
+    shape: "scalar",
+    valueType: "enum",
+    enumDomain: ["lap-data", "final-classification"],
+  },
+  "race.control.phase": {
+    label: "Race control phase",
+    description: "Canonical session phase derived from game-owned race-control telemetry.",
+    parentId: "race.control",
+    canonicalUnit: "enum",
+    shape: "scalar",
+  },
+  "race.control.caution-kind": {
+    label: "Race control caution kind",
+    description: "Canonical caution classification derived from game-owned race-control telemetry.",
+    parentId: "race.control",
+    canonicalUnit: "enum",
+    shape: "scalar",
+  },
+  "race.player.pit-state": {
+    label: "Player pit state",
+    description: "Canonical local-player pit state derived from simulator-native pit telemetry.",
+    parentId: "race",
+    canonicalUnit: "enum",
+    shape: "scalar",
+  },
+  "race.pit-service.lifecycle-status": {
+    label: "Pit-service lifecycle status",
+    description: "Canonical pit-service lifecycle state derived from simulator-native service telemetry.",
+    parentId: "race.pit-service",
+    canonicalUnit: "enum",
+    shape: "scalar",
+  },
+  "race.pit-service.tire-change-counts": {
+    label: "Pit-service tire-change counts",
+    description: "Fixed four-corner tire-use counters derived from native pit-service telemetry.",
+    parentId: "race.pit-service",
+    canonicalUnit: "count",
+    shape: "structured",
+    structuredSchema: {
+      indices: [],
+      fields: [
+        { id: "fl", valueType: "number", dimensions: ["dimensionless"] },
+        { id: "fr", valueType: "number", dimensions: ["dimensionless"] },
+        { id: "rl", valueType: "number", dimensions: ["dimensionless"] },
+        { id: "rr", valueType: "number", dimensions: ["dimensionless"] },
+      ],
+    },
+  },
+  "race.pit-service.repair-time-remaining": {
+    label: "Pit-service repair time remaining",
+    description: "Mandatory and optional repair countdowns derived from native pit-service telemetry.",
+    parentId: "race.pit-service",
+    canonicalUnit: "s",
+    shape: "structured",
+    structuredSchema: {
+      indices: [],
+      fields: [
+        { id: "mandatory", valueType: "number", dimensions: ["time"] },
+        { id: "optional", valueType: "number", dimensions: ["time"] },
+      ],
+    },
+  },
 };
 
 export { SEMANTIC_DEFINITIONS_LIVE };

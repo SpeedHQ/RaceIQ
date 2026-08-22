@@ -44,9 +44,29 @@ function scalar(
   return fallback;
 }
 
+function optionalScalar(
+  values: Record<string, IRacingValue>,
+  name: string,
+): number | undefined {
+  const value = values[name];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "boolean") return value ? 1 : 0;
+  return undefined;
+}
+
 function bool(values: Record<string, IRacingValue>, name: string): boolean {
   const value = values[name];
   return value === true || (typeof value === "number" && value !== 0);
+}
+
+function optionalBool(
+  values: Record<string, IRacingValue>,
+  name: string,
+): boolean | undefined {
+  const value = values[name];
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value !== 0;
+  return undefined;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -222,6 +242,8 @@ export function normalizeIRacingFrame(
     iracing: {
       sessionTick: Math.trunc(scalar(values, "SessionTick", 0)),
       sessionNum: session.sessionNum,
+      sessionFlags: optionalScalar(values, "SessionFlags"),
+      sessionState: optionalScalar(values, "SessionState"),
       driverCarIdx: session.driverCarIdx,
       trackLengthM,
       lapDistanceM,
@@ -230,6 +252,18 @@ export function normalizeIRacingFrame(
       sectorStarts,
       onPitRoad: bool(values, "OnPitRoad"),
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
+      PlayerCarInPitStall: optionalBool(values, "PlayerCarInPitStall"),
+      PitstopActive: optionalBool(values, "PitstopActive"),
+      PlayerCarPitSvStatus: optionalScalar(values, "PlayerCarPitSvStatus"),
+      PitSvFlags: optionalScalar(values, "PitSvFlags"),
+      PitSvFuel: optionalScalar(values, "PitSvFuel"),
+      PitRepairLeft: optionalScalar(values, "PitRepairLeft"),
+      PitOptRepairLeft: optionalScalar(values, "PitOptRepairLeft"),
+      LFTiresUsed: optionalScalar(values, "LFTiresUsed"),
+      RFTiresUsed: optionalScalar(values, "RFTiresUsed"),
+      LRTiresUsed: optionalScalar(values, "LRTiresUsed"),
+      RRTiresUsed: optionalScalar(values, "RRTiresUsed"),
+      TireSetsUsed: optionalScalar(values, "TireSetsUsed"),
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
       trackWetness: Math.trunc(wetness),
       pitTireTemperatureAvailable,

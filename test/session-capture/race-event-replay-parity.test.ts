@@ -57,6 +57,7 @@ const FIXTURE_LANDMARKS = [
   "pit_entry",
   "pit_service_started",
   "fuel_service_observed",
+  "repair_service_observed",
   "pit_service_completed",
   "pit_exit",
 ] as const satisfies readonly RaceEventType[];
@@ -384,6 +385,7 @@ function assertFixtureLandmarks(events: readonly RaceEvent[]): void {
     "pit_stall_arrival",
     "pit_service_started",
     "fuel_service_observed",
+    "repair_service_observed",
     "pit_service_completed",
     "pit_stall_departure",
     "pit_exit",

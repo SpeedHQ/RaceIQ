@@ -11,7 +11,10 @@ import type {
 } from "../../shared/racing/quality/contracts";
 import type { SourceSequenceObservation } from "../../shared/telemetry/source-sequence";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryDerivation } from "../../shared/telemetry/derivations/contracts";
 import type { LapDetectorFactory } from "../lap-detection/types";
+import type { RaceEventSemanticFrame } from "../race-events/semantic-projector";
+
 
 export interface FourCornerRaceEventValue {
   fl: number;
@@ -44,6 +47,14 @@ export interface RaceParticipantObservation {
   fuelLitres: number | null;
   tireCompound: string | null;
   tireWear: FourCornerRaceEventValue | null;
+  /** Native service lifecycle, when game telemetry distinguishes it. */
+  pitServiceStatus?: "unknown" | "none" | "in-progress" | "complete" | "error";
+  /** Monotonic native tire-use counters by physical corner. */
+  tireChangeCounts?: FourCornerRaceEventValue | null;
+  /** Whether tire wear is a continuous signal or a pit-only snapshot. */
+  tireWearFreshness?: "continuous" | "pit-snapshot";
+  /** Native pit-repair countdowns, in seconds. */
+  repairRemainingSeconds?: { mandatory: number; optional: number } | null;
   /** Component damage in percent, 0 (undamaged) through 100. */
   damage: Readonly<Record<string, number>> | null;
   penaltyValue: number | null;
@@ -66,6 +77,8 @@ export interface RaceEventObservation {
   worldPosition: { x: number; y: number; z: number } | null;
   sessionPhase: RaceSessionPhase;
   nativeRaceControlCode: string | number | null;
+  /** Native race-control channel was semantically resolved for this packet. */
+  raceControlEvidence?: "authoritative";
   cautionKind: CautionKind;
   gridStart: boolean | null;
   terminalObserved: boolean | null;
@@ -79,6 +92,11 @@ export interface RaceEventObservationContext {
   receivedAtMs: number;
   /** Packet coordinate projection calculated once by pipeline or rebuild caller. */
   sourceSequences: SourceSequenceObservation[];
+  /**
+   * Reused projection for current packet. Absent only at direct/legacy adapter
+   * boundaries, where game adapters may read their raw packet extension.
+   */
+  semantic?: RaceEventSemanticFrame;
 }
 
 /** Server-only runtime behavior owned by each game implementation. */
@@ -110,6 +128,12 @@ export interface ServerGameRuntimePolicy {
 export interface ServerGameAdapter extends GameAdapter {
   /** Runtime policy knobs for server-side packet processors. */
   runtime: ServerGameRuntimePolicy;
+  /** Game-owned canonical race-event derivations compiled with this adapter. */
+  readonly raceEventDerivations: readonly TelemetryDerivation[];
+  /** Source timestamp coordinate domain for race-event semantic freshness. */
+  readonly raceEventTimestampDomain: "wall-clock" | "session";
+  /** Chooses current source coordinate without shared simulator branching. */
+  raceEventObservedAtMs(packet: TelemetryPacket, receivedAtMs: number): number;
 
   /** Quick check: does this buffer belong to this game? */
   canHandle(buf: Buffer): boolean;

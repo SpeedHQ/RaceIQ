@@ -58,6 +58,7 @@ const PACKET_SOURCE_OVERRIDES: Partial<
   acc: {
     CarOrdinal: ["ACC.Static.carModel"],
     TrackOrdinal: ["ACC.Static.track"],
+    IsRaceOn: ["TelemetryPacket.IsRaceOn"],
   },
   "ac-evo": {
     CarOrdinal: ["AC-Evo.Graphics.car_model"],
@@ -65,6 +66,7 @@ const PACKET_SOURCE_OVERRIDES: Partial<
       "AC-Evo.Static.track",
       "AC-Evo.Static.track_configuration",
     ],
+    IsRaceOn: ["TelemetryPacket.IsRaceOn"],
   },
 };
 
@@ -300,12 +302,6 @@ function packetNativeMetadata(
   if (gameId === "iracing" && ["Accel", "Brake", "Clutch"].includes(key)) {
     return { nativeUnit: "%", normalization: "0-1 SDK value * 255 and round" };
   }
-  if (gameId === "iracing" && key === "Speed") {
-    return {
-      nativeUnit: "m/s",
-      normalization: "clamp native m/s speed to non-negative canonical m/s",
-    };
-  }
   if (gameId === "iracing" && key === "Steer") {
     return {
       nativeUnit: "rad",
@@ -465,10 +461,11 @@ function packetGameLink(
     return value ? expandedExpressionText(output, value) : "";
   });
   const native = packetNativeMetadata(gameId, set.key, unit);
-  const directIRacingCarcassBand =
+  const directIRacingPacketField =
     gameId === "iracing" &&
-    /^TireCarcassTemp(Left|Middle|Right)$/.test(set.key);
-  const mappingKind = directIRacingCarcassBand
+    (/^TireCarcassTemp(Left|Middle|Right)$/.test(set.key) ||
+      set.key === "Speed");
+  const mappingKind = directIRacingPacketField
     ? "direct"
     : classifyPacketMapping(gameId, set.key, native, expressions);
   const sourceShape =
@@ -635,6 +632,13 @@ function ensureCategoryGroups(groups: Map<string, CatalogGroup>): void {
     description: "Lap times, gaps, and split times for each competitor.",
     parentId: "race.competitor",
     canonicalUnit: "s",
+    children: [],
+  });
+  groups.set("race.control", {
+    id: "race.control",
+    label: "Race control state",
+    description: "Canonical session phase and caution state derived from simulator telemetry.",
+    parentId: "race",
     children: [],
   });
   groups.set("race.pit-service", {

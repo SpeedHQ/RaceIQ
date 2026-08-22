@@ -24,8 +24,11 @@ import {
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
 } from "../../shared/telemetry/catalog/data";
-import { TELEMETRY_DERIVATION_VERSION } from "../../shared/telemetry/derivations/builtins";
+import {
+  telemetryDerivationVersionIdentity,
+} from "../../shared/telemetry/derivations/builtins";
 import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../shared/telemetry/resolver/versions";
+import { GAME_RACE_EVENT_DERIVATIONS } from "../games/race-event-derivations";
 import { insertSession, setSessionAnalysisGeneration, updateSessionQuality, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
 import { insertLap, setLapMetrics, type PersistLapInput } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
@@ -52,10 +55,11 @@ export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersio
     catalogSchemaVersion: TELEMETRY_CATALOG_SCHEMA_VERSION,
     parserVersion: TELEMETRY_PARSER_VERSIONS[gameId],
     resolverVersion: TELEMETRY_RESOLVER_VERSION,
-    derivationVersion: TELEMETRY_DERIVATION_VERSION,
+    derivationVersion: telemetryDerivationVersionIdentity(
+      GAME_RACE_EVENT_DERIVATIONS[gameId].derivations,
+    ),
   };
 }
-
 export interface CapturedSession {
   carOrdinal: number;
   trackOrdinal: number;

@@ -326,6 +326,18 @@ const SEMANTIC_DEFINITIONS_EXTENDED: Record<string, SemanticDefinition> = {
     "race",
     "boolean",
   ),
+  "session.session-flags": semanticDefinition(
+    "Session flags",
+    "Native race-control flag bitfield for the current iRacing session.",
+    "session",
+    "bitfield",
+  ),
+  "session.session-state": semanticDefinition(
+    "Session state code",
+    "Native numeric current-session state code.",
+    "session",
+    "count",
+  ),
   "race.pit-service.status": semanticDefinition(
     "Pit-service status",
     "Current player-car pit-service status flags.",

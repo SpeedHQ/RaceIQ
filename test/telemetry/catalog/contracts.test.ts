@@ -7,7 +7,6 @@ import {
   isTelemetryEnumValue,
   KNOWN_GAME_IDS,
   TELEMETRY_CATALOG,
-  TELEMETRY_CATALOG_VERSION,
 } from "../../support/telemetry/catalog";
 
 describe("semantic telemetry catalog contracts", () => {
@@ -33,12 +32,19 @@ describe("semantic telemetry catalog contracts", () => {
       }
       if (variable.shape === "structured") {
         expect(variable.valueType).toBe("structured");
-        expect(variable.ordering?.length).toBeGreaterThan(0);
-        expect(variable.structuredSchema?.indices.length).toBeGreaterThan(0);
         expect(variable.structuredSchema?.fields.length).toBeGreaterThan(0);
-        expect(variable.structuredSchema?.indices[0].cardinality).toEqual(
-          variable.cardinality,
-        );
+        const indices = variable.structuredSchema?.indices ?? [];
+        if (indices.length === 0) {
+          expect(variable.cardinality).toEqual({ kind: "scalar" });
+          expect(variable.ordering).toBeUndefined();
+        } else {
+          const [primaryIndex] = indices;
+          if (!primaryIndex) {
+            throw new Error(`${variable.id} has no primary structured index`);
+          }
+          expect(variable.ordering?.length).toBeGreaterThan(0);
+          expect(primaryIndex.cardinality).toEqual(variable.cardinality);
+        }
       } else {
         expect(variable.structuredSchema).toBeUndefined();
       }
@@ -75,10 +81,11 @@ describe("semantic telemetry catalog contracts", () => {
         expect(mapping.normalization?.length).toBeGreaterThan(0);
         expect(mapping.execution).toMatchObject({
           deterministic: true,
-          version: TELEMETRY_CATALOG_VERSION,
         });
-        expect(mapping.execution?.declaredInputs.length).toBeGreaterThan(0);
-        expect(mapping.execution?.codeHash).toMatch(/^[a-f0-9]{64}$/);
+        expect(mapping.execution?.inputs.length).toBeGreaterThan(0);
+        expect(mapping.execution?.codeHash).toMatch(
+          /^(?:sha256:)?[a-f0-9]{64}$/,
+        );
         if (mapping.kind === "normalized") {
           expect(mapping.execution?.kind).toBe("conversion");
         }
@@ -238,10 +245,12 @@ describe("semantic telemetry catalog contracts", () => {
 
     const speed = getTelemetryVariable("motion.speed");
     const brake = getTelemetryVariable("inputs.brake");
-    for (const gameId of ["f1-2025", "acc", "ac-evo", "iracing"] as const) {
+    for (const gameId of ["f1-2025", "acc", "ac-evo"] as const) {
       expect(speed.games[gameId].kind).toBe("normalized");
       expect(brake.games[gameId].kind).toBe("normalized");
     }
+    expect(speed.games.iracing.kind).toBe("direct");
+    expect(brake.games.iracing.kind).toBe("normalized");
     expect(getTelemetryVariable("timing.current-lap").games.iracing.kind).toBe(
       "derived",
     );

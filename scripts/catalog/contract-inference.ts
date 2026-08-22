@@ -35,8 +35,31 @@ export function telemetryCatalogSourceHash(source: string): string {
 }
 
 export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
+  "diagnostics.result-source": ["lap-data", "final-classification"],
   "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
+  "race.control.phase": [
+    "inactive",
+    "formation",
+    "green",
+    "caution",
+    "red",
+    "checkered",
+    "finished",
+  ],
+  "race.control.caution-kind": [
+    "local-yellow",
+    "full-course-yellow",
+    "safety-car",
+    "virtual-safety-car",
+  ],
+  "race.player.pit-state": ["out", "pit-lane", "pit-stall"],
+  "race.pit-service.lifecycle-status": [
+    "none",
+    "in-progress",
+    "complete",
+    "error",
+  ],
   "setup.tires.compound": ["0", "1"],
   "tires.tire-compound": [
     "7",
@@ -301,8 +324,16 @@ export function cardinalityFor(
         ordering: ["source-order"],
       };
     case "structured": {
-      const structuredSchema = structuredSchemaFor(variable, sourceVariables);
+      const structuredSchema =
+        variable.structuredSchema ??
+        structuredSchemaFor(variable, sourceVariables);
       const [primaryIndex] = structuredSchema.indices;
+      if (!primaryIndex) {
+        return {
+          cardinality: { kind: "scalar" },
+          structuredSchema,
+        };
+      }
       const ordering =
         primaryIndex.id === "wheel-position"
           ? ["FL", "FR", "RL", "RR"]

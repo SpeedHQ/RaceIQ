@@ -1,8 +1,12 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../games/ids";
 import type { TelemetryPacket } from "../types";
+import type { TelemetryDerivation } from "../derivations/contracts";
 import type {
   TelemetryCatalogData,
+  TelemetryMappingExecution,
+  TelemetryMappingInputRequirement,
   TelemetryValueCardinality,
+  TelemetryVariableDefinition,
 } from "./contracts";
 import {
   TELEMETRY_CATALOG,
@@ -50,10 +54,42 @@ function sameCardinality(
   );
 }
 
+function hasCompatibleStructuredContract(
+  variable: TelemetryVariableDefinition,
+): boolean {
+  const schema = variable.structuredSchema;
+  if (
+    !schema ||
+    !Array.isArray(schema.indices) ||
+    !Array.isArray(schema.fields) ||
+    schema.fields.length === 0
+  ) {
+    return false;
+  }
+  if (schema.indices.length === 0) {
+    return (
+      variable.cardinality.kind === "scalar" &&
+      variable.ordering === undefined
+    );
+  }
+  const [primaryIndex] = schema.indices;
+  return Boolean(
+    primaryIndex &&
+      variable.ordering?.length &&
+      sameCardinality(variable.cardinality, primaryIndex.cardinality),
+  );
+}
+
+function hasSemanticInputs(
+  inputs: TelemetryMappingExecution["inputs"],
+): inputs is readonly TelemetryMappingInputRequirement[] {
+  return typeof inputs[0] === "object";
+}
+
 export function assertTelemetryCatalogComplete(
   catalog: TelemetryCatalogData = TELEMETRY_CATALOG,
 ): void {
-  if (catalog.format !== "raceiq-semantic-telemetry-catalog-v7") {
+  if (catalog.format !== "raceiq-semantic-telemetry-catalog-v8") {
     throw new Error(`Unexpected catalog format ${catalog.format}`);
   }
   const metadata = catalog.metadata;
@@ -88,8 +124,10 @@ export function assertTelemetryCatalogComplete(
       new Set(catalog.sources[gameId].map((source) => source.path)),
     ]),
   ) as Record<GameId, Set<string>>;
-  const groupsById = new Map(catalog.groups.map((group) => [group.id, group]));
-  const variablesById = new Map(
+  const groupsById = new Map(
+    catalog.groups.map((group) => [group.id, group]),
+  );
+  const variablesById = new Map<string, TelemetryVariableDefinition>(
     catalog.variables.map((variable) => [variable.id, variable]),
   );
 
@@ -137,13 +175,7 @@ export function assertTelemetryCatalogComplete(
         (variable.cardinality.kind !== "variable" ||
           !variable.ordering?.length)) ||
       (variable.shape === "structured" &&
-        (!variable.ordering?.length ||
-          !structuredSchema?.indices.length ||
-          !structuredSchema.fields.length ||
-          !sameCardinality(
-            variable.cardinality,
-            structuredSchema.indices[0].cardinality,
-          ))) ||
+        !hasCompatibleStructuredContract(variable)) ||
       (variable.shape !== "structured" && structuredSchema)
     ) {
       throw new Error(`${variable.id} has incompatible cardinality or ordering`);
@@ -257,9 +289,8 @@ export function assertTelemetryCatalogComplete(
           !execution?.id ||
           !execution.version ||
           !execution.deterministic ||
-          !/^[a-f0-9]{64}$/.test(execution.codeHash) ||
-          execution.declaredInputs.length === 0 ||
-          execution.declaredInputs.some((input) => !sources.includes(input))
+          !/^(?:sha256:)?[a-f0-9]{64}$/.test(execution.codeHash) ||
+          execution.inputs.length === 0
         ) {
           throw new Error(
             `${variable.id} ${gameId} lacks executable mapping identity`,
@@ -279,38 +310,90 @@ export function assertTelemetryCatalogComplete(
             `${variable.id} ${gameId} has incompatible execution contract`,
           );
         }
-        for (const input of execution.declaredInputs) {
+        const executionInputs = execution.inputs;
+        const semanticInputs = hasSemanticInputs(executionInputs);
+        if (execution.kind === "conversion" && semanticInputs) {
+          throw new Error(
+            `${variable.id} ${gameId} conversion declares semantic inputs`,
+          );
+        }
+        if (semanticInputs) {
           if (
-            input.startsWith("TelemetryPacket.") &&
-            !normalizedFields.has(
-              input.slice("TelemetryPacket.".length) as keyof TelemetryPacket,
-            )
+            execution.kind !== "derivation" ||
+            (execution.missingDataPolicy !== "unavailable" &&
+              execution.missingDataPolicy !== "hold-last" &&
+              execution.missingDataPolicy !== "interpolate" &&
+              execution.missingDataPolicy !== "partial")
           ) {
             throw new Error(
-              `${variable.id} ${gameId} references missing packet input ${input}`,
+              `${variable.id} ${gameId} has invalid derivation input policy`,
             );
           }
-          const extensionInput =
-            /^(?:f1|acc|iracing)\./.test(input) ? input : undefined;
-          const iracingInput =
-            gameId === "iracing" && input.startsWith("iRacing.")
-              ? input.slice("iRacing.".length)
-              : undefined;
-          const cataloguedIRacingInput =
-            iracingInput &&
-            (!iracingInput.startsWith("SessionInfo.") ||
-              /^[A-Z]/.test(iracingInput.slice("SessionInfo.".length)))
-              ? iracingInput
-              : undefined;
+          for (const input of executionInputs) {
+            const dependency = variablesById.get(input.semanticId);
+            const dependencyMapping = dependency?.games[gameId];
+            if (
+              !input.semanticId ||
+              input.acceptedMappings.length === 0 ||
+              !dependencyMapping ||
+              (input.required && dependencyMapping.kind === "unavailable") ||
+              (dependencyMapping.kind !== "unavailable" &&
+                !input.acceptedMappings.includes(dependencyMapping.kind))
+            ) {
+              throw new Error(
+                `${variable.id} ${gameId} has incompatible semantic dependency ${input.semanticId}`,
+              );
+            }
+          }
+        } else {
           if (
-            (extensionInput &&
-              !sourcePathsByGame[gameId].has(extensionInput)) ||
-            (cataloguedIRacingInput &&
-              !sourcePathsByGame.iracing.has(cataloguedIRacingInput))
+            execution.kind === "conversion" &&
+            execution.missingDataPolicy !== "propagate-missing" &&
+            execution.missingDataPolicy !== "drop-missing" &&
+            execution.missingDataPolicy !== "require-all"
           ) {
             throw new Error(
-              `${variable.id} ${gameId} references missing source input ${input}`,
+              `${variable.id} ${gameId} conversion has invalid missing-data policy`,
             );
+          }
+          if (executionInputs.some((input) => !sources.includes(input))) {
+            throw new Error(
+              `${variable.id} ${gameId} has undeclared raw execution input`,
+            );
+          }
+          for (const input of executionInputs) {
+            if (
+              input.startsWith("TelemetryPacket.") &&
+              !normalizedFields.has(
+                input.slice("TelemetryPacket.".length) as keyof TelemetryPacket,
+              )
+            ) {
+              throw new Error(
+                `${variable.id} ${gameId} references missing packet input ${input}`,
+              );
+            }
+            const extensionInput =
+              /^(?:f1|acc|iracing)\./.test(input) ? input : undefined;
+            const iracingInput =
+              gameId === "iracing" && input.startsWith("iRacing.")
+                ? input.slice("iRacing.".length)
+                : undefined;
+            const cataloguedIRacingInput =
+              iracingInput &&
+              (!iracingInput.startsWith("SessionInfo.") ||
+                /^[A-Z]/.test(iracingInput.slice("SessionInfo.".length)))
+                ? iracingInput
+                : undefined;
+            if (
+              (extensionInput &&
+                !sourcePathsByGame[gameId].has(extensionInput)) ||
+              (cataloguedIRacingInput &&
+                !sourcePathsByGame.iracing.has(cataloguedIRacingInput))
+            ) {
+              throw new Error(
+                `${variable.id} ${gameId} references missing source input ${input}`,
+              );
+            }
           }
         }
       }
@@ -396,5 +479,71 @@ export function assertTelemetryCatalogComplete(
     throw new Error(
       `Normalized field coverage expected ${catalog.coverage.normalizedPacketFields}, found ${normalizedFields.size}`,
     );
+  }
+}
+
+export function assertTelemetryCatalogDerivationContracts(
+  catalog: TelemetryCatalogData,
+  registry: Readonly<
+    Record<
+      GameId,
+      {
+        artifact: string;
+        derivations: readonly TelemetryDerivation[];
+      }
+    >
+  >,
+): void {
+  const variablesById = new Map<string, TelemetryVariableDefinition>(
+    catalog.variables.map((variable) => [variable.id, variable]),
+  );
+  for (const gameId of KNOWN_GAME_IDS) {
+    const { artifact, derivations } = registry[gameId];
+    for (const derivation of derivations) {
+      const mapping = variablesById.get(derivation.output.semanticId)?.games[
+        gameId
+      ];
+      if (
+        !mapping ||
+        mapping.kind !== "derived" ||
+        mapping.provenance.origin !== "derivation" ||
+        mapping.provenance.artifact !== artifact
+      ) {
+        throw new Error(
+          `${gameId}:${derivation.output.semanticId} differs from runtime derivation`,
+        );
+      }
+      const execution = mapping.execution;
+      if (!execution || execution.kind !== "derivation") {
+        throw new Error(
+          `${gameId}:${derivation.output.semanticId} differs from runtime derivation`,
+        );
+      }
+      const executionInputs = execution.inputs;
+      if (!hasSemanticInputs(executionInputs)) {
+        throw new Error(
+          `${gameId}:${derivation.output.semanticId} differs from runtime derivation`,
+        );
+      }
+      if (
+        execution.id !== derivation.id ||
+        execution.version !== derivation.version ||
+        execution.codeHash !== derivation.codeHash ||
+        execution.deterministic !== derivation.deterministic ||
+        execution.missingDataPolicy !== derivation.missingDataPolicy ||
+        executionInputs.length !== derivation.inputs.length ||
+        executionInputs.some(
+          (input, index) =>
+            input.semanticId !== derivation.inputs[index]?.semanticId ||
+            input.required !== derivation.inputs[index]?.required ||
+            input.acceptedMappings.join(",") !==
+              derivation.inputs[index]?.acceptedMappings.join(","),
+        )
+      ) {
+        throw new Error(
+          `${gameId}:${derivation.output.semanticId} differs from runtime derivation`,
+        );
+      }
+    }
   }
 }

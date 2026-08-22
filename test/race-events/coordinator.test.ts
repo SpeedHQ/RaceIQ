@@ -1,10 +1,19 @@
 import { describe, expect, test } from "bun:test";
+import { acEvoServerAdapter } from "../../server/games/ac-evo";
+import { accServerAdapter } from "../../server/games/acc";
+import { initServerGameAdapters } from "../../server/games/init";
 
 import type { RaceEvent } from "../../shared/racing/events/contracts";
 import type { RaceEventObservation } from "../../server/games/types";
 import { RaceEventCoordinator } from "../../server/race-events/coordinator";
 import { RaceEventConflictError } from "../../server/race-events/ordering";
 import type { DetectorEventDraft } from "../../server/race-events/types";
+import { initGameAdapters } from "../../shared/games/init";
+import { packet } from "../support/telemetry/resolver";
+import {
+  applyRaceEventSemanticProjection,
+  RaceEventSemanticProjector,
+} from "../../server/race-events/semantic-projector";
 import { observation, participant } from "./helpers";
 interface CoordinatorMaterializer {
   materializeDrafts(
@@ -14,6 +23,9 @@ interface CoordinatorMaterializer {
     sequence: number,
   ): { events: RaceEvent[]; rejectedDrafts: Array<{ eventType: string; error: string }> };
 }
+
+initGameAdapters();
+initServerGameAdapters();
 
 
 describe("race-event coordinator", () => {
@@ -90,6 +102,7 @@ describe("race-event coordinator", () => {
       sessionPhase: "caution",
       cautionKind: "safety-car",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }));
 
     const failed = coordinator.preflight(observation(1, {
@@ -106,6 +119,7 @@ describe("race-event coordinator", () => {
       gameId: "f1-2025",
       sessionPhase: "green",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }));
     expect(retried).toMatchObject({ accepted: true, timelineEpoch: 0, sequence: 2, reset: false });
     expect(coordinator.processPreflight(retried).events).toEqual(
@@ -115,6 +129,7 @@ describe("race-event coordinator", () => {
       gameId: "f1-2025",
       sessionPhase: "green",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }))).toMatchObject({
       accepted: true,
       sequence: 3,
@@ -168,7 +183,7 @@ describe("race-event coordinator", () => {
     ).toThrow(RaceEventConflictError);
   });
 
-  test("maps only verified ACC, AC Evo, and F1 race-control facts", () => {
+  test("keeps authoritative caution active through formation across games", () => {
     const acc = new RaceEventCoordinator({ sessionId: 12 });
     acc.processObservation(
       12,
@@ -177,21 +192,20 @@ describe("race-event coordinator", () => {
         sessionPhase: "caution",
         cautionKind: "local-yellow",
         nativeRaceControlCode: "yellow",
+        raceControlEvidence: "authoritative",
       }),
     );
-    const accClear = acc.processObservation(
+    const accFormation = acc.processObservation(
       12,
       observation(2, {
         gameId: "acc",
-        sessionPhase: "unknown",
+        sessionPhase: "formation",
         nativeRaceControlCode: "none",
+        raceControlEvidence: "authoritative",
       }),
     );
-    expect(accClear.events.map(({ eventType }) => eventType)).toContain(
+    expect(accFormation.events.map(({ eventType }) => eventType)).not.toContain(
       "caution_ended",
-    );
-    expect(accClear.events.map(({ eventType }) => eventType)).not.toContain(
-      "green_flag",
     );
 
     const f1 = new RaceEventCoordinator({ sessionId: 13 });
@@ -202,22 +216,129 @@ describe("race-event coordinator", () => {
         sessionPhase: "caution",
         cautionKind: "safety-car",
         nativeRaceControlCode: 1,
+        raceControlEvidence: "authoritative",
       }),
     );
-    const f1Clear = f1.processObservation(
+    const f1Formation = f1.processObservation(
       13,
       observation(2, {
         gameId: "f1-2025",
-        sessionPhase: "unknown",
+        sessionPhase: "formation",
         nativeRaceControlCode: 0,
+        raceControlEvidence: "authoritative",
       }),
     );
-    expect(f1Clear.events.map(({ eventType }) => eventType)).toContain(
+    expect(f1Formation.events.map(({ eventType }) => eventType)).not.toContain(
       "caution_ended",
     );
-    expect(f1Clear.events.map(({ eventType }) => eventType)).not.toContain(
-      "green_flag",
+  });
+  test("keeps one caution lifecycle through revoked restarts and repeated cycles", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 20 });
+    const canonical = {
+      gameId: "iracing" as const,
+      raceControlEvidence: "authoritative" as const,
+      nativeRaceControlCode: null,
+    };
+    const results = [
+      coordinator.processObservation(20, observation(1, {
+        ...canonical,
+        sessionPhase: "formation",
+      })),
+      coordinator.processObservation(20, observation(2, {
+        ...canonical,
+        sessionPhase: "green",
+      })),
+      coordinator.processObservation(20, observation(3, {
+        ...canonical,
+        sessionPhase: "caution",
+        cautionKind: "full-course-yellow",
+      })),
+      coordinator.processObservation(20, observation(4, {
+        ...canonical,
+        sessionPhase: "formation",
+      })),
+      coordinator.processObservation(20, observation(5, {
+        ...canonical,
+        sessionPhase: "caution",
+        cautionKind: "full-course-yellow",
+      })),
+      coordinator.processObservation(20, observation(6, {
+        ...canonical,
+        sessionPhase: "formation",
+      })),
+      coordinator.processObservation(20, observation(7, {
+        ...canonical,
+        sessionPhase: "green",
+      })),
+      coordinator.processObservation(20, observation(8, {
+        ...canonical,
+        sessionPhase: "caution",
+        cautionKind: "full-course-yellow",
+      })),
+      coordinator.processObservation(20, observation(9, {
+        ...canonical,
+        sessionPhase: "formation",
+      })),
+      coordinator.processObservation(20, observation(10, {
+        ...canonical,
+        sessionPhase: "green",
+      })),
+      coordinator.processObservation(20, observation(11, {
+        ...canonical,
+        sessionPhase: "checkered",
+      })),
+    ];
+    const raceControlEventTypes: Partial<Record<RaceEvent["eventType"], true>> = {
+      green_flag: true,
+      caution_started: true,
+      caution_ended: true,
+      restart_started: true,
+      checkered_flag: true,
+    };
+    const raceControlEvents = results
+      .flatMap(({ events }) => events)
+      .filter(({ eventType }) => raceControlEventTypes[eventType] === true);
+
+    expect(results[3].events.map(({ eventType }) => eventType)).not.toContain(
+      "caution_ended",
     );
+    expect(results[4].events.map(({ eventType }) => eventType)).not.toContain(
+      "caution_started",
+    );
+    expect(results[5].events.map(({ eventType }) => eventType)).not.toContain(
+      "caution_ended",
+    );
+    expect(raceControlEvents.map(({ eventType }) => eventType)).toEqual([
+      "green_flag",
+      "caution_started",
+      "caution_ended",
+      "green_flag",
+      "restart_started",
+      "caution_started",
+      "caution_ended",
+      "green_flag",
+      "restart_started",
+      "checkered_flag",
+    ]);
+    expect(raceControlEvents.every(({ detectorVersion }) => detectorVersion === "3")).toBe(true);
+  });
+  test("does not infer unverified canonical phases", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 21 });
+    coordinator.processObservation(21, observation(1, {
+      gameId: "iracing",
+      sessionPhase: "formation",
+    }));
+    const green = coordinator.processObservation(21, observation(2, {
+      gameId: "iracing",
+      sessionPhase: "green",
+    }));
+    const checkered = coordinator.processObservation(21, observation(3, {
+      gameId: "iracing",
+      sessionPhase: "checkered",
+    }));
+
+    expect(green.events.map(({ eventType }) => eventType)).not.toContain("green_flag");
+    expect(checkered.events.map(({ eventType }) => eventType)).not.toContain("checkered_flag");
   });
   test("rejects lower native sequence before implicit time rollback reset", () => {
     const coordinator = new RaceEventCoordinator({ sessionId: 15 });
@@ -231,21 +352,111 @@ describe("race-event coordinator", () => {
     });
   });
 
-  test("F1 green closes caution despite FIA code one", () => {
+  test("F1 normal race-control closes caution without ending live lap-data", () => {
     const coordinator = new RaceEventCoordinator({ sessionId: 16 });
     coordinator.processObservation(16, observation(1, {
       gameId: "f1-2025",
       sessionPhase: "caution",
       cautionKind: "safety-car",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }));
-    const green = coordinator.processObservation(16, observation(2, {
+    const live = coordinator.processObservation(16, observation(2, {
       gameId: "f1-2025",
       sessionPhase: "green",
-      nativeRaceControlCode: 1,
+      nativeRaceControlCode: 0,
+      terminalObserved: false,
+      raceControlEvidence: "authoritative",
     }));
 
-    expect(green.events.map(({ eventType }) => eventType)).toContain("caution_ended");
+    expect(live.events.map(({ eventType }) => eventType)).toContain("caution_ended");
+    expect(live.events.map(({ eventType }) => eventType)).not.toContain("session_ended");
+  });
+
+  test("F1 final classification ends session once", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 17 });
+    coordinator.processObservation(17, observation(1, {
+      gameId: "f1-2025",
+      sessionPhase: "green",
+      nativeRaceControlCode: 0,
+      terminalObserved: false,
+      raceControlEvidence: "authoritative",
+    }));
+    const finalClassification = coordinator.processObservation(17, observation(2, {
+      gameId: "f1-2025",
+      sessionPhase: "finished",
+      nativeRaceControlCode: 3,
+      terminalObserved: true,
+      raceControlEvidence: "authoritative",
+    }));
+    const repeatedFinalClassification = coordinator.processObservation(17, observation(3, {
+      gameId: "f1-2025",
+      sessionPhase: "finished",
+      nativeRaceControlCode: 3,
+      terminalObserved: true,
+      raceControlEvidence: "authoritative",
+    }));
+
+    expect(finalClassification.events.map(({ eventType }) => eventType)).toContain("session_ended");
+    expect(repeatedFinalClassification.events.map(({ eventType }) => eventType)).not.toContain("session_ended");
+  });
+
+  test("ACC and AC Evo no-flag projections close authoritative cautions", () => {
+    const games = [
+      ["acc", accServerAdapter],
+      ["ac-evo", acEvoServerAdapter],
+    ] as const;
+
+    for (const [gameId, adapter] of games) {
+      const coordinator = new RaceEventCoordinator({ sessionId: 30 });
+      const projector = new RaceEventSemanticProjector();
+      const yellowPacket = packet(gameId, {
+        TimestampMS: 1_000,
+        IsRaceOn: 1,
+        acc: { flagStatus: "yellow" } as never,
+      });
+      const yellowSemantic = projector.project(yellowPacket, 1_000);
+      const caution = applyRaceEventSemanticProjection(
+        adapter.toRaceEventObservation(yellowPacket, {
+          receivedAtMs: 1_000,
+          sourceSequences: [],
+          semantic: yellowSemantic,
+        }),
+        yellowSemantic,
+      );
+      const nonePacket = packet(gameId, {
+        TimestampMS: 1_001,
+        IsRaceOn: 1,
+        acc: { flagStatus: "none" } as never,
+      });
+      const noneSemantic = projector.project(nonePacket, 1_001);
+      const green = applyRaceEventSemanticProjection(
+        adapter.toRaceEventObservation(nonePacket, {
+          receivedAtMs: 1_001,
+          sourceSequences: [],
+          semantic: noneSemantic,
+        }),
+        noneSemantic,
+      );
+
+      const opened = coordinator.processObservation(30, caution);
+      const closed = coordinator.processObservation(30, green);
+
+      expect(caution).toMatchObject({
+        sessionPhase: "caution",
+        cautionKind: "local-yellow",
+        raceControlEvidence: "authoritative",
+      });
+      expect(green).toMatchObject({
+        sessionPhase: "green",
+        nativeRaceControlCode: "none",
+        raceControlEvidence: "authoritative",
+      });
+      expect(opened.events.map(({ eventType }) => eventType)).toContain("caution_started");
+      expect(closed.events.map(({ eventType }) => eventType)).toEqual(
+        expect.arrayContaining(["caution_ended", "green_flag"]),
+      );
+    }
   });
 
   test("rejects invalid receivedAt before high-water or lifecycle mutation", () => {
@@ -255,17 +466,20 @@ describe("race-event coordinator", () => {
       sessionPhase: "caution",
       cautionKind: "safety-car",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }));
     expect(() => coordinator.processObservation(17, observation(2, {
       receivedAtMs: Number.NaN,
       gameId: "f1-2025",
       sessionPhase: "green",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }))).toThrow("receivedAtMs");
     const corrected = coordinator.processObservation(17, observation(2, {
       gameId: "f1-2025",
       sessionPhase: "green",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }));
 
     expect(corrected.events.map(({ eventType }) => eventType)).toContain("caution_ended");
@@ -340,18 +554,21 @@ describe("race-event coordinator", () => {
       sessionPhase: "caution",
       cautionKind: "safety-car",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }));
     validCreatedAt = false;
     expect(() => coordinator.processObservation(19, observation(2, {
       gameId: "f1-2025",
       sessionPhase: "green",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }))).toThrow("createdAt");
     validCreatedAt = true;
     const corrected = coordinator.processObservation(19, observation(2, {
       gameId: "f1-2025",
       sessionPhase: "green",
       nativeRaceControlCode: 1,
+      raceControlEvidence: "authoritative",
     }));
 
     expect(corrected.events.map(({ eventType }) => eventType)).toContain("caution_ended");

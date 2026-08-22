@@ -1,4 +1,8 @@
 import { resolve } from "node:path";
+import type {
+  DerivationMissingDataPolicy,
+  MappingInputRequirement,
+} from "../../shared/telemetry/derivations/contracts";
 
 // Shared catalog model and generator configuration.
 // Keep path resolution anchored to repository root after this module moves under scripts/catalog.
@@ -77,8 +81,12 @@ interface MappingExecution {
   version: string;
   codeHash: string;
   deterministic: boolean;
-  declaredInputs: readonly string[];
-  missingDataPolicy: "propagate-missing" | "drop-missing" | "require-all";
+  inputs: readonly string[] | readonly MappingInputRequirement[];
+  missingDataPolicy:
+    | "propagate-missing"
+    | "drop-missing"
+    | "require-all"
+    | DerivationMissingDataPolicy;
 }
 
 interface MappingProvenance {
@@ -165,7 +173,7 @@ interface CatalogMetadata {
 }
 
 export interface BuiltTelemetryCatalog {
-  format: "raceiq-semantic-telemetry-catalog-v7";
+  format: "raceiq-semantic-telemetry-catalog-v8";
   metadata: CatalogMetadata;
   generatedFrom: readonly string[];
   groups: readonly CatalogGroup[];
@@ -217,6 +225,7 @@ interface SemanticDefinition {
   ordering?: readonly string[];
   range?: { min: number; max: number };
   enumDomain?: readonly string[];
+  structuredSchema?: StructuredValueSchema;
   limitations?: readonly string[];
 }
 
@@ -291,8 +300,8 @@ const PACKAGE_VERSION = JSON.parse(
   await Bun.file(PACKAGE_JSON_PATH).text(),
 ).version as string;
 const GENERATOR_NAME = "RaceIQ telemetry-catalog generator";
-const CATALOG_FORMAT = "raceiq-semantic-telemetry-catalog-v7";
-const CATALOG_SCHEMA_VERSION = "v7";
+const CATALOG_FORMAT = "raceiq-semantic-telemetry-catalog-v8";
+const CATALOG_SCHEMA_VERSION = "v8";
 const DERIVATION_VERSION = `${PACKAGE_VERSION}`;
 
 const PARSER_FILES: Record<GameId, string> = {

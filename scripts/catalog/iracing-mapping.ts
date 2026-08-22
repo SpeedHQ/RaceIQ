@@ -111,6 +111,8 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   LapLastNLapTime: "timing.n-lap-average.current-time",
   LoadNumTextures: "diagnostics.car-number-texture-loading",
   LapDistPct: "timing.lap-fraction",
+  SessionFlags: "session.session-flags",
+  SessionState: "session.session-state",
   PlayerCarIdx: "identity.player-car-index",
   PlayerCarClass: "identity.player-car-class-id",
   PlayerCarClassPosition: "race.player-class-position",

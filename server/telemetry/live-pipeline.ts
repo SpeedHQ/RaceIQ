@@ -52,6 +52,11 @@ import { wsManager } from "../runtime/websocket-manager";
 import { enqueueCanonicalArchiveForSession } from "../session-capture/canonical-archive";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { RaceEventCoordinator } from "../race-events/coordinator";
+import {
+  applyRaceEventSemanticProjection,
+  RaceEventSemanticProjector,
+} from "../race-events/semantic-projector";
+
 import type { RaceEventPreflightResult } from "../race-events/types";
 import { compareRaceEvents, DatabaseRaceEventStore, MemoryRaceEventStore, type RaceEventLapLink, type RaceEventStore } from "../race-events/store";
 import type { SessionBoundaryReason } from "../lap-detection/boundaries";
@@ -138,6 +143,8 @@ export class LiveTelemetryPipeline {
   private readonly _sourceArchiveVerification?: ArchiveVerification;
   private readonly _sourceTransportVerification?: ArchiveVerification;
   private projector = new LiveTelemetryProjector();
+  private raceEventSemanticProjector = new RaceEventSemanticProjector();
+
   private _sessionLaps: LapMeta[] = [];
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
@@ -198,7 +205,10 @@ export class LiveTelemetryPipeline {
         return;
       }
       this._recordingQuality?.noteSourceLifecycle(event);
-      if (event.kind === "reconnect") this._timelineSourceSequence.markDiscontinuity();
+      if (event.kind === "reconnect") {
+        this._timelineSourceSequence.markDiscontinuity();
+        this.raceEventSemanticProjector.resetSourceState();
+      }
       await this._persistTimelineEvents(this.raceEvents.noteSourceLifecycle(event, source?.sessionId));
     });
   }
@@ -567,14 +577,17 @@ export class LiveTelemetryPipeline {
     return finalization;
   }
 
-  private async _closeRecordedSession(session: RecordingSessionState): Promise<ClosedRecordingSession | null> {
+  private async _closeRecordedSession(
+    session: RecordingSessionState,
+    resetSemanticSourceState = true,
+  ): Promise<ClosedRecordingSession | null> {
     if (this._recordingSession?.sessionId !== session.sessionId) return null;
 
     const qualityAccumulator = this._recordingQuality;
     const closureEvents = this.raceEvents.noteSourceSequenceFinalized(this._timelineSourceSequence.finalize());
     this._recordingSession = null;
+    if (resetSemanticSourceState) this.raceEventSemanticProjector.resetSourceState();
     this._recordingQuality = null;
-
     let recorderVerification: ArchiveVerification;
     try {
       recorderVerification = await this.recorder.stop();
@@ -767,7 +780,9 @@ export class LiveTelemetryPipeline {
       onSessionStart: async (session, context) => {
         const closedPrevious = await withSessionCaptureMaintenanceLock(async () => {
           const previousSession = this._recordingSession;
-          const closed = previousSession ? await this._closeRecordedSession(previousSession) : (await this.recorder.stop(), null);
+          const closed = previousSession
+            ? await this._closeRecordedSession(previousSession, false)
+            : (await this.recorder.stop(), null);
           const analysisAttempt = this._onSessionAnalysisStarted
             ? await this._onSessionAnalysisStarted(session.sessionId, session.gameId)
             : null;
@@ -805,12 +820,22 @@ export class LiveTelemetryPipeline {
           this._timelineSourceSequence = new SourceSequenceTracker();
           this._timelineSourceSequence.observe(context.packet, this._pendingTimelinePreflight?.observation.sourceSequences ?? []);
         }
-        const observation =
-          this._pendingTimelinePreflight?.observation ??
-          getServerGame(session.gameId).toRaceEventObservation(context.packet, {
-            receivedAtMs: Date.now(),
-            sourceSequences: [],
-          });
+        let observation = this._pendingTimelinePreflight?.observation;
+        if (observation === undefined) {
+          const receivedAtMs = Date.now();
+          const semantic = this.raceEventSemanticProjector.project(
+            context.packet,
+            receivedAtMs,
+          );
+          observation = applyRaceEventSemanticProjection(
+            getServerGame(session.gameId).toRaceEventObservation(context.packet, {
+              receivedAtMs,
+              sourceSequences: [],
+              semantic,
+            }),
+            semantic,
+          );
+        }
         this.raceEvents.bindSession(session.sessionId, {
           reason: context.reason,
           observation,
@@ -1161,9 +1186,17 @@ export class LiveTelemetryPipeline {
     const sourceSequenceTracker = this._timelineSourceSequence;
     const sourceSequenceCheckpoint = sourceSequenceTracker.checkpoint();
     const sequenceEvidence = sourceSequenceTracker.observe(packet, sourceSequences);
-    const observation = adapter.toRaceEventObservation(packet, { receivedAtMs, sourceSequences });
+    const sessionBoundary = this._timelineSessionBoundary(packet);
+    if (sessionBoundary.sessionBoundaryReason !== undefined) {
+      this.raceEventSemanticProjector.resetSourceState();
+    }
+    const semantic = this.raceEventSemanticProjector.project(packet, receivedAtMs);
+    const observation = applyRaceEventSemanticProjection(
+      adapter.toRaceEventObservation(packet, { receivedAtMs, sourceSequences, semantic }),
+      semantic,
+    );
     const preflight = this.raceEvents.preflight(observation, {
-      ...this._timelineSessionBoundary(packet),
+      ...sessionBoundary,
       sourceSequenceBoundaries: sequenceEvidence.boundaries,
       sourceSequenceGapCandidates: sequenceEvidence.gapCandidates,
     });

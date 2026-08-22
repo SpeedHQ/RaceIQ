@@ -1,7 +1,12 @@
 // Derived sector and cross-source catalog projections.
 
+import {
+  GAME_RACE_EVENT_DERIVATIONS,
+  getGameRaceEventDerivation,
+} from "../../server/games/race-event-derivations";
 import { GAME_IDS } from "./model";
 import type {
+  AvailableLink,
   CatalogGroup,
   CatalogVariable,
   GameId,
@@ -14,6 +19,83 @@ import {
   unavailableGames,
 } from "./extension-mapping";
 import { unavailable } from "./ast-discovery";
+
+function raceEventDerivedLink(
+  gameId: GameId,
+  semanticId: string,
+  nativeUnit: string,
+  sources: string[],
+  normalization: string,
+  description: string,
+  freshness: AvailableLink["freshness"] = "continuous",
+): AvailableLink {
+  const derivation = getGameRaceEventDerivation(gameId, semanticId);
+  if (!derivation) {
+    throw new Error(
+      `Missing runtime race-event derivation ${gameId}:${semanticId}`,
+    );
+  }
+  return {
+    kind: "derived",
+    nativeUnit,
+    sources,
+    freshness,
+    normalization,
+    description,
+    provenance: {
+      origin: "derivation",
+      artifact: GAME_RACE_EVENT_DERIVATIONS[gameId].artifact,
+    },
+    execution: {
+      kind: "derivation",
+      id: derivation.id,
+      version: derivation.version,
+      codeHash: derivation.codeHash,
+      deterministic: derivation.deterministic,
+      inputs: derivation.inputs,
+      missingDataPolicy: derivation.missingDataPolicy,
+    },
+  };
+}
+
+function completeRaceEventRawSources(
+  variables: ReadonlyMap<string, CatalogVariable>,
+): void {
+  for (const gameId of GAME_IDS) {
+    for (const derivation of GAME_RACE_EVENT_DERIVATIONS[gameId].derivations) {
+      const target = variables.get(derivation.output.semanticId)?.games[gameId];
+      if (!target || target.kind !== "derived") {
+        throw new Error(
+          `Missing race-event catalog mapping ${gameId}:${derivation.output.semanticId}`,
+        );
+      }
+      if (!Array.isArray(target.sources)) {
+        throw new Error(
+          `Race-event mapping ${gameId}:${derivation.output.semanticId} must use scalar sources`,
+        );
+      }
+      for (const input of derivation.inputs) {
+        const dependency = variables.get(input.semanticId)?.games[gameId];
+        if (!dependency || dependency.kind === "unavailable") {
+          if (input.required) {
+            throw new Error(
+              `Missing required race-event input ${gameId}:${input.semanticId}`,
+            );
+          }
+          continue;
+        }
+        const dependencySources = Array.isArray(dependency.sources)
+          ? dependency.sources
+          : Object.values(dependency.sources).flat();
+        for (const source of dependencySources) {
+          if (!target.sources.includes(source)) {
+            target.sources.push(source);
+          }
+        }
+      }
+    }
+  }
+}
 
 export
 function addSectorDerivedVariables(
@@ -295,8 +377,50 @@ function addSectorDerivedVariables(
   }
 }
 
-export
-function addCrossSourceProjections(
+export function addRaceEventSemanticProjections(
+  variables: Map<string, CatalogVariable>,
+  groups: Map<string, CatalogGroup>,
+): void {
+  const unavailable = unavailableGames(
+    "Simulator does not provide source telemetry for this canonical race-event semantic.",
+  );
+  addDefinedVariable(variables, groups, "race.control.phase", {
+    ...unavailable,
+    acc: raceEventDerivedLink("acc", "race.control.phase", "enum", ["acc.flagStatus", "TelemetryPacket.IsRaceOn"], "ACC race-event semantic derivation", "ACC flag-status projection."),
+    "ac-evo": raceEventDerivedLink("ac-evo", "race.control.phase", "enum", ["acc.flagStatus", "TelemetryPacket.IsRaceOn"], "AC Evo race-event semantic derivation", "AC Evo flag-status projection."),
+    "f1-2025": raceEventDerivedLink("f1-2025", "race.control.phase", "enum", ["f1.resultSource", "f1.resultStatus", "f1.safetyCarStatus", "f1.vehicleFIAFlags"], "F1 race-event semantic derivation", "F1 result and race-control projection."),
+    iracing: raceEventDerivedLink("iracing", "race.control.phase", "enum", ["iRacing.SessionFlags", "iRacing.SessionState"], "iRacing race-event semantic derivation", "iRacing session race-control projection."),
+  });
+  addDefinedVariable(variables, groups, "race.control.caution-kind", {
+    ...unavailable,
+    acc: raceEventDerivedLink("acc", "race.control.caution-kind", "enum", ["acc.flagStatus"], "ACC race-event semantic derivation", "ACC flag-status projection."),
+    "ac-evo": raceEventDerivedLink("ac-evo", "race.control.caution-kind", "enum", ["acc.flagStatus"], "AC Evo race-event semantic derivation", "AC Evo flag-status projection."),
+    "f1-2025": raceEventDerivedLink("f1-2025", "race.control.caution-kind", "enum", ["f1.safetyCarStatus", "f1.vehicleFIAFlags"], "F1 race-event semantic derivation", "F1 safety-car and flag projection."),
+    iracing: raceEventDerivedLink("iracing", "race.control.caution-kind", "enum", ["iRacing.SessionFlags", "iRacing.SessionState"], "iRacing race-event semantic derivation", "iRacing session race-control projection."),
+  });
+  addDefinedVariable(variables, groups, "race.player.pit-state", {
+    ...unavailable,
+    acc: raceEventDerivedLink("acc", "race.player.pit-state", "enum", ["acc.pitStatus"], "ACC race-event semantic derivation", "ACC player pit-status projection."),
+    "ac-evo": raceEventDerivedLink("ac-evo", "race.player.pit-state", "enum", ["acc.pitStatus"], "AC Evo race-event semantic derivation", "AC Evo player pit-status projection."),
+    "f1-2025": raceEventDerivedLink("f1-2025", "race.player.pit-state", "enum", ["f1.pitStatus"], "F1 race-event semantic derivation", "F1 player pit-status projection."),
+    iracing: raceEventDerivedLink("iracing", "race.player.pit-state", "enum", ["iRacing.OnPitRoad", "iRacing.PlayerCarInPitStall"], "iRacing race-event semantic derivation", "iRacing player pit-state projection."),
+  });
+  addDefinedVariable(variables, groups, "race.pit-service.lifecycle-status", {
+    ...unavailable,
+    iracing: raceEventDerivedLink("iracing", "race.pit-service.lifecycle-status", "enum", ["iRacing.PlayerCarPitSvStatus"], "iRacing race-event semantic derivation", "iRacing pit-service lifecycle projection."),
+  });
+  addDefinedVariable(variables, groups, "race.pit-service.tire-change-counts", {
+    ...unavailable,
+    iracing: raceEventDerivedLink("iracing", "race.pit-service.tire-change-counts", "count", ["iRacing.TireSetsUsed"], "iRacing race-event semantic derivation", "iRacing full-set tire-use projection; each native increment represents four tires.", "pit-snapshot"),
+  });
+  addDefinedVariable(variables, groups, "race.pit-service.repair-time-remaining", {
+    ...unavailable,
+    iracing: raceEventDerivedLink("iracing", "race.pit-service.repair-time-remaining", "s", ["iRacing.PitRepairLeft", "iRacing.PitOptRepairLeft"], "iRacing race-event semantic derivation", "iRacing mandatory and optional repair countdown projection."),
+  });
+  completeRaceEventRawSources(variables);
+}
+
+export function addCrossSourceProjections(
   variables: Map<string, CatalogVariable>,
   groups: Map<string, CatalogGroup>,
 ): void {
