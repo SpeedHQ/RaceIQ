@@ -139,6 +139,7 @@ export function ChatPanelThread({
         <Thread components={components} inputDisabled={compacting || readOnly || inputDisabled} onRegenerate={readOnly ? undefined : onRegenerate} />
       </div>
       <TokenUsageFooter
+        headers={headers}
         compactThreadId={compactThreadId}
         historyQueryKey={historyQueryKey}
         compacting={compacting}

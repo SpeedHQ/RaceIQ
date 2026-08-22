@@ -10,6 +10,7 @@ import {
   CHAT_RESOURCE_ID,
   getMastraModelId,
   parseThreadGeneration,
+  isCanonicalThreadId,
   generationThreadId,
 } from "./chat-agent";
 import { loadSettings } from "../runtime/config/settings";
@@ -29,6 +30,13 @@ export class NothingToCompactError extends Error {
   constructor(message = "Not enough conversation to compact yet") {
     super(message);
     this.name = "NothingToCompactError";
+  }
+}
+
+export class InvalidThreadGenerationError extends Error {
+  constructor(message = "Invalid chat thread generation") {
+    super(message);
+    this.name = "InvalidThreadGenerationError";
   }
 }
 
@@ -114,6 +122,9 @@ export async function forkThreadWithSummary(
   threadId: string,
   deps: CompactDeps = {},
 ): Promise<{ parentThreadId: string; newThreadId: string; generation: number; summary: string }> {
+  if (!isCanonicalThreadId(threadId)) {
+    throw new InvalidThreadGenerationError();
+  }
   const memory = deps.memory ?? getChatMemory();
   const summarize = deps.summarize ?? defaultSummarize;
 

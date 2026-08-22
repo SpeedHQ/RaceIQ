@@ -8,10 +8,9 @@ import {
 } from "../../../shared/racing/quality/contracts";
 import { evaluateAllEligibility } from "../../../shared/racing/quality/policies";
 import {
-  lapFindingGenerationCacheKey,
-  type FindingGenerationCacheKey,
   type QualityCacheIdentity,
 } from "../../../server/db/analysis-queries";
+import type { FindingGenerationExpectation, StoredFindingGeneration } from "../../../server/findings/store";
 import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
@@ -29,14 +28,29 @@ const validAnalysis = JSON.stringify({
 
 const QUALITY_GENERATION = `sha256:${"a".repeat(64)}`;
 const QUALITY_SOURCE_GENERATION = `sha256:${"b".repeat(64)}`;
-const FINDING_GENERATION = {
+const FINDING_GENERATION: StoredFindingGeneration = {
+  scope: {
+    kind: "lap",
+    gameId: "fm-2023",
+    sessionId: "17",
+    lapId: "7",
+  },
   receipt: {
     generationId: `sha256:${"c".repeat(64)}`,
+    sourceId: "test-source",
+    rule: { id: "test-rule", version: "1" },
+    config: {},
+    schemaVersion: "1",
+    status: "current",
+    findingCount: 0,
+    availableCount: 0,
+    unavailableCount: 0,
+    indeterminateCount: 0,
     contentHash: `sha256:${"d".repeat(64)}`,
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
   findings: [],
 };
-const FINDING_GENERATION_KEY = lapFindingGenerationCacheKey(FINDING_GENERATION.receipt);
 
 function currentQuality(generation: string): LapQualitySummary {
   const measured = summarize(qualityPackets(100));
@@ -56,6 +70,7 @@ function currentQuality(generation: string): LapQualitySummary {
 const quality = currentQuality(QUALITY_GENERATION);
 const lap = {
   id: 7,
+  sessionId: 17,
   lapTime: 91.2,
   gameId: "fm-2023" as const,
   trackOrdinal: 1,
@@ -84,20 +99,20 @@ function makeDeps(
     generated?: string;
     generateError?: Error;
     onGenerate?: () => void;
-    onSave?: (analysis: string, identity: QualityCacheIdentity, findingKey: FindingGenerationCacheKey) => void;
+    onSave?: (analysis: string, identity: QualityCacheIdentity, findingExpectation: FindingGenerationExpectation) => void;
   } = {},
 ): GenerateLapAnalysisDeps & {
   generateCalls: number;
   saves: string[];
   saveIdentities: QualityCacheIdentity[];
-  readFindingKeys: FindingGenerationCacheKey[];
-  saveFindingKeys: FindingGenerationCacheKey[];
+  readFindingKeys: FindingGenerationExpectation[];
+  saveFindingKeys: FindingGenerationExpectation[];
 } {
   let generateCalls = 0;
   const saves: string[] = [];
   const saveIdentities: QualityCacheIdentity[] = [];
-  const readFindingKeys: FindingGenerationCacheKey[] = [];
-  const saveFindingKeys: FindingGenerationCacheKey[] = [];
+  const readFindingKeys: FindingGenerationExpectation[] = [];
+  const saveFindingKeys: FindingGenerationExpectation[] = [];
   let cached = options.cached
     ? {
         analysis: options.cached,
@@ -112,8 +127,8 @@ function makeDeps(
     generateCalls: number;
     saves: string[];
     saveIdentities: QualityCacheIdentity[];
-    readFindingKeys: FindingGenerationCacheKey[];
-    saveFindingKeys: FindingGenerationCacheKey[];
+    readFindingKeys: FindingGenerationExpectation[];
+    saveFindingKeys: FindingGenerationExpectation[];
   } = {
     generateCalls,
     saves,
@@ -123,16 +138,16 @@ function makeDeps(
     getLapById: async () => lap as never,
     getCorners: async () => [],
     detectCorners: () => [],
-    getAnalysis: async (_lapId, findingKey) => {
-      readFindingKeys.push(findingKey);
+    getAnalysis: async (_lapId, findingExpectation) => {
+      readFindingKeys.push(findingExpectation);
       return cached;
     },
-    getCurrentFindingGeneration: async () => FINDING_GENERATION as never,
-    saveAnalysis: async (_lapId, analysis, _usage, identity, findingKey) => {
+    getCurrentFindingGeneration: async () => FINDING_GENERATION,
+    saveAnalysis: async (_lapId, analysis, _usage, identity, findingExpectation) => {
       saves.push(analysis);
       saveIdentities.push(identity);
-      saveFindingKeys.push(findingKey);
-      options.onSave?.(analysis, identity, findingKey);
+      saveFindingKeys.push(findingExpectation);
+      options.onSave?.(analysis, identity, findingExpectation);
       cached = {
         analysis,
         inputTokens: 1,
@@ -194,7 +209,7 @@ describe("generateLapAnalysis", () => {
     expect(result.cached).toBe(true);
     expect(result.analysis).toBe(validAnalysis);
     expect(deps.generateCalls).toBe(0);
-    expect(deps.readFindingKeys).toEqual([FINDING_GENERATION_KEY]);
+    expect(deps.readFindingKeys).toMatchObject([{ generationId: FINDING_GENERATION.receipt.generationId, contentHash: FINDING_GENERATION.receipt.contentHash }]);
   });
 
   test("returns missing lap error", async () => {
@@ -314,7 +329,7 @@ describe("generateLapAnalysis", () => {
         policyVersion: "1",
       },
     ]);
-    expect(deps.saveFindingKeys).toEqual([FINDING_GENERATION_KEY]);
+    expect(deps.saveFindingKeys).toMatchObject([{ generationId: FINDING_GENERATION.receipt.generationId, contentHash: FINDING_GENERATION.receipt.contentHash }]);
   });
 
   test("rejects model output when save reports a stale prompt identity", async () => {
@@ -333,14 +348,14 @@ describe("generateLapAnalysis", () => {
     deps.getCurrentFindingGeneration = async () => {
       readCount++;
       return readCount === 1
-        ? FINDING_GENERATION as never
-        : ({
+        ? FINDING_GENERATION
+        : {
+            ...FINDING_GENERATION,
             receipt: {
+              ...FINDING_GENERATION.receipt,
               generationId: `sha256:${"e".repeat(64)}`,
-              contentHash: FINDING_GENERATION.receipt.contentHash,
             },
-            findings: [],
-          } as never);
+          };
     };
 
     const result = await generateLapAnalysis(7, { regenerate: true }, deps);
@@ -360,7 +375,11 @@ describe("generateLapAnalysis", () => {
 
     expect(result.error).toBe("provider unavailable");
     expect(deps.saves).toHaveLength(0);
-    expect((await deps.getAnalysis!(7, FINDING_GENERATION_KEY))?.analysis).toBe(validAnalysis);
+    expect((await deps.getAnalysis!(7, {
+      scope: { kind: "lap", gameId: "fm-2023", sessionId: "17", lapId: "7" },
+      generationId: FINDING_GENERATION.receipt.generationId,
+      contentHash: FINDING_GENERATION.receipt.contentHash,
+    }))?.analysis).toBe(validAnalysis);
   });
 });
 

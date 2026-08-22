@@ -33,8 +33,15 @@ export const ChatHistoryQuerySchema = z.object({
     .string()
     .regex(/^[1-9]\d*$/)
     .transform(Number)
+    .pipe(z.number().finite().int().positive().safe())
     .optional(),
 });
+
+export const FindingGenerationBackfilling = {
+  error: "Finding generation is backfilling",
+  status: "backfilling" as const,
+  retryable: true,
+};
 
 
 export const BulkDeleteSchema = z.object({

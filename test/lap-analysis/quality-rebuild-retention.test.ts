@@ -248,6 +248,10 @@ describe("quality rebuild detector identity", () => {
     expect(status.rawAvailable).toBe(true);
     expect(status.currentDetectorId).toBeNull();
     expect(status.stale.detector).toBe(true);
+    expect(status.analysisStatus).toMatchObject({
+      status: "stale_source_missing",
+      staleReasons: ["source_unavailable"],
+    });
   });
 
   test("does not hide detector staleness behind a policy-only rebuild", async () => {

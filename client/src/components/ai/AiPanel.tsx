@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import type { GameId } from "@shared/games/ids";
 import { toPng } from "html-to-image";
 import { Sparkles } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
@@ -9,6 +10,7 @@ import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "@/l
 import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured";
 import { resolveCssColor } from "@/lib/rendering/css-values";
 import { client } from "@/lib/rpc";
+import { rpcJson } from "@/lib/rpc-json";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
 import { LapAnalysisText } from "../ai-chat/LapAnalysisText";
@@ -50,6 +52,7 @@ function safeParseAnalysis(raw: string): AnalysisData | null {
 
 export interface AiPanelProps {
   lapId: number;
+  gameId: GameId;
   qualityStateKey: string;
   carName: string;
   trackName: string;
@@ -59,28 +62,45 @@ export interface AiPanelProps {
   onHighlightsChange?: (highlights: AnalysisHighlight[]) => void;
   panelOpen?: boolean;
 }
+async function rpcJsonAfterFindingBackfill<T>(request: () => Promise<Response>): Promise<T> {
+  const response = await request();
+  const pending = response.status === 409 ? ((await response.clone().json().catch(() => null)) as { status?: string; retryable?: boolean } | null) : null;
+  try {
+    return await rpcJson<T>(response);
+  } catch (error) {
+    if (pending?.status === "backfilling" && pending.retryable === true && error instanceof Error) {
+      Object.assign(error, { statusCode: 409, retryable: true, pendingStatus: "backfilling" });
+    }
+    throw error;
+  }
+}
 
-async function fetchLapChatHistory(lapId: number, gen?: number): Promise<ChatHistoryResult> {
-  const url = gen === undefined ? `/api/laps/${lapId}/chat` : `/api/laps/${lapId}/chat?gen=${gen}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
-  const data = (await res.json()) as { messages?: UIMessage[]; threadId?: string | null };
+async function fetchLapChatHistory(lapId: number, gameId: GameId, gen?: number): Promise<ChatHistoryResult> {
+  const data = await rpcJsonAfterFindingBackfill<{ messages?: UIMessage[]; threadId?: string | null }>(() =>
+    client.api.laps[":id"].chat.$get(
+      { param: { id: String(lapId) }, query: gen === undefined ? {} : { gen: String(gen) } },
+      { headers: { "X-Game-Id": gameId } },
+    ),
+  );
   return {
     messages: (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant"),
     threadId: data.threadId,
   };
 }
-
 export interface AiPanelHandle {
   clearChat: () => void;
   clearAnalysis: () => void;
   clearAll: () => void;
 }
+type AnalysisRequest = {
+  identity: string;
+  sequence: number;
+};
 
 // ── Main component ───────────────────────────────────────────
 
 export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
-  { lapId, qualityStateKey, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false },
+  { lapId, gameId, qualityStateKey, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false },
   ref,
 ) {
   const { displaySettings } = useSettings();
@@ -95,6 +115,37 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [cornerFracs, setCornerFracs] = useState<Segment[]>([]);
   const [hasTune, setHasTune] = useState(false);
   const analysisRef = useRef<HTMLDivElement>(null);
+  const requestIdentity = `${lapId}:${gameId ?? ""}:${qualityStateKey}`;
+  const requestIdentityRef = useRef(requestIdentity);
+  requestIdentityRef.current = requestIdentity;
+  const requestSequenceRef = useRef(0);
+  const mountedRef = useRef(true);
+  const beginAnalysisRequest = useCallback((): AnalysisRequest => {
+    const request = { identity: requestIdentity, sequence: requestSequenceRef.current + 1 };
+    requestSequenceRef.current = request.sequence;
+    return request;
+  }, [requestIdentity]);
+  const isCurrentAnalysisRequest = useCallback(
+    (request: AnalysisRequest) =>
+      mountedRef.current &&
+      request.identity === requestIdentityRef.current &&
+      request.sequence === requestSequenceRef.current,
+    [],
+  );
+  const isCurrentIdentity = useCallback(
+    (identity = requestIdentity) => mountedRef.current && identity === requestIdentityRef.current,
+    [requestIdentity],
+  );
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestSequenceRef.current += 1;
+    };
+  }, []);
+  useEffect(() => {
+    requestSequenceRef.current += 1;
+  }, [requestIdentity]);
 
   // Same live-status pair for the analyse flow (separate from chat — chat now
   // lives in the shared ChatPanel component and streams via assistant-ui).
@@ -112,37 +163,47 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       clearChat: () => {
         // Clear persisted chat only (keeps analysis), then remount ChatPanel
         // so it re-seeds from the now-empty thread.
-        fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
+        client.api.laps[":id"].chat.$delete({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId } })
           .catch(() => {})
           .finally(() => setChatRemountKey((k) => k + 1));
       },
       clearAnalysis: () => {
+        if (!isCurrentIdentity()) return;
+        const request = beginAnalysisRequest();
         setAnalysis(null);
         setUsage(null);
         setError(null);
         setHasTune(false);
         setAnalysisOpen(false);
         onHighlightsChange?.([]);
-        void fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" })
+        void client.api.laps[":id"].analyse.$delete(
+          { param: { id: String(lapId) } },
+          { headers: { "X-Game-Id": gameId } },
+        )
           .then((res) => {
+            if (!isCurrentAnalysisRequest(request)) return;
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
           })
           .catch((err: unknown) => {
-            setError(err instanceof Error ? err.message : "Failed to delete analysis");
+            if (isCurrentAnalysisRequest(request)) setError(err instanceof Error ? err.message : "Failed to delete analysis");
           });
       },
       clearAll: () => {
+        if (!isCurrentIdentity()) return;
+        const request = beginAnalysisRequest();
         setAnalysis(null);
         setUsage(null);
         setError(null);
         setHasTune(false);
         onHighlightsChange?.([]);
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+        client.api.laps[":id"].chat.$delete({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId } })
           .catch(() => {})
-          .finally(() => setChatRemountKey((k) => k + 1));
+          .finally(() => {
+            if (isCurrentAnalysisRequest(request)) setChatRemountKey((k) => k + 1);
+          });
       },
     }),
-    [lapId, onHighlightsChange],
+    [beginAnalysisRequest, gameId, isCurrentAnalysisRequest, isCurrentIdentity, lapId, onHighlightsChange],
   );
 
   // Fetch analysis.
@@ -152,20 +213,28 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   // model works — same protocol as the chat flow.
   const fetchAnalysis = useCallback(
     async (regenerate = false) => {
+      const request = beginAnalysisRequest();
+      if (!isCurrentAnalysisRequest(request)) return;
       setLoading(true);
       setError(null);
       setAnalyseStatus(null);
       setAnalyseTool(null);
       try {
-        const res = await fetch(`/api/laps/${lapId}/analyse${regenerate ? "?regenerate=true" : ""}`, { method: "POST" });
+        const res = await client.api.laps[":id"].analyse.$post(
+          { param: { id: String(lapId) }, query: regenerate ? { regenerate: "true" } : {} },
+          { headers: { "X-Game-Id": gameId } },
+        );
+        if (!isCurrentAnalysisRequest(request)) return;
         if (!res.ok) {
           const data = (await res.json().catch(() => ({ error: m.aipanel_unknown_error() }))) as { error?: string };
+          if (!isCurrentAnalysisRequest(request)) return;
           throw new Error(data.error || `HTTP ${res.status}`);
         }
 
         // Apply one analysis payload (analysis JSON + usage + cornerFracs) —
         // shared by cached-JSON and streamed-NDJSON code paths.
         const apply = (data: { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean }) => {
+          if (!isCurrentAnalysisRequest(request)) return;
           // Empty string = model produced no text (e.g. it burned through
           // maxSteps calling tools without finalising). Treat as error.
           if (typeof data.analysis === "string" && data.analysis.trim().length === 0) {
@@ -208,6 +277,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             const seg = findSegment(searchSegs, item.corner);
             if (seg) hl.push({ startFrac: seg.startFrac, endFrac: seg.endFrac, color: item.assessment, label: item.corner });
           }
+          if (!isCurrentAnalysisRequest(request)) return;
           if (hl.length > 0) onHighlightsChange?.(hl);
 
           onAnalysisLoaded?.();
@@ -220,6 +290,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           // (or `error`) at the end. No intermediate UI.
           let resolved = false;
           await readChatStream(res, (event) => {
+            if (!isCurrentAnalysisRequest(request)) return;
             switch (event.type) {
               case "ping":
               case "done":
@@ -241,6 +312,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               }
             }
           });
+          if (!isCurrentAnalysisRequest(request)) return;
           if (!resolved) throw new Error(m.aipanel_stream_no_result());
         } else {
           const data = (await res.json()) as {
@@ -249,26 +321,33 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             cornerFracs?: { label: string; startFrac: number; endFrac: number }[];
             hasTune?: boolean;
           };
+          if (!isCurrentAnalysisRequest(request)) return;
           apply(data);
         }
       } catch (err: unknown) {
+        if (!isCurrentAnalysisRequest(request)) return;
         setError(toErrorMessage(err));
       } finally {
-        setLoading(false);
-        setAnalyseStatus(null);
-        setAnalyseTool(null);
+        if (isCurrentAnalysisRequest(request)) {
+          setLoading(false);
+          setAnalyseStatus(null);
+          setAnalyseTool(null);
+        }
       }
     },
-    [lapId, onAnalysisLoaded, segments, onHighlightsChange],
+    [beginAnalysisRequest, gameId, isCurrentAnalysisRequest, lapId, onAnalysisLoaded, segments, onHighlightsChange, qualityStateKey],
   );
 
   // Load cached analysis (no AI call — returns null if not cached)
   const loadCachedAnalysis = useCallback(async () => {
+    const request = beginAnalysisRequest();
+    if (!isCurrentAnalysisRequest(request)) return;
     try {
-      const res = await client.api.laps[":id"].analyse.$post({
-        param: { id: String(lapId) },
-        query: { cacheOnly: "true" },
-      });
+      const res = await client.api.laps[":id"].analyse.$post(
+        { param: { id: String(lapId) }, query: { cacheOnly: "true" } },
+        { headers: { "X-Game-Id": gameId } },
+      );
+      if (!isCurrentAnalysisRequest(request)) return;
       if (!res.ok) return;
       const data = (await res.json()) as {
         analysis: string | object | null;
@@ -277,6 +356,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         cornerFracs?: { label: string; startFrac: number; endFrac: number }[];
         hasTune?: boolean;
       };
+      if (!isCurrentAnalysisRequest(request)) return;
       if (!data.cached) return;
       const parsed = (typeof data.analysis === "string" ? safeParseAnalysis(data.analysis) : data.analysis) as AnalysisData | null;
       setAnalysis(parsed);
@@ -293,7 +373,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       }
       setHasTune(!!data.hasTune);
     } catch {}
-  }, [lapId, qualityStateKey]);
+  }, [beginAnalysisRequest, gameId, isCurrentAnalysisRequest, lapId, qualityStateKey]);
 
   // Load cached analysis on open
   useEffect(() => {
@@ -303,30 +383,41 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   useEffect(() => {
     if (!panelOpen) return;
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    const identity = requestIdentity;
+    let timer: number | undefined;
     const poll = async () => {
       try {
-        const res = await fetch(`/api/laps/${lapId}/analyse/status`);
+        const res = await client.api.laps[":id"].analyse.status.$get(
+          { param: { id: String(lapId) } },
+          { headers: { "X-Game-Id": gameId } },
+        );
+        if (cancelled || !isCurrentIdentity(identity)) return;
         const status = (await res.json()) as { status?: "none" | "active" | "finished" | "failed"; error?: string };
-        if (cancelled) return;
+        if (cancelled || !isCurrentIdentity(identity)) return;
         if (status.status === "active") {
           setLoading(true);
-          timer = setTimeout(() => void poll(), 1500);
+          timer = window.setTimeout(() => void poll(), 1500);
         } else {
           if (status.status === "failed") setError(status.error ?? m.aipanel_unknown_error());
-          if (status.status === "finished") await loadCachedAnalysis();
+          if (status.status === "finished") {
+            await loadCachedAnalysis();
+            if (cancelled || !isCurrentIdentity(identity)) return;
+          }
           setLoading(false);
         }
+        if (!cancelled && isCurrentIdentity(identity)) timer = window.setTimeout(() => void poll(), 3000);
       } catch {
-        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+        if (!cancelled && isCurrentIdentity(identity)) {
+          timer = window.setTimeout(() => void poll(), 3000);
+        }
       }
     };
     void poll();
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [lapId, panelOpen, loadCachedAnalysis, qualityStateKey]);
+  }, [gameId, isCurrentIdentity, lapId, loadCachedAnalysis, panelOpen, qualityStateKey, requestIdentity]);
 
   // Reset lap-scoped display state before loading the next cached result.
   useEffect(() => {
@@ -334,11 +425,12 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     setUsage(null);
     setError(null);
     setCornerFracs([]);
+    setAnalysisDeleting(false);
     setHasTune(false);
     setAnalysisOpen(false);
     setModalTab("analysis");
     onHighlightsChange?.([]);
-  }, [lapId, onHighlightsChange, qualityStateKey]);
+  }, [onHighlightsChange, requestIdentity]);
 
   // Export analysis as image
   const handleExport = useCallback(async () => {
@@ -363,10 +455,13 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   }, [carName, trackName]);
 
   const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
+    client.api.laps[":id"].chat.$delete(
+      { param: { id: String(lapId) } },
+      { headers: { "X-Game-Id": gameId } },
+    )
       .catch(() => {})
       .finally(() => setChatRemountKey((k) => k + 1));
-  }, [lapId]);
+  }, [gameId, lapId]);
 
   const configureAi = useCallback(() => openSettings("ai"), [openSettings]);
   const runAnalysis = useCallback((regenerate = false) => launchAiFeature(aiConfigured, () => void fetchAnalysis(regenerate), configureAi), [aiConfigured, configureAi, fetchAnalysis]);
@@ -384,9 +479,15 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   );
   const deleteAnalysis = useCallback(async () => {
     if (analysisDeleting || loading || !window.confirm(m.analysis_delete_lap_confirm())) return;
+    if (!isCurrentIdentity()) return;
+    const request = beginAnalysisRequest();
     setAnalysisDeleting(true);
     try {
-      const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
+      const res = await client.api.laps[":id"].analyse.$delete(
+        { param: { id: String(lapId) } },
+        { headers: { "X-Game-Id": gameId } },
+      );
+      if (!isCurrentAnalysisRequest(request)) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setAnalysis(null);
       setUsage(null);
@@ -395,11 +496,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       setAnalysisOpen(false);
       onHighlightsChange?.([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete analysis");
+      if (isCurrentAnalysisRequest(request)) setError(err instanceof Error ? err.message : "Failed to delete analysis");
     } finally {
-      setAnalysisDeleting(false);
+      if (isCurrentAnalysisRequest(request)) setAnalysisDeleting(false);
     }
-  }, [analysisDeleting, lapId, loading, onHighlightsChange]);
+  }, [analysisDeleting, beginAnalysisRequest, gameId, isCurrentAnalysisRequest, isCurrentIdentity, lapId, loading, onHighlightsChange]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -552,10 +653,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             key={`${qualityStateKey}:${chatRemountKey}`}
             api={`/api/laps/${lapId}/chat`}
             clearChatApi={`/api/laps/${lapId}/chat?keepAnalysis=true`}
-            fetchHistory={(gen) => fetchLapChatHistory(lapId, gen)}
-            historyQueryKey={["lap-chat-history", lapId, qualityStateKey, chatRemountKey]}
-            remountKey={`${qualityStateKey}:${chatRemountKey}`}
+            fetchHistory={(gen) => fetchLapChatHistory(lapId, gameId, gen)}
+            historyQueryKey={["lap-chat-history", gameId, lapId, qualityStateKey, chatRemountKey]}
+            headers={{ "X-Game-Id": gameId }}
             components={{ Text: LapAnalysisText }}
+            remountKey={`${qualityStateKey}:${chatRemountKey}`}
           />
         </div>
       )}

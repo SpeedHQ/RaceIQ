@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { consultLapAnalystForSession } from "../../../server/ai/consult-lap-analyst";
-
+import type { StoredFindingGeneration } from "../../../server/findings/store";
 const selectedLap = {
   id: 41,
   sessionId: 17,
@@ -18,6 +18,29 @@ const selection = {
   setupDecision: { status: "eligible" },
   reasonCodes: [],
 } as never;
+const FINDING_GENERATION: StoredFindingGeneration = {
+  scope: {
+    kind: "lap",
+    gameId: "fm-2023",
+    sessionId: "17",
+    lapId: "41",
+  },
+  receipt: {
+    generationId: "generation-41",
+    sourceId: "test-source",
+    rule: { id: "test-rule", version: "1" },
+    config: {},
+    schemaVersion: "1",
+    status: "current",
+    findingCount: 0,
+    availableCount: 0,
+    unavailableCount: 0,
+    indeterminateCount: 0,
+    contentHash: "sha256:content-41",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  findings: [],
+};
 
 describe("consultLapAnalystForSession finding authority", () => {
   test("abstains before prompt generation when selected lap has no stored current generation", async () => {
@@ -44,6 +67,33 @@ describe("consultLapAnalystForSession finding authority", () => {
       summary: "No persisted current finding generation exists for the selected lap.",
       eligibilityStatus: "eligible",
       reasonCodes: [],
+    });
+  });
+  test("returns selected lap and receipt provenance after fenced consultation", async () => {
+    const result = await consultLapAnalystForSession("fm-2023", 99, {
+      loadRepresentativeLapSelection: async () => selection,
+      getCurrentFindingGeneration: async () => FINDING_GENERATION,
+      resolveLapSegments: async () => [],
+      resolveLapCorners: async () => [],
+      loadSettings: () => ({
+        aiProvider: "local",
+        localEndpoint: "http://localhost:1234/v1",
+        unit: "metric",
+        temperatureUnit: "C",
+        language: "en",
+      }) as never,
+      buildAnalystPrompt: () => "fenced prompt",
+      generate: async () => ({ text: "analysis" }),
+    });
+
+    expect(result).toMatchObject({
+      available: true,
+      lapId: 41,
+      summary: "analysis",
+      provenance: {
+        findingGenerationId: "generation-41",
+        findingContentHash: "sha256:content-41",
+      },
     });
   });
 

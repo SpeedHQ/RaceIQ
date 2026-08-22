@@ -1,26 +1,27 @@
 import { MessageList } from "@mastra/core/agent";
+import { RequestContext } from "@mastra/core/request-context";
 import { zValidator } from "@hono/zod-validator";
 import { Hono, type Context } from "hono";
 
+import type { FindingGenerationReceipt } from "../../../shared/racing/findings/types";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
 import { eligibilityDecisionText } from "../../../shared/racing/quality/display";
 import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 import type { ComparisonData } from "../../../shared/racing/comparison/types";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
-import { getLapById, type LoadedLap } from "../../db/lap-read-queries";
+import { getLapById, getLapMetaById, type LoadedLap } from "../../db/lap-read-queries";
 import {
   deleteCompareAnalysis,
   compareFindingGenerationCacheKey,
   getAnalysis,
   getCompareAnalysis,
   getCompareQualityIdentity,
-  lapFindingGenerationCacheKey,
   qualityCacheIdentityForComparison,
   saveCompareAnalysis,
 } from "../../db/analysis-queries";
 import { compareLaps, type ComparisonOptions } from "../../lap-analysis/comparison";
-import { adaptComparisonToFindings } from "../../findings/comparison-adapter";
-import { getCurrentFindingGeneration } from "../../findings/store";
+import { getCurrentFindingGeneration, type FindingGenerationExpectation } from "../../findings/store";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildFindingsContext } from "../../ai/findings-context";
@@ -30,15 +31,42 @@ import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
 import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "../../ai/google-provider-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "../../ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
-import { CHAT_RESOURCE_ID, compareChatThreadId, generationThreadId, getChatMemory, listThreadGenerations, resolveActiveThread } from "../../ai/chat-agent";
-import { AnalyseQuerySchema, ChatBodySchema, ChatHistoryQuerySchema, CompareParamsSchema } from "./support";
+import {
+  CHAT_RESOURCE_ID,
+  compareChatThreadId,
+  generationThreadId,
+  getChatMemory,
+  listThreadGenerations,
+  resolveActiveThread,
+} from "../../ai/chat-agent";
+import { adaptComparisonToFindings } from "../../findings/comparison-adapter";
+import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "../../ai/chat-message-context";
+import { AnalyseQuerySchema, ChatBodySchema, ChatHistoryQuerySchema, CompareParamsSchema, FindingGenerationBackfilling } from "./support";
 import { getSecret } from "../../runtime/platform/keystore";
 import { resolveTrack } from "../../tracks/info";
 type GameOwnedLap = LoadedLap & { gameId: GameId };
-
+type GameScopedLap = Pick<LapMeta, "id" | "sessionId"> & { gameId: GameId };
+type GameOwnedLapMetadata = LapMeta & { gameId: GameId };
 type ComparisonLapLoad =
   | { lapA: GameOwnedLap; lapB: GameOwnedLap }
   | { error: string; status: 404 | 422 };
+type ComparisonLapMetadataLoad =
+  | { lapA: GameOwnedLapMetadata; lapB: GameOwnedLapMetadata }
+  | { error: string; status: 404 | 422 };
+
+async function loadComparisonLapMetadata(
+  id1: number,
+  id2: number,
+  gameId: GameId,
+): Promise<ComparisonLapMetadataLoad> {
+  const [lapA, lapB] = await Promise.all([getLapMetaById(id1), getLapMetaById(id2)]);
+  if (!lapA || lapA.gameId !== gameId) return { error: `Lap ${id1} not found`, status: 404 };
+  if (!lapB || lapB.gameId !== gameId) return { error: `Lap ${id2} not found`, status: 404 };
+  if (lapA.trackOrdinal == null || lapB.trackOrdinal == null || lapA.trackOrdinal !== lapB.trackOrdinal) {
+    return { error: "Laps must belong to same track", status: 422 };
+  }
+  return { lapA: { ...lapA, gameId }, lapB: { ...lapB, gameId } };
+}
 
 function requestedGameId(c: Context): GameId | null {
   const parsed = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
@@ -56,17 +84,39 @@ async function loadComparisonLaps(
   if (lapA.trackOrdinal == null || lapB.trackOrdinal == null || lapA.trackOrdinal !== lapB.trackOrdinal) {
     return { error: "Laps must belong to same track", status: 422 };
   }
-  return { lapA: lapA as GameOwnedLap, lapB: lapB as GameOwnedLap };
+  return { lapA: { ...lapA, gameId }, lapB: { ...lapB, gameId } };
 }
 
-async function loadStoredComparisonFindings(
-  lapA: GameOwnedLap,
-  lapB: GameOwnedLap,
-) {
-  return Promise.all([
-    getCurrentFindingGeneration({ kind: "lap", gameId: lapA.gameId, sessionId: String(lapA.sessionId), lapId: String(lapA.id) }),
-    getCurrentFindingGeneration({ kind: "lap", gameId: lapB.gameId, sessionId: String(lapB.sessionId), lapId: String(lapB.id) }),
-  ]);
+async function loadStoredComparisonFindings(lapA: GameScopedLap, lapB: GameScopedLap) {
+  const generationA = await getCurrentFindingGeneration({
+    kind: "lap",
+    gameId: lapA.gameId,
+    sessionId: String(lapA.sessionId),
+    lapId: String(lapA.id),
+  });
+  const generationB = await getCurrentFindingGeneration({
+    kind: "lap",
+    gameId: lapB.gameId,
+    sessionId: String(lapB.sessionId),
+    lapId: String(lapB.id),
+  });
+  return [generationA, generationB] as const;
+}
+
+function findingExpectationForLap(
+  lap: GameScopedLap,
+  receipt: Pick<FindingGenerationReceipt, "generationId" | "contentHash">,
+): FindingGenerationExpectation {
+  return {
+    scope: {
+      kind: "lap",
+      gameId: lap.gameId,
+      sessionId: String(lap.sessionId),
+      lapId: String(lap.id),
+    },
+    generationId: receipt.generationId,
+    contentHash: receipt.contentHash,
+  };
 }
 
 /** Authoritative game-owned alignment policy shared by every comparison surface. */
@@ -78,7 +128,7 @@ function comparisonOptions(lapA: GameOwnedLap, lapB: GameOwnedLap): ComparisonOp
   };
 }
 
-const inputsAnalysisRunKey = (idA: number, idB: number) => `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
+const inputsAnalysisRunKey = (idA: number, idB: number) => `inputs:${idA}:${idB}`;
 
 export const comparisonRoutes = new Hono()
   .get("/api/laps/:id1/compare/:id2", zValidator("param", CompareParamsSchema), async (c) => {
@@ -106,6 +156,11 @@ export const comparisonRoutes = new Hono()
         422,
       );
     }
+    const [findingGenerationA, findingGenerationB] = await loadStoredComparisonFindings(lapA, lapB);
+    if (!findingGenerationA || !findingGenerationB) {
+      return c.json(FindingGenerationBackfilling, 409);
+    }
+
 
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
@@ -190,6 +245,18 @@ export const comparisonRoutes = new Hono()
       findings,
       telemetryA: toSamples(replayA),
       telemetryB: toSamples(replayB),
+      findingReceipts: {
+        lapA: {
+          generationId: findingGenerationA.receipt.generationId,
+          contentHash: findingGenerationA.receipt.contentHash,
+          status: findingGenerationA.receipt.status,
+        },
+        lapB: {
+          generationId: findingGenerationB.receipt.generationId,
+          contentHash: findingGenerationB.receipt.contentHash,
+          status: findingGenerationB.receipt.status,
+        },
+      },
       gameId,
     };
     return c.json({ ...response, decisions });
@@ -199,7 +266,7 @@ export const comparisonRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     const gameId = requestedGameId(c);
     if (!gameId) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const comparisonLaps = await loadComparisonLaps(id1, id2, gameId);
+    const comparisonLaps = await loadComparisonLapMetadata(id1, id2, gameId);
     if (!("lapA" in comparisonLaps)) return c.json({ error: comparisonLaps.error }, comparisonLaps.status);
     return c.json(getAnalysisRun(inputsAnalysisRunKey(id1, id2)) ?? { status: "none" });
   })
@@ -235,15 +302,15 @@ export const comparisonRoutes = new Hono()
     }
     const [findingGenerationA, findingGenerationB] = await loadStoredComparisonFindings(lapA, lapB);
     if (!findingGenerationA || !findingGenerationB) {
-      return c.json({ error: "Both laps need persisted finding generations before AI analysis" }, 409);
+      return c.json(FindingGenerationBackfilling, 409);
     }
-    const findingGenerationKey = compareFindingGenerationCacheKey([
-      { lapId: lapA.id, receipt: findingGenerationA.receipt },
-      { lapId: lapB.id, receipt: findingGenerationB.receipt },
-    ]);
+    const expectedFindingGenerationPair = [
+      findingExpectationForLap(lapA, findingGenerationA.receipt),
+      findingExpectationForLap(lapB, findingGenerationB.receipt),
+    ] as const;
 
     if (!regenerate) {
-      const cached = await getCompareAnalysis(id1, id2, findingGenerationKey, "inputs");
+      const cached = await getCompareAnalysis(id1, id2, expectedFindingGenerationPair, "inputs");
       if (cached) {
         return c.json({
           analysis: cached.analysis,
@@ -397,20 +464,9 @@ export const comparisonRoutes = new Hono()
         durationMs,
         model: settings.aiModel || settings.aiProvider,
       };
-      const [currentFindingGenerationA, currentFindingGenerationB] = await loadStoredComparisonFindings(lapA, lapB);
-      if (
-        !currentFindingGenerationA ||
-        !currentFindingGenerationB ||
-        compareFindingGenerationCacheKey([
-          { lapId: lapA.id, receipt: currentFindingGenerationA.receipt },
-          { lapId: lapB.id, receipt: currentFindingGenerationB.receipt },
-        ]) !== findingGenerationKey
-      ) {
-        return c.json({ error: "Compared lap findings changed during analysis generation. Analysis not cached." }, 409);
-      }
-      const saved = await saveCompareAnalysis(id1, id2, analysisJson, usage, qualityIdentity, findingGenerationKey, "inputs");
+      const saved = await saveCompareAnalysis(id1, id2, analysisJson, usage, qualityIdentity, expectedFindingGenerationPair, "inputs");
       if (!saved) {
-        return c.json({ error: "Compared lap quality changed during analysis generation. Analysis not cached." }, 409);
+        return c.json({ error: "Compared lap quality or findings changed during analysis generation. Analysis not cached." }, 409);
       }
       return c.json({ analysis: analysisJson, cached: false, usage });
     } catch (err: any) {
@@ -425,7 +481,7 @@ export const comparisonRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     const gameId = requestedGameId(c);
     if (!gameId) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const comparisonLaps = await loadComparisonLaps(id1, id2, gameId);
+    const comparisonLaps = await loadComparisonLapMetadata(id1, id2, gameId);
     if (!("lapA" in comparisonLaps)) return c.json({ error: comparisonLaps.error }, comparisonLaps.status);
     try {
       await deleteCompareAnalysis(id1, id2, "inputs");
@@ -439,7 +495,7 @@ export const comparisonRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     const gameId = requestedGameId(c);
     if (!gameId) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const comparisonLaps = await loadComparisonLaps(id1, id2, gameId);
+    const comparisonLaps = await loadComparisonLapMetadata(id1, id2, gameId);
     if (!("lapA" in comparisonLaps)) return c.json({ error: comparisonLaps.error }, comparisonLaps.status);
     let base: string | null = null;
     try {
@@ -449,7 +505,10 @@ export const comparisonRoutes = new Hono()
         loadStoredComparisonFindings(lapA, lapB),
       ]);
       const [findingGenerationA, findingGenerationB] = findingGenerations;
-      if (!identity || !findingGenerationA || !findingGenerationB) return c.json({ messages: [], threadId: null });
+      if (!identity) return c.json({ messages: [], threadId: null, status: "stale", retryable: true }, 409);
+      if (!findingGenerationA || !findingGenerationB) {
+        return c.json({ messages: [], threadId: null, ...FindingGenerationBackfilling }, 409);
+      }
       const findingGenerationKey = compareFindingGenerationCacheKey([
         { lapId: lapA.id, receipt: findingGenerationA.receipt },
         { lapId: lapB.id, receipt: findingGenerationB.receipt },
@@ -459,15 +518,20 @@ export const comparisonRoutes = new Hono()
       const gen = c.req.valid("query").gen;
       const threadId = gen === undefined ? await resolveActiveThread(base) : generationThreadId(base, gen);
       const thread = await memory.getThreadById({ threadId });
-      if (!thread) return c.json({ messages: [], threadId: base });
+      if (!thread) {
+        return c.json({
+          messages: [],
+          threadId: gen === undefined ? base : threadId,
+          status: gen === undefined ? "current" : "stale",
+        });
+      }
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
       const uiMessages = list.get.all.aiV5.ui().filter((message) => message.role === "user" || message.role === "assistant");
-
-      return c.json({ messages: uiMessages, threadId: base });
+      return c.json({ messages: uiMessages, threadId: gen === undefined ? base : threadId, status: gen === undefined ? "current" : "stale" });
     } catch (err: any) {
       console.error("[CompareChat] Failed to load messages:", err.message);
       return c.json({ messages: [], threadId: base });
@@ -503,24 +567,54 @@ export const comparisonRoutes = new Hono()
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
     const [findingGenerationA, findingGenerationB] = await loadStoredComparisonFindings(lapA, lapB);
     if (!findingGenerationA || !findingGenerationB) {
-      return c.json({ error: "Both laps need persisted finding generations before AI chat" }, 409);
+      return c.json(FindingGenerationBackfilling, 409);
     }
+    const findingGenerationKey = compareFindingGenerationCacheKey([
+      { lapId: lapA.id, receipt: findingGenerationA.receipt },
+      { lapId: lapB.id, receipt: findingGenerationB.receipt },
+    ]);
+    const expectedFindingGenerationA = findingExpectationForLap(lapA, findingGenerationA.receipt);
+    const expectedFindingGenerationB = findingExpectationForLap(lapB, findingGenerationB.receipt);
+    const validateReceiptFence = async () => {
+      const [currentA, currentB] = await loadStoredComparisonFindings(lapA, lapB);
+      return (
+        currentA !== null &&
+        currentB !== null &&
+        compareFindingGenerationCacheKey([
+          { lapId: lapA.id, receipt: currentA.receipt },
+          { lapId: lapB.id, receipt: currentB.receipt },
+        ]) === findingGenerationKey
+      );
+    };
+    if (!(await validateReceiptFence())) return c.json({ error: "Compared lap findings changed. Retry chat." }, 409);
     const findingsContext =
       buildFindingsContext(findingGenerationA.findings, { label: "Lap A" }) +
       buildFindingsContext(findingGenerationB.findings, { label: "Lap B" });
-
-
-    const cachedA = await getAnalysis(id1, lapFindingGenerationCacheKey(findingGenerationA.receipt));
-    const cachedB = await getAnalysis(id2, lapFindingGenerationCacheKey(findingGenerationB.receipt));
+    const cachedA = await getAnalysis(id1, expectedFindingGenerationA);
+    const cachedB = await getAnalysis(id2, expectedFindingGenerationB);
     if (!cachedA || !cachedB) {
       return c.json({ error: "Both laps must be analysed before chatting. Run analysis on each lap first." }, 400);
     }
     const identity = qualityCacheIdentityForComparison([lapA, lapB]);
     if (!identity) return c.json({ error: "Lap quality is unavailable or stale" }, 422);
-    const findingGenerationKey = compareFindingGenerationCacheKey([
-      { lapId: lapA.id, receipt: findingGenerationA.receipt },
-      { lapId: lapB.id, receipt: findingGenerationB.receipt },
-    ]);
+    const requestContext = new RequestContext();
+    requestContext.set(FINDING_RECEIPT_FENCE_CONTEXT_KEY, {
+      kind: "comparison",
+      gameId,
+      cacheKey: findingGenerationKey,
+      laps: [
+        {
+          lapId: lapA.id,
+          generationId: findingGenerationA.receipt.generationId,
+          contentHash: findingGenerationA.receipt.contentHash,
+        },
+        {
+          lapId: lapB.id,
+          generationId: findingGenerationB.receipt.generationId,
+          contentHash: findingGenerationB.receipt.contentHash,
+        },
+      ],
+    });
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
     const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry);
@@ -588,6 +682,8 @@ export const comparisonRoutes = new Hono()
     try {
       const stream = await compareChatAgent.stream([{ role: "system", content: systemPrompt }, ...messages], {
         memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        requestContext,
+        abortSignal: c.req.raw.signal,
         providerOptions: {
           openai: { reasoningEffort: "medium" },
           google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
@@ -595,11 +691,13 @@ export const comparisonRoutes = new Hono()
       });
 
       return streamAgentTurnResponse({
+        validateReceiptFence,
         agentStream: stream,
         originalMessages: messages,
         memory: getChatMemory(),
         threadId,
         turnStartedAt,
+        abortSignal: c.req.raw.signal,
       });
     } catch (err: any) {
       console.error("[CompareChat] Stream failed:", err.message);
@@ -611,7 +709,7 @@ export const comparisonRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     const gameId = requestedGameId(c);
     if (!gameId) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const comparisonLaps = await loadComparisonLaps(id1, id2, gameId);
+    const comparisonLaps = await loadComparisonLapMetadata(id1, id2, gameId);
     if (!("lapA" in comparisonLaps)) return c.json({ error: comparisonLaps.error }, comparisonLaps.status);
     try {
       const memory = getChatMemory();

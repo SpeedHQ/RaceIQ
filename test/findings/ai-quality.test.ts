@@ -106,7 +106,7 @@ describe("AI lap quality context", () => {
       id: "persisted-current-finding",
       type: "recording-limited",
       category: "quality",
-      scope: { kind: "lap", sessionId: String(lap.sessionId), lapId: String(lap.id) },
+      scope: { kind: "lap", gameId: lap.gameId, sessionId: String(lap.sessionId), lapId: String(lap.id) },
       status: "indeterminate",
       severity: "informational",
       confidence: "unknown",

@@ -1,10 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { getAnalysis, lapFindingGenerationCacheKey } from "../../server/db/analysis-queries";
+import { compareFindingGenerationCacheKey, getAnalysis, lapFindingGenerationCacheKey } from "../../server/db/analysis-queries";
 import { getLapById } from "../../server/db/lap-read-queries";
 import { getCurrentFindingGeneration } from "../../server/findings/store";
 import { AnalystOutputSchema } from "../../server/ai/schemas";
+import { getFindingReceiptFence } from "../../server/ai/chat-message-context";
 import type {
   AnalysisUsage,
   LapAnalysisResult,
@@ -66,7 +67,7 @@ export function getLapAnalysisToolFor(
       "If available is false, do not claim findings from the missing analysis.",
     inputSchema: LapAnalysisInput,
     outputSchema: LapAnalysisOutput,
-    execute: async ({ lapId }) => {
+    execute: async ({ lapId }, execCtx) => {
       try {
         const lap = await (deps.getLapById ?? getLapById)(lapId);
         if (!lap?.gameId) {
@@ -77,21 +78,55 @@ export function getLapAnalysisToolFor(
             error: "Lap not found",
           };
         }
-        const findingGeneration = await (deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration)({
-          kind: "lap",
-          gameId: lap.gameId,
-          sessionId: String(lap.sessionId),
-          lapId: String(lap.id),
-        });
-        if (!findingGeneration) {
-          return {
-            available: false,
-            lapId,
-            readable: `No current stored finding generation is available for lap ${lapId}. Do not make lap-specific claims from analysis.`,
-            error: "Finding generation not found",
-          };
+        const fence = getFindingReceiptFence(execCtx?.requestContext);
+        let receipt: { generationId: string; contentHash: string };
+        if (fence) {
+          const matchingLap = fence.laps.find((entry) => entry.lapId === lapId);
+          const lapKey = matchingLap ? lapFindingGenerationCacheKey(matchingLap) : null;
+          const fenceKeyIsValid = fence.kind === "lap"
+            ? fence.laps.length === 1 && lapKey === fence.cacheKey
+            : fence.laps.length === 2 &&
+              compareFindingGenerationCacheKey([
+                { lapId: fence.laps[0]!.lapId, receipt: fence.laps[0]! },
+                { lapId: fence.laps[1]!.lapId, receipt: fence.laps[1]! },
+              ]) === fence.cacheKey;
+          if (fence.gameId !== lap.gameId || !matchingLap || !fenceKeyIsValid) {
+            return {
+              available: false,
+              lapId,
+              readable: `The finding receipt fence does not match lap ${lapId}. Do not make lap-specific claims from analysis.`,
+              error: "Finding receipt fence mismatch",
+            };
+          }
+          receipt = matchingLap;
+        } else {
+          const findingGeneration = await (deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration)({
+            kind: "lap",
+            gameId: lap.gameId,
+            sessionId: String(lap.sessionId),
+            lapId: String(lap.id),
+          });
+          if (!findingGeneration) {
+            return {
+              available: false,
+              lapId,
+              readable: `No current stored finding generation is available for lap ${lapId}. Do not make lap-specific claims from analysis.`,
+              error: "Finding generation not found",
+            };
+          }
+          receipt = findingGeneration.receipt;
         }
-        const row = await readAnalysis(lapId, lapFindingGenerationCacheKey(findingGeneration.receipt));
+        const expectation = {
+          scope: {
+            kind: "lap" as const,
+            gameId: lap.gameId,
+            sessionId: String(lap.sessionId),
+            lapId: String(lap.id),
+          },
+          generationId: receipt.generationId,
+          contentHash: receipt.contentHash,
+        };
+        const row = await readAnalysis(lapId, expectation);
         if (!row) {
           return {
             available: false,

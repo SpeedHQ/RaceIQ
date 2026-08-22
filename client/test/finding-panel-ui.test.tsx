@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FINDING_SCHEMA_VERSION, type FindingNarrative, type FindingRecord } from "../../shared/racing/findings/types";
+import { FINDING_SCHEMA_VERSION, type FindingGenerationReceipt, type FindingNarrative, type FindingRecord } from "../../shared/racing/findings/types";
 import { FindingPanel } from "../src/components/FindingPanel";
 
 function finding(overrides: Partial<FindingRecord> = {}): FindingRecord {
@@ -164,6 +164,45 @@ describe("FindingPanel", () => {
     expect(markup).toContain("Two samples cannot establish a pattern");
     expect(markup).toContain("Low confidence");
     expect(markup).not.toContain("0 L/lap");
+  });
+
+  test("qualifies available findings when receipt is stale", () => {
+    const receipt = {
+      generationId: "generation-old",
+      sourceId: "lap-17",
+      rule: { id: "findings", version: "1" },
+      config: {},
+      schemaVersion: FINDING_SCHEMA_VERSION,
+      status: "stale-rebuild-available",
+      findingCount: 1,
+      availableCount: 1,
+      unavailableCount: 0,
+      indeterminateCount: 0,
+      contentHash: "old-hash",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    } satisfies FindingGenerationReceipt;
+    const markup = renderToStaticMarkup(createElement(FindingPanel, {
+      findings: [finding()],
+      receipt,
+      onEvidenceSelect: () => {},
+    }));
+
+    expect(markup).toContain('data-finding-receipt-status="stale-rebuild-available"');
+    expect(markup).toContain("Finding receipt is stale-rebuild-available");
+    expect(markup).toContain('data-status="unavailable"');
+    expect(markup).toContain(">Stale</span>");
+  });
+
+  test("shows backfilling state while findings are pending", () => {
+    const markup = renderToStaticMarkup(createElement(FindingPanel, {
+      findings: [],
+      pending: true,
+      onEvidenceSelect: () => {},
+    }));
+
+    expect(markup).toContain('data-finding-receipt-status="backfilling"');
+    expect(markup).toContain("Findings are backfilling");
+    expect(markup).toContain("No deterministic findings");
   });
 
   test("renders evidence-backed empty state", () => {

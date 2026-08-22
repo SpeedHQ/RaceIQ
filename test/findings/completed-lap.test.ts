@@ -187,6 +187,7 @@ describe("completed lap finding persistence", () => {
     const lap = input();
     let analyzedQuality: CompletedLapFindingInput["quality"] | null = null;
     let adapterRecordingQuality: CompletedLapFindingInput["recordingQuality"] | null = null;
+    let sourceQuality: CompletedLapFindingInput["quality"] | null = null;
     await persistCompletedLapFindings(lap, {
       ...identityDependencies,
       analyze: (_telemetry, _gameId, quality) => {
@@ -194,6 +195,7 @@ describe("completed lap finding persistence", () => {
         return [];
       },
       build: (source, insights, recordingQuality, analysisGenerationId) => {
+        sourceQuality = source.quality;
         adapterRecordingQuality = recordingQuality;
         return build(source, insights, recordingQuality, analysisGenerationId);
       },
@@ -201,6 +203,7 @@ describe("completed lap finding persistence", () => {
 
     expect(Object.is(analyzedQuality, lap.quality)).toBe(true);
     expect(Object.is(adapterRecordingQuality, lap.recordingQuality)).toBe(true);
+    expect(Object.is(sourceQuality, lap.quality)).toBe(true);
   });
 
   test("hashes every provenance input into stable adapter and receipt identity", async () => {

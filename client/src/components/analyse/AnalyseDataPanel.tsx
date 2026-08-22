@@ -1,6 +1,6 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
-import type { FindingEvidenceRef, FindingNarrative, FindingRecord } from "@shared/racing/findings/types";
+import type { FindingEvidenceRef, FindingGenerationReceipt, FindingNarrative, FindingRecord } from "@shared/racing/findings/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { Check, Copy } from "lucide-react";
 import { getSteeringLock } from "@/lib/settings-storage";
@@ -28,6 +28,8 @@ interface Props {
   wearRate: WearRate | null;
   findings: FindingRecord[];
   narratives?: FindingNarrative[];
+  findingReceipt?: FindingGenerationReceipt | null;
+  findingPending?: boolean;
   onEvidenceSelect: (evidence: FindingEvidenceRef) => void;
 }
 const number = (frame: SemanticAnalysisFrame, id: string): number | null => {
@@ -83,7 +85,7 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   );
   return lines.join("\n");
 }
-export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, startFuel, gameId, units, wearRate, findings, narratives = [], onEvidenceSelect }: Props) {
+export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, startFuel, gameId, units, wearRate, findings, narratives = [], findingReceipt = null, findingPending = false, onEvidenceSelect }: Props) {
   const [copied, setCopied] = useState(false);
   const handleCopyValues = useCallback(() => {
     if (!currentFrame) return;
@@ -94,6 +96,6 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
   return <Tabs value={sidebarTab} onValueChange={(value) => { if (value === "live" || value === "insights") onSidebarTabChange(value); }} className="flex h-[34rem] w-full shrink-0 flex-col overflow-hidden border-t border-app-border bg-app-surface/50 @5xl/workspace:h-full @5xl/workspace:w-[clamp(18rem,30cqw,22rem)] @5xl/workspace:border-t-0 @5xl/workspace:border-l">
     <TabsList variant="underline" className="w-full shrink-0"><TabsTrigger value="live" className="flex-1">{m.analyse_tab_data()}</TabsTrigger><TabsTrigger value="insights" className="flex-1">Findings{findings.length > 0 && <span className="ml-1 rounded-full bg-app-border-input px-1.5 text-app-micro text-app-text">{findings.length}</span>}</TabsTrigger></TabsList>
     <TabsContent value="live" className="flex min-h-0 flex-1 flex-col"><div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1"><h3 className="mb-0 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_metrics_at_cursor()}</h3>{currentFrame && <Button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted transition-colors hover:text-app-text">{copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}</Button>}</div><div className="min-h-0 flex-1 overflow-y-auto p-3">{currentFrame && <MetricsPanel frame={currentFrame} startFuel={startFuel} gameId={gameId} />}{currentFrame && <><div className="mt-3 mb-2 border-t border-app-border pt-2"><h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3></div><AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} /><AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} /><AnalyseSuspensionPanel frame={currentFrame} gameId={gameId} />{getGame(gameId).telemetry.ers && <AnalyseF1ErsPanel frame={currentFrame} />}</>}</div></TabsContent>
-    <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3">{sidebarTab === "insights" && <FindingPanel findings={findings} narratives={narratives} onEvidenceSelect={onEvidenceSelect} />}</TabsContent>
+    <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3">{sidebarTab === "insights" && <FindingPanel findings={findings} narratives={narratives} receipt={findingReceipt} pending={findingPending} onEvidenceSelect={onEvidenceSelect} />}</TabsContent>
   </Tabs>;
 }

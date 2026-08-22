@@ -31,8 +31,8 @@ describe("comparison AI state identity", () => {
     expect(comparisonAiStateKey(lap(1, "quality-a1", true), lap(2, "quality-b1"))).not.toBe(original);
   });
 
-  test("is stable when lap order is reversed", () => {
-    expect(comparisonAiStateKey(lap(1, "quality-a1"), lap(2, "quality-b1"))).toBe(comparisonAiStateKey(lap(2, "quality-b1"), lap(1, "quality-a1")));
+  test("changes when lap order is reversed", () => {
+    expect(comparisonAiStateKey(lap(1, "quality-a1"), lap(2, "quality-b1"))).not.toBe(comparisonAiStateKey(lap(2, "quality-b1"), lap(1, "quality-a1")));
   });
 
   test("uses typed RPC with GameId header instead of missing-game 400 path", async () => {

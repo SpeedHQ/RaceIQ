@@ -440,11 +440,19 @@ describe("quality diagnostics API", () => {
       headers: gameHeader,
     });
     expect(semanticResponse.status).toBe(409);
-    expect((await semanticResponse.json()).error).toBe("No persisted finding generation for this lap");
+    expect(await semanticResponse.json()).toMatchObject({
+      error: "Finding generation is backfilling",
+      status: "backfilling",
+      retryable: true,
+    });
 
     const detailResponse = await lapRoutes.request(`/api/laps/${lapId}`, { headers: gameHeader });
     expect(detailResponse.status).toBe(409);
-    expect((await detailResponse.json()).error).toBe("No persisted finding generation for this lap");
+    expect(await detailResponse.json()).toMatchObject({
+      error: "Finding generation is backfilling",
+      status: "backfilling",
+      retryable: true,
+    });
 
     const notesResponse = await lapRoutes.request(`/api/laps/${lapId}/notes`, {
       method: "PATCH",

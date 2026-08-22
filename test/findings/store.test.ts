@@ -11,8 +11,11 @@ import {
   createFindingGenerationReceipt,
   getCurrentFindingGeneration,
   getFindingGeneration,
+  getLatestFindingGeneration,
   markCurrentFindingGenerationStale,
   replaceFindingGeneration,
+  MAX_FINDING_GENERATION_STRUCTURED_BYTES,
+  MAX_FINDING_STRUCTURED_BYTES,
   stageFindingGeneration,
   type FindingGenerationInput,
 } from "../../server/findings/store";
@@ -178,6 +181,45 @@ describe("structured findings store", () => {
     );
   });
 
+  test("rejects oversized structured finding before generation hashing", () => {
+    const findingScope = scope();
+    const sourceId = "source-oversized-finding";
+    const oversized = finding(findingScope, sourceId, "lap-oversized");
+    oversized.rule = {
+      ...oversized.rule,
+      inputs: { payload: "x".repeat(MAX_FINDING_STRUCTURED_BYTES) },
+    };
+    oversized.id = createFindingId(oversized);
+
+    expect(() => generation(
+      findingScope,
+      `generation-${crypto.randomUUID()}`,
+      sourceId,
+      [oversized],
+    )).toThrow(`exceeds ${MAX_FINDING_STRUCTURED_BYTES} bytes`);
+  });
+
+  test("rejects aggregate generation serialization beyond fixed budget", () => {
+    const findingScope = scope();
+    const sourceId = "source-oversized-generation";
+    const findings = Array.from({ length: 18 }, (_, index) => {
+      const record = finding(findingScope, sourceId, `lap-generation-${index}`);
+      record.rule = {
+        ...record.rule,
+        inputs: { payload: "x".repeat(120_000) },
+      };
+      record.id = createFindingId(record);
+      return record;
+    });
+
+    expect(() => generation(
+      findingScope,
+      `generation-${crypto.randomUUID()}`,
+      sourceId,
+      findings,
+    )).toThrow(`exceeds ${MAX_FINDING_GENERATION_STRUCTURED_BYTES} bytes`);
+  });
+
   test("failed verification preserves prior active generation", async () => {
     const findingScope = scope();
     const sourceId = "source-rollback";
@@ -200,7 +242,7 @@ describe("structured findings store", () => {
     );
   });
 
-  test("keeps stale current findings readable while rebuild is available", async () => {
+  test("current reads reject stale status while latest reads retain stale generation", async () => {
     const findingScope = scope();
     const sourceId = "source-stale";
     const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
@@ -210,7 +252,8 @@ describe("structured findings store", () => {
 
     const receipt = await markCurrentFindingGenerationStale(findingScope, "stale-rebuild-available");
     expect(receipt?.status).toBe("stale-rebuild-available");
-    expect((await getCurrentFindingGeneration(findingScope))?.findings).toHaveLength(1);
+    expect(await getCurrentFindingGeneration(findingScope)).toBeNull();
+    expect((await getLatestFindingGeneration(findingScope))?.findings).toHaveLength(1);
   });
 
   test("marks active findings stale when authoritative source is missing", async () => {
@@ -223,7 +266,8 @@ describe("structured findings store", () => {
 
     const receipt = await markCurrentFindingGenerationStale(findingScope, "stale-source-missing");
     expect(receipt?.status).toBe("stale-source-missing");
-    expect((await getCurrentFindingGeneration(findingScope))?.receipt.generationId).toBe(
+    expect(await getCurrentFindingGeneration(findingScope)).toBeNull();
+    expect((await getLatestFindingGeneration(findingScope))?.receipt.generationId).toBe(
       input.receipt.generationId,
     );
   });

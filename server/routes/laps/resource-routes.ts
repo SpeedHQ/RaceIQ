@@ -22,7 +22,7 @@ import { resolveTrack } from "../../tracks/info";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { getCurrentFindingGeneration } from "../../findings/store";
-import { BulkDeleteSchema, LapsQuerySchema } from "./support";
+import { BulkDeleteSchema, FindingGenerationBackfilling, LapsQuerySchema } from "./support";
 
 async function loadStoredLapFindings(lap: LoadedLap, gameId: GameId) {
   return getCurrentFindingGeneration({
@@ -84,7 +84,7 @@ export const resourceRoutes = new Hono()
       const decision = resolveEligibilityDecision(lap, "corner-trace");
       const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
       if (!findingGeneration) {
-        return c.json({ error: "No persisted finding generation for this lap" }, 409);
+        return c.json(FindingGenerationBackfilling, 409);
       }
       if (lap.parseError) {
         return c.json({
@@ -200,7 +200,7 @@ export const resourceRoutes = new Hono()
     }
     const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
     if (!findingGeneration) {
-      return c.json({ error: "No persisted finding generation for this lap" }, 409);
+      return c.json(FindingGenerationBackfilling, 409);
     }
 
     // Compute sector times server-side
@@ -298,7 +298,7 @@ export const resourceRoutes = new Hono()
     if (packets.length === 0) return c.json({ error: "No telemetry data" }, 400);
     const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
     if (!findingGeneration) {
-      return c.json({ error: "No persisted finding generation for this lap" }, 409);
+      return c.json(FindingGenerationBackfilling, 409);
     }
     const exportText = generateExport(lap, packets, "metric", undefined, findingGeneration.findings);
     return c.text(exportText);

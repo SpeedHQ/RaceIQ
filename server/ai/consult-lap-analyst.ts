@@ -12,7 +12,9 @@
  * Analyst's own `aiProvider`/`aiModel`, which are distinct from the chat
  * provider the engineer runs on).
  */
+import { RequestContext } from "@mastra/core/request-context";
 import type { GameId } from "../../shared/games/ids";
+import { lapFindingGenerationCacheKey } from "../db/analysis-queries";
 import { resolveLapCorners, resolveLapSegments } from "../tracks/corner-resolution";
 import { getSecret } from "../runtime/platform/keystore";
 import { loadSettings } from "../runtime/config/settings";
@@ -24,17 +26,30 @@ import { buildAnalystPrompt } from "./analyst-prompt";
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { loadRepresentativeLapSelection } from "../experiments/representative-lap";
 import { getCurrentFindingGeneration } from "../findings/store";
+import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "./chat-message-context";
 
 interface LapAnalystConsult {
   available: boolean;
   summary: string;
   eligibilityStatus: "eligible" | "eligible_with_warning" | "ineligible" | "unknown";
   reasonCodes: string[];
+  lapId?: number;
+  provenance?: {
+    findingGenerationId: string;
+    findingContentHash: string;
+    findingCacheKey: string;
+  };
 }
 
 export interface ConsultLapAnalystDeps {
   loadRepresentativeLapSelection?: typeof loadRepresentativeLapSelection;
   getCurrentFindingGeneration?: typeof getCurrentFindingGeneration;
+  resolveLapSegments?: typeof resolveLapSegments;
+  resolveLapCorners?: typeof resolveLapCorners;
+  loadSettings?: typeof loadSettings;
+  buildAnalystPrompt?: typeof buildAnalystPrompt;
+  getSecret?: typeof getSecret;
+  generate?: (prompt: string, options: Record<string, unknown>) => Promise<{ text?: unknown }>;
 }
 
 export async function consultLapAnalystForSession(
@@ -42,6 +57,7 @@ export async function consultLapAnalystForSession(
   sessionId: number,
   deps: ConsultLapAnalystDeps = {},
 ): Promise<LapAnalystConsult> {
+  const loadFindingGeneration = deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration;
   const selection = await (deps.loadRepresentativeLapSelection ?? loadRepresentativeLapSelection)(sessionId);
   const { lap } = selection;
   if (!lap || lap.gameId !== gameId) {
@@ -53,12 +69,13 @@ export async function consultLapAnalystForSession(
     };
   }
 
-  const findingGeneration = await (deps.getCurrentFindingGeneration ?? getCurrentFindingGeneration)({
+  const findingScope = {
     kind: "lap",
     gameId,
     sessionId: String(lap.sessionId),
     lapId: String(lap.id),
-  });
+  } as const;
+  const findingGeneration = await loadFindingGeneration(findingScope);
   if (!findingGeneration) {
     return {
       available: false,
@@ -67,13 +84,14 @@ export async function consultLapAnalystForSession(
       reasonCodes: selection.reasonCodes,
     };
   }
+  const findingGenerationKey = lapFindingGenerationCacheKey(findingGeneration.receipt);
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
-  const segments = await resolveLapSegments(trackOrdinal, lap.gameId);
-  const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry, { segments });
+  const segments = await (deps.resolveLapSegments ?? resolveLapSegments)(trackOrdinal, lap.gameId);
+  const corners = await (deps.resolveLapCorners ?? resolveLapCorners)(trackOrdinal, lap.gameId, lap.telemetry, { segments });
 
-  const settings = loadSettings();
-  const prompt = buildAnalystPrompt(
+  const settings = (deps.loadSettings ?? loadSettings)();
+  const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
     lap.telemetry,
     corners,
@@ -91,7 +109,7 @@ export async function consultLapAnalystForSession(
   // (default gemini), independent of the setup-engineer chat provider.
   const provider = settings.aiProvider;
   if (provider === "openai") {
-    const key = await getSecret("openai-api-key");
+    const key = await (deps.getSecret ?? getSecret)("openai-api-key");
     if (!key)
       return {
         available: false,
@@ -104,7 +122,7 @@ export async function consultLapAnalystForSession(
     process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
     process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
   } else {
-    const key = await getSecret("gemini-api-key");
+    const key = await (deps.getSecret ?? getSecret)("gemini-api-key");
     if (!key)
       return {
         available: false,
@@ -116,16 +134,44 @@ export async function consultLapAnalystForSession(
   }
 
   const hideTools = provider === "local";
-  const result = await lapAnalystAgent.generate(prompt, {
+  const requestContext = new RequestContext();
+  requestContext.set(FINDING_RECEIPT_FENCE_CONTEXT_KEY, {
+    kind: "lap",
+    gameId,
+    cacheKey: findingGenerationKey,
+    laps: [{
+      lapId: lap.id,
+      generationId: findingGeneration.receipt.generationId,
+      contentHash: findingGeneration.receipt.contentHash,
+    }],
+  });
+  const generate = deps.generate ?? ((agentPrompt: string, options: Record<string, unknown>) => lapAnalystAgent.generate(agentPrompt, options as never));
+  const result = await generate(prompt, {
     maxSteps: 5,
     ...(hideTools ? { activeTools: [] as never[] } : {}),
     modelSettings: { maxOutputTokens: 4096, temperature: 0 },
+    requestContext,
   });
+  const currentFindingGeneration = await loadFindingGeneration(findingScope);
+  if (!currentFindingGeneration || lapFindingGenerationCacheKey(currentFindingGeneration.receipt) !== findingGenerationKey) {
+    return {
+      available: false,
+      summary: "Lap findings changed during analyst consultation. No analyst claims were retained.",
+      eligibilityStatus: selection.setupDecision.status,
+      reasonCodes: selection.reasonCodes,
+    };
+  }
   const text = typeof result.text === "string" ? result.text.trim() : "";
   return {
     available: true,
     summary: text || "Lap Analyst returned no content.",
     eligibilityStatus: selection.setupDecision.status,
     reasonCodes: selection.reasonCodes,
+    lapId: lap.id,
+    provenance: {
+      findingGenerationId: findingGeneration.receipt.generationId,
+      findingContentHash: findingGeneration.receipt.contentHash,
+      findingCacheKey: findingGenerationKey,
+    },
   };
 }

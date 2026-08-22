@@ -10,16 +10,21 @@ import {
   getChatMemory,
   CHAT_RESOURCE_ID,
   parseThreadGeneration,
+  isCanonicalThreadId,
   parseCompareChatThreadId,
   listThreadGenerations,
   truncateChatAfterUserMessage,
   deleteChatLineage,
 } from "../ai/chat-agent";
-import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread";
+import { forkThreadWithSummary, InvalidThreadGenerationError, NothingToCompactError } from "../ai/compact-thread";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
 });
+const RegenerateBodySchema = z.object({
+  messageId: z.string().min(1),
+});
+
 
 interface LapSummary {
   id: number;
@@ -198,30 +203,34 @@ export function createChatsRoutes(
     "/api/chats/:threadId/compact",
     async (c) => {
       const threadId = c.req.param("threadId");
+      if (!isCanonicalThreadId(threadId)) {
+        return c.json({ error: "Invalid chat thread generation" }, 400);
+      }
       try {
         const result = await compactThread(threadId);
         return c.json(result);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        if (err instanceof InvalidThreadGenerationError) {
+          return c.json({ error: err.message }, 400);
+        }
         if (err instanceof NothingToCompactError) {
           return c.json({ error: err.message }, 422);
         }
-        console.error("[Chats] Failed to compact:", err.message);
-        return c.json({ error: err.message }, 500);
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Chats] Failed to compact:", message);
+        return c.json({ error: message }, 500);
       }
     },
   )
-
   // ── Regenerate from a persisted user prompt ─────────────────
   .post(
     "/api/chats/:threadId/regenerate",
+    zValidator("json", RegenerateBodySchema),
     async (c) => {
       const threadId = c.req.param("threadId");
-      const body = await c.req.json().catch(() => null) as { messageId?: unknown } | null;
-      if (typeof body?.messageId !== "string" || !body.messageId) {
-        return c.json({ error: "messageId is required" }, 400);
-      }
+      const { messageId } = c.req.valid("json");
       try {
-        const result = await truncateChatAfterUserMessage(threadId, body.messageId);
+        const result = await truncateChatAfterUserMessage(threadId, messageId);
         return c.json({ ok: true, prompt: result.prompt });
       } catch (err: any) {
         if (err?.message === "User message not found") {

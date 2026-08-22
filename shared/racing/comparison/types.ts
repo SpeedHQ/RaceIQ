@@ -1,7 +1,7 @@
 import type { GameId } from "../../games/ids";
 import type { TelemetryVariableId } from "../../telemetry/catalog/generated/telemetry-catalog.types";
 import type { LapMeta } from "../sessions/types";
-import type { FindingRecord } from "../findings/types";
+import type { FindingGenerationReceipt, FindingRecord } from "../findings/types";
 
 export interface AlignedTrace {
   distance: number[];
@@ -45,6 +45,13 @@ export interface SemanticTelemetrySample {
 
 export type ComparisonLap = Pick<LapMeta, "id" | "sessionId" | "lapNumber" | "lapTime" | "isValid" | "trackOrdinal" | "carOrdinal">;
 
+export type ComparisonFindingReceipt = Pick<FindingGenerationReceipt, "generationId" | "contentHash" | "status">;
+
+export interface ComparisonFindingReceipts {
+  lapA: ComparisonFindingReceipt;
+  lapB: ComparisonFindingReceipt;
+}
+
 export interface ComparisonData {
   lapA: ComparisonLap;
   lapB: ComparisonLap;
@@ -54,5 +61,6 @@ export interface ComparisonData {
   telemetryA: SemanticTelemetrySample[];
   telemetryB: SemanticTelemetrySample[];
   findings: FindingRecord[];
+  findingReceipts: ComparisonFindingReceipts;
   gameId: GameId;
 }

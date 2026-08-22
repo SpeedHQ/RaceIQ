@@ -12,6 +12,7 @@ import { useUnits } from "../../hooks/useUnits";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { lapAiStateKey } from "../../lib/lap-ai-state-key";
 import { client } from "../../lib/rpc";
+import { rpcJson } from "../../lib/rpc-json";
 import { useRequiredGameId } from "../../stores/game";
 import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
 import { AnalyseLapHeader } from "./AnalyseLapHeader";
@@ -260,9 +261,11 @@ function LapAnalyseInner() {
   }, [currentFrame, cursorIdx, telemetry]);
   const findings = useMemo<FindingRecord[]>(() => semanticReplay?.findings ?? [], [semanticReplay]);
   const narratives = useMemo<FindingNarrative[]>(() => semanticReplay?.narratives ?? [], [semanticReplay]);
+  const findingReceipt = semanticReplay?.findingReceipt ?? null;
+  const findingPending = lapError instanceof Error && "pendingStatus" in lapError && (lapError as Error & { pendingStatus?: unknown }).pendingStatus === "backfilling";
   const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
-  const qualityStateKey = selectedLap ? lapAiStateKey(selectedLap) : null;
+  const qualityStateKey = selectedLap ? lapAiStateKey({ ...selectedLap, findingReceipt }) : null;
   const analysisDecision = selectedLap ? resolveEligibilityDecision(selectedLap, "corner-trace") : undefined;
   const analysisUsable = isEligibilityUsable(analysisDecision);
   const totalTime = selectedLap?.lapTime ?? 0;
@@ -275,11 +278,13 @@ function LapAnalyseInner() {
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],
-    queryFn: async () => {
-      const response = await fetch(`/api/laps/${selectedLapId}/setup`, { headers: { "X-Game-Id": gameId } });
-      if (!response.ok) throw new Error("Failed to load lap setup");
-      return response.json() as Promise<{ setup: F1CarSetup | null }>;
-    },
+    queryFn: async () =>
+      rpcJson<{ setup: F1CarSetup | null }>(
+        await client.api.laps[":id"].setup.$get(
+          { param: { id: String(selectedLapId) } },
+          { headers: { "X-Game-Id": gameId } },
+        ),
+      ),
     enabled: gameId === "f1-2025" && selectedLapId != null,
   });
 
@@ -470,6 +475,8 @@ function LapAnalyseInner() {
             gameId,
             units,
             wearRate,
+            findingReceipt,
+            findingPending,
             findings,
             narratives,
             onEvidenceSelect: handleFindingEvidence,
@@ -478,6 +485,7 @@ function LapAnalyseInner() {
             aiPanelOpen && analysisUsable && selectedLapId && qualityStateKey
               ? {
                   lapId: selectedLapId,
+                  gameId,
                   qualityStateKey,
                   trackName,
                   carName,

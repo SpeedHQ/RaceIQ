@@ -68,11 +68,11 @@ describe("GET /api/laps/:id1/compare/:id2/inputs-analyse/status", () => {
 });
 
 describe("quality-scoped chat history", () => {
-  test("returns no lap thread when current quality identity is unavailable", async () => {
+  test("requires game identity before loading lap chat history", async () => {
     const response = await lapRoutes.request("/api/laps/999999/chat");
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ messages: [], threadId: null });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Missing or invalid X-Game-Id header" });
   });
 
   test("requires game identity for comparison chat history", async () => {
@@ -80,5 +80,15 @@ describe("quality-scoped chat history", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Missing or invalid X-Game-Id header" });
+  });
+});
+
+describe("comparison chat generation query", () => {
+  test("rejects unsafe generation numbers before loading comparison data", async () => {
+    const response = await lapRoutes.request("/api/laps/1/compare/2/chat?gen=9007199254740992", {
+      headers: { "X-Game-Id": "fm-2023" },
+    });
+
+    expect(response.status).toBe(400);
   });
 });

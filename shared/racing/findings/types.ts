@@ -1,6 +1,12 @@
 import type { GameId } from "../../games/ids";
 
 export const FINDING_SCHEMA_VERSION = "1" as const;
+/** Maximum typed references retained on one finding; excess evidence must be explicitly limited upstream. */
+export const MAX_FINDING_EVIDENCE_REFS = 64;
+/** Maximum telemetry ranges retained as representative event evidence. */
+export const MAX_FINDING_REPRESENTATIVE_RANGES = 32;
+/** Stable limitation code when representative evidence is capped. */
+export const EVIDENCE_TRUNCATED_LIMITATION_CODE = "evidence-truncated";
 
 export type FindingStatus = "available" | "unavailable" | "indeterminate";
 export type FindingSeverity = "informational" | "low" | "medium" | "high" | "critical";

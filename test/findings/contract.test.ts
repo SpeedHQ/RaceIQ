@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { createFindingId } from "../../shared/racing/findings/identity";
-import { FINDING_SCHEMA_VERSION, type FindingRecord } from "../../shared/racing/findings/types";
+import {
+  FINDING_SCHEMA_VERSION,
+  MAX_FINDING_EVIDENCE_REFS,
+  type FindingRecord,
+} from "../../shared/racing/findings/types";
 import { validateFinding } from "../../shared/racing/findings/validate";
 
 function finding(overrides: Partial<FindingRecord> = {}): FindingRecord {
@@ -56,6 +60,23 @@ describe("finding contract validation", () => {
     const codes = validateFinding(record).errors.map((error) => error.code);
     expect(codes).toContain("missing-measurement");
     expect(codes).toContain("missing-evidence");
+  });
+
+  test("rejects evidence collections beyond fixed validation bound", () => {
+    const record = finding({
+      evidenceRefs: Array.from({ length: MAX_FINDING_EVIDENCE_REFS + 1 }, (_, index) => ({
+        kind: "telemetry-range" as const,
+        id: `range-${index}`,
+        lapId: "lap-1",
+        startFrameIndex: index * 2,
+        endFrameIndex: index * 2,
+      })),
+    });
+
+    expect(validateFinding(record).errors).toContainEqual(expect.objectContaining({
+      path: "evidenceRefs",
+      code: "too-many-evidence-references",
+    }));
   });
 
   test.each(["unavailable", "indeterminate"] as const)("requires stable limitation for %s status", (status) => {

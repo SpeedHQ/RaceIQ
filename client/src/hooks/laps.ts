@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useRef } from "react";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { FindingGenerationReceipt, FindingNarrative, FindingRecommendation, FindingRecord } from "../../../shared/racing/findings/types";
 import type { ChannelQualitySummary, EligibilityDecision } from "../../../shared/racing/quality/contracts";
@@ -48,12 +48,32 @@ export interface SemanticLapTelemetry {
 
 interface SemanticTelemetryError extends Error {
   parseError?: string;
+  statusCode?: number;
+  retryable?: boolean;
+  pendingStatus?: string;
 }
+
+const MAX_FINDING_POLLS = 20;
+const FINDING_POLL_MS = 1500;
 
 /** Canonical semantic replay; unlike useLapTelemetry this never exposes native packets. */
 export function useLapSemanticTelemetry(lapId: number | null) {
   const gameId = useGameId();
-  return useQuery({
+  const queryClient = useQueryClient();
+  const pendingPolls = useRef(0);
+  const pendingInvalidated = useRef(false);
+  const pendingIdentityRef = useRef("");
+  const semanticIdentity = `${lapId ?? ""}:${gameId ?? ""}`;
+  if (pendingIdentityRef.current !== semanticIdentity) {
+    pendingIdentityRef.current = semanticIdentity;
+    pendingPolls.current = 0;
+    pendingInvalidated.current = false;
+  }
+  useEffect(() => {
+    pendingPolls.current = 0;
+    pendingInvalidated.current = false;
+  }, [gameId, lapId]);
+  const query = useQuery({
     queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
@@ -61,7 +81,22 @@ export function useLapSemanticTelemetry(lapId: number | null) {
         { param: { id: String(lapId) } },
         { headers: { "X-Game-Id": gameId } },
       );
-      if (!res.ok) throw await errorFromResponse(res);
+      if (!res.ok) {
+        const pending = res.status === 409
+          ? await res.clone().json().catch(() => null) as { error?: string; status?: string; retryable?: boolean } | null
+          : null;
+        if (res.status === 409 && pending?.status === "backfilling" && pending.retryable === true) {
+          pendingPolls.current++;
+          const error = new Error(pending.error ?? "Finding generation is backfilling") as SemanticTelemetryError;
+          error.statusCode = 409;
+          error.retryable = pendingPolls.current <= MAX_FINDING_POLLS;
+          error.pendingStatus = pending.status;
+          throw error;
+        }
+        throw await errorFromResponse(res);
+      }
+      pendingPolls.current = 0;
+      pendingInvalidated.current = false;
       const body = await rpcJson<SemanticLapTelemetry & { error?: string }>(res);
       if (body.parseError) {
         const error = new Error(body.parseError ?? body.error ?? res.statusText) as SemanticTelemetryError;
@@ -71,9 +106,21 @@ export function useLapSemanticTelemetry(lapId: number | null) {
       return body;
     },
     enabled: lapId != null && gameId != null,
+    retry: false,
+    refetchInterval: (currentQuery) => {
+      const error = currentQuery.state.error as SemanticTelemetryError | null;
+      return error?.retryable === true && pendingPolls.current <= MAX_FINDING_POLLS ? FINDING_POLL_MS : false;
+    },
     gcTime: 0,
     staleTime: 0,
   });
+  useEffect(() => {
+    const error = query.error as SemanticTelemetryError | null;
+    if (!error?.retryable || pendingInvalidated.current) return;
+    pendingInvalidated.current = true;
+    void queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+  }, [query.error, queryClient]);
+  return query;
 }
 
 export function useDeleteLap() {

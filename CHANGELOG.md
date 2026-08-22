@@ -24,6 +24,7 @@
 ### Fixes
 
 - Correct imported race cautions, restarts, pit-service actions, and stint boundaries using simulator-independent semantic telemetry evidence
+- Keep deterministic findings, comparisons, and AI conversations bound to finalized current evidence, automatically backfill historical laps, and recover while finding generations rebuild
 
 - Prevent unfinished or stale lap-quality generations and decisions from driving pace, experiment, AI, or cached lap-metric analysis
 - Keep new-session telemetry capture moving while prior lap, quality, and result writes finish without publishing old-session laps into current live state

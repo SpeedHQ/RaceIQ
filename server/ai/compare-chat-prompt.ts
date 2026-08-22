@@ -134,7 +134,7 @@ Lap B:
 ${qualityContextB}
 
 ${summarizeComparison(comparison)}
-${legacyFindings}
+${legacyFindings ? `\n--- RECEIPT-FENCED DETERMINISTIC EVIDENCE ---\n${legacyFindings}\n--- END RECEIPT-FENCED DETERMINISTIC EVIDENCE ---` : ""}
 Use deterministic findings only as supplied evidence. Keep unavailable or indeterminate records as abstentions, preserve confidence, and never invent IDs or upgrade association to causation.
 Use retrieved analyses and corner-by-corner deltas to explain where time is gained or lost and what slower lap should change.`;
 }

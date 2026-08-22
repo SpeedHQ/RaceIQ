@@ -1,6 +1,7 @@
 import type {
   FindingConfidence,
   FindingEvidenceRef,
+  FindingGenerationReceipt,
   FindingMeasurement,
   FindingNarrative,
   FindingRecord,
@@ -239,39 +240,45 @@ function EvidenceNavigation({ evidence, onEvidenceSelect }: { evidence: Telemetr
 function FindingCard({
   finding,
   narratives,
+  staleReceipt,
   onEvidenceSelect,
 }: {
   finding: FindingRecord;
   narratives: readonly FindingNarrative[];
+  staleReceipt: boolean;
   onEvidenceSelect: (evidence: FindingEvidenceRef) => void;
 }) {
+  const status = staleReceipt && finding.status === "available" ? "unavailable" : finding.status;
+  const displayFinding = status === finding.status ? finding : { ...finding, status };
   const telemetryEvidence = finding.evidenceRefs.filter(
     (entry): entry is TelemetryRangeFindingEvidence => entry.kind === "telemetry-range" && entry.startFrameIndex != null,
   );
   const reason = finding.limitations.find((limitation) => limitation.detail)?.detail;
   const matchingNarratives = narratives;
-  const stateExplanation = finding.status === "unavailable"
-    ? reason ?? "Required evidence is unavailable."
-    : finding.status === "indeterminate"
-      ? reason ?? "Evidence does not support a definite result."
-      : finding.confidence === "low"
-        ? "Low-confidence result; treat as uncertain."
-        : finding.confidence === "unknown"
-          ? "Confidence is unknown; result is not promoted."
-          : null;
+  const stateExplanation = staleReceipt && finding.status === "available"
+    ? "Finding receipt is stale; this result is not current."
+    : status === "unavailable"
+      ? reason ?? "Required evidence is unavailable."
+      : status === "indeterminate"
+        ? reason ?? "Evidence does not support a definite result."
+        : finding.confidence === "low"
+          ? "Low-confidence result; treat as uncertain."
+          : finding.confidence === "unknown"
+            ? "Confidence is unknown; result is not promoted."
+            : null;
 
   return (
-    <article className={`space-y-3 rounded border bg-app-surface-alt p-3 ${findingBorder(finding)}`} data-finding-id={finding.id} data-status={finding.status} data-confidence={finding.confidence}>
+    <article className={`space-y-3 rounded border bg-app-surface-alt p-3 ${findingBorder(displayFinding)}`} data-finding-id={finding.id} data-status={status} data-confidence={finding.confidence}>
       <header>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge size="compact" variant={STATUS_BADGES[finding.status]}>{STATUS_LABELS[finding.status]}</Badge>
-          <Badge size="compact" variant={severityVariant(finding)}>{SEVERITY_LABELS[finding.severity]}</Badge>
+          <Badge size="compact" variant={STATUS_BADGES[status]}>{staleReceipt && finding.status === "available" ? "Stale" : STATUS_LABELS[status]}</Badge>
+          <Badge size="compact" variant={severityVariant(displayFinding)}>{SEVERITY_LABELS[finding.severity]}</Badge>
           <Badge size="compact" variant={finding.confidence === "high" ? "success" : finding.confidence === "medium" ? "info" : "neutral"}>{CONFIDENCE_LABELS[finding.confidence]}</Badge>
         </div>
         <h3 className="mt-2 break-words text-app-subtext font-semibold text-app-text">{finding.title ?? humanize(finding.type)}</h3>
         <p className="mt-0.5 text-app-caption text-app-text-muted">{humanize(finding.category)}</p>
         {stateExplanation && (
-          <p className={finding.status === "indeterminate" ? "mt-2 text-app-caption text-status-warning" : "mt-2 text-app-caption text-app-text-muted"}>
+          <p className={status === "indeterminate" ? "mt-2 text-app-caption text-status-warning" : "mt-2 text-app-caption text-app-text-muted"}>
             {stateExplanation}
           </p>
         )}
@@ -326,10 +333,12 @@ function FindingCard({
 function FindingList({
   findings,
   narratives,
+  staleReceipt,
   onEvidenceSelect,
 }: {
   findings: readonly FindingRecord[];
   narratives: readonly FindingNarrative[];
+  staleReceipt: boolean;
   onEvidenceSelect: (evidence: FindingEvidenceRef) => void;
 }) {
   const ordered = useMemo(
@@ -346,6 +355,7 @@ function FindingList({
           key={finding.id}
           finding={finding}
           narratives={narrativesById.get(finding.id) ?? EMPTY_NARRATIVES}
+          staleReceipt={staleReceipt}
           onEvidenceSelect={onEvidenceSelect}
         />
       ))}
@@ -356,20 +366,32 @@ function FindingList({
 export function FindingPanel({
   findings,
   narratives = EMPTY_NARRATIVES,
+  receipt = null,
+  pending = false,
   onEvidenceSelect,
 }: {
   findings: readonly FindingRecord[];
   narratives?: readonly FindingNarrative[];
+  receipt?: FindingGenerationReceipt | null;
+  pending?: boolean;
   onEvidenceSelect: (evidence: FindingEvidenceRef) => void;
 }) {
-  if (findings.length === 0) {
-    return (
-      <div role="status" className="rounded border border-app-border bg-app-surface-alt p-4 text-center">
-        <p className="text-app-subtext font-medium text-app-text">No deterministic findings</p>
-        <p className="mt-1 text-app-caption text-app-text-muted">Analysis found no evidence-backed issues for this lap.</p>
-      </div>
-    );
-  }
-
-  return <FindingList findings={findings} narratives={narratives} onEvidenceSelect={onEvidenceSelect} />;
+  const staleReceipt = pending || (receipt != null && receipt.status !== "current");
+  return (
+    <div className="space-y-3">
+      {staleReceipt && (
+        <div role="status" className="rounded border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-app-caption text-status-warning" data-finding-receipt-status={pending ? "backfilling" : receipt?.status ?? "stale"}>
+          {pending ? "Findings are backfilling. Results will update automatically." : `Finding receipt is ${receipt?.status ?? "stale"}; available results are not current.`}
+        </div>
+      )}
+      {findings.length === 0 ? (
+        <div role="status" className="rounded border border-app-border bg-app-surface-alt p-4 text-center">
+          <p className="text-app-subtext font-medium text-app-text">No deterministic findings</p>
+          <p className="mt-1 text-app-caption text-app-text-muted">Analysis found no evidence-backed issues for this lap.</p>
+        </div>
+      ) : (
+        <FindingList findings={findings} narratives={narratives} staleReceipt={staleReceipt} onEvidenceSelect={onEvidenceSelect} />
+      )}
+    </div>
+  );
 }

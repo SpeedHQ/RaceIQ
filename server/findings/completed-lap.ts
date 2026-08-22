@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
 import type { LapQualitySummary } from "../../shared/racing/quality/contracts";
+import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 import { canonicalJson } from "../../shared/racing/findings/identity";
 import {
@@ -9,6 +10,7 @@ import {
   type FindingGenerationReceipt,
   type FindingScope,
 } from "../../shared/racing/findings/types";
+import type { FindingRecord } from "../../shared/racing/findings/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { LapQualityResult } from "../lap-analysis/quality";
@@ -36,7 +38,10 @@ export interface CompletedLapFindingInput {
   telemetry: TelemetryPacket[];
   quality: LapQualitySummary;
   recordingQuality: LapQualityResult;
+  eligibility?: EligibilityDecisionSet | null;
+  qualityGeneration?: string | null;
   analysisGenerationId?: string | null;
+  qualityStale?: boolean;
   versionIdentity: TelemetryVersionIdentity;
   createdAt?: string;
 }
@@ -45,6 +50,10 @@ export interface CompletedLapFindingResult {
   scope: FindingScope;
   receipt: FindingGenerationReceipt;
   findingIds: readonly string[];
+}
+
+export interface PreparedCompletedLapFindings extends CompletedLapFindingResult {
+  findings: readonly FindingRecord[];
 }
 
 export interface CompletedLapFindingDependencies {
@@ -76,17 +85,15 @@ function generationId(scope: FindingScope, sourceId: string, config: Record<stri
 }
 
 /**
- * Build, atomically replace, then publish one completed lap generation.
- * Publication occurs only after store activation returns a current receipt.
+ * Builds one completed-lap generation without publishing or activating it.
+ * Session finalization batches these prepared inputs in one DB transaction.
  */
-export async function persistCompletedLapFindings(
+export function prepareCompletedLapFindings(
   input: CompletedLapFindingInput,
-  dependencies: CompletedLapFindingDependencies = {},
-): Promise<CompletedLapFindingResult> {
+  dependencies: Pick<CompletedLapFindingDependencies, "build" | "analyze" | "now"> = {},
+): PreparedCompletedLapFindings {
   const build = dependencies.build ?? buildDeterministicLapFindings;
   const analyze = dependencies.analyze ?? analyzeLap;
-  const replace = dependencies.replace ?? replaceFindingGeneration;
-  const publish = dependencies.publish ?? publishFindingGeneration;
   const createdAt = input.createdAt ?? (dependencies.now ?? (() => new Date().toISOString()))();
   const sourceId = findingSourceId(input);
   const scope: FindingScope = {
@@ -96,6 +103,7 @@ export async function persistCompletedLapFindings(
     lapId: String(input.lapId),
   };
   const bundle = build({
+    gameId: input.gameId,
     id: input.lapId,
     sessionId: input.sessionId,
     lapNumber: input.lapNumber,
@@ -103,8 +111,10 @@ export async function persistCompletedLapFindings(
     isValid: input.isValid,
     ...(input.invalidReason ? { invalidReason: input.invalidReason } : {}),
     createdAt,
-    gameId: input.gameId,
     quality: input.quality,
+    eligibility: input.eligibility ?? undefined,
+    qualityGeneration: input.qualityGeneration ?? undefined,
+    qualityStale: input.qualityStale,
     analysisGenerationId: sourceId,
     ...input.versionIdentity,
     ...(input.carOrdinal == null ? {} : { carOrdinal: input.carOrdinal }),
@@ -138,9 +148,23 @@ export async function persistCompletedLapFindings(
     schemaVersion: FINDING_SCHEMA_VERSION,
     createdAt,
   }, bundle.findings);
-  const activeReceipt = await replace({ scope, receipt, findings: bundle.findings });
   const findingIds = bundle.findings.map((finding) => finding.id)
     .sort((left, right) => left.localeCompare(right));
-  publish(scope, activeReceipt, findingIds);
-  return { scope, receipt: activeReceipt, findingIds };
+  return { scope, receipt, findings: bundle.findings, findingIds };
+}
+
+/**
+ * Build, atomically replace, then publish one completed lap generation.
+ * Publication occurs only after store activation returns a current receipt.
+ */
+export async function persistCompletedLapFindings(
+  input: CompletedLapFindingInput,
+  dependencies: CompletedLapFindingDependencies = {},
+): Promise<CompletedLapFindingResult> {
+  const prepared = prepareCompletedLapFindings(input, dependencies);
+  const replace = dependencies.replace ?? replaceFindingGeneration;
+  const publish = dependencies.publish ?? publishFindingGeneration;
+  const activeReceipt = await replace(prepared);
+  publish(prepared.scope, activeReceipt, prepared.findingIds);
+  return { scope: prepared.scope, receipt: activeReceipt, findingIds: prepared.findingIds };
 }

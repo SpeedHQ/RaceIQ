@@ -2,6 +2,7 @@ import { GameIdSchema } from "../../games/ids";
 import { canonicalJson, createFindingId } from "./identity";
 import {
   FINDING_SCHEMA_VERSION,
+  MAX_FINDING_EVIDENCE_REFS,
   type FindingConfidence,
   type FindingEvidenceRef,
   type FindingMeasurement,
@@ -111,8 +112,16 @@ function validateUniqueEvidence(
   path: string,
   errors: FindingValidationError[],
 ): void {
+  if (references.length > MAX_FINDING_EVIDENCE_REFS) {
+    addError(
+      errors,
+      path,
+      "too-many-evidence-references",
+      `Finding evidence is limited to ${MAX_FINDING_EVIDENCE_REFS} references`,
+    );
+  }
   const seen = new Set<string>();
-  references.forEach((reference, index) => {
+  references.slice(0, MAX_FINDING_EVIDENCE_REFS).forEach((reference, index) => {
     validateEvidenceRef(reference, `${path}[${index}]`, errors);
     const key = `${reference.kind}:${reference.id}`;
     if (seen.has(key)) addError(errors, `${path}[${index}]`, "duplicate-reference", `Duplicate evidence reference ${key}`);

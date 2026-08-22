@@ -22,6 +22,7 @@ import { toClientAiError } from "./provider-error";
 import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
 import type { StructuredRequest, ResolvedAi } from "./ai-types";
+import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "./chat-message-context";
 
 export interface AnalysisUsage {
   inputTokens: number;
@@ -156,8 +157,12 @@ export async function generateLapAnalysis(
       decision,
       error: "No persisted finding generation for this lap",
     };
+  const findingExpectation = {
+    scope: findingScope,
+    generationId: findingGeneration.receipt.generationId,
+    contentHash: findingGeneration.receipt.contentHash,
+  } as const;
   const findingGenerationKey = lapFindingGenerationCacheKey(findingGeneration.receipt);
-
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
   let corners: Corner[] = trackOrdinal > 0 && lap.gameId ? await findCorners(trackOrdinal, lap.gameId) : [];
@@ -172,7 +177,7 @@ export async function generateLapAnalysis(
   const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
 
   if (!options.regenerate) {
-    const cached = await readAnalysis(lapId, findingGenerationKey);
+    const cached = await readAnalysis(lapId, findingExpectation);
     const cachedAnalysis = parseAndValidateAnalysis(cached?.analysis);
     if (cached && cachedAnalysis) {
       return {
@@ -291,7 +296,19 @@ export async function generateLapAnalysis(
     };
     const generate = deps.generate ?? ((requestPrompt, requestOptions) => lapAnalystAgent.generate(requestPrompt, requestOptions as never));
     const runStructured = deps.runAiStructured ?? runAiStructured;
-    const result = await runStructured(ai, input, (requestContext) => generate(prompt, { ...generationOptions, requestContext }));
+    const result = await runStructured(ai, input, (requestContext) => {
+      requestContext.set(FINDING_RECEIPT_FENCE_CONTEXT_KEY, {
+        kind: "lap",
+        gameId: lap.gameId,
+        cacheKey: findingGenerationKey,
+        laps: [{
+          lapId: lap.id,
+          generationId: findingGeneration.receipt.generationId,
+          contentHash: findingGeneration.receipt.contentHash,
+        }],
+      });
+      return generate(prompt, { ...generationOptions, requestContext });
+    });
     const text = parseAndValidateAnalysis(result.analysis);
     if (!text)
       return {
@@ -323,7 +340,7 @@ export async function generateLapAnalysis(
         error: "Lap findings changed during analysis generation. Analysis not cached.",
       };
     }
-    const saved = await writeAnalysis(lapId, text, usage, qualityIdentity, findingGenerationKey);
+    const saved = await writeAnalysis(lapId, text, usage, qualityIdentity, findingExpectation);
     if (!saved) {
       return {
         analysis: null,

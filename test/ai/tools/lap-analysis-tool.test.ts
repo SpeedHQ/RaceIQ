@@ -4,6 +4,8 @@ import {
   getLapAnalysisToolFor,
   parseCachedLapAnalysis,
 } from "../../../mastra/tools/lap-analysis";
+import { lapFindingGenerationCacheKey } from "../../../server/db/analysis-queries";
+import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "../../../server/ai/chat-message-context";
 import { buildCompareChatSystemPrompt } from "../../../server/ai/compare-chat-prompt";
 
 const lap = {
@@ -132,6 +134,50 @@ describe("lap analysis retrieval contract", () => {
     expect(cacheRead).toBe(false);
     expect(rawResult.available).toBe(false);
     expect(rawResult.error).toBe("Finding generation not found");
+  });
+
+  test("uses the request-bound receipt fence without loading a newer generation", async () => {
+    const receipt = { generationId: "bound-generation-4", contentHash: "bound-content-4" };
+    const cacheKey = lapFindingGenerationCacheKey(receipt);
+    let receivedExpectation: unknown;
+    const tool = getLapAnalysisToolFor(
+      async (_lapId, expectation) => {
+        receivedExpectation = expectation;
+        return null;
+      },
+      {
+        ...findingDeps,
+        getCurrentFindingGeneration: async () => {
+          throw new Error("must not load latest generation");
+        },
+      },
+    );
+    const execute = tool.execute;
+    if (!execute) throw new Error("Lap analysis tool has no execute function");
+    const rawResult = await execute(
+      { lapId: 4 },
+      {
+        requestContext: {
+          get(key: string) {
+            return key === FINDING_RECEIPT_FENCE_CONTEXT_KEY
+              ? {
+                  kind: "lap",
+                  gameId: "fm-2023",
+                  cacheKey,
+                  laps: [{ lapId: 4, ...receipt }],
+                }
+              : undefined;
+          },
+        },
+      } as never,
+    );
+    if (!isLapResult(rawResult)) throw new Error("Unexpected lap analysis tool result");
+
+    expect(receivedExpectation).toEqual({
+      scope: { kind: "lap", gameId: "fm-2023", sessionId: "17", lapId: "4" },
+      generationId: receipt.generationId,
+      contentHash: receipt.contentHash,
+    });
   });
   test("does not embed cached analysis in compare prompts", () => {
     const comparePrompt = buildCompareChatSystemPrompt(

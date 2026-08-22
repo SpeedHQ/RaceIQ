@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { FINDING_SCHEMA_VERSION, type FindingNarrative, type FindingRecord } from "../../shared/racing/findings/types";
 import {
   buildFindingsContext,
+  MAX_FINDINGS_CONTEXT_CHARS,
   parseCachedFindings,
 } from "../../server/ai/findings-context";
 
@@ -135,6 +136,36 @@ describe("buildFindingsContext", () => {
     expect(context).toContain("Narratives are wording attached to supplied finding IDs, never evidence or new findings.");
     expect(context).not.toContain("Invented guidance");
     expect(context).not.toContain("Malformed guidance");
+  });
+});
+
+describe("finding prompt resource bounds", () => {
+  test("caps deterministic context with explicit abstention for omitted findings", () => {
+    const findings = Array.from({ length: 200 }, (_, index) => finding({
+      id: `finding-${String(index).padStart(3, "0")}`,
+      title: `Finding ${index} ${"detail ".repeat(100)}`,
+    }));
+
+    const context = buildFindingsContext(findings);
+    expect(context.length).toBeLessThanOrEqual(MAX_FINDINGS_CONTEXT_CHARS);
+    expect(context).toContain("[ABSTENTION] Findings context truncated by fixed prompt budget:");
+    expect(context).toContain("No claims permitted for omitted content.");
+    expect(context).not.toContain("[FINDING finding-199]");
+    expect(buildFindingsContext([...findings].reverse())).toBe(context);
+  });
+
+  test("makes structurally oversized finding rejection visible", () => {
+    const oversized = finding({
+      evidenceRefs: Array.from({ length: 65 }, (_, index) => ({
+        kind: "lap" as const,
+        id: `lap-${index}`,
+        lapId: `lap-${index}`,
+      })),
+    });
+
+    const context = buildFindingsContext([oversized]);
+    expect(context).toContain("[ABSTENTION] Findings context truncated by fixed prompt budget: 1 of 1 findings omitted");
+    expect(context).not.toContain("[FINDING finding-available]");
   });
 });
 

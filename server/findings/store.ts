@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
-import { and, eq, inArray, ne, or } from "drizzle-orm";
+import { Buffer } from "node:buffer";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "../db/index";
-import { findingGenerations, findingRecords } from "../db/schema";
+import { findingGenerations, findingRecords, laps, sessions } from "../db/schema";
 import { assertNoFindingConflicts, canonicalJson } from "../../shared/racing/findings/identity";
-import { GameIdSchema } from "../../shared/games/ids";
+import { GameIdSchema, KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { validateFinding } from "../../shared/racing/findings/validate";
 import type {
   FindingGenerationReceipt,
@@ -13,8 +14,15 @@ import type {
 } from "../../shared/racing/findings/types";
 
 const ACTIVE_STATUSES = ["current", "stale-rebuild-available", "stale-source-missing"] as const;
+export const MAX_FINDING_STRUCTURED_BYTES = 256 * 1024;
+export const MAX_FINDING_GENERATION_STRUCTURED_BYTES = 2 * 1024 * 1024;
 export type ActiveFindingGenerationStatus = (typeof ACTIVE_STATUSES)[number];
 export type StaleFindingGenerationStatus = Exclude<ActiveFindingGenerationStatus, "current">;
+export interface FindingGenerationExpectation {
+  scope: FindingScope;
+  generationId: string;
+  contentHash: string;
+}
 
 export interface FindingGenerationInput {
   scope: FindingScope;
@@ -41,14 +49,37 @@ function digest(value: string): string {
 
 function structuredFindingJson(finding: FindingRecord): string {
   const { title: _prose, ...structured } = finding;
-  return canonicalJson(structured);
+  const serialized = canonicalJson(structured);
+  const size = Buffer.byteLength(serialized);
+  if (size > MAX_FINDING_STRUCTURED_BYTES) {
+    throw new FindingGenerationVerificationError(
+      `Finding ${finding.id} structured payload exceeds ${MAX_FINDING_STRUCTURED_BYTES} bytes`,
+    );
+  }
+  return serialized;
 }
 
 export function findingGenerationContentHash(findings: readonly FindingRecord[]): string {
+  let totalSize = 0;
   const ordered = findings
-    .map((finding) => ({ id: finding.id, structured: JSON.parse(structuredFindingJson(finding)) }))
+    .map((finding) => {
+      const serialized = structuredFindingJson(finding);
+      totalSize += Buffer.byteLength(serialized);
+      if (totalSize > MAX_FINDING_GENERATION_STRUCTURED_BYTES) {
+        throw new FindingGenerationVerificationError(
+          `Finding generation structured payload exceeds ${MAX_FINDING_GENERATION_STRUCTURED_BYTES} bytes`,
+        );
+      }
+      return { id: finding.id, structured: JSON.parse(serialized) };
+    })
     .sort((left, right) => left.id.localeCompare(right.id));
-  return digest(canonicalJson(ordered));
+  const serializedGeneration = canonicalJson(ordered);
+  if (Buffer.byteLength(serializedGeneration) > MAX_FINDING_GENERATION_STRUCTURED_BYTES) {
+    throw new FindingGenerationVerificationError(
+      `Finding generation structured payload exceeds ${MAX_FINDING_GENERATION_STRUCTURED_BYTES} bytes`,
+    );
+  }
+  return digest(serializedGeneration);
 }
 
 export function findingGenerationCounts(findings: readonly FindingRecord[]): Pick<
@@ -279,139 +310,170 @@ function receiptFromRow(row: typeof findingGenerations.$inferSelect): FindingGen
   };
 }
 
-async function readGeneration(generationId: string): Promise<StoredFindingGeneration | null> {
-  const generation = await db
-    .select()
-    .from(findingGenerations)
-    .where(eq(findingGenerations.id, generationId))
-    .get();
+async function readGenerationFrom(database: FindingsDatabase, generationId: string): Promise<StoredFindingGeneration | null> {
+  const generation = await database.select().from(findingGenerations).where(eq(findingGenerations.id, generationId)).get();
   if (!generation) return null;
-  const records = await db
-    .select({ structured: findingRecords.structured })
-    .from(findingRecords)
-    .where(eq(findingRecords.generationId, generationId))
-    .orderBy(findingRecords.findingId);
-  return {
-    scope: JSON.parse(generation.scope),
-    receipt: receiptFromRow(generation),
-    findings: records.map((record) => JSON.parse(record.structured) as FindingRecord),
-  };
+  const records = await database.select({ structured: findingRecords.structured }).from(findingRecords).where(eq(findingRecords.generationId, generationId)).orderBy(findingRecords.findingId);
+  const findings = records.map((record) => JSON.parse(record.structured) as FindingRecord);
+  const counts = findingGenerationCounts(findings);
+  if (
+    generation.status !== "verification-failed" &&
+    (
+      counts.findingCount !== generation.findingCount ||
+      counts.availableCount !== generation.availableCount ||
+      counts.unavailableCount !== generation.unavailableCount ||
+      counts.indeterminateCount !== generation.indeterminateCount ||
+      findingGenerationContentHash(findings) !== generation.contentHash
+    )
+  ) {
+    throw new FindingGenerationVerificationError("Stored finding generation failed count/hash verification");
+  }
+  return { scope: JSON.parse(generation.scope), receipt: receiptFromRow(generation), findings };
 }
 
 export async function getFindingGeneration(generationId: string): Promise<StoredFindingGeneration | null> {
-  return readGeneration(generationId);
+  try { return await db.transaction((tx) => readGenerationFrom(tx, generationId)); }
+  catch (error) { if (error instanceof FindingGenerationVerificationError) return null; throw error; }
 }
 
 export async function getCurrentFindingGeneration(scope: FindingScope): Promise<StoredFindingGeneration | null> {
-  const generation = await db
-    .select({ id: findingGenerations.id })
-    .from(findingGenerations)
-    .where(and(eq(findingGenerations.scopeKey, scopeKey(scope)), activeStatusExpression()))
-    .get();
-  return generation ? readGeneration(generation.id) : null;
+  try {
+    return await db.transaction(async (tx) => {
+      const generation = await tx.select({ id: findingGenerations.id }).from(findingGenerations).where(and(eq(findingGenerations.scopeKey, scopeKey(scope)), eq(findingGenerations.status, "current"))).get();
+      return generation ? readGenerationFrom(tx, generation.id) : null;
+    });
+  } catch (error) { if (error instanceof FindingGenerationVerificationError) return null; throw error; }
+}
+
+/** Newest active generation, including stale statuses. Current reads must use getCurrentFindingGeneration. */
+export async function getLatestFindingGeneration(scope: FindingScope): Promise<StoredFindingGeneration | null> {
+  try {
+    return await db.transaction(async (tx) => {
+      const generation = await tx.select({ id: findingGenerations.id }).from(findingGenerations).where(and(eq(findingGenerations.scopeKey, scopeKey(scope)), activeStatusExpression())).orderBy(desc(findingGenerations.createdAt), desc(findingGenerations.id)).get();
+      return generation ? readGenerationFrom(tx, generation.id) : null;
+    });
+  } catch (error) { if (error instanceof FindingGenerationVerificationError) return null; throw error; }
+}
+
+async function activateBatchInTransaction(tx: FindingsDatabase, generationIds: readonly string[]): Promise<FindingGenerationReceipt[]> {
+  if (generationIds.length === 0) throw new FindingGenerationVerificationError("Finding generation activation batch cannot be empty");
+  if (new Set(generationIds).size !== generationIds.length) throw new FindingGenerationVerificationError("Finding generation activation batch contains duplicate IDs");
+  const rows: Array<{ row: typeof findingGenerations.$inferSelect; stored: StoredFindingGeneration }> = [];
+  const scopeKeys = new Set<string>();
+  for (const generationId of generationIds) {
+    const row = await tx.select().from(findingGenerations).where(eq(findingGenerations.id, generationId)).get();
+    if (!row || row.status !== "staging") throw new FindingGenerationVerificationError("Only staged finding generations can be activated");
+    const stored = await readGenerationFrom(tx, generationId);
+    if (!stored) throw new FindingGenerationVerificationError("Staged finding generation disappeared during activation");
+    if (scopeKeys.has(row.scopeKey)) throw new FindingGenerationVerificationError("Finding generation activation batch contains duplicate scopes");
+    scopeKeys.add(row.scopeKey);
+    await assertNoStoredConflicts(tx, stored.findings);
+    rows.push({ row, stored });
+  }
+  const sessionId = rows[0]!.stored.scope.sessionId;
+  const gameId = rows[0]!.stored.scope.gameId;
+  if (rows.some(({ stored }) => stored.scope.sessionId !== sessionId || stored.scope.gameId !== gameId)) throw new FindingGenerationVerificationError("Finding generation activation batch must belong to one session and game");
+
+  // Partial active index permits one current/stale row per scope. Remove prior
+  // active rows before promoting staged rows; transaction rollback restores them
+  // if any verification or activation step fails.
+  await tx.delete(findingGenerations).where(and(
+    inArray(findingGenerations.scopeKey, [...scopeKeys]),
+    activeStatusExpression(),
+  ));
+  const activatedAt = new Date().toISOString();
+  const receipts: FindingGenerationReceipt[] = [];
+  for (const { row, stored } of rows) {
+    await tx.update(findingGenerations).set({ status: "current", activatedAt, staleAt: null, failureReason: null }).where(eq(findingGenerations.id, row.id));
+    receipts.push({ ...stored.receipt, status: "current", activatedAt });
+  }
+  return receipts;
+}
+
+export async function activateFindingGenerationBatch(generationIds: readonly string[]): Promise<FindingGenerationReceipt[]> {
+  try { return await db.transaction((tx) => activateBatchInTransaction(tx, generationIds)); }
+  catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    if (generationIds.length > 0) await db.update(findingGenerations).set({ status: "verification-failed", failureReason: reason }).where(and(inArray(findingGenerations.id, [...new Set(generationIds)]), eq(findingGenerations.status, "staging")));
+    throw error;
+  }
 }
 
 export async function activateFindingGeneration(generationId: string): Promise<FindingGenerationReceipt> {
+  const [receipt] = await activateFindingGenerationBatch([generationId]);
+  return receipt!;
+}
+
+export async function replaceFindingGenerationsBatch(inputs: readonly FindingGenerationInput[]): Promise<FindingGenerationReceipt[]> {
+  if (inputs.length === 0) throw new FindingGenerationVerificationError("Finding generation replacement batch cannot be empty");
   try {
+    for (const input of inputs) verifyGeneration(input);
+    const sessionId = inputs[0]!.scope.sessionId;
+    const gameId = inputs[0]!.scope.gameId;
+    if (inputs.some((input) => input.scope.sessionId !== sessionId || input.scope.gameId !== gameId)) throw new FindingGenerationVerificationError("Finding generation replacement batch must belong to one session and game");
     return await db.transaction(async (tx) => {
-      const generation = await tx
-        .select()
-        .from(findingGenerations)
-        .where(eq(findingGenerations.id, generationId))
-        .get();
-      if (!generation || generation.status !== "staging") {
-        throw new FindingGenerationVerificationError("Only staged finding generations can be activated");
+      const ids = new Set<string>();
+      for (const input of inputs) {
+        if (ids.has(input.receipt.generationId)) throw new FindingGenerationVerificationError("Finding generation replacement batch contains duplicate IDs");
+        ids.add(input.receipt.generationId);
+        const existing = await tx.select({ scopeKey: findingGenerations.scopeKey }).from(findingGenerations).where(eq(findingGenerations.id, input.receipt.generationId)).get();
+        if (existing && existing.scopeKey !== scopeKey(input.scope)) throw new FindingGenerationVerificationError("Finding generation ID is already owned by a different semantic scope");
+        await assertNoStoredConflicts(tx, input.findings);
+        if (existing) await tx.delete(findingGenerations).where(eq(findingGenerations.id, input.receipt.generationId));
+        await insertStagedGeneration(tx, input);
       }
-      const records = await tx
-        .select({ structured: findingRecords.structured })
-        .from(findingRecords)
-        .where(eq(findingRecords.generationId, generationId));
-      const findings = records.map((record) => JSON.parse(record.structured) as FindingRecord);
-      const counts = findingGenerationCounts(findings);
-      if (
-        counts.findingCount !== generation.findingCount ||
-        counts.availableCount !== generation.availableCount ||
-        counts.unavailableCount !== generation.unavailableCount ||
-        counts.indeterminateCount !== generation.indeterminateCount ||
-        findingGenerationContentHash(findings) !== generation.contentHash
-      ) {
-        throw new FindingGenerationVerificationError("Staged finding generation failed stored count/hash verification");
-      }
-      await assertNoStoredConflicts(tx, findings);
-      await tx
-        .delete(findingGenerations)
-        .where(and(eq(findingGenerations.scopeKey, generation.scopeKey), ne(findingGenerations.id, generationId), activeStatusExpression()));
-      const activatedAt = new Date().toISOString();
-      await tx
-        .update(findingGenerations)
-        .set({ status: "current", activatedAt, staleAt: null, failureReason: null })
-        .where(eq(findingGenerations.id, generationId));
-      return { ...receiptFromRow(generation), status: "current" as const, activatedAt };
+      return activateBatchInTransaction(tx, inputs.map((input) => input.receipt.generationId));
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    await db
-      .update(findingGenerations)
-      .set({ status: "verification-failed", failureReason: reason })
-      .where(and(eq(findingGenerations.id, generationId), eq(findingGenerations.status, "staging")));
+    for (const input of inputs) await persistVerificationFailure(input, reason);
     throw error;
   }
 }
 
 export async function replaceFindingGeneration(input: FindingGenerationInput): Promise<FindingGenerationReceipt> {
-  try {
-    verifyGeneration(input);
-    return await db.transaction(async (tx) => {
-      const replacementScopeKey = scopeKey(input.scope);
-      const existing = await tx
-        .select({ scopeKey: findingGenerations.scopeKey })
-        .from(findingGenerations)
-        .where(eq(findingGenerations.id, input.receipt.generationId))
-        .get();
-      if (existing && existing.scopeKey !== replacementScopeKey) {
-        throw new FindingGenerationVerificationError(
-          "Finding generation ID is already owned by a different semantic scope",
-        );
-      }
-      await assertNoStoredConflicts(tx, input.findings);
-      await tx.delete(findingGenerations).where(eq(findingGenerations.id, input.receipt.generationId));
-      await insertStagedGeneration(tx, input);
-      await tx
-        .delete(findingGenerations)
-        .where(and(
-          eq(findingGenerations.scopeKey, replacementScopeKey),
-          ne(findingGenerations.id, input.receipt.generationId),
-          activeStatusExpression(),
-        ));
-      const activatedAt = new Date().toISOString();
-      await tx
-        .update(findingGenerations)
-        .set({ status: "current", activatedAt })
-        .where(eq(findingGenerations.id, input.receipt.generationId));
-      return { ...input.receipt, status: "current" as const, activatedAt };
-    });
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    await persistVerificationFailure(input, reason);
-    throw error;
-  }
+  const [receipt] = await replaceFindingGenerationsBatch([input]);
+  return receipt!;
 }
 
-export async function markCurrentFindingGenerationStale(
-  scope: FindingScope,
-  status: StaleFindingGenerationStatus,
-): Promise<FindingGenerationReceipt | null> {
-  const current = await db
-    .select({ id: findingGenerations.id })
+export async function markCurrentFindingGenerationStale(scope: FindingScope, status: StaleFindingGenerationStatus): Promise<FindingGenerationReceipt | null> {
+  return db.transaction(async (tx) => {
+    const current = await tx.select({ id: findingGenerations.id }).from(findingGenerations).where(and(eq(findingGenerations.scopeKey, scopeKey(scope)), eq(findingGenerations.status, "current"))).get();
+    if (!current) return null;
+    await tx.update(findingGenerations).set({ status, staleAt: new Date().toISOString() }).where(and(eq(findingGenerations.id, current.id), eq(findingGenerations.status, "current")));
+    const updated = await readGenerationFrom(tx, current.id);
+    return updated?.receipt ?? null;
+  });
+}
+
+export async function listSessionsMissingCurrentFindingGeneration(gameId: GameId): Promise<number[]> {
+  const lapIds = await listLapsMissingCurrentFindingGeneration(gameId);
+  if (lapIds.length === 0) return [];
+  const rows = await db.selectDistinct({ sessionId: laps.sessionId })
+    .from(laps)
+    .where(inArray(laps.id, lapIds))
+    .orderBy(laps.sessionId);
+  return rows.map(({ sessionId }) => sessionId);
+}
+
+export async function listLapsMissingCurrentFindingGeneration(gameId: GameId, sessionId?: number): Promise<number[]> {
+  const conditions = [eq(sessions.gameId, gameId)];
+  if (sessionId !== undefined) conditions.push(eq(laps.sessionId, sessionId));
+  const lapRows = await db.select({ id: laps.id })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(and(...conditions))
+    .orderBy(laps.id);
+  if (lapRows.length === 0) return [];
+  const currentRows = await db.select({ lapId: findingGenerations.lapId })
     .from(findingGenerations)
-    .where(and(eq(findingGenerations.scopeKey, scopeKey(scope)), activeStatusExpression()))
-    .get();
-  if (!current) return null;
-  const staleAt = new Date().toISOString();
-  await db
-    .update(findingGenerations)
-    .set({ status, staleAt })
-    .where(eq(findingGenerations.id, current.id));
-  const updated = await readGeneration(current.id);
-  return updated?.receipt ?? null;
+    .where(and(eq(findingGenerations.status, "current"), inArray(findingGenerations.lapId, lapRows.map((lap) => lap.id))));
+  const currentLaps = new Set(currentRows.flatMap((row) => row.lapId === null ? [] : [row.lapId]));
+  return lapRows.filter((lap) => !currentLaps.has(lap.id)).map((lap) => lap.id);
+}
+
+/** Idempotent backfill source across all games. */
+export async function listSessionsMissingCurrentFindingGenerations(): Promise<number[]> {
+  const ids = await Promise.all(KNOWN_GAME_IDS.map((gameId) => listSessionsMissingCurrentFindingGeneration(gameId)));
+  return [...new Set(ids.flat())].sort((a, b) => a - b);
 }

@@ -369,6 +369,12 @@ export function buildSetupEngineerTools() {
       summary: z.string(),
       eligibilityStatus: EligibilityStatusEnum,
       reasonCodes: z.array(z.string()),
+      lapId: z.number().int().positive().optional(),
+      provenance: z.object({
+        findingGenerationId: z.string(),
+        findingContentHash: z.string(),
+        findingCacheKey: z.string(),
+      }).optional(),
     }),
     execute: async (_input, execCtx) => {
       const { gameId, sessionId } = readSetupEngineerContext(execCtx?.requestContext);

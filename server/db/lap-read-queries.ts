@@ -74,6 +74,18 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
 
   return rows.map(toLapMeta);
 }
+
+/** Read lap metadata only; never decodes telemetry or populates telemetry cache. */
+export async function getLapMetaById(id: number): Promise<LapMeta | null> {
+  const row = await db
+    .select(lapMetaProjection)
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(eq(laps.id, id))
+    .get();
+  return row ? toLapMeta(row) : null;
+}
 export async function getLapMetaForPitHistory(
   trackOrdinal: number,
   carOrdinal: number,

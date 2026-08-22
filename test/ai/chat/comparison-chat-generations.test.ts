@@ -71,14 +71,15 @@ async function insertComparisonLaps(): Promise<[number, number, string]> {
       telemetry: packets,
     }, { analyze: () => [] });
   }
-  const generations = await Promise.all(ids.map((lapId) =>
-    getCurrentFindingGeneration({
+  const generations = [];
+  for (const lapId of ids) {
+    generations.push(await getCurrentFindingGeneration({
       kind: "lap",
       gameId: "fm-2023",
       sessionId: String(sessionId),
       lapId: String(lapId),
-    })
-  ));
+    }));
+  }
   if (!generations[0] || !generations[1]) throw new Error("Expected current finding generations");
   const findingGenerationKey = compareFindingGenerationCacheKey([
     { lapId: ids[0]!, receipt: generations[0].receipt },

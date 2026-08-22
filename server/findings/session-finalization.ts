@@ -6,7 +6,13 @@ import { db } from "../db/index";
 import { laps } from "../db/schema";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { assessLapRecording } from "../lap-analysis/quality";
-import { persistCompletedLapFindings, type CompletedLapFindingResult } from "./completed-lap";
+import {
+  prepareCompletedLapFindings,
+  type CompletedLapFindingResult,
+  type PreparedCompletedLapFindings,
+} from "./completed-lap";
+import { publishFindingGeneration } from "./publication";
+import { replaceFindingGenerationsBatch } from "./store";
 
 function storedVersionIdentity(lap: LoadedLap): TelemetryVersionIdentity {
   const qualityVersion = lap.quality?.versionIdentity;
@@ -43,18 +49,16 @@ export async function rebuildCompletedSessionFindings(
     .from(laps)
     .where(eq(laps.sessionId, sessionId))
     .all();
-  const results: CompletedLapFindingResult[] = [];
-
+  const prepared: PreparedCompletedLapFindings[] = [];
+  const lapIds: number[] = [];
   for (const { id } of rows) {
-    cacheDelete(id);
     const lap = await getLapById(id);
     if (!lap) throw new Error(`Completed lap ${id} disappeared during finding rebuild`);
     if (lap.sessionId !== sessionId || lap.gameId !== gameId) {
       throw new Error(`Completed lap ${id} no longer belongs to session ${sessionId}`);
     }
-    if (!lap.quality?.complete) continue;
-
-    results.push(await persistCompletedLapFindings({
+    if (!lap.quality) throw new Error(`Completed lap ${id} lacks finalized quality`);
+    prepared.push(prepareCompletedLapFindings({
       lapId: lap.id,
       sessionId: lap.sessionId,
       lapNumber: lap.lapNumber,
@@ -67,12 +71,24 @@ export async function rebuildCompletedSessionFindings(
       sectorTimes: lap.sectorTimes ?? null,
       telemetry: lap.telemetry,
       quality: lap.quality,
+      eligibility: lap.eligibility ?? null,
+      qualityGeneration: lap.qualityGeneration ?? null,
+      qualityStale: lap.qualityStale,
       recordingQuality: assessLapRecording(lap.telemetry, lap.lapTime),
       analysisGenerationId: lap.analysisGenerationId ?? null,
       versionIdentity: storedVersionIdentity(lap),
       createdAt: lap.createdAt,
     }));
+    lapIds.push(id);
   }
-
+  if (prepared.length === 0) return [];
+  const receipts = await replaceFindingGenerationsBatch(prepared);
+  const results: CompletedLapFindingResult[] = prepared.map((candidate, index) => {
+    const receipt = receipts[index];
+    if (!receipt) throw new Error("Atomic finding activation returned incomplete receipts");
+    publishFindingGeneration(candidate.scope, receipt, candidate.findingIds);
+    return { scope: candidate.scope, receipt, findingIds: candidate.findingIds };
+  });
+  for (const id of lapIds) cacheDelete(id);
   return results;
 }

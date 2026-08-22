@@ -368,6 +368,13 @@ describe("eligibility policy registry", () => {
     expect(evaluateEligibility("fuel-burn", partial).status).toBe("ineligible");
     expect(evaluateEligibility("fuel-burn", partial).reasons.map(({ code }) => code)).toContain("partial_lap");
 
+    const truncated = {
+      ...summarize(qualityPackets(100)),
+      lifecycleState: "incomplete" as const,
+    };
+    expect(evaluateEligibility("fuel-burn", truncated).status).toBe("ineligible");
+    expect(evaluateEligibility("tire-analysis", truncated).status).toBe("ineligible");
+
     const structurallyInvalid = summarize(qualityPackets(100), {
       structurallyValid: false,
       invalidReason: "track limits",

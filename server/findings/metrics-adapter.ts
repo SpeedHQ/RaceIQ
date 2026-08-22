@@ -1,4 +1,6 @@
 import type { GameId } from "../../shared/games/ids";
+import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
+import { isEligibilityUsable } from "../../shared/racing/quality/policies";
 
 import {
   INPUT_VAR_THRESHOLD,
@@ -29,10 +31,11 @@ export interface MetricsFindingContext {
   segmentStats?: readonly SegmentStat[];
   fuelPerLap?: number | null;
   tyreWear?: number | null;
+  quality: LapQualityResult;
   consistency?: LineSpreadTrace | LapConsistencyDelta | null;
   fallbackReasons?: readonly string[];
   lowTrustReasons?: readonly string[];
-  quality?: LapQualityResult | null;
+  finalizedPolicyDecisions?: Partial<Record<"fuel-per-lap" | "tyre-wear", EligibilityDecision>>;
   analysisGenerationId?: string;
   ruleVersion?: string | number;
   segmentAlgorithmVersion?: string | number;
@@ -97,8 +100,9 @@ function metricRecord(
     evidenceRefs: FindingEvidenceRef[];
     limitations: FindingLimitation[];
     lowTrust: boolean;
-    quality?: LapQualityResult | null;
-    qualityRef?: FindingEvidenceRef;
+    quality: LapQualityResult;
+    legacyQualityRef?: FindingEvidenceRef;
+    finalizedPolicyDecisions?: Partial<Record<"fuel-per-lap" | "tyre-wear", EligibilityDecision>>;
   },
   metric: {
     type: "fuel-per-lap" | "tyre-wear";
@@ -110,25 +114,45 @@ function metricRecord(
   },
 ): FindingRecord {
   const available = typeof metric.value === "number" && Number.isFinite(metric.value);
-  const rejected = context.quality != null && !context.quality.valid;
-  const status: FindingStatus = rejected ? "indeterminate" : available ? "available" : "unavailable";
+  const policyDecision = context.finalizedPolicyDecisions?.[metric.type];
+  const legacyRejected = !context.quality.valid;
+  const policyRejected = policyDecision != null && !isEligibilityUsable(policyDecision);
+  const policyQualityRef = policyRejected
+    ? {
+        kind: "quality-decision" as const,
+        id: `eligibility:${context.lapId}:${policyDecision!.policyId}:${policyDecision!.status}`,
+        sessionId: context.sessionId,
+        decisionId: `eligibility:${context.lapId}:${policyDecision!.policyId}`,
+        decision: policyDecision!.status,
+      }
+    : undefined;
+  const qualityRefs = [
+    ...(context.legacyQualityRef ? [context.legacyQualityRef] : []),
+    ...(policyQualityRef ? [policyQualityRef] : []),
+  ];
+  const restricted = legacyRejected || policyRejected;
+  const status: FindingStatus = !available ? "unavailable" : restricted ? "indeterminate" : "available";
   const unavailableReason = metric.type === "fuel-per-lap"
     ? "fuel-per-lap-source-unavailable"
     : "tyre-wear-source-unavailable";
   const limitations = [
-    ...(rejected
+    ...(legacyRejected
       ? [{
           code: "quality-rejected",
           detail: context.quality?.reason ?? "lap recording quality rejected",
-          evidenceRefs: context.qualityRef ? [context.qualityRef] : undefined,
+          evidenceRefs: qualityRefs,
+        }]
+      : []),
+    ...(policyRejected
+      ? [{
+          code: `quality-policy-${policyDecision!.policyId}-${policyDecision!.status}`,
+          detail: `finalized ${policyDecision!.policyId} policy is ${policyDecision!.status}`,
+          evidenceRefs: qualityRefs,
         }]
       : []),
     ...(available ? [] : [{ code: unavailableReason, detail: "source aggregate was undefined" }]),
     ...context.limitations,
   ];
-  const evidenceRefs = context.qualityRef
-    ? [...context.evidenceRefs, context.qualityRef]
-    : context.evidenceRefs;
   const measurement: FindingMeasurement = {
     id: `${metric.type}:${context.lapId}`,
     type: metric.type,
@@ -143,7 +167,8 @@ function metricRecord(
   const inputs: Record<string, CanonicalJson> = {
     source: metric.type === "fuel-per-lap" ? "LapMetric.fuelPerLap" : "LapMetric.tyreWear",
   };
-  if (rejected) inputs.qualityValid = false;
+  if (legacyRejected) inputs.qualityValid = false;
+  if (policyRejected) inputs.finalizedPolicyStatus = policyDecision!.status;
   return finishRecord({
     schemaVersion: FINDING_SCHEMA_VERSION,
     type: metric.type,
@@ -153,8 +178,8 @@ function metricRecord(
     severity: "informational",
     confidence: confidenceFor(status, context.lowTrust),
     measurements: [measurement],
-    evidenceRefs,
-    qualityRefs: context.qualityRef ? [context.qualityRef] : [],
+    evidenceRefs: [...context.evidenceRefs, ...qualityRefs],
+    qualityRefs,
     limitations,
     rule: {
       id: RULE_ID,
@@ -205,7 +230,7 @@ export function adaptMetricsToFindings(context: MetricsFindingContext): FindingR
   const lowTrust = lowTrustReasons.length > 0;
   const generation = context.analysisGenerationId ?? DEFAULT_GENERATION;
   const ruleVersion = String(context.ruleVersion ?? context.segmentAlgorithmVersion ?? "1");
-  const qualityRef = context.quality && !context.quality.valid
+  const legacyQualityRef = !context.quality.valid
     ? createLapQualityEvidence(sessionId, lapId, context.quality)
     : undefined;
   const common = {
@@ -218,7 +243,8 @@ export function adaptMetricsToFindings(context: MetricsFindingContext): FindingR
     limitations: sharedLimitations,
     lowTrust,
     quality: context.quality,
-    qualityRef,
+    legacyQualityRef,
+    finalizedPolicyDecisions: context.finalizedPolicyDecisions,
   };
   const output: FindingRecord[] = [
     metricRecord(common, {

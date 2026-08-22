@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { getCompareAnalysisToolFor } from "../../../mastra/tools/compare-analysis";
+import { compareFindingGenerationCacheKey } from "../../../server/db/analysis-queries";
+import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "../../../server/ai/chat-message-context";
 import type { InputsCompareResult } from "../../../server/ai/inputs-compare-prompt";
 
 type CompareResult = {
@@ -112,5 +114,49 @@ describe("get_compare_analysis tool", () => {
     expect(cacheRead).toBe(false);
     expect(rawResult.available).toBe(false);
     expect(rawResult.error).toContain("finding generations");
+  });
+
+  test("uses the request-bound receipt fence without loading a newer generation", async () => {
+    const laps = [
+      { lapId: 3, generationId: "generation-3", contentHash: "content-3" },
+      { lapId: 7, generationId: "generation-7", contentHash: "content-7" },
+    ] as const;
+    const cacheKey = compareFindingGenerationCacheKey([
+      { lapId: laps[0].lapId, receipt: laps[0] },
+      { lapId: laps[1].lapId, receipt: laps[1] },
+    ]);
+    let receivedExpectations: unknown;
+    const tool = getCompareAnalysisToolFor(
+      async (_lapAId, _lapBId, expectations) => {
+        receivedExpectations = expectations;
+        return null;
+      },
+      {
+        ...findingDeps,
+        getCurrentFindingGeneration: async () => {
+          throw new Error("must not load latest generation");
+        },
+      },
+    );
+    const execute = tool.execute;
+    if (!execute) throw new Error("Compare analysis tool has no execute function");
+    const rawResult = await execute(
+      { lapAId: 7, lapBId: 3 },
+      {
+        requestContext: {
+          get(key: string) {
+            return key === FINDING_RECEIPT_FENCE_CONTEXT_KEY
+              ? { kind: "comparison", gameId: "fm-2023", cacheKey, laps }
+              : undefined;
+          },
+        },
+      } as never,
+    );
+    if (!isCompareResult(rawResult)) throw new Error("Unexpected compare analysis tool result");
+
+    expect(receivedExpectations).toEqual([
+      { scope: { kind: "lap", gameId: "fm-2023", sessionId: "107", lapId: "7" }, generationId: "generation-7", contentHash: "content-7" },
+      { scope: { kind: "lap", gameId: "fm-2023", sessionId: "103", lapId: "3" }, generationId: "generation-3", contentHash: "content-3" },
+    ]);
   });
 });

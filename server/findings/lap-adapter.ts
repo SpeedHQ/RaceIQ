@@ -4,13 +4,18 @@ import type {
   CanonicalJson,
   FindingConfidence,
   FindingEvidenceRef,
+  FindingLimitation,
   FindingNarrative,
   FindingRecommendation,
   FindingRecord,
   FindingSeverity,
   FindingStatus,
 } from "../../shared/racing/findings/types";
-import { FINDING_SCHEMA_VERSION } from "../../shared/racing/findings/types";
+import {
+  EVIDENCE_TRUNCATED_LIMITATION_CODE,
+  FINDING_SCHEMA_VERSION,
+  MAX_FINDING_REPRESENTATIVE_RANGES,
+} from "../../shared/racing/findings/types";
 import { createFindingId } from "../../shared/racing/findings/identity";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { LapQualityResult } from "../lap-analysis/quality";
@@ -85,6 +90,53 @@ function rangeEvidence(
   }];
 }
 
+function boundedFrameEvidence(
+  sessionId: string,
+  lapId: string,
+  eventId: string,
+  frameIndices: readonly number[],
+): { references: FindingEvidenceRef[]; totalRanges: number } {
+  if (frameIndices.length <= MAX_FINDING_REPRESENTATIVE_RANGES) {
+    return {
+      references: frameIndices.flatMap((frameIndex) => rangeEvidence(
+        sessionId,
+        lapId,
+        { startFrameIndex: frameIndex, endFrameIndex: frameIndex },
+        `range:${eventId}:frame:${frameIndex}`,
+      )),
+      totalRanges: frameIndices.length,
+    };
+  }
+
+  const sorted = [...frameIndices].sort((left, right) => left - right);
+  const references: FindingEvidenceRef[] = [];
+  let totalRanges = 0;
+  let rangeStart = sorted[0]!;
+  let rangeEnd = rangeStart;
+  const retainRange = () => {
+    totalRanges += 1;
+    if (references.length >= MAX_FINDING_REPRESENTATIVE_RANGES) return;
+    references.push(...rangeEvidence(
+      sessionId,
+      lapId,
+      { startFrameIndex: rangeStart, endFrameIndex: rangeEnd },
+      `range:${eventId}:frames:${rangeStart}-${rangeEnd}`,
+    ));
+  };
+  for (let index = 1; index < sorted.length; index += 1) {
+    const frameIndex = sorted[index]!;
+    if (frameIndex <= rangeEnd + 1) {
+      rangeEnd = frameIndex;
+      continue;
+    }
+    retainRange();
+    rangeStart = frameIndex;
+    rangeEnd = frameIndex;
+  }
+  retainRange();
+  return { references, totalRanges };
+}
+
 export function createLapQualityEvidence(
   sessionId: string,
   lapId: string,
@@ -124,15 +176,9 @@ export function adaptLapInsightsToFindingBundle(context: LapInsightsFindingConte
       sessionId,
       semanticIds: [`finding.lap-insight.${insight.id}`],
     }];
-    if (frameIndices.length > 0) {
-      for (const frameIndex of frameIndices) {
-        evidenceRefs.push(...rangeEvidence(
-          sessionId,
-          lapId,
-          { startFrameIndex: frameIndex, endFrameIndex: frameIndex },
-          `range:${eventId}:frame:${frameIndex}`,
-        ));
-      }
+    const frameEvidence = boundedFrameEvidence(sessionId, lapId, eventId, frameIndices);
+    if (frameEvidence.references.length > 0) {
+      evidenceRefs.push(...frameEvidence.references);
     } else {
       evidenceRefs.push(...rangeEvidence(sessionId, lapId, context.telemetryRange, `range:${eventId}`));
     }
@@ -140,13 +186,20 @@ export function adaptLapInsightsToFindingBundle(context: LapInsightsFindingConte
 
     const suppressed = context.quality != null && !context.quality.valid;
     const status: FindingStatus = suppressed ? "indeterminate" : "available";
-    const limitations = suppressed
-      ? [{
-          code: "quality-suppressed",
-          detail: context.quality?.reason ?? "lap recording quality rejected",
-          evidenceRefs: qualityRef ? [qualityRef] : undefined,
-        }]
-      : [];
+    const limitations: FindingLimitation[] = [];
+    if (suppressed) {
+      limitations.push({
+        code: "quality-suppressed",
+        detail: context.quality?.reason ?? "lap recording quality rejected",
+        evidenceRefs: qualityRef ? [qualityRef] : undefined,
+      });
+    }
+    if (frameEvidence.totalRanges > frameEvidence.references.length) {
+      limitations.push({
+        code: EVIDENCE_TRUNCATED_LIMITATION_CODE,
+        detail: `Retained ${frameEvidence.references.length} of ${frameEvidence.totalRanges} contiguous telemetry ranges for ${frameIndices.length} occurrences; ${frameEvidence.totalRanges - frameEvidence.references.length} ranges omitted.`,
+      });
+    }
     const occurrenceCount = Math.max(1, frameIndices.length);
     const measurements = [{
       id: `${eventId}:occurrence-count`,

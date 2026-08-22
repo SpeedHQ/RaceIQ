@@ -99,6 +99,32 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
   const mapResizeCleanupRef = useRef<(() => void) | null>(null);
+  const comparisonFindingPollsRef = useRef(0);
+  const comparisonFindingTimerRef = useRef<number | null>(null);
+  const comparisonIdentityRef = useRef("");
+  const comparisonRequestSequenceRef = useRef(0);
+  const comparisonAbortControllerRef = useRef<AbortController | null>(null);
+  const comparisonIdentity = `${gameId ?? ""}:${lapAId ?? ""}:${lapBId ?? ""}`;
+  comparisonIdentityRef.current = comparisonIdentity;
+  useEffect(() => {
+    comparisonFindingPollsRef.current = 0;
+    if (comparisonFindingTimerRef.current != null) {
+      window.clearTimeout(comparisonFindingTimerRef.current);
+      comparisonFindingTimerRef.current = null;
+    }
+    comparisonAbortControllerRef.current?.abort();
+    comparisonAbortControllerRef.current = null;
+    comparisonIdentityRef.current = comparisonIdentity;
+    comparisonRequestSequenceRef.current += 1;
+  }, [comparisonIdentity]);
+  useEffect(
+    () => () => {
+      comparisonAbortControllerRef.current?.abort();
+      if (comparisonFindingTimerRef.current != null) window.clearTimeout(comparisonFindingTimerRef.current);
+      comparisonRequestSequenceRef.current += 1;
+    },
+    [],
+  );
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
@@ -292,32 +318,68 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
 
   // Fetch comparison when both laps selected
   const fetchComparison = useCallback(async () => {
+    const requestIdentity = `${gameId ?? ""}:${lapAId ?? ""}:${lapBId ?? ""}`;
+    const requestSequence = comparisonRequestSequenceRef.current + 1;
+    comparisonRequestSequenceRef.current = requestSequence;
+    comparisonAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    comparisonAbortControllerRef.current = controller;
+    comparisonIdentityRef.current = requestIdentity;
+    const isCurrentRequest = () =>
+      comparisonRequestSequenceRef.current === requestSequence
+      && comparisonIdentityRef.current === requestIdentity
+      && !controller.signal.aborted;
+
+    if (comparisonFindingTimerRef.current != null) window.clearTimeout(comparisonFindingTimerRef.current);
+    comparisonFindingTimerRef.current = null;
     if (!lapAId || !lapBId || lapAId === lapBId || !gameId) {
-      setComparison(null);
+      comparisonFindingPollsRef.current = 0;
+      if (isCurrentRequest()) {
+        setLoading(false);
+        setComparison(null);
+      }
       return;
     }
+    if (!isCurrentRequest()) return;
     setLoading(true);
     setError(null);
     try {
       const res = await client.api.laps[":id1"].compare[":id2"].$get(
         { param: { id1: String(lapAId), id2: String(lapBId) } },
-        { headers: { "X-Game-Id": gameId } },
+        { headers: { "X-Game-Id": gameId }, init: { signal: controller.signal } },
       );
+      if (!isCurrentRequest()) return;
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string; status?: string; retryable?: boolean };
+        if (!isCurrentRequest()) return;
+        if (res.status === 409 && body.status === "backfilling" && body.retryable === true && comparisonFindingPollsRef.current < 20) {
+          comparisonFindingPollsRef.current += 1;
+          setError("Findings are backfilling. Results will update automatically.");
+          setComparison(null);
+          comparisonFindingTimerRef.current = window.setTimeout(() => {
+            if (isCurrentRequest()) void fetchComparison();
+          }, 1500);
+          return;
+        }
+        comparisonFindingPollsRef.current = 0;
         const msg = body.error ?? m.compare_load_failed();
         setError(msg.includes("no telemetry") ? m.compare_telemetry_unavailable() : msg);
         setComparison(null);
         return;
       }
       const comparisonData = await rpcJson<ComparisonData>(res);
+      if (!isCurrentRequest()) return;
       if (comparisonData.gameId !== gameId) throw new Error("Comparison game does not match request");
+      comparisonFindingPollsRef.current = 0;
       setComparison(comparisonData);
     } catch {
+      if (!isCurrentRequest()) return;
       setError(m.compare_load_failed());
       setComparison(null);
     } finally {
-      setLoading(false);
+      if (isCurrentRequest()) {
+        setLoading(false);
+      }
     }
   }, [lapAId, lapBId, gameId]);
 
@@ -490,7 +552,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
                 quality: selectedLapA.quality,
                 eligibility: selectedLapA.eligibility,
                 qualityGeneration: selectedLapA.qualityGeneration,
-                qualityStale: selectedLapA.qualityStale,
+                analysisGenerationId: selectedLapA.analysisGenerationId,
+                findingGenerationId: comparison.findingReceipts.lapA.generationId,
+                findingContentHash: comparison.findingReceipts.lapA.contentHash,
+                findingStatus: comparison.findingReceipts.lapA.status,
                 source: selectedLapA.source,
               }}
               lapB={{
@@ -501,7 +566,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
                 quality: selectedLapB.quality,
                 eligibility: selectedLapB.eligibility,
                 qualityGeneration: selectedLapB.qualityGeneration,
-                qualityStale: selectedLapB.qualityStale,
+                analysisGenerationId: selectedLapB.analysisGenerationId,
+                findingGenerationId: comparison.findingReceipts.lapB.generationId,
+                findingContentHash: comparison.findingReceipts.lapB.contentHash,
+                findingStatus: comparison.findingReceipts.lapB.status,
                 source: selectedLapB.source,
               }}
               panelRef={aiPanelRef}

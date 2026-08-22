@@ -19,6 +19,7 @@ const RATE_PER_MTOK: Record<string, { in: number; out: number }> = {
 
 export function TokenUsageFooter({
   compactThreadId,
+  headers,
   historyQueryKey,
   compacting,
   setCompacting,
@@ -29,6 +30,7 @@ export function TokenUsageFooter({
   onForked,
 }: {
   compactThreadId?: string;
+  headers?: Record<string, string>;
   historyQueryKey: unknown[];
   compacting: boolean;
   setCompacting: (v: boolean) => void;
@@ -81,14 +83,14 @@ export function TokenUsageFooter({
     setCompacting(true);
     setCompactMsg(null);
     try {
-      const res = await client.api.chats[":threadId"].compact.$post({ param: { threadId: compactThreadId } });
+      const res = await client.api.chats[":threadId"].compact.$post({ param: { threadId: compactThreadId } }, { headers });
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => ({}));
         const error = body && typeof body === "object" && "error" in body && typeof body.error === "string" ? body.error : undefined;
         setCompactMsg(error ?? "Compact failed");
       } else {
         const body = (await res.json()) as { generation: number };
-        await queryClient.invalidateQueries({ queryKey: ["chat-generations", compactThreadId] });
+        await queryClient.invalidateQueries({ queryKey: ["chat-generations", headers?.["X-Game-Id"] ?? null, compactThreadId] });
         await queryClient.invalidateQueries({ queryKey: historyQueryKey.slice(0, -1) });
         onForked(body.generation);
       }
@@ -149,7 +151,7 @@ export function TokenUsageFooter({
         <Button
           type="button"
           onClick={() => {
-            void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
+            void client.api.chats[":threadId"].run.cancel.$post({ param: { threadId: activeThreadId } }, { headers });
           }}
           className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20"
           title="Stop the agent turn on the server (not just this view)"

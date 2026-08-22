@@ -76,13 +76,12 @@ export function tuneSessionThreadId(sessionId: number): string {
 
 /**
  * Build the threadId for a compare chat between two laps and one quality
- * identity. Canonical lap ordering keeps A/B selection order irrelevant.
+ * identity. Preserve requested lap order: A→B and B→A are distinct
+ * conversations even when they share the same canonical receipt-set fence.
  */
 export function compareChatThreadId(idA: number, idB: number, qualityIdentity: string): string {
-  const lo = Math.min(idA, idB);
-  const hi = Math.max(idA, idB);
   const qualityHash = createHash("sha256").update(qualityIdentity).digest("hex");
-  return `compare-${lo}-${hi}~q${qualityHash}`;
+  return `compare-${idA}-${idB}~q${qualityHash}`;
 }
 
 export function parseCompareChatThreadId(threadId: string): readonly [number, number] | null {
@@ -208,18 +207,38 @@ export function buildChatExport(systemPromptOrMessages: string | undefined | unk
 
 const GEN_SEP = "~g";
 
+/** Keep generation probes finite and thread ids canonical. */
+export const MAX_THREAD_GENERATION = 1_000_000;
+
+function isCanonicalGenerationSuffix(suffix: string): boolean {
+  if (!/^[2-9]\d*$/.test(suffix)) return false;
+  const generation = Number(suffix);
+  return Number.isSafeInteger(generation) && generation <= MAX_THREAD_GENERATION;
+}
+
 /** Split a (possibly suffixed) thread id into its base id and generation number. */
 export function parseThreadGeneration(threadId: string): { base: string; gen: number } {
   const idx = threadId.lastIndexOf(GEN_SEP);
-  if (idx === -1) return { base: threadId, gen: 1 };
-  const gen = Number(threadId.slice(idx + GEN_SEP.length));
-  if (!Number.isInteger(gen) || gen < 2) return { base: threadId, gen: 1 };
-  return { base: threadId.slice(0, idx), gen };
+  if (idx <= 0) return { base: threadId, gen: 1 };
+  const base = threadId.slice(0, idx);
+  const suffix = threadId.slice(idx + GEN_SEP.length);
+  if (base.includes(GEN_SEP) || !isCanonicalGenerationSuffix(suffix)) return { base: threadId, gen: 1 };
+  return { base, gen: Number(suffix) };
+}
+
+/** True when id has no malformed or out-of-range generation suffix. */
+export function isCanonicalThreadId(threadId: string): boolean {
+  const parsed = parseThreadGeneration(threadId);
+  return !threadId.includes(GEN_SEP) || parsed.base !== threadId;
 }
 
 /** Build the thread id for a given base + generation. Gen 1 is the bare base. */
 export function generationThreadId(base: string, gen: number): string {
-  return gen <= 1 ? base : `${base}${GEN_SEP}${gen}`;
+  if (gen === 1) return base;
+  if (!Number.isSafeInteger(gen) || gen < 2 || gen > MAX_THREAD_GENERATION) {
+    throw new RangeError(`Chat thread generation must be an integer between 1 and ${MAX_THREAD_GENERATION}`);
+  }
+  return `${base}${GEN_SEP}${gen}`;
 }
 
 /**
@@ -243,7 +262,7 @@ export type ThreadProbeMemory = {
  */
 export async function listThreadGenerations(base: string, mem: ThreadProbeMemory = getChatMemory()): Promise<Array<{ threadId: string; generation: number }>> {
   const out: Array<{ threadId: string; generation: number }> = [];
-  for (let gen = 1; ; gen++) {
+  for (let gen = 1; gen <= MAX_THREAD_GENERATION; gen++) {
     const threadId = generationThreadId(base, gen);
     const thread = await mem.getThreadById({ threadId });
     if (!thread) break;

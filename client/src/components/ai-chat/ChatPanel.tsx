@@ -6,6 +6,7 @@ import type { ThreadProps } from "@/components/assistant-ui/thread";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { isAiConfigured } from "@/lib/is-ai-configured";
+import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
@@ -14,6 +15,14 @@ import { resolvedResumableThreadId } from "./resumable-chat";
 export interface ChatHistoryResult {
   messages: UIMessage[];
   threadId?: string | null;
+}
+const MAX_CHAT_HISTORY_RETRIES = 20;
+const CHAT_HISTORY_RETRY_MS = 1500;
+type ChatHistoryError = Error & { statusCode?: number; retryable?: boolean; pendingStatus?: string };
+
+function shouldRetryChatHistory(failureCount: number, error: unknown): boolean {
+  const pending = error as ChatHistoryError;
+  return pending.statusCode === 409 && pending.pendingStatus === "backfilling" && pending.retryable === true && failureCount < MAX_CHAT_HISTORY_RETRIES;
 }
 
 export interface ChatPanelProps {
@@ -61,11 +70,14 @@ export function ChatPanel({ api, clearChatApi, onClearChat, fetchHistory, histor
   } = useQuery({
     queryKey: [...historyQueryKey, 1],
     queryFn: () => fetchHistory(1),
+    retry: shouldRetryChatHistory,
+    retryDelay: CHAT_HISTORY_RETRY_MS,
   });
+  const gameIdHeader = headers?.["X-Game-Id"] ?? null;
   const canonicalThreadId = bootstrapHistory?.threadId ?? compactThreadId;
   const { data: gensData } = useQuery({
-    queryKey: ["chat-generations", canonicalThreadId],
-    queryFn: () => fetchChatGenerations(canonicalThreadId!),
+    queryKey: ["chat-generations", gameIdHeader, canonicalThreadId],
+    queryFn: () => fetchChatGenerations(canonicalThreadId!, headers),
     enabled: !!canonicalThreadId,
     staleTime: 5_000,
   });
@@ -79,14 +91,16 @@ export function ChatPanel({ api, clearChatApi, onClearChat, fetchHistory, histor
     queryKey: fullHistoryQueryKey,
     queryFn: () => fetchHistory(effectiveGen),
     enabled: effectiveGen > 1,
+    retry: shouldRetryChatHistory,
+    retryDelay: CHAT_HISTORY_RETRY_MS,
   });
+  const historyError = effectiveGen === 1 ? bootstrapError : laterHistoryQuery.error;
   const history = effectiveGen === 1 ? bootstrapHistory : laterHistoryQuery.data;
   const isSuccess = effectiveGen === 1 ? bootstrapHistorySuccess : laterHistoryQuery.isSuccess;
   const isError = effectiveGen === 1 ? bootstrapHistoryError : laterHistoryQuery.isError;
-  const historyError = effectiveGen === 1 ? bootstrapError : laterHistoryQuery.error;
   const { data: runStatus, isFetched: runStatusFetched } = useQuery({
-    queryKey: ["chat-run-status", activeThreadId],
-    queryFn: () => fetchChatRunStatus(activeThreadId!),
+    queryKey: ["chat-run-status", gameIdHeader, activeThreadId],
+    queryFn: () => fetchChatRunStatus(activeThreadId!, headers),
     enabled: !!activeThreadId,
     staleTime: 0,
     gcTime: 0,
@@ -99,11 +113,10 @@ export function ChatPanel({ api, clearChatApi, onClearChat, fetchHistory, histor
   const regenerateChat = async (messageId: string, prompt: string) => {
     if (!activeThreadId || !prompt || !window.confirm("Regenerate this response? Later messages will be removed.")) return;
     try {
-      const res = await fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId }),
-      });
+      const res = await client.api.chats[":threadId"].regenerate.$post(
+        { param: { threadId: activeThreadId }, json: { messageId } },
+        { headers },
+      );
       const data = (await res.json().catch(() => null)) as { prompt?: string; error?: string } | null;
       if (!res.ok) throw new Error(data?.error ?? "Could not regenerate chat");
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
