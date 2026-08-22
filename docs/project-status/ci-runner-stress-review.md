@@ -232,23 +232,21 @@ Build workflow documents ACC fixture replay reaching roughly 4GB heap and GC-thr
 
 ## Mitigation implemented
 
-Current pull-request topology preserves shared installation work without
+Current pull-request topology limits each seeded runner lease and avoids
 sharing mutable seeded runtime state:
 
-- The light E2E job uses `4VCPU`, `10G`; the seeded E2E job uses `10VCPU`, `15G`.
-- Each job performs checkout, Bun, Node, dependency installation, Chromium installation, and compiled artifact download once.
+- The light E2E job uses `4VCPU`, `10G`; each seeded E2E job uses `10VCPU`, `15G`.
 - Fresh, tunes, and tunes-unseeded remain isolated sequential batches with one backend set live at a time.
-- Seeded tests run as two concurrent resource-aware groups: five replay-heavy specs on one isolated backend, remaining seeded projects on another. Each group has one worker plus its own data directory, setup home, HTTP/client/UDP ports, and output directory.
-- Batch discovery or test failure does not skip another batch or shard; the job reports aggregate failure after all executions finish.
-- Responsive screenshots wait for PR E2E and use `PW_SCREENSHOT_WORKERS="1"`.
+- Seeded tests run as two sequential resource-aware jobs: five replay-heavy specs first, then remaining seeded projects. Each job has one worker and one compiled backend.
+- Each seeded job repeats checkout, Bun, Node, dependency installation, Chromium installation, and compiled artifact download. This cost is required because one long seeded job consistently loses runner communication after about 25 minutes.
+- Each direct Playwright gate has a 20-minute step timeout, leaving cleanup and artifact upload time before the observed runner disconnect window.
+- Responsive screenshots wait for both seeded jobs and use `PW_SCREENSHOT_WORKERS="1"`.
 - Release E2E retains its existing single-set path through the reusable workflow.
 - Both reusable Playwright gate paths emit `pw:browser` process diagnostics, including Chromium stderr and exit codes, so a later `TargetClosedError` preserves its initiating browser failure rather than only the cleanup symptom.
 
-Configured seeded concurrency stays at two Playwright workers and two compiled
-backends inside one `10VCPU`, `15G` allocation. Partitioning keeps costly F1
-replay and comparison flows off the standard group's backend while both groups
-fit the runner's execution window. Cross-PR host admission control and
-out-of-process telemetry remain unresolved.
+Configured seeded concurrency stays at one Playwright worker and one compiled
+backend inside one `10VCPU`, `15G` allocation. Cross-PR host admission control
+and out-of-process telemetry remain unresolved.
 
 ## Final assessment
 

@@ -130,24 +130,24 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-Playwright projects and shards define CI boundaries:
+Playwright projects and jobs define CI boundaries:
 
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
 | PR light batches | `fresh`, `tunes`, `tunes-unseeded` | Matching project for each server set | Ordered batches with one backend at a time |
-| PR seeded groups | `seeded` | Resource-intensive seeded specs; remaining seeded projects | Two concurrent isolated groups; one worker and backend per group |
+| PR seeded groups | `seeded` | Resource-intensive seeded specs; remaining seeded projects | Two sequential jobs; one worker and backend per job |
 | Release E2E | `all` | All configured E2E projects | One release-gate process |
 
 `.github/workflows/playwright-dev.yml` invokes the reusable workflow once for
-light batches and once for seeded groups. Each job performs checkout,
-dependency setup, Chromium installation, and compiled artifact download once.
-The seeded job then runs one resource-intensive group and one standard group
-concurrently on isolated backends; shared installation directories remain read-only.
+light batches, then once for each seeded group. Each invocation performs checkout,
+dependency setup, Chromium installation, and compiled artifact download. Repeated
+setup keeps each seeded job below the runner disconnect window and limits active
+seeded capacity to one `10VCPU`, `15G` allocation.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
 automatically; no workflow edit is needed. Adding a new Playwright project or
 changing a `testMatch` boundary requires updating the reusable workflow inputs
-and this table. Every batch or group runs `playwright test --list` first and
+and this table. Every batch or job runs `playwright test --list` first and
 fails if its selection discovers zero tests.
 
 The reusable `.github/workflows/playwright.yml` accepts project flags, server

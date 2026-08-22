@@ -116,6 +116,7 @@ jobs:
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
         shell: cmd
+        timeout-minutes: 20
         run: bun run ../scripts/playwright-ci.ts test
 
       - name: Run Playwright batch gate
@@ -128,7 +129,7 @@ jobs:
           PLAYWRIGHT_BATCHES: ${{ inputs.batches }}
           PLAYWRIGHT_BATCHES_PARALLEL: ${{ inputs.parallel-batches && '1' || '0' }}
         shell: cmd
-        timeout-minutes: 60
+        timeout-minutes: 20
         run: bun run ../scripts/playwright-batches.ts
 
       - name: Upload Playwright artifacts

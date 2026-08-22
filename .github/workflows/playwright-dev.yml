@@ -25,20 +25,30 @@ jobs:
       diagnostic-artifact-name: server-diagnostics-light
       target-ref: ${{ inputs.target-ref }}
 
-  playwright-seeded:
+  playwright-seeded-heavy:
     needs: playwright-light
     if: ${{ always() }}
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
+      server-set: seeded
       runs-on: '["whitesmith-windows-x64", "10VCPU", "15G"]'
       dist-artifact: raceiq-dist-windows
-      parallel-batches: true
-      batches: >-
-        [
-          {"name":"seeded-heavy","serverSet":"seeded","projects":"--project=seeded-heavy","workers":1,"isolation":1},
-          {"name":"seeded-standard","serverSet":"seeded","projects":"--project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device","workers":1,"isolation":2}
-        ]
-      artifact-name: playwright-results-seeded
-      diagnostic-artifact-name: server-diagnostics-seeded
+      projects: --project=seeded-heavy
+      artifact-name: playwright-results-seeded-heavy
+      diagnostic-artifact-name: server-diagnostics-seeded-heavy
+      target-ref: ${{ inputs.target-ref }}
+
+  playwright-seeded-standard:
+    needs: playwright-seeded-heavy
+    if: ${{ always() }}
+    uses: ./.github/workflows/playwright.yml
+    with:
+      server-mode: compiled
+      server-set: seeded
+      runs-on: '["whitesmith-windows-x64", "10VCPU", "15G"]'
+      dist-artifact: raceiq-dist-windows
+      projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+      artifact-name: playwright-results-seeded-standard
+      diagnostic-artifact-name: server-diagnostics-seeded-standard
       target-ref: ${{ inputs.target-ref }}
