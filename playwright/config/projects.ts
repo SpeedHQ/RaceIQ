@@ -51,11 +51,13 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     {
       name: "mobile-device",
       testMatch: "responsive/device.spec.ts",
+      fullyParallel: true,
       use: { ...devices["Pixel 7"], baseURL: seededBaseURL },
     },
     {
       name: "tablet-device",
       testMatch: "responsive/device.spec.ts",
+      fullyParallel: true,
       use: {
         ...devices["iPad (gen 7)"],
         browserName: "chromium",
@@ -65,6 +67,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     {
       name: "seeded-routes",
       testMatch: "seeded/routes/**/*.spec.ts",
+      fullyParallel: true,
       timeout: 120_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
@@ -72,16 +75,19 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       name: "seeded-e2e",
       testMatch: "seeded/**/*.spec.ts",
       testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts"],
+      fullyParallel: true,
       timeout: 120_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
       name: "seeded-imports",
       testMatch: sequentialImportSpecs,
+      fullyParallel: true,
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
+      fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",
       timeout: 120_000,
