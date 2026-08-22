@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { clampVisibleRange } from "../src/lib/chart-range";
-import { cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, selectFidelity } from "../src/lib/comparison-fidelity";
+import { cropComparisonData, cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, selectFidelity } from "../src/lib/comparison-fidelity";
 import type { ComparisonData, ComparisonRangeData } from "../../shared/racing/comparison/types";
 
 const trace = (distance: number[]) => ({
@@ -44,6 +44,13 @@ describe("comparison fidelity", () => {
     expect(cropped.traces.distance).toEqual([1.5, 2, 2.5]);
     expect(cropped.traces.speedA).toEqual([10.5, 11, 11.5]);
     expect(cropped.timeDelta).toEqual([10.5, 11, 11.5]);
+  });
+  test("crops base data immediately for responsive first zoom", () => {
+    const cropped = cropComparisonData(base, 1.4, 2.6);
+    expect(cropped.distanceStart).toBe(2);
+    expect(cropped.distanceEnd).toBe(2);
+    expect(cropped.traces.distance).toEqual([2]);
+    expect(cropped.timeDelta).toEqual([2]);
   });
 
   test("preserves visible range while chart data refreshes", () => {

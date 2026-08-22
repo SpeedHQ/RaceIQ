@@ -9,12 +9,13 @@ import { useUnits } from "@/hooks/useUnits";
 import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "@/lib/comparison-layout";
 import { formatLapTime } from "@/lib/format";
 import type { Point } from "@/lib/comparison-utils";
-import { cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, rangeComparison, selectFidelity } from "@/lib/comparison-fidelity";
+import { cropComparisonData, cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, rangeComparison, selectFidelity } from "@/lib/comparison-fidelity";
 import type { CompareSearch } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import type { CompareAiPanelHandle } from "./CompareAiPanel";
+import { PointerLoadingIndicator } from "@/components/PointerLoadingIndicator";
 import { CompareAiSidebar } from "./CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./CompareTrackMap";
 import { ComparisonCharts } from "./ComparisonCharts";
@@ -41,6 +42,16 @@ export function ComparisonLoadStatus({ loading, error, hasComparison }: { loadin
       {error && <div className="text-status-danger text-sm">{error}</div>}
     </div>
   );
+}
+
+export function ComparisonCursorLoadingIndicator({
+  loading,
+  position,
+}: {
+  loading: boolean;
+  position: { x: number; y: number } | null;
+}) {
+  return <PointerLoadingIndicator loading={loading} position={position} label="Fetching higher-fidelity datapoints" />;
 }
 
 export function LapComparison({ initialSearch }: { initialSearch?: CompareSearch } = {}) {
@@ -73,6 +84,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const {
     data: comparisonRange,
     isPlaceholderData: comparisonRangeIsPlaceholder,
+    isFetching: comparisonRangeIsFetching,
   } = useLapComparisonRange(
     lapAId,
     lapBId,
@@ -80,6 +92,20 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     detailRange?.start ?? null,
     detailRange?.end ?? null,
   );
+  const detailLoading = detailRange != null && comparisonRangeIsFetching;
+  const pointerPositionRef = useRef({ x: 0, y: 0 });
+  const [pointerPosition, setPointerPosition] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+      if (detailLoading) setPointerPosition(pointerPositionRef.current);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    return () => window.removeEventListener("pointermove", onPointerMove);
+  }, [detailLoading]);
+  useEffect(() => {
+    setPointerPosition(detailLoading ? pointerPositionRef.current : null);
+  }, [detailLoading]);
   const activeRange = optimisticRange ?? comparisonRange;
   const mergedComparison = useMemo(
     () => (comparison && activeRange ? mergeComparisonRange(comparison, activeRange) : comparison),
@@ -176,7 +202,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         return;
       }
       const nextRange = normalizeFidelityRange(start, end, fullDistance);
-      if (activeRange) setOptimisticRange(cropComparisonRange(activeRange, start, end));
+      if (comparison) {
+        setOptimisticRange(activeRange ? cropComparisonRange(activeRange, start, end) : cropComparisonData(comparison, start, end));
+      }
       setDetailRange(nextRange);
     },
     [activeRange, comparison, fullDistance],
@@ -371,6 +399,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
 
   return (
     <div data-testid="lap-compare-workspace" className="flex min-h-full min-w-0 flex-col gap-4 p-3 @3xl/workspace:p-4 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
+      <ComparisonCursorLoadingIndicator loading={detailLoading} position={pointerPosition} />
       <ComparisonSelectors
         trackGroups={trackGroups}
         selectedTrack={selectedTrack}

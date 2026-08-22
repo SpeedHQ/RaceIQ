@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TelemetryChart, CursorLoadingIndicator } from "../src/components/TelemetryChart";
+import { PointerLoadingIndicator } from "../src/components/PointerLoadingIndicator";
 import { ComparisonLoadStatus } from "../src/components/comparison/LapComparison";
 import { m } from "../src/paraglide/messages";
 
@@ -15,9 +15,14 @@ describe("comparison loading state", () => {
     const markup = renderToStaticMarkup(createElement(ComparisonLoadStatus, { loading: true, error: null, hasComparison: false }));
     expect(markup).toContain(m.compare_loading());
   });
-  test("renders cursor loading indicator while detail metrics are fetching", () => {
-    const markup = renderToStaticMarkup(createElement(CursorLoadingIndicator, { loading: true, left: 120 }));
-    expect(markup).toContain("compare-cursor-loading");
-    expect(markup).toContain("Loading detailed metrics");
+  test("renders reusable page-level loading indicator next to actual pointer", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PointerLoadingIndicator, { loading: true, position: { x: 420, y: 160 }, label: "Fetching higher-fidelity datapoints" }),
+    );
+    expect(markup).toContain("pointer-loading-indicator");
+    expect(markup).toContain("fixed");
+    expect(markup).toContain("left:432px");
+    expect(markup).toContain("Fetching higher-fidelity datapoints");
+    expect(markup).toContain("top:148px");
   });
 });

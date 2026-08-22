@@ -64,6 +64,22 @@ export function cropComparisonRange(range: ComparisonRangeData, start: number, e
     timeDelta: range.timeDelta.slice(first, last + 1),
   };
 }
+export function cropComparisonData(base: ComparisonData, start: number, end: number): ComparisonRangeData {
+  const distances = base.traces.distance;
+  const stepMeters = distances.length > 1 ? Math.abs(distances[1] - distances[0]) : 0;
+  return cropComparisonRange(
+    {
+      distanceStart: distances[0] ?? 0,
+      distanceEnd: distances.at(-1) ?? 0,
+      stepMeters,
+      traces: base.traces,
+      timeDelta: base.timeDelta,
+    },
+    start,
+    end,
+  );
+}
+
 
 export function mergeComparisonRange(base: ComparisonData, range: ComparisonRangeData): ComparisonData {
   const baseTrace = base.traces;
