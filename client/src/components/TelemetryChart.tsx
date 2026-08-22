@@ -3,6 +3,7 @@ import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import { clampVisibleRange, type ChartRange } from "../lib/chart-range";
 import { resolveCssColor, resolveCssFont } from "../lib/rendering/css-values";
+
 interface Props {
   data: {
     distance: number[];
@@ -19,6 +20,7 @@ interface Props {
   onResetZoom?: () => void;
 }
 
+
 interface DragSel {
   startPx: number;
   overLeft: number;
@@ -34,13 +36,14 @@ function getSync(key: string): uPlot.SyncPubSub {
   }
   return SYNC_INSTANCES.get(key)!;
 }
-const isCompareDebugEnabled = (): boolean => {
+
+function isCompareDebugEnabled(): boolean {
   try {
     return localStorage.getItem("raceiq:compare-debug") === "1";
   } catch {
     return false;
   }
-};
+}
 
 function compareDebug(event: string, details: Record<string, unknown> = {}): void {
   if (isCompareDebugEnabled()) console.log("[compare-debug]", event, details);
@@ -55,7 +58,6 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
   onCursorMoveRef.current = onCursorMove;
   const cleanupOverlayRef = useRef<(() => void) | null>(null);
   const [dragSel, setDragSel] = useState<DragSel | null>(null);
-
   const buildOpts = useCallback(
     (width: number): uPlot.Options => {
       const series: uPlot.Series[] = [
@@ -181,10 +183,11 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
           ],
           setCursor: [
             (upl: uPlot) => {
-              if (!onCursorMoveRef.current) return;
               const idx = upl.cursor.idx;
               if (idx != null && idx >= 0 && idx < data.distance.length) {
-                onCursorMoveRef.current(data.distance[idx]);
+                onCursorMoveRef.current?.(data.distance[idx]);
+              } else {
+                onCursorMoveRef.current?.(null);
               }
             },
           ],

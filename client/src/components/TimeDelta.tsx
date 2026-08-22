@@ -27,7 +27,6 @@ export function TimeDelta({ distances, timeDelta, syncKey, height = 160, onCurso
       fillColors={DELTA_COLOR_VARS.map((color) => `color-mix(in srgb, ${color} 20%, transparent)`)}
       syncKey={syncKey}
       height={height}
-      title="Time Delta"
       onCursorMove={onCursorMove}
       onRangeSelect={onRangeSelect}
       onResetZoom={onResetZoom}
