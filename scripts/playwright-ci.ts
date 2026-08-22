@@ -25,6 +25,7 @@ const child = Bun.spawn([nodeExecutable, playwrightCli, ...playwrightArgs], {
 });
 
 const captureStdout = command === "test" && commandArgs.includes("--list");
+const hasShard = commandArgs.some((arg) => arg === "--shard" || arg.startsWith("--shard="));
 const stdoutChunks: Uint8Array[] = [];
 
 async function streamOutput(stream: ReadableStream<Uint8Array>, target: NodeJS.WriteStream, capture = false): Promise<void> {
@@ -44,7 +45,7 @@ const stdout = new TextDecoder().decode(Buffer.concat(stdoutChunks));
 
 if (command === "test" && commandArgs.includes("--list")) {
   if (exitCode !== 0) process.exit(exitCode);
-  if (!/Total:\s+[1-9]\d*\s+tests/.test(stdout)) {
+  if (!hasShard && !/Total:\s+[1-9]\d*\s+tests/.test(stdout)) {
     console.error(`No Playwright tests discovered for ${projectArgs.join(" ")}`);
     process.exit(1);
   }

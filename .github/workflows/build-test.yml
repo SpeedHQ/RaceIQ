@@ -84,8 +84,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Run tests
-        run: bun run test
+      - name: Run unit tests
+        run: bun run test:unit
+
+      - name: Run integration tests
+        run: bun run test:integration
 
   playwright-dev:
     if: (github.event_name == 'pull_request' && !github.event.pull_request.draft) || github.event_name == 'workflow_dispatch'
