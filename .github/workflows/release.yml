@@ -171,10 +171,14 @@ jobs:
             server_set: tunes-unseeded
             projects: --project=tunes-unseeded
             runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
-          - name: seeded
+          - name: seeded-core
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            runs_on: '["whitesmith-windows-x64", "4VCPU", "10G"]'
+            projects: --project=seeded-e2e --project=seeded-routes
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+          - name: seeded-imports
+            server_set: seeded
+            projects: --project=seeded-imports
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled

@@ -27,9 +27,13 @@ jobs:
             server_set: tunes-unseeded
             projects: --project=tunes-unseeded
             runs_on: '["whitesmith-windows-x64", "2VCPU", "15G"]'
-          - name: seeded
+          - name: seeded-core
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+          - name: seeded-imports
+            server_set: seeded
+            projects: --project=seeded-imports --project=mobile-device --project=tablet-device
             runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
     uses: ./.github/workflows/playwright.yml
     with:
