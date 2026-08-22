@@ -15,7 +15,7 @@ async function openComparison(page: Page, request: Parameters<typeof getDistinct
 
 async function dragChart(page: Page, chart: Locator, startFraction: number, endFraction: number): Promise<void> {
   const overlay = chart.locator(".u-over");
-  await overlay.scrollIntoViewIfNeeded();
+  await expect(overlay).toBeVisible({ timeout: 30_000 });
   const box = await overlay.boundingBox();
   expect(box, "comparison chart overlay bounds").not.toBeNull();
   const y = box!.y + box!.height / 2;
@@ -24,9 +24,9 @@ async function dragChart(page: Page, chart: Locator, startFraction: number, endF
   await page.mouse.move(box!.x + box!.width * endFraction, y, { steps: 12 });
   await page.mouse.up();
 }
-
 async function cursorDistance(chart: Locator, fraction: number): Promise<number> {
   const overlay = chart.locator(".u-over");
+  await expect(overlay).toBeVisible({ timeout: 30_000 });
   const box = await overlay.boundingBox();
   expect(box, "comparison chart overlay bounds").not.toBeNull();
   await overlay.hover({ position: { x: box!.width * fraction, y: box!.height / 2 } });
@@ -40,6 +40,37 @@ async function visibleDistanceSpan(chart: Locator): Promise<number> {
   const low = await cursorDistance(chart, 0.1);
   const high = await cursorDistance(chart, 0.9);
   return Math.abs(high - low);
+}
+
+async function hoverAndAssertCursorMarkers(chart: Locator, fraction: number): Promise<string> {
+  const overlay = chart.locator(".u-over");
+  await expect(overlay).toBeVisible({ timeout: 30_000 });
+  const overlayBox = await overlay.boundingBox();
+  expect(overlayBox, "comparison chart overlay bounds").not.toBeNull();
+  await overlay.hover({ position: { x: overlayBox!.width * fraction, y: overlayBox!.height / 2 } });
+
+  const markers = chart.locator(".u-cursor-pt");
+  await expect(markers).toHaveCount(2);
+  const markerBoxes = await markers.evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+    }),
+  );
+  expect(Math.abs(markerBoxes[0].left - markerBoxes[1].left), "cursor markers share x position").toBeLessThanOrEqual(1);
+  for (const markerBox of markerBoxes) {
+    expect(Number.isFinite(markerBox.left)).toBe(true);
+    expect(Number.isFinite(markerBox.top)).toBe(true);
+    expect(Number.isFinite(markerBox.width)).toBe(true);
+    expect(Number.isFinite(markerBox.height)).toBe(true);
+    expect(markerBox.left).toBeGreaterThanOrEqual(overlayBox!.x - markerBox.width);
+    expect(markerBox.right).toBeLessThanOrEqual(overlayBox!.x + overlayBox!.width + markerBox.width);
+    expect(markerBox.top).toBeGreaterThanOrEqual(overlayBox!.y - markerBox.height);
+    expect(markerBox.bottom).toBeLessThanOrEqual(overlayBox!.y + overlayBox!.height + markerBox.height);
+  }
+  const value = chart.locator(".u-legend .u-series").first().locator(".u-value");
+  await expect.poll(async () => Number.isFinite(Number((await value.textContent())?.replace(/[^0-9.-]/g, "")))).toBe(true);
+  return (await value.textContent()) ?? "";
 }
 
 function rangeRequest(page: Page) {
@@ -98,4 +129,19 @@ test("Compare chart click does not submit a zoom range", async ({ page, request 
   await page.waitForTimeout(500);
 
   expect(rangeRequests).toEqual([]);
+});
+
+test("Compare zoom keeps hover markers aligned with zoomed chart", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const chart = await openComparison(page, request);
+
+  const response = rangeRequest(page);
+  await dragChart(page, chart, 0.24, 0.68);
+  await response;
+
+  const legendValues = [];
+  for (const fraction of [0.2, 0.5, 0.8]) {
+    legendValues.push(await hoverAndAssertCursorMarkers(chart, fraction));
+  }
+  expect(new Set(legendValues).size).toBeGreaterThan(1);
 });

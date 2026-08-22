@@ -285,7 +285,7 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
                 })
                 .filter((sp) => sp.x !== 0 || sp.z !== 0)
             : undefined;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, traces, hd, null, segPts, false, alignedBoundaries, telXFn);
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, traces, hd, null, segPts, false, alignedBoundaries, telXFn, false, false);
       }
     }
 

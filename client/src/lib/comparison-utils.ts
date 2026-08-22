@@ -58,6 +58,7 @@ export function drawTrackCanvas(
   boundaries?: BoundaryData | null,
   telX: (x: number) => number = (x) => x,
   hideOutline = false,
+  showSegmentMarkers = true,
 ) {
   ctx.clearRect(0, 0, w, h);
   const bounds = [...outline, ...(boundaries ? [boundaries.leftEdge, boundaries.rightEdge].flat() : [])];
@@ -113,15 +114,18 @@ export function drawTrackCanvas(
     const index = findTraceIndexAtDistance(traces.distance, hoveredDistance);
     const a = mapPosition(traces, index, outline, telX);
     const b = mapPosition({ ...traces, positionXA: traces.positionXB, positionZA: traces.positionZB }, index, outline, telX);
-    const ca = a ? toCanvas(a.x, a.z) : null, cb = b ? toCanvas(b.x, b.z) : null;
-    const overlap = ca && cb && Math.hypot(ca[0] - cb[0], ca[1] - cb[1]) < 14;
-    const dot = (p: Point | null, color: string, offset: number, yaw?: number) => {
-      if (!p) return; const [x, y] = toCanvas(p.x, p.z); ctx.beginPath(); ctx.arc(x + offset, y, zoom ? 7 : 5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
-      if (zoom && yaw != null) { ctx.beginPath(); ctx.moveTo(x + offset, y); ctx.lineTo(x + offset - Math.sin(yaw) * 22, y + Math.cos(yaw) * 22); ctx.strokeStyle = "var(--app-text)"; ctx.lineWidth = 2.5; ctx.stroke(); }
+    const dot = (p: Point | null, color: string, yaw?: number) => {
+      if (!p) return; const [x, y] = toCanvas(p.x, p.z); ctx.beginPath(); ctx.arc(x, y, zoom ? 7 : 5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+      if (zoom && yaw != null) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - Math.sin(yaw) * 22, y + Math.cos(yaw) * 22); ctx.strokeStyle = "var(--app-text)"; ctx.lineWidth = 2.5; ctx.stroke(); }
     };
-    dot(a, COLOR_A, overlap ? -6 : 0, traces.yawA[index]); dot(b, COLOR_B, overlap ? 6 : 0, traces.yawB[index]);
+    if (zoom) {
+      dot(a, COLOR_A, traces.yawA[index]);
+      dot(b, COLOR_B, traces.yawB[index]);
+    } else {
+      dot(a, "var(--app-text)");
+    }
   }
-  if (segmentPoints && !zoom) for (const point of segmentPoints) { const [x, y] = toCanvas(point.x, point.z); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = point.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)"; ctx.fill(); }
+  if (showSegmentMarkers && segmentPoints && !zoom) for (const point of segmentPoints) { const [x, y] = toCanvas(point.x, point.z); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = point.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)"; ctx.fill(); }
   if (restore) ctx.restore();
 }
 

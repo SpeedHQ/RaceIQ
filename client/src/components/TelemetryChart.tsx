@@ -49,6 +49,19 @@ function compareDebug(event: string, details: Record<string, unknown> = {}): voi
   if (isCompareDebugEnabled()) console.log("[compare-debug]", event, details);
 }
 
+export function pixelAlignedCursorBBox(x: number, y: number, size: number): uPlot.BBox {
+  const roundedX = Math.round(x);
+  const roundedY = Math.round(y);
+  return {
+    left: roundedX - size / 2,
+    top: roundedY - size / 2,
+    width: size,
+    height: size,
+  };
+}
+
+const CURSOR_POINT_SIZE = 6;
+
 export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove, onRangeSelect, onResetZoom }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -90,6 +103,31 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
                 setSeries: true,
               }
             : undefined,
+          points: {
+            size: CURSOR_POINT_SIZE,
+            bbox: (upl: uPlot, seriesIdx: number) => {
+              const index = upl.cursor.idxs?.[seriesIdx];
+              const xValue = index == null ? undefined : upl.data[0]?.[index];
+              const yValue = index == null ? undefined : upl.data[seriesIdx]?.[index];
+              const scale = upl.series[seriesIdx]?.scale;
+              if (
+                index == null ||
+                xValue == null ||
+                yValue == null ||
+                scale == null ||
+                !Number.isFinite(xValue) ||
+                !Number.isFinite(yValue)
+              ) {
+                return { left: -1, top: -1, width: 0, height: 0 };
+              }
+              const valueX = upl.valToPos(xValue, "x");
+              const x = upl.cursor.left ?? valueX;
+              const y = upl.valToPos(yValue, scale);
+              return Number.isFinite(x) && Number.isFinite(y)
+                ? pixelAlignedCursorBBox(x, y, CURSOR_POINT_SIZE)
+                : { left: -1, top: -1, width: 0, height: 0 };
+            },
+          },
           drag: { x: true, y: false },
         },
         scales: {
