@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticTuneSample } from "./semantic-tune";
 import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
 
 /**
@@ -8,27 +8,28 @@ import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
  * replacement for sector-by-sector breakdown, which reviews completed lap
  * rather than what car is doing right now.
  */
-export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[] }) {
+export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSample[] }) {
   const models = useMemo(() => METRICS.map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })), [telemetry]);
 
   // Fuel: min→avg→max over the trace, on a padded domain — same math/visual as a
   // single tyre corner bar so it aligns in the row.
   const fuel = useMemo(() => {
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-    let sum = 0;
-    let n = 0;
-    for (const p of telemetry) {
-      if (p.Fuel == null || !Number.isFinite(p.Fuel) || p.Fuel <= 0) continue;
-      if (p.Fuel < min) min = p.Fuel;
-      if (p.Fuel > max) max = p.Fuel;
-      sum += p.Fuel;
-      n++;
-    }
-    if (n === 0) return null;
-    const avg = sum / n;
-    const pad = Math.max(1, (max - min) * 0.15);
-    return { min, avg, max, domain: [Math.floor(min - pad), Math.ceil(max + pad)] as [number, number] };
+    const usesLiters = telemetry.some((sample) => sample.fuelLiters !== undefined);
+    const values = telemetry
+      .map((sample) => (usesLiters ? sample.fuelLiters : sample.fuelFraction === undefined ? undefined : sample.fuelFraction * 100))
+      .filter((value): value is number => value !== undefined && Number.isFinite(value));
+    if (values.length === 0) return null;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const pad = Math.max(usesLiters ? 1 : 5, (max - min) * 0.15);
+    return {
+      min,
+      avg,
+      max,
+      domain: [Math.floor(min - pad), Math.ceil(max + pad)] as [number, number],
+      unit: usesLiters ? "L" : "%",
+    };
   }, [telemetry]);
 
   return (
@@ -49,9 +50,13 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between mb-1">
           <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">Fuel</span>
-          <span className="text-app-micro text-app-text-dim">L</span>
+          <span className="text-app-micro text-app-text-dim">{fuel?.unit ?? "—"}</span>
         </div>
-        {fuel ? <FuelCell min={fuel.min} avg={fuel.avg} max={fuel.max} domain={fuel.domain} /> : <div className="h-[64px] flex items-center justify-center text-app-caption text-app-text-dim">—</div>}
+        {fuel ? (
+          <FuelCell min={fuel.min} avg={fuel.avg} max={fuel.max} domain={fuel.domain} unit={fuel.unit} />
+        ) : (
+          <div className="h-[64px] flex items-center justify-center text-app-caption text-app-text-dim">—</div>
+        )}
       </div>
     </div>
   );
@@ -59,7 +64,7 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[
 
 /** Single fuel bar mirroring one CornerBars cell (min→max fill, avg tick), so it
  * lines up with the tyre bars in the same row. */
-function FuelCell({ min, avg, max, domain }: { min: number; avg: number; max: number; domain: [number, number] }) {
+function FuelCell({ min, avg, max, domain, unit }: { min: number; avg: number; max: number; domain: [number, number]; unit: string }) {
   const [lo, hi] = domain;
   const span = hi - lo || 1;
   const pct = (v: number) => Math.min(100, Math.max(0, ((v - lo) / span) * 100));
@@ -74,7 +79,7 @@ function FuelCell({ min, avg, max, domain }: { min: number; avg: number; max: nu
         <span className="text-app-caption font-mono tabular-nums" style={{ color }}>
           {Math.round(avg)}
         </span>
-        <span className="text-app-micro text-app-text-dim uppercase">L</span>
+        <span className="text-app-micro text-app-text-dim uppercase">{unit}</span>
       </div>
     </div>
   );
