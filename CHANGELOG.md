@@ -13,6 +13,8 @@
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 - Pan, zoom, and toggle imagery and overlays independently on Analyse track maps
 - Browse enriched iRacing car, car-class, and track catalogs with official car images and offline track maps
+- Find, preview, and install location-matched aerial imagery, then reuse venue imagery across Analyse and Compare maps
+- Curate canonical track layouts, geometry, sectors, guides, and imagery through bundled registry and development workbench
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
