@@ -6,13 +6,13 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
   simulator: "acc",
-  requested: [{ semanticId: "motion.speed" }, { semanticId: "inputs.accel" }, { semanticId: "inputs.brake" }, { semanticId: "fuel.fuel-percent" }],
+  requested: [{ semanticId: "motion.speed" }, { semanticId: "inputs.throttle" }, { semanticId: "inputs.brake" }, { semanticId: "fuel.remaining-percent" }],
 });
 const speed = resolver.slot("motion.speed");
-const accelerator = resolver.slot("inputs.accel");
+const throttle = resolver.slot("inputs.throttle");
 const brake = resolver.slot("inputs.brake");
-const fuelPercent = resolver.slot("fuel.fuel-percent");
-const slots = [speed, accelerator, brake, fuelPercent] as const;
+const fuelRemainingPercent = resolver.slot("fuel.remaining-percent");
+const slots = [speed, throttle, brake, fuelRemainingPercent] as const;
 const packet = {
   gameId: "acc",
   TimestampMS: 1_000,
@@ -32,7 +32,7 @@ for (let index = 0; index < 100_000; index += 1) {
   directFrame = resolver.createFrameView(packet, { timestamp: { domain: "session", milliseconds: packet.TimestampMS }, updateSequence: BigInt(packet.TimestampMS) }, directFrame);
   directFrame.readNumber(speed);
   derivedFrame = resolver.createFrameView(packet, { timestamp: { domain: "session", milliseconds: packet.TimestampMS }, updateSequence: BigInt(packet.TimestampMS) }, derivedFrame);
-  derivedFrame.readNumber(fuelPercent);
+  derivedFrame.readNumber(fuelRemainingPercent);
 }
 
 group("telemetry resolver", () => {
@@ -45,16 +45,16 @@ group("telemetry resolver", () => {
   bench("reusable frame fuel derivation readNumber", () => {
     packet.TimestampMS = sequence += 1;
     derivedFrame = resolver.createFrameView(packet, { timestamp: { domain: "session", milliseconds: packet.TimestampMS }, updateSequence: BigInt(packet.TimestampMS) }, derivedFrame);
-    derivedFrame.readNumber(fuelPercent);
+    derivedFrame.readNumber(fuelRemainingPercent);
   }).gc("inner");
 
   bench("reusable frame and four allocation-free reads", () => {
     packet.TimestampMS = sequence += 1;
     frame = resolver.createFrameView(packet, { timestamp: { domain: "session", milliseconds: packet.TimestampMS }, updateSequence: BigInt(packet.TimestampMS) }, frame);
     frame.readNumber(speed);
-    frame.readNumber(accelerator);
+    frame.readNumber(throttle);
     frame.readNumber(brake);
-    frame.readNumber(fuelPercent);
+    frame.readNumber(fuelRemainingPercent);
   }).gc("inner");
 
   bench("diagnostic resolveMany into caller storage", () => {
