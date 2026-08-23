@@ -6,6 +6,7 @@ import {
 	blob,
 	index,
 	unique,
+	uniqueIndex,
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
@@ -319,6 +320,7 @@ export const lapAnalyses = sqliteTable(
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		qualityGeneration: text("quality_generation"),
 		qualityPolicyVersion: text("quality_policy_version"),
+		findingGenerationKey: text("finding_generation_key"),
 	},
 	(table) => [unique().on(table.lapId)],
 );
@@ -556,6 +558,10 @@ export const compareAnalyses = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		lapAId: integer("lap_a_id").notNull(),
 		lapBId: integer("lap_b_id").notNull(),
+		// Canonical storage pair plus requested directional pair. v70 backfills
+		// existing rows so /A/B and /B/A caches remain distinct.
+		requestLapAId: integer("request_lap_a_id"),
+		requestLapBId: integer("request_lap_b_id"),
 		kind: text("kind").notNull().default("inputs"),
 		analysis: text("analysis").notNull(),
 		inputTokens: integer("input_tokens").notNull().default(0),
@@ -566,8 +572,9 @@ export const compareAnalyses = sqliteTable(
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		qualityGeneration: text("quality_generation"),
 		qualityPolicyVersion: text("quality_policy_version"),
+		findingGenerationKey: text("finding_generation_key"),
 	},
-	(table) => [unique().on(table.lapAId, table.lapBId, table.kind)],
+	(table) => [unique().on(table.requestLapAId, table.requestLapBId, table.kind)],
 );
 
 /**
@@ -655,5 +662,73 @@ export const driverProfileRuns = sqliteTable(
 	(table) => [
 		index("driver_profile_runs_scope_status_idx").on(table.scopeKey, table.status),
 		index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
+	],
+);
+
+/**
+ * Deterministic structured findings generations. Rows are staged first and
+ * switched current in one transaction; prose/narratives remain in AI tables.
+ */
+export const findingGenerations = sqliteTable(
+	"finding_generations",
+	{
+		id: text("id").primaryKey(),
+		lapId: integer("lap_id").references(() => laps.id, { onDelete: "cascade" }),
+		scopeKey: text("scope_key").notNull(),
+		scope: text("scope").notNull(),
+		sourceId: text("source_id").notNull(),
+		rule: text("rule").notNull(),
+		config: text("config").notNull(),
+		schemaVersion: text("schema_version").notNull(),
+		status: text("status", {
+			enum: [
+				"staging",
+				"current",
+				"stale-rebuild-available",
+				"stale-source-missing",
+				"verification-failed",
+				"incompatible",
+				"corrupt",
+			],
+		}).notNull(),
+		findingCount: integer("finding_count").notNull().default(0),
+		availableCount: integer("available_count").notNull().default(0),
+		unavailableCount: integer("unavailable_count").notNull().default(0),
+		indeterminateCount: integer("indeterminate_count").notNull().default(0),
+		contentHash: text("content_hash").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		verifiedAt: text("verified_at"),
+		activatedAt: text("activated_at"),
+		staleAt: text("stale_at"),
+		failureReason: text("failure_reason"),
+	},
+	(table) => [
+		uniqueIndex("finding_generations_one_current_idx")
+			.on(table.scopeKey)
+			.where(sql`${table.status} IN ('current', 'stale-rebuild-available', 'stale-source-missing')`),
+		index("finding_generations_scope_status_idx").on(table.scopeKey, table.status),
+		index("finding_generations_lap_idx").on(table.lapId),
+		index("finding_generations_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
+	],
+);
+
+/** Canonical structured records belonging to one finding generation. */
+export const findingRecords = sqliteTable(
+	"finding_records",
+	{
+		generationId: text("generation_id")
+			.notNull()
+			.references(() => findingGenerations.id, { onDelete: "cascade" }),
+		findingId: text("finding_id").notNull(),
+		type: text("type").notNull(),
+		status: text("status", { enum: ["available", "unavailable", "indeterminate"] }).notNull(),
+		structured: text("structured").notNull(),
+		structuredHash: text("structured_hash").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		primaryKey({ columns: [table.generationId, table.findingId] }),
+		index("finding_records_finding_idx").on(table.findingId),
+		index("finding_records_generation_idx").on(table.generationId),
 	],
 );

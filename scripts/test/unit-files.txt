@@ -29,4 +29,8 @@ test/lap-analysis/stints/stint-trace-codec.test.ts
 test/lap-analysis/stints/stint-traces.test.ts
 test/lap-analysis/time-loss.test.ts
 test/telemetry/source-sequence.test.ts
+test/findings/aggregation.test.ts
+test/findings/contract.test.ts
+test/findings/identity.test.ts
+test/findings/render.test.ts
 test/tooling/test-shards.test.ts

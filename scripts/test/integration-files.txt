@@ -226,3 +226,4 @@ test/games/shared/parser.test.ts
 test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts
+test/findings/store.test.ts

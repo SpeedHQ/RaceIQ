@@ -568,7 +568,7 @@ describe("migration regressions", () => {
     await bootstrap(client);
     await runMigrations(client, 58);
     await client.execute("DROP TABLE pit_events");
-    expect(await runMigrations(client)).toBe(1);
+    expect(await runMigrations(client, 59)).toBe(1);
 
     const columns = await client.execute("PRAGMA table_info(pit_events)");
     expect(columns.rows.map((row) => String(row.name))).toEqual([
