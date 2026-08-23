@@ -45,6 +45,7 @@ const i18nCompile = Bun.spawnSync([process.execPath, "run", "--cwd", "client", "
   stderr: "inherit",
 });
 if (i18nCompile.exitCode !== 0) process.exit(i18nCompile.exitCode);
+
 const suiteRoot = mkdtempSync(resolve(tmpdir(), `raceiq-bun-${suite}-`));
 let status = 1;
 try {
