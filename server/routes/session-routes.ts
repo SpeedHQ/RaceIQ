@@ -10,6 +10,7 @@ import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
+import { getAllServerGames } from "../games/registry";
 import { wsManager } from "../runtime/websocket-manager";
 import { computeRecap } from "../lap-analysis/recap";
 import { tryGetGame } from "../../shared/games/registry";
@@ -80,7 +81,10 @@ export const sessionRoutes = new Hono()
     try {
       const result = await reprocessSession(id);
       wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
-      const remaining = await countStaleSessions(ALL_DETECTOR_IDS);
+      const remaining = await countStaleSessions(
+        ALL_DETECTOR_IDS,
+        getAllServerGames().map((adapter) => adapter.id),
+      );
       if (remaining === 0) wsManager.setStaleSessionsNotification(null);
       return c.json(result);
     } catch (error) {
@@ -94,7 +98,10 @@ export const sessionRoutes = new Hono()
     }
   })
   .post("/api/sessions/reprocess-stale", async (c) => {
-    const staleIds = await getStaleSessions(ALL_DETECTOR_IDS);
+    const staleIds = await getStaleSessions(
+      ALL_DETECTOR_IDS,
+      getAllServerGames().map((adapter) => adapter.id),
+    );
     const results = [];
     const skipped: { sessionId: number; reason: "raw-file-missing" }[] = [];
     for (const id of staleIds) {
