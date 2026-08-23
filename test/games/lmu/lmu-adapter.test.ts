@@ -3,7 +3,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DuckDBInstance, type DuckDBConnection } from "@duckdb/node-api";
-import { lmuAdapter } from "../../../shared/games/lmu";
+import {
+  lmuAdapter,
+  lmuIdentityOrdinal,
+} from "../../../shared/games/lmu";
 import { lmuServerAdapter } from "../../../server/games/lmu";
 import { transferRoutes } from "../../../server/routes/laps/transfer-routes";
 import {
@@ -144,6 +147,7 @@ function lmuSharedMemoryFixture(): Buffer {
 async function populateLMUDuckDB(
   connection: DuckDBConnection,
   lapRows = "(0,0),(15,1),(30,2)",
+  includeLapDistance = true,
 ): Promise<void> {
   await connection.run("CREATE TABLE metadata(key VARCHAR, value VARCHAR)");
   await connection.run(`INSERT INTO metadata VALUES
@@ -155,10 +159,17 @@ async function populateLMUDuckDB(
     ('CarClass','Hypercar'),
     ('TrackName','Circuit de la Sarthe')`);
   await connection.run("CREATE TABLE channelsList(channelName VARCHAR, frequency INTEGER, unit VARCHAR)");
-  await connection.run("INSERT INTO channelsList VALUES ('Lap Dist',10,'m'),('Ground Speed',50,'km/h')");
+  await connection.run(
+    `INSERT INTO channelsList VALUES ${
+      includeLapDistance ? "('Lap Dist',10,'m')," : ""
+    }('Ground Speed',50,'km/h'),('Susp Pos',50,'mm')`,
+  );
   await connection.run("CREATE TABLE eventsList(eventName VARCHAR, unit VARCHAR)");
-  await connection.run('CREATE TABLE "Lap Dist" AS SELECT ((range % 150) * (1000.0 / 150))::FLOAT AS value FROM range(300)');
-  await connection.run('CREATE TABLE "Ground Speed" AS SELECT 180::FLOAT AS value FROM range(1500)');
+  if (includeLapDistance) {
+    await connection.run('CREATE TABLE "Lap Dist" AS SELECT ((range % 150) * (1000.0 / 150))::FLOAT AS value FROM range(300)');
+  }
+  await connection.run('CREATE TABLE "Ground Speed" AS SELECT 180::FLOAT AS value FROM range(1501)');
+  await connection.run('CREATE TABLE "Susp Pos" AS SELECT 50::FLOAT AS value1, 50::FLOAT AS value2, 50::FLOAT AS value3, 50::FLOAT AS value4 FROM range(1501)');
   await connection.run('CREATE TABLE "Lap"(ts DOUBLE, value USMALLINT)');
   await connection.run(`INSERT INTO "Lap" VALUES ${lapRows}`);
   await connection.run('CREATE TABLE "Lap Time"(ts DOUBLE, value FLOAT)');
@@ -172,11 +183,12 @@ async function populateLMUDuckDB(
 async function createLMUDuckDB(
   path: string,
   lapRows?: string,
+  includeLapDistance = true,
 ): Promise<void> {
   const instance = await DuckDBInstance.create(path);
   const connection = await instance.connect();
   try {
-    await populateLMUDuckDB(connection, lapRows);
+    await populateLMUDuckDB(connection, lapRows, includeLapDistance);
   } finally {
     connection.closeSync();
     instance.closeSync();
@@ -265,33 +277,41 @@ describe("LMU adapter", () => {
       carName: "Ferrari 499P #50",
       trackName: "Circuit de la Sarthe",
       completedLapCount: 2,
-      estimatedPacketCount: 1_499,
+      estimatedPacketCount: 1_501,
     });
 
     let firstPacket = null;
     let secondLapPacket = null;
+    let finalPacket = null;
     let frameCount = 0;
     for await (const frame of readLMUDuckDBFrames(path)) {
       const packet = lmuServerAdapter.tryParse(frame, null);
       firstPacket ??= packet;
       if (packet?.LapNumber === 1) secondLapPacket = packet;
+      finalPacket = packet;
       frameCount++;
     }
-    expect(frameCount).toBe(1_499);
+    expect(frameCount).toBe(1_501);
     expect(firstPacket).toMatchObject({
       gameId: "lmu",
       IsRaceOn: 1,
       LapNumber: 0,
       Speed: 50,
+      SuspensionTravelMFL: 0.05,
+      CarOrdinal: lmuIdentityOrdinal("car", "Ferrari 499P"),
     });
     expect(secondLapPacket).toMatchObject({
       LapNumber: 1,
       LastLap: 15,
       lmu: {
         driverName: "Test Driver",
-        carModel: "Ferrari 499P #50",
+        carModel: "Ferrari 499P",
         trackName: "Circuit de la Sarthe",
       },
+    });
+    expect(finalPacket).toMatchObject({
+      LapNumber: 2,
+      LastLap: 15,
     });
   }, 60_000);
 
@@ -316,6 +336,29 @@ describe("LMU adapter", () => {
       supported: false,
       message: "Recording contains no complete laps to import.",
       preview: { completedLapCount: 0 },
+    });
+  });
+
+  test("rejects recordings without lap-distance telemetry during detection", async () => {
+    const path = join(temporaryDirectory(), "missing-lap-distance.duckdb");
+    await createLMUDuckDB(path, undefined, false);
+    const form = new FormData();
+    form.append(
+      "file",
+      new File([readFileSync(path)], "missing-lap-distance.duckdb"),
+    );
+
+    const response = await transferRoutes.request("/api/laps/detect-import", {
+      method: "POST",
+      body: form,
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      format: "duckdb",
+      supported: false,
+      message: "LMU telemetry recording contains no drivable samples",
     });
   });
 

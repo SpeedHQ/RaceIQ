@@ -15,6 +15,7 @@
 - Show Le Mans Ultimate cars in a dedicated compact catalog without iRacing-specific categories or imagery
 - Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
 - Reject LMU telemetry recordings with no complete laps before starting import
+- Preserve final laps, consistent car identity, and correctly scaled suspension data when importing LMU telemetry databases
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
