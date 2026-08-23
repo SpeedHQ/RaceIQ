@@ -52,7 +52,7 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment("../../.env.development"))).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
-      lmuAdapter: true,
+      lmuAdapter: false,
     });
   });
 
@@ -60,7 +60,7 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment("../../.env.production"))).toEqual({
       f1Experiments: false,
       iracingAdapter: false,
-      lmuAdapter: true,
+      lmuAdapter: false,
     });
   });
 
@@ -69,7 +69,7 @@ describe("release feature flags", () => {
     expect(developmentReleaseFeatures).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
-      lmuAdapter: true,
+      lmuAdapter: false,
     });
   });
 
