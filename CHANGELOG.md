@@ -15,6 +15,9 @@
 ### Fixes
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
+- Persist finalized telemetry quality for new live and imported laps so task eligibility is available after capture closes
+- Preserve original ACC, AC Evo, and MoTeC capture timing during replay so telemetry quality and lap evidence remain accurate
+- Block lap-analysis AI when telemetry quality is missing, stale, or unsuitable, and include eligibility limitations in prompts
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence

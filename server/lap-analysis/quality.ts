@@ -1,3 +1,16 @@
+import { DEFAULT_LAP_CLASSIFICATION, type LapClassification } from "../../shared/racing/laps/classification";
+import {
+  LOCAL_PLAYER_EVIDENCE,
+  type EligibilityDecisionSet,
+  type EvidenceSourceKind,
+  type LapQualitySummary,
+  type ParticipantEvidence,
+  type SourceChannelProfile,
+} from "../../shared/racing/quality/contracts";
+import { summarizeLapQuality } from "../../shared/racing/quality/measure";
+import { evaluateAllEligibility } from "../../shared/racing/quality/policies";
+import type { SessionOwnership } from "../../shared/racing/sessions/types";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 export interface LapQualityResult {
@@ -12,10 +25,7 @@ export interface LapQualityResult {
  *
  * This is a pure function — no side effects, no DB access.
  */
-export function assessLapRecording(
-  packets: TelemetryPacket[],
-  lapTime: number
-): LapQualityResult {
+export function assessLapRecording(packets: TelemetryPacket[], lapTime: number): LapQualityResult {
   if (packets.length < 30) {
     return { valid: false, reason: "too few telemetry packets" };
   }
@@ -59,4 +69,73 @@ export function assessLapRecording(
   }
 
   return { valid: true, reason: null };
+}
+
+export interface LapQualityCaptureContext {
+  sourceKind: EvidenceSourceKind;
+  participant: ParticipantEvidence;
+  versionIdentity: TelemetryVersionIdentity;
+  sourceChannelProfile?: SourceChannelProfile;
+}
+
+export interface LapQualityMeasurementInput {
+  packets: readonly TelemetryPacket[];
+  lapTime: number;
+  timingSource: LapQualitySummary["timing"]["source"];
+  complete: boolean;
+  isValid: boolean;
+  invalidReason: string | null;
+  classification?: LapClassification;
+}
+
+export function participantEvidenceForOwnership(ownership?: SessionOwnership): ParticipantEvidence {
+  return ownership === "others"
+    ? {
+        kind: "opponent",
+        sourceId: null,
+        stableId: null,
+        identityState: "unknown",
+      }
+    : LOCAL_PLAYER_EVIDENCE;
+}
+
+function classificationForLap(invalidReason: string | null): LapClassification {
+  switch (invalidReason) {
+    case "outlap":
+      return { phase: "out", conditions: [], paceEligibility: "excluded" };
+    case "inlap":
+      return { phase: "in", conditions: [], paceEligibility: "excluded" };
+    case "pit lap":
+      return { phase: "pit", conditions: [], paceEligibility: "excluded" };
+    default:
+      return DEFAULT_LAP_CLASSIFICATION;
+  }
+}
+
+export function measureLapQuality(
+  context: LapQualityCaptureContext,
+  input: LapQualityMeasurementInput,
+): {
+  quality: LapQualitySummary;
+  eligibility: EligibilityDecisionSet;
+} {
+  const classification =
+    input.classification ?? classificationForLap(input.invalidReason);
+  const quality = summarizeLapQuality({
+    packets: input.packets,
+    lapTime: input.lapTime,
+    timingSource: input.timingSource,
+    complete: input.complete,
+    structurallyValid: input.isValid || classification.paceEligibility === "excluded",
+    invalidReason: classification.paceEligibility === "excluded" ? null : input.invalidReason,
+    classification,
+    sourceKind: context.sourceKind,
+    participant: context.participant,
+    versionIdentity: context.versionIdentity,
+    sourceChannelProfile: context.sourceChannelProfile,
+  });
+  return {
+    quality,
+    eligibility: evaluateAllEligibility(quality),
+  };
 }

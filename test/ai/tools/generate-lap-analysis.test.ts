@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
-import {
-  generateLapAnalysis,
-  type GenerateLapAnalysisDeps,
-} from "../../../server/ai/generate-lap-analysis";
+import { generateLapAnalysis, type GenerateLapAnalysisDeps } from "../../../server/ai/generate-lap-analysis";
+import { finalizeLapQualityGeneration } from "../../../server/lap-analysis/quality-generation";
+import { qualityPackets, summarize } from "../../support/lap-analysis/quality-model";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",
@@ -15,12 +14,17 @@ const validAnalysis = JSON.stringify({
   setup: [],
 });
 
+const generatedQuality = finalizeLapQualityGeneration(summarize(qualityPackets(50)), `sha256:${"a".repeat(64)}`, { lapNumber: 1, rawByteOffset: 0, rawFrameCount: 50 });
+
 const lap = {
   id: 7,
   lapTime: 91.2,
   gameId: "fm-2023" as const,
   trackOrdinal: 1,
   telemetry: [{ DistanceTraveled: 0 }, { DistanceTraveled: 100 }],
+  quality: generatedQuality.quality,
+  eligibility: generatedQuality.eligibility,
+  qualityGeneration: generatedQuality.quality.provenance.outputGeneration,
 };
 
 function makeDeps(
@@ -29,6 +33,8 @@ function makeDeps(
     generated?: string;
     generateError?: Error;
     onSave?: (analysis: string) => void;
+    lap?: unknown;
+    onPrompt?: (prompt: string) => void;
   } = {},
 ): GenerateLapAnalysisDeps & { generateCalls: number; saves: string[] } {
   let generateCalls = 0;
@@ -49,7 +55,7 @@ function makeDeps(
   } = {
     generateCalls,
     saves,
-    getLapById: async () => lap as never,
+    getLapById: async () => (options.lap ?? lap) as never,
     getCorners: async () => [],
     detectCorners: () => [],
     getAnalysis: async () => cached,
@@ -88,7 +94,8 @@ function makeDeps(
         throw new Error("unused");
       },
     }),
-    runAiStructured: async () => {
+    runAiStructured: async (_ai, input) => {
+      options.onPrompt?.(input.prompt);
       generateCalls++;
       if (options.generateError) throw options.generateError;
       return {
@@ -117,6 +124,38 @@ describe("generateLapAnalysis", () => {
     expect(deps.generateCalls).toBe(0);
   });
 
+  test("blocks cached and generated analysis without current quality", async () => {
+    const deps = makeDeps({
+      cached: validAnalysis,
+      lap: {
+        ...lap,
+        quality: undefined,
+        eligibility: undefined,
+        qualityGeneration: undefined,
+      },
+    });
+
+    const result = await generateLapAnalysis(7, {}, deps);
+
+    expect(result.error).toContain("quality_not_rebuilt");
+    expect(result.cached).toBe(false);
+    expect(deps.generateCalls).toBe(0);
+  });
+
+  test("includes binding eligibility evidence in generated prompts", async () => {
+    let prompt = "";
+    const deps = makeDeps({
+      onPrompt: (value) => {
+        prompt = value;
+      },
+    });
+
+    await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(prompt).toContain('"policyId": "corner-trace"');
+    expect(prompt).toContain("Treat every listed limitation as binding");
+  });
+
   test("returns missing lap error", async () => {
     const deps = makeDeps();
     deps.getLapById = async () => null;
@@ -131,11 +170,7 @@ describe("generateLapAnalysis", () => {
     const deps = makeDeps();
     deps.getLapById = async () => null;
 
-    const result = await generateLapAnalysis(
-      404,
-      { regenerate: true, cacheOnly: true },
-      deps,
-    );
+    const result = await generateLapAnalysis(404, { regenerate: true, cacheOnly: true }, deps);
 
     expect(result.error).toBe("Lap not found");
     expect(result.analysis).toBeNull();
@@ -148,11 +183,7 @@ describe("generateLapAnalysis", () => {
       throw new Error("provider unavailable");
     };
 
-    const result = await generateLapAnalysis(
-      7,
-      { regenerate: true, cacheOnly: true, preflight: true },
-      deps,
-    );
+    const result = await generateLapAnalysis(7, { regenerate: true, cacheOnly: true, preflight: true }, deps);
 
     expect(result.error).toBe("provider unavailable");
     expect(result.analysis).toBeNull();
@@ -161,22 +192,14 @@ describe("generateLapAnalysis", () => {
 
   test("rejects malformed and schema-invalid output without caching", async () => {
     const malformedDeps = makeDeps({ generated: "not-json" });
-    const malformed = await generateLapAnalysis(
-      7,
-      { regenerate: true },
-      malformedDeps,
-    );
+    const malformed = await generateLapAnalysis(7, { regenerate: true }, malformedDeps);
     expect(malformed.error).toContain("invalid analysis structure");
     expect(malformedDeps.saves).toHaveLength(0);
 
     const schemaDeps = makeDeps({
       generated: JSON.stringify({ verdict: "missing required arrays" }),
     });
-    const schemaInvalid = await generateLapAnalysis(
-      7,
-      { regenerate: true },
-      schemaDeps,
-    );
+    const schemaInvalid = await generateLapAnalysis(7, { regenerate: true }, schemaDeps);
     expect(schemaInvalid.error).toContain("invalid analysis structure");
     expect(schemaDeps.saves).toHaveLength(0);
   });

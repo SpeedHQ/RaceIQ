@@ -200,6 +200,15 @@ function syntheticReason(code: QualityReasonCode, semanticIds: readonly Telemetr
   };
 }
 
+function channelConditionReasons(quality: LapQualitySummary, code: QualityReasonCode, semanticId: TelemetryVariableId, range?: QualityDistanceRange): EligibilityReason[] {
+  const measured = quality.facts.filter((fact) => fact.code === code && fact.semanticIds.includes(semanticId) && qualityFactOverlapsRange(fact, range)).map(reasonFromFact);
+  return measured.length > 0 ? measured : [syntheticReason(code, [semanticId])];
+}
+
+function channelIsAvailable(channel: ChannelQualitySummary | undefined): channel is ChannelQualitySummary {
+  return channel != null && channel.mappingStatus !== "unavailable" && channel.sourceProfile?.treatment !== "absent";
+}
+
 function dedupeReasons(reasons: readonly EligibilityReason[]): EligibilityReason[] {
   const seen = new Set<string>();
   const result: EligibilityReason[] = [];
@@ -475,17 +484,28 @@ function transientEvent(quality: LapQualitySummary, options: EligibilityEvaluati
 function fuelBurn(quality: LapQualitySummary): EligibilityDecision {
   const fuel = channelById(quality, "fuel.fuel");
   const reasons: EligibilityReason[] = [];
-  if (!quality.complete) {
-    const partial = factsFor(quality, ["partial_lap"]).map(reasonFromFact);
-    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("partial_lap")]));
+  if (!quality.complete || quality.lifecycleState === "incomplete") {
+    const partial = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
+    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("recording_incomplete")]));
   }
-  if (!fuel || fuel.mappingStatus === "unavailable") reasons.push(syntheticReason("channel_unavailable", ["fuel.fuel"]));
+  if (!channelIsAvailable(fuel)) reasons.push(...channelConditionReasons(quality, "channel_unavailable", "fuel.fuel"));
   else {
-    if (fuel.boundaryCoverage.first500Ms == null || fuel.boundaryCoverage.first500Ms < 1 || fuel.boundaryCoverage.last500Ms == null || fuel.boundaryCoverage.last500Ms < 1) {
-      reasons.push(syntheticReason("channel_missing", ["fuel.fuel"]));
+    if (
+      fuel.observedCount < 2 ||
+      fuel.observedCadenceMs == null ||
+      fuel.observedCadenceMs <= 0 ||
+      quality.timeRange == null ||
+      quality.timeRange.endMs <= quality.timeRange.startMs ||
+      fuel.boundaryCoverage.first500Ms == null ||
+      fuel.boundaryCoverage.first500Ms < 1 ||
+      fuel.boundaryCoverage.last500Ms == null ||
+      fuel.boundaryCoverage.last500Ms < 1
+    ) {
+      reasons.push(...channelConditionReasons(quality, "channel_missing", "fuel.fuel"));
     }
-    if (fuel.freshnessCounts.stale > 0) reasons.push(syntheticReason("channel_stale", ["fuel.fuel"]));
-    if (fuel.resolutionCounts.invalid > 0 || fuel.resolutionCounts.error > 0) reasons.push(syntheticReason("channel_invalid", ["fuel.fuel"]));
+    if (fuel.freshnessCounts.stale > 0) reasons.push(...channelConditionReasons(quality, "channel_stale", "fuel.fuel"));
+    if (fuel.resolutionCounts.missing > 0) reasons.push(...channelConditionReasons(quality, "channel_missing", "fuel.fuel"));
+    if (fuel.resolutionCounts.invalid > 0 || fuel.resolutionCounts.error > 0) reasons.push(...channelConditionReasons(quality, "channel_invalid", "fuel.fuel"));
   }
   if (reasons.length > 0) return decision("fuel-burn", quality, "ineligible", reasons, ["fuel.fuel"]);
   const warnings = [...factsFor(quality, ["caution_context", "incident_lap"]).map(reasonFromFact), ...sourceFidelityReasons(quality, ["fuel.fuel"])];
@@ -586,6 +606,7 @@ export function evaluateEligibility(policyId: EligibilityPolicyId, evidence: Lap
 export function evaluateAllEligibility(evidence: LapQualitySummary): EligibilityDecisionSet {
   return Object.fromEntries(POLICY_IDS.map((policyId) => [policyId, evaluateEligibility(policyId, evidence)])) as EligibilityDecisionSet;
 }
+
 
 function groupDecision(
   policyId: "stint-falloff" | "setup-analysis" | "driver-profile",
