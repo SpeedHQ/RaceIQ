@@ -31,10 +31,12 @@ export type TuneSearch = {
 };
 
 export type TuneReviewView = "overview" | "track" | `s${number}`;
+export type TuneReviewTrackTab = "consistency" | "tires" | "balance" | "suspension";
 export type TuneReviewSearch = {
   laps?: string;
   lap?: number;
   view?: TuneReviewView;
+  trackTab?: TuneReviewTrackTab;
   versionId?: number;
 };
 
@@ -115,13 +117,14 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
     view: view as TuneView | undefined,
   };
 }
-
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
   const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
+  const trackTab = search.trackTab === "consistency" || search.trackTab === "tires" || search.trackTab === "balance" || search.trackTab === "suspension" ? search.trackTab : undefined;
   return {
     laps: typeof search.laps === "string" ? search.laps : undefined,
     lap: parseOptionalNumber(search.lap),
     view: view as TuneReviewView | undefined,
+    trackTab,
     versionId: parseOptionalNumber(search.versionId),
   };
 }

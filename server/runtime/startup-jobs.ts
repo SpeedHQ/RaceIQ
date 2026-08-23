@@ -7,6 +7,7 @@ import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
+import { getAllServerGames } from "../games/registry";
 import { wsManager } from "./websocket-manager";
 import { startSessionCompressor } from "../session-capture/compressor";
 import { startUpdateCheckSchedule } from "./update/check";
@@ -31,7 +32,10 @@ export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencie
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
   (dependencies.startLaptimesSync ?? startLaptimesSync)();
 
-  (dependencies.countStaleSessions ?? countStaleSessions)(ALL_DETECTOR_IDS).then((count) => {
+  (dependencies.countStaleSessions ?? countStaleSessions)(
+    ALL_DETECTOR_IDS,
+    getAllServerGames().map((adapter) => adapter.id),
+  ).then((count) => {
     if (count > 0) {
       console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
       wsManager.setStaleSessionsNotification({

@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Check test shard coverage
+        run: bun run test:shards
+
       - name: Lint server, shared, scripts, tests, and client
         run: bun run lint
 
@@ -84,8 +87,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Run tests
-        run: bun run test
+      - name: Run unit tests
+        run: bun run test:unit
+
+      - name: Run integration tests
+        run: bun run test:integration
 
   playwright-dev:
     if: (github.event_name == 'pull_request' && !github.event.pull_request.draft) || github.event_name == 'workflow_dispatch'
