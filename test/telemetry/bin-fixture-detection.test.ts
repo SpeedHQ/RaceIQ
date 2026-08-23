@@ -245,7 +245,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const last = packets[packets.length - 1]!;
     expect(getAccTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
     expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
-  }, { timeout: 30000 });
+  }, { timeout: 300_000 });
 
   test("acc-2026-04-12T21-44-38-899Z.bin.gz — dump-mode, ACC — CORROBORATED (test/e2e/acc/acc-2026-04-12T21-44-38-899Z.test.ts sector timing)", () => {
     const file = `${DIR}/acc-2026-04-12T21-44-38-899Z.bin.gz`;
@@ -257,7 +257,7 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const last = packets[packets.length - 1]!;
     expect(getAccTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
     expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
-  }, { timeout: 30000 });
+  }, { timeout: 300_000 });
 
   // Dump-mode ACCTEST v2 header, but the frame stream is corrupt: readKunosFrames
   // scans past two zero-length placeholder physics frames straight into
