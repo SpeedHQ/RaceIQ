@@ -1,3 +1,5 @@
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +10,7 @@ import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
-import { steeringAngleRadians, THREE_COLORS } from "../../lib/wireframe-utils";
+import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
 import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
@@ -181,28 +183,31 @@ export function CarScene({
   const cambRL = 0;
   const cambRR = 0;
 
+  const fTireR = carModel.frontTireRadius ?? carModel.tireRadius;
+  const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
+  const vehicleSpeed = semanticNumber(frame, "motion.speed") ?? 0;
+  const rotationValue = frame.values["tires.wheel-rotation-speed"];
+  const measuredRotation = Array.isArray(rotationValue) ? rotationValue : undefined;
+  const wheelRotationAvailable = resolveAnalysisTelemetry(getGame(gameId)).wheelRotation.source !== "unavailable";
+
   // Zero out wheel rotation during lockup — locked wheel = no spin
   const ws = {
     fl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 0) },
     fr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 1) },
     rl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 2) },
     rr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 3) },
-  } as {
-    fl: { state: "nominal" | "lockup"; slipRatio: number };
-    fr: { state: "nominal" | "lockup"; slipRatio: number };
-    rl: { state: "nominal" | "lockup"; slipRatio: number };
-    rr: { state: "nominal" | "lockup"; slipRatio: number };
-  };
-  const rotFL = ws.fl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 0);
-  const rotFR = ws.fr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 1);
-  const rotRL = ws.rl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 2);
-  const rotRR = ws.rr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 3);
+  } as Record<"fl" | "fr" | "rl" | "rr", { state: "nominal" | "lockup"; slipRatio: number }>;
+
+  // Preserve measured zeroes (including lockups). iRacing does not expose
+  // per-wheel speed, so derive visual rolling from vehicle speed and tire radius.
+  const rotFL = ws.fl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[0], vehicleSpeed, fTireR, wheelRotationAvailable);
+  const rotFR = ws.fr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[1], vehicleSpeed, fTireR, wheelRotationAvailable);
+  const rotRL = ws.rl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[2], vehicleSpeed, rTireR, wheelRotationAvailable);
+  const rotRR = ws.rr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[3], vehicleSpeed, rTireR, wheelRotationAvailable);
 
   const wb = carModel.halfWheelbase;
   const ft = carModel.halfFrontTrack;
   const rt = carModel.halfRearTrack;
-  const fTireR = carModel.frontTireRadius ?? carModel.tireRadius;
-  const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
   const fTireW = carModel.frontTireWidth ?? 0.3;
   const rTireW = carModel.rearTireWidth ?? 0.3;
   const pressFL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
