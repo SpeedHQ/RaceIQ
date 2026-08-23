@@ -17,6 +17,7 @@ import {
   LiveTelemetryPipeline,
   stopMaintenanceTasks,
 } from "../../server/telemetry/live-pipeline";
+import type { AnalysisReceiptRow } from "../../server/db/analysis-receipt-queries";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -203,7 +204,7 @@ describe("live race-event timeline integration", () => {
     await pipeline.finalizeCurrentSession();
   });
 
-  test("retains every released lap reservation when fallback persistence also fails", async () => {
+  test("retains queued timeline batches when retry persistence fails", async () => {
     const store = new FailSeveralRaceEventStore(0);
     const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
       bypassPacketRateFilter: true,
@@ -214,44 +215,22 @@ describe("live race-event timeline integration", () => {
     });
     await pipeline.processPacket(packet());
     await pipeline.noteSourceLifecycle(
-      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:reservations" },
+      { kind: "timeout", timestampMs: 1_050, eventId: "source-timeout:queued-batches" },
       { kind: "udp", gameId: "fm-2023", sessionId: 1 },
     );
 
     const [first, later] = store.list();
     if (!first || !later) throw new Error("Expected initial timeline events");
-    let released = 0;
     const internals = pipeline as unknown as {
-      _pendingTimelineLapBatches: Map<string, {
-        events: RaceEvent[];
-        release: () => void;
-        settle: () => void;
-      }>;
-      _releaseFailedTimelineLapBatches(sessionId: number, error: unknown): Promise<void>;
       _persistTimelineEventsCore(events: readonly RaceEvent[]): Promise<RaceEvent[]>;
     };
-    internals._pendingTimelineLapBatches.set("1:1", {
-      events: [first],
-      release: () => {
-        released += 1;
-      },
-      settle: () => {},
-    });
-    internals._pendingTimelineLapBatches.set("1:2", {
-      events: [later],
-      release: () => {
-        released += 1;
-      },
-      settle: () => {},
-    });
     store.failNext(1);
 
-    await expect(internals._releaseFailedTimelineLapBatches(1, new Error("lap write failure"))).rejects.toThrow(
+    await expect(internals._persistTimelineEventsCore([first])).rejects.toThrow(
       "Failed to persist race events",
     );
-    await internals._persistTimelineEventsCore([]);
+    await internals._persistTimelineEventsCore([later]);
 
-    expect(released).toBe(2);
     expect(store.batches.slice(-3).flat()).toEqual([
       first.eventId,
       ...[first, later].sort(compareRaceEvents).map(({ eventId }) => eventId),
@@ -431,5 +410,105 @@ describe("live race-event timeline integration", () => {
 
     expect(db.sessionQuality.size).toBe(1);
     expect(ws.broadcastedNotifications.some(({ type }) => type === "quality-updated")).toBe(true);
+  });
+
+  test("starts generation before output writes and activates before reconciled notification", async () => {
+    const db = new CapturingDbAdapter();
+    const ws = new CapturingWsAdapter();
+    const store = new MemoryRaceEventStore();
+    const attempt = {
+      generationId: "analysis-generation:live-order",
+    } as AnalysisReceiptRow;
+    const steps: string[] = [];
+    let notificationPrecededActivation = false;
+    const pipeline = new LiveTelemetryPipeline(db, ws, {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+      onSessionAnalysisStarted: async () => {
+        steps.push("begin");
+        return attempt;
+      },
+      onSessionFinalized: async () => {
+        steps.push("reconcile");
+      },
+      onSessionAnalysisFinalized: async () => {
+        notificationPrecededActivation =
+          ws.broadcastedNotifications.some(
+            ({ type }) => type === "race-result-reconciled",
+          );
+        steps.push("activate");
+      },
+    });
+
+    await pipeline.processPacket(packet());
+    await pipeline.processPacket(
+      packet({
+        TimestampMS: 2_000,
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 5_000,
+      }),
+    );
+    await pipeline.finalizeCurrentSession();
+
+    expect(db.sessions[0]?.analysisGenerationId).toBe(attempt.generationId);
+    expect(db.laps[0]?.analysisGenerationId).toBe(attempt.generationId);
+    expect(store.list().every((event) => event.analysisGenerationId === attempt.generationId)).toBe(true);
+    expect(steps[0]).toBe("begin");
+    expect(steps.at(-1)).toBe("activate");
+    expect(steps.slice(1, -1).length).toBeGreaterThan(0);
+    expect(steps.slice(1, -1).every((step) => step === "reconcile")).toBe(true);
+    expect(notificationPrecededActivation).toBe(false);
+    expect(
+      ws.broadcastedNotifications.some(
+        ({ type }) => type === "race-result-reconciled",
+      ),
+    ).toBe(true);
+  });
+
+  test("keeps failed activation unfinalized until retry activates same attempt", async () => {
+    const ws = new CapturingWsAdapter();
+    const attempt = {
+      generationId: "analysis-generation:live-retry",
+    } as AnalysisReceiptRow;
+    let activationAttempts = 0;
+    const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), ws, {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: new MemoryRaceEventStore(),
+      onSessionAnalysisStarted: async () => attempt,
+      onSessionFinalized: async () => {},
+      onSessionAnalysisFinalized: async () => {
+        activationAttempts += 1;
+        if (activationAttempts === 1) {
+          throw new Error("receipt activation failed");
+        }
+      },
+    });
+
+    await pipeline.processPacket(packet());
+    await expect(pipeline.finalizeCurrentSession()).rejects.toThrow(
+      "receipt activation failed",
+    );
+    expect(
+      ws.broadcastedNotifications.some(
+        ({ type }) => type === "race-result-reconciled",
+      ),
+    ).toBe(false);
+
+    await pipeline.finalizeCurrentSession();
+
+    expect(activationAttempts).toBe(2);
+    expect(
+      ws.broadcastedNotifications.some(
+        ({ type }) => type === "race-result-reconciled",
+      ),
+    ).toBe(true);
   });
 });
