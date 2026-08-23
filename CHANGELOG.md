@@ -13,6 +13,7 @@
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Keep race-event timelines ordered and session imports or reprocessing reliable when recordings include pre-start distances, session resets, or failed lap saves
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
 - Persist finalized telemetry quality for new live and imported laps so task eligibility is available after capture closes

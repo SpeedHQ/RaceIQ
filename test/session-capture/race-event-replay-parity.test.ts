@@ -28,11 +28,11 @@ const FIXTURE = resolve(import.meta.dir, "../artifacts/sessions/iracing-daytona-
 const VERSION_IDENTITY = currentTelemetryVersionIdentity("iracing");
 const SOURCE_VERIFICATION = {
   state: "verified" as const,
-  sourceGeneration: "sha256:replay-parity-source",
+  sourceGeneration: `sha256:${"a".repeat(64)}`,
 };
 const CANONICAL_VERIFICATION = {
   state: "verified" as const,
-  sourceGeneration: "sha256:replay-parity-canonical",
+  sourceGeneration: `sha256:${"b".repeat(64)}`,
 };
 const TRANSPORT_EVENT_TYPES: Partial<Record<RaceEventType, true>> = {
   source_connected: true,

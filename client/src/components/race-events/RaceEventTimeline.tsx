@@ -278,18 +278,11 @@ export function flattenRaceEventPages(pages: readonly RaceEventPage[]): RaceEven
 
 const TIMELINE_RENDER_WINDOW_SIZE = 100;
 
-export function raceEventPageWindow(pages: readonly RaceEventPage[], eventCount: number): RaceEvent[] {
-  const window: RaceEvent[] = [];
-  const seen = new Set<string>();
-  for (const page of pages) {
-    for (const event of page.items) {
-      if (seen.has(event.eventId)) continue;
-      seen.add(event.eventId);
-      window.push(event);
-      if (window.length === eventCount) return window;
-    }
-  }
-  return window;
+export function raceEventPageWindow(
+  pages: readonly RaceEventPage[],
+  eventCount: number,
+): RaceEvent[] {
+  return flattenRaceEventPages(pages).slice(0, eventCount);
 }
 
 export function raceEventBadges(event: RaceEvent): { evidence: string; quality: string | null } {

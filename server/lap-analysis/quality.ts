@@ -86,6 +86,7 @@ export interface LapQualityMeasurementInput {
   isValid: boolean;
   invalidReason: string | null;
   classification?: LapClassification;
+  eventIds?: readonly string[];
 }
 
 export function participantEvidenceForOwnership(ownership?: SessionOwnership): ParticipantEvidence {
@@ -133,6 +134,7 @@ export function measureLapQuality(
     participant: context.participant,
     versionIdentity: context.versionIdentity,
     sourceChannelProfile: context.sourceChannelProfile,
+    eventIds: input.eventIds,
   });
   return {
     quality,

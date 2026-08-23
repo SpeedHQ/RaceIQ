@@ -228,7 +228,7 @@ export class LapDetector implements ILapDetector {
       failure = error;
     }
     try {
-      await this.waitForPendingLapWrites(session.sessionId);
+      await this.waitForPendingLapWrites(session.sessionId, false);
     } catch (error) {
       failure ??= error;
     }
@@ -493,6 +493,10 @@ export class LapDetector implements ILapDetector {
       const qualityContext = this.qualityContextFor(
         session.gameId,
       );
+      const eventIds = this.lapTimelineContext.eventIdsForLap(
+        session.sessionId,
+        lapNum,
+      );
       const { quality, eligibility } = measureLapQuality(
         qualityContext,
         {
@@ -503,6 +507,7 @@ export class LapDetector implements ILapDetector {
           isValid: valid,
           invalidReason,
           classification,
+          eventIds,
         },
       );
       const normalPaceEligible =
@@ -531,10 +536,7 @@ export class LapDetector implements ILapDetector {
       const context: LapEventContext = {
         session: { ...session },
         lapNumber: lapNum,
-        eventIds: this.lapTimelineContext.eventIdsForLap(
-          session.sessionId,
-          lapNum,
-        ),
+        eventIds,
       };
       await this.onLapEvaluated?.(event, context);
 
@@ -655,6 +657,10 @@ export class LapDetector implements ILapDetector {
     const qualityContext = this.qualityContextFor(
       session.gameId,
     );
+    const eventIds = this.lapTimelineContext.eventIdsForLap(
+      session.sessionId,
+      this.currentLapNumber,
+    );
     const { quality, eligibility } = measureLapQuality(
       qualityContext,
       {
@@ -665,6 +671,7 @@ export class LapDetector implements ILapDetector {
         isValid: false,
         invalidReason: "incomplete",
         classification,
+        eventIds,
       },
     );
     const lapId = await this.db.insertLap({
@@ -747,6 +754,10 @@ export class LapDetector implements ILapDetector {
     const qualityContext = this.qualityContextFor(
       session.gameId,
     );
+    const eventIds = this.lapTimelineContext.eventIdsForLap(
+      session.sessionId,
+      lapNum,
+    );
     const { quality, eligibility } = measureLapQuality(
       qualityContext,
       {
@@ -759,16 +770,14 @@ export class LapDetector implements ILapDetector {
         isValid: valid,
         invalidReason,
         classification,
+        eventIds,
       },
     );
     if (isComplete) {
       const context: LapEventContext = {
         session: { ...session },
         lapNumber: lapNum,
-        eventIds: this.lapTimelineContext.eventIdsForLap(
-          session.sessionId,
-          lapNum,
-        ),
+        eventIds,
       };
       await this.onLapEvaluated?.(
         {
@@ -891,6 +900,7 @@ export class LapDetector implements ILapDetector {
 
   async waitForPendingLapWrites(
     sessionId: number,
+    consumeFailure = true,
   ): Promise<void> {
     const pendingWrites =
       this._pendingLapWrites.get(sessionId);
@@ -899,7 +909,9 @@ export class LapDetector implements ILapDetector {
     }
     this._pendingLapWrites.delete(sessionId);
     const failure = this._lapWriteFailures.get(sessionId);
-    this._lapWriteFailures.delete(sessionId);
+    if (failure && consumeFailure) {
+      this._lapWriteFailures.delete(sessionId);
+    }
     if (failure) throw failure.error;
   }
 

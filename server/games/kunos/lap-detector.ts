@@ -310,6 +310,10 @@ export abstract class KunosLapDetector implements ILapDetector {
         currentTelemetryVersionIdentity(session.gameId),
       sourceChannelProfile: this.sourceChannelProfile,
     };
+    const eventIds = this.lapTimelineContext.eventIdsForLap(
+      session.sessionId,
+      lapNum,
+    );
     const measuredQuality = measureLapQuality(qualityContext, {
       packets,
       lapTime,
@@ -322,6 +326,7 @@ export abstract class KunosLapDetector implements ILapDetector {
       isValid,
       invalidReason,
       classification,
+      eventIds,
     });
     const { quality, eligibility } = measuredQuality;
     const normalPaceEligible =
@@ -349,10 +354,7 @@ export abstract class KunosLapDetector implements ILapDetector {
     const context = {
       session: { ...session },
       lapNumber: lapNum,
-      eventIds: this.lapTimelineContext.eventIdsForLap(
-        session.sessionId,
-        lapNum,
-      ),
+      eventIds,
     };
     if (complete) {
       await this.onLapEvaluated?.(event, context);
