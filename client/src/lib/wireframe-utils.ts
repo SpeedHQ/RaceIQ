@@ -19,8 +19,9 @@ export function makeWheelGeometries(radius: number, width: number) {
 }
 
 /** Convert signed int8 steering input to a bounded front-wheel angle. */
-export function steeringAngleRadians(steerInput: number): number {
-  return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
+export function steeringAngleRadians(steeringInput: number): number {
+  const steeringRatio = Math.max(-1, Math.min(1, steeringInput / 127));
+  return steeringRatio === 0 ? 0 : -steeringRatio * 0.35;
 }
 
 /** Use measured wheel speed when supported; otherwise derive visual rolling from v = ωr. */
