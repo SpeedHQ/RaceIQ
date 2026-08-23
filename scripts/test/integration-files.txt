@@ -246,3 +246,4 @@ test/session-capture/canonical-archive-ac-evo.test.ts
 test/session-capture/canonical-archive-f1-2025.test.ts
 test/session-capture/canonical-archive-fm-2023.test.ts
 test/session-capture/canonical-archive-iracing.test.ts
+test/findings/store.test.ts
