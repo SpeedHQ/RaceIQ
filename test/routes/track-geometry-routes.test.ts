@@ -99,7 +99,7 @@ describe("track sector boundary routes", () => {
 
     expect(response.status).toBe(400);
   });
-  
+
   test("rejects invalid gameId on GET", async () => {
     const response = await trackSectorBoundaryRoutes.request(
       "/api/track-sector-boundaries/1?gameId=unknown",

@@ -200,25 +200,25 @@ export interface TrackRegistryProjectionSnapshot {
     name: string;
     direction: "left" | "right" | null;
     group_name: string | null;
-  }>; 
+  }>;
   covers: Array<{
     facts_slug: string;
     corner_sequence: number;
     turn_number: number;
-  }>; 
+  }>;
   straights: Array<{
     facts_slug: string;
     after_turn: number;
     name: string;
     group_name: string | null;
-  }>; 
+  }>;
   geometry: Array<{
     facts_slug: string;
     game_id: GameId;
     sector_1_end: number | null;
     sector_2_end: number | null;
     sector_source: string | null;
-  }>; 
+  }>;
   segments: Array<{
     facts_slug: string;
     game_id: GameId;
@@ -226,7 +226,7 @@ export interface TrackRegistryProjectionSnapshot {
     segment_key: string;
     start_fraction: number;
     end_fraction: number;
-  }>; 
+  }>;
   verification: Array<{
     kind: "meta" | "segments";
     facts_slug: string;
@@ -298,7 +298,7 @@ export interface TrackRegistryReport {
   orphanedReferences: {
     assignments: Array<{ gameId: string; trackOrdinal: number; layoutId: string }>;
     geometry: Array<{ gameId: string; factsSlug: string }>;
-    verification: Array<{ kind: string; gameId: string; factsSlug: string }>; 
+    verification: Array<{ kind: string; gameId: string; factsSlug: string }>;
   };
   unlinked: {
     layoutsWithoutFacts: string[];
