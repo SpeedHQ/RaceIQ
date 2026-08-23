@@ -196,6 +196,7 @@ test/tooling/story-isolation.test.ts
 test/tooling/storybook-ready.test.ts
 test/tooling/theme-contract.test.ts
 test/tooling/version-label.test.ts
+test/track-imagery.test.ts
 test/tracks/compact-route.test.ts
 test/tracks/discovered-cars.test.ts
 test/tracks/guides/anchor-validity.test.ts

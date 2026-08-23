@@ -18,6 +18,7 @@ import {
   trackCalibrationRoutes,
   trackGeometryRoutes,
 } from "./geometry-routes";
+import { trackImageryRoutes } from "./imagery-routes";
 
 // Keep registration order identical to the former monolithic router.
 export const trackRoutes = new Hono()
@@ -31,4 +32,5 @@ export const trackRoutes = new Hono()
   .route("/", trackCalibrationRoutes)
   .route("/", trackLapSectorRoutes)
   .route("/", trackOutlineRoutes)
+  .route("/", trackImageryRoutes)
   .route("/", trackGeometryRoutes);
