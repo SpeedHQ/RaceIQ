@@ -2,6 +2,17 @@ import { segmentDisplayNames, segmentGroupLabels } from "@shared/racing/tracks/s
 import type { Point, TrackSectors } from "@/components/track/types";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+export type PitLineKind = "pit-road" | "merge-line";
+
+export interface PitLine {
+  kind: PitLineKind;
+  points: Point[];
+}
+
+const PIT_LINE_COLORS: Record<PitLineKind, string> = {
+  "pit-road": "var(--track-pit-road)",
+  "merge-line": "var(--track-pit-exit)",
+};
 
 interface LabelCandidate {
   text: string;
@@ -93,6 +104,41 @@ function cumulativeDistances(outline: Point[]): number[] {
   return cumulative;
 }
 
+/** Draw solid pit-road and pit-exit centerlines reconstructed from iRacing markers. */
+export function drawPitLines(
+  ctx: CanvasRenderingContext2D,
+  pitLines: readonly PitLine[] | null | undefined,
+  toCanvas: (x: number, z: number) => [number, number],
+  opacity = 0.85,
+  lineWidth = 3,
+): void {
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const line of pitLines ?? []) {
+    if (line.points.length < 2) continue;
+    const points = line.points.map((point) => toCanvas(point.x, point.z));
+    ctx.beginPath();
+    ctx.strokeStyle = PIT_LINE_COLORS[line.kind];
+    ctx.moveTo(...points[0]);
+    if (points.length === 2) {
+      ctx.lineTo(...points[1]);
+    } else {
+      for (let index = 0; index < points.length - 1; index++) {
+        const previous = points[Math.max(0, index - 1)];
+        const start = points[index];
+        const end = points[index + 1];
+        const next = points[Math.min(points.length - 1, index + 2)];
+        ctx.bezierCurveTo(start[0] + (end[0] - previous[0]) / 6, start[1] + (end[1] - previous[1]) / 6, end[0] - (next[0] - start[0]) / 6, end[1] - (next[1] - start[1]) / 6, end[0], end[1]);
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /**
  * drawTrack — Shared canvas rendering for both gallery thumbnails and detail views.
  * Draws a thick base outline, then overlays color-coded segments (corner/straight).
@@ -109,6 +155,8 @@ export function drawTrack(
   sectorOverride?: { starts: number[] },
   flipX?: boolean,
   sectorColors?: string[],
+  /** Solid pit-road and pit-exit centerlines from iRacing's pitroad.svg layer. */
+  pitLines?: PitLine[] | null,
   /** Debug editing: label every segment individually instead of once per group. */
   perSegmentLabels?: boolean,
 ) {
@@ -146,6 +194,10 @@ export function drawTrack(
   function toCanvas(x: number, z: number): [number, number] {
     return [flipX ? offsetX + (x - minX) * scale : offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
+
+  // Official pit lines share the track transform, so distant marker geometry
+  // cannot shrink the racing surface.
+  drawPitLines(ctx, pitLines, toCanvas, large ? 0.85 : 0.5, large ? 3 : 1.5);
 
   // Track outline
   ctx.beginPath();
@@ -252,6 +304,7 @@ export function drawTrack(
     let cornerIdx = 0,
       straightIdx = 0;
     const labels: LabelCandidate[] = [];
+    const groupColors = new Map<string, string>();
 
     // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
     // thumbnails stay clean with names only.
@@ -272,7 +325,11 @@ export function drawTrack(
       const labelText = labelTexts[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
-      const color = seg.type === "corner" ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length] : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
+      let color = seg.group ? groupColors.get(seg.group) : undefined;
+      if (!color) {
+        color = seg.type === "corner" ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length] : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
+        if (seg.group) groupColors.set(seg.group, color);
+      }
 
       ctx.beginPath();
       ctx.strokeStyle = color;

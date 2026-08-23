@@ -208,6 +208,8 @@
   --track-boundary-left: var(--color-red-400);
   --track-boundary-right: var(--color-blue-400);
   --track-pit-lane: var(--color-cyan-400);
+  --track-pit-road: var(--color-red-500);
+  --track-pit-exit: var(--color-blue-500);
   --track-curb-left: var(--color-red-400);
   --track-curb-right: var(--color-orange-400);
   --track-curb-unknown: var(--color-amber-400);

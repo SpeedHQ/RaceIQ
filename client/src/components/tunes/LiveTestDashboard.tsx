@@ -12,6 +12,7 @@ import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
 
+
 function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
   return {
     values: {
@@ -35,6 +36,7 @@ function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
         view.tires.surfaceTemperatureC.rl.representative,
         view.tires.surfaceTemperatureC.rr.representative,
       ],
+      "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
     },
     states: {},
     freshness: {},
@@ -138,6 +140,10 @@ export function LiveTestDashboard({
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
+  const pitLines = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw)) return null;
+    return Array.isArray(outlineRaw.pitLines) ? outlineRaw.pitLines : null;
+  }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
   const boundaries = (boundariesRaw as TrackMapBoundaries | null) ?? null;
 
@@ -153,6 +159,7 @@ export function LiveTestDashboard({
               telemetry={semanticTrace}
               cursorIdx={semanticTrace.length - 1}
               outline={outline}
+              pitLines={pitLines}
               boundaries={boundaries}
               sectors={null}
               segments={null}

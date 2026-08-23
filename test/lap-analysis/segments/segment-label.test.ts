@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
   formatTurnNumbers,
+  lapWrappedSegmentGroup,
   segmentDisplayNames,
   segmentGroupLabels,
   segmentPromptLabels,
@@ -34,6 +35,32 @@ describe("formatTurnNumbers", () => {
   });
   test("empty stays empty", () => {
     expect(formatTurnNumbers([])).toBe("");
+  });
+});
+
+describe("lapWrappedSegmentGroup", () => {
+  test("finds first and last ranges belonging to one logical section", () => {
+    const segments = [
+      straight("Frontstretch", "Frontstretch"),
+      corner("", [1]),
+      straight("Backstretch"),
+      corner("", [4]),
+      straight("Frontstretch", "Frontstretch"),
+    ];
+    expect(lapWrappedSegmentGroup(segments)).toEqual({
+      group: "Frontstretch",
+      firstIndex: 0,
+      lastIndex: 4,
+    });
+  });
+
+  test("does not collapse an ordinary adjacent complex", () => {
+    const segments = [
+      corner("Eau Rouge", [2], "Eau Rouge/Raidillon"),
+      corner("Raidillon", [3, 4], "Eau Rouge/Raidillon"),
+      straight("Kemmel"),
+    ];
+    expect(lapWrappedSegmentGroup(segments)).toBeNull();
   });
 });
 

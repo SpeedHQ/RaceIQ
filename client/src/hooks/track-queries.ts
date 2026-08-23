@@ -48,10 +48,18 @@ export function useTrackOutline(ord: number | string | undefined, gameIdOverride
   return useQuery({
     queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
-      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string } | { x: number; z: number }[]>(
-        res,
-      );
+      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
+      return rpcJson<
+        | {
+            points?: { x: number; z: number }[];
+            labels?: { text: string; x: number; z: number }[];
+            pitLines?: { kind: "pit-road" | "merge-line"; points: { x: number; z: number }[] }[];
+            flipX?: boolean;
+            recorded?: boolean;
+            source?: string;
+          }
+        | { x: number; z: number }[]
+      >(res);
     },
     enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
   });

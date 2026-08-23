@@ -6,10 +6,13 @@ import {
   test,
 } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { getAllIRacingTracks,
-getIRacingSharedTrackName,
-getIRacingTrackName,
-getIRacingTrackOrdinalByName, } from "../../../shared/racing/tracks/catalogs/iracing"
+import {
+  getAllIRacingTracks,
+  getIRacingOvalDirection,
+  getIRacingSharedTrackName,
+  getIRacingTrackName,
+  getIRacingTrackOrdinalByName,
+} from "../../../shared/racing/tracks/catalogs/iracing";
 import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
 import { registerDiscoveredTrack } from "../../../server/db/discovered-tracks";
 import { db } from "../../../server/db/index";
@@ -54,6 +57,8 @@ describe("iRacing track catalog", () => {
     expect(tracks.some((track) => track.name.startsWith("[Retired]"))).toBe(
       false,
     );
+    expect(tracks.some((track) => track.ordinal === 47)).toBe(false);
+    expect(tracks.some((track) => track.ordinal === 586)).toBe(true);
   });
 
   test("uses native configuration IDs and only aliases exact shared layouts", () => {
@@ -70,6 +75,28 @@ describe("iRacing track catalog", () => {
     // not inherit that unrelated centerline merely because the number matches.
     expect(getIRacingSharedTrackName(8)).toBeUndefined();
     expect(getTrackOutlineByOrdinal(8, "iracing")).toBeNull();
+  });
+  test("projects official layout specifications and map layers", () => {
+    const track = getAllIRacingTracks().find((entry) => entry.ordinal === 523);
+    expect(track).toMatchObject({
+      cornersPerLap: 21,
+      pitRoadSpeedLimitMph: 45,
+      numberPitStalls: 25,
+      maxCars: 60,
+      nightLighting: true,
+      rainEnabled: true,
+      latitude: 50.4369118,
+      longitude: 5.969856,
+      timeZone: "Europe/Brussels",
+      pitMapUrl: "https://members-assets.iracing.com/public/track-maps/tracks_spa/523-spa-2024-up/pitroad.svg",
+      startFinishMapUrl: "https://members-assets.iracing.com/public/track-maps/tracks_spa/523-spa-2024-up/start-finish.svg",
+      turnsMapUrl: "https://members-assets.iracing.com/public/track-maps/tracks_spa/523-spa-2024-up/turns.svg",
+    });
+  });
+  test("exposes physical direction for oval SVG orientation", () => {
+    expect(getIRacingOvalDirection(243)).toBe("right");
+    expect(getIRacingOvalDirection(245)).toBe("left");
+    expect(getIRacingOvalDirection(18)).toBeUndefined();
   });
 
   test("serves every official SVG as a renderable outline source", async () => {
@@ -89,12 +116,22 @@ describe("iRacing track catalog", () => {
       hasMap: boolean;
       mapUrl: string | null;
       commonTrackName: string | null;
+      cornersPerLap: number | null;
+      pitRoadSpeedLimitMph: number | null;
+      maxCars: number | null;
+      rainEnabled: boolean | null;
     }>;
     expect(tracks).toHaveLength(426);
     expect(tracks.find((track) => track.ordinal === 18)).toMatchObject({
       hasOutline: true,
       hasMap: true,
       commonTrackName: "road-america",
+    });
+    expect(tracks.find((track) => track.ordinal === 523)).toMatchObject({
+      cornersPerLap: 21,
+      pitRoadSpeedLimitMph: 45,
+      maxCars: 60,
+      rainEnabled: true,
     });
     expect(tracks.find((track) => track.ordinal === 8)).toMatchObject({
       hasOutline: true,
