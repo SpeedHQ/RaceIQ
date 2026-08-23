@@ -4,6 +4,11 @@ export interface F1GridEntry {
   driverId: number;
   teamId: number;
   name: string;
+  carIndex?: number;
+  isPlayer?: boolean;
+  completedLapNumber?: number;
+  completionSourceSequence?: number;
+  lapValidBitFlags?: number;
   currentLapTime: number;
   lastLapTime: number;
   bestLapTime: number;
@@ -14,7 +19,6 @@ export interface F1GridEntry {
   tyreCompound: string;
   tyreAge: number;
   penalties: number;
-  // Sector times from session history (seconds, 0 if unavailable)
   bestS1: number;
   bestS2: number;
   bestS3: number;

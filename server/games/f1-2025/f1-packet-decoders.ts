@@ -76,10 +76,10 @@ export interface F1CarDamageData {
   drsFault: number; ersFault: number; gearBoxDamage: number; engineDamage: number;
   engineMGUHWear: number; engineESWear: number; engineCEWear: number; engineICEWear: number; engineMGUKWear: number; engineTCWear: number;
 }
-export interface F1LapSectorData { s1: number; s2: number; s3: number; lapTime: number; }
-export interface F1DriverHistoryData { bestS1: number; bestS2: number; bestS3: number; lastS1: number; lastS2: number; lastS3: number; bestLapTime: number; }
+export interface F1LapSectorData { s1: number; s2: number; s3: number; lapTime: number; lapValidBitFlags?: number; }
+export interface F1DriverHistoryData { bestS1: number; bestS2: number; bestS3: number; lastS1: number; lastS2: number; lastS3: number; bestLapTime: number; lastLapNumber: number; lastLapValidBitFlags: number; }
 export interface F1SessionHistoryData {
-  carIndex: number; history: F1DriverHistoryData; lapSectors: Array<{ lapNumber: number; sectors: F1LapSectorData }>;
+  carIndex: number; history: F1DriverHistoryData; lapSectors: Array<{ lapNumber: number; sectors: F1LapSectorData; lapValidBitFlags: number }>;
 }
 
 export function decodeF1Motion(data: Buffer, playerCarIndex: number): F1MotionData | null {
@@ -148,15 +148,15 @@ export function decodeF1SessionHistory(data: Buffer): F1SessionHistoryData | nul
   if (data.length < 7) return null;
   const carIndex = data.readUInt8(0), count = data.readUInt8(1), bestS1Lap = data.readUInt8(4), bestS2Lap = data.readUInt8(5), bestS3Lap = data.readUInt8(6);
   const size = 14, base = 7; const sector = (o: number, ms: number, min: number) => (data.readUInt8(o + min) * 60000 + data.readUInt16LE(o + ms)) / 1000;
-  let bestS1 = 0, bestS2 = 0, bestS3 = 0, bestLapTime = 0, lastS1 = 0, lastS2 = 0, lastS3 = 0;
+  let bestS1 = 0, bestS2 = 0, bestS3 = 0, bestLapTime = 0, lastS1 = 0, lastS2 = 0, lastS3 = 0, lastLapValidBitFlags = 0;
   if (bestS1Lap > 0 && bestS1Lap <= count) { const o = base + (bestS1Lap - 1) * size; if (data.length >= o + size) bestS1 = sector(o, 4, 6); }
   if (bestS2Lap > 0 && bestS2Lap <= count) { const o = base + (bestS2Lap - 1) * size; if (data.length >= o + size) bestS2 = sector(o, 7, 9); }
   if (bestS3Lap > 0 && bestS3Lap <= count) { const o = base + (bestS3Lap - 1) * size; if (data.length >= o + size) bestS3 = sector(o, 10, 12); }
   const lapSectors: F1SessionHistoryData["lapSectors"] = [];
   if (count > 0) {
     const last = base + (count - 1) * size;
-    if (data.length >= last + size) { const ms = data.readUInt32LE(last); lastS1 = sector(last, 4, 6); lastS2 = sector(last, 7, 9); lastS3 = sector(last, 10, 12); if (ms > 0) bestLapTime = ms / 1000; }
-    for (let i = 0; i < count; i++) { const o = base + i * size; if (data.length < o + size) break; const sectors = { lapTime: data.readUInt32LE(o) / 1000, s1: sector(o, 4, 6), s2: sector(o, 7, 9), s3: sector(o, 10, 12) }; lapSectors.push({ lapNumber: i + 1, sectors }); if (sectors.lapTime > 0 && (bestLapTime === 0 || sectors.lapTime < bestLapTime)) bestLapTime = sectors.lapTime; }
+    if (data.length >= last + size) { const ms = data.readUInt32LE(last); lastS1 = sector(last, 4, 6); lastS2 = sector(last, 7, 9); lastS3 = sector(last, 10, 12); lastLapValidBitFlags = data.readUInt8(last + 12); if (ms > 0) bestLapTime = ms / 1000; }
+    for (let i = 0; i < count; i++) { const o = base + i * size; if (data.length < o + size) break; const sectors = { lapTime: data.readUInt32LE(o) / 1000, s1: sector(o, 4, 6), s2: sector(o, 7, 9), s3: sector(o, 10, 12), lapValidBitFlags: data.readUInt8(o + 12) }; const lapValidBitFlags = data.readUInt8(o + 12); lapSectors.push({ lapNumber: i + 1, sectors, lapValidBitFlags }); if (sectors.lapTime > 0 && (bestLapTime === 0 || sectors.lapTime < bestLapTime)) bestLapTime = sectors.lapTime; }
   }
-  return { carIndex, history: { bestS1, bestS2, bestS3, lastS1, lastS2, lastS3, bestLapTime }, lapSectors };
+  return { carIndex, history: { bestS1, bestS2, bestS3, lastS1, lastS2, lastS3, bestLapTime, lastLapNumber: count, lastLapValidBitFlags }, lapSectors };
 }

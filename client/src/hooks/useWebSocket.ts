@@ -5,6 +5,7 @@ import { handleWebSocketMessage } from "../lib/websocket-messages";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
+import { useLiveEngineerStore } from "../stores/live-engineer";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
@@ -86,8 +87,12 @@ export function useWebSocket() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "status") {
-            const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
+          if (data.type === "live-engineer-callout" && data.protocolVersion === 1) {
+            useLiveEngineerStore.getState().receiveCallout(data);
+          } else if (data.type === "live-engineer-voice-permit" && data.protocolVersion === 1) {
+            useLiveEngineerStore.getState().receivePermit(data);
+          } else if (data.type === "status") {
+            const { type: __ignored, ...status } = data;
             useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
@@ -173,6 +178,14 @@ export function useWebSocket() {
         ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
       }
     });
+    const unsubscribeLiveEngineer = useLiveEngineerStore.subscribe((state, previous) => {
+      if (state.outbound.length === previous.outbound.length) return;
+      const ws = wsRef.current;
+      const message = state.outbound[state.outbound.length - 1];
+      if (ws?.readyState === WebSocket.OPEN && message) ws.send(JSON.stringify(message));
+      if (message) useLiveEngineerStore.getState().takeOutbound();
+    });
+
 
     connect();
 
@@ -183,6 +196,7 @@ export function useWebSocket() {
 
     return () => {
       unsubscribeDev();
+      unsubscribeLiveEngineer();
       clearInterval(interval);
       clearTimeout(reconnectTimeoutRef.current);
       abortVersionRequest();

@@ -21,6 +21,13 @@ import {
   type DevTelemetryPacketMessageV1,
   type DevTelemetrySubscriptionMessageV1,
 } from "../../shared/telemetry/live/contracts";
+import {
+  isLiveEngineerVoiceControlV1,
+  isLiveEngineerDeliveryStatusV1,
+  type LiveEngineerVoiceControlV1,
+  type LiveEngineerDeliveryStatusV1,
+  type LiveEngineerVoicePermitV1,
+} from "../../shared/racing/live/engineer-contracts";
 
 export interface WSData {
   createdAt: number;
@@ -91,6 +98,10 @@ export class WebSocketManager {
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
     this._getSessionLaps = fn;
+  }
+  private _liveEngineerControlHandler: ((control: LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1, ws: ServerWebSocket<WSData>) => LiveEngineerVoicePermitV1 | void) | null = null;
+  setLiveEngineerControlHandler(handler: ((control: LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1, ws: ServerWebSocket<WSData>) => LiveEngineerVoicePermitV1 | void) | null): void {
+    this._liveEngineerControlHandler = handler;
   }
 
   setStaleSessionsNotification(payload: Record<string, unknown> | null): void {
@@ -207,6 +218,9 @@ export class WebSocketManager {
       try { client.send(json); } catch {}
     }
   }
+  broadcastLiveEngineer(payload: Record<string, unknown>): void {
+    this.broadcastNotification(payload);
+  }
 
   broadcastDevState(payload: Record<string, unknown>): void {
     if (this.clients.size === 0) return;
@@ -225,6 +239,11 @@ export class WebSocketManager {
   handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer): void {
     let parsed: unknown;
     try { parsed = JSON.parse(typeof message === "string" ? message : message.toString()); } catch { parsed = null; }
+    if (isLiveEngineerVoiceControlV1(parsed) || isLiveEngineerDeliveryStatusV1(parsed)) {
+      const result = this._liveEngineerControlHandler?.(parsed, ws);
+      if (result) ws.send(JSON.stringify(result));
+      return;
+    }
     if (!isDevTelemetryControlMessageV1(parsed)) {
       ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "invalid-message" } satisfies DevTelemetrySubscriptionMessageV1)); return;
     }

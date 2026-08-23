@@ -11,6 +11,8 @@ export interface IRacingExtendedData {
   sectorStarts?: number[];
   onPitRoad: boolean;
   playerTrackSurface: number;
+  /** Native irsdk_CarLeftRight occupancy code for spotter use. */
+  carLeftRight?: number;
   incidents: number;
   /** Native irsdk_TrackWetness category (0 unknown through 7 extremely wet). */
   trackWetness: number;
@@ -20,4 +22,9 @@ export interface IRacingExtendedData {
   carName: string;
   carClassName: string;
   trackName: string;
+  /** Native opponent arrays retained for conservative completed-lap inference. */
+  carIdxLap?: readonly number[];
+  carIdxLastLapTime?: readonly number[];
+  carIdxBestLapTime?: readonly number[];
+  carIdxTrackSurface?: readonly number[];
 }

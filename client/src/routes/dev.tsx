@@ -2,15 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { DevStateViewer } from "../components/DevStateViewer";
 import { DevTelemetryPanel } from "../components/dev/DevTelemetryPanel";
+import { DevLiveEngineerSpeechPanel } from "../components/dev/DevLiveEngineerSpeechPanel";
 import { ImportDumpPanel } from "../components/dev/ImportDumpPanel";
 import { E2EViewer } from "../components/settings/E2EViewer";
 import { Button } from "../components/ui/button";
 function DevPage() {
-  const [activeTab, setActiveTab] = useState<"state" | "e2e" | "import" | "telemetry">("state");
+  const [activeTab, setActiveTab] = useState<"state" | "e2e" | "import" | "telemetry" | "speech">("state");
 
   const tabs = [
     { id: "state", label: "State" },
     { id: "telemetry", label: "Native Telemetry" },
+    { id: "speech", label: "Speech" },
     { id: "e2e", label: "E2E Recordings" },
     { id: "import", label: "Import Dump" },
   ] as const;
@@ -34,6 +36,7 @@ function DevPage() {
       <div className="flex-1 overflow-hidden">
         {activeTab === "state" && <DevStateViewer />}
         {activeTab === "telemetry" && <DevTelemetryPanel />}
+        {activeTab === "speech" && <DevLiveEngineerSpeechPanel />}
         {activeTab === "e2e" && (
           <div className="h-full overflow-y-auto p-6">
             <E2EViewer />
