@@ -8,10 +8,12 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Track recording and lap telemetry quality across live capture, MoTeC imports, and session archives, including source fidelity, packet gaps, track coverage, and task-specific analysis eligibility
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
+- Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence

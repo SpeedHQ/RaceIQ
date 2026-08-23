@@ -180,8 +180,10 @@ export async function updateSessionRawFile(
   rawFile: string,
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
+  transaction?: DbTransaction,
 ): Promise<void> {
-  await db
+  const executor = transaction ?? db;
+  await executor
     .update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
     .where(eq(sessions.id, sessionId))
