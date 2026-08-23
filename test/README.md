@@ -11,6 +11,7 @@ ending in `*.test.ts` and `*.test.tsx` below `test/`. Files ending in
 partitioned by manifests:
 
 ```sh
+bun run test:shards
 bun run test:unit
 bun run test:integration
 bun run test
@@ -18,6 +19,10 @@ bun test test/games/shared/parser.test.ts --timeout 30000
 bun run test:ai
 bun run bench
 ```
+
+`bun run test:shards` verifies every ordinary test belongs to exactly one
+manifest and rejects duplicate, missing, stale, or invalid entries. Suite
+runners, pre-commit checks, and CI run this guard before tests can be skipped.
 
 `bun run test:unit` runs only `scripts/test/unit-files.txt`. It is DB-free:
 there is no DB preload, and Bun may run workers in parallel. `bun run
