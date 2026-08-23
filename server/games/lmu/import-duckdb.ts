@@ -32,6 +32,10 @@ const ESTIMATED_TIRE_RADIUS_M = 0.33;
 const DUCKDB_SIGNATURE_OFFSET = 8;
 const DUCKDB_SIGNATURE = Buffer.from("DUCK", "ascii");
 
+function syntheticFrameCount(duration: number): number {
+  return Math.floor(duration * IMPORT_FRAME_RATE + 1e-9) + 1;
+}
+
 interface LMUDuckDBMetadata {
   version: number;
   recordingTime: string;
@@ -69,6 +73,7 @@ interface LoadedLMUDuckDB {
   startTime: number;
   duration: number;
   trackLengthM: number;
+  carModel: string;
 }
 
 function quotedIdentifier(value: string): string {
@@ -329,6 +334,12 @@ async function loadLMUDuckDB(path: string): Promise<LoadedLMUDuckDB> {
     if (duration <= 0 || trackLengthM <= 0) {
       throw new Error("LMU telemetry recording contains no drivable samples");
     }
+    const unnumberedCarName =
+      metadata.carName.replace(/\s+#\d+\s*$/, "").trim() || metadata.carName;
+    const carModel = Buffer.from(unnumberedCarName, "utf8")
+      .subarray(0, 29)
+      .toString("utf8")
+      .trim();
     return {
       metadata,
       continuous,
@@ -336,6 +347,7 @@ async function loadLMUDuckDB(path: string): Promise<LoadedLMUDuckDB> {
       startTime,
       duration,
       trackLengthM,
+      carModel,
     };
   } finally {
     connection.closeSync();
@@ -406,15 +418,6 @@ function writeOrientation(
   telemetry.writeDoubleLE(1, offset + 24 + 8);
   telemetry.writeDoubleLE(-normalizedX, offset + 48);
   telemetry.writeDoubleLE(-normalizedZ, offset + 48 + 16);
-}
-
-function identityFromMetadata(metadata: LMUDuckDBMetadata): LMUIdentity {
-  return {
-    carId: lmuIdentityOrdinal("car", metadata.carName),
-    carName: metadata.carName,
-    trackId: lmuIdentityOrdinal("track", metadata.trackName),
-    trackName: metadata.trackName,
-  };
 }
 
 function sessionEventId(recordingTime: string): number {
@@ -556,7 +559,7 @@ function buildSyntheticFrame(
     continuousValue(loaded, "Virtual Energy", time),
     LMU_TELEMETRY.virtualEnergy,
   );
-  writeCString(telemetry, LMU_TELEMETRY.vehicleModel, 30, loaded.metadata.carName);
+  writeCString(telemetry, LMU_TELEMETRY.vehicleModel, 30, loaded.carModel);
   telemetry.writeUInt8(
     vehicleClassOrdinal(loaded.metadata.carClass),
     LMU_TELEMETRY.vehicleClass,
@@ -572,7 +575,7 @@ function buildSyntheticFrame(
       speedMps,
     );
     telemetry.writeDoubleLE(
-      continuousValue(loaded, "Susp Pos", time, index),
+      continuousValue(loaded, "Susp Pos", time, index) / 1_000,
       wheelOffset + LMU_WHEEL.suspensionDeflection,
     );
     telemetry.writeDoubleLE(
@@ -744,13 +747,21 @@ export async function previewLMUDuckDB(path: string): Promise<LMUDuckDBPreview> 
       ? await queryObjects(connection, 'SELECT count(*) AS eventCount FROM "Lap"')
       : [];
     const lapEventCount = numberValue(lapRows[0]?.eventCount);
-    if (duration <= 0 || lapEventCount === 0) {
+    const lapDistanceRows =
+      frequencies.has("Lap Dist") && tableNames.has("Lap Dist")
+        ? await queryObjects(
+            connection,
+            'SELECT max(value) AS trackLengthM FROM "Lap Dist"',
+          )
+        : [];
+    const trackLengthM = numberValue(lapDistanceRows[0]?.trackLengthM);
+    if (duration <= 0 || lapEventCount === 0 || trackLengthM <= 0) {
       throw new Error("LMU telemetry recording contains no drivable samples");
     }
     return {
       gameId: "lmu",
       ...metadata,
-      estimatedPacketCount: Math.floor(duration * IMPORT_FRAME_RATE),
+      estimatedPacketCount: syntheticFrameCount(duration),
       completedLapCount: Math.max(0, lapEventCount - 1),
     };
   } finally {
@@ -762,7 +773,7 @@ export async function previewLMUDuckDB(path: string): Promise<LMUDuckDBPreview> 
 export async function* readLMUDuckDBFrames(path: string): AsyncGenerator<Buffer> {
   const loaded = await loadLMUDuckDB(path);
   const epochMs = recordingEpochMs(loaded.metadata.recordingTime);
-  const packetCount = Math.floor(loaded.duration * IMPORT_FRAME_RATE);
+  const packetCount = syntheticFrameCount(loaded.duration);
   for (let index = 0; index < packetCount; index++) {
     const time = loaded.startTime + index / IMPORT_FRAME_RATE;
     yield buildSyntheticFrame(loaded, time, epochMs);
@@ -777,10 +788,15 @@ export async function importLMUDuckDB(
   laps: ImportedLap[];
 }> {
   const loaded = await loadLMUDuckDB(path);
-  const identity = identityFromMetadata(loaded.metadata);
+  const identity: LMUIdentity = {
+    carId: lmuIdentityOrdinal("car", loaded.carModel),
+    carName: loaded.carModel,
+    trackId: lmuIdentityOrdinal("track", loaded.metadata.trackName),
+    trackName: loaded.metadata.trackName,
+  };
   await registerImportedLMUIdentity(identity);
   const epochMs = recordingEpochMs(loaded.metadata.recordingTime);
-  const packetCount = Math.floor(loaded.duration * IMPORT_FRAME_RATE);
+  const packetCount = syntheticFrameCount(loaded.duration);
   async function* frames(): AsyncGenerator<Buffer> {
     for (let index = 0; index < packetCount; index++) {
       const time = loaded.startTime + index / IMPORT_FRAME_RATE;
