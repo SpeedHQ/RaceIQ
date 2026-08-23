@@ -22,9 +22,8 @@ Utilities for extracting F1 25 ERP spline resources and importing fallback track
 
 ## Outputs
 
-- `shared/data/tracks/f1-2025/<track>-centerline.csv`
-- `shared/data/tracks/f1-2025/<track>-boundaries.json`
-- `shared/data/tracks/tumftm/<track>-centerline.csv` and `*-boundaries.json`
+- `shared/data/tracks/venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/f1-2025/{centerline.csv,boundaries.json}`; current source uses revision path `current`.
+- `shared/data/tracks/venues/<root>/geometry/tumftm/<facts-slug>-{centerline,boundaries}.{csv,json}` remains root-owned shared geometry.
 - Manual spline inspection defaults to ignored `scripts/track-data/abu_dhabi_aispline.json`.
 
 ## Boundaries

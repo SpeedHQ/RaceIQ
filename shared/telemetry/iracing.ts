@@ -17,6 +17,15 @@ export interface IRacingExtendedData {
   /** Pit-only tire channels have produced a complete four-corner snapshot. */
   pitTireTemperatureAvailable?: boolean;
   pitTireWearAvailable?: boolean;
+  /**
+   * WGS84 position channels retained from imported IBT rows.
+   * Live shared memory does not publish these channels.
+   */
+  latitudeDeg?: number;
+  longitudeDeg?: number;
+  altitudeM?: number;
+  /** North-referenced clockwise heading, radians, from imported IBT rows. */
+  headingNorthRad?: number;
   carName: string;
   carClassName: string;
   trackName: string;

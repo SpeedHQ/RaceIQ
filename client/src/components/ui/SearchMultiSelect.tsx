@@ -21,6 +21,7 @@ interface Props<K extends string | number> {
   className?: string;
   menuWidthClass?: string;
   menuAlign?: "left" | "right";
+  disabled?: boolean;
 }
 
 const OVERLAY_SURFACE_CLASS = "rounded-lg border border-app-border-input bg-app-surface-alt text-app-text shadow-lg";
@@ -38,6 +39,7 @@ export function SearchMultiSelect<K extends string | number>({
   className = "",
   menuWidthClass = "w-64",
   menuAlign = "left",
+  disabled = false,
 }: Props<K>) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -103,7 +105,9 @@ export function SearchMultiSelect<K extends string | number>({
             aria-expanded={open}
             aria-controls={open ? listboxId : undefined}
             aria-haspopup="listbox"
+            disabled={disabled}
             onClick={() => {
+              if (disabled) return;
               setOpen((current) => !current);
               setSearch("");
             }}
@@ -114,7 +118,7 @@ export function SearchMultiSelect<K extends string | number>({
             </svg>
           </Button>
           {onClear && (
-            <Button type="button" aria-label={m.label_clear()} variant="search-select-clear" size="app-md" onClick={onClear}>
+            <Button type="button" aria-label={m.label_clear()} variant="search-select-clear" size="app-md" onClick={onClear} disabled={disabled}>
               <span aria-hidden="true">✕</span>
             </Button>
           )}

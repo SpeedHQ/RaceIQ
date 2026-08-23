@@ -7,8 +7,13 @@ import { deriveFuelPerLap, deriveTyreWear } from "../../../server/lap-analysis/m
  *  would bind the UDP socket as a side effect. */
 
 /** Minimal packet: only the fields the fuel derivation reads. */
-function pkt(fuel: number, accFuelPerLap?: number): TelemetryPacket {
+function pkt(
+  fuel: number,
+  accFuelPerLap?: number,
+  gameId: TelemetryPacket["gameId"] = "acc",
+): TelemetryPacket {
   return {
+    gameId,
     Fuel: fuel,
     acc: accFuelPerLap != null ? ({ fuelPerLap: accFuelPerLap } as TelemetryPacket["acc"]) : undefined,
   } as unknown as TelemetryPacket;

@@ -35,7 +35,7 @@ const APP_ROUTES = [
   { name: "ACC setups", path: "/acc/setups" },
   { name: "dashboard catalogue", path: "/dash" },
   { name: "standalone dashboard", path: "/dash/combo-1" },
-  { name: "developer tools", path: "/dev" },
+  { name: "developer tracks workbench", path: "/dev/tracks" },
 ] as const;
 
 const APP_VIEWPORTS = [

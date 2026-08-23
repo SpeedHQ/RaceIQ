@@ -59,6 +59,8 @@ export function useUnits() {
       // ── Temperature ─────────────────────────────────────────────
       /** Convert raw packet temp → user display unit. */
       temp: (rawTemp: number) => convertTemp(rawTemp, tu, sourceTempUnit),
+      /** Convert canonical semantic telemetry °C to user display unit. */
+      tempFromC: (celsius: number) => convertTemp(celsius, tu, "C"),
       /** Display label for temperature, e.g. "°F" or "°C" */
       tempLabel: `°${tu}`,
       /** Temperature unit raw value */

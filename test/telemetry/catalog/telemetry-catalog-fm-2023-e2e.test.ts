@@ -120,11 +120,11 @@ describe("FM 2023 telemetry catalog coverage", () => {
             minimumRange: 10,
           },
           {
-            semanticId: "inputs.accel",
-            mappingStatus: "direct",
-            unit: "0–255",
-            accepts: (value): boolean => isFiniteNumber(value) && Number.isInteger(value) && value > 0 && value <= 255,
-            minimumRange: 1,
+            semanticId: "inputs.throttle",
+            mappingStatus: "normalized",
+            unit: "ratio",
+            accepts: (value): boolean => isFiniteNumber(value) && value > 0 && value <= 1,
+            minimumRange: 1 / 255,
           },
           {
             semanticId: "inputs.gear",
@@ -142,7 +142,7 @@ describe("FM 2023 telemetry catalog coverage", () => {
           },
           {
             semanticId: "identity.track-ordinal",
-            mappingStatus: "normalized",
+            mappingStatus: "direct",
             unit: "id",
             accepts: (value): boolean => isFiniteNumber(value) && Number.isInteger(value) && value > 0 && value < 10_000,
           },

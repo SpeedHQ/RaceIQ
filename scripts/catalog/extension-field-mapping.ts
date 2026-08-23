@@ -11,8 +11,15 @@ import type {
 } from "./model";
 
 const NORMALIZED_SEMANTIC_ALIASES: Record<string, string> = {
+  Accel: "inputs.throttle",
+  Brake: "inputs.brake",
+  Clutch: "inputs.clutch",
+  FuelCapacity: "fuel.capacity",
+  HandBrake: "inputs.handbrake",
   TyreCompound: "tires.tire-compound",
+  TimestampMS: "session.timestamp",
   NumCylinders: "engine.cylinder-count",
+  Steer: "inputs.steering",
   SurfaceRumbleFL_2: "tires.surface-rumble",
   SurfaceRumbleFR_2: "tires.surface-rumble",
   SurfaceRumbleRL_2: "tires.surface-rumble",
@@ -133,25 +140,24 @@ function addExtensionVariable(
     (field.description && field.description.length > 15
       ? field.description
       : `${humanize(field.semanticKey)} source value reported by ${gameId} in ${unit}.`);
-  const variableDescription =
-    definition?.description ?? sourceDescription;
   let variable = variables.get(id);
 
   if (!variable) {
     variable = {
       id,
-      label: definition?.label ?? humanize(field.semanticKey),
-      description: variableDescription,
-      parentId: definition?.parentId ?? category,
-      canonicalUnit: definition?.canonicalUnit ?? unit,
-      shape:
-        definition?.shape ??
-        (field.shape === "per-wheel"
-          ? "per-wheel"
-          : field.paths.some((path) => path.includes("[]")) ||
-              /\[\]|Array|Record|\{/.test(field.type)
-            ? "structured"
-            : "scalar"),
+      ...(definition ?? {
+        label: humanize(field.semanticKey),
+        description: sourceDescription,
+        parentId: category,
+        canonicalUnit: unit,
+        shape:
+          field.shape === "per-wheel"
+            ? "per-wheel"
+            : field.paths.some((path) => path.includes("[]")) ||
+                /\[\]|Array|Record|\{/.test(field.type)
+              ? "structured"
+              : "scalar",
+      }),
       games: unavailableGames(
         "This parser does not expose an equivalent source value.",
       ),

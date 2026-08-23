@@ -7,13 +7,20 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
-import { pathForwardOffsets } from "../src/components/analyse/track-map/path";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { pathForwardOffsets } from "../src/components/track-map/path";
+import type { SemanticAnalysisFrame } from "../src/components/track-map/types";
 import type { useUnits } from "../src/hooks/useUnits";
 
 initGameAdapters({ iracingAdapter: true });
 
-const units = { temp: (value: number) => value, tempLabel: "°C", thresholds: { cold: 75, warm: 115, hot: 150 }, toTempC: (value: number) => value } as ReturnType<typeof useUnits>;
+const identityTemperature = (value: number) => value;
+const units = {
+  temp: identityTemperature,
+  tempFromC: identityTemperature,
+  tempLabel: "°C",
+  thresholds: { cold: 75, warm: 115, hot: 150 },
+  toTempC: identityTemperature,
+} as ReturnType<typeof useUnits>;
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 const iracingFrame = frame({
   "motion.speed": 30,
@@ -79,5 +86,50 @@ describe("iRacing analysis segment timing", () => {
     const result = buildSegmentData(telemetry, segments);
     expect(result?.staticSegments.map((segment) => segment.time)).toEqual([12.5, 12.5, 12.5, 12.5]);
     expect(result?.staticSegments.map((segment) => segment.name)).toEqual(["S1", "T1", "S2", "T2"]);
+  });
+
+  test("combines start/finish ranges split by the lap boundary", () => {
+    const telemetry = Array.from({ length: 101 }, (_, index) =>
+      frame({
+        "timing.distance-traveled": 7000 + index * 20,
+        "timing.current-lap": index * 0.5,
+        "motion.position-x": 0,
+        "motion.position-z": 0,
+      }),
+    );
+    const segments = [
+      {
+        type: "straight",
+        name: "Frontstretch",
+        group: "Frontstretch",
+        startFrac: 0,
+        endFrac: 0.1,
+      },
+      {
+        type: "corner",
+        name: "T1-4",
+        startFrac: 0.1,
+        endFrac: 0.9,
+      },
+      {
+        type: "straight",
+        name: "Frontstretch",
+        group: "Frontstretch",
+        startFrac: 0.9,
+        endFrac: 1,
+      },
+    ];
+
+    const result = buildSegmentData(telemetry, segments);
+
+    expect(result?.staticSegments).toHaveLength(2);
+    expect(result?.staticSegments[0]).toMatchObject({
+      name: "Frontstretch",
+      time: 10,
+      ranges: [
+        { startFrac: 0.9, endFrac: 1 },
+        { startFrac: 0, endFrac: 0.1 },
+      ],
+    });
   });
 });

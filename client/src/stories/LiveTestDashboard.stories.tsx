@@ -11,7 +11,7 @@ const queryClient = new QueryClient({
 });
 
 // Simple oval outline so the track position panel has something to draw.
-// NOTE: AnalyseTrackMap's Point type is { x, z } (not { x, y }) — using `y`
+// NOTE: TrackMapCanvas's Point type is { x, z } (not { x, y }) — using `y`
 // makes minZ/maxZ NaN and the track renders as nothing (black panel).
 const fakeOutline = Array.from({ length: 64 }, (_, i) => {
   const t = (i / 64) * Math.PI * 2;

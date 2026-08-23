@@ -16,7 +16,7 @@ function wheelValues(frame: SemanticMetricFrame, id: string): readonly [number |
 
 function physicalWheelStates(frame: SemanticMetricFrame): readonly [WheelState | null, WheelState | null, WheelState | null, WheelState | null] {
   const speed = frame.values["motion.speed"];
-  const steer = frame.values["inputs.steer"];
+  const steeringRatio = frame.values["inputs.steering"];
   const rotation = wheelValues(frame, "tires.wheel-rotation-speed");
   if (!finite(speed) || !rotation.every((value): value is number => value != null)) {
     return [null, null, null, null];
@@ -32,7 +32,7 @@ function physicalWheelStates(frame: SemanticMetricFrame): readonly [WheelState |
       })();
   const states = wheelDynamicsFrame({
     speedMps: speed,
-    steer: finite(steer) ? steer : 0,
+    steeringRatio: finite(steeringRatio) ? steeringRatio : 0,
     wheelRotationRadS: { fl: rotationValues[0], fr: rotationValues[1], rl: rotationValues[2], rr: rotationValues[3] },
     wheelRadiusM: wheelRadius,
   });

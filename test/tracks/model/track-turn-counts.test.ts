@@ -1,14 +1,14 @@
 /**
- * Turn-count accuracy against real-world data: the corner roster in each
- * shared/data/tracks/meta/<slug>.json is the official turn count from the
- * circuit's own map / FIA track guide (see the `source` field). Every game's
- * centerline must align onto that roster such that every official turn
+ * Turn-count accuracy against real-world data: each registry corner roster is
+ * official turn count from circuit map or FIA track guide (see `source`).
+ * Every game's centerline must align onto that roster such that every official
+ * turn
  * 1..officialTurnCount is accounted for.
  *
  * This is deliberately NOT a snapshot of what the detector currently finds — a
  * detector regression that drops Blanchimont must fail, not be re-baselined.
- * The only turns allowed to go unmatched are ones marked `optional` in
- * shared/data/tracks/detect-hints.json (shallow kinks some games' centerlines don't
+ * The only turns allowed to go unmatched are ones marked `optional` in a
+ * layout-local `detect-hints.json` (shallow kinks some games' centerlines don't
  * model at all) — a detector allowance, not a fact about the circuit.
  */
 import { describe, test, expect } from "bun:test";
@@ -27,8 +27,8 @@ import { KNOWN_ALIGNMENT_GAPS, KNOWN_TURN_GAPS } from "../../support/tracks/know
 const slugs = listCuratedSlugs();
 
 /**
- * Rosters that predate the meta migration and were never traced to a circuit
- * map. They are excluded from the curated assertions below; cite them and they
+ * Rosters that predate current registry and were never traced to circuit map.
+ * They are excluded from curated assertions below; cite them and they
  * join the suite.
  */
 const UNCITED_ROSTERS = ["fuji"];
@@ -39,14 +39,12 @@ describe("turn counts match real-world circuit data", () => {
     expect(slugs.length).toBeGreaterThan(0);
   });
 
-  // `source` is what makes a roster checkable against the real circuit, and it
-  // is also what promotes a meta into the curated set asserted below. A roster
-  // that appears without one is invisible to every assertion in this file, so
-  // name the known offenders here — a new one is a migration that forgot to
-  // carry the citation across.
+  // `source` makes a roster checkable against real circuit. It also promotes
+  // registry facts into curated set asserted below. A roster without one is
+  // invisible to every assertion in this file, so name known offenders here.
   test("no roster outside the curated set carries a source", () => {
-    // listCuratedSlugs() keys off `corners`, not `source`. If a meta ever grows a
-    // citation without a roster the per-slug tests below would never see it.
+    // listCuratedSlugs() keys off `corners`, not `source`. If facts ever gain a
+    // citation without a roster, per-slug tests below would never see them.
     const orphaned = listMetaSlugs().filter((slug) => {
       const f = loadTrackFacts(slug);
       return !!f?.source?.trim() && (f?.corners.length ?? 0) === 0;
@@ -140,7 +138,7 @@ describe("turn counts match real-world circuit data", () => {
           missing,
           `${a.gameId}/${slug} (${facts.name}): official turns ${missing.join(", ")} not detected — ` +
             `real turn count is ${turnCount} per ${facts.source}. Check the SVG in ` +
-            `test/e2e/output/track-segments; fix the detector or mark the turn optional in detect-hints.json if the game's centerline genuinely omits it.`,
+            `test/e2e/output/track-segments; fix the detector or mark the turn optional in layout-local detect-hints.json if the game's centerline genuinely omits it.`,
         ).toEqual([]);
         expect(extra, `${a.gameId}/${slug}: aligned turn numbers outside 1..${turnCount}`).toEqual([]);
       });

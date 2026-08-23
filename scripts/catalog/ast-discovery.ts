@@ -392,6 +392,7 @@ function unitFor(name: string, type = ""): string {
   if (/^normsuspensiontravel/.test(normalizedName)) return "ratio";
   if (/fuel.*laps.*remain|laps.*possible.*fuel/.test(lower)) return "count";
   if (/wheelrotationspeed|rotation.*speed/.test(lower)) return "rad/s";
+  if (/angularvelocity|rate/.test(lower)) return "rad/s";
   if (/velocity/.test(lower)) return "m/s";
   if (/force|load/.test(lower)) return "N";
   if (/speedtrap|pitspeedlimit/.test(lower)) return "km/h";
@@ -404,7 +405,6 @@ function unitFor(name: string, type = ""): string {
   if (/power|bhp/.test(lower)) return /bhp/.test(lower) ? "bhp" : "W";
   if (/torque/.test(lower)) return "N·m";
   if (/angle|yaw|pitch|roll|camber|toe|heading|direction/.test(lower)) return /setup/.test(lower) ? "°" : "rad";
-  if (/angularvelocity|rate/.test(lower)) return "rad/s";
   if (/acceleration|gforce|accel[xyz]/.test(lower)) return "m/s²";
   if (/speed/.test(lower)) return "m/s";
   if (/time.*ms|timestampms|timems|ms$/.test(lower)) return "ms";
@@ -419,27 +419,156 @@ function unitFor(name: string, type = ""): string {
   return "unitless";
 }
 
+const WHEEL_SUFFIXES = ["FL", "FR", "RL", "RR"] as const;
+const WHEEL_PATTERNS: [RegExp, Record<string, string>][] = [
+  [/(.*)(FL|FR|RL|RR)$/, { FL: "FL", FR: "FR", RL: "RL", RR: "RR" }],
+  [
+    /(.*)(FrontLeft|FrontRight|RearLeft|RearRight)$/,
+    {
+      FrontLeft: "FL",
+      FrontRight: "FR",
+      RearLeft: "RL",
+      RearRight: "RR",
+    },
+  ],
+  [/(.*)M(FL|FR|RL|RR)$/, { FL: "FL", FR: "FR", RL: "RL", RR: "RR" }],
+];
+const WHEEL_MASK_BIT_COUNT = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
+const WHEEL_FULL_MASK = 15;
+
+function isWithinLevenshteinDistance(
+  left: string,
+  right: string,
+  limit: number,
+  leftIndex = 0,
+  rightIndex = 0,
+): boolean {
+  while (
+    leftIndex < left.length &&
+    rightIndex < right.length &&
+    left.charCodeAt(leftIndex) === right.charCodeAt(rightIndex)
+  ) {
+    leftIndex++;
+    rightIndex++;
+  }
+
+  const leftRemaining = left.length - leftIndex;
+  const rightRemaining = right.length - rightIndex;
+  if (leftRemaining === 0) return rightRemaining <= limit;
+  if (rightRemaining === 0) return leftRemaining <= limit;
+  if (Math.abs(leftRemaining - rightRemaining) > limit || limit === 0) {
+    return false;
+  }
+
+  const nextLimit = limit - 1;
+  return (
+    isWithinLevenshteinDistance(
+      left,
+      right,
+      nextLimit,
+      leftIndex + 1,
+      rightIndex + 1,
+    ) ||
+    isWithinLevenshteinDistance(
+      left,
+      right,
+      nextLimit,
+      leftIndex + 1,
+      rightIndex,
+    ) ||
+    isWithinLevenshteinDistance(
+      left,
+      right,
+      nextLimit,
+      leftIndex,
+      rightIndex + 1,
+    )
+  );
+}
+
+function assertWheelFieldStemQuality(fields: string[]): void {
+  const groups = new Map<
+    string,
+    { mask: number; fields: (string | undefined)[] }
+  >();
+
+  for (const field of fields) {
+    for (const [pattern, wheelMap] of WHEEL_PATTERNS) {
+      const match = field.match(pattern);
+      if (!match) continue;
+      const corner = wheelMap[match[2]];
+      const cornerIndex = WHEEL_SUFFIXES.indexOf(
+        corner as (typeof WHEEL_SUFFIXES)[number],
+      );
+      if (cornerIndex < 0) break;
+
+      const stem = match[1];
+      let group = groups.get(stem);
+      if (!group) {
+        group = {
+          mask: 0,
+          fields: [undefined, undefined, undefined, undefined],
+        };
+        groups.set(stem, group);
+      }
+      const bit = 1 << cornerIndex;
+      group.mask |= bit;
+      group.fields[cornerIndex] = field;
+      break;
+    }
+  }
+
+  let bestKey: string | undefined;
+  let badField: string | undefined;
+  let expectedStem: string | undefined;
+  let expectedCorner: string | undefined;
+
+  for (const [stem, group] of groups) {
+    if (WHEEL_MASK_BIT_COUNT[group.mask] !== 3) continue;
+    const missingBit = WHEEL_FULL_MASK ^ group.mask;
+    const missingCornerIndex = Math.log2(missingBit);
+
+    for (const [candidateStem, candidateGroup] of groups) {
+      if (
+        candidateStem === stem ||
+        candidateGroup.mask === WHEEL_FULL_MASK
+      ) {
+        continue;
+      }
+      const candidateField = candidateGroup.fields[missingCornerIndex];
+      if (
+        candidateField === undefined ||
+        !isWithinLevenshteinDistance(stem, candidateStem, 2)
+      ) {
+        continue;
+      }
+
+      const corner = WHEEL_SUFFIXES[missingCornerIndex];
+      const key = `${candidateField}\0${stem}\0${corner}`;
+      if (bestKey !== undefined && bestKey <= key) continue;
+      bestKey = key;
+      badField = candidateField;
+      expectedStem = stem;
+      expectedCorner = corner;
+    }
+  }
+
+  if (badField !== undefined) {
+    throw new Error(
+      `Possible wheel field typo "${badField}": expected stem "${expectedStem}" at corner "${expectedCorner}".`,
+    );
+  }
+}
+
 function wheelFieldSets(fields: string[]): FieldSet[] {
+  assertWheelFieldStemQuality(fields);
   const remaining = new Set(fields);
   const sets: FieldSet[] = [];
-  const patterns: [RegExp, Record<string, string>][] = [
-    [/(.*)(FL|FR|RL|RR)$/, { FL: "FL", FR: "FR", RL: "RL", RR: "RR" }],
-    [
-      /(.*)(FrontLeft|FrontRight|RearLeft|RearRight)$/,
-      {
-        FrontLeft: "FL",
-        FrontRight: "FR",
-        RearLeft: "RL",
-        RearRight: "RR",
-      },
-    ],
-    [/(.*)M(FL|FR|RL|RR)$/, { FL: "FL", FR: "FR", RL: "RL", RR: "RR" }],
-  ];
 
   for (const field of fields) {
     if (!remaining.has(field)) continue;
     let grouped = false;
-    for (const [pattern, wheelMap] of patterns) {
+    for (const [pattern, wheelMap] of WHEEL_PATTERNS) {
       const match = field.match(pattern);
       if (!match) continue;
       const base = match[1];
@@ -452,7 +581,7 @@ function wheelFieldSets(fields: string[]): FieldSet[] {
         candidates[wheel] = candidate;
       }
       if (Object.values(candidates).every((candidate) => remaining.has(candidate))) {
-        const ordered = ["FL", "FR", "RL", "RR"].map((wheel) => candidates[wheel]);
+        const ordered = WHEEL_SUFFIXES.map((wheel) => candidates[wheel]);
         for (const candidate of ordered) remaining.delete(candidate);
         sets.push({ key: base, fields: ordered, shape: "per-wheel", wheelFields: candidates });
         grouped = true;

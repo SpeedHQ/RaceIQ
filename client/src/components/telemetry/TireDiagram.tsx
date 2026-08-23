@@ -3,7 +3,7 @@ import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
 import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
 import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import { useUnits } from "@/hooks/useUnits";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
@@ -33,12 +33,12 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
   const brakes = numericWheels(frame, "brakes.brake-temp");
   const states = resolveWheelStates(frame, analysis.traction);
-  const steering = numeric(frame, "inputs.steer");
+  const steering = numeric(frame, "inputs.steering");
   const temperatureAvailable = temps.some((value) => value != null);
   const healthAvailable = wear.some((value) => value != null);
   const showSlipAngle = angles.some((value) => value != null);
   const showWheelState = states.some((state) => state != null);
-  const steerAngle = steering == null ? 0 : (steering / 127) * 20;
+  const steerAngle = steering == null ? 0 : steering * 20;
   const wheel = (index: number, outerSide: "left" | "right") => {
     const resolvedState = states[index];
     const state = resolvedState ? { state: resolvedState.state, slipRatio: resolvedState.slipRatio } : { state: "idle" as const, slipRatio: 0 };
@@ -52,7 +52,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
         wheelState={state}
         steerAngle={index < 2 ? steerAngle : 0}
         thresholds={units.thresholds}
-        tempFn={(value) => convertTemp(value, "C", units.tempUnit)}
+        tempFn={units.tempFromC}
         tempUnit={units.tempUnit}
         onRumble={false}
         puddleDepth={0}

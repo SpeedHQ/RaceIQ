@@ -1,5 +1,5 @@
 import { DEFAULT_SECTORS, getTrackSectorsByName, type TrackSectors } from "../sectors";
-import { getTrackNameByOrdinal } from "../geometry/outlines";
+import { getTrackAssetIdentity } from "./assets";
 
 export type { TrackSectors };
 
@@ -8,7 +8,6 @@ export function getTrackSectors(trackName: string): TrackSectors {
 }
 
 export function getTrackSectorsByOrdinal(ordinal: number): TrackSectors {
-  const name = getTrackNameByOrdinal(ordinal);
-  if (!name) return DEFAULT_SECTORS;
-  return getTrackSectorsByName(name);
+  const factsSlug = getTrackAssetIdentity("fm-2023", ordinal)?.factsSlug;
+  return factsSlug ? getTrackSectorsByName(factsSlug) : DEFAULT_SECTORS;
 }

@@ -11,7 +11,7 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../src/components/track-map/types";
 import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
 import { PitEstimate } from "../src/components/telemetry/PitEstimate";
@@ -31,11 +31,13 @@ if (typeof globalThis.localStorage === "undefined") {
     configurable: true,
   });
 }
+const identityTemperature = (value: number) => value;
 const units = {
   tempLabel: "°C",
   thresholds: { cold: 75, warm: 115, hot: 150 },
-  toTempC: (value: number) => value,
-  temp: (value: number) => value,
+  toTempC: identityTemperature,
+  temp: identityTemperature,
+  tempFromC: identityTemperature,
 } as never;
 const parityUnits = {
   ...units,
@@ -48,14 +50,14 @@ const f1ParityFrame = semanticFrame({
   "motion.speed": 30,
   "engine.current-engine-rpm": 12000,
   "inputs.gear": 7,
-  "inputs.accel": 204,
-  "inputs.brake": 51,
-  "inputs.steer": -32,
+  "inputs.throttle": 0.8,
+  "inputs.brake": 0.2,
+  "inputs.steering": -32 / 128,
   "engine.boost": 0.4,
   "engine.power": 745700,
   "engine.torque": 620,
-  "fuel.fuel": 0.42,
-  "fuel.fuel-capacity": 1,
+  "fuel.remaining-fraction": 0.42,
+  "fuel.remaining-percent": 42,
   "motion.acceleration-x": 4.905,
   "motion.acceleration-z": 9.81,
   "brakes.brake-bias": 0.6,
@@ -138,7 +140,7 @@ function renderTireAnalysis(value: TelemetryPacket): string {
           "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
           "suspension.norm-suspension-travel": [value.NormSuspensionTravelFL, value.NormSuspensionTravelFR, value.NormSuspensionTravelRL, value.NormSuspensionTravelRR],
           "brakes.brake-temp": [value.BrakeTempFrontLeft, value.BrakeTempFrontRight, value.BrakeTempRearLeft, value.BrakeTempRearRight],
-          "inputs.steer": value.Steer,
+          "inputs.steering": Math.max(-1, Math.min(1, value.Steer >= 0 ? value.Steer / 127 : value.Steer / 128)),
         }),
         gameId: value.gameId,
         units,
@@ -226,7 +228,7 @@ describe("telemetry capability UI", () => {
       createElement(FuelGauge, {
         view: {
           simulator: "iracing",
-          fuel: { amount: 100, capacity: 100 },
+          fuel: { remainingVolumeL: 100, remainingFraction: 1, remainingPercent: 100, capacityL: 100 },
         } as LiveTelemetryView,
       }),
     );
@@ -234,7 +236,7 @@ describe("telemetry capability UI", () => {
       createElement(FuelGauge, {
         view: {
           simulator: "iracing",
-          fuel: { amount: 60, capacity: 100 },
+          fuel: { remainingVolumeL: 60, remainingFraction: 0.6, remainingPercent: 60, capacityL: 100 },
         } as LiveTelemetryView,
       }),
     );
@@ -246,7 +248,7 @@ describe("telemetry capability UI", () => {
     expect(used).toContain("background-color:");
   });
 
-  test("scales pit crew semantic pedal inputs from 0–255 to percentages", () => {
+  test("scales pit crew semantic pedal ratios to percentages", () => {
     const markup = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -261,7 +263,7 @@ describe("telemetry capability UI", () => {
             observedAtMs: 1,
             identity: {},
             motion: {},
-            inputs: { throttle: 64, brake: 32, gear: 3 },
+            inputs: { throttle: 0.25, brake: 0.125, gear: 3 },
             engine: {},
             fuel: {},
             timing: {},
@@ -277,8 +279,8 @@ describe("telemetry capability UI", () => {
       ),
     );
 
-    expect(markup).toContain("width:25.098039215686274%");
-    expect(markup).toContain("width:12.549019607843137%");
+    expect(markup).toContain("width:25%");
+    expect(markup).toContain("width:12.5%");
     expect(markup).not.toContain("width:6400%");
     expect(markup).not.toContain("width:3200%");
   });
@@ -308,6 +310,33 @@ describe("telemetry capability UI", () => {
     expect(fakeF1Packet.Fuel).toBeLessThanOrEqual(1);
     expect(markup).toContain("39%");
     expect(markup).not.toContain("4250%");
+  });
+  test("renders unavailable semantic fuel without NaN", () => {
+    const view: LiveTelemetryView = {
+      simulator: "acc",
+      streamId: "test",
+      sessionId: 1,
+      sequence: 1,
+      observedAtMs: 1,
+      identity: {},
+      motion: {},
+      inputs: {},
+      engine: {},
+      fuel: {},
+      timing: {},
+      tires: {},
+      weather: {},
+      aero: {},
+      ers: {},
+      damage: {},
+      competitors: [],
+      stateBySemanticId: {},
+    };
+    const markup = renderToStaticMarkup(
+      createElement(PitEstimate, { view, pit: null }),
+    );
+    expect(markup).toContain("Fuel unavailable");
+    expect(markup).not.toContain("NaN");
   });
   test("omits ACC weather and renders explicit surface availability", () => {
     const value = packet("acc", {
@@ -400,19 +429,20 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain(">—</span>");
   });
 
-  test("converts Forza tire values from their recorded Fahrenheit unit", () => {
+  test("uses canonical Celsius Forza tire values without packet-unit conversion", () => {
     const fahrenheitToCelsius = (value: number) => ((value - 32) * 5) / 9;
     const fmUnits = {
       ...parityUnits,
       temp: fahrenheitToCelsius,
       toTempC: fahrenheitToCelsius,
+      tempFromC: identityTemperature,
     };
     const frame = semanticFrame({
       "motion.speed": 30,
       "motion.acceleration-x": 0,
       "motion.acceleration-z": 0,
       "motion.angular-velocity-y": 0,
-      "tire.temperature.average": [212, 194, 176, 158],
+      "tire.temperature.average": [100, 90, 80, 70],
       "tires.wheel-rotation-speed": [1, 1, 1, 1],
       "tires.tire-wear": [0, 0, 0, 0],
       "tires.tire-combined-slip": [0, 0, 0, 0],
@@ -500,7 +530,7 @@ describe("telemetry capability UI", () => {
       sidebarTab: "live",
       onSidebarTabChange: () => {},
       currentFrame: f1ParityFrame,
-      startFuel: 0.8,
+      startFuel: { remainingFraction: 0.8 },
       gameId: "f1-2025",
       units: parityUnits,
       wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
@@ -538,7 +568,7 @@ describe("telemetry capability UI", () => {
             sidebarTab: "live",
             onSidebarTabChange: () => {},
             currentFrame: f1ParityFrame,
-            startFuel: 0.8,
+            startFuel: { remainingFraction: 0.8 },
             gameId,
             units: parityUnits,
             wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
@@ -602,7 +632,7 @@ describe("telemetry capability UI", () => {
 
   test("renders catalog-backed wheel and vehicle surface rows", () => {
     const fm = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, {
-      frame: semanticFrame({ "motion.speed": 30, "inputs.steer": 0, "tires.wheel-rotation-speed": [100, 101, 102, 103], "tires.tire-combined-slip": [0, 0, 0, 0], "tires.tire-slip-ratio": [0, 0, 0, 0], "tires.normalized-tire-slip-angle": [0, 0, 0, 0], "tires.wheel-on-rumble-strip": [true, false, false, false], "tires.wheel-in-puddle-depth": [0, 0.4, 0, 0] }),
+      frame: semanticFrame({ "motion.speed": 30, "inputs.steering": 0, "tires.wheel-rotation-speed": [100, 101, 102, 103], "tires.tire-combined-slip": [0, 0, 0, 0], "tires.tire-slip-ratio": [0, 0, 0, 0], "tires.normalized-tire-slip-angle": [0, 0, 0, 0], "tires.wheel-on-rumble-strip": [true, false, false, false], "tires.wheel-in-puddle-depth": [0, 0.4, 0, 0] }),
       gameId: "fm-2023",
       units: parityUnits,
     }));
@@ -619,9 +649,9 @@ describe("telemetry capability UI", () => {
         createElement(MetricsPanel, {
           frame: semanticFrame({
             "motion.speed": 30,
-            "inputs.accel": 128,
+            "inputs.throttle": 128 / 255,
             "inputs.brake": 0,
-            "inputs.steer": 0,
+            "inputs.steering": 0,
             "inputs.gear": 3,
             "engine.current-engine-rpm": 4_000,
             "tires.normalized-tire-slip-angle": [0.1, 0.1, 0.1, 0.1],

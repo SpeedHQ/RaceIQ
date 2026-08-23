@@ -10,7 +10,21 @@ export interface TrackInfo {
   hasMap?: boolean;
   /** Public static map for layouts without RaceIQ centerline points. */
   mapUrl?: string | null;
+  /** Curated satellite image shared by every layout at this venue. */
+  baseImageUrl?: string | null;
   category?: string;
+  cornersPerLap?: number | null;
+  pitRoadSpeedLimitMph?: number | null;
+  numberPitStalls?: number | null;
+  maxCars?: number | null;
+  nightLighting?: boolean | null;
+  rainEnabled?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  timeZone?: string | null;
+  pitMapUrl?: string | null;
+  startFinishMapUrl?: string | null;
+  turnsMapUrl?: string | null;
   createdAt: string | null;
   lapCount?: number;
 }
@@ -46,6 +60,7 @@ export interface TrackBoundaries {
   rightEdge: Point[];
   centerLine?: Point[];
   pitLane: Point[] | null;
+  raceLine?: Point[] | null;
   coordSystem: string;
 }
 

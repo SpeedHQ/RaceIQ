@@ -1,0 +1,476 @@
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
+import { syncCanvasSize } from "@/lib/rendering/canvas-size";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TrackImageryMatrix } from "../../../../shared/racing/tracks/imagery";
+import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform } from "./types";
+
+const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
+  good: { stroke: "color-mix(in srgb, var(--severity-nominal) 70%, transparent)", width: 6 },
+  warning: { stroke: "color-mix(in srgb, var(--severity-caution) 70%, transparent)", width: 6 },
+  critical: { stroke: "color-mix(in srgb, var(--severity-critical) 70%, transparent)", width: 6 },
+};
+interface ViewportTrackCamera {
+  panX: number;
+  panY: number;
+  center?: Point;
+  rotation?: number;
+  drawFollowCar?: boolean;
+}
+export interface StaticTrackImageryTile {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  decodeWidth?: number;
+  decodeHeight?: number;
+  image: CanvasImageSource;
+  released?: boolean;
+}
+
+export interface StaticTrackImagery {
+  imageToTrack: TrackImageryMatrix;
+  base: {
+    width: number;
+    height: number;
+    tileSize: number;
+    tiles: readonly StaticTrackImageryTile[];
+  };
+  textures: readonly { image: CanvasImageSource; opacity: number }[];
+  requestVisibleTiles?: (transform: TrackTransform, viewportCamera?: ViewportTrackCamera) => void;
+}
+
+export interface StaticTrackOptions {
+  canvas: HTMLCanvasElement;
+  bufferCanvas: HTMLCanvasElement | null;
+  telemetry: SemanticAnalysisFrame[];
+  gameId?: GameId;
+  coordinatesPrepared?: boolean;
+  resolvedPositions: Point[];
+  outline: Point[] | null;
+  showOutline?: boolean;
+  mapLabels?: TrackMapLabel[] | null;
+  pitLines?: PitLine[] | null;
+  imagery?: StaticTrackImagery | null;
+  sectors: SectorBoundaries | null;
+  boundaries: TrackMapBoundaries | null;
+  segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
+  curbs?: { points: Point[]; side: string }[] | null;
+  highlights?: TrackHighlight[] | null;
+  showInputs?: boolean;
+  showRaceLine?: boolean;
+  showTrace: boolean;
+  rotateWithCar: boolean;
+  zoom: number;
+  viewportCamera?: ViewportTrackCamera;
+}
+export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
+  const {
+    canvas,
+    telemetry,
+    gameId,
+    resolvedPositions,
+    outline,
+    showOutline = true,
+    mapLabels,
+    pitLines,
+    imagery,
+    boundaries,
+    sectors,
+    segments,
+    curbs,
+    showInputs,
+    highlights,
+    showRaceLine = false,
+    showTrace,
+    rotateWithCar,
+    zoom,
+    viewportCamera,
+  } = options;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
+  const w = rect.width;
+  const h = rect.height;
+  syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
+
+  const needsTelemetryPoints = showTrace || showInputs || !outline;
+  const telemetryPointsWithIdx = needsTelemetryPoints
+    ? resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0)
+    : [];
+  const telemetryPoints: Point[] = telemetryPointsWithIdx.map(({ x, z }) => ({ x, z }));
+  const hasTelemetryTrace = telemetryPoints.length > 2;
+  const displayOutline: Point[] = showTrace && hasTelemetryTrace ? telemetryPoints : (outline ?? (hasTelemetryTrace ? telemetryPoints : []));
+  const visualOutline: Point[] = showOutline ? (outline ?? (hasTelemetryTrace ? telemetryPoints : [])) : showTrace && !hasTelemetryTrace ? (outline ?? []) : [];
+  if (displayOutline.length < 2) return { bufferCanvas: null, transform: null };
+  const flip = !options.coordinatesPrepared && needsTrackFlip(gameId);
+  const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
+  const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
+  const flippedPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
+  const boundaryPitLane = boundaries?.pitLane && boundaries.pitLane.length > 1 ? (flip ? flipPoints(boundaries.pitLane) : boundaries.pitLane) : null;
+  const flippedCurbs = flip && curbs ? curbs.map((curb) => ({ ...curb, points: flipPoints(curb.points) })) : curbs;
+  const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
+  const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
+  let minX = Infinity,
+    maxX = -Infinity,
+    minZ = Infinity,
+    maxZ = -Infinity;
+  const allBoundsPts: Point[][] = [displayOutline];
+  if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
+  if (mapLabels?.length) allBoundsPts.push(mapLabels);
+  // Pit lines use this track-derived transform but never expand it.
+  for (const pts of allBoundsPts)
+    for (const p of pts) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minZ = Math.min(minZ, p.z);
+      maxZ = Math.max(maxZ, p.z);
+    }
+  const rangeX = maxX - minX || 1;
+  const rangeZ = maxZ - minZ || 1;
+  const padding = 40;
+  const baseScale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
+  const scale = baseScale * zoom * (rotateWithCar ? 3 : 1);
+  const trackW = rangeX * scale + padding * 2;
+  const trackH = rangeZ * scale + padding * 2;
+  const offW = viewportCamera ? w : Math.max(w, trackW);
+  const offH = viewportCamera ? h : Math.max(h, trackH);
+  const offsetX = viewportCamera?.center ? w / 2 - (maxX - viewportCamera.center.x) * scale : (offW - rangeX * scale) / 2;
+  const offsetZ = viewportCamera?.center ? h / 2 - (viewportCamera.center.z - minZ) * scale : (offH - rangeZ * scale) / 2;
+  const transform: TrackTransform = { w, h, offsetX, offsetZ, scale, maxX, minZ, displayOutline, offW, offH };
+  const toCanvas = (x: number, z: number): [number, number] => [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
+
+  const bufferCanvas = options.bufferCanvas ?? document.createElement("canvas");
+  syncCanvasSize(bufferCanvas, offW, offH, window.devicePixelRatio || 1, false);
+  const ctx = getSemanticCanvasContext(bufferCanvas)!;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+  ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
+  if (viewportCamera) {
+    ctx.save();
+    if (viewportCamera.center) {
+      ctx.translate(w / 2 + viewportCamera.panX, h / 2 + viewportCamera.panY);
+      ctx.rotate(viewportCamera.rotation ?? 0);
+      ctx.translate(-w / 2, -h / 2);
+    } else {
+      ctx.translate(viewportCamera.panX, viewportCamera.panY);
+    }
+  }
+  if (imagery) {
+    const [a, b, c, d, e, f] = imagery.imageToTrack;
+    const { width, height, tileSize, tiles } = imagery.base;
+    for (const tile of tiles) {
+      if (tile.released) continue;
+      const u = (tile.x * tileSize) / width;
+      const v = (tile.y * tileSize) / height;
+      const tileU = tile.width / width;
+      const tileV = tile.height / height;
+      const imageX = a * u + c * v + e;
+      const imageZ = b * u + d * v + f;
+      const overlapU = 1 / Math.max(1, tile.decodeWidth ?? tile.width);
+      const overlapV = 1 / Math.max(1, tile.decodeHeight ?? tile.height);
+      ctx.save();
+      ctx.transform(-a * scale * tileU, b * scale * tileU, -c * scale * tileV, d * scale * tileV, offsetX + (maxX - imageX) * scale, offsetZ + (imageZ - minZ) * scale);
+      // One decoded-pixel overdraw covers antialiased transformed edges without
+      // changing any tile's logical position in the venue-wide coordinate system.
+      ctx.drawImage(tile.image, -overlapU, -overlapV, 1 + overlapU * 2, 1 + overlapV * 2);
+      ctx.restore();
+    }
+    for (const texture of imagery.textures) {
+      ctx.save();
+      ctx.globalAlpha = texture.opacity;
+      ctx.transform(-a * scale, b * scale, -c * scale, d * scale, offsetX + (maxX - e) * scale, offsetZ + (f - minZ) * scale);
+      ctx.drawImage(texture.image, 0, 0, 1, 1);
+      ctx.restore();
+    }
+    imagery.requestVisibleTiles?.(transform, viewportCamera);
+  }
+
+  drawPitLines(ctx, flippedPitLines, toCanvas);
+  if (boundaryPitLane) {
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(boundaryPitLane[0].x, boundaryPitLane[0].z));
+    for (let i = 1; i < boundaryPitLane.length; i++) ctx.lineTo(...toCanvas(boundaryPitLane[i].x, boundaryPitLane[i].z));
+    ctx.strokeStyle = "var(--track-pit-lane)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.globalAlpha = 0.7;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+  if (hasBounds) {
+    const left = flippedLeft!;
+    const right = flippedRight!;
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(left[0].x, left[0].z));
+    for (let i = 1; i < left.length; i++) ctx.lineTo(...toCanvas(left[i].x, left[i].z));
+    for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(...toCanvas(right[i].x, right[i].z));
+    ctx.closePath();
+    ctx.fillStyle = "color-mix(in srgb, var(--track-surface) 25%, transparent)";
+    ctx.fill();
+    ctx.strokeStyle = "color-mix(in srgb, var(--track-edge) 35%, transparent)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(left[0].x, left[0].z));
+    for (let i = 1; i < left.length; i++) ctx.lineTo(...toCanvas(left[i].x, left[i].z));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(right[0].x, right[0].z));
+    for (let i = 1; i < right.length; i++) ctx.lineTo(...toCanvas(right[i].x, right[i].z));
+    ctx.stroke();
+  }
+
+  if (visualOutline.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = showInputs ? "var(--track-outline-strong)" : "var(--track-outline)";
+    ctx.lineWidth = showInputs ? 0.75 : 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.moveTo(...toCanvas(visualOutline[0].x, visualOutline[0].z));
+    for (let i = 1; i < visualOutline.length; i++) ctx.lineTo(...toCanvas(visualOutline[i].x, visualOutline[i].z));
+    if (outline) ctx.closePath();
+    ctx.stroke();
+  }
+
+  if (raceLine) {
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(raceLine[0].x, raceLine[0].z));
+    for (let i = 1; i < raceLine.length; i++) ctx.lineTo(...toCanvas(raceLine[i].x, raceLine[i].z));
+    ctx.closePath();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "var(--track-racing-line)";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+  }
+
+  const n = displayOutline.length;
+  const cumDist = [0];
+  for (let i = 1; i < n; i++) cumDist.push(cumDist[i - 1] + Math.hypot(displayOutline[i].x - displayOutline[i - 1].x, displayOutline[i].z - displayOutline[i - 1].z));
+  const totalDist = cumDist[n - 1] || 1;
+  const fracToIdx = (frac: number) => {
+    const targetDist = frac * totalDist;
+    let lo = 0,
+      hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cumDist[mid] < targetDist) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  const drawRange = (startFrac: number, endFrac: number, strokeStyle: string, lineWidth: number) => {
+    const startIdx = fracToIdx(startFrac),
+      endIdx = fracToIdx(endFrac);
+    if (startIdx >= endIdx) return;
+    ctx.beginPath();
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.moveTo(...toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z));
+    for (let i = startIdx + 1; i <= endIdx && i < n; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
+    ctx.stroke();
+  };
+
+  if (sectors && displayOutline.length > 10) {
+    const bounds = [...sectors.sectorStarts, 1];
+    for (let si = 0; si < sectors.sectorCount; si++) drawRange(bounds[si], bounds[si + 1], SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length], 2.5);
+  }
+  if (segments?.length) {
+    const labelCandidates: { text: string; x: number; y: number; priority: number }[] = [];
+    const labelledNames = new Set<string>();
+    for (const seg of segments) {
+      const startIdx = fracToIdx(seg.startFrac),
+        endIdx = fracToIdx(seg.endFrac);
+      if (startIdx >= endIdx) continue;
+      drawRange(seg.startFrac, seg.endFrac, seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)", 2.5);
+      if (!mapLabels?.length && seg.name && !labelledNames.has(seg.name)) {
+        labelledNames.add(seg.name);
+        const midIdx = Math.round((startIdx + endIdx) / 2);
+        const point = displayOutline[Math.min(midIdx, n - 1)];
+        const previous = displayOutline[Math.max(0, midIdx - 2)],
+          next = displayOutline[Math.min(n - 1, midIdx + 2)];
+        const dx = next.x - previous.x,
+          dz = next.z - previous.z,
+          length = Math.hypot(dx, dz) || 1;
+        const [labelX, labelY] = toCanvas(point.x, point.z);
+        labelCandidates.push({ text: seg.name, x: labelX + (-dz / length) * 14, y: labelY + (dx / length) * 14, priority: seg.type === "corner" ? 1 : 0 });
+      }
+    }
+    ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
+    ctx.textAlign = "center";
+    const occupied: { x: number; y: number; w: number; h: number }[] = [];
+    for (const label of labelCandidates.sort((a, b) => b.priority - a.priority)) {
+      const width = ctx.measureText(label.text).width + 8;
+      const rect = { x: label.x - width / 2, y: label.y - 10, w: width, h: 14 };
+      if (
+        rect.x < 0 ||
+        rect.y < 0 ||
+        rect.x + rect.w > offW ||
+        rect.y + rect.h > offH ||
+        occupied.some((other) => rect.x < other.x + other.w && rect.x + rect.w > other.x && rect.y < other.y + other.h && rect.y + rect.h > other.y)
+      )
+        continue;
+      occupied.push(rect);
+      ctx.fillStyle = "color-mix(in srgb, var(--track-label-background) 88%, transparent)";
+      ctx.beginPath();
+      ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 3);
+      ctx.fill();
+      ctx.fillStyle = "var(--track-label-text)";
+      ctx.fillText(label.text, label.x, label.y);
+    }
+  }
+  if (!sectors && !segments?.length && visualOutline.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = "var(--track-edge)";
+    ctx.lineWidth = 2;
+    ctx.moveTo(...toCanvas(visualOutline[0].x, visualOutline[0].z));
+    for (let i = 1; i < visualOutline.length; i++) ctx.lineTo(...toCanvas(visualOutline[i].x, visualOutline[i].z));
+    if (outline) ctx.closePath();
+    ctx.stroke();
+  }
+
+  if (mapLabels?.length) {
+    ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
+    ctx.textAlign = "center";
+    for (const label of mapLabels) {
+      const [labelX, labelY] = toCanvas(label.x, label.z);
+      const width = ctx.measureText(label.text).width + 6;
+      ctx.fillStyle = "color-mix(in srgb, var(--track-label-background) 82%, transparent)";
+      ctx.beginPath();
+      ctx.roundRect(labelX - width / 2, labelY - 10, width, 13, 3);
+      ctx.fill();
+      ctx.fillStyle = "var(--track-label-text)";
+      ctx.fillText(label.text, labelX, labelY);
+    }
+  }
+  if (sectors && displayOutline.length > 10) {
+    for (let si = 0; si < sectors.sectorStarts.slice(1).length; si++) {
+      const fraction = sectors.sectorStarts.slice(1)[si];
+      const sectorIndex = fracToIdx(fraction);
+      const pt = displayOutline[sectorIndex];
+      if (!pt) continue;
+      const [mx, my] = toCanvas(pt.x, pt.z);
+      const prev = displayOutline[Math.max(0, sectorIndex - 3)];
+      const next = displayOutline[Math.min(displayOutline.length - 1, sectorIndex + 3)];
+      const dx = next.x - prev.x;
+      const dz = next.z - prev.z;
+      const len = Math.hypot(dx, dz);
+      if (len > 0) {
+        const nx = dz / len;
+        const nz = -dx / len;
+        ctx.beginPath();
+        ctx.moveTo(mx - nx * 8, my + nz * 8);
+        ctx.lineTo(mx + nx * 8, my - nz * 8);
+        ctx.strokeStyle = SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length];
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(mx, my, 3, 0, Math.PI * 2);
+      ctx.fillStyle = SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length];
+      ctx.fill();
+      ctx.strokeStyle = "var(--track-label-background)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+  if (flippedCurbs?.length) {
+    for (const curb of flippedCurbs) {
+      const color = curb.side === "left" ? "var(--track-curb-left)" : curb.side === "right" ? "var(--track-curb-right)" : "var(--track-curb-unknown)";
+      for (const point of curb.points) {
+        const [x, y] = toCanvas(point.x, point.z);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.8;
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (showTrace && hasTelemetryTrace) {
+    ctx.beginPath();
+    ctx.strokeStyle = showInputs ? "var(--track-outline-strong)" : "var(--track-outline)";
+    ctx.lineWidth = showInputs ? 0.75 : 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.moveTo(...toCanvas(telemetryPoints[0].x, telemetryPoints[0].z));
+    for (let i = 1; i < telemetryPoints.length; i++) ctx.lineTo(...toCanvas(telemetryPoints[i].x, telemetryPoints[i].z));
+    ctx.stroke();
+  }
+  if (highlights?.length)
+    for (const hl of highlights) {
+      const style = HIGHLIGHT_COLORS[hl.color];
+      drawRange(hl.startFrac, hl.endFrac, style.stroke, style.width);
+    }
+  if (displayOutline.length > 1) {
+    const [sfCx, sfCy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
+    ctx.beginPath();
+    ctx.arc(sfCx, sfCy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "var(--track-start)";
+    ctx.fill();
+    ctx.strokeStyle = "var(--track-label-background)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  if (showInputs && telemetryPoints.length > 2) {
+    for (let i = 1; i < telemetryPoints.length; i++) {
+      const [x0, y0] = toCanvas(telemetryPoints[i - 1].x, telemetryPoints[i - 1].z),
+        [x1, y1] = toCanvas(telemetryPoints[i].x, telemetryPoints[i].z);
+      const dx = x1 - x0,
+        dy = y1 - y0,
+        len = Math.hypot(dx, dy);
+      if (len < 0.01) continue;
+      const nx = -dy / len,
+        ny = dx / len,
+        frame = telemetry[telemetryPointsWithIdx[i].idx];
+      if (!frame) continue;
+      const throttle = semanticNumber(frame, "inputs.throttle") ?? 0;
+      const brake = semanticNumber(frame, "inputs.brake") ?? 0;
+      if (throttle > 0) {
+        ctx.beginPath();
+        ctx.moveTo(x0 + nx * 1.5, y0 + ny * 1.5);
+        ctx.lineTo(x1 + nx * 1.5, y1 + ny * 1.5);
+        ctx.globalAlpha = 0.35 + throttle * 0.65;
+        ctx.strokeStyle = "var(--ch-throttle)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      if (brake > 0) {
+        ctx.beginPath();
+        ctx.moveTo(x0 - nx * 1.5, y0 - ny * 1.5);
+        ctx.lineTo(x1 - nx * 1.5, y1 - ny * 1.5);
+        ctx.globalAlpha = brake;
+        ctx.strokeStyle = "var(--ch-brake)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+  if (viewportCamera) {
+    ctx.restore();
+    if (viewportCamera.drawFollowCar) {
+      ctx.save();
+      ctx.translate(w / 2 + viewportCamera.panX, h / 2 + viewportCamera.panY);
+      ctx.rotate(-Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(-4.8, -4.8);
+      ctx.lineTo(-4.8, 4.8);
+      ctx.closePath();
+      ctx.fillStyle = "var(--app-accent)";
+      ctx.fill();
+      ctx.strokeStyle = "var(--track-label-background)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  return { bufferCanvas, transform };
+}

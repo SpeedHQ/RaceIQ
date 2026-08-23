@@ -1,21 +1,22 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnalyseDataPanel } from "../components/analyse/AnalyseDataPanel";
-import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../components/track-map/types";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+const identityTemperature = (value: number) => value;
 const frame: SemanticAnalysisFrame = {
   values: {
     "motion.speed": 30,
     "engine.current-engine-rpm": 12000,
     "inputs.gear": 7,
-    "inputs.accel": 204,
-    "inputs.brake": 51,
-    "inputs.steer": -32,
+    "inputs.throttle": 0.8,
+    "inputs.brake": 0.2,
+    "inputs.steering": -32 / 128,
     "engine.boost": 0.4,
     "engine.power": 745700,
-    "fuel.fuel": 0.42,
-    "fuel.fuel-capacity": 1,
+    "fuel.remaining-fraction": 0.42,
+    "fuel.remaining-percent": 42,
     "motion.acceleration-x": 4.905,
     "motion.acceleration-z": 9.81,
     "motion.angular-velocity-y": 0.2,
@@ -53,7 +54,7 @@ export const LoadedMainParity: Story = {
     sidebarTab: "live",
     onSidebarTabChange: () => {},
     currentFrame: frame,
-    startFuel: 0.8,
+    startFuel: { remainingFraction: 0.8 },
     gameId: "f1-2025",
     units: {
       speed: (value: number) => value * 2.23694,
@@ -61,8 +62,9 @@ export const LoadedMainParity: Story = {
       tempLabel: "°C",
       temperatureUnit: "C",
       thresholds: { cold: 75, warm: 115, hot: 150 },
-      temp: (value: number) => value,
-      toTempC: (value: number) => value,
+      temp: identityTemperature,
+      toTempC: identityTemperature,
+      tempFromC: identityTemperature,
     } as never,
     wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
     lapInsights: [],

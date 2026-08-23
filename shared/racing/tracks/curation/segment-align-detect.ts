@@ -9,8 +9,8 @@
  * Facts themselves carry no detector tolerances — a corner is either in the
  * numbering or it isn't. Where a centerline genuinely resolves one official
  * turn into two arcs, or skips a kink entirely, the allowance arrives as
- * DetectHints (shared/data/tracks/detect-hints.json) from the caller; omit them and
- * every corner must match exactly once.
+ * DetectHints from a layout-local `detect-hints.json` through the caller; omit
+ * them and every corner must match exactly once.
  *
  * Locale note: proper nouns ("Eau Rouge") are canonical and never translated.
  * Corners without a real name get the machine token "T<number>" and straights

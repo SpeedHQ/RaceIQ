@@ -13,15 +13,14 @@ ACC track geometry extraction and centreline migration tools.
 | Command | Purpose | Inputs |
 | --- | --- | --- |
 | `bun run scripts/games/acc/extract-tracks.ts` | Extract all available ACC fastlane geometry | Installed ACC cache |
-| `bun run scripts/games/acc/centerline-from-boundaries.ts` | Dry-run adopted true-centre migration | Existing `shared/data/tracks/acc/*-boundaries.json` and centerline/raceline CSVs |
+| `bun run scripts/games/acc/centerline-from-boundaries.ts` | Dry-run adopted true-centre migration | Existing canonical ACC centerline, raceline, and boundary geometry |
 | `bun run scripts/games/acc/centerline-from-boundaries.ts --write [slug...]` | Persist centreline/raceline migration | Same generated geometry; optional track slugs |
 | `bun run scripts/games/acc/centerline-from-boundaries.ts --all-pending` | Report all pending tracks too | Existing generated geometry |
 
 ## Outputs
 
-- `shared/data/tracks/acc/<slug>-centerline.csv`: true boundary midpoint for adopted tracks; racing line remains for pending curation.
-- `shared/data/tracks/acc/<slug>-raceline.csv`: preserved fastlane racing line.
-- `shared/data/tracks/acc/<slug>-boundaries.json`: extracted left/right edges.
+- Unique ACC layouts: `shared/data/tracks/venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/acc/{centerline.csv,raceline.csv,boundaries.json}`; current source uses revision path `current`.
+- Shared ACC 2019 aliases remain root-owned: `shared/data/tracks/venues/<root>/geometry/acc/<facts-slug>-{centerline,raceline,boundaries}.{csv,csv,json}`.
 
 `extractAccTracks` remains owned by `server/games/acc/extract-tracks.ts` and is consumed by the game entrypoint. These scripts do not alter telemetry diagnostics or external callers.
 

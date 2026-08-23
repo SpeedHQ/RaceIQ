@@ -7,6 +7,7 @@ import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { assignSessionGeoreference } from "../tracks/georeference";
 
 
 export interface ImportedLap {
@@ -231,6 +232,13 @@ export async function importSessionFrames(
     }
   } catch (error) {
     return rollbackImport(db, error);
+  }
+  for (const sessionId of db.sessionIds) {
+    try {
+      await assignSessionGeoreference(sessionId, gameId);
+    } catch (error) {
+      console.error(`[GeoReference] Failed to assign imported session ${sessionId}:`, error);
+    }
   }
 
   return {

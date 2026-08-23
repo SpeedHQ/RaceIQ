@@ -1,15 +1,17 @@
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import type * as THREE from "three";
+import * as THREE from "three";
 import type { GameId } from "../../../../shared/games/ids";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
-import { steeringAngleRadians, THREE_COLORS } from "../../lib/wireframe-utils";
-import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
+import { setVehicleAttitudeRotations, steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
+import { type SemanticAnalysisFrame, semanticNumber } from "../track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
 import { CurbMarkers } from "./CurbMarkers";
@@ -17,7 +19,7 @@ import { DimensionLines } from "./DimensionLines";
 import { InputOverlay } from "./InputOverlay";
 import { SuspensionSpring } from "./SuspensionSpring";
 import { TireTrails } from "./TireTrails";
-import { TrackBoundaryEdges, TrackOutline } from "./TrackElements";
+import { TrackBoundaryEdges, TrackLine } from "./TrackElements";
 import { Wheel } from "./Wheel";
 
 // Load-dot geometry: direction comes from the baseline-subtracted weighted
@@ -78,7 +80,7 @@ export function CarScene({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
+  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[]; raceLine?: { x: number; z: number }[] | null } | null;
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };
@@ -97,53 +99,53 @@ export function CarScene({
   const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
   const [suspFL, suspFR, suspRL, suspRR] = normalizedSuspension(frame, suspensionRange);
 
-  // Keep packet in a ref so useFrame reads latest without triggering re-render
-  const packetRef = useRef(frame);
-  useEffect(() => {
-    packetRef.current = frame;
-  });
+  const vehicleGroupRef = useRef<THREE.Group>(null);
   const carGroupRef = useRef<THREE.Group>(null);
-  const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
+  const prevTimeRef = useRef(semanticNumber(frame, "session.timestamp") ?? 0);
   const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
 
-  // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
-  // Higher suspension travel = more compressed on that corner
+  // Raw semantic attitude includes road gradient and banking. Suspension
+  // deltas remain useful only when a simulator does not expose an angle.
 
   // Body drops when suspension compresses (wheels stay on ground).
-  // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
-  // ACC and F1 don't populate this and fall back to the 80mm GT3 default.
-  const stroke = carModel.suspStroke ?? 0.08;
-  const dropFL = -(suspFL - 0.5) * stroke;
-  const dropFR = -(suspFR - 0.5) * stroke;
-  const dropRL = -(suspRL - 0.5) * stroke;
-  const dropRR = -(suspRR - 0.5) * stroke;
+  const stroke = carModel.suspStroke;
   const avgSusp = (suspFL + suspFR + suspRL + suspRR) / 4;
   const bodyDrop = -(avgSusp - 0.5) * stroke;
 
   // Roll: ~5° max at full differential compression
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
-  const bodyRoll = (rightAvg - leftAvg) * 0.1;
+  const suspensionBodyRoll = (rightAvg - leftAvg) * 0.1;
 
   // Pitch: ~3° max at full differential compression
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
-  const bodyPitch = (frontAvg - rearAvg) * 0.06;
+  const suspensionBodyPitch = (frontAvg - rearAvg) * 0.06;
+  const rawBodyRoll = semanticNumber(frame, "motion.roll");
+  const rawBodyPitch = semanticNumber(frame, "motion.pitch");
+  const [vehicleRotation, chassisRotation] = useMemo(() => {
+    const vehicle = new THREE.Euler();
+    const chassis = new THREE.Euler();
+    setVehicleAttitudeRotations(vehicle, chassis, rawBodyRoll, rawBodyPitch, suspensionBodyRoll, suspensionBodyPitch);
+    return [vehicle, chassis] as const;
+  }, [rawBodyRoll, rawBodyPitch, suspensionBodyRoll, suspensionBodyPitch]);
 
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
   useFrame(() => {
+    vehicleGroupRef.current?.rotation.copy(vehicleRotation);
     if (carGroupRef.current) {
       carGroupRef.current.position.set(posOffset, bodyDrop, 0);
-      carGroupRef.current.rotation.set(bodyRoll, 0, bodyPitch, "YXZ");
+      carGroupRef.current.rotation.copy(chassisRotation);
     }
   });
 
   // Compute tire wear rate (/s) — smoothed with EMA
   useEffect(() => {
-    const dt = (semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0 - prevTimeRef.current) / 1000;
-    prevTimeRef.current = semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0;
+    const timestampSeconds = semanticNumber(frame, "session.timestamp") ?? 0;
+    const dt = timestampSeconds - prevTimeRef.current;
+    prevTimeRef.current = timestampSeconds;
     const currentWear = [wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)];
     if (dt > 0 && dt < 1) {
       setWearRatesVal((prev) => {
@@ -158,9 +160,9 @@ export function CarScene({
     prevWear.current = currentWear;
   });
 
-  const steerRad = steeringAngleRadians(semanticNumber(frame, "inputs.steer") ?? 0);
+  const steerRad = steeringAngleRadians(semanticNumber(frame, "inputs.steering") ?? 0);
 
-  // All games: fronts rotate by the normalized Steer input scaled to a
+  // All games: fronts rotate by the normalized steering input scaled to a
   // ballpark max front wheel angle; rears stay at 0. ACC's tyreContactHeading
   // field is parsed into acc.tireContactHeading for potential future use but
   // isn't used here — in practice the field tracks tire velocity direction
@@ -181,30 +183,34 @@ export function CarScene({
   const cambRL = 0;
   const cambRR = 0;
 
+  const fTireR = carModel.frontTireRadius ?? carModel.tireRadius;
+  const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
+  const vehicleSpeed = semanticNumber(frame, "motion.speed") ?? 0;
+  const rotationValue = frame.values["tires.wheel-rotation-speed"];
+  const measuredRotation = Array.isArray(rotationValue) ? rotationValue : undefined;
+  const wheelRotationAvailable = resolveAnalysisTelemetry(getGame(gameId)).wheelRotation.source !== "unavailable";
+
   // Zero out wheel rotation during lockup — locked wheel = no spin
   const ws = {
     fl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 0) },
     fr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 1) },
     rl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 2) },
     rr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 3) },
-  } as {
-    fl: { state: "nominal" | "lockup"; slipRatio: number };
-    fr: { state: "nominal" | "lockup"; slipRatio: number };
-    rl: { state: "nominal" | "lockup"; slipRatio: number };
-    rr: { state: "nominal" | "lockup"; slipRatio: number };
-  };
-  const rotFL = ws.fl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 0);
-  const rotFR = ws.fr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 1);
-  const rotRL = ws.rl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 2);
-  const rotRR = ws.rr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 3);
+  } as Record<"fl" | "fr" | "rl" | "rr", { state: "nominal" | "lockup"; slipRatio: number }>;
+
+  // Preserve measured zeroes (including lockups). iRacing does not expose
+  // per-wheel speed, so derive visual rolling from vehicle speed and tire radius.
+  const rotFL = ws.fl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[0], vehicleSpeed, fTireR, wheelRotationAvailable);
+  const rotFR = ws.fr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[1], vehicleSpeed, fTireR, wheelRotationAvailable);
+  const rotRL = ws.rl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[2], vehicleSpeed, rTireR, wheelRotationAvailable);
+  const rotRR = ws.rr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[3], vehicleSpeed, rTireR, wheelRotationAvailable);
 
   const wb = carModel.halfWheelbase;
   const ft = carModel.halfFrontTrack;
   const rt = carModel.halfRearTrack;
-  const fTireR = carModel.frontTireRadius ?? carModel.tireRadius;
-  const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
   const fTireW = carModel.frontTireWidth ?? 0.3;
   const rTireW = carModel.rearTireWidth ?? 0.3;
+  const springModels = [carModel.frontSpring, carModel.frontSpring, carModel.rearSpring, carModel.rearSpring] as const;
   const pressFL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
   const pressFR = semanticNumber(frame, "tires.tire-pressure") ?? 0;
   const pressRL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
@@ -216,7 +222,6 @@ export function CarScene({
       steer: steerFL,
       camber: cambFL,
       susp: suspFL,
-      drop: dropFL,
       traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.tire-slip-angle", 0)).color,
       rimColor: colorFL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 0),
@@ -235,7 +240,6 @@ export function CarScene({
       steer: steerFR,
       camber: cambFR,
       susp: suspFR,
-      drop: dropFR,
       traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.tire-slip-angle", 1)).color,
       rimColor: colorFR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 1),
@@ -254,7 +258,6 @@ export function CarScene({
       steer: steerRL,
       camber: cambRL,
       susp: suspRL,
-      drop: dropRL,
       traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.tire-slip-angle", 2)).color,
       rimColor: colorRL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 2),
@@ -273,7 +276,6 @@ export function CarScene({
       steer: steerRR,
       camber: cambRR,
       susp: suspRR,
-      drop: dropRR,
       traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.tire-slip-angle", 3)).color,
       rimColor: colorRR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 3),
@@ -287,11 +289,28 @@ export function CarScene({
       tireWidth: rTireW,
     },
   ];
+  const springBodyPositions = useMemo(() => {
+    const chassisOffset = new THREE.Vector3(posOffset, bodyDrop, 0);
+    const hardpoints: [number, number, number][] = [
+      [wb, carModel.frontSpring.bodyMountHeight, -ft + carModel.frontSpring.inboardOffset],
+      [wb, carModel.frontSpring.bodyMountHeight, ft - carModel.frontSpring.inboardOffset],
+      [-wb, carModel.rearSpring.bodyMountHeight, -rt + carModel.rearSpring.inboardOffset],
+      [-wb, carModel.rearSpring.bodyMountHeight, rt - carModel.rearSpring.inboardOffset],
+    ];
+    return hardpoints.map((hardpoint) => new THREE.Vector3(...hardpoint).applyEuler(chassisRotation).add(chassisOffset).toArray() as [number, number, number]);
+  }, [bodyDrop, carModel.frontSpring, carModel.rearSpring, chassisRotation, ft, rt, wb]);
+  const springWheelPositions: [number, number, number][] = [
+    [wb, 0, -ft + carModel.frontSpring.inboardOffset],
+    [wb, 0, ft - carModel.frontSpring.inboardOffset],
+    [-wb, 0, -rt + carModel.rearSpring.inboardOffset],
+    [-wb, 0, rt - carModel.rearSpring.inboardOffset],
+  ];
+
   const loadDot = (() => {
     const xz = computeLoadDotXZ([suspFL, suspFR, suspRL, suspRR], wb, ft, rt);
     if (!xz) return null;
-    const springZMax = Math.max(ft - 0.35, rt - 0.35);
-    return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
+    const springZMax = Math.max(ft - carModel.frontSpring.inboardOffset, rt - carModel.rearSpring.inboardOffset);
+    return { x: xz.x, z: xz.z, y: (carModel.frontSpring.bodyMountHeight + carModel.rearSpring.bodyMountHeight) / 2 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
   const loadTrail = useMemo(() => {
     const cur = telemetry[cursorIdx];
@@ -343,123 +362,133 @@ export function CarScene({
           );
         })()}
 
-      {/* Body — rolls with pitch/roll */}
-      <group ref={carGroupRef}>
-        <Suspense fallback={null}>
-          {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} mergeMeshes={mergeBodyMeshes} />}
-        </Suspense>
-      </group>
+      {/* Raw road/body attitude rotates complete vehicle; suspension fallback articulates chassis only. */}
+      <group ref={vehicleGroupRef}>
+        <group ref={carGroupRef}>
+          <Suspense fallback={null}>
+            {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} mergeMeshes={mergeBodyMeshes} />}
+          </Suspense>
+          {/* Drivetrain is chassis-mounted and must share body translation and attitude. */}
+          {toggles.drivetrain && (
+            <>
+              <Line
+                points={[
+                  [wb, 0, -ft],
+                  [wb, 0, ft],
+                ]}
+                color={THREE_COLORS.appTextDim}
+                lineWidth={2}
+              />
+              <Line
+                points={[
+                  [-wb, 0, -rt],
+                  [-wb, 0, rt],
+                ]}
+                color={THREE_COLORS.appTextDim}
+                lineWidth={2}
+              />
+              <Line
+                points={[
+                  [wb, 0, 0],
+                  [-wb, 0, 0],
+                ]}
+                color={THREE_COLORS.wireframeStructure}
+                lineWidth={1.5}
+              />
+              <mesh position={[wb, 0, 0]}>
+                <boxGeometry args={[0.15, 0.12, 0.2]} />
+                <meshBasicMaterial color={THREE_COLORS.appTextDim} wireframe />
+              </mesh>
+              <mesh position={[-wb, 0, 0]}>
+                <boxGeometry args={[0.15, 0.12, 0.2]} />
+                <meshBasicMaterial color={THREE_COLORS.appTextDim} wireframe />
+              </mesh>
+            </>
+          )}
+        </group>
 
-      {/* Running gear — positioned by suspension */}
-      <group>
-        {/* Wheels */}
-        {wheelData.map((w, i) => (
-          <Wheel
-            key={w.id}
-            position={w.pos}
-            steerAngle={w.steer}
-            camberAngle={w.camber}
-            gripColor={w.traction}
-            rimColor={w.rimColor}
-            rotationSpeed={w.rotSpeed}
-            displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, "tire.temperature.average", i)) : ""}
-            rimColorForDisplay={w.rimColor}
-            brakeTemp={w.brakeTemp}
-            pressurePsi={w.pressure}
-            pressureOptimal={pressureOptimal}
-            wearRate={w.wearRate}
-            wear={w.wear}
-            side={i % 2 === 0 ? "left" : "right"}
-            isRear={i >= 2}
-            onCurb={w.onRumble}
-            puddleDepth={w.puddle}
-            tireRadius={w.tireRadius}
-            tireWidth={w.tireWidth}
-          />
-        ))}
+        {/* Running gear stays grounded relative to suspension-only chassis movement. */}
+        <group>
+          {/* Wheels */}
+          {wheelData.map((w, i) => (
+            <Wheel
+              key={w.id}
+              position={w.pos}
+              steerAngle={w.steer}
+              camberAngle={w.camber}
+              gripColor={w.traction}
+              rimColor={w.rimColor}
+              rotationSpeed={w.rotSpeed}
+              displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, "tire.temperature.average", i)) : ""}
+              rimColorForDisplay={w.rimColor}
+              brakeTemp={w.brakeTemp}
+              pressurePsi={w.pressure}
+              pressureOptimal={pressureOptimal}
+              wearRate={w.wearRate}
+              wear={w.wear}
+              side={i % 2 === 0 ? "left" : "right"}
+              isRear={i >= 2}
+              onCurb={w.onRumble}
+              puddleDepth={w.puddle}
+              tireRadius={w.tireRadius}
+              tireWidth={w.tireWidth}
+            />
+          ))}
 
-        {/* Suspension springs — connect dropped body to grounded wheels */}
-        {toggles.springs &&
-          wheelData.map((w, _i) => {
-            const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.35 : w.pos[2] + 0.35;
-            return <SuspensionSpring key={`susp-${w.id}`} bodyPos={[w.pos[0], 0.23 + w.drop, inboardZ]} wheelPos={[w.pos[0], 0, inboardZ]} suspTravel={w.susp} suspThresholds={suspThresholds} />;
-          })}
+          {/* Springs bridge grounded wheels to hardpoints transformed with chassis. */}
+          {toggles.springs &&
+            wheelData.map((w, i) => (
+              <SuspensionSpring
+                key={`susp-${w.id}`}
+                bodyPos={springBodyPositions[i]}
+                wheelPos={springWheelPositions[i]}
+                suspTravel={w.susp}
+                suspThresholds={suspThresholds}
+                coilRadius={springModels[i].coilRadius}
+                coils={springModels[i].coils}
+                damperExtension={springModels[i].damperExtension}
+              />
+            ))}
 
-        {/* Load distribution — weighted centroid dot between springs with 1s trail */}
-        {toggles.springs && loadDot && (
-          <group>
-            {/* Crosshairs */}
-            <Line
-              points={[
-                [-wb, loadDot.y, 0],
-                [wb, loadDot.y, 0],
-              ]}
-              color={THREE_COLORS.appBorder}
-              lineWidth={0.5}
-            />
-            <Line
-              points={[
-                [0, loadDot.y, -loadDot.springZMax],
-                [0, loadDot.y, loadDot.springZMax],
-              ]}
-              color={THREE_COLORS.appBorder}
-              lineWidth={0.5}
-            />
-            {/* 1 second trail — derived from packet history */}
-            {loadTrail.length > 1 && <Line points={loadTrail.map(([x, z]) => [x, loadDot.y, z] as [number, number, number])} color={loadDot.color} lineWidth={1.2} transparent opacity={0.55} />}
-            {/* Load dot */}
-            <mesh position={[loadDot.x, loadDot.y, loadDot.z]}>
-              <sphereGeometry args={[0.04, 8, 8]} />
-              <meshBasicMaterial color={loadDot.color} />
-            </mesh>
-          </group>
-        )}
-
-        {/* Drivetrain: axles, driveshaft, diff housings */}
-        {toggles.drivetrain && (
-          <>
-            {/* Front axle */}
-            <Line
-              points={[
-                [wb, 0, -ft],
-                [wb, 0, ft],
-              ]}
-              color={THREE_COLORS.appTextDim}
-              lineWidth={2}
-            />
-            {/* Rear axle */}
-            <Line
-              points={[
-                [-wb, 0, -rt],
-                [-wb, 0, rt],
-              ]}
-              color={THREE_COLORS.appTextDim}
-              lineWidth={2}
-            />
-            {/* Driveshaft */}
-            <Line
-              points={[
-                [wb, 0, 0],
-                [-wb, 0, 0],
-              ]}
-              color={THREE_COLORS.wireframeStructure}
-              lineWidth={1.5}
-            />
-            {/* Differential housings */}
-            <mesh position={[wb, 0, 0]}>
-              <boxGeometry args={[0.15, 0.12, 0.2]} />
-              <meshBasicMaterial color={THREE_COLORS.appTextDim} wireframe />
-            </mesh>
-            <mesh position={[-wb, 0, 0]}>
-              <boxGeometry args={[0.15, 0.12, 0.2]} />
-              <meshBasicMaterial color={THREE_COLORS.appTextDim} wireframe />
-            </mesh>
-          </>
-        )}
+          {/* Load distribution — weighted centroid dot between springs with 1s trail */}
+          {toggles.springs && loadDot && (
+            <group>
+              {/* Crosshairs */}
+              <Line
+                points={[
+                  [-wb, loadDot.y, 0],
+                  [wb, loadDot.y, 0],
+                ]}
+                color={THREE_COLORS.appBorder}
+                lineWidth={0.5}
+              />
+              <Line
+                points={[
+                  [0, loadDot.y, -loadDot.springZMax],
+                  [0, loadDot.y, loadDot.springZMax],
+                ]}
+                color={THREE_COLORS.appBorder}
+                lineWidth={0.5}
+              />
+              {/* 1 second trail — derived from packet history */}
+              {loadTrail.length > 1 && <Line points={loadTrail.map(([x, z]) => [x, loadDot.y, z] as [number, number, number])} color={loadDot.color} lineWidth={1.2} transparent opacity={0.55} />}
+              {/* Load dot */}
+              <mesh position={[loadDot.x, loadDot.y, loadDot.z]}>
+                <sphereGeometry args={[0.04, 8, 8]} />
+                <meshBasicMaterial color={loadDot.color} />
+              </mesh>
+            </group>
+          )}
+        </group>
       </group>
 
       {/* Track outline (center line) */}
-      {toggles.track && outline && <TrackOutline outline={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+      {toggles.track && outline && <TrackLine points={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+
+      {/* Game-provided reference racing line */}
+      {toggles.racingLine && boundaries?.raceLine && boundaries.raceLine.length > 1 && (
+        <TrackLine points={boundaries.raceLine} packet={frame} color={THREE_COLORS.trackRacingLine} lineWidth={4} opacity={1} y={-0.435} distAhead={autoOrbit ? 80 : undefined} />
+      )}
 
       {/* Track boundary edges (walls) */}
       {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={frame} tireRadius={carModel.tireRadius} distAhead={autoOrbit ? 80 : undefined} />}

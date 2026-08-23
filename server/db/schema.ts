@@ -634,3 +634,65 @@ export const driverProfileRuns = sqliteTable(
 		index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
 	],
 );
+
+/**
+ * WGS84 reference paths learned from iRacing IBT telemetry. These records are
+ * intentionally separate from discovered_tracks: they describe geographic
+ * provenance, not simulator identity.
+ */
+export const georeferenceReferences = sqliteTable(
+	"georeference_references",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		canonicalSlug: text("canonical_slug").notNull(),
+		sourceIdentity: text("source_identity").notNull(),
+		referenceVersion: text("reference_version").notNull(),
+		referencePath: text("reference_path", { mode: "json" })
+			.$type<readonly { latitudeDeg: number; longitudeDeg: number; altitudeM: number }[]>()
+			.notNull(),
+		originLatitudeDeg: real("origin_latitude_deg").notNull(),
+		originLongitudeDeg: real("origin_longitude_deg").notNull(),
+		originAltitudeM: real("origin_altitude_m").notNull(),
+		sampleCount: integer("sample_count").notNull(),
+		qualityRmseM: real("quality_rmse_m").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		unique().on(table.canonicalSlug, table.sourceIdentity),
+		index("idx_georef_references_slug").on(table.canonicalSlug),
+	],
+);
+
+/** Accepted local-game → WGS84-ENU transforms for one learned reference. */
+export const georeferenceTransforms = sqliteTable(
+	"georeference_transforms",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		canonicalSlug: text("canonical_slug").notNull(),
+		targetGameId: text("target_game_id").notNull(),
+		targetTrackOrdinal: integer("target_track_ordinal").notNull(),
+		sourceIdentity: text("source_identity").notNull(),
+		referenceVersion: text("reference_version").notNull(),
+		scale: real("scale").notNull(),
+		rotation: real("rotation").notNull(),
+		flipX: integer("flip_x", { mode: "boolean" }).notNull().default(false),
+		flipZ: integer("flip_z", { mode: "boolean" }).notNull().default(false),
+		translationEastM: real("translation_east_m").notNull(),
+		translationNorthM: real("translation_north_m").notNull(),
+		rmseM: real("rmse_m").notNull(),
+		quality: real("quality").notNull(),
+		sampleCount: integer("sample_count").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		unique().on(
+			table.canonicalSlug,
+			table.targetGameId,
+			table.targetTrackOrdinal,
+			table.referenceVersion,
+		),
+		index("idx_georef_transforms_target").on(table.targetGameId, table.targetTrackOrdinal),
+	],
+);

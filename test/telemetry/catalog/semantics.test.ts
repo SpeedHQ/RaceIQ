@@ -65,13 +65,13 @@ describe("semantic telemetry catalog", () => {
     const iracing = average.games.iracing;
     if (iracing.kind === "unavailable") throw new Error("mapping missing");
     expect(iracing.sources).toEqual({
-      FL: ["iRacing.LFtempCL", "iRacing.LFtempCM", "iRacing.LFtempCR"],
-      FR: ["iRacing.RFtempCL", "iRacing.RFtempCM", "iRacing.RFtempCR"],
-      RL: ["iRacing.LRtempCL", "iRacing.LRtempCM", "iRacing.LRtempCR"],
-      RR: ["iRacing.RRtempCL", "iRacing.RRtempCM", "iRacing.RRtempCR"],
+      FL: ["TelemetryPacket.TireTempFL"],
+      FR: ["TelemetryPacket.TireTempFR"],
+      RL: ["TelemetryPacket.TireTempRL"],
+      RR: ["TelemetryPacket.TireTempRR"],
     });
     expect(iracing.normalization).toBe(
-      "average available left, middle, and right carcass temperatures per tire",
+      "use packet-provided representative carcass temperature per tire",
     );
 
     expect(
@@ -79,6 +79,39 @@ describe("semantic telemetry catalog", () => {
     ).toMatchObject({
       kind: "simplified",
       freshness: "pit-snapshot",
+    });
+  });
+
+  test("keeps iRacing fuel capacity static across long sessions", () => {
+    const mapping = getTelemetryVariable("fuel.capacity").games.iracing;
+    expect(mapping).toMatchObject({
+      kind: "direct",
+      nativeUnit: "L",
+      freshness: "static",
+    });
+    if (mapping.kind === "unavailable" || !Array.isArray(mapping.sources)) {
+      throw new Error("iRacing fuel capacity sources missing");
+    }
+    expect(mapping.sources).toContain("TelemetryPacket.FuelCapacity");
+    expect(mapping.sources).toContain("iRacing.SessionInfo.DriverInfo.DriverCarFuelMaxLtr");
+  });
+
+  test("does not label F1 fuel mass as litre capacity or volume", () => {
+    expect(getTelemetryVariable("fuel.capacity").games["f1-2025"]).toMatchObject({
+      kind: "unavailable",
+      reason: "source-not-provided",
+    });
+    expect(getTelemetryVariable("fuel.remaining-volume").games["f1-2025"]).toMatchObject({
+      kind: "unavailable",
+      reason: "source-not-provided",
+    });
+    expect(getTelemetryVariable("fuel.remaining-fraction").games["f1-2025"]).toMatchObject({
+      kind: "direct",
+      nativeUnit: "fraction",
+    });
+    expect(getTelemetryVariable("fuel.remaining-percent").games["f1-2025"]).toMatchObject({
+      kind: "derived",
+      nativeUnit: "fraction",
     });
   });
 
@@ -212,7 +245,7 @@ describe("semantic telemetry catalog", () => {
         ),
       ),
     ).toMatchObject({
-      "f1-2025": "normalized",
+      "f1-2025": "direct",
       acc: "unavailable",
       "ac-evo": "direct",
     });

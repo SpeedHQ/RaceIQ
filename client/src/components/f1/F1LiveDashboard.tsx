@@ -82,6 +82,7 @@ export function F1LiveDashboard() {
             <TireGrid
               fl={{ tempC: Math.round(view.tires.temperatureC?.fl ?? 0), wear: view.tires.wear?.fl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fl ?? 0, pressure: view.tires.pressurePsi?.fl ?? 0 }}
               fr={{ tempC: Math.round(view.tires.temperatureC?.fr ?? 0), wear: view.tires.wear?.fr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fr ?? 0, pressure: view.tires.pressurePsi?.fr ?? 0 }}
+              rl={{ tempC: Math.round(view.tires.temperatureC?.rl ?? 0), wear: view.tires.wear?.rl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rl ?? 0, pressure: view.tires.pressurePsi?.rl ?? 0 }}
               rr={{ tempC: Math.round(view.tires.temperatureC?.rr ?? 0), wear: view.tires.wear?.rr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rr ?? 0, pressure: view.tires.pressurePsi?.rr ?? 0 }}
               healthThresholds={{ green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
@@ -405,9 +406,9 @@ function GridSection({ competitors, playerPosition }: { competitors: LiveTelemet
                     {entry.tireAge ?? 0}
                   </TableCell>
                   <TableCell align="center" tone="muted">
-                    {entry.pitStatus === 1 ? (
+                    {entry.pitStatus === "pitting" ? (
                       <span className="text-status-warning font-bold">IN</span>
-                    ) : entry.pitStatus === 2 ? (
+                    ) : entry.pitStatus === "in-pit-area" ? (
                       <span className="text-status-warning">PIT</span>
                     ) : (entry.pitStops ?? 0) > 0 ? (
                       entry.pitStops

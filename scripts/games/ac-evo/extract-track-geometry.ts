@@ -4,30 +4,36 @@
  * generate curated meta (segments/sectors) for any AC Evo track that
  * doesn't already have one.
  *
- * AC Evo currently borrows ACC's bundled outlines wholesale (see
- * `bundledTrackDir("ac-evo")` in shared/racing/tracks/resolve-name.ts). That breaks for the
- * 3 tracks ACC never shipped — Brands Hatch Indy, Fuji, COTA — which have
- * no ACC file and therefore no outline at all. This script extracts
- * authoritative AC Evo geometry for every track that has it in the kspkg,
- * so those 3 (and every other AC Evo track) get real, native outlines
- * instead of a reused/missing ACC one.
+ * Native geometry is written to each canonical AC Evo layout. Five layouts
+ * without an `ideal_line` (Misano, Silverstone, Catalunya, Budapest, Zandvoort)
+ * explicitly reuse their root-venue ACC assets; every other mapped layout must
+ * have its own extracted geometry.
  *
  * Run: bun scripts/games/ac-evo/extract-track-geometry.ts
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { findContentKspkg, Kspkg, type KspkgEntry } from "../../../server/games/ac-evo/kspkg";
 import { parseAiSpline, type AiSplinePoint } from "../../../server/games/ac-evo/aispline";
 import { autoTrackSegments } from "../../../shared/racing/tracks/curation/generate";
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
 import {
   loadTrackFacts,
-  loadTrackGeometry,
+  loadTrackGeometryForGame,
   saveTrackFacts,
   saveTrackGeometry,
+  saveTrackMetadata,
 } from "../../../shared/racing/tracks/storage/meta";
-import { GAMES_DIR, SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
+import { GAMES_DIR } from "../../../shared/platform/runtime/data-paths";
+import {
+  bundledGeometryPath,
+  bundledSharedGeometryPath,
+  findTrackAssetIdentities,
+  getTrackAssetIdentity,
+  isSharedAccGeometryAsset,
+  type TrackAssetIdentity,
+} from "../../../shared/racing/tracks/storage/assets";
 
 interface TrackRow {
   id: number;
@@ -77,8 +83,13 @@ const CRITICAL_EXPECTED_M: Record<string, number> = {
   cota: 5513,
 };
 
-const OUT_DIR = resolve(SHARED_DIR, "tracks", "ac-evo");
-const ACC_DIR = resolve(SHARED_DIR, "tracks", "acc");
+function accCenterlinePath(slug: string): string | null {
+  const identity = findTrackAssetIdentities(slug, "acc")[0];
+  if (!identity) return null;
+  return isSharedAccGeometryAsset(identity)
+    ? bundledSharedGeometryPath(identity, "acc", slug, "centerline")
+    : bundledGeometryPath(identity, "centerline");
+}
 
 function readTracksCsv(): TrackRow[] {
   const raw = readFileSync(resolve(GAMES_DIR, "ac-evo", "tracks.csv"), "utf-8");
@@ -100,9 +111,9 @@ function polylineLength(pts: { x: number; z: number }[]): number {
 }
 
 function accLengthForSlug(slug: string): number | null {
-  const p = resolve(ACC_DIR, `${slug}-centerline.csv`);
-  if (!existsSync(p)) return null;
-  const lines = readFileSync(p, "utf-8").split("\n").filter(Boolean);
+  const path = accCenterlinePath(slug);
+  if (!path || !existsSync(path)) return null;
+  const lines = readFileSync(path, "utf-8").split("\n").filter(Boolean);
   const pts = lines.slice(1).map((l) => {
     const [x, z] = l.split(",").map(Number);
     return { x, z };
@@ -150,21 +161,21 @@ function computeBoundaries(centerline: { x: number; z: number }[], halfWidthM = 
   return { leftEdge, rightEdge };
 }
 
-function writeCenterlineCsv(slug: string, pts: AiSplinePoint[]): void {
-  const body = `x,z\n${pts.map((p) => `${p.x},${p.z}`).join("\n")}`;
-  writeFileSync(resolve(OUT_DIR, `${slug}-centerline.csv`), body);
+function writeCenterlineCsv(identity: TrackAssetIdentity, pts: AiSplinePoint[]): void {
+  const path = bundledGeometryPath(identity, "centerline");
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `x,z\n${pts.map((p) => `${p.x},${p.z}`).join("\n")}`);
 }
 
 /** The ideal_line spline IS the game's AI racing line, so also emit it to the
  *  raceline slot that getTrackRacelineByOrdinal() reads. AC Evo ships no
  *  separate dense centerline spline, so centerline and raceline share this
  *  source until a true centerline becomes available. */
-function writeRacelineCsv(slug: string, pts: AiSplinePoint[]): void {
-  const body = `x,z\n${pts.map((p) => `${p.x},${p.z}`).join("\n")}`;
-  writeFileSync(resolve(OUT_DIR, `${slug}-raceline.csv`), body);
+function writeRacelineCsv(identity: TrackAssetIdentity, pts: AiSplinePoint[]): void {
+  writeFileSync(bundledGeometryPath(identity, "raceline"), `x,z\n${pts.map((p) => `${p.x},${p.z}`).join("\n")}`);
 }
 
-function writeBoundariesJson(slug: string, centerline: { x: number; z: number }[]): void {
+function writeBoundariesJson(identity: TrackAssetIdentity, centerline: { x: number; z: number }[]): void {
   const { leftEdge, rightEdge } = computeBoundaries(centerline);
   const data = {
     source: "ac-evo-extracted",
@@ -177,16 +188,16 @@ function writeBoundariesJson(slug: string, centerline: { x: number; z: number }[
     leftEdge,
     rightEdge,
   };
-  writeFileSync(resolve(OUT_DIR, `${slug}-boundaries.json`), JSON.stringify(data, null, 2));
+  writeFileSync(bundledGeometryPath(identity, "boundaries"), JSON.stringify(data, null, 2));
 }
 
 /**
  * Seed a newly extracted layout's facts and this game's geometry, never
  * clobbering either if it is already there.
  *
- * The two halves are seeded independently on purpose: a circuit ACC already
- * curated has facts but no AC Evo geometry until AC Evo ships it, and that case
- * should still get its fractions written rather than being skipped wholesale.
+ * Missing halves are seeded independently. When both are absent, facts and
+ * native AC Evo geometry are committed together so source validation observes
+ * one complete update.
  *
  * `autoTrackSegments` emits `T<n>` tokens for corners it has no name for.
  * `splitSegments` drops those — a generated token is a display convention, not
@@ -198,21 +209,25 @@ function maybeWriteMeta(
   centerline: { x: number; z: number }[],
 ): "written" | "geometry-only" | "skipped-existing" | "skipped-no-corners" {
   const existingFacts = loadTrackFacts(slug);
-  const existingGeometry = loadTrackGeometry(slug, "ac-evo");
+  const existingGeometry = loadTrackGeometryForGame(slug, "ac-evo");
   if (existingFacts && existingGeometry) return "skipped-existing";
 
   const result = autoTrackSegments(centerline);
   if (result.segments.length === 0) return "skipped-no-corners";
   const { corners, straights, geometry } = splitSegments(result.segments);
+  const nativeGeometry = {
+    sectors: { s1End: 1 / 3, s2End: 2 / 3 },
+    segments: geometry,
+  };
 
-  if (!existingGeometry) {
-    saveTrackGeometry(slug, "ac-evo", { sectors: { s1End: 1 / 3, s2End: 2 / 3 }, segments: geometry });
+  if (existingFacts) {
+    saveTrackGeometry(slug, "ac-evo", nativeGeometry);
+    return "geometry-only";
   }
-  if (existingFacts) return "geometry-only";
 
   // New content lands in tracks.csv as variant GP (the game's table carries no
   // layout list), so the identity matches until an alt layout is added by hand.
-  saveTrackFacts(slug, {
+  const facts = {
     slug,
     track: slug,
     layout: "gp",
@@ -220,12 +235,13 @@ function maybeWriteMeta(
     name,
     corners,
     ...(straights.length ? { straights } : {}),
-  });
+  };
+  if (existingGeometry) saveTrackFacts(slug, facts);
+  else saveTrackMetadata(slug, facts, { "ac-evo": nativeGeometry });
   return "written";
 }
 
 export async function extractAcEvoTrackGeometry() {
-  if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
 
   const kspkgPath = findContentKspkg();
   if (!kspkgPath) {
@@ -236,7 +252,7 @@ export async function extractAcEvoTrackGeometry() {
   const pkg = Kspkg.open(kspkgPath);
 
   const tracksCsv = readTracksCsv();
-  const nameBySlug = new Map(tracksCsv.map((t) => [t.commonTrackName, t.name + (t.variant !== "GP" ? ` ${t.variant}` : "")]));
+  const tracksBySlug = new Map(tracksCsv.map((track) => [track.commonTrackName, track]));
 
   interface Row {
     slug: string;
@@ -252,6 +268,12 @@ export async function extractAcEvoTrackGeometry() {
   const rows: Row[] = [];
 
   for (const m of MAPPINGS) {
+    const track = tracksBySlug.get(m.slug);
+    const identity = track && getTrackAssetIdentity("ac-evo", track.id);
+    if (!track || !identity) {
+      console.warn(`[skip] ${m.slug}: no canonical AC Evo registry assignment`);
+      continue;
+    }
     const entry = findIdealLineEntry(pkg.entries, m.folder, m.layout);
     if (!entry) {
       console.warn(`[skip] ${m.slug}: no ideal_line entry found for ${m.folder}/${m.layout}`);
@@ -287,11 +309,11 @@ export async function extractAcEvoTrackGeometry() {
     const deltaPct = expectedM ? ((lengthM - expectedM) / expectedM) * 100 : null;
     const status = deltaPct === null ? "no-reference" : Math.abs(deltaPct) <= 5 ? "OK" : "CHECK";
 
-    writeCenterlineCsv(m.slug, points);
-    writeRacelineCsv(m.slug, points);
-    writeBoundariesJson(m.slug, centerline);
+    writeCenterlineCsv(identity, points);
+    writeRacelineCsv(identity, points);
+    writeBoundariesJson(identity, centerline);
 
-    const displayName = nameBySlug.get(m.slug) ?? m.slug;
+    const displayName = track.name + (track.variant !== "GP" ? ` ${track.variant}` : "");
     const metaStatus = maybeWriteMeta(m.slug, displayName, displayCenterline);
 
     rows.push({
@@ -335,7 +357,7 @@ export async function extractAcEvoTrackGeometry() {
   }
 
   console.log(`\nSkipped (no ideal_line in kspkg, keep ACC fallback): ${[...SKIP_SLUGS].join(", ")}`);
-  console.log(`\nWrote centerline/boundaries for ${rows.length} tracks to ${OUT_DIR}`);
+  console.log(`\nWrote centerline/boundaries for ${rows.length} tracks to canonical venue geometry`);
 }
 
 // Runnable standalone (bun scripts/games/ac-evo/extract-track-geometry.ts) as well as

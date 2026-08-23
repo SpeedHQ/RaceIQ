@@ -2,36 +2,17 @@
  * Extract track centerline outlines from Forza Motorsport 2023 game files.
  *
  * Reads AI/Track.geo from each track's ribbon ZIP, parses the MLP binary
- * format for waypoint coordinates, and writes recorded-{ordinal}.csv files
- * to shared/data/tracks/fm-2023/.
+ * format for waypoint coordinates, and writes canonical venue geometry.
  *
  * Usage: bun run scripts/games/fm-2023/extract-tracks.ts
  */
 import { writeFileSync, mkdirSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { findForzaInstall } from "@shared/integrations/forza/install";
 import { decompressForzaLZX } from "@shared/integrations/forza/lzx-decoder";
 import { parseForzaZip } from "@shared/integrations/forza/zip";
+import { bundledGeometryPath, getTrackAssetIdentity } from "../../../shared/racing/tracks/storage/assets";
 
-const REPO_ROOT = resolve(import.meta.dir, "../../..");
-const OUT_DIR = resolve(REPO_ROOT, "shared/data/tracks/fm-2023");
-const tracksCSV = resolve(REPO_ROOT, "shared/games/fm-2023/tracks.csv");
-const ordinalToName = new Map<number, string>();
-try {
-  const csv = require("node:fs").readFileSync(tracksCSV, "utf-8") as string;
-  for (const line of csv.trim().split("\n")) {
-    const parts = line.split(",");
-    const ordinal = parseInt(parts[0], 10);
-    const sharedName = parts[6]?.trim();
-    if (!Number.isNaN(ordinal)) {
-      ordinalToName.set(ordinal, sharedName ? `${sharedName}-${ordinal}` : `${ordinal}`);
-    }
-  }
-} catch {}
-
-function trackFileName(ordinal: number): string {
-  return ordinalToName.get(ordinal) ?? `${ordinal}`;
-}
 
 // ── Find FM2023 ──
 
@@ -290,7 +271,6 @@ function decompressNestedGeo(zipData: Buffer): Buffer {
 
 // ── Extract all tracks ──
 
-mkdirSync(OUT_DIR, { recursive: true });
 const tracksDir = `${forzaDir}/media/pcfamily/tracks`;
 const trackDirs = readdirSync(tracksDir).filter((d) =>
   readdirSync(resolve(tracksDir, d)).some((f) => /^ribbon_\d+\.zip$/.test(f)),
@@ -362,19 +342,22 @@ for (const trackDir of trackDirs) {
       }
 
       for (const ordinal of ordinals) {
-        const name = trackFileName(ordinal);
-
-        const outPath = resolve(OUT_DIR, `${name}-centerline.csv`);
+        const identity = getTrackAssetIdentity("fm-2023", ordinal);
+        if (!identity) {
+          skipped++;
+          continue;
+        }
+        const centerlinePath = bundledGeometryPath(identity, "centerline");
+        mkdirSync(dirname(centerlinePath), { recursive: true });
         const csv =
           "x,z\n" +
           waypoints.x
             .map((x, i) => `${x.toFixed(4)},${waypoints.z[i].toFixed(4)}`)
             .join("\n");
-        writeFileSync(outPath, csv);
+        writeFileSync(centerlinePath, csv);
 
         if (boundaries) {
-          const boundaryPath = resolve(OUT_DIR, `${name}-boundaries.json`);
-          writeFileSync(boundaryPath, JSON.stringify({
+          writeFileSync(bundledGeometryPath(identity, "boundaries"), JSON.stringify({
             waypoints: waypoints.x.length,
             leftEdge: boundaries.leftEdge,
             rightEdge: boundaries.rightEdge,
@@ -384,7 +367,7 @@ for (const trackDir of trackDirs) {
 
         extracted++;
         console.log(
-          `  ✓ ${trackDir}/${ribbonName} → ${name} (${waypoints.x.length} pts${boundaries ? " + boundaries" : ""})`,
+          `  ✓ ${trackDir}/${ribbonName} → ${identity.venuePath}/${identity.layoutSlug} (${waypoints.x.length} pts${boundaries ? " + boundaries" : ""})`,
         );
       }
     } catch (e: any) {
@@ -399,4 +382,4 @@ for (const trackDir of trackDirs) {
 console.log(
   `\n[FM2023] Done: ${extracted} outlines extracted, ${skipped} skipped, ${failed} failed`,
 );
-console.log(`Output: ${OUT_DIR}`);
+console.log("Output: canonical venue geometry");

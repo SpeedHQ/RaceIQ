@@ -1,26 +1,25 @@
 /** Committed track facts and geometry roster contracts. */
 import { describe, test, expect } from "bun:test";
-import { readdirSync, readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { cornerNumbers, type TrackFacts } from "../../../shared/racing/tracks/facts";
 import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
 import { checkKeys } from "../../../shared/racing/tracks/curation/join";
-import { SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
+import { listTrackFactSlugs, loadTrackFacts, loadTrackGeometryForGame } from "../../../shared/racing/tracks/storage/meta";
 
-const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const GAME_IDS = ["fm-2023", "acc", "ac-evo", "f1-2025"] as const;
 function loadFacts(slug: string): TrackFacts {
-  return JSON.parse(readFileSync(resolve(META_DIR, `${slug}.json`), "utf-8")) as TrackFacts;
+  const facts = loadTrackFacts(slug);
+  if (!facts) throw new Error(`Missing registry facts for ${slug}`);
+  return facts;
 }
 function geometryFor(slug: string): Record<string, TrackGeometry> {
   const out: Record<string, TrackGeometry> = {};
   for (const gameId of GAME_IDS) {
-    const path = resolve(SHARED_DIR, "tracks", gameId, `${slug}-segments.json`);
-    if (existsSync(path)) out[gameId] = JSON.parse(readFileSync(path, "utf-8")) as TrackGeometry;
+    const geometry = loadTrackGeometryForGame(slug, gameId);
+    if (geometry) out[gameId] = geometry;
   }
   return out;
 }
-const SLUGS = readdirSync(META_DIR).filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", "")).sort();
+const SLUGS = listTrackFactSlugs();
 const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "brands-hatch/acc": ["t7"], "brands-hatch/ac-evo": ["t7"],
   "catalunya/acc": ["t13", "t15", "t6"], "catalunya/f1-2025": ["t13", "t14", "t15"], "catalunya/fm-2023": ["t13", "t14", "t15"],
@@ -36,7 +35,7 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
 const KNOWN_STRAIGHT_GAPS: Record<string, string[]> = {};
 
 describe("committed roster", () => {
-  test("every layout has a facts file that parses", () => {
+  test("every layout has registry facts that parse", () => {
     expect(SLUGS.length).toBeGreaterThan(90);
     for (const slug of SLUGS) expect(() => loadFacts(slug)).not.toThrow();
   });
@@ -50,7 +49,7 @@ describe("committed roster", () => {
       }
     }
   });
-  test("geometry files never carry a name, group or direction", () => {
+  test("geometry rows never carry name, group, or direction", () => {
     for (const slug of SLUGS) for (const [gameId, geom] of Object.entries(geometryFor(slug))) for (const seg of geom.segments) {
       const leaked = Object.keys(seg).filter((k) => !["key", "startFrac", "endFrac"].includes(k));
       expect(leaked, `${slug}/${gameId}`).toEqual([]);

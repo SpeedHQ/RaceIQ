@@ -54,9 +54,8 @@ export function compareQuery(pair: SeededLapPair): string {
   return new URLSearchParams({
     track: String(pair.lapA.trackOrdinal),
     carA: String(pair.lapA.carOrdinal),
-    carB: String(pair.lapB.carOrdinal),
     lapA: String(pair.lapA.id),
-    lapB: String(pair.lapB.id),
+    laps: String(pair.lapB.id),
     cursor: "7",
   }).toString();
 }

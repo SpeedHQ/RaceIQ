@@ -7,18 +7,18 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589`
-- Content SHA-256: `d654780f733fc969347e77d97ebe6433b2b89eeaeb73952bba3721347834bab8`
+- Generator source SHA-256: `6feb6b8afbc7051b62ede51c02fa4b5e40b9712942996889fcecaae38599e7c5`
+- Content SHA-256: `44c0772c59e96cb8b529ced92b7d03ded8a86a17491901427b15d6683059cca5`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
+| f1-2025 | 288 | 288 | 118 | 170 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
+| iracing | 959 | 718 | 119 | 21 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -29,11 +29,10 @@
 | `aero.drs-zone-approaching` | DRS Zone Approaching | boolean | dimensionless | boolean | scalar |  |  |  |
 | `aero.front-aero-height` | Front aero height | number | length | m | scalar |  |  |  |
 | `aero.rear-aero-height` | Rear aero height | number | length | m | scalar |  |  |  |
-| `brakes.brake-ab-sactive` | Brake AB Sactive | boolean | dimensionless | boolean | scalar |  |  |  |
+| `brakes.abs-active` | ABS active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `brakes.brake-bias` | Front brake bias | number | dimensionless | % | scalar |  |  |  |
 | `brakes.brake-line-press` | Brake Line Press | number | mass × length^-1 × time^-2 | bar | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.brake-temp` | Brake Temp | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
-| `brakes.hand-brake` | Hand Brake | number | unit:0–255 | 0–255 | scalar |  |  |  |
 | `damage.brake-disc-life` | Brake Disc Life | number | dimensionless | % | scalar |  |  |  |
 | `damage.brake-pad-wear` | Brake Pad Wear | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `damage.brakes-damage` | Brakes Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
@@ -75,7 +74,6 @@
 | `diagnostics.corner-cutting-warnings` | Corner Cutting Warnings | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.cpu-usage-bg` | Cpu Usage BG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.cpu-usage-fg` | Cpu Usage FG | number | dimensionless | % | scalar |  |  |  |
-| `diagnostics.current-bhp` | Current Bhp | number | unit:bhp | bhp | scalar |  |  |  |
 | `diagnostics.display-units` | Display Units | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-fast-repair` | Dp Fast Repair | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-windshield-tearoff` | Dp Windshield Tearoff | number | unit:unitless | unitless | scalar |  |  |  |
@@ -86,7 +84,6 @@
 | `diagnostics.formula` | Formula | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.frame-rate` | Frame Rate | number | unit:fps | fps | scalar |  |  |  |
 | `diagnostics.gpu-usage` | Gpu Usage | number | dimensionless | % | scalar |  |  |  |
-| `diagnostics.instantaneous-km-per-liter` | Instantaneous Km Per Liter | number | length^3 | L | scalar |  |  |  |
 | `diagnostics.is-disk-logging-active` | Is Disk Logging Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-enabled` | Is Disk Logging Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-garage-visible` | Is Garage Visible | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -127,7 +124,6 @@
 | `diagnostics.surface-type` | Surface Type | number | dimensionless | count | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.telemetry.disk-file` | Telemetry Disk File | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.texture-reload-allowed` | Texture reload allowed | boolean | dimensionless | boolean | scalar |  |  |  |
-| `diagnostics.timestamp-ms` | Timestamp MS | number | time | ms | scalar |  |  |  |
 | `diagnostics.tires-available` | Tires Available | number | unit:unitless | unitless | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.tires-used` | Tires Used | number | unit:unitless | unitless | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.total-warnings` | Total Warnings | number | dimensionless | count | scalar |  |  |  |
@@ -148,7 +144,6 @@
 | `engine.competitor-rpm` | Competitor engine RPM | structured | angle × time^-1 | rpm | variable:0-64 | source-path:source-order | indices: source-path (variable:0-64, source-order); fields: value:number |  |
 | `engine.coolant-temperature` | Coolant temperature | number | temperature | °C | scalar |  |  |  |
 | `engine.current-engine-rpm` | Current Engine RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
-| `engine.current-torque` | Current Torque | number | unit:n·m | N·m | scalar |  |  |  |
 | `engine.cylinder-count` | Engine cylinder count | number | dimensionless | count | scalar |  |  |  |
 | `engine.engine-idle-rpm` | Engine Idle RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.engine-map` | Engine map | number | unit:level | level | scalar |  |  |  |
@@ -158,7 +153,8 @@
 | `engine.engine-temperature` | Engine Temperature | number | temperature | °C | scalar |  |  |  |
 | `engine.engine-warnings` | Engine Warnings | number | unit:irsdk_enginewarnings | irsdk_EngineWarnings | scalar |  |  |  |
 | `engine.engine0-rpm` | Engine0 RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
-| `engine.exhaust-temp-c` | Exhaust Temp C | number | temperature | °C | scalar |  |  |  |
+| `engine.exhaust-temperature` | Exhaust temperature | number | temperature | °C | scalar |  |  |  |
+| `engine.fuel-mixture` | Fuel mixture | enum | unit:enum | enum | scalar |  | domain: lean, standard, rich, max |  |
 | `engine.manifold-press` | Manifold Press | number | mass × length^-1 × time^-2 | bar | scalar |  |  |  |
 | `engine.manual-boost` | Manual Boost | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.manual-no-boost` | Manual No Boost | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -166,10 +162,6 @@
 | `engine.oil-pressure` | Oil pressure | number | mass × length^-1 × time^-2 | bar | scalar |  |  |  |
 | `engine.oil-temperature` | Oil temperature | number | temperature | °C | scalar |  |  |  |
 | `engine.player-car-power-adjust` | Player Car Power Adjust | number | dimensionless | % | scalar |  |  |  |
-| `engine.player-car-sl-blink-rpm` | Player Car SL Blink RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
-| `engine.player-car-sl-first-rpm` | Player Car SL First RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
-| `engine.player-car-sl-last-rpm` | Player Car SL Last RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
-| `engine.player-car-sl-shift-rpm` | Player Car SL Shift RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.power` | Power | number | mass × length^2 × time^-3 | W | scalar |  |  |  |
 | `engine.shift-indicator-pct` | Shift Indicator Pct | number | dimensionless | % | scalar |  |  |  |
 | `engine.shift-light.blink-rpm` | Shift-light blink RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
@@ -177,32 +169,31 @@
 | `engine.shift-light.last-rpm` | Shift-light last RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.shift-light.shift-rpm` | Shift-light target RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.shift-power-pct` | Shift Power Pct | number | dimensionless | % | scalar |  |  |  |
-| `engine.torque` | Torque | number | unit:n·m | N·m | scalar |  |  |  |
+| `engine.torque` | Torque | number | mass × length^2 × time^-2 | N·m | scalar |  |  |  |
 | `engine.turbo-boost` | Turbo Boost | number | dimensionless | count | scalar |  |  |  |
 | `engine.voltage` | Voltage | number | mass × length^2 × time^-3 × electric-current^-1 | V | scalar |  |  |  |
 | `engine.water-level` | Water Level | number | length^3 | L | scalar |  |  |  |
+| `fuel.capacity` | Fuel capacity | number | length^3 | L | scalar |  |  |  |
 | `fuel.density` | Fuel density | number | unit:kg/l | kg/L | scalar |  |  |  |
 | `fuel.dp-fuel-add-kg` | Dp Fuel Add Kg | number | mass | kg | scalar |  |  |  |
 | `fuel.dp-fuel-auto-fill-active` | Dp Fuel Auto Fill Active | number | length^3 | L | scalar |  |  |  |
 | `fuel.dp-fuel-auto-fill-enabled` | Dp Fuel Auto Fill Enabled | number | length^3 | L | scalar |  |  |  |
 | `fuel.dp-fuel-fill` | Dp Fuel Fill | number | length^3 | L | scalar |  |  |  |
+| `fuel.efficiency` | Fuel efficiency | number | length^-2 | km/L | scalar |  |  |  |
 | `fuel.ers-deploy-mode` | ERS Deploy Mode | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4 |  |
 | `fuel.ers-deployed` | ERS Deployed | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-harvested` | ERS Harvested | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-store-energy` | ERS Store Energy | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
-| `fuel.fuel` | RaceIQ packet fuel value | number | dimensionless | game-native | scalar |  |  |  |
-| `fuel.fuel-capacity` | Fuel Capacity | number | length^3 | L | scalar |  |  |  |
-| `fuel.fuel-liters` | Fuel Liters | number | length^3 | L | scalar |  |  |  |
-| `fuel.fuel-liters-used` | Fuel Liters Used | number | length^3 | L | scalar |  |  |  |
-| `fuel.fuel-mix` | Fuel Mix | number | length^3 | L | scalar |  |  |  |
 | `fuel.fuel-per-lap` | Fuel Per Lap | number | length^3 | L | scalar |  |  |  |
-| `fuel.fuel-percent` | Fuel remaining percentage | number | dimensionless | % | scalar |  |  |  |
 | `fuel.fuel-press` | Fuel Press | number | mass × length^-1 × time^-2 | bar | scalar |  |  |  |
-| `fuel.fuel-use-per-hour` | Fuel Use Per Hour | number | unit:kg/h | kg/h | scalar |  |  |  |
-| `fuel.km-per-fuel-liter` | Km Per Fuel Liter | number | length^3 | L | scalar |  |  |  |
+| `fuel.fuel-use-per-hour` | Fuel Use Per Hour | number | mass × time^-1 | kg/h | scalar |  |  |  |
+| `fuel.instantaneous-efficiency` | Instantaneous fuel efficiency | number | length^-2 | km/L | scalar |  |  |  |
 | `fuel.laps-remaining` | Fuel laps remaining | number | dimensionless | count | scalar |  |  |  |
 | `fuel.maximum-fill-percentage` | Maximum fuel fill percentage | number | dimensionless | % | scalar |  |  |  |
+| `fuel.remaining-fraction` | Fuel remaining fraction | number | dimensionless | fraction | scalar |  |  |  |
+| `fuel.remaining-percent` | Fuel remaining percent | number | dimensionless | % | scalar |  |  |  |
 | `fuel.remaining-volume` | Fuel remaining volume | number | length^3 | L | scalar |  |  |  |
+| `fuel.used-volume` | Fuel used volume | number | length^3 | L | scalar |  |  |  |
 | `identity.camera-focus-car-index` | Camera focus car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.car-class` | Car Class | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-class-name` | Car Class Name | string | dimensionless | text | scalar |  |  |  |
@@ -235,11 +226,9 @@
 | `identity.track.north-offset` | Track north offset | number | angle | deg | scalar |  |  |  |
 | `identity.track.turn-count` | Track turn count | number | dimensionless | count | scalar |  |  |  |
 | `identity.track.type` | Track type | string | dimensionless | text | scalar |  |  |  |
-| `inputs.accel` | Accel | number | unit:0–255 | 0–255 | scalar |  |  |  |
-| `inputs.brake` | Brake | number | unit:0–255 | 0–255 | scalar |  |  |  |
+| `inputs.brake` | Brake input | number | dimensionless | ratio | scalar |  |  |  |
 | `inputs.brake-raw` | Brake Raw | number | dimensionless | % | scalar |  |  |  |
-| `inputs.clutch` | Clutch | number | unit:0–255 | 0–255 | scalar |  |  |  |
-| `inputs.clutch-percent` | Clutch Percent | number | dimensionless | % | scalar |  |  |  |
+| `inputs.clutch` | Clutch input | number | dimensionless | ratio | scalar |  |  |  |
 | `inputs.clutch-raw` | Clutch Raw | number | dimensionless | % | scalar |  |  |  |
 | `inputs.competitor-steering-angle` | Competitor steering angle | structured | angle | rad | variable:0-64 | source-path:source-order | indices: source-path (variable:0-64, source-order); fields: value:number |  |
 | `inputs.competitor.gear` | Competitor gear | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -249,39 +238,43 @@
 | `inputs.gearbox.forward-gear-count` | Driver Car Gear Num Forward | number | dimensionless | count | scalar |  |  |  |
 | `inputs.gearbox.neutral-position-count` | Driver Car Gear Neutral | number | dimensionless | count | scalar |  |  |  |
 | `inputs.gearbox.reverse-position-count` | Driver Car Gear Reverse | number | dimensionless | count | scalar |  |  |  |
-| `inputs.handbrake-percent` | Handbrake Percent | number | dimensionless | % | scalar |  |  |  |
+| `inputs.handbrake` | Handbrake input | number | dimensionless | ratio | scalar |  |  |  |
 | `inputs.handbrake-raw` | Handbrake Raw | number | dimensionless | % | scalar |  |  |  |
 | `inputs.norm-ai-brake-diff` | Norm AI Brake Diff | number | unit:-128–127 | -128–127 | scalar |  |  |  |
 | `inputs.norm-driving-line` | Norm Driving Line | number | unit:-128–127 | -128–127 | scalar |  |  |  |
 | `inputs.shift-grind-rpm` | Shift Grind RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `inputs.shifter` | Shifter | number | unit:unitless | unitless | scalar |  |  |  |
 | `inputs.starter-trigger` | Starter trigger | boolean | dimensionless | boolean | scalar |  |  |  |
-| `inputs.steer` | Steer | number | unit:-128–127 | -128–127 | scalar |  |  |  |
+| `inputs.steering` | Steering input | number | dimensionless | ratio | scalar |  |  |  |
 | `inputs.steering-ffb-enabled` | Steering FFB Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `inputs.steering-wheel-limiter` | Steering Wheel Limiter | number | dimensionless | % | scalar |  |  |  |
-| `inputs.steering-wheel-max-force-nm` | Steering Wheel Max Force Nm | number | unit:n·m | N·m | scalar |  |  |  |
+| `inputs.steering-wheel-max-force-nm` | Steering Wheel Max Force Nm | number | mass × length^2 × time^-2 | N·m | scalar |  |  |  |
 | `inputs.steering-wheel-pct-damper` | Steering Wheel Pct Damper | number | dimensionless | % | scalar |  |  |  |
 | `inputs.steering-wheel-pct-intensity` | Steering Wheel Pct Intensity | number | dimensionless | % | scalar |  |  |  |
 | `inputs.steering-wheel-pct-smoothing` | Steering Wheel Pct Smoothing | number | dimensionless | % | scalar |  |  |  |
 | `inputs.steering-wheel-pct-torque` | Steering Wheel Pct Torque | number | dimensionless | % | scalar |  |  |  |
 | `inputs.steering-wheel-pct-torque-sign` | Steering Wheel Pct Torque Sign | number | dimensionless | % | scalar |  |  |  |
 | `inputs.steering-wheel-pct-torque-sign-stops` | Steering Wheel Pct Torque Sign Stops | number | dimensionless | % | scalar |  |  |  |
-| `inputs.steering-wheel-peak-force-nm` | Steering Wheel Peak Force Nm | number | unit:n·m | N·m | scalar |  |  |  |
-| `inputs.steering-wheel-torque` | Steering Wheel Torque | number | unit:n·m | N·m | scalar |  |  |  |
-| `inputs.steering-wheel-torque-st` | Steering Wheel Torque ST | number | unit:n·m | N·m | variable:0-* | source-order |  |  |
+| `inputs.steering-wheel-peak-force-nm` | Steering Wheel Peak Force Nm | number | mass × length^2 × time^-2 | N·m | scalar |  |  |  |
+| `inputs.steering-wheel-torque` | Steering Wheel Torque | number | mass × length^2 × time^-2 | N·m | scalar |  |  |  |
+| `inputs.steering-wheel-torque-st` | Steering Wheel Torque ST | number | mass × length^2 × time^-2 | N·m | variable:0-* | source-order |  |  |
 | `inputs.steering-wheel-use-linear` | Steering Wheel Use Linear | boolean | dimensionless | boolean | scalar |  |  |  |
 | `inputs.suggested-gear` | Suggested Gear | number | dimensionless | count | scalar |  |  |  |
+| `inputs.throttle` | Throttle input | number | dimensionless | ratio | scalar |  |  |  |
 | `inputs.throttle-raw` | Throttle Raw | number | dimensionless | % | scalar |  |  |  |
 | `motion.acceleration-x` | Acceleration X | number | length × time^-2 | m/s² | scalar |  |  |  |
 | `motion.acceleration-y` | Acceleration Y | number | length × time^-2 | m/s² | scalar |  |  |  |
 | `motion.acceleration-z` | Acceleration Z | number | length × time^-2 | m/s² | scalar |  |  |  |
-| `motion.angular-velocity-x` | Angular Velocity X | number | length × time^-1 | m/s | scalar |  |  |  |
-| `motion.angular-velocity-y` | Angular Velocity Y | number | length × time^-1 | m/s | scalar |  |  |  |
-| `motion.angular-velocity-z` | Angular Velocity Z | number | length × time^-1 | m/s | scalar |  |  |  |
+| `motion.angular-velocity-x` | Angular Velocity X | number | angle × time^-1 | rad/s | scalar |  |  |  |
+| `motion.angular-velocity-y` | Angular Velocity Y | number | angle × time^-1 | rad/s | scalar |  |  |  |
+| `motion.angular-velocity-z` | Angular Velocity Z | number | angle × time^-1 | rad/s | scalar |  |  |  |
 | `motion.driver-head-position.x` | Driver head position X | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.y` | Driver head position Y | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.z` | Driver head position Z | number | length | m | scalar |  |  |  |
 | `motion.front-axle-roll-angle` | Front axle roll angle | number | angle | rad | scalar |  |  |  |
+| `motion.geodetic.altitude` | Geodetic altitude | number | length | m | scalar |  |  |  |
+| `motion.geodetic.latitude` | Geodetic latitude | number | angle | deg | scalar |  |  |  |
+| `motion.geodetic.longitude` | Geodetic longitude | number | angle | deg | scalar |  |  |  |
 | `motion.lat-accel-st` | Lat Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
 | `motion.local-velocity` | Local Velocity | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.long-accel-st` | Long Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
@@ -303,7 +296,7 @@
 | `motion.velocity-z-st` | Velocity Z ST | number | length × time^-1 | m/s | variable:0-* | source-order |  |  |
 | `motion.vert-accel-st` | Vert Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
 | `motion.yaw` | Yaw | number | angle | rad | scalar |  |  |  |
-| `motion.yaw-north` | Yaw North | number | angle | rad | scalar |  |  |  |
+| `motion.yaw-north` | North-referenced yaw | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-rate-st` | Yaw Rate ST | number | angle × time^-1 | rad/s | variable:0-* | source-order |  |  |
 | `race.competitor.car-class-color` | Competitor car-class color | structured | unit:color | color | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.car-class-id` | Competitor car-class ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -347,11 +340,12 @@
 | `race.competitor.license-level` | Competitor license level | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.license-name` | Competitor license name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.license-sublevel` | Competitor license sublevel | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.on-pit-road` | Competitor on pit road | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.pace-flags` | Competitor pacing flags | structured | unit:bitfield | bitfield | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.pace-line` | Competitor pace line | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.pace-row` | Competitor pace row | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.penalties` | Competitor penalties | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
+| `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:enum |  |
 | `race.competitor.pit-stops` | Competitor pit-stop count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.position` | Competitor position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.primary-sponsor` | Competitor primary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
@@ -473,6 +467,7 @@
 | `session.sim-mode` | Sim Mode | string | dimensionless | text | scalar |  |  |  |
 | `session.subsession-id` | Subsession ID | number | dimensionless | id | scalar |  |  |  |
 | `session.team-racing` | Team Racing | boolean | dimensionless | boolean | scalar |  |  |  |
+| `session.timestamp` | Session timestamp | number | time | s | scalar |  |  |  |
 | `setup.aero.brake-duct` | Brake ducts | structured | unit:level | level | variable:0-2 | source-path:source-order | indices: source-path (variable:0-2, source-order); fields: value:number |  |
 | `setup.aero.front-downforce` | Calculated front downforce | number | dimensionless | % | scalar |  |  |  |
 | `setup.aero.front-ride-height-at-speed` | Calculated front ride height at speed | number | length | mm | scalar |  |  |  |
@@ -586,27 +581,27 @@
 | `timing.current-race-time` | Current Race Time | number | time | s | scalar |  |  |  |
 | `timing.delta-current` | Delta Current | string | dimensionless | text | scalar |  |  |  |
 | `timing.delta-last` | Delta Last | string | dimensionless | text | scalar |  |  |  |
-| `timing.delta-time-ms` | Delta Time Ms | number | time | ms | scalar |  |  |  |
+| `timing.delta-to-reference` | Delta to reference | number | time | s | scalar |  |  |  |
 | `timing.delta-to-session-last-lap` | Delta to session last lap | number | time | s | scalar |  |  |  |
-| `timing.delta-to-session-last-lap-rate` | Delta rate to session last lap | number | unit:s/s | s/s | scalar |  |  |  |
+| `timing.delta-to-session-last-lap-rate` | Delta rate to session last lap | number | dimensionless | s/s | scalar |  |  |  |
 | `timing.delta-to-session-last-lap-valid` | Delta to session last lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.distance-traveled` | Distance Traveled | number | length | m | scalar |  |  |  |
 | `timing.drs-activation-distance` | DRS Activation Distance | number | length | m | scalar |  |  |  |
-| `timing.gap-ahead-ms` | Gap Ahead Ms | number | time | s | scalar |  |  |  |
-| `timing.gap-behind-ms` | Gap Behind Ms | number | time | s | scalar |  |  |  |
+| `timing.gap-ahead` | Gap ahead | number | time | s | scalar |  |  |  |
+| `timing.gap-behind` | Gap behind | number | time | s | scalar |  |  |  |
 | `timing.grid-position` | Grid Position | number | dimensionless | count | scalar |  |  |  |
 | `timing.ideal-lap-time` | Ideal lap time | string | time | s | scalar |  |  |  |
 | `timing.lap-delta-to-best-lap` | Lap Delta To Best Lap | number | time | s | scalar |  |  |  |
-| `timing.lap-delta-to-best-lap-rate` | Delta rate to best lap | number | unit:s/s | s/s | scalar |  |  |  |
+| `timing.lap-delta-to-best-lap-rate` | Delta rate to best lap | number | dimensionless | s/s | scalar |  |  |  |
 | `timing.lap-delta-to-best-lap-valid` | Delta to best lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.lap-delta-to-optimal-lap` | Lap Delta To Optimal Lap | number | time | s | scalar |  |  |  |
-| `timing.lap-delta-to-optimal-lap-rate` | Delta rate to optimal lap | number | unit:s/s | s/s | scalar |  |  |  |
+| `timing.lap-delta-to-optimal-lap-rate` | Delta rate to optimal lap | number | dimensionless | s/s | scalar |  |  |  |
 | `timing.lap-delta-to-optimal-lap-valid` | Delta to optimal lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.lap-delta-to-session-best-lap` | Lap Delta To Session Best Lap | number | time | s | scalar |  |  |  |
-| `timing.lap-delta-to-session-best-lap-rate` | Delta rate to session best lap | number | unit:s/s | s/s | scalar |  |  |  |
+| `timing.lap-delta-to-session-best-lap-rate` | Delta rate to session best lap | number | dimensionless | s/s | scalar |  |  |  |
 | `timing.lap-delta-to-session-best-lap-valid` | Delta to session best lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.lap-delta-to-session-optimal-lap` | Lap Delta To Session Optimal Lap | number | time | s | scalar |  |  |  |
-| `timing.lap-delta-to-session-optimal-lap-rate` | Delta rate to session optimal lap | number | unit:s/s | s/s | scalar |  |  |  |
+| `timing.lap-delta-to-session-optimal-lap-rate` | Delta rate to session optimal lap | number | dimensionless | s/s | scalar |  |  |  |
 | `timing.lap-delta-to-session-optimal-lap-valid` | Delta to session optimal lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.lap-fraction` | Lap fraction | number | dimensionless | fraction | scalar |  |  |  |
 | `timing.lap-number` | Lap Number | number | dimensionless | count | scalar |  |  |  |
@@ -617,7 +612,7 @@
 | `timing.n-lap-average.clean-lap-count` | N-lap average clean-lap count | number | dimensionless | count | scalar |  |  |  |
 | `timing.n-lap-average.current-time` | Current N-lap average time | number | time | s | scalar |  |  |  |
 | `timing.official-track-length` | Official track length | number | length | m | scalar |  |  |  |
-| `timing.pit-lane-time-in-lane-in-ms` | Pit Lane Time In Lane In MS | number | time | ms | scalar |  |  |  |
+| `timing.pit-lane-time-in-lane` | Pit-lane time in lane | number | time | s | scalar |  |  |  |
 | `timing.pit-stop-window-ideal-lap` | Pit Stop Window Ideal Lap | number | dimensionless | count | scalar |  |  |  |
 | `timing.pit-stop-window-latest-lap` | Pit Stop Window Latest Lap | number | dimensionless | count | scalar |  |  |  |
 | `timing.player-car-tow-time` | Player Car Tow Time | number | time | s | scalar |  |  |  |
@@ -653,15 +648,11 @@
 | `timing.session-fastest-lap.number` | Fastest Lap | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); results-fastest-lap-index (variable:0-*, source-order); fields: value:number |  |
 | `timing.session-fastest-lap.time` | Fastest Time | structured | time | s | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); results-fastest-lap-index (variable:0-*, source-order); fields: value:number |  |
 | `timing.session-on-joker-lap` | Session On Joker Lap | boolean | dimensionless | boolean | scalar |  |  |  |
-| `timing.session-time-left-ms` | Session Time Left Ms | number | time | ms | scalar |  |  |  |
-| `timing.session-time-of-day` | Session Time Of Day | number | time | s | scalar |  |  |  |
-| `timing.session-time-remain` | Session Time Remain | number | time | s | scalar |  |  |  |
+| `timing.session-time-remaining` | Session time remaining | number | time | s | scalar |  |  |  |
 | `timing.session-time-total` | Session Time Total | number | time | s | scalar |  |  |  |
 | `timing.speed-trap-fastest-speed` | Speed Trap Fastest Speed | number | length × time^-1 | km/h | scalar |  |  |  |
-| `timing.time-of-day-hours` | Time Of Day Hours | number | time | s | scalar |  |  |  |
-| `timing.time-of-day-minutes` | Time Of Day Minutes | number | time | s | scalar |  |  |  |
-| `timing.time-of-day-seconds` | Time Of Day Seconds | number | time | s | scalar |  |  |  |
-| `timing.total-driving-time-s` | Total Driving Time S | number | time | s | scalar |  |  |  |
+| `timing.time-of-day` | Time of day | number | time | s | scalar |  |  |  |
+| `timing.total-driving-time` | Total driving time | number | time | s | scalar |  |  |  |
 | `timing.total-laps` | Session total laps | number | dimensionless | count | scalar |  |  |  |
 | `timing.track-length` | Track length | number | length | m | scalar |  |  |  |
 | `tire.temperature.average` | Representative / average | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
@@ -673,6 +664,7 @@
 | `tire.temperature.surface.middle` | Middle surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.surface.outer` | Outer surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.actual-tyre-compound` | Actual Tyre Compound | number | dimensionless | count | scalar |  |  |  |
+| `tires.blistering` | Tire blistering | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.competitor.age` | Competitor tire age | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `tires.competitor.compound` | Competitor tire compound | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `tires.competitor.qualifying-compound` | Competitor qualifying tire compound | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -719,10 +711,6 @@
 | `tires.tire-slip-ratio` | Tire Slip Ratio | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-wear` | Tire Wear | number | dimensionless | fraction | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tyre-age` | Tyre Age | number | dimensionless | count | scalar |  |  |  |
-| `tires.tyre-blisters-fl` | Tyre Blisters FL | number | dimensionless | count | scalar |  |  |  |
-| `tires.tyre-blisters-rl` | Tyre Blisters RL | number | dimensionless | count | scalar |  |  |  |
-| `tires.tyre-blisters-rr` | Tyre Blisters RR | number | dimensionless | count | scalar |  |  |  |
-| `tires.tyre-blists-fr` | Tyre Blists FR | number | dimensionless | count | scalar |  |  |  |
 | `tires.wheel-force.lateral` | Lateral wheel force | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.wheel-force.longitudinal` | Longitudinal wheel force | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.wheel-force.vertical` | Vertical wheel force | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |

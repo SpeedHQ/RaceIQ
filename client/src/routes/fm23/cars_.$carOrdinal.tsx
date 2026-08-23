@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "../../components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "../../components/track-map/types";
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
@@ -12,8 +12,8 @@ function makeStaticFrame(carOrdinal: number): SemanticAnalysisFrame {
   return { values: {
     "identity.car-ordinal": carOrdinal, "identity.car-class": 0, "identity.car-performance-index": 0,
     "motion.speed": 0, "motion.position-x": 0, "motion.position-z": 0, "motion.yaw": 0, "motion.pitch": 0, "motion.roll": 0,
-    "inputs.accel": 0, "inputs.brake": 0, "inputs.steer": 0, "inputs.gear": 0,
-    "engine.current-engine-rpm": 800, "engine.engine-idle-rpm": 800, "engine.engine-max-rpm": 8000, "fuel.fuel": 1,
+    "inputs.throttle": 0, "inputs.brake": 0, "inputs.steering": 0, "inputs.gear": 0,
+    "engine.current-engine-rpm": 800, "engine.engine-idle-rpm": 800, "engine.engine-max-rpm": 8000, "fuel.remaining-fraction": 1, "fuel.remaining-percent": 100,
     "tire.temperature.average": [0, 0, 0, 0], "suspension.norm-suspension-travel": [0.5, 0.5, 0.5, 0.5],
   }, states: {}, freshness: {} };
 }

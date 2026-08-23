@@ -7,6 +7,12 @@ import { findTrackCarPairWithTwoLaps, getFirstSeededLap, getSeededLaps } from ".
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} compare supports seeded pair when available`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
+    const devImageryReferenceRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname.startsWith("/api/dev/track-imagery/reference/")) {
+        devImageryReferenceRequests.push(request.url());
+      }
+    });
     const laps = await getSeededLaps(request, game.gameId);
     const pair = findTrackCarPairWithTwoLaps(laps);
     if (!pair) {
@@ -21,8 +27,13 @@ for (const game of SEEDED_GAME_CASES) {
     await page.goto(`/${game.prefix}/compare?track=${pair.trackOrdinal}&carA=${pair.carOrdinal}&carB=${pair.carOrdinal}&lapA=${pair.lapA.id}&lapB=${pair.lapB.id}`, { waitUntil: "domcontentloaded" });
 
     expect(payload.timeDelta.length).toBe(payload.traces.distance.length);
+    expect(payload.geographicPositions === null || payload.geographicPositions.length === payload.telemetryA.length).toBe(true);
+    for (const position of payload.geographicPositions ?? []) {
+      if (position) expect(Object.keys(position).sort()).toEqual(["latitudeDeg", "longitudeDeg"]);
+    }
     await expect(page.getByTestId("lap-compare-workspace")).toBeVisible({ timeout: 30_000 });
     expect(browserErrors.errors, `no compare route errors for ${game.name}`).toEqual([]);
+    expect(devImageryReferenceRequests, `${game.name} Compare must not depend on development imagery routes`).toEqual([]);
   });
 
   test(`${game.name} compare handles incomplete selection without route errors`, async ({ page, request }) => {

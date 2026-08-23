@@ -1,21 +1,20 @@
 /**
  * Core of the track segment generator: turns extracted game centerlines +
- * curated track facts into a track's shared facts plus one geometry file
- * per game. Used by scripts/tracks/generate-track-segments.ts (CLI) and by tests, so
- * the exact code path that produces committed meta is what the test suite
- * exercises.
+ * curated track facts into shared registry rows plus per-game geometry rows.
+ * Used by scripts/tracks/generate-track-segments.ts (CLI) and tests, so exact
+ * code producing committed registry data is exercised by test suite.
  */
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { resolve, basename } from "node:path";
-import { detectCornerRegions } from "./segment-align-detect";
+import { readFileSync, existsSync } from "node:fs";
+import { basename } from "node:path";
+import { detectCornerRegions, type CornerRegion } from "./segment-align-detect";
 import { alignSegments, type AlignedCorner } from "./segment-align-match";
 import { validateFacts } from "./segment-align-validate";
 import {
+  listTrackFactSlugs,
   loadTrackFacts,
-  loadTrackGeometry,
-  saveTrackFacts,
-  saveTrackGeometry,
+  loadTrackGeometryForGame,
+  saveTrackMetadata,
 } from "../storage/meta";
 import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";
@@ -23,26 +22,18 @@ import { splitSegments } from "./join";
 import { cornerKey } from "../keys";
 import { loadDetectHints } from "../detect-hints";
 import type { NamedSegment } from "../named-segments";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import type { GameId } from "@shared/games/ids";
+import {
+  bundledGeometryPath,
+  bundledSharedGeometryPath,
+  findTrackAssetIdentities,
+  sharedAccGeometrySlug,
+  listTrackAssetIdentities,
+} from "../storage/assets";
 
-export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
-const NO_CENTERLINE_DIR = null;
-const GAME_DIRS: Record<GameId, string | typeof NO_CENTERLINE_DIR> = {
-  "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
-  acc: resolve(SHARED_DIR, "tracks", "acc"),
-  "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
-  "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
-  iracing: NO_CENTERLINE_DIR,
-};
-
-/** List every track slug that has a meta file, curated or not. */
+/** List every track-facts slug in bundled registry, curated or not. */
 export function listMetaSlugs(): string[] {
-  if (!existsSync(TRACK_META_DIR)) return [];
-  return readdirSync(TRACK_META_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(/\.json$/, ""))
-    .sort();
+  return listTrackFactSlugs();
 }
 
 /**
@@ -73,22 +64,19 @@ export function loadCenterline(filePath: string): { x: number; z: number }[] | n
   }
 }
 
-/** Find centerline files for a slug per game. FM files embed the ordinal. */
+/**
+ * Find native bundled centerlines for each game assigned to a facts slug.
+ * Runtime-only cross-game fallbacks have no independent geometry to persist.
+ */
 export function findCenterlines(slug: string, gameFilter?: string): { gameId: GameId; file: string }[] {
   const found: { gameId: GameId; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
-    if (gameFilter && gameId !== gameFilter) continue;
-    if (dir === NO_CENTERLINE_DIR) continue;
-    if (!existsSync(dir)) continue;
-    if (gameId === "fm-2023") {
-      const re = new RegExp(`^${slug}-\\d+-centerline\\.csv$`);
-      for (const f of readdirSync(dir)) {
-        if (re.test(f)) found.push({ gameId, file: resolve(dir, f) });
-      }
-    } else {
-      const f = resolve(dir, `${slug}-centerline.csv`);
-      if (existsSync(f)) found.push({ gameId, file: f });
+  for (const identity of findTrackAssetIdentities(slug, gameFilter)) {
+    let file = bundledGeometryPath(identity, "centerline");
+    const sharedSlug = sharedAccGeometrySlug(identity);
+    if (!existsSync(file) && sharedSlug) {
+      file = bundledSharedGeometryPath(identity, "acc", sharedSlug, "centerline") ?? file;
     }
+    if (existsSync(file)) found.push({ gameId: identity.gameId, file });
   }
   return found;
 }
@@ -305,7 +293,23 @@ function agreed<T extends string>(values: (T | undefined)[], committed: T | unde
  * corners become sequential T-number tokens through the same alignment path
  * (padding, merging) that curated tracks use.
  */
-export function autoTrackSegments(outline: { x: number; z: number }[]): {
+export interface AutoTrackSegmentOptions {
+  /**
+   * Standard oval topology. iRacing publishes four official turn numbers for
+   * these layouts even though curvature detection usually sees two continuous
+   * banked ends (or several SVG spline artifacts).
+   */
+  fourTurnOval?: {
+    direction: "left" | "right";
+    /** Official numbered turn positions projected onto lap fractions. */
+    turnAnchors?: readonly { number: number; fraction: number }[];
+  };
+}
+
+export function autoTrackSegments(
+  outline: { x: number; z: number }[],
+  options: AutoTrackSegmentOptions = {},
+): {
   segments: NamedSegment[];
   cornerCount: number;
   totalDist: number;
@@ -313,7 +317,22 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
   // With no curated facts to say otherwise, a weak region is just a kink — only a
   // curated corner name can promote one into a section.
   const raw = detectCornerRegions(outline);
-  const detection = { corners: raw.corners.filter((c) => !c.weak), totalDist: raw.totalDist };
+  const strongCorners = raw.corners.filter((corner) => !corner.weak);
+  const detectedDirections = new Set(
+    strongCorners.map((corner) => corner.direction),
+  );
+  if (options.fourTurnOval && detectedDirections.size <= 1) {
+    return {
+      segments: fourTurnOvalSegments(
+        strongCorners,
+        options.fourTurnOval.direction,
+        options.fourTurnOval.turnAnchors,
+      ),
+      cornerCount: 4,
+      totalDist: raw.totalDist,
+    };
+  }
+  const detection = { corners: strongCorners, totalDist: raw.totalDist };
   if (detection.corners.length === 0) {
     return { segments: [], cornerCount: 0, totalDist: detection.totalDist };
   }
@@ -322,23 +341,220 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
     corners: detection.corners.map((c, i) => ({ number: i + 1, name: "", direction: c.direction })),
   };
   const result = alignSegments(detection.corners, synthetic, detection.totalDist);
+  const segments = result.ok ? result.segments : [];
+  groupAutoStartFinishStraight(segments);
   return {
-    segments: result.ok ? result.segments : [],
+    segments,
     cornerCount: detection.corners.length,
     totalDist: detection.totalDist,
   };
 }
 
+/**
+ * Lap fractions must split a section at 0/1, but that split is storage detail.
+ * Give both halves one group so driver-facing consumers can present the
+ * start/finish straight as one logical section on any auto-detected circuit.
+ */
+function groupAutoStartFinishStraight(segments: NamedSegment[]): void {
+  const first = segments[0];
+  const last = segments.at(-1);
+  if (
+    !first ||
+    !last ||
+    first === last ||
+    first.type !== "straight" ||
+    last.type !== "straight"
+  ) {
+    return;
+  }
+  const name =
+    first.name ||
+    last.name ||
+    "Start/Finish Straight";
+  first.name = name;
+  last.name = name;
+  first.group = name;
+  last.group = name;
+}
+
+/**
+ * Normalize standard oval geometry into racing terminology and numbering.
+ *
+ * iRacing's official T1–T4 anchors define each banked end: extrapolate half
+ * one anchor spacing before the first turn and after the second. Curvature
+ * detection and conservative defaults apply only when a complete anchor pair
+ * is unavailable.
+ */
+function fourTurnOvalSegments(
+  detected: CornerRegion[],
+  direction: "left" | "right",
+  turnAnchors: readonly { number: number; fraction: number }[] = [],
+): NamedSegment[] {
+  const firstEnd =
+    officialOvalEndBounds(turnAnchors, 1, 2, 0, 0.5) ??
+    ovalEndBounds(detected, 0, 0.5, 0.1, 0.4);
+  const secondEnd =
+    officialOvalEndBounds(turnAnchors, 3, 4, 0.5, 1) ??
+    ovalEndBounds(detected, 0.5, 1, 0.6, 0.9);
+  const firstMiddle = ovalTurnSplit(turnAnchors, 1, 2, firstEnd);
+  const secondMiddle = ovalTurnSplit(turnAnchors, 3, 4, secondEnd);
+
+  return [
+    {
+      type: "straight",
+      name: "Frontstretch",
+      group: "Frontstretch",
+      startFrac: 0,
+      endFrac: firstEnd.start,
+    },
+    {
+      type: "corner",
+      name: "",
+      number: 1,
+      direction,
+      startFrac: firstEnd.start,
+      endFrac: firstMiddle,
+    },
+    {
+      type: "corner",
+      name: "",
+      number: 2,
+      direction,
+      startFrac: firstMiddle,
+      endFrac: firstEnd.end,
+    },
+    {
+      type: "straight",
+      name: "Backstretch",
+      startFrac: firstEnd.end,
+      endFrac: secondEnd.start,
+    },
+    {
+      type: "corner",
+      name: "",
+      number: 3,
+      direction,
+      startFrac: secondEnd.start,
+      endFrac: secondMiddle,
+    },
+    {
+      type: "corner",
+      name: "",
+      number: 4,
+      direction,
+      startFrac: secondMiddle,
+      endFrac: secondEnd.end,
+    },
+    {
+      type: "straight",
+      name: "Frontstretch",
+      group: "Frontstretch",
+      startFrac: secondEnd.end,
+      endFrac: 1,
+    },
+  ];
+}
+
+function officialOvalEndBounds(
+  anchors: readonly { number: number; fraction: number }[],
+  firstTurn: number,
+  secondTurn: number,
+  halfStart: number,
+  halfEnd: number,
+): { start: number; end: number } | null {
+  const first = anchors.find((anchor) => anchor.number === firstTurn);
+  const second = anchors.find((anchor) => anchor.number === secondTurn);
+  if (
+    !first ||
+    !second ||
+    first.fraction < halfStart ||
+    second.fraction > halfEnd ||
+    first.fraction >= second.fraction
+  ) {
+    return null;
+  }
+  const halfSpacing = (second.fraction - first.fraction) / 2;
+  const start = first.fraction - halfSpacing;
+  const end = second.fraction + halfSpacing;
+  return start > halfStart && end < halfEnd ? { start, end } : null;
+}
+
+function ovalTurnSplit(
+  anchors: readonly { number: number; fraction: number }[],
+  firstTurn: number,
+  secondTurn: number,
+  bounds: { start: number; end: number },
+): number {
+  const first = anchors.find((anchor) => anchor.number === firstTurn);
+  const second = anchors.find((anchor) => anchor.number === secondTurn);
+  if (first && second) {
+    const anchoredMiddle = (first.fraction + second.fraction) / 2;
+    if (anchoredMiddle > bounds.start && anchoredMiddle < bounds.end) {
+      return anchoredMiddle;
+    }
+  }
+  return (bounds.start + bounds.end) / 2;
+}
+
+function ovalEndBounds(
+  detected: CornerRegion[],
+  halfStart: number,
+  halfEnd: number,
+  fallbackStart: number,
+  fallbackEnd: number,
+): { start: number; end: number } {
+  const regions = detected.filter(
+    (corner) =>
+      corner.apexFrac >= halfStart &&
+      corner.apexFrac < halfEnd,
+  );
+  if (regions.length === 0) {
+    return { start: fallbackStart, end: fallbackEnd };
+  }
+
+  const rawStart = Math.min(...regions.map((corner) => corner.startFrac));
+  const rawEnd = Math.max(...regions.map((corner) => corner.endFrac));
+  const halfPadding = 0.04;
+  const minimumSpan = 0.2;
+  const minimumStraight = 0.05;
+  let start = Math.max(
+    halfStart + minimumStraight,
+    rawStart - halfPadding,
+  );
+  let end = Math.min(
+    halfEnd - minimumStraight,
+    rawEnd + halfPadding,
+  );
+
+  if (end - start < minimumSpan) {
+    const middle = (start + end) / 2;
+    start = Math.max(
+      halfStart + minimumStraight,
+      middle - minimumSpan / 2,
+    );
+    end = Math.min(
+      halfEnd - minimumStraight,
+      middle + minimumSpan / 2,
+    );
+  }
+  return { start, end };
+}
+
 /** Every centerline file per game (basename without -centerline.csv suffix). */
 export function listAllCenterlines(): { gameId: GameId; slug: string; file: string }[] {
   const found: { gameId: GameId; slug: string; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
-    if (dir === NO_CENTERLINE_DIR) continue;
-    if (!existsSync(dir)) continue;
-    for (const f of readdirSync(dir)) {
-      if (!f.endsWith("-centerline.csv")) continue;
-      found.push({ gameId, slug: f.replace(/-centerline\.csv$/, ""), file: resolve(dir, f) });
+  const seen = new Set<string>();
+  for (const identity of listTrackAssetIdentities()) {
+    const sharedSlug = sharedAccGeometrySlug(identity);
+    const slug = identity.factsSlug ?? sharedSlug ?? `${identity.gameId}-${identity.ordinal}`;
+    let file = bundledGeometryPath(identity, "centerline");
+    if (!existsSync(file) && sharedSlug) {
+      file = bundledSharedGeometryPath(identity, "acc", sharedSlug, "centerline") ?? file;
     }
+    const key = `${identity.gameId}:${file}`;
+    if (!existsSync(file) || seen.has(key)) continue;
+    seen.add(key);
+    found.push({ gameId: identity.gameId, slug, file });
   }
   return found;
 }
@@ -354,11 +570,10 @@ export function writeTrackMeta(
   if (writable.length === 0) return [];
   const existingGeometry: Record<string, TrackGeometry> = {};
   for (const a of writable) {
-    const geom = loadTrackGeometry(slug, a.gameId);
-    if (geom) existingGeometry[a.gameId] = geom;
+    const geometry = loadTrackGeometryForGame(slug, a.gameId);
+    if (geometry) existingGeometry[a.gameId] = geometry;
   }
-  const { facts: updatedFacts, geometry } = buildUpdatedMeta(slug, facts, existingGeometry, writable);
-  saveTrackFacts(slug, updatedFacts);
-  for (const [gameId, geom] of Object.entries(geometry)) saveTrackGeometry(slug, gameId, geom);
+  const updated = buildUpdatedMeta(slug, facts, existingGeometry, writable);
+  saveTrackMetadata(slug, updated.facts, updated.geometry);
   return writable.map((a) => a.gameId);
 }

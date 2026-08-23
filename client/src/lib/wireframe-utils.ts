@@ -17,15 +17,73 @@ export function makeWheelGeometries(radius: number, width: number) {
   rim.rotateX(Math.PI / 2);
   return { tire, rim };
 }
+/** Build a coil and damper along any chassis-to-wheel axis. */
+export function makeSuspensionSpringGeometry(bodyPos: [number, number, number], wheelPos: [number, number, number], coilRadius: number, coils: number, damperExtension: number) {
+  const bottom = new THREE.Vector3(...wheelPos);
+  const direction = new THREE.Vector3(...bodyPos).sub(bottom);
+  const height = direction.length();
+  if (height <= Number.EPSILON) {
+    return { coilPoints: [wheelPos, bodyPos], rodPoints: [wheelPos, bodyPos] };
+  }
 
-/** Convert signed int8 steering input to a bounded front-wheel angle. */
-export function steeringAngleRadians(steerInput: number): number {
-  return steerInput === 0 ? 0 : -(steerInput / 127) * 0.35;
+  direction.multiplyScalar(1 / height);
+  const reference = Math.abs(direction.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const radialA = new THREE.Vector3().crossVectors(direction, reference).normalize();
+  const radialB = new THREE.Vector3().crossVectors(direction, radialA).normalize();
+  const segments = coils * 12;
+  const coilPoints: [number, number, number][] = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const angle = t * coils * Math.PI * 2;
+    const radialACoefficient = Math.cos(angle) * coilRadius;
+    const radialBCoefficient = Math.sin(angle) * coilRadius;
+    coilPoints.push([
+      wheelPos[0] + (bodyPos[0] - wheelPos[0]) * t + radialA.x * radialACoefficient + radialB.x * radialBCoefficient,
+      wheelPos[1] + (bodyPos[1] - wheelPos[1]) * t + radialA.y * radialACoefficient + radialB.y * radialBCoefficient,
+      wheelPos[2] + (bodyPos[2] - wheelPos[2]) * t + radialA.z * radialACoefficient + radialB.z * radialBCoefficient,
+    ]);
+  }
+
+  return {
+    coilPoints,
+    rodPoints: [
+      bottom.clone().addScaledVector(direction, -damperExtension).toArray() as [number, number, number],
+      new THREE.Vector3(...bodyPos).addScaledVector(direction, damperExtension).toArray() as [number, number, number],
+    ],
+  };
 }
 
-/** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
-export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
-  return inactive.clone().lerp(active, rawInput / 255);
+/** Convert normalized steering input to a bounded front-wheel angle. */
+export function steeringAngleRadians(steeringRatio: number): number {
+  return steeringRatio === 0 ? 0 : -steeringRatio * 0.35;
+}
+
+/** Use measured wheel speed when supported; otherwise derive visual rolling from v = ωr. */
+export function visualWheelRotationSpeed(measuredRadS: unknown, speedMps: number, radiusM: number, measurementAvailable: boolean): number {
+  if (measurementAvailable && typeof measuredRadS === "number" && Number.isFinite(measuredRadS)) return measuredRadS;
+  if (!Number.isFinite(speedMps) || !Number.isFinite(radiusM) || radiusM <= 0) return 0;
+  return speedMps / radiusM;
+}
+/**
+ * Split semantic attitude between complete vehicle and suspension-articulated chassis.
+ * Raw channels include road banking/gradient, so they rotate running gear too.
+ * Suspension estimates only move chassis when corresponding raw channel is absent.
+ */
+export function setVehicleAttitudeRotations(
+  vehicleRotation: THREE.Euler,
+  chassisRotation: THREE.Euler,
+  rawRoll: number | null,
+  rawPitch: number | null,
+  suspensionRoll: number,
+  suspensionPitch: number,
+): void {
+  vehicleRotation.set(rawRoll ?? 0, 0, rawPitch ?? 0, "YXZ");
+  chassisRotation.set(rawRoll == null ? suspensionRoll : 0, 0, rawPitch == null ? suspensionPitch : 0, "YXZ");
+}
+
+/** Interpolate a normalized pedal ratio into its rendered 3D line color. */
+export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, inputRatio: number): THREE.Color {
+  return inactive.clone().lerp(active, Math.min(1, Math.max(0, inputRatio)));
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────
@@ -81,6 +139,9 @@ export const THREE_COLORS = {
   },
   get trackCurbRight() {
     return threeColor("var(--track-curb-right)");
+  },
+  get trackRacingLine() {
+    return threeColor("var(--track-racing-line)");
   },
   get loadDistribution() {
     return threeColor("var(--load-distribution)");
@@ -291,16 +352,7 @@ export function buildTrackIndex(pts: ReadonlyArray<{ x: number; z: number }>, ch
  * (invariant of yaw, since chunks are fixed), then falls through to the
  * exact rotated-window check per point.
  */
-export function filterByDistanceIndexed(
-  index: TrackIndex,
-  cx: number,
-  cz: number,
-  yaw: number,
-  y: number,
-  ahead = DIST_AHEAD,
-  behind = DIST_BEHIND,
-  lateral = DIST_LATERAL,
-): FilteredTrackSegment[] {
+export function filterByDistanceIndexed(index: TrackIndex, cx: number, cz: number, yaw: number, y: number, ahead = DIST_AHEAD, behind = DIST_BEHIND, lateral = DIST_LATERAL): FilteredTrackSegment[] {
   const pts = index.pts;
   if (!Array.isArray(pts) || pts.length === 0) return [];
 

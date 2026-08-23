@@ -1,18 +1,14 @@
 /**
  * Import F1 track outlines from TUMFTM/racetrack-database.
  * Downloads centerline + widths, normalizes orientation, computes edges,
- * saves to shared/data/tracks/tumftm/.
+ * saves shared source geometry at each canonical root venue.
  *
  * Run: bun run scripts/games/f1-2025/import-tracks.ts
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
-
-const REPO_ROOT = resolve(import.meta.dir, "../../..");
-const OUT_DIR = resolve(REPO_ROOT, "shared/data/tracks/tumftm");
-
-if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { bundledSharedGeometryPath, findTrackAssetIdentities } from "../../../shared/racing/tracks/storage/assets";
 
 const BASE = "https://raw.githubusercontent.com/TUMFTM/racetrack-database/master/tracks";
 
@@ -178,6 +174,14 @@ function pointsToCsv(points: Point[]): string {
 // ── Import ────────────────────────────────────────────────────────────────
 
 async function importTrack(name: string, tumftmName: string): Promise<boolean> {
+  const identity = findTrackAssetIdentities(name)[0];
+  const centerlinePath = identity && bundledSharedGeometryPath(identity, "tumftm", name, "centerline");
+  const boundariesPath = identity && bundledSharedGeometryPath(identity, "tumftm", name, "boundaries");
+  if (!identity || !centerlinePath || !boundariesPath) {
+    console.log(`[${name}] No canonical registry assignment, skipping`);
+    return false;
+  }
+  mkdirSync(dirname(centerlinePath), { recursive: true });
   const url = `${BASE}/${tumftmName}.csv`;
   console.log(`[${name}] Fetching ${url}...`);
 
@@ -212,7 +216,7 @@ async function importTrack(name: string, tumftmName: string): Promise<boolean> {
 
   // Save centerline
   const centerCsv = pointsToCsv(centerline.map(p => ({ x: p.x, z: p.z })));
-  writeFileSync(resolve(OUT_DIR, `${name}-centerline.csv`), centerCsv);
+  writeFileSync(centerlinePath, centerCsv);
 
   // Compute and save edges
   const { left, right, center: ctr } = computeEdges(centerline);
@@ -223,7 +227,7 @@ async function importTrack(name: string, tumftmName: string): Promise<boolean> {
     pitLane: null,
     coordSystem: "normalized",
   };
-  writeFileSync(resolve(OUT_DIR, `${name}-boundaries.json`), JSON.stringify(boundaryData));
+  writeFileSync(boundariesPath, JSON.stringify(boundaryData));
 
   console.log(`[${name}] Saved: ${centerline.length} center pts, ${left.length} edge pts`);
   return true;

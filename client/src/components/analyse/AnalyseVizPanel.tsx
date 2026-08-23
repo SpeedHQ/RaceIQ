@@ -7,7 +7,7 @@ import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, TrackMapBoundaries } from "./track-map/types";
+import type { Point, TrackMapBoundaries } from "../track-map/types";
 
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
@@ -87,6 +87,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
         <div className="relative min-h-0 w-full flex-1">
           {visualFrame && (
             <CarWireframe
+              gameId={gameId}
               frame={visualFrame}
               telemetry={displayTelemetry}
               cursorRef={cursorRef}
