@@ -11,9 +11,6 @@ export function SoundSection() {
   const [soundVolume, setSoundVolumeState] = useState(() => getSoundVolume());
   const [soundType, setSoundTypeState] = useState(() => getSoundType());
   const [soundUrl, setSoundUrlState] = useState(() => getSoundUrl());
-  const [liveUiEnabled, setLiveUiEnabled] = useState(() => localStorage.getItem("live-engineer-ui-enabled") !== "false");
-  const [liveVoiceEnabled, setLiveVoiceEnabled] = useState(() => localStorage.getItem("live-engineer-voice-enabled") === "true");
-  const [liveVoiceVolume, setLiveVoiceVolume] = useState(() => Number(localStorage.getItem("live-engineer-voice-volume") ?? "0.8"));
   return (
     <section>
       <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_sound()}</h2>
@@ -100,15 +97,6 @@ export function SoundSection() {
             setSoundVolume(v);
           }}
         />
-      </div>
-      <div className="mb-4 border-t border-app-border pt-4">
-        <Label className="text-app-text-secondary mb-2 block">Live Engineer</Label>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant={liveUiEnabled ? "selected-toggle" : "outline"} onClick={() => { const next = !liveUiEnabled; setLiveUiEnabled(next); localStorage.setItem("live-engineer-ui-enabled", String(next)); }}>{liveUiEnabled ? "Callouts on" : "Callouts off"}</Button>
-          <Button size="sm" variant={liveVoiceEnabled ? "selected-toggle" : "outline"} onClick={() => { const next = !liveVoiceEnabled; setLiveVoiceEnabled(next); localStorage.setItem("live-engineer-voice-enabled", String(next)); }}>{liveVoiceEnabled ? "Voice on" : "Voice off"}</Button>
-        </div>
-        <Label htmlFor="live-engineer-volume" className="mt-3 block text-xs text-app-text-secondary">Engineer voice — {Math.round(liveVoiceVolume * 100)}%</Label>
-        <input id="live-engineer-volume" type="range" min="0" max="100" value={Math.round(liveVoiceVolume * 100)} onChange={(event) => { const next = Number(event.target.value) / 100; setLiveVoiceVolume(next); localStorage.setItem("live-engineer-voice-volume", String(next)); }} className="w-64 accent-app-accent" />
       </div>
       <div>
         <Label className="text-app-text-secondary mb-2 block">{m.label_preview()}</Label>

@@ -14,7 +14,6 @@ import { RaceResultStatus } from "../components/RaceResultStatus";
 import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
 import { StaleLapReprocessing } from "../components/StaleLapReprocessing";
 import { UpdateModal } from "../components/UpdateModal";
-import { LiveEngineerOverlay } from "../components/live-engineer/LiveEngineerOverlay";
 import { Button } from "../components/ui/button";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -96,7 +95,8 @@ function AppShell() {
         <ResponsiveWorkspace className="overflow-hidden">
           <Outlet key={uiLocale} />
         </ResponsiveWorkspace>
-        <LiveEngineerOverlay />
+        <StaleLapReprocessing />
+        <RaceResultStatus compact />
       </div>
     );
   }
@@ -179,7 +179,6 @@ function AppShell() {
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
-      <LiveEngineerOverlay />
       <StaleLapReprocessing />
       <RaceResultStatus compact />
     </>

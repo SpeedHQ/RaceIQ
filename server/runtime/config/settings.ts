@@ -50,6 +50,16 @@ const AppSettingsSchema = z.object({
   // size of the per-lap TelemetryPacket[] cache used by analyse/compare/chat
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
+  radioSpotterEnabled: z.boolean().default(false),
+  radioRaceEngineerEnabled: z.boolean().default(false),
+  radioTextCalloutsEnabled: z.boolean().default(true),
+  radioVolume: z.number().min(0).max(1).default(0.8),
+  opponentPaceWithinPercent: z.number().min(0.1).max(2).default(0.3),
+  opponentPaceOffPercent: z.number().min(0.1).max(10).default(1),
+  opponentPaceOutlierPercent: z.number().min(0.1).max(25).default(5),
+  opponentPaceCooldownMs: z.number().int().min(10_000).max(300_000).default(60_000),
+  opponentPaceRecentLapCount: z.number().int().min(2).max(5).default(3),
+  opponentPaceMaxQueue: z.number().int().min(1).max(5).default(3),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),
   // Community-tunes CDN sync bookkeeping. Not user-facing; written by the
@@ -58,9 +68,14 @@ const AppSettingsSchema = z.object({
   communityTunesSyncedAt: z.string().nullable().default(null),
 });
 
+const SettingsValidationSchema = AppSettingsSchema.superRefine((settings, ctx) => {
+  if (settings.opponentPaceOffPercent <= settings.opponentPaceWithinPercent) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["opponentPaceOffPercent"], message: "off threshold must exceed within threshold" });
+  if (settings.opponentPaceOutlierPercent <= settings.opponentPaceOffPercent) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["opponentPaceOutlierPercent"], message: "outlier threshold must exceed off threshold" });
+});
+
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
 
-const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
+const DEFAULTS: AppSettings = SettingsValidationSchema.parse({});
 
 function ensureSettingsDir(): void {
   if (!existsSync(SETTINGS_DIR)) {
@@ -123,7 +138,7 @@ export function loadSettings(): AppSettings {
       }
     }
 
-    const result = AppSettingsSchema.parse(parsed);
+    const result = SettingsValidationSchema.parse(parsed);
     // Always sync launchOnLogin from the actual registry state
     result.launchOnLogin = isLaunchOnLoginEnabled();
     return result;
@@ -137,7 +152,7 @@ export function loadSettings(): AppSettings {
 export function saveSettings(settings: AppSettings): void {
   ensureSettingsDir();
   // Validate before writing
-  const validated = AppSettingsSchema.parse(settings);
+  const validated = SettingsValidationSchema.parse(settings);
   const tmpPath = `${SETTINGS_PATH}.tmp`;
   writeFileSync(tmpPath, `${JSON.stringify(validated, null, 2)}\n`);
   renameSync(tmpPath, SETTINGS_PATH);

@@ -3,7 +3,7 @@ import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
 
-export function RaceResultStatus({ compact = false }: { compact?: boolean }) {
+export function RaceResultStatus({ compact = false, placement = "fixed" }: { compact?: boolean; placement?: "fixed" | "inline" }) {
   const stale = useTelemetryStore((s) => s.staleRaceResults);
   const progress = useTelemetryStore((s) => s.raceResultReprocessProgress);
   const error = useTelemetryStore((s) => s.raceResultReprocessError);
@@ -35,7 +35,7 @@ export function RaceResultStatus({ compact = false }: { compact?: boolean }) {
 
   if (compact) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl">
+      <div className={`${placement === "fixed" ? "fixed bottom-4 right-4 z-50 " : ""}w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl`}>
         <div className="mb-2 flex items-center gap-2">
           <RefreshCw className="size-4 shrink-0 text-status-info" />
           <span className="text-sm font-semibold text-app-text">{m.root_race_results_outdated()}</span>

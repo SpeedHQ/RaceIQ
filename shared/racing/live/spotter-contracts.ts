@@ -55,3 +55,8 @@ export function isSpotterFrameV1(value: unknown): value is SpotterFrameV1 {
   const player = v.player as Record<string, unknown> | undefined;
   return typeof v.sessionId === "string" && Number.isInteger(v.timelineEpoch) && Number.isInteger(v.sourceSequence) && Number.isFinite(v.sessionTimeMs) && !!player && ["x", "z", "rotationRad", "speedMps", "widthM", "lengthM"].every((key) => typeof player[key] === "number" && Number.isFinite(player[key])) && Array.isArray(v.opponents);
 }
+export function isSpotterRenderParametersV1(value: unknown): value is SpotterRenderParametersV1 {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return isSpotterStateV1(v.state) && (v.side === undefined || v.side === "left" || v.side === "right") && typeof v.overlapCount === "number" && Number.isInteger(v.overlapCount) && v.overlapCount >= 0;
+}

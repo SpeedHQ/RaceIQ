@@ -1491,5 +1491,15 @@
   "trackdetailroute_not_found": "Track not found",
   "trackinfo_guide": "Expert guide",
   "trackinfo_priority": "priority",
-  "trackinfo_trap": "Trap:"
+  "trackinfo_trap": "Trap",
+  "label_radio": "Radio",
+  "settings_radio_desc": "Control Spotter and Race Engineer audio.",
+  "settings_radio_spotter": "Spotter",
+  "settings_radio_spotter_desc": "Warn when a car is alongside.",
+  "settings_radio_race_engineer": "Race Engineer",
+  "settings_radio_race_engineer_desc": "Announce opponent pace after completed laps.",
+  "settings_radio_text_callouts": "Text callouts",
+  "settings_radio_text_callouts_desc": "Show opponent pace callouts on screen.",
+  "settings_radio_volume": "Radio volume",
+  "settings_radio_save_failed": "Failed to save Radio settings."
 }

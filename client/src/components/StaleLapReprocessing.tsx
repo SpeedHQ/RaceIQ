@@ -16,7 +16,7 @@ function ReprocessStatusIcon({ status }: { status: "submitting" | "progressing" 
   return <RefreshCw aria-hidden="true" className="size-5 shrink-0 animate-spin text-status-info" />;
 }
 
-export function StaleLapReprocessing() {
+export function StaleLapReprocessing({ notificationPlacement = "fixed" }: { notificationPlacement?: "fixed" | "inline" } = {}) {
   const staleLapDetection = useTelemetryStore((state) => state.staleLapDetection);
   const reprocessState = useTelemetryStore((state) => state.reprocessState);
   const dismissReprocess = useTelemetryStore((state) => state.dismissReprocess);
@@ -57,7 +57,7 @@ export function StaleLapReprocessing() {
   return (
     <>
       {showNotification && (
-        <div role="status" className="fixed right-4 bottom-4 z-50 w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl">
+        <div role="status" className={`${notificationPlacement === "fixed" ? "fixed right-4 bottom-4 z-50 " : ""}w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl`}>
           <div className="mb-2 flex items-center gap-2">
             <RefreshCw aria-hidden="true" className="size-4 shrink-0 text-status-info" />
             <span className="text-sm font-semibold text-app-text">{m.root_lap_detection_updated()}</span>

@@ -29,6 +29,7 @@ export class LiveEngineerRuntime {
   private readonly queue: LiveEngineerRuntimeCandidate[] = [];
   private readonly semantic = new Set<string>();
   private readonly cooldown = new Map<string, number>();
+  private readonly fastestBypassUsed = new Set<string>();
   private readonly recent: LiveEngineerDecisionV1[] = [];
   private currentSession: string | undefined;
   private currentEpoch = 0;
@@ -36,14 +37,17 @@ export class LiveEngineerRuntime {
     this.now = options.now ?? (() => Date.now()); this.maxQueue = options.maxQueue ?? 3; this.cooldownMs = options.cooldownMs ?? 60_000;
     this.onDecision = options.onDecision; this.onSelected = options.onSelected; this.revalidate = options.revalidate ?? (() => true);
   }
-  reset(sessionId?: string, timelineEpoch = this.currentEpoch + 1): void { this.queue.length = 0; this.semantic.clear(); this.cooldown.clear(); this.currentSession = sessionId; this.currentEpoch = timelineEpoch; }
+  reset(sessionId?: string, timelineEpoch = this.currentEpoch + 1): void { this.queue.length = 0; this.semantic.clear(); this.cooldown.clear(); this.fastestBypassUsed.clear(); this.currentSession = sessionId; this.currentEpoch = timelineEpoch; }
   submit(candidate: LiveEngineerRuntimeCandidate): LiveEngineerDecisionV1 {
     const now = this.now(); this.prune(now);
     const make = (reason: LiveEngineerDecisionReasonV1): LiveEngineerDecisionV1 => { const d = { candidateId: candidate.candidateId, decisionId: `${candidate.candidateId}/${candidate.policyVersion}`, reason, decidedSessionTimeMs: now }; this.recent.push(d); this.recent.splice(0, Math.max(0, this.recent.length - 64)); this.onDecision?.(d); return d; };
     if (candidate.expiresSessionTimeMs <= now) return make("expired");
     if (this.currentSession !== undefined && (candidate.sessionId !== this.currentSession || candidate.timelineEpoch !== this.currentEpoch)) return make("wrong-session");
     if (this.semantic.has(candidate.candidateId)) return make("semantic-duplicate");
-    const last = this.cooldown.get(candidate.cooldownGroup); if (last !== undefined && now - last < this.cooldownMs && candidate.renderParameters.relation !== "fastest-in-class") return make("cooldown-active");
+    const last = this.cooldown.get(candidate.cooldownGroup);
+    const bypassFastest = candidate.renderParameters.relation === "fastest-in-class" && !this.fastestBypassUsed.has(candidate.cooldownGroup);
+    if (last !== undefined && now - last < this.cooldownMs && !bypassFastest) return make("cooldown-active");
+    if (bypassFastest) this.fastestBypassUsed.add(candidate.cooldownGroup);
     this.semantic.add(candidate.candidateId); this.queue.push(candidate); this.queue.sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.sourceSequence - b.sourceSequence);
     if (this.queue.length > this.maxQueue) { const dropped = this.queue.pop()!; if (dropped.candidateId === candidate.candidateId) return make("queue-capacity"); this.onDecision?.({ candidateId: dropped.candidateId, decisionId: `${dropped.candidateId}/${dropped.policyVersion}`, reason: "queue-capacity", decidedSessionTimeMs: now }); }
     return make("selected");

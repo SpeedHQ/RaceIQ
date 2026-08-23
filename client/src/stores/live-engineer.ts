@@ -3,8 +3,6 @@ import type { LiveEngineerCalloutMessageV1, LiveEngineerDeliveryStatusV1, LiveEn
 
 export type LiveEngineerCallout = LiveEngineerCalloutMessageV1;
 interface LiveEngineerState {
-  enabled: boolean;
-  voiceEnabled: boolean;
   current: LiveEngineerCalloutMessageV1 | null;
   queue: LiveEngineerCalloutMessageV1[];
   history: LiveEngineerCalloutMessageV1[];
@@ -16,18 +14,18 @@ interface LiveEngineerState {
   enqueueControl: (control: LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1) => void;
   takeOutbound: () => LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1 | undefined;
   dismiss: () => void;
-  setEnabled: (enabled: boolean) => void;
-  setVoiceEnabled: (enabled: boolean) => void;
   setPlayback: (playback: LiveEngineerState["playback"]) => void;
 }
 export const useLiveEngineerStore = create<LiveEngineerState>((set, get) => ({
-  enabled: true, voiceEnabled: false, current: null, queue: [], history: [], permit: null, playback: "idle", outbound: [],
-  receiveCallout: (callout) => set((state) => { const queue = state.current ? [...state.queue, callout].slice(-3) : state.queue; return { current: state.current ?? callout, queue, history: [callout, ...state.history].slice(0, 5) }; }),
+  current: null, queue: [], history: [], permit: null, playback: "idle", outbound: [],
+  receiveCallout: (callout) => set((state) => {
+    const spotter = callout.family === "spotter";
+    const queue = spotter ? [callout, ...state.queue.filter((item) => item.family === "spotter")].slice(0, 3) : [...state.queue, callout].slice(-3);
+    return { current: spotter || !state.current ? callout : state.current, queue: spotter && state.current ? [state.current, ...queue].slice(0, 3) : queue, history: [callout, ...state.history].slice(0, 5), permit: null };
+  }),
   receivePermit: (permit) => set({ permit }),
   enqueueControl: (control) => set((state) => ({ outbound: [...state.outbound, control] })),
   takeOutbound: () => { const next = get().outbound[0]; if (next) set((state) => ({ outbound: state.outbound.slice(1) })); return next; },
   dismiss: () => set((state) => ({ current: state.queue[0] ?? null, queue: state.queue.slice(1), playback: "idle", permit: null })),
-  setEnabled: (enabled) => set({ enabled }),
-  setVoiceEnabled: (voiceEnabled) => set({ voiceEnabled }),
   setPlayback: (playback) => set({ playback }),
 }));
