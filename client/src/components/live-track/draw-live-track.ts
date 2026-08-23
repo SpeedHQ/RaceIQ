@@ -3,6 +3,7 @@ import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import type { MutableRefObject, RefObject } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 
 export interface Point {
@@ -22,6 +23,7 @@ export function drawLiveTrack({
   canvasRef,
   packet,
   outline,
+  pitLines,
   noOutline,
   isRecorded,
   startYaw,
@@ -35,6 +37,7 @@ export function drawLiveTrack({
   canvasRef: RefObject<HTMLCanvasElement | null>;
   packet: TelemetryPacket | null;
   outline: Point[] | null;
+  pitLines: PitLine[];
   noOutline: boolean;
   isRecorded: boolean;
   startYaw: number | null;
@@ -77,8 +80,8 @@ export function drawLiveTrack({
 
   const isLiveTrace = !outline && !boundaryCenter;
 
-  // Fit-to-canvas: compute bounding box, then uniform scale to preserve aspect ratio
-  // Include boundary edges in bounding box so they don't clip
+  // Fit the racing surface and boundary edges. Pit-road markings use this
+  // transform without shrinking the main track.
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let minZ = Number.POSITIVE_INFINITY;
@@ -111,6 +114,8 @@ export function drawLiveTrack({
   function toCanvas(x: number, z: number): [number, number] {
     return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
+
+  drawPitLines(ctx, pitLines, toCanvas);
 
   // Compute jump threshold: skip segments where world-space distance is abnormally large.
   // Use the 90th percentile * 3 to avoid breaking at normal sparse sections (straights).

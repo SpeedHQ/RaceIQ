@@ -1,7 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
-import { csvCell } from "../lib/csv";
-import { optionValue } from "../lib/cli";
 
 const DEFAULT_SOURCE = "https://raw.githubusercontent.com/jasondilworth56/iracingdataapi/main/tests/mock_return_data/get_cars.json";
 const DEFAULT_OUTPUT = resolve(import.meta.dir, "../../shared/games/iracing/cars.csv");
@@ -12,10 +16,17 @@ const IMAGE_DOWNLOAD_CONCURRENCY = 8;
 interface IRacingDataApiCar {
   car_id?: unknown;
   car_name?: unknown;
+  car_name_abbreviated?: unknown;
   car_dirpath?: unknown;
   categories?: unknown;
   folder?: unknown;
   small_image?: unknown;
+  hp?: unknown;
+  car_weight?: unknown;
+  has_headlights?: unknown;
+  rain_enabled?: unknown;
+  has_multiple_dry_tire_types?: unknown;
+  search_filters?: unknown;
   retired?: unknown;
 }
 
@@ -26,7 +37,24 @@ interface SeedCar {
   category: string;
   imageUrl: string;
   sourceImageUrl: string;
+  shortName: string;
+  hp: number;
+  weightLb: number;
+  hasHeadlights: boolean;
+  rainEnabled: boolean;
+  hasMultipleDryTireTypes: boolean;
+  searchTerms: string;
   retired: boolean;
+}
+
+function optionValue(name: string): string | undefined {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+function csvCell(value: string | number | boolean): string {
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 function sourceImageUrl(folder: string, image: string): string {
@@ -73,6 +101,8 @@ function parseCars(payload: unknown, includeRetired: boolean): SeedCar[] {
       !Number.isInteger(row.car_id) ||
       typeof row.car_name !== "string" ||
       !row.car_name.trim() ||
+      typeof row.car_name_abbreviated !== "string" ||
+      !row.car_name_abbreviated.trim() ||
       typeof row.car_dirpath !== "string" ||
       !row.car_dirpath.trim() ||
       !Array.isArray(row.categories) ||
@@ -83,10 +113,18 @@ function parseCars(payload: unknown, includeRetired: boolean): SeedCar[] {
       !row.folder.trim() ||
       typeof row.small_image !== "string" ||
       !row.small_image.trim() ||
+      typeof row.hp !== "number" ||
+      !Number.isFinite(row.hp) ||
+      typeof row.car_weight !== "number" ||
+      !Number.isFinite(row.car_weight) ||
+      typeof row.has_headlights !== "boolean" ||
+      typeof row.rain_enabled !== "boolean" ||
+      typeof row.has_multiple_dry_tire_types !== "boolean" ||
+      typeof row.search_filters !== "string" ||
       typeof row.retired !== "boolean"
     ) {
       throw new Error(
-        `Invalid /data/car/get row at index ${index}: expected car_id, car_name, car_dirpath, one category, folder, small_image, and retired`,
+        `Invalid /data/car/get row at index ${index}: expected native identity, category, image, specifications, capabilities, search filters, and retired`,
       );
     }
     const ordinal = row.car_id as number;
@@ -98,6 +136,13 @@ function parseCars(payload: unknown, includeRetired: boolean): SeedCar[] {
       category: row.categories[0].trim(),
       imageUrl: localImageUrl(ordinal, image),
       sourceImageUrl: sourceImageUrl(row.folder, image),
+      shortName: row.car_name_abbreviated.trim(),
+      hp: row.hp,
+      weightLb: row.car_weight,
+      hasHeadlights: row.has_headlights,
+      rainEnabled: row.rain_enabled,
+      hasMultipleDryTireTypes: row.has_multiple_dry_tire_types,
+      searchTerms: row.search_filters.trim(),
       retired: row.retired,
     };
   });
@@ -120,13 +165,26 @@ function parseCars(payload: unknown, includeRetired: boolean): SeedCar[] {
   return filtered.sort((a, b) => a.ordinal - b.ordinal);
 }
 
-async function downloadImages(cars: SeedCar[], outputDir: string): Promise<void> {
+async function downloadImages(
+  cars: SeedCar[],
+  outputDir: string,
+  reuseImages: boolean,
+): Promise<number> {
   mkdirSync(outputDir, { recursive: true });
   let nextIndex = 0;
+  let downloaded = 0;
 
   async function worker(): Promise<void> {
     while (nextIndex < cars.length) {
       const car = cars[nextIndex++];
+      const imagePath = resolve(outputDir, basename(car.imageUrl));
+      if (
+        reuseImages &&
+        existsSync(imagePath) &&
+        statSync(imagePath).size > 0
+      ) {
+        continue;
+      }
       const response = await fetch(car.sourceImageUrl, {
         headers: { "User-Agent": "RaceIQ iRacing car catalog vendor" },
       });
@@ -145,7 +203,8 @@ async function downloadImages(cars: SeedCar[], outputDir: string): Promise<void>
       if (bytes.length === 0) {
         throw new Error(`Downloaded an empty image for iRacing car ${car.ordinal} from ${car.sourceImageUrl}`);
       }
-      writeFileSync(resolve(outputDir, basename(car.imageUrl)), bytes);
+      writeFileSync(imagePath, bytes);
+      downloaded++;
     }
   }
 
@@ -155,11 +214,12 @@ async function downloadImages(cars: SeedCar[], outputDir: string): Promise<void>
       () => worker(),
     ),
   );
+  return downloaded;
 }
 
 function writeCatalog(output: string, cars: SeedCar[]): void {
   const lines = [
-    "ordinal,name,path,category,imageUrl",
+    "ordinal,name,path,category,imageUrl,shortName,hp,weightLb,hasHeadlights,rainEnabled,hasMultipleDryTireTypes,searchTerms",
     ...cars.map((car) =>
       [
         csvCell(car.ordinal),
@@ -167,6 +227,13 @@ function writeCatalog(output: string, cars: SeedCar[]): void {
         csvCell(car.path),
         csvCell(car.category),
         csvCell(car.imageUrl),
+        csvCell(car.shortName),
+        csvCell(car.hp),
+        csvCell(car.weightLb),
+        csvCell(car.hasHeadlights),
+        csvCell(car.rainEnabled),
+        csvCell(car.hasMultipleDryTireTypes),
+        csvCell(car.searchTerms),
       ].join(","),
     ),
   ];
@@ -179,9 +246,11 @@ const output = resolve(optionValue("--output") ?? DEFAULT_OUTPUT);
 const imagesOutput = resolve(optionValue("--images-output") ?? DEFAULT_IMAGES_OUTPUT);
 const includeRetired = process.argv.includes("--include-retired");
 const skipImages = process.argv.includes("--skip-images");
+const reuseImages = process.argv.includes("--reuse-images");
 const cars = parseCars(await readSource(source), includeRetired);
+let downloadedImages = 0;
 if (!skipImages) {
-  await downloadImages(cars, imagesOutput);
+  downloadedImages = await downloadImages(cars, imagesOutput, reuseImages);
 }
 writeCatalog(output, cars);
 
@@ -189,6 +258,6 @@ console.log(`[iRacing Cars] Seeded ${cars.length} ${includeRetired ? "total" : "
 console.log(
   skipImages
     ? "[iRacing Cars] Kept the existing bundled car images"
-    : `[iRacing Cars] Downloaded ${cars.length} bundled car images to ${imagesOutput}`,
+    : `[iRacing Cars] Downloaded ${downloadedImages} bundled car images to ${imagesOutput}`,
 );
 console.log(`[iRacing Cars] Source: ${source}`);

@@ -1,4 +1,5 @@
 import type { IRacingSessionSnapshot } from "./source-frame";
+import { getIRacingCarClassName } from "../../../shared/racing/cars/iracing-classes";
 
 function unquote(value: string): string {
   const trimmed = value.trim();
@@ -128,11 +129,12 @@ export function parseIRacingSessionInfo(
   yaml: string,
   sessionNumOverride?: number,
 ): IRacingSessionSnapshot {
-  const lines = yaml.replace(/\r\n/g, "\n").split("\n");
+  const lines = yaml.split(/\r?\n/);
   const driverCarIdx = toNumber(findScalar(lines, "DriverCarIdx"), -1);
   const driver = parseDrivers(lines).find(
     (entry) => toNumber(entry.CarIdx, -2) === driverCarIdx,
   );
+  const carClassId = toNumber(driver?.CarClassID, -1);
 
   const trackName =
     findScalar(lines, "TrackDisplayName") ??
@@ -155,8 +157,11 @@ export function parseIRacingSessionInfo(
       driver?.CarScreenNameShort ??
       driver?.CarPath ??
       "Unknown iRacing car",
-    carClassId: toNumber(driver?.CarClassID, -1),
-    carClassName: driver?.CarClassShortName ?? driver?.CarClassRelSpeed ?? "Unknown class",
+    carClassId,
+    carClassName:
+      driver?.CarClassShortName ??
+      getIRacingCarClassName(carClassId) ??
+      "Unknown class",
     engineIdleRpm: toNumber(findScalar(lines, "DriverCarIdleRPM"), 0),
     engineRedlineRpm: toNumber(findScalar(lines, "DriverCarRedLine"), 0),
     engineCylinderCount: toNumber(findScalar(lines, "DriverCarEngCylinderCount"), 0),
