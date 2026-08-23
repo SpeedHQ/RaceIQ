@@ -10,6 +10,7 @@ import type { GameId } from "../../shared/games/ids";
 export async function setLapExperimentExcluded(
   lapId: number,
   excluded: boolean,
+  expectedExperimentId?: number,
 ): Promise<
   | { ok: true; prev: boolean; experimentId: number }
   | { ok: false; prev?: never; experimentId?: never }
@@ -34,7 +35,13 @@ export async function setLapExperimentExcluded(
         ),
       )
       .get();
-    if (!row?.experimentId) return { ok: false };
+    if (
+      !row?.experimentId ||
+      (expectedExperimentId !== undefined &&
+        row.experimentId !== expectedExperimentId)
+    ) {
+      return { ok: false };
+    }
 
     await tx
       .update(laps)

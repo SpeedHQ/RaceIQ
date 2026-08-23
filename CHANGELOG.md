@@ -9,6 +9,7 @@
 - Review durable race-event timelines with ordered pit service, penalties, cautions, participant changes, source interruptions, and replayed session evidence
 - Build canonical participant, tire, driver, and pace runs from race-event boundaries for consistent live and replay session summaries
 - Build and verify canonical post-session telemetry archives with bounded DuckDB/Parquet output, retries, and provenance activation
+- Read archived telemetry by participant, stint, lap, corner, and segment while keeping raw captures until verified archive evidence is available
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Track recording and lap telemetry quality across live capture, MoTeC imports, and session archives, including source fidelity, packet gaps, track coverage, and task-specific analysis eligibility

@@ -97,6 +97,67 @@ describe("session quality route semantics", () => {
       canonicalCleanupEligible: false,
     });
   });
+  test("requires gameId before quality reads or rebuilds", async () => {
+    const sessionExistsForGame = mock(async () => true);
+    const getSessionCanonicalAvailability = mock(async () => null);
+    const app = routes({ sessionExistsForGame, getSessionCanonicalAvailability });
+
+    const quality = await app.request("/api/sessions/42/quality");
+    const retention = await app.request("/api/sessions/42/evidence-retention");
+    const preview = await app.request("/api/sessions/42/quality/rebuild-preview");
+    const rebuild = await app.request("/api/sessions/42/quality/rebuild", { method: "POST" });
+
+    expect([quality.status, retention.status, preview.status, rebuild.status]).toEqual([400, 400, 400, 400]);
+    expect(sessionExistsForGame).not.toHaveBeenCalled();
+    expect(getSessionCanonicalAvailability).not.toHaveBeenCalled();
+  });
+
+  test("validates and preserves shared canonical archive availability", async () => {
+    const canonicalArchive = {
+      state: "unavailable" as const,
+      status: "partial" as const,
+      completeness: "partial" as const,
+      archiveId: "canonical-archive:42",
+      generationId: "analysis-generation:42",
+      semanticIds: ["motion.speed" as const],
+      eventIds: [],
+      provenance: null,
+      details: "Canonical archive is partial; raw capture must remain",
+    };
+    const response = await routes({
+      getSessionCanonicalAvailability: async () => canonicalArchive,
+    }).request("/api/sessions/42/evidence-retention?gameId=iracing");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      sessionId: 42,
+      availability: { canonicalArchive },
+    });
+  });
+
+  test("rejects availability outside shared response schema", async () => {
+    const response = await routes({
+      getSessionCanonicalAvailability: async () => ({
+        state: "unavailable",
+        semanticIds: ["unknown.semantic-id"],
+      }) as never,
+    }).request("/api/sessions/42/evidence-retention?gameId=iracing");
+
+    expect(response.status).toBe(500);
+  });
+
+  test("keeps missing evidence-retention sessions game-scoped", async () => {
+    const getSessionCanonicalAvailability = mock(async () => null);
+    const response = await routes({
+      sessionExistsForGame: async () => false,
+      getSessionCanonicalAvailability,
+    }).request("/api/sessions/42/evidence-retention?gameId=acc");
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Session not found" });
+    expect(getSessionCanonicalAvailability).not.toHaveBeenCalled();
+  });
+
   test("maps concurrent quality rebuild to 409", async () => {
     const response = await routes({
       getQualityRebuildStatus: async (sessionId) => status(sessionId, "reprocess"),
@@ -148,7 +209,6 @@ describe("session quality route semantics", () => {
     expect(await response.json()).toMatchObject({ strategy: "current" });
     expect(rebuildSessionEligibility).not.toHaveBeenCalled();
   });
-
   test("returns 404 only when session existence check reports missing", async () => {
     const getQualityRebuildStatus = mock(async (sessionId: number) => status(sessionId, "current"));
     const response = await routes({

@@ -1,4 +1,4 @@
-import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
+import { cacheGet, cacheSet, LapParseError, loadLapTelemetryFromArchive, loadLapsTelemetryFromArchive, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
 import { lapMetaProjection, toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
@@ -284,18 +284,22 @@ export async function getLapById(id: number): Promise<(LapMeta & { telemetry: Te
     .where(eq(laps.id, id))
     .get();
 
-  if (!row) return null;
   const cached = cacheGet(id);
-
+  if (!row) return null;
   if (cached) {
     return buildLapResult(row, cached);
   }
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;
+  try {
+    telemetry = await loadLapTelemetryFromArchive(id, row.sessionId, row.lapNumber) ?? [];
+  } catch (err) {
+    console.error(`[DB] Failed to read canonical archive for lap ${id}:`, err);
+  }
   const rawFile = row.rawFile;
   const rawByteOffset = row.rawByteOffset;
   const rawFrameCount = row.rawFrameCount;
-  const shouldParseRaw = rawFile != null && rawByteOffset != null && rawFrameCount != null;
+  const shouldParseRaw = telemetry.length === 0 && rawFile != null && rawByteOffset != null && rawFrameCount != null;
   if (shouldParseRaw) {
     try {
       telemetry = await parseRawLapFrames(rawFile, rawByteOffset, rawFrameCount, row.gameId as GameId);
@@ -454,15 +458,31 @@ export async function getLapsByIds(ids: number[]): Promise<(LapMeta & { telemetr
 
   const rowById = new Map(rows.map((r) => [r.id, r]));
 
-  // Group cache-miss laps by session raw file so each session decodes once.
   type BatchMeta = { id: number; rawByteOffset: number; rawFrameCount: number };
   const bySession = new Map<string, { gameId: GameId; metas: BatchMeta[] }>();
   const decoded = new Map<number, TelemetryPacket[]>();
-
+  const archiveTargets: { lapId: number; sessionId: number; lapNumber: number }[] = [];
   for (const row of rows) {
     const cached = cacheGet(row.id);
-    if (cached) {
-      decoded.set(row.id, cached);
+    if (cached) decoded.set(row.id, cached);
+    else archiveTargets.push({ lapId: row.id, sessionId: row.sessionId, lapNumber: row.lapNumber });
+  }
+
+  // Resolve every cache-miss lap to its immutable archive read plan before
+  // falling back to raw. Archive groups share one DuckDB connection/query set.
+  let archived = new Map<number, TelemetryPacket[]>();
+  try {
+    archived = await loadLapsTelemetryFromArchive(archiveTargets);
+  } catch (err) {
+    console.error("[DB] Failed to read canonical archive batch:", err);
+  }
+
+  for (const row of rows) {
+    if (decoded.has(row.id)) continue;
+    const archiveTelemetry = archived.get(row.id);
+    if (archiveTelemetry) {
+      cacheSet(row.id, archiveTelemetry);
+      decoded.set(row.id, archiveTelemetry);
       continue;
     }
     if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
