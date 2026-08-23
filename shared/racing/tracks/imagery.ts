@@ -123,12 +123,27 @@ const baseSourceSchema = imageSourceSchema.extend({ provider: z.string().trim().
   }
 });
 
+export const TrackImageryArtifactSchema = z.object({
+  url: z
+    .string()
+    .url()
+    .refine((value) => new URL(value).protocol === "https:", "Artifact URL must use HTTPS"),
+  version: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9][a-z0-9.-]*$/),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  sizeBytes: z.number().int().positive(),
+  attribution: z.string().trim().min(1),
+});
+
 export const TrackImageryVenueManifestSchema = z.object({
   version: z.literal(TRACK_IMAGERY_MANIFEST_VERSION),
   venueId: TrackVenueIdSchema,
   calibration: TrackImageryCalibrationSchema,
   base: z.object({
     pack: z.literal(TRACK_IMAGERY_PACKAGE_NAME),
+    artifact: TrackImageryArtifactSchema.optional(),
     tileSize: z.number().int().positive(),
     bounds: TrackImageryGeographicBoundsSchema,
     source: baseSourceSchema,
@@ -149,6 +164,7 @@ export const TrackImageryLayoutManifestSchema = z.object({
 });
 
 export type TrackImageryVenueManifest = z.infer<typeof TrackImageryVenueManifestSchema>;
+export type TrackImageryArtifact = z.infer<typeof TrackImageryArtifactSchema>;
 export type TrackImageryLayoutManifest = z.infer<typeof TrackImageryLayoutManifestSchema>;
 export type TrackImageryGeographicBounds = z.infer<typeof TrackImageryGeographicBoundsSchema>;
 export type TrackImageryCandidate = z.infer<typeof TrackImageryCandidateSchema>;

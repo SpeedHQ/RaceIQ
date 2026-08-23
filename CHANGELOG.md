@@ -43,6 +43,7 @@
 - Hide unsupported telemetry channels and label iRacing pit snapshots instead of presenting normalized zeroes as live data
 - Resolve car and track names on the global home page in each lap's game context
 - Treat tracks without optional boundary geometry as available instead of failed requests
+- Load curated track imagery from checksum-verified cached artifacts when imagery packs are not bundled
 - Open Analyse from home and session recaps without a full-page white flash
 - Keep Analyse responsive while loading and playing large laps or recovering from server disconnects
 - Keep Analyse 3D playback at configured 60 or 120 FPS while telemetry panels update

@@ -11,17 +11,13 @@ import {
   type TrackImageryLayoutManifest,
   type TrackImageryVenueManifest,
 } from "../../shared/racing/tracks/imagery";
-import {
-  revisionDirectoryPathComponents,
-  canonicalTrackAssetPathComponents,
-  trackConfigurationVenueId,
-  type TrackConfiguration,
-} from "../../shared/racing/tracks/configuration";
+import { revisionDirectoryPathComponents, canonicalTrackAssetPathComponents, trackConfigurationVenueId, type TrackConfiguration } from "../../shared/racing/tracks/configuration";
 import type { GameId } from "../../shared/games/ids";
 import { USER_TRACKS_DIR } from "../../shared/platform/runtime/data-paths";
 import { SHARED_DIR } from "../runtime/config/paths";
 import { listTrackConfigurations, loadTrackConfiguration } from "./configuration";
 import { readTrackImageryPackMetadata, type TrackImageryPackMetadata } from "./imagery-pack";
+import { resolveTrackImageryPackPath } from "./imagery-artifact";
 
 const TRACK_ASSET_ROOT = resolve(SHARED_DIR, "tracks");
 
@@ -43,12 +39,7 @@ export function trackImageryVenueDirectory(venueId: string): string {
 
 function trackImageryLayoutPathForConfiguration(configuration: TrackConfiguration): string {
   const venueId = trackConfigurationVenueId(configuration);
-  return resolve(
-    TRACK_ASSET_ROOT,
-    ...canonicalTrackAssetPathComponents(venueId, configuration.track.id),
-    "imagery",
-    `${configuration.gameId}.json`,
-  );
+  return resolve(TRACK_ASSET_ROOT, ...canonicalTrackAssetPathComponents(venueId, configuration.track.id), "imagery", `${configuration.gameId}.json`);
 }
 
 export function trackImageryLayoutPath(gameId: GameId, trackOrdinal: number): string {
@@ -106,7 +97,7 @@ function textureFile(directory: string, fileName: string): LoadedTrackImageryTex
   return { path, modifiedAtMs: statSync(path).mtimeMs };
 }
 
-export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTrackImagery | null {
+export async function loadTrackImagery(gameId: GameId, trackOrdinal: number): Promise<LoadedTrackImagery | null> {
   const configuration = loadTrackConfiguration(gameId, trackOrdinal);
   if (!configuration) return null;
   const layout = loadTrackImageryLayoutForConfiguration(configuration);
@@ -116,8 +107,8 @@ export function loadTrackImagery(gameId: GameId, trackOrdinal: number): LoadedTr
   if (!venue) throw new Error(`Missing track imagery venue ${venueId}`);
   const directory = trackImageryVenueDirectory(venueId);
   if (venue.base.pack !== TRACK_IMAGERY_PACKAGE_NAME) throw new Error(`Unsupported imagery package ${venue.base.pack}`);
-  const packPath = resolve(directory, TRACK_IMAGERY_PACKAGE_NAME);
-  if (!existsSync(packPath)) throw new Error(`Missing track imagery package ${packPath}`);
+  const localPackPath = resolve(directory, TRACK_IMAGERY_PACKAGE_NAME);
+  const packPath = await resolveTrackImageryPackPath(localPackPath, venue.base.artifact);
   const packMetadata = readTrackImageryPackMetadata(packPath);
   const boundsMatch = JSON.stringify(packMetadata.bounds) === JSON.stringify(venue.base.bounds);
   const resolutionMatch = venue.base.source.storedResolutionM === undefined || venue.base.source.storedResolutionM === packMetadata.resolutionM;

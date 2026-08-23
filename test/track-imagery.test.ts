@@ -131,6 +131,13 @@ test("keeps package base opaque while layers retain independent alpha", () => {
     calibration: { originLatitudeDeg: 29, originLongitudeDeg: -81, imageToEnu: [1, 0, 0, -1, 0, 0] },
     base: {
       pack: TRACK_IMAGERY_PACKAGE_NAME,
+      artifact: {
+        url: "https://assets.example.test/imagery.rqi",
+        version: "track-imagery-v1",
+        sha256: "a".repeat(64),
+        sizeBytes: 4,
+        attribution: "Owned base",
+      },
       tileSize: 512,
       bounds: { west: -81.01, south: 28.99, east: -80.99, north: 29.01 },
       source: {
@@ -147,6 +154,13 @@ test("keeps package base opaque while layers retain independent alpha", () => {
   expect(manifest.version).toBe(2);
   expect(manifest.base).toMatchObject({
     pack: "imagery.rqi",
+    artifact: {
+      url: "https://assets.example.test/imagery.rqi",
+      version: "track-imagery-v1",
+      sha256: "a".repeat(64),
+      sizeBytes: 4,
+      attribution: "Owned base",
+    },
     tileSize: 512,
     bounds: { west: -81.01, south: 28.99, east: -80.99, north: 29.01 },
     source: { provider: "manual", sourceResolutionM: 0.1, storedResolutionM: 0.1 },

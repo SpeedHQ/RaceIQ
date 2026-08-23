@@ -27,20 +27,20 @@ const BaseTrackImageQuerySchema = z.object({
 });
 
 export const trackImageryRoutes = new Hono()
-  .get("/api/track-imagery/:ordinal", zValidator("param", OrdinalParamSchema), zValidator("query", TrackImageryQuerySchema), (c) => {
+  .get("/api/track-imagery/:ordinal", zValidator("param", OrdinalParamSchema), zValidator("query", TrackImageryQuerySchema), async (c) => {
     const { ordinal } = c.req.valid("param");
     const { gameId } = c.req.valid("query");
     if (!Number.isSafeInteger(ordinal) || ordinal < 0) return c.json({ error: "Invalid track ordinal" }, 400);
-    const loaded = loadTrackImagery(gameId, ordinal);
+    const loaded = await loadTrackImagery(gameId, ordinal);
     return c.json(loaded?.imagery ?? null);
   })
-  .get("/api/track-imagery/:ordinal/base/hq/:x/:y", zValidator("param", TrackImageryTileParamSchema), zValidator("query", TrackImageryQuerySchema), (c) => {
+  .get("/api/track-imagery/:ordinal/base/hq/:x/:y", zValidator("param", TrackImageryTileParamSchema), zValidator("query", TrackImageryQuerySchema), async (c) => {
     const { ordinal, x, y } = c.req.valid("param");
     const { gameId } = c.req.valid("query");
     const tileX = Number(x);
     const tileY = Number(y);
     if (!Number.isSafeInteger(ordinal) || ordinal < 0 || !Number.isSafeInteger(tileX) || !Number.isSafeInteger(tileY)) return c.json({ error: "Invalid imagery tile coordinate" }, 400);
-    const loaded = loadTrackImagery(gameId, ordinal);
+    const loaded = await loadTrackImagery(gameId, ordinal);
     if (!loaded) return c.json({ error: "Track imagery not found" }, 404);
     const tile = readTrackImageryPackTile(loaded.packPath, tileX, tileY, loaded.packMetadata);
     if (!tile) return c.json({ error: "Track imagery tile not found" }, 404);
@@ -52,11 +52,11 @@ export const trackImageryRoutes = new Hono()
       },
     });
   })
-  .get("/api/track-imagery/:ordinal/texture/:textureId", zValidator("param", TrackImageryTextureParamSchema), zValidator("query", TrackImageryQuerySchema), (c) => {
+  .get("/api/track-imagery/:ordinal/texture/:textureId", zValidator("param", TrackImageryTextureParamSchema), zValidator("query", TrackImageryQuerySchema), async (c) => {
     const { ordinal, textureId } = c.req.valid("param");
     const { gameId } = c.req.valid("query");
     if (!Number.isSafeInteger(ordinal) || ordinal < 0) return c.json({ error: "Invalid track ordinal" }, 400);
-    const loaded = loadTrackImagery(gameId, ordinal);
+    const loaded = await loadTrackImagery(gameId, ordinal);
     const texture = loaded?.textures[textureId];
     if (!texture) return c.json({ error: "Track imagery texture not found" }, 404);
     return new Response(Bun.file(texture.path), {
