@@ -19,14 +19,8 @@ function iracingCarSortName(name: string): string {
 }
 
 export function sortIRacingCars<T extends Pick<IRacingCatalogCar, "ordinal" | "name">>(cars: readonly T[]): T[] {
-  return cars.toSorted(
-    (a, b) =>
-      iracingCarSortName(a.name).localeCompare(iracingCarSortName(b.name)) ||
-      a.name.localeCompare(b.name) ||
-      a.ordinal - b.ordinal,
-  );
+  return cars.toSorted((a, b) => iracingCarSortName(a.name).localeCompare(iracingCarSortName(b.name)) || a.name.localeCompare(b.name) || a.ordinal - b.ordinal);
 }
-
 
 function categoryLabel(category: string): string {
   switch (category) {
@@ -50,13 +44,13 @@ function categoryLabel(category: string): string {
   }
 }
 
-export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "lmu" }) {
+export function IRacingCars() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const { data: cars = [], isLoading } = useQuery<IRacingCatalogCar[]>({
-    queryKey: ["cars", gameId],
+    queryKey: ["cars", "iracing"],
     queryFn: async () => {
-      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
+      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": "iracing" } });
       if (!response.ok) throw await errorFromResponse(response);
       return response.json() as Promise<IRacingCatalogCar[]>;
     },
@@ -68,11 +62,7 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "lmu"
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return sortIRacingCars(
-      cars.filter(
-        (car) =>
-          (!filterCategory || car.category === filterCategory) &&
-          (!query || car.name.toLowerCase().includes(query) || categoryLabel(car.category).toLowerCase().includes(query)),
-      ),
+      cars.filter((car) => (!filterCategory || car.category === filterCategory) && (!query || car.name.toLowerCase().includes(query) || categoryLabel(car.category).toLowerCase().includes(query))),
     );
   }, [cars, filterCategory, search]);
 
@@ -127,7 +117,7 @@ export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "lmu"
             return (
               <article key={car.ordinal} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
                 <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
-                  <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">{gameId === "lmu" ? "LMU" : "iR"}</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">iR</div>
                   {car.imageUrl && (
                     <img
                       src={car.imageUrl}

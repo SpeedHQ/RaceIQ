@@ -12,6 +12,7 @@
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Show Le Mans Ultimate cars in a dedicated compact catalog without iRacing-specific categories or imagery
 - Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
 - Reject LMU telemetry recordings with no complete laps before starting import
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
