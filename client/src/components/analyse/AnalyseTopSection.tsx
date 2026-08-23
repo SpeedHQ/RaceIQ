@@ -1,8 +1,10 @@
 import type { GameId } from "../../../../shared/games/ids";
+import type { TrackImagery, TrackImageryGeographicPoint } from "../../../../shared/racing/tracks/imagery";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
+import type { PitLine } from "@/lib/canvas/draw-track";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays } from "./track-map/types";
+import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays } from "../track-map/types";
 import { m } from "../../paraglide/messages";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
@@ -22,9 +24,12 @@ interface AnalyseTopSectionProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
+  pitLines?: PitLine[] | null;
   boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
+  trackImagery: TrackImagery | null;
+  geographicPositions: readonly (TrackImageryGeographicPoint | null)[] | null;
   currentFrame: SemanticAnalysisFrame | null;
   displayTelemetry: SemanticAnalysisFrame[];
   lapLine: Point[] | null;
@@ -42,6 +47,8 @@ interface AnalyseTopSectionProps {
   onRotateWithCarToggle: () => void;
   onTrackOverlayChange: (overlay: TrackOverlayKey, checked: boolean) => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
+  showTrackImagery: boolean;
+  onShowTrackImageryChange: (show: boolean) => void;
 
   // Viz
   vizMode: "2d" | "3d";
@@ -64,9 +71,12 @@ export function AnalyseTopSection({
   cursorIdx,
   outline,
   mapLabels,
+  pitLines,
   boundaries,
   sectors,
   segments,
+  trackImagery,
+  geographicPositions,
   displayTelemetry,
   lapLine,
   units,
@@ -78,6 +88,8 @@ export function AnalyseTopSection({
   onRotateWithCarToggle,
   onTrackOverlayChange,
   onMapZoomChange,
+  showTrackImagery,
+  onShowTrackImageryChange,
   vizMode,
   onVizModeChange,
   trackMapRef,
@@ -161,9 +173,12 @@ export function AnalyseTopSection({
           cursorIdx={cursorIdx}
           outline={outline}
           mapLabels={mapLabels}
+          pitLines={pitLines}
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}
+          imagery={trackImagery}
+          geographicPositions={geographicPositions}
           currentFrame={telemetry[cursorIdx] ?? null}
           aiPanelOpen={aiPanelOpen}
           aiHighlights={aiHighlights}
@@ -173,6 +188,8 @@ export function AnalyseTopSection({
           onRotateWithCarToggle={onRotateWithCarToggle}
           onTrackOverlayChange={onTrackOverlayChange}
           onMapZoomChange={onMapZoomChange}
+          showImagery={showTrackImagery}
+          onShowImageryChange={onShowTrackImageryChange}
           trackMapRef={trackMapRef}
         />
       </div>

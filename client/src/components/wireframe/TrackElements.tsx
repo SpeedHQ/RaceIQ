@@ -1,7 +1,7 @@
 import { Line } from "@react-three/drei";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "@/components/track-map/types";
 import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry } from "../../lib/wireframe-utils";
 
 export function TrackLine({

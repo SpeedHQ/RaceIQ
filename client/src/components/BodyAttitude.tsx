@@ -1,4 +1,4 @@
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 
 const toDeg = 180 / Math.PI;
 

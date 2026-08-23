@@ -5,7 +5,7 @@ import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";
-import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
+import { useTrackBoundaries, useTrackImagery, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
@@ -19,7 +19,7 @@ import {
   type TrackMapBoundaries,
   type TrackMapLabel,
   type TrackOverlays,
-} from "./track-map/types";
+} from "../track-map/types";
 interface AnalyseSemanticFrame {
   sequence: number;
   observedAtMs: number;
@@ -67,6 +67,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (selectedCar == null && selectedLap?.carOrdinal != null) setSelectedCar(selectedLap.carOrdinal);
   }, [selectedLap, selectedTrack, selectedCar]);
   const trackOrd = selectedTrack ?? selectedLap?.trackOrdinal ?? null;
+  const { data: trackImagery = null } = useTrackImagery(trackOrd ?? undefined);
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
@@ -79,6 +80,10 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object") return null;
     const labels = (outlineRaw as { labels?: unknown }).labels;
     return Array.isArray(labels) ? (labels as TrackMapLabel[]) : null;
+  }, [outlineRaw]);
+  const pitLines = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw)) return null;
+    return Array.isArray(outlineRaw.pitLines) ? outlineRaw.pitLines : null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
   const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
@@ -108,6 +113,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   }, [segmentsRaw]);
   const initialCursor = search.cursor;
   const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);
+  const [showTrackImagery, setShowTrackImagery] = useLocalStorage("analyse-showTrackImagery", true);
   const [rotateWithCar, setRotateWithCar] = useLocalStorage("analyse-rotateWithCar", false);
   const [trackOverlays, setTrackOverlays] = useLocalStorage<TrackOverlays>("analyse-trackOverlays", DEFAULT_TRACK_OVERLAYS);
   const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
@@ -211,13 +217,17 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedLapId,
     outline,
     mapLabels,
+    pitLines,
     boundaries,
     sectorData,
     sectors,
     segments,
+    trackImagery,
     initialCursor,
     mapZoom,
     setMapZoom,
+    showTrackImagery,
+    setShowTrackImagery,
     rotateWithCar,
     setRotateWithCar,
     trackOverlays,

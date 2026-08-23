@@ -4,7 +4,7 @@ import { normalizeSuspensionTravel } from "@/lib/suspension";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 /**
  * WeightShiftRadar — Canvas-drawn weight transfer visualization.
  * Uses the 4 normalized suspension travel values (0-1) to compute

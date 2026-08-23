@@ -2,7 +2,7 @@ import { getGame } from "@shared/games/registry";
 import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { convertTemp } from "@/lib/temperature";

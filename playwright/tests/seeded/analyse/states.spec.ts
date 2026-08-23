@@ -46,3 +46,30 @@ test("Analyse renders seeded no-telemetry lap state when available", async ({ pa
   await expect(page.getByText("No telemetry data for this lap.", { exact: true })).toBeVisible({ timeout: 30_000 });
   expect(browserErrors.errors, "unexpected browser errors in no-telemetry state").toEqual([]);
 });
+
+test("Analyse playback keeps the static track raster stable between cursor frames", async ({ page, request }) => {
+  await page.addInitScript(() => {
+    const originalClearRect = CanvasRenderingContext2D.prototype.clearRect;
+    const state = window as typeof window & { __trackMapStaticClearCount?: number };
+    state.__trackMapStaticClearCount = 0;
+    CanvasRenderingContext2D.prototype.clearRect = function clearRect(x, y, width, height) {
+      const viewport = this.canvas.parentElement;
+      if (viewport?.dataset.testid === "analyse-track-map-viewport" && viewport.firstElementChild === this.canvas) {
+        state.__trackMapStaticClearCount = (state.__trackMapStaticClearCount ?? 0) + 1;
+      }
+      return originalClearRect.call(this, x, y, width, height);
+    };
+  });
+  const target = await getSeededLapTarget(request, "fm-2023");
+  await page.goto(`/fm23/analyse?track=${target.trackOrdinal}&car=${target.carOrdinal}&lap=${target.id}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("analyse-track-map-viewport")).toBeVisible({ timeout: 30_000 });
+  await page.waitForLoadState("networkidle");
+  const beforePlayback = await page.evaluate(() => (window as typeof window & { __trackMapStaticClearCount?: number }).__trackMapStaticClearCount ?? 0);
+
+  await page.getByTitle("Play (Space)").click();
+  await page.waitForTimeout(750);
+  await page.getByTitle("Pause (Space)").click();
+
+  const afterPlayback = await page.evaluate(() => (window as typeof window & { __trackMapStaticClearCount?: number }).__trackMapStaticClearCount ?? 0);
+  expect(afterPlayback - beforePlayback).toBeLessThanOrEqual(2);
+});

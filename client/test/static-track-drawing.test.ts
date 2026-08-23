@@ -1,11 +1,43 @@
 import { expect, test } from "bun:test";
-import { drawStaticTrack } from "../src/components/analyse/track-map/static-drawing";
-import { needsTrackFlip } from "../../shared/racing/tracks/coords";
+import { drawStaticTrack } from "../src/components/track-map/static-drawing";
+import { applyTrackMapOverlayCamera } from "../src/components/track-map/overlay-drawing";
 import { initGameAdapters } from "../../shared/games/init";
-import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
-import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
+import { needsTrackFlip } from "../../shared/racing/tracks/coords";
+import { resolveTrackPositions } from "../src/components/track-map/path";
+import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/track-map/types";
+import { drawPitLines } from "../src/lib/canvas/draw-track";
 
 initGameAdapters();
+test("pans fixed world overlays with the composed map buffer", () => {
+  const translations: Array<[number, number]> = [];
+  const rotations: number[] = [];
+  const context = {
+    translate(x: number, y: number) {
+      translations.push([x, y]);
+    },
+    rotate(angle: number) {
+      rotations.push(angle);
+    },
+  } as unknown as CanvasRenderingContext2D;
+  const transform: TrackTransform = {
+    w: 400,
+    h: 200,
+    offW: 600,
+    offH: 300,
+    offsetX: 0,
+    offsetZ: 0,
+    scale: 1,
+    maxX: 0,
+    minZ: 0,
+    displayOutline: [],
+  };
+
+  applyTrackMapOverlayCamera(context, transform, { x: 25, y: -10 }, null, false);
+
+  expect(translations).toEqual([[-75, -60]]);
+  expect(rotations).toEqual([]);
+});
+
 test("returns no transform when replay has no drawable track points", () => {
   const previousWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
@@ -42,7 +74,11 @@ test("projects telemetry without world coordinates onto the track outline", () =
     states: {},
     freshness: {},
   });
-  const outline = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }];
+  const outline = [
+    { x: 0, z: 0 },
+    { x: 100, z: 0 },
+    { x: 100, z: 100 },
+  ];
 
   expect(resolveTrackPositions([frame(0), frame(0.25), frame(0.75), frame(1)], outline)).toEqual([
     { x: 0, z: 0 },
@@ -59,10 +95,18 @@ test("prefers recorded world coordinates over lap-fraction projection", () => {
     freshness: {},
   });
 
-  expect(resolveTrackPositions(
-    [frame(20, 30, 0), frame(40, 50, 1)],
-    [{ x: 0, z: 0 }, { x: 100, z: 0 }],
-  )).toEqual([{ x: 20, z: 30 }, { x: 40, z: 50 }]);
+  expect(
+    resolveTrackPositions(
+      [frame(20, 30, 0), frame(40, 50, 1)],
+      [
+        { x: 0, z: 0 },
+        { x: 100, z: 0 },
+      ],
+    ),
+  ).toEqual([
+    { x: 20, z: 30 },
+    { x: 40, z: 50 },
+  ]);
 });
 
 test("draws throttle input traces in the throttle channel color", () => {
@@ -79,6 +123,8 @@ test("draws throttle input traces in the throttle channel color", () => {
       setTransform() {},
       clearRect() {},
       beginPath() {},
+      arc() {},
+      fill() {},
       moveTo() {},
       lineTo() {},
       stroke() {
@@ -95,12 +141,12 @@ test("draws throttle input traces in the throttle channel color", () => {
       getBoundingClientRect: () => ({ width: 800, height: 600 }),
       getContext: () => context,
     } as unknown as HTMLCanvasElement;
-    const frame = (accel: number) => ({ values: { "inputs.accel": accel, "inputs.brake": 0 }, states: {}, freshness: {} });
+    const frame = (throttle: number) => ({ values: { "inputs.accel": throttle * 255, "inputs.brake": 0 }, states: {}, freshness: {} });
 
     drawStaticTrack({
       canvas,
       bufferCanvas: canvas,
-      telemetry: [frame(64), frame(128), frame(255)],
+      telemetry: [frame(0.25), frame(0.5), frame(1)],
       resolvedPositions: [
         { x: 1, z: 1 },
         { x: 2, z: 2 },
@@ -117,7 +163,7 @@ test("draws throttle input traces in the throttle channel color", () => {
     });
 
     expect(strokes.filter((stroke) => stroke.color === "var(--ch-throttle)")).toEqual([
-      { color: "var(--ch-throttle)", alpha: 0.35 + (128 / 255) * 0.65, width: 2 },
+      { color: "var(--ch-throttle)", alpha: 0.35 + 0.5 * 0.65, width: 2 },
       { color: "var(--ch-throttle)", alpha: 1, width: 2 },
     ]);
   } finally {
@@ -125,6 +171,106 @@ test("draws throttle input traces in the throttle channel color", () => {
   }
 });
 
+test("draws separate solid pit-road and pit-exit lines", () => {
+  const strokes: Array<{ color: string; points: number; curves: number; width: number; alpha: number }> = [];
+  let points = 0;
+  let curves = 0;
+  const context = {
+    strokeStyle: "",
+    globalAlpha: 1,
+    lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    save() {},
+    restore() {},
+    beginPath() {
+      points = 0;
+      curves = 0;
+    },
+    moveTo() {
+      points++;
+    },
+    lineTo() {
+      points++;
+    },
+    bezierCurveTo() {
+      points++;
+      curves++;
+    },
+    stroke() {
+      strokes.push({
+        color: this.strokeStyle,
+        points,
+        curves,
+        width: this.lineWidth,
+        alpha: this.globalAlpha,
+      });
+    },
+  } as unknown as CanvasRenderingContext2D;
+
+  drawPitLines(
+    context,
+    [
+      {
+        kind: "pit-road",
+        points: [
+          { x: 0, z: 0 },
+          { x: 1, z: 1 },
+          { x: 2, z: 1 },
+        ],
+      },
+      {
+        kind: "merge-line",
+        points: [
+          { x: 3, z: 2 },
+          { x: 4, z: 2 },
+        ],
+      },
+    ],
+    (x, z) => [x, z],
+  );
+
+  expect(strokes).toEqual([
+    { color: "var(--track-pit-road)", points: 3, curves: 2, width: 3, alpha: 0.85 },
+    { color: "var(--track-pit-exit)", points: 2, curves: 0, width: 3, alpha: 0.85 },
+  ]);
+  expect(context.lineCap).toBe("round");
+  expect(context.lineJoin).toBe("round");
+});
+test("aligns imported iRacing GPS paths to analyse-map outlines", () => {
+  const gpsPath = [
+    { x: 0, z: 0 },
+    { x: 90, z: -10 },
+    { x: 145, z: 35 },
+    { x: 120, z: 105 },
+    { x: 55, z: 140 },
+    { x: -25, z: 85 },
+    { x: -40, z: 25 },
+    { x: 0, z: 0 },
+  ];
+  const angle = 0.37;
+  const scale = 1.8;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const outline = gpsPath.map((point) => ({
+    x: scale * (cos * point.x - sin * point.z) + 350,
+    z: scale * (sin * point.x + cos * point.z) - 120,
+  }));
+  const telemetry = gpsPath.map((point) => ({
+    values: {
+      "motion.position-x": point.x,
+      "motion.position-z": point.z,
+    },
+    states: {},
+    freshness: {},
+  }));
+
+  const aligned = resolveTrackPositions(telemetry, outline, "iracing");
+  for (let index = 0; index < outline.length; index++) {
+    expect(aligned[index].x).toBeCloseTo(outline[index].x, 3);
+    expect(aligned[index].z).toBeCloseTo(outline[index].z, 3);
+  }
+});
 type PathCommand = { kind: "moveTo" | "lineTo" | "arc"; values: number[] } | { kind: "closePath"; values: [] };
 
 interface StrokeRecord {
@@ -134,6 +280,13 @@ interface StrokeRecord {
   lineCap: CanvasLineCap;
   lineJoin: CanvasLineJoin;
   commands: PathCommand[];
+  dash?: number[];
+}
+
+interface ImageRecord {
+  image: CanvasImageSource;
+  alpha: number;
+  transform: number[];
 }
 
 const outlineFixture: Point[] = [
@@ -162,8 +315,13 @@ function boundaryFixture(raceLine?: Point[] | null, includeRaceLine = true): Tra
   return boundaries;
 }
 
-function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRecord[] } {
+function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRecord[]; images: ImageRecord[]; events: string[] } {
   const strokes: StrokeRecord[] = [];
+  const images: ImageRecord[] = [];
+  const events: string[] = [];
+  const savedStates: Array<{ alpha: number; transform: number[]; dash: number[] }> = [];
+  let activeTransform: number[] = [];
+  let activeDash: number[] = [];
   let commands: PathCommand[] = [];
   const context = {
     strokeStyle: "",
@@ -172,7 +330,9 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     lineWidth: 1,
     lineCap: "butt" as CanvasLineCap,
     lineJoin: "miter" as CanvasLineJoin,
-    setTransform() {},
+    setTransform(...values: number[]) {
+      activeTransform = values;
+    },
     clearRect() {},
     beginPath() {
       commands = [];
@@ -183,13 +343,18 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     lineTo(x: number, y: number) {
       commands.push({ kind: "lineTo", values: [x, y] });
     },
+    bezierCurveTo(_cp1x: number, _cp1y: number, _cp2x: number, _cp2y: number, x: number, y: number) {
+      commands.push({ kind: "lineTo", values: [x, y] });
+    },
     closePath() {
       commands.push({ kind: "closePath", values: [] });
     },
     arc(x: number, y: number, radius: number, startAngle: number, endAngle: number) {
       commands.push({ kind: "arc", values: [x, y, radius, startAngle, endAngle] });
     },
-    fill() {},
+    fill() {
+      events.push(`fill:${String(this.fillStyle)}`);
+    },
     stroke() {
       strokes.push({
         color: String(this.strokeStyle),
@@ -198,11 +363,32 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
         lineCap: this.lineCap,
         lineJoin: this.lineJoin,
         commands: commands.map((command) => ({ ...command, values: [...command.values] }) as PathCommand),
+        ...(activeDash.length > 0 ? { dash: [...activeDash] } : {}),
       });
+      events.push(`stroke:${String(this.strokeStyle)}`);
     },
-    save() {},
-    restore() {},
-    drawImage() {},
+    save() {
+      savedStates.push({ alpha: this.globalAlpha, transform: [...activeTransform], dash: [...activeDash] });
+    },
+    translate() {},
+    rotate() {},
+    setLineDash(values: number[]) {
+      activeDash = [...values];
+    },
+    transform(...values: number[]) {
+      activeTransform = values;
+    },
+    restore() {
+      const saved = savedStates.pop();
+      if (!saved) return;
+      this.globalAlpha = saved.alpha;
+      activeTransform = saved.transform;
+      activeDash = saved.dash;
+    },
+    drawImage(image: CanvasImageSource) {
+      images.push({ image, alpha: this.globalAlpha, transform: [...activeTransform] });
+      events.push("image");
+    },
   } as unknown as CanvasRenderingContext2D;
   const canvas = {
     width: 0,
@@ -211,7 +397,7 @@ function createDrawingHarness(): { canvas: HTMLCanvasElement; strokes: StrokeRec
     getBoundingClientRect: () => ({ width: 800, height: 600 }),
     getContext: () => context,
   } as unknown as HTMLCanvasElement;
-  return { canvas, strokes };
+  return { canvas, strokes, images, events };
 }
 
 function drawRaceLineCase(boundaries: TrackMapBoundaries | null, showRaceLine: boolean, gameId: "acc" | "ac-evo" = "acc") {
@@ -240,11 +426,11 @@ test("draws input, segment, and racing-line overlays together", () => {
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
   try {
     const { canvas, strokes } = createDrawingHarness();
-    const frame = (accel: number) => ({ values: { "inputs.accel": accel, "inputs.brake": 0 }, states: {}, freshness: {} });
+    const frame = (throttle: number) => ({ values: { "inputs.accel": throttle * 255, "inputs.brake": 0 }, states: {}, freshness: {} });
     drawStaticTrack({
       canvas,
       bufferCanvas: canvas,
-      telemetry: [frame(64), frame(128), frame(255)],
+      telemetry: [frame(0.25), frame(0.5), frame(1)],
       resolvedPositions: [
         { x: 1, z: 1 },
         { x: 2, z: 2 },
@@ -347,3 +533,212 @@ for (const gameId of ["acc", "ac-evo"] as const) {
     }
   });
 }
+
+test("renders deep zoom as viewport-sized vectors with constant stroke widths", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const harness = createDrawingHarness();
+    const result = drawStaticTrack({
+      canvas: harness.canvas,
+      bufferCanvas: harness.canvas,
+      telemetry: [],
+      resolvedPositions: [],
+      outline: outlineFixture,
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 32,
+      viewportCamera: { panX: 50, panY: -25 },
+    });
+
+    expect(result.transform?.offW).toBe(800);
+    expect(result.transform?.offH).toBe(600);
+    expect(harness.canvas.width).toBe(800);
+    expect(harness.canvas.height).toBe(600);
+    expect(harness.strokes.find((stroke) => stroke.color === "var(--track-outline)")?.width).toBe(4);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("draws opaque venue base before transparent layout layers", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const harness = createDrawingHarness();
+    const base = {} as CanvasImageSource;
+    const roadCourse = {} as CanvasImageSource;
+    drawStaticTrack({
+      canvas: harness.canvas,
+      bufferCanvas: harness.canvas,
+      telemetry: [],
+      resolvedPositions: [],
+      outline: outlineFixture,
+      imagery: {
+        imageToTrack: [100, 0, 0, 80, -50, -40],
+        textures: [
+          { image: base, opacity: 1 },
+          { image: roadCourse, opacity: 0.65 },
+        ],
+        base: {
+          width: 100,
+          height: 80,
+          tileSize: 100,
+          tiles: [],
+        },
+      },
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+
+    expect(harness.images.map(({ image, alpha }) => ({ image, alpha }))).toEqual([
+      { image: base, alpha: 1 },
+      { image: roadCourse, alpha: 0.65 },
+    ]);
+    expect(harness.strokes.find((stroke) => stroke.color === "var(--track-outline)")?.alpha).toBe(1);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("draws optional geometry layers in deterministic order with arbitrary native sectors", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const outline = Array.from({ length: 21 }, (_, index) => ({ x: index, z: Math.sin(index / 3) * 2 }));
+    const telemetry = outline.map((point, index) => ({
+      values: { "motion.position-x": point.x, "motion.position-z": point.z + 0.2, "inputs.accel": 0, "inputs.brake": 0 },
+      states: {},
+      freshness: {},
+    }));
+    const boundaries = boundaryFixture([
+      { x: 1, z: 0.5 },
+      { x: 10, z: 1 },
+      { x: 19, z: 0.5 },
+    ]);
+    boundaries.pitLane = [
+      { x: 2, z: -0.5 },
+      { x: 5, z: -0.5 },
+    ];
+    const baseline = createDrawingHarness();
+    const baselineResult = drawStaticTrack({
+      canvas: baseline.canvas,
+      bufferCanvas: baseline.canvas,
+      telemetry,
+      resolvedPositions: outline.map((point) => ({ ...point, z: point.z + 0.2 })),
+      outline,
+      boundaries,
+      sectors: null,
+      segments: null,
+      showOutline: true,
+      showTrace: true,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+    const harness = createDrawingHarness();
+    const texture = {} as CanvasImageSource;
+    const result = drawStaticTrack({
+      canvas: harness.canvas,
+      bufferCanvas: harness.canvas,
+      telemetry,
+      resolvedPositions: outline.map((point) => ({ ...point, z: point.z + 0.2 })),
+      outline,
+      boundaries,
+      pitLines: [
+        {
+          kind: "merge-line",
+          points: [
+            { x: 1, z: -1 },
+            { x: 4, z: -1 },
+          ],
+        },
+      ],
+      imagery: {
+        imageToTrack: [20, 0, 0, 5, 0, -2.5],
+        base: { width: 100, height: 100, tileSize: 100, tiles: [] },
+        textures: [{ image: texture, opacity: 0.5 }],
+      },
+      sectors: { sectorStarts: [0, 0.2, 0.5, 0.8], sectorCount: 4 },
+      segments: [{ type: "corner", name: "", startFrac: 0.25, endFrac: 0.4 }],
+      curbs: [{ side: "left", points: [{ x: 10_000, z: 10_000 }] }],
+      highlights: [{ startFrac: 0.6, endFrac: 0.7, color: "warning", label: "Brake" }],
+      showOutline: true,
+      showRaceLine: true,
+      showTrace: true,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+
+    expect(result.transform?.scale).toBe(baselineResult.transform?.scale);
+    expect(result.transform?.maxX).toBe(baselineResult.transform?.maxX);
+    expect(result.transform?.minZ).toBe(baselineResult.transform?.minZ);
+    expect(harness.strokes.find((stroke) => stroke.color === "var(--track-pit-exit)")?.dash).toBeUndefined();
+    expect(harness.strokes.find((stroke) => stroke.color === "var(--track-pit-lane)")?.dash).toEqual([6, 4]);
+    for (const color of ["var(--sector-1)", "var(--sector-2)", "var(--sector-3)", "var(--sector-4)"]) {
+      expect(harness.strokes.some((stroke) => stroke.color === color)).toBe(true);
+    }
+
+    const imageIndex = harness.events.indexOf("image");
+    const pitIndex = harness.events.indexOf("stroke:var(--track-pit-exit)");
+    const outlineIndex = harness.events.indexOf("stroke:var(--track-outline)");
+    const racingLineIndex = harness.events.indexOf("stroke:var(--track-racing-line)");
+    const sectorIndex = harness.events.indexOf("stroke:var(--sector-1)");
+    const segmentIndex = harness.events.indexOf("stroke:var(--track-corner-marker)");
+    const curbIndex = harness.events.indexOf("fill:var(--track-curb-left)");
+    const traceIndex = harness.events.lastIndexOf("stroke:var(--track-outline)");
+    const highlightIndex = harness.events.findIndex((event) => event.startsWith("stroke:color-mix(in srgb, var(--severity-caution)"));
+    const startIndex = harness.events.indexOf("fill:var(--track-start)");
+    expect([imageIndex, pitIndex, outlineIndex, racingLineIndex, sectorIndex, segmentIndex, curbIndex, traceIndex, highlightIndex, startIndex].every((index) => index >= 0)).toBe(true);
+    expect(imageIndex).toBeLessThan(pitIndex);
+    expect(pitIndex).toBeLessThan(outlineIndex);
+    expect(outlineIndex).toBeLessThan(racingLineIndex);
+    expect(racingLineIndex).toBeLessThan(sectorIndex);
+    expect(sectorIndex).toBeLessThan(segmentIndex);
+    expect(segmentIndex).toBeLessThan(curbIndex);
+    expect(curbIndex).toBeLessThan(traceIndex);
+    expect(traceIndex).toBeLessThan(highlightIndex);
+    expect(highlightIndex).toBeLessThan(startIndex);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("keeps telemetry trace separate from hidden outline", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const harness = createDrawingHarness();
+    const telemetry = Array.from({ length: 12 }, (_, index) => ({
+      values: { "motion.position-x": index, "motion.position-z": 0 },
+      states: {},
+      freshness: {},
+    }));
+    drawStaticTrack({
+      canvas: harness.canvas,
+      bufferCanvas: harness.canvas,
+      telemetry,
+      resolvedPositions: Array.from({ length: 12 }, (_, index) => ({ x: index, z: 0 })),
+      outline: Array.from({ length: 12 }, (_, index) => ({ x: index, z: 1 })),
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      curbs: [{ side: "right", points: [{ x: 5, z: 0 }] }],
+      showOutline: false,
+      showTrace: true,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+
+    expect(harness.events.filter((event) => event === "stroke:var(--track-outline)")).toHaveLength(1);
+    expect(harness.events.indexOf("fill:var(--track-curb-right)")).toBeLessThan(harness.events.indexOf("stroke:var(--track-outline)"));
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});

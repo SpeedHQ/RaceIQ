@@ -16,7 +16,7 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
-import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey } from "./track-map/types";
+import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey } from "../track-map/types";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 import { buildExportCsv } from "../../lib/lap-export";
@@ -49,13 +49,17 @@ function LapAnalyseInner() {
     setSelectedLapId,
     outline,
     mapLabels,
+    pitLines,
     boundaries,
     sectorData,
     sectors,
     segments,
+    trackImagery,
     initialCursor,
     mapZoom,
     setMapZoom,
+    showTrackImagery,
+    setShowTrackImagery,
     rotateWithCar,
     setRotateWithCar,
     trackOverlays,
@@ -401,9 +405,14 @@ function LapAnalyseInner() {
             cursorIdx,
             outline,
             mapLabels,
+            pitLines,
             boundaries,
             sectors,
             segments,
+            trackImagery,
+            geographicPositions: null,
+            showTrackImagery,
+            onShowTrackImageryChange: setShowTrackImagery,
             currentFrame,
             displayTelemetry: semanticFrames,
             lapLine,

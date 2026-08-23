@@ -1,14 +1,18 @@
 import type { GameId } from "../../../../shared/games/ids";
+import type { TrackImagery, TrackImageryGeographicPoint } from "../../../../shared/racing/tracks/imagery";
 import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
+import type { PitLine } from "@/lib/canvas/draw-track";
 import { m } from "../../paraglide/messages";
-import { ChevronDownIcon } from "lucide-react";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
-import { DropdownMenu } from "../ui/DropdownMenu";
-import { AnalyseTrackMap } from "./AnalyseTrackMap";
+import { TrackMapCanvas } from "../track-map/TrackMapCanvas";
+import { TrackMapLayerMenu, type TrackMapLayerMenuItem } from "../track-map/TrackMapLayerMenu";
 import {
   DEFAULT_TRACK_OVERLAYS,
+  TRACK_MAP_MAX_ZOOM,
+  TRACK_MAP_MIN_ZOOM,
+  TRACK_MAP_ZOOM_BUTTON_FACTOR,
   type Point,
   type SectorBoundaries,
   type SemanticAnalysisFrame,
@@ -17,7 +21,8 @@ import {
   type TrackMapLabel,
   type TrackOverlayKey,
   type TrackOverlays,
-} from "./track-map/types";
+  type TrackMapLayerState,
+} from "../track-map/types";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
@@ -26,6 +31,9 @@ interface AnalyseTrackPanelProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
+  pitLines?: PitLine[] | null;
+  imagery?: TrackImagery | null;
+  geographicPositions?: readonly (TrackImageryGeographicPoint | null)[] | null;
   boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
@@ -42,6 +50,8 @@ interface AnalyseTrackPanelProps {
   onRotateWithCarToggle: () => void;
   onTrackOverlayChange?: (overlay: TrackOverlayKey, checked: boolean) => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
+  showImagery?: boolean;
+  onShowImageryChange?: (show: boolean) => void;
 
   trackMapRef?: RefObject<TrackMapHandle | null>;
 
@@ -65,6 +75,9 @@ export function AnalyseTrackPanel({
   cursorIdx,
   outline,
   mapLabels,
+  pitLines,
+  imagery,
+  geographicPositions,
   boundaries,
   sectors,
   segments,
@@ -78,48 +91,59 @@ export function AnalyseTrackPanel({
   onRotateWithCarToggle,
   onTrackOverlayChange,
   onMapZoomChange,
+  showImagery = true,
+  onShowImageryChange,
   trackMapRef,
   hideSteeringOverlay,
   weatherBottomRight,
 }: AnalyseTrackPanelProps) {
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
-  const anyTrackOverlay = Object.values(trackOverlays).some(Boolean);
-  const overlayItems = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
+  const trace = showTrace ?? true;
+  const imageryAttribution = [imagery?.base.source.attribution, ...(imagery?.textures.map((texture) => texture.source.attribution) ?? [])]
+    .filter((value, index, values) => value && values.indexOf(value) === index)
+    .join(" · ");
+  const layers: TrackMapLayerState = {
+    imagery: showImagery,
+    boundaries: true,
+    pitLane: true,
+    outline: !trace,
+    racingLine: trackOverlays.racingLine && hasRacingLine,
+    segments: trackOverlays.segments,
+    sectors: trackOverlays.sectors,
+    curbs: false,
+    trace,
+    inputs: trackOverlays.inputs,
+    highlights: !!aiPanelOpen,
+    car: true,
+  };
+  const overlayItems: TrackMapLayerMenuItem[] = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
     .filter((overlay) => overlay !== "racingLine" || hasRacingLine)
     .map((overlay) => ({
-      type: "checkbox" as const,
       key: overlay,
       label: overlay === "inputs" ? m.overlay_inputs() : overlay === "segments" ? m.overlay_segments() : overlay === "sectors" ? m.overlay_sectors() : m.overlay_racing_line(),
-      checked: trackOverlays[overlay],
-      onCheckedChange: (checked: boolean) => onTrackOverlayChange?.(overlay, checked),
+      available: true,
     }));
 
   return (
-    <div
-      data-testid="analyse-track-map-panel"
-      className="relative h-full min-w-0 bg-app-bg p-2"
-      onWheel={(e) => {
-        if (!rotateWithCar) return;
-        e.preventDefault();
-        onMapZoomChange((z) => Math.max(0.5, Math.min(4, z - e.deltaY * 0.001)));
-      }}
-    >
-      <AnalyseTrackMap
+    <div data-testid="analyse-track-map-panel" className="relative h-full min-w-0 bg-app-bg p-2">
+      <TrackMapCanvas
         ref={trackMapRef}
         gameId={gameId}
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}
-        mapLabels={trackOverlays.segments ? mapLabels : null}
+        mapLabels={mapLabels}
+        pitLines={pitLines}
+        imagery={imagery}
+        geographicPositions={geographicPositions ?? undefined}
         boundaries={boundaries}
-        sectors={trackOverlays.sectors ? sectors : null}
-        segments={trackOverlays.segments ? segments : null}
-        highlights={aiPanelOpen ? aiHighlights : null}
-        showInputs={trackOverlays.inputs}
-        showTrace={showTrace}
-        showRaceLine={trackOverlays.racingLine && hasRacingLine}
+        sectors={sectors}
+        segments={segments}
+        highlights={aiHighlights}
+        layers={layers}
         rotateWithCar={rotateWithCar}
         zoom={mapZoom}
+        onZoomChange={onMapZoomChange}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
       {telemetry[cursorIdx]?.values["weather.air-temp"] != null && <WeatherWidget f1={telemetry[cursorIdx].values as never} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
@@ -135,46 +159,54 @@ export function AnalyseTrackPanel({
           {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
         </Button>
         {!hideSteeringOverlay && onTrackOverlayChange && (
-          <DropdownMenu
-            align="left"
-            trigger={
-              <Button
-                type="button"
-                className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
-                  anyTrackOverlay ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-                }`}
-              >
-                {m.overlay_overlay()}
-                <ChevronDownIcon data-icon="inline-end" />
-              </Button>
-            }
+          <TrackMapLayerMenu
+            layers={layers}
             items={overlayItems}
+            onLayerChange={(key, checked) => onTrackOverlayChange(key as TrackOverlayKey, checked)}
           />
         )}
+        {imagery && onShowImageryChange && (
+          <Button
+            type="button"
+            aria-pressed={showImagery}
+            onClick={() => onShowImageryChange(!showImagery)}
+            className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
+              showImagery ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+            }`}
+          >
+            {m.overlay_imagery()}
+          </Button>
+        )}
       </div>
+      {showImagery && imageryAttribution && (
+        <div
+          className="pointer-events-none absolute bottom-2 left-1/2 max-w-[70%] -translate-x-1/2 truncate rounded bg-app-bg/70 px-1.5 py-0.5 text-xs text-app-text-muted"
+          title={imageryAttribution}
+        >
+          {imageryAttribution}
+        </div>
+      )}
 
       {/* Right side controls */}
       <div className="pointer-events-none absolute top-2 right-2 flex items-start gap-2">
-        {rotateWithCar && (
-          <div className="pointer-events-auto flex flex-col gap-1">
-            <Button
-              type="button"
-              aria-label="Zoom in map"
-              onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
-              className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-            >
-              +
-            </Button>
-            <Button
-              type="button"
-              aria-label="Zoom out map"
-              onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
-              className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-            >
-              -
-            </Button>
-          </div>
-        )}
+        <div className="pointer-events-auto flex flex-col gap-1">
+          <Button
+            type="button"
+            aria-label="Zoom in map"
+            onClick={() => onMapZoomChange((z) => Math.min(z * TRACK_MAP_ZOOM_BUTTON_FACTOR, TRACK_MAP_MAX_ZOOM))}
+            className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+          >
+            +
+          </Button>
+          <Button
+            type="button"
+            aria-label="Zoom out map"
+            onClick={() => onMapZoomChange((z) => Math.max(z / TRACK_MAP_ZOOM_BUTTON_FACTOR, TRACK_MAP_MIN_ZOOM))}
+            className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+          >
+            -
+          </Button>
+        </div>
         {currentFrame && <Compass yaw={Number(currentFrame.values["motion.yaw"]) || 0} />}
       </div>
 

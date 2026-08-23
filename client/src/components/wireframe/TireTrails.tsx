@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "@/components/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
 import { useGameId } from "../../stores/game";

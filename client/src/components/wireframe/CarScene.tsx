@@ -11,7 +11,7 @@ import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
 import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
-import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
+import { type SemanticAnalysisFrame, semanticNumber } from "@/components/track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
 import { CurbMarkers } from "./CurbMarkers";

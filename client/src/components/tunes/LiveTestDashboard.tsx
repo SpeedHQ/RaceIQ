@@ -1,4 +1,4 @@
-import { DEFAULT_TRACK_OVERLAYS, type SemanticAnalysisFrame, type TrackMapBoundaries } from "../analyse/track-map/types";
+import { DEFAULT_TRACK_OVERLAYS, type Point, type SemanticAnalysisFrame, type TrackMapBoundaries, type TrackOverlayKey } from "@/components/track-map/types";
 import { useEffect, useMemo, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
@@ -6,7 +6,6 @@ import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { semanticTuneSampleFromView } from "./semantic-tune";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
-import type { Point } from "../analyse/track-map/types";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
@@ -95,6 +94,7 @@ export function LiveTestDashboard({
   const latestLap = useMemo(() => (gameLaps.length ? [...gameLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [gameLaps]);
 
   const [rotateWithCar, setRotateWithCar] = useState(false);
+  const [trackOverlays, setTrackOverlays] = useState(DEFAULT_TRACK_OVERLAYS);
   const [mapZoom, setMapZoom] = useState(1);
 
   // Canonical live trace for the in-progress lap. Trace carries its simulator
@@ -153,9 +153,10 @@ export function LiveTestDashboard({
               currentFrame={currentFrame}
               showTrace={false}
               rotateWithCar={rotateWithCar}
-              trackOverlays={DEFAULT_TRACK_OVERLAYS}
+              trackOverlays={trackOverlays}
               mapZoom={mapZoom}
               onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
+              onTrackOverlayChange={(key: TrackOverlayKey, checked: boolean) => setTrackOverlays((previous) => ({ ...previous, [key]: checked }))}
               onMapZoomChange={setMapZoom}
               hideSteeringOverlay
               weatherBottomRight

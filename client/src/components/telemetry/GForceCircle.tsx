@@ -3,7 +3,7 @@ import { severityRangeColor } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 /**

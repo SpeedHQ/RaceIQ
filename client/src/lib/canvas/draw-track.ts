@@ -2,6 +2,18 @@ import { segmentDisplayNames, segmentGroupLabels } from "@shared/racing/tracks/s
 import type { Point, TrackSectors } from "@/components/track/types";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+export type PitLineKind = "pit-road" | "merge-line";
+
+export interface PitLine {
+  kind: PitLineKind;
+  points: Point[];
+}
+
+const PIT_LINE_COLORS: Record<PitLineKind, string> = {
+  "pit-road": "var(--track-pit-road)",
+  "merge-line": "var(--track-pit-exit)",
+};
+
 
 interface LabelCandidate {
   text: string;
@@ -92,6 +104,48 @@ function cumulativeDistances(outline: Point[]): number[] {
   }
   return cumulative;
 }
+/** Draw solid pit-road and pit-exit centerlines reconstructed from track markers. */
+export function drawPitLines(
+  ctx: CanvasRenderingContext2D,
+  pitLines: readonly PitLine[] | null | undefined,
+  toCanvas: (x: number, z: number) => [number, number],
+  opacity = 0.85,
+  lineWidth = 3,
+): void {
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const line of pitLines ?? []) {
+    if (line.points.length < 2) continue;
+    const points = line.points.map((point) => toCanvas(point.x, point.z));
+    ctx.beginPath();
+    ctx.strokeStyle = PIT_LINE_COLORS[line.kind];
+    ctx.moveTo(...points[0]);
+    if (points.length === 2) {
+      ctx.lineTo(...points[1]);
+    } else {
+      for (let index = 0; index < points.length - 1; index++) {
+        const previous = points[Math.max(0, index - 1)];
+        const start = points[index];
+        const end = points[index + 1];
+        const next = points[Math.min(points.length - 1, index + 2)];
+        ctx.bezierCurveTo(
+          start[0] + (end[0] - previous[0]) / 6,
+          start[1] + (end[1] - previous[1]) / 6,
+          end[0] - (next[0] - start[0]) / 6,
+          end[1] - (next[1] - start[1]) / 6,
+          end[0],
+          end[1],
+        );
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 
 /**
  * drawTrack — Shared canvas rendering for both gallery thumbnails and detail views.
