@@ -16,8 +16,8 @@
  *
  * laguna-seca/road-atlanta/sebring were fixed by declaring their genuine
  * per-corner ac-evo gaps in KNOWN_TURN_GAPS below (T1, T8, T12) and grouping
- * the corners ac-evo's centerline fuses that the others split (see the `group`
- * fields in shared/data/tracks/meta/road-atlanta.json, sebring.json).
+ * corners ac-evo's centerline fuses that others split (see registry `group_name`
+ * values for road-atlanta and sebring).
  *
  * watkins-glen/fm-2023 is the inverse: Forza's centerline over-detects (14
  * regions for 10 named corners, 9 units) because the Esses complex is digitised
@@ -40,8 +40,8 @@ export const KNOWN_ALIGNMENT_GAPS = new Set<string>(["watkins-glen/fm-2023"]);
  * cannot place itself on it. Forza's committed geometry came from Forza's own
  * legacy segmentation and is correct; only regeneration can't reproduce it.
  *
- * TODO(follow-up PR): reconcile shared/data/tracks/meta/nordschleife.json to the
- * 69-corner segmentation and delete this.
+ * TODO(follow-up PR): reconcile nordschleife registry facts to 69-corner
+ * segmentation and delete this.
  */
 export const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
 
@@ -60,8 +60,9 @@ export const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
  * straightened or fused into a neighbour rather than faintly detected. Loosening
  * thresholds makes it worse (at 1/1400 Brands Hatch's Dingle Dell neighbours fuse
  * into one), because the loose pass only fills gaps and there is no gap here. The
- * fix (issue #98) is the true centre from shared/data/tracks/acc/<slug>-boundaries.json
- * via scripts/games/acc/centerline-from-boundaries.ts; the migrated tracks are already
+ * fix (issue #98) is the true centre from shared ACC boundary geometry under
+ * `venues/<root-venue>/geometry/acc/<slug>-boundaries.json`, via
+ * scripts/games/acc/centerline-from-boundaries.ts; migrated tracks are already
  * gone from this list, the rest need per-track name-list re-curation.
  *
  * ac-evo entries: same class as KNOWN_ALIGNMENT_GAPS above — the ac-evo

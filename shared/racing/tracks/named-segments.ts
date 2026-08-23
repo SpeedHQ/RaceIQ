@@ -2,10 +2,9 @@
  * The labelled-segment shape consumers receive: a corner or straight with both
  * its label and its position along one game's lap.
  *
- * Nothing is stored in this shape. Facts live in `shared/data/tracks/meta/<slug>.json`
- * and fractions in `shared/data/tracks/<gameId>/<slug>-segments.json`; `joinSegments`
- * in `shared/racing/tracks/curation/join.ts` combines them on the way out, and
- * `splitSegments` takes it apart again on the way back in.
+ * Nothing is stored in this shape. Facts and per-game fractions live in separate
+ * bundled registry tables; `joinSegments` combines them on way out, and
+ * `splitSegments` takes them apart again on way back in.
  */
 
 export interface NamedSegment {

@@ -26,13 +26,10 @@ export function officialTurnCount(facts: TrackFacts): number {
  *
  * The one legitimate hole is a number the circuit map carries but no corner
  * roster does — Baku 13/14, a Catalunya chicane half. Those are declared
- * `optional` in shared/data/tracks/detect-hints.json; pass the layout's hints and
+ * `optional` in layout-local `detect-hints.json`; pass the layout's hints and
  * they count as accounted for.
  */
-export function validateFacts(
-  facts: TrackFacts,
-  hints: DetectHints = NO_DETECT_HINTS,
-): AlignmentIssue[] {
+export function validateFacts(facts: TrackFacts, hints: DetectHints = NO_DETECT_HINTS): AlignmentIssue[] {
   const issues: AlignmentIssue[] = [];
   const turnCount = officialTurnCount(facts);
   if (turnCount < 1) {
@@ -64,4 +61,3 @@ export function validateFacts(
   }
   return issues;
 }
-

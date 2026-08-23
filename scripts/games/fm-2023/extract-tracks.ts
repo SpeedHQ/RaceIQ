@@ -2,44 +2,22 @@
  * Extract track centerline outlines from Forza Motorsport 2023 game files.
  *
  * Reads AI/Track.geo from each track's ribbon ZIP, parses the MLP binary
- * format for waypoint coordinates, and writes recorded-{ordinal}.csv files
- * to shared/data/tracks/fm-2023/.
+ * format for waypoint coordinates, and writes canonical venue geometry.
  *
  * Usage: bun run scripts/games/fm-2023/extract-tracks.ts
  */
 import { writeFileSync, mkdirSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { findForzaInstall } from "@shared/integrations/forza/install";
 import { decompressForzaLZX } from "@shared/integrations/forza/lzx-decoder";
 import { parseForzaZip } from "@shared/integrations/forza/zip";
-
-const REPO_ROOT = resolve(import.meta.dir, "../../..");
-const OUT_DIR = resolve(REPO_ROOT, "shared/data/tracks/fm-2023");
-const tracksCSV = resolve(REPO_ROOT, "shared/games/fm-2023/tracks.csv");
-const ordinalToName = new Map<number, string>();
-try {
-  const csv = require("node:fs").readFileSync(tracksCSV, "utf-8") as string;
-  for (const line of csv.trim().split("\n")) {
-    const parts = line.split(",");
-    const ordinal = parseInt(parts[0], 10);
-    const sharedName = parts[6]?.trim();
-    if (!Number.isNaN(ordinal)) {
-      ordinalToName.set(ordinal, sharedName ? `${sharedName}-${ordinal}` : `${ordinal}`);
-    }
-  }
-} catch {}
-
-function trackFileName(ordinal: number): string {
-  return ordinalToName.get(ordinal) ?? `${ordinal}`;
-}
+import { bundledGeometryPath, getTrackAssetIdentity } from "../../../shared/racing/tracks/storage/assets";
 
 // ── Find FM2023 ──
 
 const forzaDir = findForzaInstall();
 if (!forzaDir) {
-  console.error(
-    "Forza Motorsport 2023 not found. Check your Steam installation.",
-  );
+  console.error("Forza Motorsport 2023 not found. Check your Steam installation.");
   process.exit(1);
 }
 console.log(`[FM2023] Found at: ${forzaDir}`);
@@ -50,9 +28,7 @@ const tracksZipPath = `${forzaDir}/media/base/ai/tracks.zip`;
 const { entries: trackEntries } = parseForzaZip(tracksZipPath);
 const trackOrdinalMap = new Map<string, number[]>();
 for (const entry of trackEntries) {
-  const match = entry.name.match(
-    /^(\w+)\/(ribbon_\d+)\/difficulty\/track_(\d+)_/,
-  );
+  const match = entry.name.match(/^(\w+)\/(ribbon_\d+)\/difficulty\/track_(\d+)_/);
   if (match) {
     const key = `${match[1]}/${match[2]}`;
     const ordinal = parseInt(match[3], 10);
@@ -74,10 +50,7 @@ function parseMlpHeader(data: Buffer): { fields: MlpFields; count: number } | nu
   if (startIdx === -1) return null;
 
   const headerEnd = text.indexOf("MLPDataEnd:");
-  const header = text.substring(
-    startIdx + "MLPDataStart:\n".length,
-    headerEnd > 0 ? headerEnd : 4096,
-  );
+  const header = text.substring(startIdx + "MLPDataStart:\n".length, headerEnd > 0 ? headerEnd : 4096);
 
   const fields: MlpFields = {};
   for (const line of header.split("\n")) {
@@ -90,9 +63,7 @@ function parseMlpHeader(data: Buffer): { fields: MlpFields; count: number } | nu
   return { fields, count: wpX?.count ?? 0 };
 }
 
-function parseMlpWaypoints(
-  data: Buffer,
-): { x: number[]; z: number[] } | null {
+function parseMlpWaypoints(data: Buffer): { x: number[]; z: number[] } | null {
   const parsed = parseMlpHeader(data);
   if (!parsed?.count) return null;
 
@@ -104,10 +75,7 @@ function parseMlpWaypoints(
 
   const needed = Math.max(wpXOffset, wpYOffset) + count * 4;
   if (data.length < needed) {
-    count = Math.min(
-      Math.floor((data.length - wpXOffset) / 4),
-      Math.floor((data.length - wpYOffset) / 4),
-    );
+    count = Math.min(Math.floor((data.length - wpXOffset) / 4), Math.floor((data.length - wpYOffset) / 4));
     if (count < 50) return null;
   }
 
@@ -123,9 +91,7 @@ function parseMlpWaypoints(
 /** Extract track boundary data from TrackLimitsCenter/Normal fields.
  *  The TrackLimitsNormal vector IS the half-width offset — it points from
  *  the track center to one edge, so: leftEdge = TLC + TLN, rightEdge = TLC - TLN. */
-function parseMlpBoundaries(
-  data: Buffer,
-): { leftEdge: {x: number; z: number}[]; rightEdge: {x: number; z: number}[]; altitude: number[] } | null {
+function parseMlpBoundaries(data: Buffer): { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[]; altitude: number[] } | null {
   const parsed = parseMlpHeader(data);
   if (!parsed?.count) return null;
 
@@ -156,8 +122,8 @@ function parseMlpBoundaries(
     const nZ = readField("fNormalY");
     if (!wpX || !wpZ || !nX || !nZ) return null;
 
-    const leftEdge: {x: number; y?: number; z: number}[] = [];
-    const rightEdge: {x: number; y?: number; z: number}[] = [];
+    const leftEdge: { x: number; y?: number; z: number }[] = [];
+    const rightEdge: { x: number; y?: number; z: number }[] = [];
     for (let i = 0; i < count; i++) {
       leftEdge.push({ x: wpX[i] + nX[i], z: wpZ[i] + nZ[i] });
       rightEdge.push({ x: wpX[i] - nX[i], z: wpZ[i] - nZ[i] });
@@ -165,8 +131,8 @@ function parseMlpBoundaries(
     return { leftEdge, rightEdge, altitude: alt ?? [] };
   }
 
-  const leftEdge: {x: number; y?: number; z: number}[] = [];
-  const rightEdge: {x: number; y?: number; z: number}[] = [];
+  const leftEdge: { x: number; y?: number; z: number }[] = [];
+  const rightEdge: { x: number; y?: number; z: number }[] = [];
 
   for (let i = 0; i < count; i++) {
     const ly = tlcY ? tlcY[i] + (tlnY?.[i] ?? 0) : undefined;
@@ -179,15 +145,17 @@ function parseMlpBoundaries(
 }
 
 /** Parse Track.seg MLP data — corner/straight segments with apex indices and curvature. */
-function parseMlpSegments(data: Buffer): {
-  type: "corner" | "straight";
-  direction: "left" | "right" | null;
-  startFrac: number;
-  endFrac: number;
-  apexFrac: number;
-  peakCurvature: number;
-  turnType: number;
-}[] | null {
+function parseMlpSegments(data: Buffer):
+  | {
+      type: "corner" | "straight";
+      direction: "left" | "right" | null;
+      startFrac: number;
+      endFrac: number;
+      apexFrac: number;
+      peakCurvature: number;
+      turnType: number;
+    }[]
+  | null {
   const parsed = parseMlpHeader(data);
   if (!parsed) return null;
   const { fields } = parsed;
@@ -259,7 +227,10 @@ function parseMlpSegments(data: Buffer): {
 function decompressNestedGeo(zipData: Buffer): Buffer {
   let pos = 0;
   while (pos < zipData.length - 30) {
-    if (zipData.readUInt32LE(pos) !== 0x04034b50) { pos++; continue; }
+    if (zipData.readUInt32LE(pos) !== 0x04034b50) {
+      pos++;
+      continue;
+    }
     const method = zipData.readUInt16LE(pos + 8);
     const compSize = zipData.readUInt32LE(pos + 18);
     const uncompSize = zipData.readUInt32LE(pos + 22);
@@ -279,7 +250,9 @@ function decompressNestedGeo(zipData: Buffer): Buffer {
       if (entryData.length >= 4 && entryData.readUInt32LE(0) === 0x04034b50) {
         try {
           return decompressNestedGeo(entryData);
-        } catch { /* try next entry */ }
+        } catch {
+          /* try next entry */
+        }
       }
     }
 
@@ -290,11 +263,8 @@ function decompressNestedGeo(zipData: Buffer): Buffer {
 
 // ── Extract all tracks ──
 
-mkdirSync(OUT_DIR, { recursive: true });
 const tracksDir = `${forzaDir}/media/pcfamily/tracks`;
-const trackDirs = readdirSync(tracksDir).filter((d) =>
-  readdirSync(resolve(tracksDir, d)).some((f) => /^ribbon_\d+\.zip$/.test(f)),
-);
+const trackDirs = readdirSync(tracksDir).filter((d) => readdirSync(resolve(tracksDir, d)).some((f) => /^ribbon_\d+\.zip$/.test(f)));
 
 let extracted = 0,
   skipped = 0,
@@ -323,10 +293,7 @@ for (const trackDir of trackDirs) {
         continue;
       }
 
-      const compressed = buf.subarray(
-        geoEntry.dataStart,
-        geoEntry.dataStart + geoEntry.compSize,
-      );
+      const compressed = buf.subarray(geoEntry.dataStart, geoEntry.dataStart + geoEntry.compSize);
       let decompressed: Buffer;
 
       // Handle nested ZIP containers (e.g. Suzuka)
@@ -362,41 +329,41 @@ for (const trackDir of trackDirs) {
       }
 
       for (const ordinal of ordinals) {
-        const name = trackFileName(ordinal);
-
-        const outPath = resolve(OUT_DIR, `${name}-centerline.csv`);
-        const csv =
-          "x,z\n" +
-          waypoints.x
-            .map((x, i) => `${x.toFixed(4)},${waypoints.z[i].toFixed(4)}`)
-            .join("\n");
-        writeFileSync(outPath, csv);
+        const identity = getTrackAssetIdentity("fm-2023", ordinal);
+        if (!identity) {
+          skipped++;
+          continue;
+        }
+        const centerlinePath = bundledGeometryPath(identity, "centerline");
+        mkdirSync(dirname(centerlinePath), { recursive: true });
+        const csv = "x,z\n" + waypoints.x.map((x, i) => `${x.toFixed(4)},${waypoints.z[i].toFixed(4)}`).join("\n");
+        writeFileSync(centerlinePath, csv);
 
         if (boundaries) {
-          const boundaryPath = resolve(OUT_DIR, `${name}-boundaries.json`);
-          writeFileSync(boundaryPath, JSON.stringify({
-            waypoints: waypoints.x.length,
-            leftEdge: boundaries.leftEdge,
-            rightEdge: boundaries.rightEdge,
-            ...(boundaries.altitude.length > 0 && { altitude: boundaries.altitude }),
-          }, null, 2));
+          writeFileSync(
+            bundledGeometryPath(identity, "boundaries"),
+            JSON.stringify(
+              {
+                waypoints: waypoints.x.length,
+                leftEdge: boundaries.leftEdge,
+                rightEdge: boundaries.rightEdge,
+                ...(boundaries.altitude.length > 0 && { altitude: boundaries.altitude }),
+              },
+              null,
+              2,
+            ),
+          );
         }
 
         extracted++;
-        console.log(
-          `  ✓ ${trackDir}/${ribbonName} → ${name} (${waypoints.x.length} pts${boundaries ? " + boundaries" : ""})`,
-        );
+        console.log(`  ✓ ${trackDir}/${ribbonName} → ${identity.venuePath}/${identity.layoutSlug} (${waypoints.x.length} pts${boundaries ? " + boundaries" : ""})`);
       }
     } catch (e: any) {
-      console.error(
-        `  ✗ ${trackDir}/${ribbonName}: ${e.message?.substring(0, 80)}`,
-      );
+      console.error(`  ✗ ${trackDir}/${ribbonName}: ${e.message?.substring(0, 80)}`);
       failed++;
     }
   }
 }
 
-console.log(
-  `\n[FM2023] Done: ${extracted} outlines extracted, ${skipped} skipped, ${failed} failed`,
-);
-console.log(`Output: ${OUT_DIR}`);
+console.log(`\n[FM2023] Done: ${extracted} outlines extracted, ${skipped} skipped, ${failed} failed`);
+console.log("Output: canonical venue geometry");
