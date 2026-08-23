@@ -1,0 +1,133 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - navigation "Navigation" [ref=e5]:
+      - generic [ref=e6]:
+        - link "RaceIQ" [ref=e7] [cursor=pointer]:
+          - /url: /
+        - button "Collapse sidebar" [ref=e8]:
+          - img
+      - generic [ref=e9]:
+        - combobox "Games" [ref=e10]:
+          - generic [ref=e12]: Assetto Corsa Competizione
+        - textbox [ref=e13]: acc
+      - generic [ref=e14]:
+        - link "Live" [ref=e15] [cursor=pointer]:
+          - /url: /acc/live
+          - img [ref=e16]
+          - generic [ref=e19]: Live
+        - link "Sessions" [ref=e20] [cursor=pointer]:
+          - /url: /acc/sessions
+          - img [ref=e21]
+          - generic [ref=e25]: Sessions
+        - link "Compare" [ref=e26] [cursor=pointer]:
+          - /url: /acc/compare
+          - img [ref=e27]
+          - generic [ref=e34]: Compare
+        - link "Analyse" [ref=e35] [cursor=pointer]:
+          - /url: /acc/analyse
+          - img [ref=e36]
+          - generic [ref=e38]: Analyse
+        - link "Driver" [ref=e39] [cursor=pointer]:
+          - /url: /acc/driver
+          - img [ref=e40]
+          - generic [ref=e43]: Driver
+        - link "Experiments" [ref=e44] [cursor=pointer]:
+          - /url: /acc/experiments
+          - img [ref=e45]
+          - generic [ref=e47]: Experiments
+        - link "Chats" [ref=e48] [cursor=pointer]:
+          - /url: /acc/chats
+          - img [ref=e49]
+          - generic [ref=e52]: Chats
+        - link "Tracks" [ref=e53] [cursor=pointer]:
+          - /url: /acc/tracks
+          - img [ref=e54]
+          - generic [ref=e56]: Tracks
+        - link "Cars" [ref=e57] [cursor=pointer]:
+          - /url: /acc/cars
+          - img [ref=e58]
+          - generic [ref=e62]: Cars
+        - link "Setups" [ref=e63] [cursor=pointer]:
+          - /url: /acc/setups
+          - img [ref=e64]
+          - generic [ref=e65]: Setups
+        - link "Setup Manager" [ref=e66] [cursor=pointer]:
+          - /url: /acc/setup-manager
+          - img [ref=e67]
+          - generic [ref=e70]: Setup Manager
+        - link "Raw" [ref=e71] [cursor=pointer]:
+          - /url: /acc/raw
+          - img [ref=e72]
+          - generic [ref=e77]: Raw
+      - generic [ref=e78]:
+        - link "Home" [ref=e79] [cursor=pointer]:
+          - /url: /
+          - img [ref=e80]
+          - generic [ref=e83]: Home
+        - link "Dash" [ref=e84] [cursor=pointer]:
+          - /url: /dash
+          - img [ref=e85]
+          - generic [ref=e90]: Dash
+        - link "Dev" [ref=e91] [cursor=pointer]:
+          - /url: /dev
+          - img [ref=e92]
+          - generic [ref=e96]: Dev
+        - button "Update available · v0.14.0" [ref=e97]:
+          - img
+          - generic [ref=e98]: Update available · v0.14.0
+        - button "Settings" [ref=e99]:
+          - img
+          - generic [ref=e100]: Settings
+        - status "Server" [ref=e101]:
+          - generic [ref=e104]: Server
+  - main [ref=e106]:
+    - main [ref=e108]:
+      - generic [ref=e109]:
+        - heading "Setup Manager" [level=1] [ref=e110]
+        - textbox "Search car, track, or setup…" [ref=e111]
+      - generic [ref=e112]:
+        - generic [ref=e113]: Google Drive connected
+        - button "Disconnect" [ref=e114]
+      - generic [ref=e115]:
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - heading "On this PC" [level=2] [ref=e118]
+            - combobox "On this PC" [ref=e119]:
+              - option "Car"
+              - option "Track"
+              - option "Name" [selected]
+          - generic [ref=e120]:
+            - generic [ref=e121]: ferrari_296_gt3 / monza / Qualifying.json
+            - button "Back up" [ref=e122]
+          - generic [ref=e123]:
+            - generic [ref=e124]: ferrari_296_gt3 / spa / Race.json
+            - button "Back up" [ref=e125]
+          - generic [ref=e126]:
+            - generic [ref=e127]: porsche_992_gt3_r / brands_hatch / Wet.json
+            - button "Back up" [ref=e128]
+        - generic [ref=e129]:
+          - generic [ref=e130]:
+            - heading "Google Drive" [level=2] [ref=e131]
+            - combobox "Google Drive" [ref=e132]:
+              - option "Car"
+              - option "Track"
+              - option "Name"
+              - option "Updated" [selected]
+          - generic [ref=e133]:
+            - generic [ref=e134]: porsche_992_gt3_r / brands_hatch / Wet21/08/2026, 08:30:00
+            - generic [ref=e135]:
+              - button "Restore" [ref=e136]
+              - button "Rename" [ref=e137]
+              - button "Delete" [ref=e138]
+          - generic [ref=e139]:
+            - generic [ref=e140]: ferrari_296_gt3 / monza / Qualifying22/08/2026, 19:42:00
+            - generic [ref=e141]:
+              - button "Restore" [ref=e142]
+              - button "Rename" [ref=e143]
+              - button "Delete" [ref=e144]
+          - generic [ref=e145]:
+            - generic [ref=e146]: ferrari_296_gt3 / spa / Race23/08/2026, 10:15:00
+            - generic [ref=e147]:
+              - button "Restore" [ref=e148]
+              - button "Rename" [ref=e149]
+              - button "Delete" [ref=e150]

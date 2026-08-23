@@ -146,6 +146,10 @@ test/setups/ac-evo/ac-evo-carsetup.test.ts
 test/setups/ac-evo/carsetup-import-routes.test.ts
 test/setups/ac-evo/place-setup-carsetup.test.ts
 test/setups/ac-evo/setup-file-formats.test.ts
+test/setups/backup-service.test.ts
+test/setups/google-drive-auth.test.ts
+test/setups/google-drive-store.test.ts
+test/setups/setup-backup-archive.test.ts
 test/setups/catalog.test.ts
 test/setups/engineer/setup-engineer-apply-guard.test.ts
 test/setups/engineer/setup-engineer-confirmation.test.ts
