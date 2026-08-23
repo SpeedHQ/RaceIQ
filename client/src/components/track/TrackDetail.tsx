@@ -8,7 +8,7 @@ import { F125SetupsWithGuide } from "@/components/f1/f125/TrackSetups";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBulkDeleteLaps } from "@/hooks/laps";
-import { drawTrack } from "@/lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
@@ -46,6 +46,7 @@ export function TrackDetail({
   const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [flipX, setFlipX] = useState(false);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [segSource, setSegSource] = useState<string>(""); // "user" | "extracted" | "named" | "shared" | "auto"
@@ -119,7 +120,7 @@ export function TrackDetail({
       Promise.all([
         client.api["track-outline"][":ordinal"]
           .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } })
-          .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
+          .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[]),
         client.api["track-sectors"][":ordinal"]
           .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
@@ -136,11 +137,14 @@ export function TrackDetail({
     const { outlineData, sectorData, boundsData } = trackMapData;
     if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
+      setPitLines(Array.isArray(outlineData.pitLines) ? outlineData.pitLines : []);
       setFlipX(outlineData.flipX ?? false);
     } else if (Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
+      setPitLines([]);
     } else {
       setOutline(null);
+      setPitLines([]);
     }
     setSectors(sectorData);
     setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
@@ -171,8 +175,8 @@ export function TrackDetail({
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, pitLines, editing);
+  }, [outline, pitLines, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

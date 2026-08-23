@@ -5,11 +5,16 @@ import { getLapSummariesByTrack, getLapById } from "../../db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "../../db/track-queries";
 import { getTrackOutlineByOrdinal, getRecordedOutlineByOrdinal, recordLapTrace } from "../../../shared/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
+import { applyAlignment, computeAlignment } from "../../../shared/racing/tracks/geometry/points";
 import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
 import { resolveTrackSharedName } from "../../tracks/identity";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
-import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "../../games/iracing/track-map-svg";
+import {
+  alignIRacingAutoSegmentsToTurnLabels,
+  type IRacingMapLabel,
+  type IRacingPitLine,
+} from "../../games/iracing/track-map-svg";
 import { lapPath } from "../../../shared/racing/tracks/path";
 import { loadCanonicalTrackPeer } from "../../tracks/configuration";
 
@@ -51,6 +56,8 @@ export function getSharedTrackName(ordinal: number, gameId?: string): string | u
 export interface ResolvedTrackOutline {
   points: { x: number; z: number }[];
   labels: IRacingMapLabel[];
+  /** Solid official iRacing pit-road and pit-exit centerlines. */
+  pitLines: IRacingPitLine[];
   recorded: boolean;
   source: "shared" | "official-svg" | "generated" | "bundled" | "recorded";
 }
@@ -64,20 +71,28 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
   const sharedName = getSharedTrackName(ordinal, gameId);
 
   if (gameId === "iracing") {
+    const official = await getIRacingSvgTrackMap(ordinal);
     if (sharedName) {
       const shared = loadSharedOutline(sharedName);
       const labelledSegments = loadLabelledSegments(sharedName, "iracing");
       if (shared && labelledSegments.length > 0) {
+        const alignment = official ? computeAlignment(official.points, shared) : null;
         return {
           points: shared,
           labels: [],
+          pitLines:
+            official && alignment
+              ? official.pitLines.map((line) => ({
+                  ...line,
+                  points: line.points.map((point) => applyAlignment(point, alignment)),
+                }))
+              : [],
           recorded: false,
           source: "shared",
         };
       }
     }
 
-    const official = await getIRacingSvgTrackMap(ordinal);
     if (official) {
       return {
         ...official,
@@ -91,6 +106,7 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
       return {
         points: generated,
         labels: [],
+        pitLines: [],
         recorded: true,
         source: "generated",
       };
@@ -101,6 +117,7 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
       return {
         points: outline,
         labels: [],
+        pitLines: [],
         recorded: true,
         source: "bundled",
       };
@@ -111,6 +128,7 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
     return {
       points: dbOutline,
       labels: [],
+      pitLines: [],
       recorded: true,
       source: "recorded",
     };
@@ -136,6 +154,7 @@ export async function resolveTrackOutline(ordinal: number, gameId: string): Prom
         return {
           points: generated,
           labels: [],
+          pitLines: [],
           recorded: true,
           source: "generated",
         };
@@ -179,8 +198,9 @@ export async function resolveTrackSegments(ordinal: number, gameId: string | und
 export async function generateTrackSegments(ordinal: number, gameId: string): Promise<{ segments: NamedSegment[]; totalDist: number; source: "auto" | "none" }> {
   const resolved = await resolveTrackOutline(ordinal, gameId);
   const outline = resolved?.points ?? null;
-  if (!outline || outline.length < 20) return { segments: [], totalDist: 0, source: "none" };
-
+  if (!outline || outline.length < 20) {
+    return { segments: [], totalDist: 0, source: "none" };
+  }
   const result = autoTrackSegments(outline);
   const segments =
     gameId === "iracing" && resolved && resolved.labels.length

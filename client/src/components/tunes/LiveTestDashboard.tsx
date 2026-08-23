@@ -132,6 +132,10 @@ export function LiveTestDashboard({
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
+  const pitLines = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw)) return null;
+    return Array.isArray(outlineRaw.pitLines) ? outlineRaw.pitLines : null;
+  }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
   const boundaries = (boundariesRaw as TrackMapBoundaries | null) ?? null;
 
@@ -147,6 +151,7 @@ export function LiveTestDashboard({
               telemetry={semanticTrace}
               cursorIdx={semanticTrace.length - 1}
               outline={outline}
+              pitLines={pitLines}
               boundaries={boundaries}
               sectors={null}
               segments={null}

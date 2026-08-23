@@ -2,6 +2,7 @@ import type { TuneIssue } from "@shared/racing/tuning/issues";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { Button } from "@/components/ui/button";
+import type { PitLine } from "@/lib/canvas/draw-track";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { advanceLiveTrackPosition, type LiveTrackSample, liveTrackSampleFromView } from "./live-track-sample";
@@ -18,6 +19,7 @@ export function LiveTrackMap({ view, issues }: Props) {
   const gameId = sample?.simulator ?? null;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [noOutline, setNoOutline] = useState(false);
   const [isRecorded, setIsRecorded] = useState(false); // true = Forza coords, can plot directly
   const [startYaw, setStartYaw] = useState<number | null>(null); // Yaw at start/finish line
@@ -55,6 +57,7 @@ export function LiveTrackMap({ view, issues }: Props) {
     deadReckonedLapRef.current = null;
     lapDistRef.current = { startDist: 0, totalDist: 0, lastLap: -1 };
     setOutline(null);
+    setPitLines([]);
     setNoOutline(false);
     setSectors(null);
     setBoundaries(null);
@@ -84,13 +87,14 @@ export function LiveTrackMap({ view, issues }: Props) {
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .then((data: any) => {
         // eslint-disable-line @typescript-eslint/no-explicit-any
-        // New format: { points, recorded, startYaw } or legacy array format
         if (data.points && Array.isArray(data.points)) {
           setOutline(data.points);
+          setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
           setIsRecorded(!!data.recorded);
           setStartYaw(data.startYaw ?? null);
         } else if (Array.isArray(data)) {
           setOutline(data);
+          setPitLines([]);
           setIsRecorded(false);
           setStartYaw(null);
         } else {
@@ -100,6 +104,7 @@ export function LiveTrackMap({ view, issues }: Props) {
       })
       .catch(() => {
         setOutline(null);
+        setPitLines([]);
         setIsRecorded(false);
         setStartYaw(null);
         setNoOutline(true);
@@ -120,9 +125,9 @@ export function LiveTrackMap({ view, issues }: Props) {
         .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .then((data: any) => {
-          // eslint-disable-line @typescript-eslint/no-explicit-any
           if (data?.points && Array.isArray(data.points)) {
             setOutline(data.points);
+            setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
             setIsRecorded(!!data.recorded);
             setStartYaw(data.startYaw ?? null);
             setNoOutline(false);
@@ -186,9 +191,8 @@ export function LiveTrackMap({ view, issues }: Props) {
     if (liveTraceRef.current.length > 2000) liveTraceRef.current.shift();
   }, [sample]);
 
-  // Redraw
   useEffect(() => {
-    drawLiveTrack({ canvasRef, sample, outline, noOutline, isRecorded, startYaw, sectors, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
+    drawLiveTrack({ canvasRef, sample, outline, pitLines, noOutline, isRecorded, startYaw, sectors, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
   });
 
   async function handleDeleteMap() {
@@ -197,6 +201,7 @@ export function LiveTrackMap({ view, issues }: Props) {
     try {
       await client.api["track-outline"][":ordinal"].$delete({ param: { ordinal: String(trackOrd) } });
       setOutline(null);
+      setPitLines([]);
       setIsRecorded(false);
       setStartYaw(null);
       setNoOutline(true);
