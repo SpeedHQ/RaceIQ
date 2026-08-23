@@ -2,6 +2,10 @@ import { resolve } from "node:path";
 import { mkdirSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
+import type {
+  EvidenceSourceKind,
+  SourceChannelProfile,
+} from "../../shared/racing/quality/contracts";
 import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
@@ -18,7 +22,7 @@ import {
   TELEMETRY_RESOLVER_VERSION,
 } from "../../shared/telemetry/resolver/versions";
 import { insertSession, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
-import { insertLap, setLapMetrics } from "../db/lap-mutation-queries";
+import { insertLap, setLapMetrics, type PersistLapInput } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
 import { notifyDriverProfileLap } from "../driver-profile/runner";
@@ -47,20 +51,9 @@ export interface CapturedSession {
   ownership?: SessionOwnership;
 }
 
-export interface CapturedLap {
-  sessionId: number;
-  lapNumber: number;
-  lapTime: number;
-  isValid: boolean;
-  rawByteOffset: number | null;
-  rawFrameCount: number;
-  profileId: number | null;
-  tuneId: number | null;
-  invalidReason: string | null;
-  sectors: number[] | null;
+export interface CapturedLap extends PersistLapInput {
   /** Populated by parseDump helpers for test assertions only — not present in production. */
   packets?: TelemetryPacket[];
-  versionIdentity?: TelemetryVersionIdentity;
 }
 
 export interface DbAdapter {
@@ -72,19 +65,7 @@ export interface DbAdapter {
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
   ): Promise<number>;
-  insertLap(
-    sessionId: number,
-    lapNumber: number,
-    lapTime: number,
-    isValid: boolean,
-    rawByteOffset: number | null,
-    rawFrameCount: number,
-    profileId: number | null,
-    tuneId: number | null,
-    invalidReason: string | null,
-    sectors: number[] | null,
-    versionIdentity?: TelemetryVersionIdentity,
-  ): Promise<number>;
+  insertLap(input: PersistLapInput): Promise<number>;
   /** Persist precomputed per-lap fuel/tyre metrics (migration v32 columns).
    *  Called right after insertLap so /lap-metrics is a pure column read and
    *  never has to decode telemetry on first open. */
@@ -143,6 +124,13 @@ export interface WsAdapter {
   broadcastDevState(state: Record<string, unknown>): void;
 }
 
+export interface RealDbAdapterOptions {
+  notifyDriverProfile?: boolean;
+  ownership?: SessionOwnership;
+  source?: EvidenceSourceKind;
+  sourceChannelProfile?: SourceChannelProfile;
+}
+
 /** Delegates to the real query functions. Used in production. */
 export class RealDbAdapter implements DbAdapter {
   private readonly sessionScopes = new Map<number, {
@@ -151,22 +139,34 @@ export class RealDbAdapter implements DbAdapter {
     trackOrdinal: number;
     versionIdentity: TelemetryVersionIdentity;
   }>();
-  private readonly options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership };
+  private readonly options: RealDbAdapterOptions;
 
-  constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {}) {
+  constructor(options: RealDbAdapterOptions = {}) {
     this.options = options;
   }
 
   async insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
     const identity = versionIdentity ?? currentTelemetryVersionIdentity(gameId);
-    const sessionId = await insertSession(carOrdinal, trackOrdinal, gameId, sessionType, identity, ownership ?? this.options.ownership);
+    const sessionId = await insertSession(
+      carOrdinal,
+      trackOrdinal,
+      gameId,
+      sessionType,
+      identity,
+      ownership ?? this.options.ownership,
+      this.options.source ?? "native-live",
+      this.options.sourceChannelProfile,
+    );
     this.sessionScopes.set(sessionId, { gameId, carOrdinal, trackOrdinal, versionIdentity: identity });
     return sessionId;
   }
 
-  async insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
-    const scope = this.sessionScopes.get(sessionId);
-    const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
+  async insertLap(input: PersistLapInput): Promise<number> {
+    const scope = this.sessionScopes.get(input.sessionId);
+    const lapId = await insertLap({
+      ...input,
+      versionIdentity: input.versionIdentity ?? scope?.versionIdentity,
+    });
     if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
     return lapId;
   }
@@ -210,8 +210,8 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve(++this._sessionId);
   }
 
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
-    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity });
+  insertLap(input: PersistLapInput): Promise<number> {
+    this.laps.push(input);
     return Promise.resolve(++this._lapId);
   }
 
@@ -271,7 +271,7 @@ export class NullDbAdapter implements DbAdapter {
   insertSession(_carOrdinal: number, _trackOrdinal: number, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership): Promise<number> {
     return Promise.resolve(1);
   }
-  insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _versionIdentity?: TelemetryVersionIdentity): Promise<number> {
+  insertLap(_input: PersistLapInput): Promise<number> {
     return Promise.resolve(1);
   }
   setLapMetrics(_lapId: number, _fuelPerLap: number | null, _tyreWear: number | null): Promise<void> {

@@ -6,6 +6,8 @@ import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
+import { normalizeEvidenceSourceKind } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 
 interface LapStats {
   totalLaps: number;
@@ -99,6 +101,12 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      qualityGeneration: laps.qualityGeneration,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -154,6 +162,12 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
       experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      qualityGeneration: laps.qualityGeneration,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -257,6 +271,7 @@ export async function getLapById(
       tuneName: tunes.name,
       gameId: sessions.gameId,
       ownership: sessions.ownership,
+      source: sessions.source,
       carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes,
       catalogVersion: laps.catalogVersion,
@@ -265,6 +280,12 @@ export async function getLapById(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      qualityGeneration: laps.qualityGeneration,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -333,8 +354,15 @@ type LapResultRow = {
   catalogSchemaVersion: string | null;
   parserVersion: string | null;
   ownership: string | null;
+  source: string | null;
   resolverVersion: string | null;
   derivationVersion: string | null;
+  quality: LapMeta["quality"] | null;
+  eligibility: LapMeta["eligibility"] | null;
+  qualitySchemaVersion: string | null;
+  qualityPolicyVersion: string | null;
+  qualityConfigVersion: string | null;
+  qualityGeneration: string | null;
   rawFile?: string | null;
 };
 
@@ -355,6 +383,7 @@ function buildLapResult(
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
+    source: normalizeEvidenceSourceKind(row.source),
     carSetup: row.carSetup ?? undefined,
     sectorTimes: row.sectorTimes ?? undefined,
     catalogVersion: row.catalogVersion ?? undefined,
@@ -363,6 +392,19 @@ function buildLapResult(
     parserVersion: row.parserVersion ?? undefined,
     resolverVersion: row.resolverVersion ?? undefined,
     derivationVersion: row.derivationVersion ?? undefined,
+    quality: row.quality ?? undefined,
+    eligibility: row.eligibility ?? undefined,
+    qualityGeneration: row.qualityGeneration ?? undefined,
+    qualityStale:
+      row.quality != null &&
+      !isEligibilitySnapshotCurrent({
+        quality: row.quality,
+        eligibility: row.eligibility,
+        qualityGeneration: row.qualityGeneration,
+        qualitySchemaVersion: row.qualitySchemaVersion,
+        qualityPolicyVersion: row.qualityPolicyVersion,
+        qualityConfigVersion: row.qualityConfigVersion,
+      }),
     telemetry,
   };
 }
@@ -399,6 +441,7 @@ export async function getLapsByIds(
       tuneName: tunes.name,
       gameId: sessions.gameId,
       ownership: sessions.ownership,
+      source: sessions.source,
       carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes,
       catalogVersion: laps.catalogVersion,
@@ -407,6 +450,12 @@ export async function getLapsByIds(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      qualityGeneration: laps.qualityGeneration,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -482,6 +531,7 @@ export async function getLapsRaw(ids?: number[]) {
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
       gameId: sessions.gameId,
+      sourceChannelProfile: sessions.sourceChannelProfile,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion,

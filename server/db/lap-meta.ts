@@ -1,5 +1,11 @@
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
+import {
+  normalizeEvidenceSourceKind,
+  type EligibilityDecisionSet,
+  type LapQualitySummary,
+} from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 
 type StoredLapMetaRow = {
   id: number;
@@ -33,6 +39,12 @@ type StoredLapMetaRow = {
   derivationVersion?: string | null;
   rawFrameCount?: number | null;
   ownership?: string | null;
+  quality?: LapQualitySummary | null;
+  eligibility?: EligibilityDecisionSet | null;
+  qualitySchemaVersion?: string | null;
+  qualityPolicyVersion?: string | null;
+  qualityConfigVersion?: string | null;
+  qualityGeneration?: string | null;
 };
 
 /** Normalize nullable SQLite fields into the public LapMeta representation. */
@@ -62,6 +74,12 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     derivationVersion,
     ownership,
     rawFrameCount,
+    quality,
+    eligibility,
+    qualitySchemaVersion,
+    qualityPolicyVersion,
+    qualityConfigVersion,
+    qualityGeneration,
     ...base
   } = row;
 
@@ -90,7 +108,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tuneName: tuneName ?? undefined,
     gameId: gameId as GameId,
     sectorTimes: sectorTimes ?? undefined,
-    source: (source as "motec" | null) ?? null,
+    source: normalizeEvidenceSourceKind(source),
     ownership: ownership === "others" ? "others" : "mine",
     experimentId: experimentId ?? null,
     experimentVersionId: experimentVersionId ?? null,
@@ -103,5 +121,18 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tyreWear: tyreWear ?? null,
     ...versionIdentity,
     ...frameCount,
+    quality: quality ?? undefined,
+    eligibility: eligibility ?? undefined,
+    qualityGeneration: qualityGeneration ?? undefined,
+    qualityStale:
+      quality != null &&
+      !isEligibilitySnapshotCurrent({
+        quality,
+        eligibility,
+        qualityGeneration,
+        qualitySchemaVersion,
+        qualityPolicyVersion,
+        qualityConfigVersion,
+      }),
   };
 }

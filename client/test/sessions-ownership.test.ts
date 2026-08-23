@@ -6,7 +6,7 @@ import { validateSessionsSearch } from "../src/lib/game-routes";
 const names = { trackNames: { 1: "Silverstone" }, carNames: { 2: "Porsche" } };
 const sessions: SessionMeta[] = [
   { id: 1, trackOrdinal: 1, carOrdinal: 2, createdAt: "2026-01-01", ownership: "mine", source: "motec" },
-  { id: 2, trackOrdinal: 1, carOrdinal: 2, createdAt: "2026-01-02", ownership: "others", source: undefined },
+  { id: 2, trackOrdinal: 1, carOrdinal: 2, createdAt: "2026-01-02", ownership: "others", source: "native-live" },
 ];
 
 describe("sessions ownership tabs", () => {

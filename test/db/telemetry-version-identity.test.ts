@@ -33,22 +33,27 @@ test("production adapter stamps current runtime identity on sessions and laps", 
   };
   const sessionId = await adapter.insertSession(990_205, 991_205, "iracing");
   try {
-    const lapId = await adapter.insertLap(
+    const lapId = await adapter.insertLap({
       sessionId,
-      1,
-      88.5,
-      true,
-      null,
-      0,
-      null,
-      null,
-      null,
-      null,
-    );
+      lapNumber: 1,
+      lapTime: 88.5,
+      isValid: true,
+      rawByteOffset: null,
+      rawFrameCount: 0,
+      profileId: null,
+      tuneId: null,
+      invalidReason: null,
+      sectors: null,
+      quality: null,
+      eligibility: null,
+    });
 
     expect(await getLapById(lapId)).toMatchObject(expected);
     const session = (await getSessions("iracing")).find((row) => row.id === sessionId);
-    expect(session).toMatchObject(expected);
+    expect(session).toMatchObject({
+      ...expected,
+      source: "native-live",
+    });
   } finally {
     await deleteSession(sessionId);
   }

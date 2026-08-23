@@ -1,4 +1,8 @@
 export interface KunosExtendedData {
+  /** Native physics shared-memory page sequence, when supplied by the game. */
+  physicsPacketId?: number;
+  /** Native graphics shared-memory page sequence, when supplied by the game. */
+  graphicsPacketId?: number;
   // Tire detail
   tireCompound: string;
   tireCoreTemp: [number, number, number, number];

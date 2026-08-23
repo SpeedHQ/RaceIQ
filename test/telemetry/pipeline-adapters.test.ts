@@ -2,6 +2,30 @@ import { describe, test, expect, spyOn } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../../server/telemetry/pipeline-ports"
 import * as DriverProfileRunner from "../../server/driver-profile/runner";
+import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
+
+function lapInput(
+  sessionId: number,
+  lapNumber: number,
+  lapTime: number,
+  overrides: Partial<PersistLapInput> = {},
+): PersistLapInput {
+  return {
+    sessionId,
+    lapNumber,
+    lapTime,
+    isValid: true,
+    rawByteOffset: null,
+    rawFrameCount: 0,
+    profileId: null,
+    tuneId: null,
+    invalidReason: null,
+    sectors: null,
+    quality: null,
+    eligibility: null,
+    ...overrides,
+  };
+}
 
 describe("CapturingDbAdapter", () => {
   test("insertSession captures data and returns incrementing IDs", async () => {
@@ -22,7 +46,7 @@ describe("CapturingDbAdapter", () => {
   test("insertLap captures data and returns incrementing IDs", async () => {
     const db = new CapturingDbAdapter();
     await db.insertSession(1, 1, "f1-2025");
-    const id = await db.insertLap(1, 1, 90000, true, null, 0, null, null, null, null);
+    const id = await db.insertLap(lapInput(1, 1, 90000));
     expect(id).toBe(1);
     expect(db.laps).toHaveLength(1);
     expect(db.laps[0]).toMatchObject({
@@ -36,7 +60,7 @@ describe("CapturingDbAdapter", () => {
   test("insertLap captures sectors", async () => {
     const db = new CapturingDbAdapter();
     await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(1, 1, 90000, true, null, 0, null, null, null, [30000, 30000, 30000]);
+    await db.insertLap(lapInput(1, 1, 90000, { sectors: [30000, 30000, 30000] }));
     expect(db.laps[0].sectors).toEqual([30000, 30000, 30000]);
   });
 
@@ -56,8 +80,8 @@ test("RealDbAdapter notifies global profile after valid and dirty persisted laps
   try {
     const db = new RealDbAdapter();
     const sessionId = await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(sessionId, 1, 90000, true, null, 0, null, null, null, null);
-    await db.insertLap(sessionId, 2, 91000, false, null, 0, null, null, "dirty", null);
+    await db.insertLap(lapInput(sessionId, 1, 90000));
+    await db.insertLap(lapInput(sessionId, 2, 91000, { isValid: false, invalidReason: "dirty" }));
     expect(notify).toHaveBeenNthCalledWith(1, "f1-2025");
     expect(notify).toHaveBeenNthCalledWith(2, "f1-2025");
   } finally {
@@ -70,7 +94,7 @@ test("RealDbAdapter can suppress profile notifications for imports", async () =>
   try {
     const db = new RealDbAdapter({ notifyDriverProfile: false });
     const sessionId = await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(sessionId, 1, 90000, true, null, 0, null, null, null, null);
+    await db.insertLap(lapInput(sessionId, 1, 90000));
     expect(notify).not.toHaveBeenCalled();
   } finally {
     notify.mockRestore();

@@ -36,6 +36,7 @@ import {
 } from "../session-capture/framing";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import type { GameId } from "../../shared/games/ids";
+import type { SourceChannelProfile } from "../../shared/racing/quality/contracts";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
 export const LAPS_ZIP_VERSION = 2;
@@ -52,6 +53,8 @@ export interface ManifestEntry {
   gameId: GameId;
   /** Session id in the *source* database (informational — import always creates a new session). */
   sessionId: number;
+  /** Original session fidelity contract. Omitted by archives created before profile persistence. */
+  sourceChannelProfile?: SourceChannelProfile;
   carOrdinal: number;
   trackOrdinal: number;
   carName: string;
@@ -86,6 +89,14 @@ function encodeManifestFile(manifest: LapsZipManifest): Uint8Array {
   return manifestTextEncoder.encode(JSON.stringify(manifest, null, 2));
 }
 
+function importedSourceChannelProfile(
+  profile: SourceChannelProfile | null | undefined,
+): SourceChannelProfile | undefined {
+  return profile
+    ? { ...profile, sourceKind: "raceiq-archive" }
+    : undefined;
+}
+
 /**
  * Read capture bytes from disk and decompress gzip raw files.
  * Returns null when the file is missing or unreadable.
@@ -115,11 +126,11 @@ function fileNamesForZip(files: Record<string, Uint8Array>): string[] {
 function parseCaptureGameId(
   memberName: string,
   bytes: Buffer,
-  manifestGame: ReadonlyMap<string, GameId>,
+  manifestGameId?: GameId,
 ): GameId | null {
   return (
     detectGameIdFromBuffer(bytes) ??
-    manifestGame.get(memberName) ??
+    manifestGameId ??
     detectGameIdFromFilename(captureFileName(memberName))
   );
 }
@@ -136,7 +147,19 @@ export function detectLapsZip(zipData: Uint8Array): LapsZipDetection {
   const manifest = parseManifestFile(files);
   const manifestGame = new Map<string, GameId>();
   for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
-  const gameIds = [...new Set(names.map((name) => parseCaptureGameId(name, Buffer.from(files[name]), manifestGame)).filter((gameId): gameId is GameId => gameId != null))];
+  const gameIds = [
+    ...new Set(
+      names
+        .map((name) =>
+          parseCaptureGameId(
+            name,
+            Buffer.from(files[name]),
+            manifestGame.get(name),
+          ),
+        )
+        .filter((gameId): gameId is GameId => gameId != null),
+    ),
+  ];
   return { isRaceIqArchive: names.length > 0, captureCount: names.length, gameIds };
 }
 
@@ -275,6 +298,7 @@ export async function buildLapsZip(
       file: fileName,
       gameId,
       sessionId,
+      sourceChannelProfile: first.sourceChannelProfile ?? undefined,
       carOrdinal: first.carOrdinal ?? 0,
       trackOrdinal: first.trackOrdinal ?? 0,
       carName,
@@ -331,8 +355,9 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
   const files = unzipSync(zipData);
 
   const manifest = parseManifestFile(files);
-  const manifestGame = new Map<string, GameId>();
-  for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
+  const manifestEntries = new Map(
+    (manifest?.entries ?? []).map((entry) => [entry.file, entry]),
+  );
 
   const laps: ImportedLap[] = [];
   const errors: string[] = [];
@@ -353,14 +378,21 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       memberBytes.byteOffset,
       memberBytes.byteLength,
     );
-    const gameId = parseCaptureGameId(name, bytes, manifestGame);
+    const manifestEntry = manifestEntries.get(name);
+    const gameId = parseCaptureGameId(name, bytes, manifestEntry?.gameId);
     if (!gameId) {
       skipped++;
       errors.push(`${name}: could not determine which game this capture came from`);
       continue;
     }
     try {
-      const result = await importSessionBin(bytes, gameId, { ownership: options.ownership });
+      const result = await importSessionBin(bytes, gameId, {
+        ownership: options.ownership,
+        source: "raceiq-archive",
+        sourceChannelProfile: importedSourceChannelProfile(
+          manifestEntry?.sourceChannelProfile,
+        ),
+      });
       laps.push(...result.laps);
     } catch (err) {
       skipped++;

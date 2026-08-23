@@ -15,7 +15,7 @@ import {
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
 import { db } from "../../server/db";
 import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
-import { eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo"
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
@@ -242,6 +242,188 @@ describe("synthesizeAcEvoCapture", () => {
     expect(capture.missingChannels).toEqual([]);
   });
 
+  test("publishes source-authored fidelity for synthesized channels", () => {
+    expect(capture.sourceChannelProfile).toMatchObject({
+      schemaVersion: "1",
+      sourceKind: "motec",
+      channels: {
+        "motion.speed": {
+          treatment: "direct",
+          mappingStatus: "normalized",
+          sourceChannels: [
+            { name: "SPEED", declaredHz: 60, effectiveHz: 60 },
+          ],
+          evidenceId: "source-channel-profile:1:motec:motion.speed",
+        },
+        "inputs.steer": {
+          treatment: "assumed",
+          mappingStatus: "simplified",
+          sourceChannels: [
+            { name: "STEERANGLE", declaredHz: 60, effectiveHz: 60 },
+          ],
+          limitations: [
+            "Steering normalized using assumed 240 degree full lock.",
+          ],
+          evidenceId: "source-channel-profile:1:motec:inputs.steer",
+        },
+        "motion.position-x": {
+          treatment: "dead-reckoned",
+          mappingStatus: "derived",
+          sourceChannels: [{ name: "SPEED" }, { name: "ROTY" }],
+          limitations: ["Position dead-reckoned from speed and yaw rate."],
+          evidenceId: "source-channel-profile:1:motec:motion.position-x",
+        },
+        "motion.position-z": {
+          treatment: "dead-reckoned",
+          mappingStatus: "derived",
+          sourceChannels: [{ name: "SPEED" }, { name: "ROTY" }],
+          limitations: ["Position dead-reckoned from speed and yaw rate."],
+          evidenceId: "source-channel-profile:1:motec:motion.position-z",
+        },
+        "tires.tire-wear": {
+          treatment: "absent",
+          mappingStatus: "unavailable",
+          sourceChannels: [],
+        },
+        "tires.tire-slip-ratio": {
+          treatment: "absent",
+          mappingStatus: "unavailable",
+          sourceChannels: [],
+        },
+        "tires.tire-slip-angle": {
+          treatment: "absent",
+          mappingStatus: "unavailable",
+          sourceChannels: [],
+        },
+      },
+    });
+  });
+
+  test("position fidelity cites lateral G when yaw rate is unusable", () => {
+    const samples = new Array(60).fill(100);
+    const lateralGLog = parseLd(
+      buildLd({
+        channels: [
+          { name: "SPEED", freq: 60, unit: "kmh", samples },
+          {
+            name: "ROTY",
+            freq: 60,
+            unit: "rad/s",
+            samples: new Array(60).fill(0),
+          },
+          { name: "G_LAT", freq: 60, samples: new Array(60).fill(1) },
+        ],
+      }),
+    );
+    const result = synthesizeAcEvoCapture(lateralGLog, []);
+
+    expect(result.yawFromLateralG).toBe(true);
+    for (const semanticId of [
+      "motion.position-x",
+      "motion.position-z",
+    ] as const) {
+      expect(result.sourceChannelProfile.channels[semanticId]).toMatchObject({
+        treatment: "dead-reckoned",
+        mappingStatus: "derived",
+        sourceChannels: [{ name: "SPEED" }, { name: "G_LAT" }],
+        limitations: [
+          "Position dead-reckoned from speed and lateral acceleration.",
+        ],
+      });
+    }
+  });
+
+  test("position fidelity is unavailable without curvature evidence", () => {
+    const missingFallbackLog = parseLd(
+      buildLd({
+        channels: [
+          {
+            name: "SPEED",
+            freq: 60,
+            unit: "kmh",
+            samples: new Array(60).fill(100),
+          },
+          {
+            name: "ROTY",
+            freq: 60,
+            unit: "rad/s",
+            samples: new Array(60).fill(0),
+          },
+        ],
+      }),
+    );
+    const result = synthesizeAcEvoCapture(missingFallbackLog, []);
+
+    expect(result.yawFromLateralG).toBe(true);
+    for (const semanticId of [
+      "motion.position-x",
+      "motion.position-z",
+    ] as const) {
+      expect(result.sourceChannelProfile.channels[semanticId]).toMatchObject({
+        treatment: "absent",
+        mappingStatus: "unavailable",
+        sourceChannels: [{ name: "SPEED" }],
+        limitations: ["MoTeC position inputs unavailable."],
+      });
+    }
+  });
+
+  test("distinguishes held and resampled source cadence", () => {
+    const samples = (count: number, value: number) =>
+      new Array(count).fill(value);
+    const rateLog = parseLd(
+      buildLd({
+        channels: [
+          {
+            name: "SPEED",
+            freq: 60,
+            unit: "kmh",
+            samples: samples(60, 100),
+          },
+          {
+            name: "FUEL_LEVEL",
+            freq: 10,
+            unit: "l",
+            samples: samples(10, 50),
+          },
+          ...["LF", "RF", "LR", "RR"].map((corner) => ({
+            name: `WHEEL_SPEED_${corner}`,
+            freq: 200,
+            unit: "rad/s",
+            samples: samples(200, 20),
+          })),
+        ],
+      }),
+    );
+    const profile = synthesizeAcEvoCapture(rateLog, []).sourceChannelProfile;
+
+    expect(profile.channels["fuel.fuel"]).toMatchObject({
+      treatment: "held",
+      mappingStatus: "direct",
+      sourceChannels: [
+        { name: "FUEL_LEVEL", declaredHz: 10, effectiveHz: 10 },
+      ],
+      evidenceId: "source-channel-profile:1:motec:fuel.fuel",
+    });
+    expect(
+      profile.channels["tires.wheel-rotation-speed"],
+    ).toMatchObject({
+      treatment: "resampled",
+      mappingStatus: "direct",
+      evidenceId:
+        "source-channel-profile:1:motec:tires.wheel-rotation-speed",
+    });
+    expect(
+      profile.channels["tires.wheel-rotation-speed"]?.sourceChannels,
+    ).toEqual(
+      ["LF", "RF", "LR", "RR"].map((corner) => ({
+        name: `WHEEL_SPEED_${corner}`,
+        declaredHz: 200,
+        effectiveHz: 200,
+      })),
+    );
+  });
+
   test("frames parse back through the real AC Evo adapter", () => {
     const packets = parseFrames(capture.bin);
     expect(packets.length).toBe(capture.frameCount);
@@ -323,6 +505,29 @@ describe("importMotec end to end", () => {
     for (const id of sessionIds) {
       const [row] = await db.select().from(sessions).where(eq(sessions.id, id));
       expect(row?.source).toBe(MOTEC_SESSION_SOURCE);
+      expect(row?.sourceChannelProfile).toMatchObject({
+        schemaVersion: "1",
+        sourceKind: "motec",
+        channels: {
+          "inputs.steer": {
+            treatment: "assumed",
+            mappingStatus: "simplified",
+            evidenceId: "source-channel-profile:1:motec:inputs.steer",
+          },
+          "motion.position-x": {
+            treatment: "dead-reckoned",
+            mappingStatus: "derived",
+          },
+          "tires.tire-wear": {
+            treatment: "absent",
+            mappingStatus: "unavailable",
+          },
+          "tires.tire-slip-ratio": {
+            treatment: "absent",
+            mappingStatus: "unavailable",
+          },
+        },
+      });
     }
   });
 
@@ -379,14 +584,4 @@ describe("importMotec end to end", () => {
     }
   });
 
-  test("live-recorded sessions keep a null source", async () => {
-    // Guards the flag's meaning: it marks the exception, not every session.
-    const [row] = await db
-      .select()
-      .from(sessions)
-      .where(isNull(sessions.source))
-      .limit(1);
-    // Either there are no other sessions in this DB, or they are unflagged.
-    if (row) expect(row.source).toBeNull();
-  });
 });

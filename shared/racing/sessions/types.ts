@@ -1,6 +1,13 @@
 import type { GameId } from "@shared/games/ids";
 
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
+import type {
+  EligibilityDecisionSet,
+  EvidenceSourceKind,
+  LapQualitySummary,
+  RecordingQualitySummary,
+  SourceChannelProfile,
+} from "@shared/racing/quality/contracts";
 
 export type SessionOwnership = "mine" | "others";
 
@@ -12,6 +19,11 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  quality?: LapQualitySummary;
+  eligibility?: EligibilityDecisionSet;
+  qualityGeneration?: string;
+  /** True only when persisted quality exists but no longer matches current contracts. */
+  qualityStale?: boolean;
   invalidReason?: string;
   notes?: string;
   createdAt: string;
@@ -20,13 +32,9 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // Joined from session
   carOrdinal?: number;
   trackOrdinal?: number;
-  // How the session's telemetry was obtained (migration v43, joined from
-  // sessions.source). null/undefined = recorded live from the game. 'motec' =
-  // transcoded from a MoTeC .ld, where the racing line is dead-reckoned from
-  // speed and yaw rather than logged. Anything reading a POSITION off a lap
-  // must degrade for 'motec'; measured channels (speed, brake, throttle, gear,
-  // steering) are exact and need no caveat. See MOTEC_IMPORT_LIMITATIONS.
-  source?: "motec" | null;
+  // How this session's telemetry was obtained. Live capture is explicit
+  // (`native-live`); consumers must not use null/undefined truthiness to infer it.
+  source?: EvidenceSourceKind;
   ownership?: SessionOwnership;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;
@@ -79,12 +87,14 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   pitDurationSeconds?: number | null;
   notes?: string;
   /**
-   * How the session's telemetry was obtained. `undefined` = recorded live from
-   * the game; `"motec"` = transcoded from a MoTeC export (dead-reckoned line).
-   * Callers must not treat the two as interchangeable when the racing line or
-   * absolute position matters.
+   * How the session's telemetry was obtained. Live capture is explicit
+   * (`native-live`); source-specific fidelity decisions use this value.
    */
-  source?: string;
+  source?: EvidenceSourceKind;
+  sourceChannelProfile?: SourceChannelProfile;
+  recordingQuality?: RecordingQualitySummary;
+  qualityGeneration?: string;
+  qualityStale?: boolean;
   ownership?: SessionOwnership;
   gameId?: GameId;
 }

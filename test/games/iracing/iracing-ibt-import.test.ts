@@ -12,7 +12,11 @@ import {
 import { getDiscoveredCarName } from "../../../server/db/discovered-cars";
 import { getDiscoveredTrackName } from "../../../server/db/discovered-tracks";
 import { db } from "../../../server/db/index";
-import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
+import {
+  discoveredCars,
+  discoveredTracks,
+  sessions,
+} from "../../../server/db/schema";
 import { getLapsRaw } from "../../../server/db/lap-read-queries";
 import { deleteSession } from "../../../server/db/session-queries";
 import {
@@ -108,6 +112,12 @@ describe("IRacingIbt import workflow", () => {
         );
 
         sessionId = imported.laps[0].sessionId;
+        const session = await db
+          .select({ source: sessions.source })
+          .from(sessions)
+          .where(eq(sessions.id, sessionId))
+          .get();
+        expect(session?.source).toBe("iracing-ibt");
         const [stored] = await getLapsRaw([imported.laps[0].lapId]);
         rawFile = stored?.rawFile ?? null;
         expect(rawFile).toEndWith(".bin");

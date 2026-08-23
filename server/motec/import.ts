@@ -7,8 +7,8 @@
  * re-materialisable afterwards, because the pipeline's recorder persists the
  * frames it was given.
  *
- * The only thing that marks them out is `sessions.source = 'motec'`, stamped
- * after the fact so the pipeline's own signatures stay untouched.
+ * Session creation records `sessions.source = 'motec'` before imported laps
+ * are persisted.
  *
  * ## One transcoder per game
  *
@@ -24,7 +24,7 @@
  */
 
 import { db } from "../db";
-import { laps as laps_, sessions } from "../db/schema";
+import { laps as laps_ } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
 import { importSessionBin } from "../session-capture/import-capture";
@@ -123,18 +123,16 @@ export async function importMotec(
     carOrdinal: options?.carOrdinal,
     trackOrdinal: options?.trackOrdinal,
   });
-  const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId, { ownership: options?.ownership });
+  const { packetCount, laps } = await importSessionBin(
+    capture.bin,
+    target.gameId,
+    {
+      ownership: options?.ownership,
+      source: MOTEC_SESSION_SOURCE,
+      sourceChannelProfile: capture.sourceChannelProfile,
+    },
+  );
 
-  // Stamp every session the import touched. Normally one, but the pipeline
-  // rotates sessions on a car/track change, so don't assume.
-  const sessionIds = new Set<number>();
-  for (const lap of laps) sessionIds.add(lap.sessionId);
-  for (const sessionId of sessionIds) {
-    await db
-      .update(sessions)
-      .set({ source: MOTEC_SESSION_SOURCE })
-      .where(eq(sessions.id, sessionId));
-  }
 
   // The pipeline resolves a lap's tune from the live tune assignment, which an
   // import has no business touching, so the chosen setup is applied afterwards.

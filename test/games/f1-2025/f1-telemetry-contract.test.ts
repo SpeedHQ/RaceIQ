@@ -52,6 +52,10 @@ describe("F1 telemetry contract", () => {
     expect(packet!.Power).toBeCloseTo(620_000);
     expect(packet!.TireTempFL).toBe(90);
     expect(packet!.TireCarcassTempFL).toBe(88);
+    expect(packet!.f1).toMatchObject({
+      packetId: 7,
+      overallFrameIdentifier: 1,
+    });
   });
 
   test("preserves authoritative final classification packet", () => {

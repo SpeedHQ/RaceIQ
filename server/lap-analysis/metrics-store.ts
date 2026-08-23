@@ -3,7 +3,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { db } from "../db";
-import { lapMetrics } from "../db/schema";
+import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
 import { resolveTrack } from "../tracks/info";
 import {
@@ -38,6 +38,7 @@ interface MetricsRow {
   insights: string;
   segmentStats: string;
   computedAt: string;
+  qualityGeneration: string | null;
 }
 
 function rowToMetrics(row: MetricsRow): LapMetrics | null {
@@ -55,7 +56,10 @@ function rowToMetrics(row: MetricsRow): LapMetrics | null {
   }
 }
 
-async function persist(metrics: LapMetrics): Promise<void> {
+async function persist(
+  metrics: LapMetrics,
+  qualityGeneration: string | null | undefined,
+): Promise<void> {
   const insights = JSON.stringify(metrics.insights);
   const segmentStats = JSON.stringify(metrics.segmentStats);
   await db
@@ -63,6 +67,7 @@ async function persist(metrics: LapMetrics): Promise<void> {
     .values({
       lapId: metrics.lapId,
       algoVersion: metrics.algoVersion,
+      qualityGeneration: qualityGeneration ?? null,
       insights,
       segmentStats,
       computedAt: metrics.computedAt,
@@ -71,6 +76,7 @@ async function persist(metrics: LapMetrics): Promise<void> {
       target: lapMetrics.lapId,
       set: {
         algoVersion: metrics.algoVersion,
+        qualityGeneration: qualityGeneration ?? null,
         insights,
         segmentStats,
         computedAt: metrics.computedAt,
@@ -79,8 +85,18 @@ async function persist(metrics: LapMetrics): Promise<void> {
 }
 
 export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics | null> {
+  const lapGeneration = await db
+    .select({ qualityGeneration: laps.qualityGeneration })
+    .from(laps)
+    .where(eq(laps.id, lapId))
+    .get();
+  if (!lapGeneration) return null;
+
   const existing = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
-  if (existing) {
+  if (
+    existing &&
+    existing.qualityGeneration === lapGeneration.qualityGeneration
+  ) {
     const hit = rowToMetrics(existing);
     if (hit) return hit;
   }
@@ -90,7 +106,7 @@ export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics 
 
   const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
   const metrics = computeLapMetrics(lapId, lap.telemetry, lap.gameId as GameId, segments);
-  await persist(metrics);
+  await persist(metrics, lap.qualityGeneration);
   return metrics;
 }
 
@@ -99,8 +115,23 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   if (lapIds.length === 0) return output;
 
   const ids = [...new Set(lapIds)];
+  const generationRows = await db
+    .select({ id: laps.id, qualityGeneration: laps.qualityGeneration })
+    .from(laps)
+    .where(inArray(laps.id, ids))
+    .all();
+  const generationByLapId = new Map(
+    generationRows.map((row) => [row.id, row.qualityGeneration]),
+  );
   const rows = await db.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
   for (const row of rows) {
+    const qualityGeneration = generationByLapId.get(row.lapId);
+    if (
+      !generationByLapId.has(row.lapId) ||
+      row.qualityGeneration !== qualityGeneration
+    ) {
+      continue;
+    }
     const hit = rowToMetrics(row);
     if (hit) output.set(hit.lapId, hit);
   }
@@ -108,12 +139,12 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   const missing = ids.filter((id) => !output.has(id));
   if (missing.length === 0) return output;
 
-  const laps = await getLapsByIds(missing);
-  for (const lap of laps) {
+  const lapsById = await getLapsByIds(missing);
+  for (const lap of lapsById) {
     if (lap.telemetry.length === 0 || !lap.gameId) continue;
     const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
     const metrics = computeLapMetrics(lap.id, lap.telemetry, lap.gameId as GameId, segments);
-    await persist(metrics);
+    await persist(metrics, lap.qualityGeneration);
     output.set(lap.id, metrics);
   }
   return output;

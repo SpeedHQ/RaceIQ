@@ -75,7 +75,10 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     let carModel: string | null = null;
     let trackName: string | null = null;
 
-    const db = new ImportCaptureAdapter({ ownership: ownership.data });
+    const db = new ImportCaptureAdapter({
+      ownership: ownership.data,
+      source: "raceiq-raw",
+    });
     const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
       bypassPacketRateFilter: true,
     });

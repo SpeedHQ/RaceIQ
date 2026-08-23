@@ -41,7 +41,7 @@ const sessions = [
     bestLapTime: 94.201,
     sessionType: "practice",
     notes: "Long run on used tyres",
-    source: null,
+    source: "native-live",
     createdAt: new Date(Date.now() - 3_600_000).toISOString(),
   },
   {
@@ -53,7 +53,7 @@ const sessions = [
     bestLapTime: 412.887,
     sessionType: "race",
     notes: null,
-    source: null,
+    source: "native-live",
     createdAt: new Date(Date.now() - 7_200_000).toISOString(),
   },
   {
