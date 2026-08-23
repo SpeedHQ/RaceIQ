@@ -57,6 +57,12 @@ export function F1LiveDashboard() {
       </div>
     );
   }
+  const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => ({
+    tempC: Math.round(view.tires.temperatureC?.[corner] ?? 0),
+    wear: view.tires.wear?.[corner] ?? 0,
+    ...(view.tires.brakeTemperatureC ? { brakeTemp: view.tires.brakeTemperatureC[corner] } : {}),
+    ...(view.tires.pressurePsi ? { pressure: view.tires.pressurePsi[corner] } : {}),
+  });
 
   return (
     <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
@@ -81,13 +87,13 @@ export function F1LiveDashboard() {
           </div>
           <div>
             <TireGrid
-              fl={{ tempC: Math.round(view.tires.temperatureC?.fl ?? 0), wear: view.tires.wear?.fl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fl ?? 0, pressure: view.tires.pressurePsi?.fl ?? 0 }}
-              fr={{ tempC: Math.round(view.tires.temperatureC?.fr ?? 0), wear: view.tires.wear?.fr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fr ?? 0, pressure: view.tires.pressurePsi?.fr ?? 0 }}
-              rl={{ tempC: Math.round(view.tires.temperatureC?.rl ?? 0), wear: view.tires.wear?.rl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rl ?? 0, pressure: view.tires.pressurePsi?.rl ?? 0 }}
-              rr={{ tempC: Math.round(view.tires.temperatureC?.rr ?? 0), wear: view.tires.wear?.rr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rr ?? 0, pressure: view.tires.pressurePsi?.rr ?? 0 }}
+              fl={wheelData("fl")}
+              fr={wheelData("fr")}
+              rl={wheelData("rl")}
+              rr={wheelData("rr")}
               healthThresholds={{ green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
-              compound={typeof view.tires.compound === "string" ? view.tires.compound : "unknown"}
+              compound={typeof view.tires.compound === "string" ? view.tires.compound : undefined}
               temperatureAvailable={view.tires.temperatureC !== undefined}
               healthAvailable={view.tires.wear !== undefined}
             />
@@ -96,7 +102,7 @@ export function F1LiveDashboard() {
             <PitEstimate view={view} pit={pit} />
           </div>
         </div>
-        <GridSection competitors={view.competitors} playerPosition={view.timing.racePosition ?? 0} />
+        <GridSection competitors={view.competitors} playerPosition={view.timing.racePosition} />
       </div>
       {/* Right column: Race info + Charts + Recorded Laps */}
       <div data-live-dashboard-race className="overflow-y-auto overflow-x-hidden flex flex-col">
@@ -310,8 +316,8 @@ function WeatherWidget({ weather }: { weather: LiveTelemetryView["weather"] }) {
 
 // ── Grid Section (focused: leader + nearby drivers) ──────────────────────────
 
-function GridSection({ competitors, playerPosition }: { competitors: LiveTelemetryView["competitors"]; playerPosition: number }) {
-  const sorted = [...competitors].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+function GridSection({ competitors, playerPosition }: { competitors: LiveTelemetryView["competitors"]; playerPosition: number | undefined }) {
+  const sorted = [...competitors].sort((a, b) => (a.position ?? Number.POSITIVE_INFINITY) - (b.position ?? Number.POSITIVE_INFINITY));
   const [expanded, setExpanded] = useState(false);
 
   // Show leader + 2 ahead + player + 2 behind
@@ -398,16 +404,16 @@ function GridSection({ competitors, playerPosition }: { competitors: LiveTelemet
                     {entry.lastS3S && entry.lastS3S > 0 ? entry.lastS3S.toFixed(3) : "—"}
                   </TableCell>
                   <TableCell align="end" numeric tone="muted">
-                    {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeaderS ?? 0)}
+                    {entry.position === 1 ? m.f1grid_leader() : entry.gapToLeaderS === undefined ? "—" : formatGap(entry.gapToLeaderS)}
                   </TableCell>
                   <TableCell align="end" numeric tone="muted">
-                    {formatGap(entry.gapToAheadS ?? 0)}
+                    {entry.gapToAheadS === undefined ? "—" : formatGap(entry.gapToAheadS)}
                   </TableCell>
                   <TableCell align="center">
                     <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={String(entry.tireCompound ?? "unknown").toLowerCase()} />
                   </TableCell>
                   <TableCell align="end" numeric tone="muted">
-                    {entry.tireAge ?? 0}
+                    {entry.tireAge ?? "—"}
                   </TableCell>
                   <TableCell align="center" tone="muted">
                     {entry.pitStatus === 1 ? (

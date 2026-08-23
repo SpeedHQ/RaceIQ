@@ -35,14 +35,14 @@ export function PitEstimate({ view, pit }: PitEstimateProps) {
   const tireData = tireLabels.map((label, i) => {
     const health = healthAvailable && wears[i] !== undefined ? (1 - wears[i]) * 100 : null;
     const canEstimateWear = analysis.tireWearRate.source !== "unavailable";
-    const wpl = canEstimateWear ? (pit?.tireEstimates?.wearPerLap[i] ?? 0) : 0;
+    const wearPerLap = canEstimateWear ? pit?.tireEstimates?.wearPerLap[i] : undefined;
     return {
       label,
       health,
       healthColor: health === null ? "var(--status-unavailable)" : tireHealthPctColor(health),
       toCliff: canEstimateWear ? (pit?.tireEstimates?.toCliff[i] ?? null) : null,
       toDead: canEstimateWear ? (pit?.tireEstimates?.toDead[i] ?? null) : null,
-      wearPerLap: wpl > 0 ? (wpl * 100).toFixed(1) : null,
+      wearPerLap: wearPerLap === undefined ? null : (wearPerLap * 100).toFixed(1),
     };
   });
 

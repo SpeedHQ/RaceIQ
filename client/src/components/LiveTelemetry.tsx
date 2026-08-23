@@ -89,10 +89,12 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-app-text truncate">{carName}</span>
           <span className="text-app-caption font-mono font-semibold px-1.5 py-px rounded text-app-accent shrink-0">
-            {(gameId && tryGetGame(gameId)?.carClassNames?.[view.identity.carClass ?? 0]) ?? "?"}
-            {view.identity.performanceIndex ?? 0}
+            {view.identity.carClass === undefined ? "?" : (tryGetGame(view.simulator)?.carClassNames?.[view.identity.carClass] ?? "?")}
+            {view.identity.performanceIndex ?? "?"}
           </span>
-          <span className="text-app-caption text-app-text-dim shrink-0">{(gameId && tryGetGame(gameId)?.drivetrainNames?.[view.identity.drivetrainType ?? 0]) ?? "?"}</span>
+          <span className="text-app-caption text-app-text-dim shrink-0">
+            {view.identity.drivetrainType === undefined ? "?" : (tryGetGame(view.simulator)?.drivetrainNames?.[view.identity.drivetrainType] ?? "?")}
+          </span>
         </div>
       )}
       <div className="flex items-end justify-between mb-1">
