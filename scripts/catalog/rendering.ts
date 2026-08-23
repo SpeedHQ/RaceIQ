@@ -206,6 +206,7 @@ function recordValue(value: unknown): Record<string, unknown> | undefined {
 function compatibilityVariables(
   catalog: unknown,
   label: string,
+  allowMissingGameMappings = false,
 ): readonly CompatibilityCatalogVariable[] {
   const root = recordValue(catalog);
   if (!root || !Array.isArray(root.variables)) {
@@ -234,7 +235,9 @@ function compatibilityVariables(
     seen.add(variable.id);
     const parsedGames: Record<string, CompatibilityCatalogMapping> = {};
     for (const gameId of GAME_IDS) {
-      const mapping = recordValue(games[gameId]);
+      const rawMapping = games[gameId];
+      if (allowMissingGameMappings && rawMapping === undefined) continue;
+      const mapping = recordValue(rawMapping);
       if (
         !mapping ||
         !["direct", "normalized", "derived", "simplified", "unavailable"].includes(
@@ -268,7 +271,7 @@ export function assertDirectToSimplifiedCompatibilityReviews(
 ): void {
   const current = compatibilityVariables(currentCatalog, "Current");
   const baseline = new Map(
-    compatibilityVariables(baselineCatalog, "Baseline").map((variable) => [
+    compatibilityVariables(baselineCatalog, "Baseline", true).map((variable) => [
       variable.id,
       variable,
     ]),
