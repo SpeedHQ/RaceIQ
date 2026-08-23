@@ -1,5 +1,5 @@
 import { getGame } from "@shared/games/registry";
-import { getTireTemperatureSourceUnit } from "@shared/games/telemetry";
+import { getDisplayPower, getDisplayTorque, getTireTemperatureSourceUnit } from "@shared/games/telemetry";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { convertSpeed } from "./speed";
 import { convertTemp } from "./temperature";
@@ -26,7 +26,8 @@ export interface DisplayPacket extends TelemetryPacket {
  * The game adapter declares the packet's tire-temperature unit.
  */
 export function convertPacket(raw: TelemetryPacket, speedUnit: "mph" | "kmh", tempUnit: "F" | "C"): DisplayPacket {
-  const srcTemp = getTireTemperatureSourceUnit(getGame(raw.gameId).telemetry.tireTemperature);
+  const telemetry = getGame(raw.gameId).telemetry;
+  const srcTemp = getTireTemperatureSourceUnit(telemetry.tireTemperature);
   return {
     ...raw,
     DisplaySpeed: convertSpeed(raw.Speed, speedUnit),
@@ -34,10 +35,8 @@ export function convertPacket(raw: TelemetryPacket, speedUnit: "mph" | "kmh", te
     DisplayTireTempFR: convertTemp(raw.TireTempFR, tempUnit, srcTemp),
     DisplayTireTempRL: convertTemp(raw.TireTempRL, tempUnit, srcTemp),
     DisplayTireTempRR: convertTemp(raw.TireTempRR, tempUnit, srcTemp),
-    DisplayPower: raw.gameId === "fm-2023" ? raw.Power / 745.7
-                : raw.gameId === "f1-2025" ? raw.Power
-                : 0,
-    DisplayTorque: raw.gameId === "fm-2023" ? raw.Torque : 0,
+    DisplayPower: getDisplayPower(raw, telemetry.power),
+    DisplayTorque: getDisplayTorque(raw, telemetry.torque),
   };
 }
 

@@ -39,17 +39,8 @@ export interface AnalysisTelemetryModel {
   suspensionCompressionBias: AnalysisTelemetryMetric;
 }
 
-export type PacketUnit =
-  | "fraction"
-  | "litre"
-  | "celsius"
-  | "fahrenheit"
-  | "psi"
-  | "watt"
-  | "newton-metre";
-export interface ScalarTelemetrySpec<
-  Unit extends PacketUnit = PacketUnit,
-> {
+export type PacketUnit = "fraction" | "litre" | "celsius" | "fahrenheit" | "psi" | "watt" | "newton-metre";
+export interface ScalarTelemetrySpec<Unit extends PacketUnit = PacketUnit> {
   packetUnit: Unit;
   binding?: SemanticMetricBinding;
 }
@@ -60,7 +51,6 @@ export interface TelemetryChannelSpec {
   freshness: "continuous" | "pit-snapshot" | "static";
   binding?: SemanticMetricBinding;
 }
-
 
 export interface TelemetryModel {
   fuel: ScalarTelemetrySpec<"fraction" | "litre">;
@@ -75,6 +65,21 @@ export interface TelemetryModel {
   handBrake?: TelemetryChannelSpec;
   weather?: TelemetryChannelSpec;
   pitStatus?: TelemetryChannelSpec;
+
+  /**
+   * Power-curve sample validity. Adapters omit this when every sample is
+   * eligible; otherwise declare the gear values that carry no usable
+   * torque (neutral) or noisy telemetry (reverse), and whether samples
+   * must fall inside an active race.
+   */
+  gearing?: {
+    /** Gear value with no power transfer (neutral). */
+    neutralGear?: number;
+    /** Reverse gear value — noisy telemetry, excluded from power curves. */
+    reverseGear?: number;
+    /** Exclude samples where IsRaceOn <= 0. */
+    requireRaceOn?: boolean;
+  };
 
   /**
    * Analysis-panel semantics. Omitted fields inherit the current cross-game
@@ -107,11 +112,13 @@ export interface GameAdapter {
   nativeSectors: boolean;
 
   /** Read the source-defined sector layout from a normalized telemetry frame. */
-  getNativeSectorLayout?(packet: TelemetryPacket): {
-    starts: number[];
-    lapFraction?: number;
-    trackLengthM?: number;
-  } | undefined;
+  getNativeSectorLayout?(packet: TelemetryPacket):
+    | {
+        starts: number[];
+        lapFraction?: number;
+        trackLengthM?: number;
+      }
+    | undefined;
 
   /** Raw-lap replay should synthesize a finish sample from the following frame. */
   appendsDelayedFinishFrame: boolean;
@@ -140,7 +147,6 @@ export interface GameAdapter {
 
   /** Steering range: abs(max deviation from center) */
   steeringRange: number;
-
 
   /** Resolve car ordinal to human-readable name */
   getCarName(ordinal: number): string;
@@ -174,7 +180,7 @@ export interface GameAdapter {
   /** Brake temp thresholds in °C — front/rear have different working ranges */
   brakeTempThresholds?: {
     front: { warm: number; hot: number };
-    rear:  { warm: number; hot: number };
+    rear: { warm: number; hot: number };
   };
 
   /** Car class names (e.g. Forza: D/C/B/A/S/R/P/X) — undefined if N/A */
@@ -183,4 +189,3 @@ export interface GameAdapter {
   /** Drivetrain names (e.g. FWD/RWD/AWD) — undefined if N/A */
   drivetrainNames?: Record<number, string>;
 }
-

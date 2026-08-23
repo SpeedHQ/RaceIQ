@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { DisplayPacket } from "../client/src/lib/convert-packet";
-import { getGearingTelemetryState, ingestGearingTelemetry, isLaunchHold, isPullBack, resetGearingTelemetry, setAutoRecording, setGearingRecording, trackGearingMaxSpeed } from "../client/src/lib/gearing-telemetry";
+import {
+  getGearingTelemetryState,
+  ingestGearingTelemetry,
+  isLaunchHold,
+  isPullBack,
+  resetGearingTelemetry,
+  setAutoRecording,
+  setGearingRecording,
+  trackGearingMaxSpeed,
+} from "../client/src/lib/gearing-telemetry";
+import { initGameAdapters } from "../shared/games/init";
+
+initGameAdapters();
 
 /** Minimal valid fm-2023 packet (passes isSampleValid). */
 function makePacket(overrides: Partial<DisplayPacket> = {}): DisplayPacket {

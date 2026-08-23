@@ -1,6 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import { computeGearRanges, type GearRange } from "../client/src/lib/gear-ranges";
 import type { DisplayPacket } from "../client/src/lib/convert-packet";
+import { initGameAdapters } from "../shared/games/init";
+
+initGameAdapters();
 
 function makePacket(overrides: Partial<DisplayPacket>): DisplayPacket {
   return {
@@ -123,9 +126,7 @@ describe("computeGearRanges", () => {
       makePacket({ Gear: 1, CurrentEngineRpm: 4000, DisplaySpeed: 60 }),
     ];
     const result = computeGearRanges(packets);
-    expect(result).toEqual([
-      { gear: 1, minRpm: 3000, maxRpm: 5000, minSpeed: 50, maxSpeed: 80 },
-    ]);
+    expect(result).toEqual([{ gear: 1, minRpm: 3000, maxRpm: 5000, minSpeed: 50, maxSpeed: 80 }]);
   });
 
   test("computes ranges for multiple gears", () => {
@@ -149,20 +150,13 @@ describe("computeGearRanges", () => {
       makePacket({ Gear: 1, CurrentEngineRpm: 4000, DisplaySpeed: 60 }),
     ];
     const result = computeGearRanges(packets);
-    expect(result).toEqual([
-      { gear: 1, minRpm: 4000, maxRpm: 4000, minSpeed: 60, maxSpeed: 60 },
-    ]);
+    expect(result).toEqual([{ gear: 1, minRpm: 4000, maxRpm: 4000, minSpeed: 60, maxSpeed: 60 }]);
   });
 
   test("filters invalid samples (IsRaceOn <= 0 for fm-2023)", () => {
-    const packets = [
-      makePacket({ Gear: 1, CurrentEngineRpm: 3000, DisplaySpeed: 50, IsRaceOn: 0 }),
-      makePacket({ Gear: 1, CurrentEngineRpm: 5000, DisplaySpeed: 80, IsRaceOn: 1 }),
-    ];
+    const packets = [makePacket({ Gear: 1, CurrentEngineRpm: 3000, DisplaySpeed: 50, IsRaceOn: 0 }), makePacket({ Gear: 1, CurrentEngineRpm: 5000, DisplaySpeed: 80, IsRaceOn: 1 })];
     const result = computeGearRanges(packets);
-    expect(result).toEqual([
-      { gear: 1, minRpm: 5000, maxRpm: 5000, minSpeed: 80, maxSpeed: 80 },
-    ]);
+    expect(result).toEqual([{ gear: 1, minRpm: 5000, maxRpm: 5000, minSpeed: 80, maxSpeed: 80 }]);
   });
 
   test("sorts gears numerically", () => {

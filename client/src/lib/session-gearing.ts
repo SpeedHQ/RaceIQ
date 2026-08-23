@@ -1,4 +1,6 @@
 import type { GameId } from "@shared/games/ids";
+import { getGame } from "@shared/games/registry";
+import { getDisplayPower, getDisplayTorque, isGearingSampleValid } from "@shared/games/telemetry";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import { type GearBucket, type GearingSample, MAX_TRACK_SAMPLES, sessionKeyFor, type TrackSpeedLap } from "./gearing-telemetry";
 import { isSampleValid } from "./gearing-validation";
@@ -47,39 +49,20 @@ export function computeTrackLaps(packets: GearingSample[]): { current: TrackSpee
   return laps;
 }
 
-function isSampleValidRaw(packet: TelemetryPacket, gameId: GameId): boolean {
-  switch (gameId) {
-    case "fm-2023":
-      return packet.IsRaceOn > 0 && packet.Gear !== 11 && packet.Gear > 0;
-    default:
-      return true;
-  }
-}
-
-function getDisplayPower(packet: TelemetryPacket, gameId: GameId): number {
-  if (gameId === "fm-2023") return packet.Power / 745.7;
-  if (gameId === "f1-2025") return packet.Power;
-  return 0;
-}
-
-function getDisplayTorque(packet: TelemetryPacket, gameId: GameId): number {
-  if (gameId === "fm-2023") return packet.Torque;
-  return 0;
-}
-
 /** Stride for downsampling — process every Nth packet to reduce CPU load. */
 const DEFAULT_STRIDE = 5;
 
 export function accumulateBuckets(buckets: Record<number, Record<number, GearBucket>>, packets: TelemetryPacket[], gameId: GameId, stride = DEFAULT_STRIDE): void {
+  const telemetry = getGame(gameId).telemetry;
   for (let i = 0; i < packets.length; i += stride) {
     const packet = packets[i];
-    if (!isSampleValidRaw(packet, gameId)) continue;
+    if (!isGearingSampleValid(packet, telemetry)) continue;
 
     const gear = packet.Gear;
     const rpm = packet.CurrentEngineRpm;
     const bucketIdx = Math.floor(rpm / BUCKET_SIZE);
-    const hp = getDisplayPower(packet, gameId);
-    const nm = getDisplayTorque(packet, gameId);
+    const hp = getDisplayPower(packet, telemetry.power);
+    const nm = getDisplayTorque(packet, telemetry.torque);
 
     if (!buckets[gear]) buckets[gear] = {};
     if (!buckets[gear][bucketIdx]) {

@@ -8,8 +8,15 @@ import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
-import type { DisplayPacket } from "../lib/convert-packet";
+import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
+import { initGameAdapters } from "../../../shared/games/init";
+
+// Display fixtures are precomputed through the shared converter, which
+// resolves against the adapter registry. Register eagerly so the module is
+// self-sufficient regardless of import order (app startup and Storybook
+// re-register the same adapters later; registration is idempotent).
+initGameAdapters();
 
 // ── Shared base packet fields ────────────────────────────────────────────────
 
@@ -352,34 +359,100 @@ export const fakeF1Packet: TelemetryPacket = {
   },
 };
 const semanticFixtureIds = [
-  "identity.car-ordinal", "identity.track-ordinal", "identity.car-class", "identity.car-performance-index", "identity.drivetrain-type",
-  "motion.speed", "motion.acceleration-x", "motion.acceleration-z", "motion.position-x", "motion.position-z", "motion.roll", "motion.pitch", "motion.yaw",
-  "inputs.accel", "inputs.brake", "inputs.steer", "inputs.gear", "engine.current-engine-rpm", "engine.engine-max-rpm", "engine.engine-idle-rpm", "engine.power", "engine.torque", "engine.boost",
-  "fuel.fuel", "fuel.fuel-capacity", "timing.best-lap", "timing.last-lap", "timing.current-lap", "timing.lap-number",
-  "timing.distance-traveled", "race.race-position", "tire.temperature.average", "tires.tire-wear", "tires.tire-pressure", "brakes.brake-temp",
-  "aero.drs-active", "aero.drs-available", "aero.drs-zone-approaching", "weather.weather-type", "weather.track-temp", "weather.air-temp", "weather.rain-percent",
-  "fuel.ers-store-energy", "fuel.ers-deploy-mode", "fuel.ers-deployed", "fuel.ers-harvested",
+  "identity.car-ordinal",
+  "identity.track-ordinal",
+  "identity.car-class",
+  "identity.car-performance-index",
+  "identity.drivetrain-type",
+  "motion.speed",
+  "motion.acceleration-x",
+  "motion.acceleration-z",
+  "motion.position-x",
+  "motion.position-z",
+  "motion.roll",
+  "motion.pitch",
+  "motion.yaw",
+  "inputs.accel",
+  "inputs.brake",
+  "inputs.steer",
+  "inputs.gear",
+  "engine.current-engine-rpm",
+  "engine.engine-max-rpm",
+  "engine.engine-idle-rpm",
+  "engine.power",
+  "engine.torque",
+  "engine.boost",
+  "fuel.fuel",
+  "fuel.fuel-capacity",
+  "timing.best-lap",
+  "timing.last-lap",
+  "timing.current-lap",
+  "timing.lap-number",
+  "timing.distance-traveled",
+  "race.race-position",
+  "tire.temperature.average",
+  "tires.tire-wear",
+  "tires.tire-pressure",
+  "brakes.brake-temp",
+  "aero.drs-active",
+  "aero.drs-available",
+  "aero.drs-zone-approaching",
+  "weather.weather-type",
+  "weather.track-temp",
+  "weather.air-temp",
+  "weather.rain-percent",
+  "fuel.ers-store-energy",
+  "fuel.ers-deploy-mode",
+  "fuel.ers-deployed",
+  "fuel.ers-harvested",
 ];
 
 function makeSemanticFixture(raw: TelemetryPacket) {
   const values: unknown[] = semanticFixtureIds.map((id) => {
     const f1 = raw.f1 as Record<string, unknown> | undefined;
     const map: Record<string, unknown> = {
-      "identity.car-ordinal": raw.CarOrdinal, "identity.track-ordinal": raw.TrackOrdinal, "identity.car-class": raw.CarClass,
-      "identity.car-performance-index": raw.CarPerformanceIndex, "identity.drivetrain-type": raw.DrivetrainType,
-      "motion.speed": raw.Speed, "motion.acceleration-x": raw.AccelerationX, "motion.acceleration-z": raw.AccelerationZ,
-      "motion.position-x": raw.PositionX, "motion.position-z": raw.PositionZ, "motion.roll": raw.Roll, "motion.pitch": raw.Pitch, "motion.yaw": raw.Yaw,
-      "inputs.accel": raw.Accel, "inputs.brake": raw.Brake, "inputs.steer": raw.Steer, "inputs.gear": raw.Gear,
-      "engine.current-engine-rpm": raw.CurrentEngineRpm, "engine.engine-max-rpm": raw.EngineMaxRpm, "engine.engine-idle-rpm": raw.EngineIdleRpm,
-      "engine.power": raw.Power, "engine.torque": raw.Torque, "engine.boost": raw.Boost, "fuel.fuel": raw.Fuel, "fuel.fuel-capacity": raw.FuelCapacity,
-      "timing.best-lap": raw.BestLap, "timing.last-lap": raw.LastLap, "timing.current-lap": raw.CurrentLap, "timing.lap-number": raw.LapNumber,
-      "timing.distance-traveled": raw.DistanceTraveled, "race.race-position": raw.RacePosition,
+      "identity.car-ordinal": raw.CarOrdinal,
+      "identity.track-ordinal": raw.TrackOrdinal,
+      "identity.car-class": raw.CarClass,
+      "identity.car-performance-index": raw.CarPerformanceIndex,
+      "identity.drivetrain-type": raw.DrivetrainType,
+      "motion.speed": raw.Speed,
+      "motion.acceleration-x": raw.AccelerationX,
+      "motion.acceleration-z": raw.AccelerationZ,
+      "motion.position-x": raw.PositionX,
+      "motion.position-z": raw.PositionZ,
+      "motion.roll": raw.Roll,
+      "motion.pitch": raw.Pitch,
+      "motion.yaw": raw.Yaw,
+      "inputs.accel": raw.Accel,
+      "inputs.brake": raw.Brake,
+      "inputs.steer": raw.Steer,
+      "inputs.gear": raw.Gear,
+      "engine.current-engine-rpm": raw.CurrentEngineRpm,
+      "engine.engine-max-rpm": raw.EngineMaxRpm,
+      "engine.engine-idle-rpm": raw.EngineIdleRpm,
+      "engine.power": raw.Power,
+      "engine.torque": raw.Torque,
+      "engine.boost": raw.Boost,
+      "fuel.fuel": raw.Fuel,
+      "fuel.fuel-capacity": raw.FuelCapacity,
+      "timing.best-lap": raw.BestLap,
+      "timing.last-lap": raw.LastLap,
+      "timing.current-lap": raw.CurrentLap,
+      "timing.lap-number": raw.LapNumber,
+      "timing.distance-traveled": raw.DistanceTraveled,
+      "race.race-position": raw.RacePosition,
       "tire.temperature.average": [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR],
       "tires.tire-wear": [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
       "tires.tire-pressure": [f1?.tyrePressureFL, f1?.tyrePressureFR, f1?.tyrePressureRL, f1?.tyrePressureRR],
       "brakes.brake-temp": [f1?.brakeTempFL, f1?.brakeTempFR, f1?.brakeTempRL, f1?.brakeTempRR],
-      "weather.weather-type": f1?.weather, "weather.track-temp": f1?.trackTemperature, "weather.air-temp": f1?.airTemperature, "weather.rain-percent": f1?.rainPercentage,
-      "aero.drs-active": f1?.drsActivated, "aero.drs-available": f1?.drsAllowed, "aero.drs-zone-approaching": f1?.drsZoneApproaching,
+      "weather.weather-type": f1?.weather,
+      "weather.track-temp": f1?.trackTemperature,
+      "weather.air-temp": f1?.airTemperature,
+      "weather.rain-percent": f1?.rainPercentage,
+      "aero.drs-active": f1?.drsActivated,
+      "aero.drs-available": f1?.drsAllowed,
+      "aero.drs-zone-approaching": f1?.drsZoneApproaching,
       "fuel.ers-store-energy": f1?.ersStoreEnergy,
       "fuel.ers-deploy-mode": f1?.ersDeployMode,
       "fuel.ers-deployed": f1?.ersDeployedThisLap,
@@ -388,21 +461,34 @@ function makeSemanticFixture(raw: TelemetryPacket) {
     return map[id];
   });
   const schema: LiveTelemetrySchemaMessageV1 = {
-    type: "telemetry-schema", protocolVersion: 1, schemaId: `storybook-${raw.gameId}`, simulator: raw.gameId,
-    catalogVersion: "storybook", catalogHash: "storybook", catalogSchemaVersion: "1", parserVersion: "storybook",
-    resolverVersion: "storybook", derivationVersion: "storybook",
+    type: "telemetry-schema",
+    protocolVersion: 1,
+    schemaId: `storybook-${raw.gameId}`,
+    simulator: raw.gameId,
+    catalogVersion: "storybook",
+    catalogHash: "storybook",
+    catalogSchemaVersion: "1",
+    parserVersion: "storybook",
+    resolverVersion: "storybook",
+    derivationVersion: "storybook",
     definitions: semanticFixtureIds.map((semanticId) => ({ semanticId, unit: null, mappingStatus: "direct" as const, schemaVersion: "1", limitations: [] })),
   };
   const frame: LiveTelemetryFrameMessageV1 = {
-    type: "telemetry-frame", protocolVersion: 1, schemaId: schema.schemaId, streamId: "storybook", sessionId: 1,
-    sequence: 1, observedAt: { domain: "session", milliseconds: raw.TimestampMS }, receivedAtMs: raw.TimestampMS, values: values as never[],
-    context: { },
+    type: "telemetry-frame",
+    protocolVersion: 1,
+    schemaId: schema.schemaId,
+    streamId: "storybook",
+    sessionId: 1,
+    sequence: 1,
+    observedAt: { domain: "session", milliseconds: raw.TimestampMS },
+    receivedAtMs: raw.TimestampMS,
+    values: values as never[],
+    context: {},
   };
   return { schema, frame, view: buildLiveTelemetryView(schema, frame)! };
 }
 
 export const fakeF1SemanticFixture = makeSemanticFixture(fakeF1Packet);
-
 
 // ── Forza Motorsport Fake Packet ─────────────────────────────────────────────
 
@@ -528,18 +614,8 @@ export const fakeAccPacket: TelemetryPacket = {
 // ── Converted Display Packets ────────────────────────────────────────────────
 
 function makeDisplayPacket(raw: TelemetryPacket): DisplayPacket {
-  const isForza = raw.gameId === "fm-2023";
-  const fahrenheitToC = (f: number) => (f - 32) / 1.8;
-  return {
-    ...raw,
-    DisplaySpeed: Math.round(raw.Speed * 3.6), // m/s → km/h
-    DisplayTireTempFL: isForza ? fahrenheitToC(raw.TireTempFL) : raw.TireTempFL,
-    DisplayTireTempFR: isForza ? fahrenheitToC(raw.TireTempFR) : raw.TireTempFR,
-    DisplayTireTempRL: isForza ? fahrenheitToC(raw.TireTempRL) : raw.TireTempRL,
-    DisplayTireTempRR: isForza ? fahrenheitToC(raw.TireTempRR) : raw.TireTempRR,
-    DisplayPower: isForza ? raw.Power / 745.7 : raw.gameId === "f1-2025" ? raw.Power : 0,
-    DisplayTorque: isForza ? raw.Torque : 0,
-  };
+  // Same canonical conversion the app uses — story fixtures stay honest.
+  return convertPacket(raw, "kmh", "C");
 }
 
 // AC Evo shares ACC's shared-memory shape; the packet differs only in the
@@ -552,7 +628,6 @@ export const fakeAccDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAccPack
 export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvoPacket);
 export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
 export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
-
 
 // ── Sector Data ──────────────────────────────────────────────────────────────
 // We are on lap 5, partway through S2.
