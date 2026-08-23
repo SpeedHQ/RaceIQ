@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { GameId } from "../../../shared/games/ids";
+import type { TrackImagery } from "../../../shared/racing/tracks/imagery";
+import type { PitLine } from "../lib/canvas/draw-track";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
@@ -49,13 +51,29 @@ export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId
     queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
     queryFn: async () => {
       const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
-      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string } | { x: number; z: number }[]>(
-        res,
-      );
+      return rpcJson<
+        | { points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; pitLines?: PitLine[]; flipX?: boolean; recorded?: boolean; source?: string }
+        | { x: number; z: number }[]
+      >(res);
     },
     enabled: ord != null && ord >= 0 && !!gameId,
   });
 }
+export function useTrackImagery(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
+  return useQuery({
+    queryKey: ["track-imagery", ord!, gameId ?? null],
+    queryFn: async () => {
+      const response = await fetch(`/api/track-imagery/${ord}?gameId=${encodeURIComponent(gameId!)}`);
+      if (!response.ok) throw new Error(`Unable to load track imagery: ${response.statusText}`);
+      return (await response.json()) as TrackImagery | null;
+    },
+    enabled: ord != null && ord >= 0 && !!gameId,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
 
 export function useTrackBoundaries(ord: number | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();

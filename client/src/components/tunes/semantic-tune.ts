@@ -1,5 +1,5 @@
 import type { SemanticReplayFrame } from "../../hooks/laps";
-import { semanticValues, type SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { semanticValues, type SemanticAnalysisFrame } from "@/components/track-map/types";
 
 export interface SemanticTuneSample {
   values: SemanticAnalysisFrame["values"];

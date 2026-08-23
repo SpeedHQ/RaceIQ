@@ -5,7 +5,7 @@ import { suspensionCompressionBias } from "../../../../shared/racing/analysis/la
 import { Info } from "lucide-react";
 import { operatingRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import { WheelTable } from "./WheelTable";
 
 interface Props { frame: SemanticAnalysisFrame; gameId: import("../../../../shared/games/ids").GameId; }

@@ -1,12 +1,11 @@
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { DEFAULT_TRACK_OVERLAYS, type Point, type SemanticAnalysisFrame, type TrackOverlayKey } from "@/components/track-map/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
-import type { Point } from "../analyse/track-map/types";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
@@ -90,7 +89,7 @@ export function LiveTestDashboard({
   const latestLap = useMemo(() => (sessionLaps.length ? [...sessionLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [sessionLaps]);
 
   const [rotateWithCar, setRotateWithCar] = useState(false);
-  const [trackOverlay, setTrackOverlay] = useState<"none" | "inputs" | "segments" | "sectors">("none");
+  const [trackOverlays, setTrackOverlays] = useState(DEFAULT_TRACK_OVERLAYS);
   const [mapZoom, setMapZoom] = useState(1);
 
   // Live driving line for the current in-progress lap: append each new packet,
@@ -147,10 +146,10 @@ export function LiveTestDashboard({
               currentFrame={currentFrame}
               showTrace={false}
               rotateWithCar={rotateWithCar}
-              trackOverlay={trackOverlay}
+              trackOverlays={trackOverlays}
               mapZoom={mapZoom}
               onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
-              onTrackOverlayCycle={() => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none"))}
+              onTrackOverlayChange={(key: TrackOverlayKey, checked: boolean) => setTrackOverlays((previous) => ({ ...previous, [key]: checked }))}
               onMapZoomChange={setMapZoom}
               hideSteeringOverlay
               weatherBottomRight

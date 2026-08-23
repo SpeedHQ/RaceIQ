@@ -700,6 +700,8 @@
   "overlay_inputs": "Inputs",
   "overlay_segments": "Segments",
   "overlay_sectors": "Sectors",
+  "overlay_racing_line": "Racing line",
+  "overlay_imagery": "Image",
   "track_detail_class": "Class",
   "track_detail_lap_num": "Lap #",
   "track_detail_all_cars": "All cars",

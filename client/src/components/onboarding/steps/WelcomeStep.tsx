@@ -1,6 +1,6 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
 import type { TelemetryPacket } from "@shared/telemetry/types";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CarWireframe } from "@/components/CarWireframe";

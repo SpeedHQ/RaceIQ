@@ -14,7 +14,7 @@ import { client } from "../lib/rpc";
 import { tireTempColor } from "../lib/vehicle-dynamics";
 import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../lib/wireframe-data";
 import { useGameId } from "../stores/game";
-import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import { Button } from "./ui/button";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";

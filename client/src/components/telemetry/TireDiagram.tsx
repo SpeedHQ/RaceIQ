@@ -3,7 +3,7 @@ import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
 import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
 import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import { useUnits } from "@/hooks/useUnits";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";

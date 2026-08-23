@@ -3,7 +3,7 @@ import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMemo, useState } from "react";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
-import type { SemanticAnalysisFrame } from "../../analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
