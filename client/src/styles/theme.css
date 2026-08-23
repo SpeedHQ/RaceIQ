@@ -194,6 +194,8 @@
 
   /* Track-map identities. */
   --track-start: var(--color-emerald-500);
+  --track-position: var(--color-cyan-400);
+  --track-position-outline: var(--color-slate-900);
   --track-surface: var(--color-slate-700);
   --track-edge: var(--color-slate-500);
   --track-outline: var(--color-slate-700);
