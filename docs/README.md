@@ -10,6 +10,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 - [Contributing](../CONTRIBUTING.md) — repository entry point and contribution workflow.
 - [Development](contributing/development.md) — install, run, seed data, and manage schema changes.
+- [Stacked branches](contributing/stacked-branches.md) — split dependent feature work into reviewable branches and manage generated track assets.
 - [Frontend development](contributing/frontend.md) — component ownership, live-state boundaries, and routing contracts.
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.
